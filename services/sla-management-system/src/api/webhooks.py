@@ -156,7 +156,10 @@ async def alertmanager_webhook(
 
             if budget:
                 # Incrementar contador de violações
-                # TODO: Implementar update de violations_count
+                # Buscar contador atual e incrementar
+                current_violations = budget.violations_count or 0
+                new_violations = current_violations + 1
+                await pg_client.update_violations_count(slo.slo_id, new_violations)
 
                 # Avaliar políticas de freeze
                 freeze_events = await policy_enforcer.evaluate_policies(budget)

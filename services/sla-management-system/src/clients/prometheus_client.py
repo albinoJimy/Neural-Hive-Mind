@@ -235,6 +235,66 @@ class PrometheusClient:
             )
             return 0.0
 
+    async def count_slo_violations(
+        self,
+        slo_name: str,
+        window_hours: int = 24
+    ) -> int:
+        """
+        Conta número de violações de SLO via Alertmanager alerts.
+
+        Args:
+            slo_name: Nome do SLO
+            window_hours: Janela de tempo em horas (default: 24)
+
+        Returns:
+            Número de violações detectadas
+        """
+        # Query para contar alertas de violação SLO
+        # ALERTS_FOR_STATE retorna alertas ativos
+        query = f'''
+        count(ALERTS{{slo="{slo_name}", alertstate="firing"}})
+        '''
+
+        try:
+            result = await self.query(query)
+            if result.get("resultType") == "vector":
+                results = result.get("result", [])
+                if results:
+                    count = int(float(results[0].get("value", [0, "0"])[1]))
+                    return count
+
+            # Fallback: query com range para histórico
+            end = datetime.utcnow()
+            start = end - timedelta(hours=window_hours)
+
+            # Query alternativa usando increase em contadores de alertas
+            query_history = f'''
+            sum(increase(ALERTS{{slo="{slo_name}"}}[{window_hours}h]))
+            '''
+
+            result_history = await self.query(query_history)
+            if result_history.get("resultType") == "vector":
+                results = result_history.get("result", [])
+                if results:
+                    count = int(float(results[0].get("value", [0, "0"])[1]))
+                    return count
+
+            self.logger.debug(
+                "slo_violations_not_found",
+                slo_name=slo_name,
+                window_hours=window_hours
+            )
+            return 0
+
+        except Exception as e:
+            self.logger.error(
+                "slo_violations_count_failed",
+                slo_name=slo_name,
+                error=str(e)
+            )
+            return 0
+
     async def health_check(self) -> bool:
         """Verifica conectividade com Prometheus."""
         try:

@@ -110,14 +110,15 @@ async def update_policy(
 ):
     """Atualiza campos da política."""
     try:
-        # TODO: Implementar update_policy no PostgreSQLClient
-        policy = await pg_client.get_policy(policy_id)
-        if not policy:
+        success = await pg_client.update_policy(policy_id, updates)
+        if not success:
             raise HTTPException(status_code=404, detail="Policy not found")
 
-        # Por enquanto, retornar política sem modificações
+        policy = await pg_client.get_policy(policy_id)
         return policy
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Update failed: {str(e)}")
 
@@ -128,9 +129,8 @@ async def delete_policy(
     pg_client: PostgreSQLClient = Depends(get_postgresql_client)
 ):
     """Deleta política (soft delete)."""
-    # TODO: Implementar delete_policy no PostgreSQLClient
-    policy = await pg_client.get_policy(policy_id)
-    if not policy:
+    success = await pg_client.delete_policy(policy_id)
+    if not success:
         raise HTTPException(status_code=404, detail="Policy not found")
 
     return {"message": "Policy deleted successfully"}
@@ -195,7 +195,5 @@ async def get_freeze_history(
     pg_client: PostgreSQLClient = Depends(get_postgresql_client)
 ):
     """Histórico de freezes (ativos e resolvidos)."""
-    # TODO: Implementar get_freeze_history no PostgreSQLClient
-    # Por enquanto, retornar apenas freezes ativos
-    freezes = await pg_client.get_active_freezes(service_name)
+    freezes = await pg_client.get_freeze_history(service_name, days)
     return FreezeListResponse(freezes=freezes, total=len(freezes))

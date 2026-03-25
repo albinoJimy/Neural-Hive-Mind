@@ -64,8 +64,11 @@ class BudgetCalculator:
             # Passo 3: Calcular burn rates
             burn_rates = await self._calculate_burn_rates(slo.service_name)
 
-            # Passo 5: Contar violações (simplificado)
-            violations_count = 0  # TODO: Query Prometheus para alertas
+            # Passo 5: Contar violações via Prometheus
+            violations_count = await self.prometheus_client.count_slo_violations(
+                slo_name=slo.name,
+                window_hours=24
+            )
 
             # Passo 6: Criar objeto ErrorBudget
             window_end = datetime.utcnow()

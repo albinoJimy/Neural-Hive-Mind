@@ -361,6 +361,56 @@ class PostgreSQLClient:
             )
             return budget.budget_id
 
+    async def update_violations_count(
+        self,
+        slo_id: str,
+        violations_count: int
+    ) -> bool:
+        """
+        Atualiza o contador de violações do budget mais recente.
+
+        Args:
+            slo_id: ID do SLO
+            violations_count: Novo contador de violações
+
+        Returns:
+            True se atualizado com sucesso, False caso contrário
+        """
+        from datetime import datetime
+
+        try:
+            async with self.pool.acquire() as conn:
+                result = await conn.execute('''
+                    UPDATE error_budgets
+                    SET violations_count = $2,
+                        last_violation_at = NOW()
+                    WHERE slo_id = $1
+                      AND calculated_at = (
+                          SELECT calculated_at
+                          FROM error_budgets
+                          WHERE slo_id = $1
+                          ORDER BY calculated_at DESC
+                          LIMIT 1
+                      )
+                ''', slo_id, violations_count)
+
+                success = result == 'UPDATE 1'
+                if success:
+                    self.logger.debug(
+                        "violations_count_updated",
+                        slo_id=slo_id,
+                        violations_count=violations_count
+                    )
+                return success
+
+        except Exception as e:
+            self.logger.error(
+                "violations_count_update_failed",
+                slo_id=slo_id,
+                error=str(e)
+            )
+            raise
+
     async def get_latest_budget(self, slo_id: str) -> Optional[ErrorBudget]:
         """Busca budget mais recente para um SLO."""
         async with self.pool.acquire() as conn:
@@ -731,6 +781,27 @@ class PostgreSQLClient:
             self.logger.error("policy_update_failed", policy_id=policy_id, error=str(e))
             raise
 
+    async def delete_policy(self, policy_id: str) -> bool:
+        """Soft delete de política (marca como disabled)."""
+        from datetime import datetime
+
+        try:
+            async with self.pool.acquire() as conn:
+                result = await conn.execute('''
+                    UPDATE freeze_policies
+                    SET enabled = FALSE
+                    WHERE policy_id = $1
+                ''', policy_id)
+                success = result == 'UPDATE 1'
+                if success:
+                    self.logger.info("policy_soft_deleted", policy_id=policy_id)
+                else:
+                    self.logger.warning("policy_delete_no_rows_affected", policy_id=policy_id)
+                return success
+        except Exception as e:
+            self.logger.error("policy_delete_failed", policy_id=policy_id, error=str(e))
+            raise
+
     # Métodos de Freeze Events
     async def create_freeze_event(self, event: FreezeEvent) -> str:
         """Cria evento de freeze."""
@@ -773,3 +844,34 @@ class PostgreSQLClient:
                 WHERE event_id = $1
             ''', event_id)
             return result == "UPDATE 1"
+
+    async def get_freeze_history(
+        self,
+        service_name: Optional[str] = None,
+        days: int = 7
+    ) -> List[FreezeEvent]:
+        """
+        Retorna histórico de freezes (ativos e resolvidos).
+
+        Args:
+            service_name: Filtrar por nome do serviço (opcional)
+            days: Número de dias de histórico (default: 7)
+
+        Returns:
+            Lista de FreezeEvent ordenada por triggered_at DESC
+        """
+        query = '''
+            SELECT * FROM freeze_events
+            WHERE triggered_at >= NOW() - ($1::INTEGER || ' days')::INTERVAL
+        '''
+        params = [days]
+
+        if service_name:
+            params.append(service_name)
+            query += f' AND service_name = ${len(params)}'
+
+        query += ' ORDER BY triggered_at DESC'
+
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(query, *params)
+            return [FreezeEvent(**dict(row)) for row in rows]
