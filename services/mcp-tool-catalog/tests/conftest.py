@@ -127,7 +127,7 @@ def rest_tool():
         cost_score=0.1,
         average_execution_time_ms=30000,
         integration_type=IntegrationType.REST_API,
-        authentication_method="BEARER",
+        authentication_method="API_KEY",
         endpoint_url="http://sonarqube:9000/api/analyze",
         output_format="json"
     )
@@ -139,7 +139,7 @@ def container_tool():
     return ToolDescriptor(
         tool_id="trivy-001",
         tool_name="trivy",
-        category=ToolCategory.SECURITY,
+        category=ToolCategory.ANALYSIS,
         version="0.45.0",
         capabilities=["vulnerability-scanning", "sbom"],
         reputation_score=0.92,
@@ -158,7 +158,7 @@ def mcp_enabled_tool():
     return ToolDescriptor(
         tool_id="trivy-mcp-001",
         tool_name="trivy-mcp",
-        category=ToolCategory.SECURITY,
+        category=ToolCategory.ANALYSIS,
         version="0.45.0",
         capabilities=["vulnerability-scanning", "container-scanning"],
         reputation_score=0.95,
@@ -407,7 +407,7 @@ def mock_mongodb_client():
     db = MagicMock()
     collection = MagicMock()
 
-    # Configure find_one to return None (not found)
+    # Configure collection methods
     collection.find_one = AsyncMock(return_value=None)
     collection.insert_one = AsyncMock()
     collection.update_one = AsyncMock()
@@ -416,6 +416,31 @@ def mock_mongodb_client():
 
     db.__getitem__ = MagicMock(return_value=collection)
     client.__getitem__ = MagicMock(return_value=db)
+
+    # MongoDBClient methods used by ToolRegistry
+    client.save_tool = AsyncMock(return_value="test-tool-id")
+    client.get_tool = AsyncMock(return_value=None)
+    client.list_tools = AsyncMock(return_value=[])
+    client.update_tool_reputation = AsyncMock(return_value=True)
+    client.get_tool_usage_stats = AsyncMock(return_value={})
+
+    # Also expose db for direct access
+    client.db = db
+
+    return client
+
+
+@pytest.fixture
+def mock_redis_client():
+    """Mock de cliente Redis."""
+    client = AsyncMock()
+
+    # RedisClient methods used by ToolRegistry
+    client.invalidate_cache = AsyncMock()
+    client.get_tool_usage = AsyncMock(return_value=0)
+    client.increment_tool_usage = AsyncMock()
+    client.increment_tool_feedback = AsyncMock()
+    client.get_tool_health = AsyncMock(return_value=True)
 
     return client
 

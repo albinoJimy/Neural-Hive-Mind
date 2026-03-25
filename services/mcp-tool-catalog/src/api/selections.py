@@ -186,19 +186,72 @@ async def select_tools(request: ToolSelectionAPIRequest):
         )
 
 
-@router.get("/{request_id}/status")
+class SelectionStatusResponse(BaseModel):
+    """Resposta de status de seleção."""
+    request_id: str
+    status: str  # "completed", "processing", "not_found"
+    selected_tools: Optional[List[Dict[str, Any]]] = None
+    total_fitness_score: Optional[float] = None
+    selection_method: Optional[str] = None
+    cached: Optional[bool] = None
+    created_at: Optional[int] = None
+    error: Optional[str] = None
+
+
+@router.get("/{request_id}/status", response_model=SelectionStatusResponse)
 async def get_selection_status(request_id: str):
     """
-    Obtém status de uma seleção (placeholder para implementação futura).
+    Obtém status de uma seleção pelo request_id.
+
+    Consulta o histórico de seleções no MongoDB para retornar
+    informações sobre uma seleção específica.
 
     Args:
         request_id: ID da requisição
 
     Returns:
-        Status da seleção
+        Status da seleção com ferramentas selecionadas
     """
-    # TODO: Implementar consulta ao MongoDB de histórico
-    raise HTTPException(
-        status_code=501,
-        detail="Selection status endpoint not yet implemented"
-    )
+    if not genetic_selector:
+        raise HTTPException(
+            status_code=500,
+            detail="Genetic selector not initialized"
+        )
+
+    try:
+        # Consultar histórico no MongoDB
+        history = await genetic_selector.tool_registry.mongodb_client.get_selection_history(
+            filters={"request_id": request_id}
+        )
+
+        if not history:
+            return SelectionStatusResponse(
+                request_id=request_id,
+                status="not_found",
+                error=f"No selection found for request_id: {request_id}"
+            )
+
+        # Retornar a entrada mais recente (já está ordenada por created_at descending)
+        entry = history[0]
+
+        return SelectionStatusResponse(
+            request_id=entry.get("request_id", request_id),
+            status="completed",
+            selected_tools=entry.get("selected_tools"),
+            total_fitness_score=entry.get("total_fitness_score"),
+            selection_method=entry.get("selection_method"),
+            cached=entry.get("cached", False),
+            created_at=entry.get("created_at"),
+            error=None
+        )
+
+    except Exception as e:
+        logger.error(
+            "get_selection_status_failed",
+            request_id=request_id,
+            error=str(e)
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get selection status: {str(e)}"
+        )

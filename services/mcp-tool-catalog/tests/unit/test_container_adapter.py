@@ -82,11 +82,8 @@ class TestContainerAdapterExecution:
     async def test_execute_timeout_kills_container(self):
         """Deve matar container quando ocorre timeout."""
         from src.adapters.container_adapter import ContainerAdapter
-        from src.adapters.base_adapter import AdapterError
 
         adapter = ContainerAdapter(timeout_seconds=1)
-
-        kill_called = False
 
         async def mock_communicate():
             raise asyncio.TimeoutError()
@@ -97,17 +94,18 @@ class TestContainerAdapterExecution:
             mock_process.kill = MagicMock()
             mock_proc.return_value = mock_process
 
-            # O adapter deve tentar matar o container orfao
-            with pytest.raises(AdapterError) as exc_info:
-                await adapter.execute(
-                    tool_id='slow-container',
-                    tool_name='slow',
-                    command='slow/image:latest',
-                    parameters={},
-                    context={'tool_id': 'slow-container'}
-                )
+            # O adapter retorna ExecutionResult com erro (catches AdapterError)
+            result = await adapter.execute(
+                tool_id='slow-container',
+                tool_name='slow',
+                command='slow/image:latest',
+                parameters={},
+                context={'tool_id': 'slow-container'}
+            )
 
-            assert 'timed out' in str(exc_info.value).lower()
+            # Adapter retorna ExecutionResult com sucesso=False em caso de timeout
+            assert result.success is False
+            assert 'timed out' in result.error.lower()
             mock_process.kill.assert_called_once()
 
 

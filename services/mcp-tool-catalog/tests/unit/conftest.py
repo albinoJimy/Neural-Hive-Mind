@@ -27,6 +27,7 @@ def sample_tool_selection_request():
     return ToolSelectionRequest(
         request_id=str(uuid.uuid4()),
         ticket_id=str(uuid.uuid4()),
+        correlation_id=str(uuid.uuid4()),
         artifact_type='CODE',
         language='python',
         complexity_score=0.7,
@@ -51,6 +52,7 @@ def sample_tool_selection_request_simple():
     return ToolSelectionRequest(
         request_id=str(uuid.uuid4()),
         ticket_id=str(uuid.uuid4()),
+        correlation_id=str(uuid.uuid4()),
         artifact_type='CODE',
         language='python',
         complexity_score=0.3,
@@ -120,7 +122,7 @@ def mock_tool_registry_with_multiple_tools():
             cost_score=0.2 * i,
             average_execution_time_ms=10000,
             integration_type=IntegrationType.REST_API,
-            authentication_method='BEARER',
+            authentication_method='API_KEY',
             output_format='json'
         )
         for i in range(5)
@@ -170,7 +172,7 @@ def sample_tool_combination():
             cost_score=0.2,
             average_execution_time_ms=10000,
             integration_type=IntegrationType.REST_API,
-            authentication_method='BEARER',
+            authentication_method='API_KEY',
             output_format='json'
         )
     ]

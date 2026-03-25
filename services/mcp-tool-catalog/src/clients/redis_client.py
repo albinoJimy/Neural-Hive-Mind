@@ -122,6 +122,12 @@ class RedisClient:
         health = await self.client.get(key)
         return health == "1" if health else None
 
+    async def get_tool_health_ttl(self, tool_id: str) -> Optional[int]:
+        """Get remaining TTL of tool health status."""
+        key = f"mcp:tool:health:{tool_id}"
+        ttl = await self.client.ttl(key)
+        return ttl if ttl >= 0 else None
+
     async def increment_tool_feedback(self, tool_id: str, success: bool) -> int:
         """Incrementa contadores de feedback de ferramentas."""
         key = f"mcp:tool:feedback:{'success' if success else 'failure'}:{tool_id}"

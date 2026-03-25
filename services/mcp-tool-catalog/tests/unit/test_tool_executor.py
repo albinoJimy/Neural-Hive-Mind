@@ -38,7 +38,7 @@ class TestToolExecutorRouting:
             exit_code=0
         )
 
-        with patch('src.services.tool_executor.get_settings', return_value=mock_settings):
+        with patch('src.config.get_settings', return_value=mock_settings):
             executor = ToolExecutor(metrics=mock_metrics)
 
             # Mock adapter
@@ -65,17 +65,17 @@ class TestToolExecutorRouting:
         """Deve rotear para MCP quando configurado."""
         from src.services.tool_executor import ToolExecutor
         from src.adapters.base_adapter import ExecutionResult
-        from src.models.mcp_messages import MCPToolCallResponse, MCPContent
+        from src.models.mcp_messages import MCPToolCallResponse, MCPContentItem
 
         # Configurar tool_id no mcp_servers
         cli_tool.tool_id = 'trivy-001'
 
         mock_mcp_response = MCPToolCallResponse(
-            content=[MCPContent(type='text', text='MCP result')],
+            content=[MCPContentItem(type='text', text='MCP result')],
             isError=False
         )
 
-        with patch('src.services.tool_executor.get_settings', return_value=mock_settings_with_mcp):
+        with patch('src.config.get_settings', return_value=mock_settings_with_mcp):
             executor = ToolExecutor(metrics=mock_metrics)
 
             # Simular cliente MCP conectado
@@ -119,7 +119,7 @@ class TestToolExecutorGracefulDegradation:
             exit_code=0
         )
 
-        with patch('src.services.tool_executor.get_settings', return_value=mock_settings_with_mcp):
+        with patch('src.config.get_settings', return_value=mock_settings_with_mcp):
             executor = ToolExecutor(metrics=mock_metrics)
 
             # Simular cliente MCP que falha
@@ -172,7 +172,7 @@ class TestToolExecutorAdapterExecution:
             exit_code=0
         )
 
-        with patch('src.services.tool_executor.get_settings', return_value=mock_settings):
+        with patch('src.config.get_settings', return_value=mock_settings):
             executor = ToolExecutor(metrics=mock_metrics)
             executor.cli_adapter.execute = AsyncMock(return_value=mock_result)
             executor.cli_adapter.validate_tool_availability = AsyncMock(return_value=True)
@@ -205,7 +205,7 @@ class TestToolExecutorAdapterExecution:
             exit_code=200
         )
 
-        with patch('src.services.tool_executor.get_settings', return_value=mock_settings):
+        with patch('src.config.get_settings', return_value=mock_settings):
             executor = ToolExecutor(metrics=mock_metrics)
             executor.rest_adapter.execute = AsyncMock(return_value=mock_result)
             executor.rest_adapter.validate_tool_availability = AsyncMock(return_value=True)
@@ -237,7 +237,7 @@ class TestToolExecutorAdapterExecution:
             exit_code=0
         )
 
-        with patch('src.services.tool_executor.get_settings', return_value=mock_settings):
+        with patch('src.config.get_settings', return_value=mock_settings):
             executor = ToolExecutor(metrics=mock_metrics)
             executor.container_adapter.execute = AsyncMock(return_value=mock_result)
             executor.container_adapter.validate_tool_availability = AsyncMock(return_value=True)
@@ -260,7 +260,7 @@ class TestToolExecutorBuildCommand:
         """Deve construir comando CLI corretamente."""
         from src.services.tool_executor import ToolExecutor
 
-        with patch('src.services.tool_executor.get_settings', return_value=mock_settings):
+        with patch('src.config.get_settings', return_value=mock_settings):
             executor = ToolExecutor()
 
             # CLI usa tool_name ou cli_command do metadata
@@ -273,7 +273,7 @@ class TestToolExecutorBuildCommand:
         """Deve construir URL REST corretamente."""
         from src.services.tool_executor import ToolExecutor
 
-        with patch('src.services.tool_executor.get_settings', return_value=mock_settings):
+        with patch('src.config.get_settings', return_value=mock_settings):
             executor = ToolExecutor()
 
             # REST usa endpoint_url
@@ -286,7 +286,7 @@ class TestToolExecutorBuildCommand:
         """Deve construir imagem Docker corretamente."""
         from src.services.tool_executor import ToolExecutor
 
-        with patch('src.services.tool_executor.get_settings', return_value=mock_settings):
+        with patch('src.config.get_settings', return_value=mock_settings):
             executor = ToolExecutor()
 
             # Container usa docker_image do metadata
@@ -316,7 +316,7 @@ class TestToolExecutorMetrics:
             exit_code=0
         )
 
-        with patch('src.services.tool_executor.get_settings', return_value=mock_settings):
+        with patch('src.config.get_settings', return_value=mock_settings):
             executor = ToolExecutor(metrics=mock_metrics)
             executor.cli_adapter.execute = AsyncMock(return_value=mock_result)
             executor.cli_adapter.validate_tool_availability = AsyncMock(return_value=True)
@@ -348,7 +348,7 @@ class TestToolExecutorMetrics:
             exit_code=0
         )
 
-        with patch('src.services.tool_executor.get_settings', return_value=mock_settings):
+        with patch('src.config.get_settings', return_value=mock_settings):
             executor = ToolExecutor(
                 tool_registry=mock_tool_registry,
                 metrics=mock_metrics
@@ -385,7 +385,7 @@ class TestToolExecutorBatchExecution:
             exit_code=0
         )
 
-        with patch('src.services.tool_executor.get_settings', return_value=mock_settings):
+        with patch('src.config.get_settings', return_value=mock_settings):
             executor = ToolExecutor(metrics=mock_metrics)
             executor.cli_adapter.execute = AsyncMock(return_value=mock_result)
             executor.cli_adapter.validate_tool_availability = AsyncMock(return_value=True)
@@ -425,7 +425,7 @@ class TestToolExecutorBatchExecution:
                 exit_code=0
             )
 
-        with patch('src.services.tool_executor.get_settings', return_value=mock_settings):
+        with patch('src.config.get_settings', return_value=mock_settings):
             executor = ToolExecutor(metrics=mock_metrics)
             executor.cli_adapter.execute = mock_execute
             executor.cli_adapter.validate_tool_availability = AsyncMock(return_value=True)
@@ -452,8 +452,9 @@ class TestToolExecutorLifecycle:
         """Deve inicializar clientes MCP no start."""
         from src.services.tool_executor import ToolExecutor
 
-        with patch('src.services.tool_executor.get_settings', return_value=mock_settings_with_mcp):
-            with patch('src.services.tool_executor.MCPServerClient') as MockMCPClient:
+        # MCPServerClient e importado dentro do metodo start(), precisamos mockar no modulo correto
+        with patch('src.config.get_settings', return_value=mock_settings_with_mcp):
+            with patch('src.clients.mcp_server_client.MCPServerClient') as MockMCPClient:
                 mock_client = AsyncMock()
                 mock_client.start = AsyncMock()
                 mock_client.list_tools = AsyncMock(return_value=[])
@@ -470,7 +471,7 @@ class TestToolExecutorLifecycle:
         """Deve fechar clientes MCP no stop."""
         from src.services.tool_executor import ToolExecutor
 
-        with patch('src.services.tool_executor.get_settings', return_value=mock_settings_with_mcp):
+        with patch('src.config.get_settings', return_value=mock_settings_with_mcp):
             executor = ToolExecutor()
 
             # Adicionar cliente mock
@@ -506,12 +507,12 @@ class TestToolExecutorErrorHandling:
             reputation_score=0.5,
             cost_score=0.1,
             average_execution_time_ms=1000,
-            integration_type=IntegrationType.MCP,  # Sem adapter direto
+            integration_type=IntegrationType.GRPC,  # Sem adapter direto
             authentication_method='NONE',
             output_format='json'
         )
 
-        with patch('src.services.tool_executor.get_settings', return_value=mock_settings):
+        with patch('src.config.get_settings', return_value=mock_settings):
             executor = ToolExecutor()
 
             result = await executor.execute_tool(unknown_tool, {}, {})
@@ -529,7 +530,7 @@ class TestToolExecutorErrorHandling:
         """Deve tratar ferramenta nao disponivel."""
         from src.services.tool_executor import ToolExecutor
 
-        with patch('src.services.tool_executor.get_settings', return_value=mock_settings):
+        with patch('src.config.get_settings', return_value=mock_settings):
             executor = ToolExecutor(metrics=mock_metrics)
             executor.cli_adapter.validate_tool_availability = AsyncMock(return_value=False)
 
@@ -548,7 +549,7 @@ class TestToolExecutorErrorHandling:
         """Deve tratar excecao do adapter graciosamente."""
         from src.services.tool_executor import ToolExecutor
 
-        with patch('src.services.tool_executor.get_settings', return_value=mock_settings):
+        with patch('src.config.get_settings', return_value=mock_settings):
             executor = ToolExecutor(metrics=mock_metrics)
             executor.cli_adapter.validate_tool_availability = AsyncMock(return_value=True)
             executor.cli_adapter.execute = AsyncMock(side_effect=Exception('Adapter crashed'))

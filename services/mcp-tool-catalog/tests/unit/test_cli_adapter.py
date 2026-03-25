@@ -103,7 +103,7 @@ class TestCLIAdapterExecution:
             )
 
             assert result.success is False
-            assert 'timeout' in result.error.lower()
+            assert 'timed out' in result.error.lower()
             mock_process.kill.assert_called_once()
 
     @pytest.mark.asyncio
@@ -200,8 +200,8 @@ class TestCLIAdapterCommandBuilding:
 
         cmd = adapter._build_command('trivy image', params)
 
-        # Target deve estar no final e quotado
-        assert cmd.endswith("'nginx:latest'")
+        # Target deve estar no final (sem aspas adicionais - shlex.quote ja trata)
+        assert cmd.endswith('nginx:latest')
         # _target nao deve aparecer como flag
         assert '--_target' not in cmd
 
@@ -209,7 +209,7 @@ class TestCLIAdapterCommandBuilding:
         ({'verbose': True}, ['--verbose']),
         ({'output': 'json'}, ['--output', 'json']),
         ({'count': 5}, ['--count', '5']),
-        ({'_target': 'myimage'}, ["'myimage'"]),
+        ({'_target': 'myimage'}, ['myimage']),
     ])
     def test_build_command_parametrized(self, params, expected_parts):
         """Testes parametrizados de construcao de comando."""
@@ -574,7 +574,8 @@ class TestCLIAdapterIntegration:
             assert 'CRITICAL' in executed_cmd
             assert '--format' in executed_cmd
             assert 'json' in executed_cmd
-            assert "'myapp:latest'" in executed_cmd
+            # shlex.quote coloca aspas, verificar apenas o target esta presente
+            assert 'myapp:latest' in executed_cmd
 
             # Validar kwargs
             assert call_args.kwargs['cwd'] == '/home/user/project'

@@ -2,6 +2,7 @@
 API REST endpoints para operações com ferramentas MCP.
 """
 
+from datetime import datetime, timedelta
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, HTTPException, Query, Path
 from pydantic import BaseModel, Field
@@ -274,11 +275,24 @@ async def check_tool_health(
         health_status = await tool_registry.redis_client.get_tool_health(tool.tool_id)
         is_healthy = health_status if health_status is not None else True
 
+        # Calcular timestamp da última verificação baseado no TTL
+        last_check_str = None
+        if health_status is not None:
+            ttl = await tool_registry.redis_client.get_tool_health_ttl(tool.tool_id)
+            if ttl is not None:
+                # O TTL padrão é 300 segundos (5 minutos)
+                # Se TTL = 300, acabou de ser definido
+                # Se TTL < 300, foi definido há (300 - TTL) segundos
+                default_ttl = 300
+                seconds_ago = default_ttl - ttl
+                last_check_time = datetime.utcnow() - timedelta(seconds=seconds_ago)
+                last_check_str = last_check_time.isoformat() + "Z"
+
         return ToolHealthResponse(
             tool_id=tool.tool_id,
             tool_name=tool.tool_name,
             is_healthy=is_healthy,
-            last_check=None,  # TODO: implementar last_check_timestamp
+            last_check=last_check_str,
             error=None if is_healthy else "Tool marked as unhealthy"
         )
 
