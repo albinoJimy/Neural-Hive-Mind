@@ -8,10 +8,15 @@ Analisa planos cognitivos sob perspectiva de evolução de software:
 - Modularidade (design modular)
 - Tech debt futuro (prevenção de débito técnico)
 - Longevidade (sustentabilidade a longo prazo)
+
+Evolution Hooks (meta-learning):
+- FingerprintExtractor: Extrai assinatura do plano
+- PatternMatcher: Busca planos similares no histórico
+- WeightAdapter: Ajusta pesos baseado em histórico de sucesso
 """
 
 import sys
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 import structlog
 
 sys.path.insert(0, '/app/libraries/python')
@@ -19,15 +24,205 @@ sys.path.insert(0, '/app/libraries/python')
 from neural_hive_specialists import BaseSpecialist
 from config import EvolutionSpecialistConfig
 
+# Evolution Hooks imports (opcional, só se habilitado)
+try:
+    from neural_hive_specialists.evolution_hooks import (
+        FingerprintExtractor,
+        PatternMatcher,
+        WeightAdapter,
+        PatternRegistry,
+        SyncPatternRegistry,
+        DEFAULT_WEIGHTS,
+    )
+    EVOLUTION_HOOKS_AVAILABLE = True
+except ImportError as e:
+    logger = structlog.get_logger()
+    logger.warning("Evolution hooks not available", error=str(e))
+    EVOLUTION_HOOKS_AVAILABLE = False
+
 logger = structlog.get_logger()
 
 
 class EvolutionSpecialist(BaseSpecialist):
     """Especialista em evolução de software, manutenibilidade e escalabilidade."""
 
+    # Configuração padrão de pesos (sem meta-learning)
+    DEFAULT_WEIGHTS = {
+        "maintainability": 0.25,
+        "scalability": 0.25,
+        "extensibility": 0.20,
+        "modularity": 0.15,
+        "tech_debt_prevention": 0.15
+    }
+
+    def __init__(self, config: Optional[EvolutionSpecialistConfig] = None):
+        """
+        Inicializa especialista.
+
+        Args:
+            config: Configuração do especialista
+        """
+        super().__init__(config or EvolutionSpecialistConfig())
+        self._evolution_hooks_enabled = False
+        self._fingerprint_extractor: Optional[FingerprintExtractor] = None
+        self._pattern_matcher: Optional[PatternMatcher] = None
+        self._weight_adapter: Optional[WeightAdapter] = None
+        self._pattern_registry: Optional[SyncPatternRegistry] = None
+
+        # Inicializar evolution hooks se disponível e habilitado
+        self._init_evolution_hooks()
+
     def _get_specialist_type(self) -> str:
         """Retorna tipo do especialista."""
         return "evolution"
+
+    def _init_evolution_hooks(self) -> None:
+        """
+        Inicializa componentes de evolution hooks.
+
+        Só inicializa se:
+        1. Evolution Hooks disponível (import OK)
+        2. Config habilitado (evolution_hooks_enabled=True)
+        3. Mongo client disponível
+        """
+        if not EVOLUTION_HOOKS_AVAILABLE:
+            logger.info("Evolution hooks not available, using default weights")
+            return
+
+        if not getattr(self.config, 'evolution_hooks_enabled', False):
+            logger.info("Evolution hooks disabled in config")
+            return
+
+        # Verificar se temos mongo_client
+        if not hasattr(self, 'mongo_client') or self.mongo_client is None:
+            logger.warning("Mongo client not available, evolution hooks disabled")
+            return
+
+        try:
+            # Inicializar componentes
+            self._fingerprint_extractor = FingerprintExtractor()
+            self._pattern_registry = SyncPatternRegistry(
+                self.mongo_client,
+                database=getattr(self.config, 'evolution_hooks_pattern_registry_db', 'neural_hive')
+            )
+
+            # PatternMatcher e WeightAdapter dependem do registry
+            self._pattern_matcher = PatternMatcher(self.mongo_client)
+            self._weight_adapter = WeightAdapter(
+                self.mongo_client,
+                min_similar_patterns=getattr(self.config, 'evolution_hooks_min_similar_patterns', 5),
+                max_adjustment=getattr(self.config, 'evolution_hooks_max_adjustment', 0.05)
+            )
+
+            self._evolution_hooks_enabled = True
+            logger.info(
+                "Evolution hooks initialized",
+                min_patterns=self.config.evolution_hooks_min_similar_patterns,
+                max_adjustment=self.config.evolution_hooks_max_adjustment
+            )
+
+        except Exception as e:
+            logger.warning(
+                "Failed to initialize evolution hooks, using defaults",
+                error=str(e)
+            )
+            self._evolution_hooks_enabled = False
+
+    async def _get_adaptive_weights(self, cognitive_plan: Dict[str, Any]) -> Dict[str, float]:
+        """
+        Obtém pesos adaptativos baseados em histórico.
+
+        Args:
+            cognitive_plan: Plano cognitivo para extrair fingerprint
+
+        Returns:
+            Dict com pesos (adaptados ou defaults)
+        """
+        if not self._evolution_hooks_enabled or self._fingerprint_extractor is None:
+            logger.debug("Evolution hooks disabled, using default weights")
+            return self.DEFAULT_WEIGHTS.copy()
+
+        try:
+            # Extrair fingerprint
+            fingerprint = self._fingerprint_extractor.extract(cognitive_plan)
+
+            # Buscar similares para logging
+            similar = await self._pattern_matcher.find_similar(fingerprint)
+
+            # Adaptar pesos
+            adapted = await self._weight_adapter.adapt_weights(fingerprint)
+
+            logger.debug(
+                "Weight adaptation completed",
+                plan_id=cognitive_plan.get('plan_id'),
+                similar_count=len(similar),
+                weights=adapted
+            )
+
+            return adapted
+
+        except Exception as e:
+            logger.warning(
+                "Weight adaptation failed, using defaults",
+                error=str(e),
+                plan_id=cognitive_plan.get('plan_id')
+            )
+            return self.DEFAULT_WEIGHTS.copy()
+
+    async def _store_evaluation_for_learning(
+        self,
+        plan_id: str,
+        cognitive_plan: Dict[str, Any],
+        evaluation_result: Dict[str, Any]
+    ) -> None:
+        """
+        Armazena avaliação para aprendizado futuro.
+
+        Args:
+            plan_id: ID do plano
+            cognitive_plan: Plano cognitivo completo
+            evaluation_result: Resultado da avaliação
+        """
+        if not self._evolution_hooks_enabled or self._pattern_registry is None:
+            return
+
+        try:
+            from neural_hive_specialists.evolution_hooks import (
+                Fingerprint,
+                EvolutionEvaluation
+            )
+
+            # Extrair fingerprint
+            fingerprint = self._fingerprint_extractor.extract(cognitive_plan)
+
+            # Criar EvolutionEvaluation
+            evolution_eval = EvolutionEvaluation(
+                confidence_score=evaluation_result.get('confidence_score', 0.5),
+                risk_score=evaluation_result.get('risk_score', 0.5),
+                recommendation=evaluation_result.get('recommendation', 'conditional'),
+                weights_used=evaluation_result.get('adaptive_weights', self.DEFAULT_WEIGHTS),
+                reasoning_factors=evaluation_result.get('reasoning_factors', [])
+            )
+
+            # Armazenar no registry
+            pattern_id = self._pattern_registry.store_evaluation(
+                plan_id=plan_id,
+                fingerprint=fingerprint,
+                evaluation=evolution_eval
+            )
+
+            logger.debug(
+                "Stored evaluation for learning",
+                plan_id=plan_id,
+                pattern_id=pattern_id
+            )
+
+        except Exception as e:
+            logger.warning(
+                "Failed to store evaluation for learning",
+                error=str(e),
+                plan_id=plan_id
+            )
 
     def _load_model(self) -> Any:
         """Carrega modelo de análise de evolução do MLflow."""
@@ -105,13 +300,15 @@ class EvolutionSpecialist(BaseSpecialist):
         logger.info(
             "Evaluating plan from evolution perspective",
             plan_id=cognitive_plan.get('plan_id'),
-            domain=cognitive_plan.get('original_domain')
+            domain=cognitive_plan.get('original_domain'),
+            evolution_hooks_enabled=self._evolution_hooks_enabled
         )
 
         # Extrair informações do plano
         tasks = cognitive_plan.get('tasks', [])
         domain = cognitive_plan.get('original_domain')
         priority = cognitive_plan.get('original_priority', 'normal')
+        plan_id = cognitive_plan.get('plan_id', 'unknown')
 
         # Análise de manutenibilidade
         maintainability_score = self._analyze_maintainability(tasks, cognitive_plan)
@@ -128,13 +325,33 @@ class EvolutionSpecialist(BaseSpecialist):
         # Análise de tech debt futuro
         tech_debt_score = self._analyze_tech_debt_risk(tasks, cognitive_plan)
 
-        # Calcular scores agregados
+        # Obter pesos adaptativos (ou defaults)
+        # Nota: como este método é sync, usamos defaults aqui.
+        # A adaptação async será feita em evaluate_plan() se necessário.
+        adaptive_weights = self.DEFAULT_WEIGHTS.copy()
+
+        # Se evolution hooks está habilitado, tentar usar pesos adaptativos
+        if self._evolution_hooks_enabled and self._fingerprint_extractor:
+            try:
+                import asyncio
+                # Tentar rodar async em contexto sync
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    # Já estamos em um loop async, usar defaults por agora
+                    logger.debug("Running in async context, using default weights")
+                else:
+                    # Sem loop async, tentar rodar
+                    adaptive_weights = asyncio.run(self._get_adaptive_weights(cognitive_plan))
+            except Exception as e:
+                logger.debug("Could not get adaptive weights, using defaults", error=str(e))
+
+        # Calcular scores agregados usando pesos adaptativos
         confidence_score = (
-            maintainability_score * 0.25 +
-            scalability_score * 0.25 +
-            extensibility_score * 0.20 +
-            modularity_score * 0.15 +
-            tech_debt_score * 0.15
+            maintainability_score * adaptive_weights.get('maintainability', 0.25) +
+            scalability_score * adaptive_weights.get('scalability', 0.25) +
+            extensibility_score * adaptive_weights.get('extensibility', 0.20) +
+            modularity_score * adaptive_weights.get('modularity', 0.15) +
+            tech_debt_score * adaptive_weights.get('tech_debt_prevention', 0.15)
         )
 
         # Calcular risco de evolução
@@ -159,35 +376,35 @@ class EvolutionSpecialist(BaseSpecialist):
             recommendation
         )
 
-        # Fatores de raciocínio estruturados
+        # Fatores de raciocínio estruturados (com pesos adaptativos)
         reasoning_factors = [
             {
                 'factor_name': 'maintainability',
-                'weight': 0.25,
+                'weight': adaptive_weights.get('maintainability', 0.25),
                 'score': maintainability_score,
                 'description': 'Facilidade de manutenção baseada em clareza, acoplamento e coesão'
             },
             {
                 'factor_name': 'scalability',
-                'weight': 0.25,
+                'weight': adaptive_weights.get('scalability', 0.25),
                 'score': scalability_score,
                 'description': 'Capacidade de escalar horizontal e verticalmente'
             },
             {
                 'factor_name': 'extensibility',
-                'weight': 0.20,
+                'weight': adaptive_weights.get('extensibility', 0.20),
                 'score': extensibility_score,
                 'description': 'Facilidade de adicionar novos recursos no futuro'
             },
             {
                 'factor_name': 'modularity',
-                'weight': 0.15,
+                'weight': adaptive_weights.get('modularity', 0.15),
                 'score': modularity_score,
                 'description': 'Design modular e separação de responsabilidades'
             },
             {
                 'factor_name': 'tech_debt_prevention',
-                'weight': 0.15,
+                'weight': adaptive_weights.get('tech_debt_prevention', 0.15),
                 'score': tech_debt_score,
                 'description': 'Prevenção de débito técnico futuro'
             }
@@ -204,13 +421,15 @@ class EvolutionSpecialist(BaseSpecialist):
 
         logger.info(
             "Evolution evaluation completed",
-            plan_id=cognitive_plan.get('plan_id'),
+            plan_id=plan_id,
             confidence_score=confidence_score,
             risk_score=risk_score,
-            recommendation=recommendation
+            recommendation=recommendation,
+            adaptive_weights=adaptive_weights if adaptive_weights != self.DEFAULT_WEIGHTS else None
         )
 
-        return {
+        # Construir resultado
+        result = {
             'confidence_score': confidence_score,
             'risk_score': risk_score,
             'recommendation': recommendation,
@@ -225,9 +444,41 @@ class EvolutionSpecialist(BaseSpecialist):
                 'tech_debt_score': tech_debt_score,
                 'domain': domain,
                 'priority': priority,
-                'num_tasks': len(tasks)
+                'num_tasks': len(tasks),
+                'evolution_hooks_enabled': self._evolution_hooks_enabled
             }
         }
+
+        # Adicionar pesos adaptativos ao resultado para metadados
+        if adaptive_weights != self.DEFAULT_WEIGHTS:
+            result['adaptive_weights'] = adaptive_weights
+            result['metadata']['weights_source'] = 'adaptive'
+        else:
+            result['metadata']['weights_source'] = 'default'
+
+        # Armazenar avaliação para aprendizado async (fire and forget)
+        if self._evolution_hooks_enabled and self._pattern_registry:
+            try:
+                import asyncio
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    # Criar task mas não await
+                    asyncio.create_task(self._store_evaluation_for_learning(
+                        plan_id, cognitive_plan, result
+                    ))
+                else:
+                    # Rodar async se não temos loop
+                    asyncio.run(self._store_evaluation_for_learning(
+                        plan_id, cognitive_plan, result
+                    ))
+            except Exception as e:
+                logger.debug(
+                    "Could not store evaluation for learning",
+                    error=str(e),
+                    plan_id=plan_id
+                )
+
+        return result
 
     def _analyze_maintainability(
         self,

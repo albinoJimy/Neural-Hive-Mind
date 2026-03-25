@@ -210,6 +210,95 @@ taxonomy = mapper.map_domain_to_taxonomy('security-analysis')
 | performance-optimization | OPERATIONAL |
 | code-quality | TECHNICAL |
 
+## Evolution Hooks
+
+O módulo `evolution_hooks` implementa meta-learning para o Evolution Specialist, permitindo adaptação dinâmica de pesos baseada em histórico de avaliações.
+
+### Componentes
+
+| Componente | Descrição |
+|------------|-----------|
+| `FingerprintExtractor` | Extrai assinatura compacta do plano cognitivo |
+| `PatternMatcher` | Busca planos similares no histórico MongoDB |
+| `WeightAdapter` | Ajusta pesos baseado em taxa de sucesso |
+| `PatternRegistry` | Repository síncrono/assíncrono para padrões |
+| `EvolutionFeedbackConsumer` | Consome feedback do Kafka `evolution.feedback.topic` |
+
+### Fingerprint
+
+O fingerprint captura características principais do plano para matching:
+
+```python
+from neural_hive_specialists.evolution_hooks import Fingerprint, TaskCountRange, DurationRange
+
+fingerprint = Fingerprint(
+    domain="technical",
+    priority="high",
+    task_count_range=TaskCountRange.MEDIUM,
+    task_types=["BUILD", "TEST", "DEPLOY"],
+    avg_dependency_count=1.5,
+    has_conditional_deps=True,
+    estimated_duration_range=DurationRange.MEDIUM,
+    complexity_signature="T-M-B-T-D-H"
+)
+```
+
+### Pattern Matching
+
+Busca planos similares no histórico:
+
+```python
+from neural_hive_specialists.evolution_hooks import PatternMatcher
+
+matcher = PatternMatcher(mongo_client)
+similar = await matcher.find_similar(fingerprint)
+# Retorna lista de PatternRecord com相似的 fingerprints
+```
+
+### Weight Adaptation
+
+Ajusta pesos dinamicamente baseado em histórico:
+
+```python
+from neural_hive_specialists.evolution_hooks import WeightAdapter
+
+adapter = WeightAdapter(
+    mongo_client,
+    min_similar_patterns=5,
+    max_adjustment=0.05
+)
+
+adaptive_weights = await adapter.adapt_weights(fingerprint)
+# Retorna pesos ajustados: {"maintainability": 0.27, ...}
+```
+
+### Configuração
+
+```python
+from neural_hive_specialists.config import SpecialistConfig
+
+config = SpecialistConfig(
+    # Habilita evolution hooks
+    evolution_hooks_enabled=True,
+
+    # Configurações de matching
+    evolution_hooks_min_similar_patterns=5,
+    evolution_hooks_max_adjustment=0.05,
+
+    # Database
+    evolution_hooks_pattern_registry_db='neural_hive'
+)
+```
+
+### Feedback Loop
+
+O sistema aprende com feedback via Kafka:
+
+1. Evolution Specialist avalia plano → publica `evolution.feedback.topic`
+2. Approval Service toma decisão final → publica feedback
+3. `EvolutionFeedbackConsumer` processa feedback → atualiza métricas
+4. Próximas avaliações usam pesos ajustados
+
 ## Testes
 
 ### Unitários
@@ -230,6 +319,19 @@ pytest tests/integration/test_grpc_integration.py -v -m integration
 
 ```bash
 python scripts/debug/test-grpc-comprehensive.py --specialist architecture
+```
+
+### Evolution Hooks
+
+```bash
+# Unit tests
+pytest tests/evolution_hooks/unit/ -v
+
+# Integration tests
+pytest tests/evolution_hooks/integration/ -v
+
+# E2E tests
+pytest tests/evolution_hooks/e2e/ -v
 ```
 
 ## Desenvolvimento

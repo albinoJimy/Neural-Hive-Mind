@@ -17,6 +17,72 @@ async def mongo_client():
 
     Cria um mock que simula o comportamento do motor AsyncIOMotorClient.
     """
+    class AsyncMockCursor:
+        """Cursor mock que suporta chaining."""
+        def __init__(self, collection, query):
+            self.collection = collection
+            self._query = query
+            self._limit = None
+            self._aggregate_pipeline = None
+
+        def sort(self, *args):
+            return self
+
+        def limit(self, limit_val):
+            self._limit = limit_val
+            return self
+
+        def aggregate(self, pipeline):
+            self._aggregate_pipeline = pipeline
+            return self
+
+        async def to_list(self, length=None):
+            # Se foi chamado após aggregate(), retornar resultados agregados
+            if self._aggregate_pipeline is not None:
+                pipeline = self._aggregate_pipeline
+                # Suportar agregação $group básica para domain_distribution
+                for stage in pipeline:
+                    if "$group" in stage:
+                        group_spec = stage["$group"]
+                        if "_id" in group_spec and group_spec["_id"] == "$fingerprint.domain":
+                            # Agrupar por domain
+                            domain_counts = {}
+                            for pid, pdoc in self.collection.data.items():
+                                domain = pdoc.get("fingerprint", {}).get("domain", "unknown")
+                                domain_counts[domain] = domain_counts.get(domain, 0) + 1
+                            return [{"_id": d, "count": c} for d, c in domain_counts.items()]
+                # Fallback para agregações não suportadas
+                return []
+
+            # find() normal com filtragem por query
+            results = []
+            query = self._query
+
+            for pid, pdoc in self.collection.data.items():
+                # Filtrar por query se existir
+                if query:
+                    match = True
+                    # Suportar filtro por fingerprint.domain
+                    if "fingerprint.domain" in query:
+                        if pdoc.get("fingerprint", {}).get("domain") != query["fingerprint.domain"]:
+                            match = False
+                    # Suportar filtro por fingerprint.complexity_signature com regex
+                    if "fingerprint.complexity_signature" in query and match:
+                        sig_query = query["fingerprint.complexity_signature"]
+                        if isinstance(sig_query, dict) and "$regex" in sig_query:
+                            pattern = sig_query["$regex"]
+                            doc_sig = pdoc.get("fingerprint", {}).get("complexity_signature", "")
+                            if not doc_sig.startswith(pattern.replace("^", "")):
+                                match = False
+
+                    if match:
+                        results.append({**pdoc, "_id": pid})
+                else:
+                    results.append({**pdoc, "_id": pid})
+
+            limit = self._limit if self._limit is not None else (length if length else len(results))
+            return results[:limit]
+
     class AsyncMockMongoCollection:
         def __init__(self):
             self.data = {}
@@ -42,50 +108,54 @@ async def mongo_client():
 
         def find(self, *args, **kwargs):
             # Retorna cursor mock que suporta chaining
-            cursor = self
-            cursor._query = args[0] if args else None
+            return AsyncMockCursor(self, args[0] if args else None)
+
+        def aggregate(self, pipeline):
+            # Retorna cursor mock para agregação
+            cursor = AsyncMockCursor(self, None)
+            cursor._aggregate_pipeline = pipeline
             return cursor
-
-        def sort(self, *args):
-            return self
-
-        def limit(self, limit_val):
-            self._limit = limit_val
-            return self
-
-        async def to_list(self, length=None):
-            # Se foi chamado após aggregate(), retornar resultados agregados
-            if hasattr(self, '_aggregate_pipeline'):
-                pipeline = self._aggregate_pipeline
-                # Suportar agregação $group básica para domain_distribution
-                for stage in pipeline:
-                    if "$group" in stage:
-                        group_spec = stage["$group"]
-                        if "_id" in group_spec and group_spec["_id"] == "$fingerprint.domain":
-                            # Agrupar por domain
-                            domain_counts = {}
-                            for pid, pdoc in self.data.items():
-                                domain = pdoc.get("fingerprint", {}).get("domain", "unknown")
-                                domain_counts[domain] = domain_counts.get(domain, 0) + 1
-                            return [{"_id": d, "count": c} for d, c in domain_counts.items()]
-                # Fallback para agregações não suportadas
-                return []
-            # find() normal
-            results = []
-            for pid, pdoc in self.data.items():
-                results.append({**pdoc, "_id": pid})
-            return results[:getattr(self, '_limit', len(results))]
 
         async def update_one(self, query, update_doc):
             result = Mock()
             result.modified_count = 0
 
-            if "plan_id" in query:
+            def apply_nested_update(doc, update_dict):
+                """Aplica atualização com suporte a notação de ponto."""
+                for key, value in update_dict.items():
+                    parts = key.split(".")
+                    curr = doc
+                    for part in parts[:-1]:
+                        if part not in curr:
+                            curr[part] = {}
+                        curr = curr[part]
+                    curr[parts[-1]] = value
+
+            if "_id" in query:
+                # Query por _id
+                for pid, pdoc in self.data.items():
+                    if pid == query["_id"]:
+                        # Aplicar $set (com suporte a notação de ponto)
+                        if "$set" in update_doc:
+                            apply_nested_update(pdoc, update_doc["$set"])
+                        # Aplicar $inc (separado do $set)
+                        if "$inc" in update_doc:
+                            for key, val in update_doc["$inc"].items():
+                                parts = key.split(".")
+                                curr = pdoc
+                                for part in parts[:-1]:
+                                    if part not in curr:
+                                        curr[part] = {}
+                                    curr = curr[part]
+                                curr[parts[-1]] = curr.get(parts[-1], 0) + val
+                        result.modified_count = 1
+                        break
+            elif "plan_id" in query:
                 for pid, pdoc in self.data.items():
                     if pdoc.get("plan_id") == query["plan_id"]:
-                        # Aplicar $set
+                        # Aplicar $set (com suporte a notação de ponto)
                         if "$set" in update_doc:
-                            pdoc.update(update_doc["$set"])
+                            apply_nested_update(pdoc, update_doc["$set"])
                         # Aplicar $inc (separado do $set)
                         if "$inc" in update_doc:
                             for key, val in update_doc["$inc"].items():
@@ -110,14 +180,52 @@ async def mongo_client():
                     if pdoc.get("fingerprint", {}).get("domain") == query["fingerprint.domain"]:
                         count += 1
                 return count
+            # Filtragem por feedback.outcome
+            if "feedback.outcome" in query:
+                count = 0
+                for pid, pdoc in self.data.items():
+                    feedback = pdoc.get("feedback", {})
+                    if feedback.get("outcome") == query["feedback.outcome"]:
+                        count += 1
+                return count
+            # Filtragem por feedback existe (suporta tanto {"$exists": True} quanto só {"$exists": true})
+            if "feedback" in query:
+                count = 0
+                for pid, pdoc in self.data.items():
+                    feedback_exists = "feedback" in pdoc and pdoc["feedback"] is not None
+                    if feedback_exists:
+                        count += 1
+                return count
             # Para outras queries, retorna total (simplificado)
             return len(self.data)
 
-        def aggregate(self, pipeline):
-            # Simular agregação simples para domain_distribution
-            # Retorna self para suportar chaining
-            self._aggregate_pipeline = pipeline
-            return self
+        async def delete_many(self, query):
+            """Remove documentos do mock."""
+            result = Mock()
+            result.deleted_count = 0
+
+            if query is None or query == {}:
+                # Limpar todos
+                count = len(self.data)
+                self.data.clear()
+                result.deleted_count = count
+            else:
+                # Filtrar e remover (simplificado)
+                to_delete = []
+                for pid, pdoc in self.data.items():
+                    match = True
+                    for key, val in query.items():
+                        if key in pdoc and pdoc[key] != val:
+                            match = False
+                            break
+                    if match:
+                        to_delete.append(pid)
+
+                for pid in to_delete:
+                    del self.data[pid]
+                result.deleted_count = len(to_delete)
+
+            return result
 
     class AsyncMockMongoDatabase:
         def __init__(self):

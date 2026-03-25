@@ -35,3 +35,9 @@ class EvolutionSpecialistConfig(SpecialistConfig):
     scalability_analysis_enabled: bool = True
     tech_debt_threshold_high: float = 0.7
     tech_debt_threshold_low: float = 0.3
+
+    # Evolution Hooks - Meta-learning config
+    evolution_hooks_enabled: bool = True
+    evolution_hooks_min_similar_patterns: int = 5
+    evolution_hooks_max_adjustment: float = 0.05
+    evolution_hooks_pattern_registry_db: str = "neural_hive"

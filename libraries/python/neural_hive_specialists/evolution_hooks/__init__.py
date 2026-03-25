@@ -35,8 +35,8 @@ from .models import (
 from .fingerprint_extractor import FingerprintExtractor
 from .pattern_matcher import PatternMatcher
 from .weight_adapter import WeightAdapter
-from .pattern_registry import PatternRegistry
-# from .feedback_consumer import EvolutionFeedbackConsumer
+from .pattern_registry import PatternRegistry, SyncPatternRegistry
+from .feedback_consumer import EvolutionFeedbackConsumer, create_feedback_consumer
 
 __all__ = [
     # Models
@@ -56,5 +56,7 @@ __all__ = [
     "PatternMatcher",
     "WeightAdapter",
     "PatternRegistry",
-    # "EvolutionFeedbackConsumer",
+    "SyncPatternRegistry",
+    "EvolutionFeedbackConsumer",
+    "create_feedback_consumer",
 ]

@@ -185,9 +185,10 @@ class PatternRegistry:
             )
 
             if jaccard >= min_similarity:
-                # Adicionar score de similaridade ao documento
-                doc["_similarity_score"] = jaccard
-                similar.append(PatternRecord(**doc))
+                # Criar PatternRecord e adicionar score de similaridade
+                record = PatternRecord(**doc)
+                object.__setattr__(record, "_similarity_score", jaccard)
+                similar.append(record)
 
         # Ordenar por similaridade
         similar.sort(key=lambda x: getattr(x, "_similarity_score", 0), reverse=True)
@@ -467,8 +468,9 @@ class SyncPatternRegistry:
             )
 
             if jaccard >= min_similarity:
-                doc["_similarity_score"] = jaccard
-                similar.append(PatternRecord(**doc))
+                record = PatternRecord(**doc)
+                object.__setattr__(record, "_similarity_score", jaccard)
+                similar.append(record)
 
         similar.sort(key=lambda x: getattr(x, "_similarity_score", 0), reverse=True)
         return similar[:limit]

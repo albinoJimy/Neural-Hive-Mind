@@ -1,0 +1,64 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: evolution.feedback.topic
+  namespace: neural-hive-mind
+  labels:
+    strimzi.io/cluster: neural-hive-kafka
+    component: specialist-evolution
+    tier: meta-learning
+    app: neural-hive-mind
+  annotations:
+    description: "Topic para feedback de avaliacoes do Evolution Specialist - usado para meta-learning"
+    owner: "specialist-evolution"
+    contact: "platform-team@neural-hive-mind.com"
+spec:
+  partitions: 6
+  replicas: 3
+  config:
+    # Retenção: 30 dias (feedback é valioso para aprendizado de longo prazo)
+    retention.ms: 2592000000
+
+    # Segment size: 1 hora (trade-off entre throughput e storage)
+    segment.ms: 3600000
+
+    # Compressão: snappy (balance entre CPU e ratio)
+    compression.type: snappy
+
+    # Min replicas sync: 2 (garante durabilidade com performance aceitável)
+    min.insync.replicas: 2
+
+    # Cleanup policy: delete (remover mensagens antigas baseado em retenção)
+    cleanup.policy: delete
+
+    # Flush messages: otimizado para baixa latência
+    flush.messages: 10000
+    flush.ms: 1000
+
+    # Max message bytes: 10MB (fingerprints + evaluations podem ser grandes)
+    max.message.bytes: 10485760
+
+---
+# Alternative configuration for high-volume scenarios
+# Uncomment if expecting high throughput (e.g., >1000 msg/sec)
+# apiVersion: kafka.strimzi.io/v1beta2
+# kind: KafkaTopic
+# metadata:
+#   name: evolution.feedback.topic.high-throughput
+#   namespace: neural-hive-mind
+#   labels:
+#     strimzi.io/cluster: neural-hive-kafka
+#     component: specialist-evolution
+#     tier: meta-learning
+# spec:
+#   partitions: 12  # Mais partições para paralelismo
+#   replicas: 3
+#   config:
+#     retention.ms: 2592000000
+#     segment.ms: 3600000
+#     compression.type: lz4  # Maior throughput, mais CPU
+#     min.insync.replicas: 2
+#     cleanup.policy: delete
+#     flush.messages: 50000
+#     flush.ms: 500
+#     max.message.bytes: 10485760
