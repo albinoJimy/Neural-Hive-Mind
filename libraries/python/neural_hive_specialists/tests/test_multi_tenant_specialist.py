@@ -14,25 +14,8 @@ from unittest.mock import Mock, patch, MagicMock
 import tempfile
 import json
 
-# Patch components que tentam conectar a serviços externos ANTES de importar
-_patch_mlflow = patch("neural_hive_specialists.base_specialist.MLflowClient", return_value=None)
-_patch_ledger = patch("neural_hive_specialists.base_specialist.LedgerClient", return_value=None)
-_patch_feature_store = patch("neural_hive_specialists.base_specialist.FeatureStore", return_value=None)
-_patch_opinion_cache = patch("neural_hive_specialists.base_specialist.OpinionCache", return_value=None)
-_patch_feature_cache = patch("neural_hive_specialists.base_specialist.FeatureCache", return_value=None)
-_patch_feature_extractor = patch("neural_hive_specialists.base_specialist.FeatureExtractor", return_value=None)
-_patch_semantic_pipeline = patch("neural_hive_specialists.base_specialist.SemanticPipeline", return_value=None)
-_patch_explainability = patch("neural_hive_specialists.base_specialist.ExplainabilityGenerator", return_value=None)
-
-_patch_mlflow.start()
-_patch_ledger.start()
-_patch_feature_store.start()
-_patch_opinion_cache.start()
-_patch_feature_cache.start()
-_patch_feature_extractor.start()
-_patch_semantic_pipeline.start()
-_patch_explainability.start()
-
+# Import conftest fixtures e configurações primeiro
+# Os patches estão em conftest.py, não aplicamos patches aqui
 from neural_hive_specialists.multi_tenant_specialist import (
     MultiTenantSpecialist,
 )

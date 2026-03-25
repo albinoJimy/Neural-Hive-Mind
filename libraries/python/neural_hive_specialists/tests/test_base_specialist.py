@@ -9,8 +9,8 @@ import json
 from unittest.mock import Mock, MagicMock, patch
 from pydantic import ValidationError
 
-# Patch components que tentam conectar a serviços externos
-# Isso deve ser feito ANTES de importar BaseSpecialist
+# Store patches para cleanup após o módulo
+_patches = []
 
 # Mock para SemanticPipeline.evaluate_plan que retorna dict válido
 def mock_semantic_evaluate(self, plan, context=None):
@@ -32,6 +32,7 @@ _semantic_pipeline_mock.evaluate_plan = mock_semantic_evaluate
 _explainability_mock = MagicMock()
 _explainability_mock.generate = mock_explainability_generate
 
+# Criar patches e iniciá-los
 _patch_mlflow = patch("neural_hive_specialists.base_specialist.MLflowClient", return_value=None)
 _patch_ledger = patch("neural_hive_specialists.base_specialist.LedgerClient", return_value=None)
 _patch_feature_store = patch("neural_hive_specialists.base_specialist.FeatureStore", return_value=None)
@@ -42,15 +43,22 @@ _patch_semantic_pipeline = patch("neural_hive_specialists.base_specialist.Semant
 _patch_explainability = patch("neural_hive_specialists.base_specialist.ExplainabilityGenerator", return_value=_explainability_mock)
 _patch_embeddings = patch("neural_hive_specialists.feature_extraction.embeddings_generator.EmbeddingsGenerator", return_value=None)
 
-_patch_mlflow.start()
-_patch_ledger.start()
-_patch_feature_store.start()
-_patch_opinion_cache.start()
-_patch_feature_cache.start()
-_patch_feature_extractor.start()
-_patch_semantic_pipeline.start()
-_patch_explainability.start()
-_patch_embeddings.start()
+_patches.extend([
+    _patch_mlflow, _patch_ledger, _patch_feature_store, _patch_opinion_cache,
+    _patch_feature_cache, _patch_feature_extractor, _patch_semantic_pipeline,
+    _patch_explainability, _patch_embeddings
+])
+
+for p in _patches:
+    p.start()
+
+# Fixture para garantir cleanup após os testes deste módulo
+@pytest.fixture(scope="module", autouse=True)
+def cleanup_patches():
+    """Garante que os patches são removidos após o módulo."""
+    yield
+    for p in _patches:
+        p.stop()
 
 from neural_hive_specialists.base_specialist import BaseSpecialist
 from neural_hive_specialists.schemas import (

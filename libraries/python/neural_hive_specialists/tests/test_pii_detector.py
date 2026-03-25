@@ -15,10 +15,37 @@ presidio_analyzer_mock = MagicMock()
 presidio_anonymizer_mock = MagicMock()
 sys.modules["presidio_analyzer"] = presidio_analyzer_mock
 sys.modules["presidio_analyzer.nlp_engine"] = MagicMock()
+
+# Configurar NlpEngineProvider mock com create_engine
+mock_nlp_provider = MagicMock()
+sys.modules["presidio_analyzer.nlp_engine"].NlpEngineProvider = mock_nlp_provider
+
 sys.modules["presidio_anonymizer"] = presidio_anonymizer_mock
 sys.modules["presidio_anonymizer.entities"] = MagicMock()
 
 from neural_hive_specialists.compliance.pii_detector import PIIDetector
+
+
+@pytest.fixture(autouse=True)
+def ensure_presidio_mocks():
+    """Garante que os mocks do Presidio estão sempre disponíveis."""
+    # Guardar referências aos mocks originais
+    original_analyzer = sys.modules.get("presidio_analyzer")
+    original_nlp_engine = sys.modules.get("presidio_analyzer.nlp_engine")
+    original_anonymizer = sys.modules.get("presidio_anonymizer")
+    original_entities = sys.modules.get("presidio_anonymizer.entities")
+
+    yield
+
+    # Após cada teste, garantir que os mocks foram restaurados
+    if original_analyzer is not None:
+        sys.modules["presidio_analyzer"] = original_analyzer
+    if original_nlp_engine is not None:
+        sys.modules["presidio_analyzer.nlp_engine"] = original_nlp_engine
+    if original_anonymizer is not None:
+        sys.modules["presidio_anonymizer"] = original_anonymizer
+    if original_entities is not None:
+        sys.modules["presidio_anonymizer.entities"] = original_entities
 
 
 @pytest.fixture
@@ -113,30 +140,57 @@ class TestPIIDetectorInitialization:
 
     def test_initialization_handles_spacy_model_error(self, mock_config):
         """Testa que erro ao carregar modelo spaCy desabilita PII detection."""
-        with patch(
-            "presidio_analyzer.nlp_engine.NlpEngineProvider"
-        ) as mock_nlp_provider:
-            mock_nlp_provider.return_value.create_engine.side_effect = Exception(
-                "spaCy model not found"
-            )
+        # Usar monkeypatch para modificar sys.modules temporariamente
+        import sys
 
+        # Guardar o mock original
+        original_analyzer = sys.modules.get("presidio_analyzer")
+        original_nlp_engine = sys.modules.get("presidio_analyzer.nlp_engine")
+
+        # Remover o mock para forçar um erro real
+        sys.modules.pop("presidio_analyzer", None)
+        sys.modules.pop("presidio_analyzer.nlp_engine", None)
+
+        try:
             detector = PIIDetector(mock_config)
-
-            assert detector.enabled is False
+            assert detector.enabled is False, f"Expected enabled=False, got {detector.enabled}"
+        finally:
+            # Restaurar os mocks originais sempre
+            if original_analyzer is not None:
+                sys.modules["presidio_analyzer"] = original_analyzer
+            if original_nlp_engine is not None:
+                sys.modules["presidio_analyzer.nlp_engine"] = original_nlp_engine
 
     def test_initialization_handles_presidio_import_error(self, mock_config):
         """Testa que erro ao importar Presidio desabilita PII detection."""
-        # Simular falha de import mockando builtins.__import__
-        original_import = __builtins__.__import__
+        # Simular falha removendo os mocks de sys.modules temporariamente
+        import sys
 
-        def mock_import(name, *args, **kwargs):
-            if "presidio" in name:
-                raise ImportError("presidio not installed")
-            return original_import(name, *args, **kwargs)
+        # Guardar os mocks originais
+        original_analyzer = sys.modules.get("presidio_analyzer")
+        original_nlp_engine = sys.modules.get("presidio_analyzer.nlp_engine")
+        original_anonymizer = sys.modules.get("presidio_anonymizer")
+        original_entities = sys.modules.get("presidio_anonymizer.entities")
 
-        with patch("builtins.__import__", side_effect=mock_import):
+        # Remover mocks para simular ImportError
+        sys.modules.pop("presidio_analyzer", None)
+        sys.modules.pop("presidio_analyzer.nlp_engine", None)
+        sys.modules.pop("presidio_anonymizer", None)
+        sys.modules.pop("presidio_anonymizer.entities", None)
+
+        try:
             detector = PIIDetector(mock_config)
             assert detector.enabled is False
+        finally:
+            # Restaurar os mocks originais sempre
+            if original_analyzer is not None:
+                sys.modules["presidio_analyzer"] = original_analyzer
+            if original_nlp_engine is not None:
+                sys.modules["presidio_analyzer.nlp_engine"] = original_nlp_engine
+            if original_anonymizer is not None:
+                sys.modules["presidio_anonymizer"] = original_anonymizer
+            if original_entities is not None:
+                sys.modules["presidio_anonymizer.entities"] = original_entities
 
 
 @pytest.mark.unit

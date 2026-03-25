@@ -155,6 +155,11 @@ def test_mlflow_circuit_breaker_expired_cache_fallback(mocker):
         specialist_version="1.0.0",
         service_name="test-specialist",
         environment="test",
+        mongodb_uri="mongodb://localhost:27017",
+        mongodb_database="neural_hive_test",
+        redis_cluster_nodes="localhost:6379",
+        neo4j_uri="bolt://localhost:7687",
+        neo4j_password="test",
         mlflow_tracking_uri="http://invalid-mlflow:5000",  # URI inválida
         mlflow_experiment_name="test-experiment",
         mlflow_model_name="test-model",
@@ -166,25 +171,28 @@ def test_mlflow_circuit_breaker_expired_cache_fallback(mocker):
         enable_caching=True,
     )
 
-    mlflow_client = MLflowClient(config)
+    # Patch _bootstrap para evitar tentativa de conexão durante inicialização
+    with patch.object(MLflowClient, "_bootstrap"):
+        mlflow_client = MLflowClient(config)
 
     # Simular modelo em cache (expirado)
     mock_model = MagicMock()
     mock_model.predict = MagicMock(return_value=[0.85])
     mlflow_client._model_cache["test-model:Production"] = {
         "model": mock_model,
-        "cached_at": time.time() - 3600,  # Cache expirado (1 hora atrás)
+        "timestamp": time.time() - 3600,  # Cache expirado (1 hora atrás)
         "version": "1",
     }
 
-    # Tentar carregar modelo (deve falhar mas usar cache expirado)
-    with patch("mlflow.MlflowClient") as mock_mlflow:
-        mock_mlflow.return_value.get_latest_versions.side_effect = ConnectionError(
-            "MLflow unreachable"
-        )
+    # Mock load_model_impl para simular falha no MLflow
+    # Isso simula o circuit breaker sendo acionado
+    from circuitbreaker import CircuitBreakerError
 
+    with patch.object(
+        mlflow_client, "load_model_impl", side_effect=CircuitBreakerError("MLflow unavailable")
+    ):
         # Deve usar cache expirado como fallback
-        model = mlflow_client.load_model_with_fallback()
+        model = mlflow_client.load_model_with_fallback("test-model", "Production")
         assert model is not None
         assert mlflow_client.used_expired_cache_recently is True
 

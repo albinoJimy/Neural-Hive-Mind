@@ -56,15 +56,40 @@ def specialist_config():
 @pytest.fixture
 def specialist(specialist_config):
     """Especialista mock para testes."""
+    # Criar mocks isolados que sobrescrevem patches de outros módulos
+    mock_semantic_pipeline = MagicMock()
+    mock_semantic_pipeline.evaluate_plan = Mock(
+        return_value={
+            "confidence_score": 0.85,
+            "risk_score": 0.15,
+            "recommendation": "approve",
+            "reasoning_summary": "Test evaluation",
+            "reasoning_factors": [],
+        }
+    )
+
+    mock_explainability = MagicMock()
+    # Mock flexível que aceita qualquer número de argumentos
+    mock_explainability.generate = Mock(
+        return_value=("explainability-token-123", {"method": "heuristic"})
+    )
+
     # Patch para evitar carregar modelos de embeddings durante testes
     with patch("neural_hive_specialists.base_specialist.MLflowClient"):
         with patch("neural_hive_specialists.base_specialist.LedgerClient"):
             with patch("neural_hive_specialists.base_specialist.FeatureStore"):
-                # Patch SentenceTransformer import in embeddings_generator
-                with patch.dict("sys.modules", {"sentence_transformers": MagicMock()}):
-                    with patch("neural_hive_specialists.feature_extraction.embeddings_generator.EmbeddingsGenerator._load_model", return_value=None):
-                        with patch("neural_hive_specialists.semantic_pipeline.semantic_analyzer._get_sentence_transformer", return_value=None):
-                            return MockSpecialist(specialist_config)
+                # SOBRESCREVER patches de test_base_specialist.py para isolamento
+                with patch("neural_hive_specialists.base_specialist.SemanticPipeline", return_value=mock_semantic_pipeline):
+                    with patch("neural_hive_specialists.base_specialist.ExplainabilityGenerator", return_value=mock_explainability):
+                        # Patch SentenceTransformer import in embeddings_generator
+                        with patch.dict("sys.modules", {"sentence_transformers": MagicMock()}):
+                            with patch("neural_hive_specialists.feature_extraction.embeddings_generator.EmbeddingsGenerator._load_model", return_value=None):
+                                with patch("neural_hive_specialists.semantic_pipeline.semantic_analyzer._get_sentence_transformer", return_value=None):
+                                    specialist = MockSpecialist(specialist_config)
+                                    # Injetar mocks diretamente para garantir isolamento
+                                    specialist.semantic_pipeline = mock_semantic_pipeline
+                                    specialist.explainability_gen = mock_explainability
+                                    yield specialist
 
 
 class TestWarmupSuccess:

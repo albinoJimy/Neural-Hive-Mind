@@ -78,13 +78,15 @@ def test_semantic_match_average_rule():
 
     class CustomGen(DummyEmbeddingsGenerator):
         def get_embeddings(self, descriptions):
-            # Primeiro elemento para tarefa 1 terá norma alta, tarefa 2 baixa
+            # high_match: alinha com indicator_high (cos=1.0), perpendicular a indicator_low (cos=0.0)
+            # low_match: perpendicular a ambos (cos=0.0 para ambos)
             embeddings = []
             for desc in descriptions:
                 if desc == "high_match":
                     embeddings.append(np.array([10.0, 0.0, 0.0]))
                 elif desc == "low_match":
-                    embeddings.append(np.array([0.1, 0.0, 0.0]))
+                    # Vetor ortogonal aos indicadores para garantir média baixa
+                    embeddings.append(np.array([0.0, 0.0, 10.0]))
                 elif desc.startswith("indicator_high"):
                     embeddings.append(np.array([10.0, 0.0, 0.0]))
                 else:
@@ -104,8 +106,8 @@ def test_semantic_match_average_rule():
         indicators=["indicator_high", "indicator_low"],
     )
 
-    # high_match -> média ~0.5 (um alto, um baixo) => conta
-    # low_match -> média baixa => não conta
+    # high_match -> média 0.5 (um alto, um baixo) => conta
+    # low_match -> média 0.0 (ortogonal a ambos) => não conta
     assert matches == 1
 
 

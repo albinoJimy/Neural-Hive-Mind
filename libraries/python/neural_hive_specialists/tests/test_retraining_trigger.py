@@ -100,7 +100,9 @@ class TestRetrainingTrigger:
 
     def test_cooldown_expired(self, retraining_trigger):
         """Teste de cooldown expirado."""
-        # Simular trigger antigo (48 horas atrás)
+        from datetime import timedelta
+
+        # Simular trigger antigo (48 horas atrás) - fora do período de cooldown de 24h
         old_trigger = {
             "specialist_type": "technical",
             "triggered_at": datetime.utcnow() - timedelta(hours=48),
@@ -108,7 +110,19 @@ class TestRetrainingTrigger:
             "status": "completed",
         }
 
-        retraining_trigger._triggers_collection.find_one.return_value = old_trigger
+        # Configurar mock para retornar None quando a consulta filtra por data recente
+        # (trigger de 48h não está no período de 24h)
+        def mock_find_one_filter(query, sort=None):
+            # A query busca triggers com triggered_at >= cutoff_time (últimas 24h)
+            # Como o trigger antigo é de 48h, ele não deve ser retornado
+            if "triggered_at" in query:
+                triggered_at_filter = query["triggered_at"]
+                if isinstance(triggered_at_filter, dict) and "$gte" in triggered_at_filter:
+                    # Query filtrando por data recente - trigger antigo não corresponde
+                    return None
+            return old_trigger
+
+        retraining_trigger._triggers_collection.find_one = Mock(side_effect=mock_find_one_filter)
 
         is_cooldown = retraining_trigger._check_cooldown("technical")
 
@@ -155,7 +169,9 @@ class TestRetrainingTrigger:
 
         assert trigger_id.startswith("trigger-")
         retraining_trigger._triggers_collection.insert_one.assert_called_once()
-        retraining_trigger._start_mlflow_run.assert_called_once_with("technical", 150)
+        retraining_trigger._start_mlflow_run.assert_called_once_with(
+            specialist_type="technical", feedback_count=150
+        )
 
     def test_trigger_retraining_mlflow_error(self, retraining_trigger):
         """Teste de erro no MLflow."""
@@ -224,7 +240,9 @@ class TestRetrainingTrigger:
         trigger_id = retraining_trigger.check_and_trigger("technical")
 
         assert trigger_id == "trigger-123"
-        retraining_trigger.trigger_retraining.assert_called_once_with("technical", 150)
+        retraining_trigger.trigger_retraining.assert_called_once_with(
+            specialist_type="technical", feedback_count=150
+        )
 
     def test_get_recent_triggers(self, retraining_trigger):
         """Teste de consulta de triggers recentes."""

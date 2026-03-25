@@ -1123,13 +1123,19 @@ class TestBackwardCompatibility:
                 "neural_hive_specialists.disaster_recovery.disaster_recovery_manager.tempfile.mkdtemp",
                 return_value=backup_dir,
             ), patch(
-                "tarfile.open"
-            ) as mock_tarfile, patch(
+                "neural_hive_specialists.disaster_recovery.disaster_recovery_manager.tarfile.open"
+            ) as mock_tarfile, patch.object(
+                dr_manager,
+                "_calculate_file_checksum",
+                return_value="abc123def456",
+            ), patch(
                 "shutil.rmtree"
             ), patch(
                 "os.remove"
             ), patch(
                 "os.path.getsize", return_value=5000
+            ), patch(
+                "builtins.open", mock_open(read_data=b"dummy data")
             ):
                 os.makedirs(os.path.join(backup_dir, "model"), exist_ok=True)
                 with open(os.path.join(backup_dir, "model", "test.txt"), "w") as f:
