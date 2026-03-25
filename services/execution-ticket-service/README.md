@@ -115,10 +115,12 @@ Usado para health checks Kubernetes, métricas Prometheus, e operações adminis
 
 - `GET /api/v1/tickets/{ticket_id}` - Buscar ticket por ID
 - `GET /api/v1/tickets` - Listar tickets (com filtros: plan_id, status, priority)
+- `POST /api/v1/tickets` - Criar ticket via HTTP REST
 - `PATCH /api/v1/tickets/{ticket_id}/status` - Atualizar status
-- `POST /api/v1/tickets/{ticket_id}/retry` - Retry manual (TODO)
+- `POST /api/v1/tickets/{ticket_id}/retry` - Retry manual de tickets falhados
 - `GET /api/v1/tickets/{ticket_id}/token` - Gerar token JWT
-- `GET /api/v1/tickets/{ticket_id}/history` - Histórico de mudanças (TODO)
+- `GET /api/v1/tickets/{ticket_id}/history` - Histórico de mudanças de status
+- `POST /api/v1/tickets/compensation` - Criar ticket de compensação
 
 ## Configuração
 
@@ -253,29 +255,26 @@ O Orchestrator Dynamic continua gerando tickets e publicando no Kafka. O Executi
 5. **Worker Agent** consulta ticket via API → valida token → executa
 6. **Worker Agent** atualiza status via API → persiste mudanças
 
-## Roadmap
+## Status da Implementação
 
-- [ ] Implementar Kafka Consumer real (stub atual)
-- [ ] Implementar Webhook Manager real (stub atual)
+✅ **100% Completo:**
+- Modelos de dados (Pydantic, ORM, migrations)
+- Clientes de database (PostgreSQL async, MongoDB)
+- API REST (health, tickets CRUD, token generation, retry, history)
+- gRPC Server (proto definido, servicer completo, 4 RPCs: GetTicket, ListTickets, UpdateTicketStatus, GenerateToken)
+- Observabilidade (métricas, tracing, logs estruturados)
+- Main application com lifecycle management
+- Kafka Consumer com Avro deserialization
+- Webhook Manager com retry logic
+- Testes automatizados (18 testes: 14 unitários + 4 integração Kafka opcional)
+
+## Roadmap (Melhorias Futuras)
+
 - [ ] Migrar para mTLS com SPIFFE/SPIRE para autenticação gRPC
 - [ ] Implementar gRPC streaming para monitoramento de tickets em tempo real
 - [ ] Implementar Dead Letter Queue para erros persistentes
 - [ ] Adicionar rate limiting na API REST
 - [ ] Dashboard Grafana customizado
-
-## Status da Implementação
-
-✅ **Core Completo**:
-- Modelos de dados (Pydantic, ORM, migrations)
-- Clientes de database (PostgreSQL async, MongoDB)
-- API REST (health, tickets CRUD, token generation)
-- gRPC Server (proto definido, servicer completo, 4 RPCs implementados: GetTicket, ListTickets, UpdateTicketStatus, GenerateToken)
-- Observabilidade (métricas, tracing, logs estruturados)
-- Main application com lifecycle management
-
-⚠️ **Componentes Stub** (implementação futura):
-- Kafka Consumer (placeholder)
-- Webhook Manager (placeholder)
 
 ## Contribuindo
 

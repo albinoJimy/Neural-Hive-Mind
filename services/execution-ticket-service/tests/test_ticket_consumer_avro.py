@@ -11,10 +11,10 @@ from confluent_kafka.schema_registry import SchemaRegistryClient
 from confluent_kafka.schema_registry.avro import AvroSerializer, AvroDeserializer
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.append(str(ROOT / "src"))
+sys.path.insert(0, str(ROOT / "src"))
 
-from consumers.ticket_consumer import TicketConsumer  # noqa: E402
-from models import ExecutionTicket  # noqa: E402
+from src.consumers.ticket_consumer import TicketConsumer  # noqa: E402
+from src.models import ExecutionTicket  # noqa: E402
 
 
 pytestmark = pytest.mark.skipif(
@@ -111,8 +111,12 @@ def sample_ticket():
 
 
 @pytest.fixture
-def avro_producer():
-    settings = _settings()
+def settings():
+    return _settings()
+
+
+@pytest.fixture
+def avro_producer(settings):
     _, serializer = _schema_components(settings.kafka_schema_registry_url)
     producer = Producer({"bootstrap.servers": settings.kafka_bootstrap_servers})
 
@@ -125,8 +129,7 @@ def avro_producer():
 
 
 @pytest.mark.asyncio
-async def test_consumer_deserializes_avro_ticket(monkeypatch, avro_producer, sample_ticket):
-    settings = _settings()
+async def test_consumer_deserializes_avro_ticket(monkeypatch, avro_producer, sample_ticket, settings):
     metrics = _build_metrics()
     consumer = TicketConsumer(settings, metrics)
     await consumer.start()
@@ -148,8 +151,7 @@ async def test_consumer_deserializes_avro_ticket(monkeypatch, avro_producer, sam
 
 
 @pytest.mark.asyncio
-async def test_consumer_persists_to_postgres(monkeypatch, sample_ticket):
-    settings = _settings()
+async def test_consumer_persists_to_postgres(monkeypatch, sample_ticket, settings):
     metrics = _build_metrics()
     consumer = TicketConsumer(settings, metrics)
 
@@ -170,9 +172,9 @@ async def test_consumer_persists_to_postgres(monkeypatch, sample_ticket):
     async def _fake_mongo_client():
         return _FakeMongo()
 
-    monkeypatch.setattr("consumers.ticket_consumer.get_postgres_client", _fake_postgres_client)
-    monkeypatch.setattr("consumers.ticket_consumer.get_mongodb_client", _fake_mongo_client)
-    monkeypatch.setattr("consumers.ticket_consumer.generate_token", lambda *args, **kwargs: SimpleNamespace(expires_at=0))
+    monkeypatch.setattr("src.consumers.ticket_consumer.get_postgres_client", _fake_postgres_client)
+    monkeypatch.setattr("src.consumers.ticket_consumer.get_mongodb_client", _fake_mongo_client)
+    monkeypatch.setattr("src.consumers.ticket_consumer.generate_token", lambda *args, **kwargs: SimpleNamespace(expires_at=0))
 
     ticket_model = ExecutionTicket.from_avro_dict(sample_ticket)
     await consumer._process_ticket(ticket_model)
@@ -182,8 +184,7 @@ async def test_consumer_persists_to_postgres(monkeypatch, sample_ticket):
 
 
 @pytest.mark.asyncio
-async def test_consumer_handles_invalid_avro(monkeypatch):
-    settings = _settings()
+async def test_consumer_handles_invalid_avro(monkeypatch, settings):
     metrics = _build_metrics()
     consumer = TicketConsumer(settings, metrics)
     await consumer.start()
@@ -197,8 +198,7 @@ async def test_consumer_handles_invalid_avro(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_consumer_commits_offset_after_success(monkeypatch, sample_ticket):
-    settings = _settings()
+async def test_consumer_commits_offset_after_success(monkeypatch, sample_ticket, settings):
     metrics = _build_metrics()
     consumer = TicketConsumer(settings, metrics)
     registry, serializer = _schema_components(settings.kafka_schema_registry_url)

@@ -166,6 +166,59 @@ class PostgresClient:
             await session.commit()
             return result.scalar_one_or_none()
 
+    async def increment_retry_count(self, ticket_id: str) -> Optional[TicketORM]:
+        """
+        Incrementa contador de retry e reseta status para PENDING.
+
+        Args:
+            ticket_id: ID do ticket para retry
+
+        Returns:
+            TicketORM atualizado ou None se não encontrado
+        """
+        async with self._session_maker() as session:
+            stmt = (
+                update(TicketORM)
+                .where(TicketORM.ticket_id == ticket_id)
+                .values(
+                    status=TicketStatus.PENDING.value,
+                    retry_count=TicketORM.retry_count + 1,
+                    started_at=None,
+                    completed_at=None,
+                    error_message=None
+                )
+                .returning(TicketORM)
+            )
+            result = await session.execute(stmt)
+            await session.commit()
+            updated = result.scalar_one_or_none()
+            if updated:
+                logger.info(
+                    'ticket_retry_scheduled',
+                    ticket_id=ticket_id,
+                    retry_count=updated.retry_count
+                )
+            return updated
+
+    async def get_failed_tickets(self, limit: int = 100) -> List[TicketORM]:
+        """
+        Busca tickets com status FAILED que podem ser reprocessados.
+
+        Args:
+            limit: Número máximo de tickets a retornar
+
+        Returns:
+            Lista de tickets FAILED
+        """
+        async with self._session_maker() as session:
+            result = await session.execute(
+                select(TicketORM)
+                .where(TicketORM.status == TicketStatus.FAILED.value)
+                .order_by(TicketORM.created_at.desc())
+                .limit(limit)
+            )
+            return list(result.scalars().all())
+
     async def update_ticket_compensation(
         self,
         ticket_id: str,

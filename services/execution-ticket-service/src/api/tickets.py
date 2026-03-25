@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 
-from ..database import get_db_session, get_postgres_client
+from ..database import get_db_session, get_postgres_client, get_mongodb_client
 from ..models import ExecutionTicket, TicketStatus, generate_token, JWTToken
 from ..config import get_settings
 
@@ -161,7 +161,8 @@ async def list_tickets(
     if intent_id:
         filters['intent_id'] = intent_id
     if status:
-        filters['status'] = status.value
+        # Handle both enum and string values
+        filters['status'] = status.value if hasattr(status, 'value') else status
 
     tickets_orm = await postgres_client.list_tickets(filters, offset, limit)
     total = await postgres_client.count_tickets(filters)
@@ -322,3 +323,166 @@ async def create_compensation_ticket(request: CompensationTicketRequest):
         'action': request.compensation_action,
         'reason': request.reason
     }
+
+
+@router.post('/{ticket_id}/retry', response_model=ExecutionTicket)
+async def retry_ticket(ticket_id: str):
+    """
+    Retry manual de ticket falhado.
+
+    Incrementa o contador de retry e reseta o status para PENDING,
+    permitindo que o Worker Agent processe novamente o ticket.
+
+    Args:
+        ticket_id: ID do ticket para retry
+
+    Returns:
+        Ticket atualizado com status PENDING
+
+    Raises:
+        404: Se ticket não encontrado
+        400: Se ticket não está em estado FAILED
+    """
+    logger = structlog.get_logger(__name__)
+    postgres_client = await get_postgres_client()
+
+    # Buscar ticket
+    ticket_orm = await postgres_client.get_ticket_by_id(ticket_id)
+    if not ticket_orm:
+        raise HTTPException(
+            status_code=404,
+            detail=f'Ticket não encontrado: {ticket_id}'
+        )
+
+    ticket = ticket_orm.to_pydantic()
+
+    # Validar que ticket está em estado FAILED
+    if ticket.status != TicketStatus.FAILED:
+        raise HTTPException(
+            status_code=400,
+            detail=f'Ticket deve estar em estado FAILED para retry, atual: {ticket.status.value}'
+        )
+
+    # Verificar limite de retries (do SLA)
+    max_retries = ticket.sla.max_retries if ticket.sla else 3
+    if ticket.retry_count >= max_retries:
+        raise HTTPException(
+            status_code=400,
+            detail=f'Limite de retries excedido: {ticket.retry_count}/{max_retries}'
+        )
+
+    # Incrementar retry e resetar para PENDING
+    updated_orm = await postgres_client.increment_retry_count(ticket_id)
+
+    if not updated_orm:
+        raise HTTPException(
+            status_code=500,
+            detail='Falha ao agendar retry do ticket'
+        )
+
+    # Log status change no MongoDB audit trail
+    try:
+        mongodb_client = await get_mongodb_client()
+        await mongodb_client.log_status_change(
+            ticket_id=ticket_id,
+            old_status='FAILED',
+            new_status='PENDING',
+            changed_by='api.retry',
+            metadata={
+                'retry_count': updated_orm.retry_count,
+                'trigger': 'manual_retry',
+                'timestamp': datetime.utcnow().isoformat()
+            }
+        )
+    except Exception as e:
+        logger.warning('mongodb_audit_log_failed', ticket_id=ticket_id, error=str(e))
+
+    logger.info(
+        'ticket_retried_manually',
+        ticket_id=ticket_id,
+        retry_count=updated_orm.retry_count
+    )
+
+    return updated_orm.to_pydantic()
+
+
+class TicketHistoryEntry(BaseModel):
+    """Entrada de histórico de mudanças do ticket."""
+    ticket_id: str
+    timestamp: str
+    old_status: Optional[str]
+    new_status: str
+    changed_by: str
+    metadata: Dict[str, Any]
+
+
+@router.get('/{ticket_id}/history', response_model=List[TicketHistoryEntry])
+async def get_ticket_history(ticket_id: str, limit: int = Query(100, ge=1, le=1000)):
+    """
+    Retorna histórico de mudanças de status do ticket.
+
+    Busca do MongoDB audit trail todas as mudanças de status
+    registradas para o ticket especificado.
+
+    Args:
+        ticket_id: ID do ticket
+        limit: Número máximo de entradas a retornar
+
+    Returns:
+        Lista de entradas de histórico ordenadas por timestamp (mais recente primeiro)
+
+    Raises:
+        404: Se ticket não encontrado
+    """
+    logger = structlog.get_logger(__name__)
+    postgres_client = await get_postgres_client()
+
+    # Verificar se ticket existe
+    ticket_orm = await postgres_client.get_ticket_by_id(ticket_id)
+    if not ticket_orm:
+        raise HTTPException(
+            status_code=404,
+            detail=f'Ticket não encontrado: {ticket_id}'
+        )
+
+    # Buscar histórico do MongoDB
+    try:
+        mongodb_client = await get_mongodb_client()
+        audit_collection = mongodb_client.db[mongodb_client.settings.mongodb_collection_audit]
+        history_cursor = audit_collection.find(
+            {'ticket_id': ticket_id}
+        ).sort('timestamp', -1).limit(limit)
+
+        history_docs = await history_cursor.to_list(length=limit)
+
+        # Converter para formato de resposta
+        history_entries = []
+        for doc in history_docs:
+            timestamp = doc.get('timestamp')
+            if isinstance(timestamp, datetime):
+                timestamp_str = timestamp.isoformat()
+            else:
+                timestamp_str = datetime.utcnow().isoformat()
+
+            entry = TicketHistoryEntry(
+                ticket_id=doc.get('ticket_id', ticket_id),
+                timestamp=timestamp_str,
+                old_status=doc.get('old_status'),
+                new_status=doc.get('new_status', 'UNKNOWN'),
+                changed_by=doc.get('changed_by', 'unknown'),
+                metadata=doc.get('metadata', {})
+            )
+            history_entries.append(entry)
+
+        logger.info(
+            'ticket_history_retrieved',
+            ticket_id=ticket_id,
+            entries_count=len(history_entries)
+        )
+
+        return history_entries
+
+    except Exception as e:
+        logger.error('ticket_history_fetch_failed', ticket_id=ticket_id, error=str(e))
+        # Retornar lista vazia em caso de erro no MongoDB
+        return []
