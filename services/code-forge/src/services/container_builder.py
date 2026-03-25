@@ -114,6 +114,7 @@ class ContainerBuilder:
         enable_cache: bool = False,
         cache_repo: Optional[str] = None,
         enable_metrics: bool = False,
+        cleanup_pods: bool = True,  # Por padrão, limpa pods após build
     ):
         """
         Inicializa o ContainerBuilder.
@@ -124,12 +125,14 @@ class ContainerBuilder:
             enable_cache: Habilita cache distribuído
             cache_repo: Repositório de cache (ex: ghcr.io/user/cache)
             enable_metrics: Habilita coleta de métricas de performance
+            cleanup_pods: Se True, remove pods do Kaniko após build (útil para debug quando False)
         """
         self.builder_type = builder_type
         self.timeout_seconds = timeout_seconds
         self.enable_cache = enable_cache
         self.cache_repo = cache_repo
         self.enable_metrics = enable_metrics
+        self.cleanup_pods = cleanup_pods
 
         # Lazy import do coletor de métricas
         self._metrics_collector = None
@@ -1075,18 +1078,25 @@ class ContainerBuilder:
                         duration_ms=duration,
                     )
 
-                    # Cleanup
-                    k8s.delete_namespaced_pod(
-                        name=pod_name,
-                        namespace=namespace
-                    )
-                    try:
-                        k8s.delete_namespaced_config_map(
-                            name=configmap_name,
+                    # Cleanup do pod e configmap se configurado
+                    if self.cleanup_pods:
+                        k8s.delete_namespaced_pod(
+                            name=pod_name,
                             namespace=namespace
                         )
-                    except Exception:
-                        pass
+                        try:
+                            k8s.delete_namespaced_config_map(
+                                name=configmap_name,
+                                namespace=namespace
+                            )
+                        except Exception:
+                            pass
+                    else:
+                        logger.info(
+                            "kaniko_pod_preserved_for_debug",
+                            pod_name=pod_name,
+                            configmap_name=configmap_name
+                        )
 
                     return BuildResult(
                         success=True,
@@ -1125,19 +1135,31 @@ class ContainerBuilder:
                         error=error_msg,
                     )
 
-                    # NÃO deletar o pod em caso de erro para depuração
-                    # TODO: Reativar cleanup após debug
-                    # try:
-                    #     k8s.delete_namespaced_pod(
-                    #         name=pod_name,
-                    #         namespace=namespace
-                    #     )
-                    #     k8s.delete_namespaced_config_map(
-                    #         name=configmap_name,
-                    #         namespace=namespace
-                    #     )
-                    # except Exception:
-                    #     pass
+                    # Cleanup do pod e configmap se configurado
+                    if self.cleanup_pods:
+                        try:
+                            k8s.delete_namespaced_pod(
+                                name=pod_name,
+                                namespace=namespace
+                            )
+                            logger.info("kaniko_pod_deleted", pod_name=pod_name)
+                        except Exception as cleanup_error:
+                            logger.warning("kaniko_pod_cleanup_failed", error=str(cleanup_error))
+
+                        try:
+                            k8s.delete_namespaced_config_map(
+                                name=configmap_name,
+                                namespace=namespace
+                            )
+                            logger.info("kaniko_configmap_deleted", configmap_name=configmap_name)
+                        except Exception as cleanup_error:
+                            logger.warning("kaniko_configmap_cleanup_failed", error=str(cleanup_error))
+                    else:
+                        logger.info(
+                            "kaniko_pod_preserved_for_debug",
+                            pod_name=pod_name,
+                            configmap_name=configmap_name
+                        )
 
                     return BuildResult(
                         success=False,
@@ -1149,10 +1171,15 @@ class ContainerBuilder:
                 elapsed = asyncio.get_event_loop().time() - start_time
                 if elapsed > self.timeout_seconds:
                     logger.error("kaniko_build_timeout", pod_name=pod_name)
-                    k8s.delete_namespaced_pod(
-                        name=pod_name,
-                        namespace=namespace
-                    )
+                    if self.cleanup_pods:
+                        try:
+                            k8s.delete_namespaced_pod(
+                                name=pod_name,
+                                namespace=namespace
+                            )
+                            logger.info("kaniko_pod_deleted_timeout", pod_name=pod_name)
+                        except Exception as cleanup_error:
+                            logger.warning("kaniko_pod_cleanup_failed", error=str(cleanup_error))
                     return BuildResult(
                         success=False,
                         error_message=f"Kaniko build timeout após {elapsed}s",

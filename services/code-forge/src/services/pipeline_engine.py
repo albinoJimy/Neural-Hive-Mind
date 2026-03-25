@@ -592,7 +592,7 @@ class PipelineEngine:
                 files=["pom.xml", "src/main/java/Main.java"],
             )
 
-    def _extract_generated_code(self, context: PipelineContext) -> str:
+    async def _extract_generated_code(self, context: PipelineContext) -> str:
         """Extrai código gerado dos artefatos no contexto."""
         # Buscar artefato de código gerado
         for artifact in context.generated_artifacts:
@@ -601,8 +601,26 @@ class PipelineEngine:
                 if hasattr(artifact, "content") and artifact.content:
                     return artifact.content
 
-                # TODO: Buscar do MongoDB se necessário
-                # Por enquanto retornar vazio para usar código padrão
+                # Buscar do MongoDB usando content_uri
+                if artifact.content_uri and self.mongodb_client:
+                    try:
+                        # Extrair artifact_id da URI (formato: mongodb://artifacts/{artifact_id})
+                        if artifact.content_uri.startswith("mongodb://artifacts/"):
+                            artifact_id = artifact.content_uri.split("/")[-1]
+                            content = await self.mongodb_client.get_artifact_content(artifact_id)
+                            if content:
+                                logger.info(
+                                    "code_fetched_from_mongodb",
+                                    artifact_id=artifact_id,
+                                    ticket_id=context.ticket.ticket_id
+                                )
+                                return content
+                    except Exception as e:
+                        logger.warning(
+                            "mongodb_fetch_failed_using_default",
+                            artifact_id=artifact.artifact_id,
+                            error=str(e)
+                        )
                 break
         return ""
 

@@ -12,6 +12,8 @@ Novos nomes:
 """
 
 from enum import Enum
+from dataclasses import dataclass
+from typing import Optional
 
 
 class ArtifactCategory(str, Enum):
@@ -66,6 +68,9 @@ __all__ = [
     'ArtifactCategory',
     'ArtifactSubtype',
     'CodeLanguage',
+    'ValidationType',
+    'ValidationStatus',
+    'ValidationResult',
 ]
 
 
@@ -74,3 +79,43 @@ __all__ = [
 ArtifactType = ArtifactCategory           # legacy alias
 TemplateLanguage = CodeLanguage           # legacy alias
 SupportedLanguage = CodeLanguage          # legacy alias
+
+
+# ===== VALIDATION TYPES =====
+# Tipos para resultados de validação de segurança e qualidade
+
+
+class ValidationType(str, Enum):
+    """Tipos de validação suportados."""
+    SAST = 'SAST'
+    SCA = 'SCA'
+    LICENSE_CHECK = 'LICENSE_CHECK'
+    CONTAINER_SCAN = 'CONTAINER_SCAN'
+    IAC_SCAN = 'IAC_SCAN'
+    DEPENDENCY_CHECK = 'DEPENDENCY_CHECK'
+
+
+class ValidationStatus(str, Enum):
+    """Status de validação."""
+    PASSED = 'PASSED'
+    FAILED = 'FAILED'
+    SKIPPED = 'SKIPPED'
+    PENDING = 'PENDING'
+
+
+@dataclass
+class ValidationResult:
+    """Resultado de uma validação."""
+    validation_type: ValidationType
+    tool_name: str
+    tool_version: str
+    status: ValidationStatus
+    score: float
+    issues_count: int
+    critical_issues: int
+    high_issues: int
+    medium_issues: int
+    low_issues: int
+    executed_at: Optional[str] = None
+    duration_ms: int = 0
+    report_uri: Optional[str] = None
