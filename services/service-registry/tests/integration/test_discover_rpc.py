@@ -115,7 +115,8 @@ class TestDiscoverAgentsRPC:
         mock_matching_engine.match_agents.assert_called_once_with(
             capabilities_required=["python"],
             filters=None,
-            max_results=5
+            max_results=5,
+            agent_type=None
         )
 
         # Verificar resposta
@@ -141,7 +142,8 @@ class TestDiscoverAgentsRPC:
         mock_matching_engine.match_agents.assert_called_once_with(
             capabilities_required=["python", "terraform"],
             filters=None,
-            max_results=5
+            max_results=5,
+            agent_type=None
         )
 
         assert len(response.agents) == 1
@@ -169,7 +171,8 @@ class TestDiscoverAgentsRPC:
         mock_matching_engine.match_agents.assert_called_once_with(
             capabilities_required=["python"],
             filters={"namespace": "production"},
-            max_results=5
+            max_results=5,
+            agent_type=None
         )
 
         assert len(response.agents) == 1
@@ -194,7 +197,8 @@ class TestDiscoverAgentsRPC:
         mock_matching_engine.match_agents.assert_called_once_with(
             capabilities_required=["python"],
             filters=None,
-            max_results=3
+            max_results=3,
+            agent_type=None
         )
 
         assert len(response.agents) == 3
@@ -258,7 +262,8 @@ class TestDiscoverAgentsRPC:
         mock_matching_engine.match_agents.assert_called_once_with(
             capabilities_required=["python"],
             filters=None,
-            max_results=5  # Default
+            max_results=5,  # Default
+            agent_type=None
         )
 
     @pytest.mark.asyncio
@@ -278,7 +283,8 @@ class TestDiscoverAgentsRPC:
         mock_matching_engine.match_agents.assert_called_once_with(
             capabilities_required=["python"],
             filters=None,  # Dicionario vazio convertido para None
-            max_results=5
+            max_results=5,
+            agent_type=None
         )
 
     @pytest.mark.asyncio

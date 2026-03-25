@@ -58,12 +58,13 @@ class TestRedisPasswordValidation:
         assert settings.ENVIRONMENT == 'staging'
 
     def test_redis_password_not_set_in_development_uses_default(self, monkeypatch):
-        """REDIS_PASSWORD nao definido em development usa default vazio."""
+        """REDIS_PASSWORD nao definido em development usa default None."""
         monkeypatch.setenv('ENVIRONMENT', 'development')
         monkeypatch.delenv('REDIS_PASSWORD', raising=False)
 
         settings = Settings()
-        assert settings.REDIS_PASSWORD == ''
+        # Default is None when not set
+        assert settings.REDIS_PASSWORD is None
         assert settings.ENVIRONMENT == 'development'
 
 

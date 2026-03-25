@@ -58,7 +58,12 @@ class TestRegisterRPC:
         """Helper para criar requests de registro"""
         request = Mock()
         request.agent_type = agent_type
-        request.capabilities = capabilities or ["python", "terraform"]
+        # Use capabilities directly if provided, otherwise default
+        # Explicitly check None to allow empty list to pass through
+        if capabilities is None:
+            request.capabilities = ["python", "terraform"]
+        else:
+            request.capabilities = capabilities
         request.metadata = metadata or {"version": "1.0.0"}
         request.namespace = namespace
         request.cluster = cluster

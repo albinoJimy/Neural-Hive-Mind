@@ -2,7 +2,7 @@ import asyncio
 import signal
 import grpc
 import structlog
-from grpc_health.v1 import health, health_pb2, health_pb2_grpc
+from grpc.health.v1 import health, health_pb2, health_pb2_grpc
 from neural_hive_observability import init_observability, create_instrumented_async_grpc_server, ObservabilityConfig
 
 from src.config import get_settings

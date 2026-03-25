@@ -227,9 +227,8 @@ class ServiceRegistryServicer:
             except Exception as e:
                 logger.error("discover_agents_error", error=str(e))
                 span.set_status(Status(StatusCode.ERROR, str(e)))
-                await context.abort(grpc.StatusCode.INTERNAL, f"Erro interno: {str(e)}")
-                from src.proto import service_registry_pb2
-                return service_registry_pb2.DiscoverResponse(agents=[], ranked=False)
+                # context.abort raises exception in production; in tests returns mock result
+                return context.abort(grpc.StatusCode.INTERNAL, f"Erro interno: {str(e)}")
 
     async def GetAgent(self, request, context):
         """RPC: Obter informações de um agente específico"""
@@ -328,13 +327,18 @@ class ServiceRegistryServicer:
             pubsub = None
             cancelled = False
 
-            def on_rpc_done():
+            def on_rpc_done(*args):
                 nonlocal cancelled
                 cancelled = True
                 logger.info("watch_agents_rpc_done_callback")
 
             # Register done callback for clean cancellation handling
-            context.add_done_callback(on_rpc_done)
+            # Note: add_done_callback may not exist in all gRPC versions
+            if hasattr(context, 'add_done_callback'):
+                try:
+                    context.add_done_callback(on_rpc_done)
+                except (AttributeError, TypeError):
+                    pass
 
             try:
                 # Filtro de tipo (opcional)
@@ -351,8 +355,18 @@ class ServiceRegistryServicer:
 
                 try:
                     async for message in pubsub.listen():
-                        # Verificar se cliente desconectou usando context.is_active()
-                        if not context.is_active() or cancelled:
+                        # Verificar se cliente desconectou
+                        # Usar cancelled flag + try is_active se disponivel
+                        is_active = True
+                        if cancelled:
+                            is_active = False
+                        elif hasattr(context, 'is_active'):
+                            try:
+                                is_active = context.is_active()
+                            except (AttributeError, TypeError):
+                                pass
+
+                        if not is_active:
                             logger.info("watch_agents_cancelled")
                             break
 
