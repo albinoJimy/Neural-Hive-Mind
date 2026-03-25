@@ -37,7 +37,14 @@ def sample_ticket():
     return {
         "ticket_id": "ticket-123",
         "task_type": "BUILD",
-        "parameters": {},
+        "parameters": {
+            "resources": {
+                "cpu_limit": "1",
+                "cpu_request": "500m",
+                "memory_limit": "1Gi",
+                "memory_request": "512Mi"
+            }
+        },
         "environment": "development"
     }
 

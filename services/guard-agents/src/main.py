@@ -515,10 +515,13 @@ app.include_router(health.router, tags=["health"])
 from src.api import validation
 app.include_router(validation.router, prefix="/api/v1", tags=["validation"])
 
-# TODO: Incluir routers adicionais
-# app.include_router(incidents.router, prefix="/api/v1", tags=["incidents"])
-# app.include_router(enforcement.router, prefix="/api/v1", tags=["enforcement"])
-# app.include_router(webhooks.router, prefix="/api/v1", tags=["webhooks"])
+# Incluir router de incidentes
+from src.api import incidents
+app.include_router(incidents.router, prefix="/api/v1", tags=["incidents"])
+
+# Incluir router de enforcement
+from src.api import enforcement
+app.include_router(enforcement.router, prefix="/api/v1", tags=["enforcement"])
 
 
 # Signal handling para graceful shutdown

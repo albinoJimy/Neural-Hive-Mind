@@ -18,6 +18,17 @@ from src.models.security_validation import (
 
 
 @pytest.fixture
+def mock_settings():
+    """Mock settings."""
+    settings = MagicMock()
+    settings.risk_score_threshold_auto_approve = 0.3
+    settings.risk_score_threshold_auto_reject = 0.8
+    settings.require_approval_for_production = True
+    settings.require_approval_for_critical_risk = True
+    return settings
+
+
+@pytest.fixture
 def mock_opa_client():
     """Mock OPA client."""
     client = AsyncMock()
@@ -71,7 +82,8 @@ def mock_clients(
     mock_vault_client,
     mock_trivy_client,
     mock_redis_client,
-    mock_mongodb_client
+    mock_mongodb_client,
+    mock_settings
 ):
     """Fixture com todos os clients mockados."""
     return {
@@ -80,7 +92,8 @@ def mock_clients(
         "vault_client": mock_vault_client,
         "trivy_client": mock_trivy_client,
         "redis_client": mock_redis_client,
-        "mongodb_client": mock_mongodb_client
+        "mongodb_client": mock_mongodb_client,
+        "settings": mock_settings
     }
 
 

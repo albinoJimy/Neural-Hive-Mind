@@ -42,7 +42,8 @@ class TicketConsumer:
         tickets_topic: str,
         tickets_validated_topic: str,
         tickets_rejected_topic: str,
-        tickets_pending_approval_topic: str
+        tickets_pending_approval_topic: str,
+        queen_agent_client=None
     ):
         """
         Inicializa o TicketConsumer.
@@ -57,6 +58,7 @@ class TicketConsumer:
             tickets_validated_topic: Tópico para tickets validados
             tickets_rejected_topic: Tópico para tickets rejeitados
             tickets_pending_approval_topic: Tópico para tickets pendentes de aprovação
+            queen_agent_client: Cliente opcional para notificar Queen Agent sobre aprovações pendentes
         """
         self.bootstrap_servers = bootstrap_servers
         self.group_id = group_id
@@ -67,6 +69,7 @@ class TicketConsumer:
         self.tickets_validated_topic = tickets_validated_topic
         self.tickets_rejected_topic = tickets_rejected_topic
         self.tickets_pending_approval_topic = tickets_pending_approval_topic
+        self.queen_agent_client = queen_agent_client
         self.consumer: Optional[AIOKafkaConsumer] = None
         self._consuming = False
         self._consumer_task: Optional[asyncio.Task] = None
@@ -325,7 +328,38 @@ class TicketConsumer:
                     }
                 )
 
-                # TODO: Notificar Queen Agent sobre aprovação pendente
+                # Notificar Queen Agent sobre aprovação pendente
+                if self.queen_agent_client:
+                    try:
+                        from neural_hive_integration.clients.queen_agent_client import QueenAgentClient
+                        # Usar o cliente injetado ou criar um novo
+                        queen_client = self.queen_agent_client
+                        # Notificar sobre ticket pendente de aprovação
+                        await queen_client.report_execution_status(
+                            plan_id=ticket.get("plan_id", ticket["ticket_id"]),
+                            status="pending_approval",
+                            metrics={
+                                "ticket_id": ticket["ticket_id"],
+                                "approval_reason": validation.approval_reason,
+                                "violations_count": len(validation.violations),
+                                "severity": validation.risk_score
+                            }
+                        )
+                        logger.info(
+                            "ticket_consumer.queen_agent_notified",
+                            ticket_id=ticket["ticket_id"]
+                        )
+                    except Exception as e:
+                        logger.warning(
+                            "ticket_consumer.queen_agent_notification_failed",
+                            ticket_id=ticket["ticket_id"],
+                            error=str(e)
+                        )
+                else:
+                    logger.debug(
+                        "ticket_consumer.queen_agent_not_available",
+                        ticket_id=ticket["ticket_id"]
+                    )
 
                 logger.info(
                     "ticket_consumer.ticket_requires_approval",

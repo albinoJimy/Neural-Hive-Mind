@@ -21,7 +21,24 @@ from src.models.security_validation import (
 )
 
 logger = structlog.get_logger(__name__)
-tracer = get_tracer()
+_tracer = get_tracer()
+
+# Create dummy tracer for test environments
+class _DummySpan:
+    """Dummy span for test environments."""
+    def __enter__(self):
+        return self
+    def __exit__(self, *args):
+        pass
+    def set_attribute(self, *args):
+        pass
+
+class _DummyTracer:
+    """Dummy tracer for test environments."""
+    def start_as_current_span(self, *args, **kwargs):
+        return _DummySpan()
+
+tracer = _tracer if _tracer is not None else _DummyTracer()
 
 
 class GuardrailEnforcer:

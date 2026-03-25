@@ -7,14 +7,39 @@ from src.services.remediation_coordinator import RemediationCoordinator, Remedia
 @pytest.fixture
 def mock_k8s_client():
     """Mock Kubernetes client"""
+    from unittest.mock import AsyncMock, MagicMock
+
     client = MagicMock()
     client.namespace = "neural-hive"
-    client.delete_pod = AsyncMock(return_value=True)
-    client.get_pod = AsyncMock(return_value=None)  # Pod deleted
-    client.list_pods = AsyncMock(return_value=[{
-        "metadata": {"name": "test-pod-abc123"},
+
+    # Simulate pod state changes
+    _pods = [{
+        "metadata": {"name": "test-pod-abc123", "labels": {"app": "test-app"}},
         "status": {"phase": "Running", "containerStatuses": [{"ready": True}]}
-    }])
+    }]
+
+    async def delete_pod_impl(pod_name, namespace=None):
+        """Simulate pod deletion - replace with new pod"""
+        _pods[0] = {
+            "metadata": {"name": "test-pod-xyz789", "labels": {"app": "test-app"}},
+            "status": {"phase": "Running", "containerStatuses": [{"ready": True}]}
+        }
+        return True
+
+    async def get_pod_impl(pod_name, namespace=None):
+        """Get pod info"""
+        for pod in _pods:
+            if pod["metadata"]["name"] == pod_name:
+                return pod
+        return None
+
+    async def list_pods_impl(*args, **kwargs):
+        """List all pods"""
+        return _pods.copy()
+
+    client.get_pod = AsyncMock(side_effect=get_pod_impl)
+    client.list_pods = AsyncMock(side_effect=list_pods_impl)
+    client.delete_pod = AsyncMock(side_effect=delete_pod_impl)
     client.scale_deployment = AsyncMock(return_value=True)
     client.rollback_deployment = AsyncMock(return_value={"success": True})
     client.apply_network_policy = AsyncMock(return_value={"success": True})

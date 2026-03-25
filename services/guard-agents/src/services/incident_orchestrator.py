@@ -453,9 +453,75 @@ class IncidentOrchestrator:
         return summary
 
     def _analyze_root_cause(self, incident: Dict[str, Any]) -> str:
-        """Analisa causa raiz (placeholder)"""
-        # TODO: Análise mais sofisticada com ML/correlação
-        return f"Threat type: {incident.get('threat_type')}"
+        """
+        Analisa causa raiz baseada em múltiplos fatores do incidente.
+
+        Args:
+            incident: Dicionário com dados do incidente
+
+        Returns:
+            String com análise da causa raiz
+        """
+        threat_type = incident.get('threat_type', 'unknown')
+        severity = incident.get('severity', 'unknown')
+        anomaly = incident.get('anomaly', {})
+        affected_resources = incident.get('affected_resources', [])
+
+        # Construir análise baseada em múltiplos fatores
+        analysis_parts = []
+
+        # 1. Tipo de ameaça
+        analysis_parts.append(f"Primary threat: {threat_type}")
+
+        # 2. Análise da anomalia se disponível
+        if anomaly:
+            anomaly_type = anomaly.get('type')
+            if anomaly_type:
+                analysis_parts.append(f"Anomaly pattern: {anomaly_type}")
+
+            anomaly_details = anomaly.get('details', {})
+            if isinstance(anomaly_details, dict):
+                # Extrair métricas relevantes
+                if 'deviation_threshold' in anomaly_details:
+                    threshold = anomaly_details['deviation_threshold']
+                    analysis_parts.append(f"Deviation exceeded: {threshold}x threshold")
+
+                if 'source' in anomaly_details:
+                    source = anomaly_details['source']
+                    analysis_parts.append(f"Origin: {source}")
+
+        # 3. Análise de recursos afetados
+        if affected_resources:
+            resource_count = len(affected_resources)
+            analysis_parts.append(f"Affected resources: {resource_count}")
+
+            # Identificar padrões nos recursos
+            if resource_count > 1:
+                namespaces = set()
+                for resource in affected_resources:
+                    if '/' in resource:
+                        ns, _ = resource.split('/', 1)
+                        namespaces.add(ns)
+
+                if len(namespaces) > 1:
+                    analysis_parts.append(f"Multi-namespace impact detected: {', '.join(namespaces)}")
+
+        # 4. Análise de severidade
+        if severity == 'critical':
+            analysis_parts.append("Critical severity indicates potential security breach")
+        elif severity == 'high':
+            analysis_parts.append("High severity suggests significant operational impact")
+
+        # 5. Correlação temporal (se disponível)
+        incident_id = incident.get('incident_id', '')
+        if incident_id:
+            # Extrair timestamp do ID se presente
+            import re
+            timestamp_match = re.search(r'\d{10}', incident_id)
+            if timestamp_match:
+                analysis_parts.append(f"Incident ID correlation: {timestamp_match.group()}")
+
+        return " | ".join(analysis_parts)
 
     def _summarize_actions(
         self,

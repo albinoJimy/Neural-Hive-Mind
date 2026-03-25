@@ -694,34 +694,188 @@ class PolicyEnforcer:
     async def _isolate_pod(
         self, incident: Dict[str, Any], plan: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Isola pod usando NetworkPolicy"""
+        """
+        Isola pod usando NetworkPolicy para bloquear todo tráfego ingress/egress.
+
+        Args:
+            incident: Incidente com affected_resources
+            plan: Plano de enforcement
+
+        Returns:
+            Dict com resultado do isolamento
+        """
         resources = incident.get("affected_resources", [])
+        incident_id = incident.get("incident_id", "unknown")
 
-        logger.info("policy_enforcer.isolating_pods", resources=resources)
+        if not resources:
+            return {
+                "success": False,
+                "action": "isolate_pod",
+                "reason": "No resources to isolate"
+            }
 
-        # TODO: Criar NetworkPolicy para isolar pod
+        logger.info("policy_enforcer.isolating_pods", resources=resources, incident_id=incident_id)
+
+        isolated_pods = []
+        policies_created = []
+        errors = []
+
+        if self.k8s:
+            for resource in resources:
+                namespace, pod_name = self._parse_resource(resource)
+
+                if pod_name and namespace:
+                    try:
+                        # Obter pod para extrair labels como seletor
+                        pod_info = await self.k8s.get_pod(pod_name, namespace)
+
+                        if pod_info:
+                            pod_selector = {}
+                            if pod_info.get("metadata", {}).get("labels"):
+                                # Usar labels do pod como seletor
+                                pod_selector = pod_info["metadata"]["labels"]
+
+                            # Criar nome da policy baseado no incident_id e pod
+                            policy_name = f"isolate-{pod_name}-{incident_id[-8:]}"
+
+                            # Criar NetworkPolicy para isolar o pod
+                            policy_result = await self.k8s.apply_network_policy(
+                                policy_name=policy_name,
+                                policy_spec={
+                                    "target": "isolate",
+                                    "pod_selector": pod_selector,
+                                    "type": "remediation"
+                                },
+                                namespace=namespace
+                            )
+
+                            if policy_result.get("success"):
+                                policies_created.append({
+                                    "policy_name": policy_name,
+                                    "namespace": namespace,
+                                    "action": policy_result.get("action", "created")
+                                })
+                                isolated_pods.append(pod_name)
+
+                                logger.info(
+                                    "policy_enforcer.pod_isolated",
+                                    pod=pod_name,
+                                    namespace=namespace,
+                                    policy=policy_name
+                                )
+                            else:
+                                errors.append(f"Failed to create policy for {pod_name}: {policy_result.get('error')}")
+                        else:
+                            errors.append(f"Pod {pod_name} not found in {namespace}")
+
+                    except Exception as e:
+                        logger.error(
+                            "policy_enforcer.isolate_pod_failed",
+                            pod=pod_name,
+                            namespace=namespace,
+                            error=str(e)
+                        )
+                        errors.append(f"Error isolating {pod_name}: {str(e)}")
+        else:
+            return {
+                "success": False,
+                "action": "isolate_pod",
+                "reason": "Kubernetes client not available"
+            }
+
         return {
-            "success": True,
+            "success": len(isolated_pods) > 0,
             "action": "isolate_pod",
-            "details": {"resources": resources},
+            "details": {
+                "isolated_pods": isolated_pods,
+                "policies_created": policies_created,
+                "resources": resources,
+                "errors": errors
+            },
         }
 
     async def _scale_down_resource(
         self, incident: Dict[str, Any], plan: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Reduz escala de recurso abusivo"""
-        resources = incident.get("affected_resources", [])
+        """
+        Reduz escala de recurso abusivo (deployment para 0 replicas).
 
-        logger.info("policy_enforcer.scaling_down", resources=resources)
+        Args:
+            incident: Incidente com affected_resources
+            plan: Plano de enforcement
+
+        Returns:
+            Dict com resultado do scale down
+        """
+        resources = incident.get("affected_resources", [])
+        incident_id = incident.get("incident_id", "unknown")
+
+        if not resources:
+            return {
+                "success": False,
+                "action": "scale_down",
+                "reason": "No resources to scale down"
+            }
+
+        logger.info("policy_enforcer.scaling_down", resources=resources, incident_id=incident_id)
+
+        scaled_deployments = []
+        errors = []
 
         if self.k8s:
-            # TODO: Scale down deployment
-            pass
+            for resource in resources:
+                # Parse resource - pode ser deployment ou pod
+                namespace, resource_name = self._parse_resource(resource)
+
+                if resource_name and namespace:
+                    try:
+                        # Tentar scale down deployment para 0 replicas
+                        scale_result = await self.k8s.scale_deployment(
+                            deployment_name=resource_name,
+                            replicas=0,
+                            namespace=namespace
+                        )
+
+                        if scale_result:
+                            scaled_deployments.append({
+                                "deployment": resource_name,
+                                "namespace": namespace,
+                                "previous_replicas": "unknown",
+                                "new_replicas": 0
+                            })
+
+                            logger.info(
+                                "policy_enforcer.deployment_scaled_down",
+                                deployment=resource_name,
+                                namespace=namespace,
+                                replicas=0
+                            )
+                        else:
+                            errors.append(f"Failed to scale down {resource_name}")
+
+                    except Exception as e:
+                        logger.error(
+                            "policy_enforcer.scale_down_failed",
+                            resource=resource_name,
+                            namespace=namespace,
+                            error=str(e)
+                        )
+                        errors.append(f"Error scaling down {resource_name}: {str(e)}")
+        else:
+            return {
+                "success": False,
+                "action": "scale_down",
+                "reason": "Kubernetes client not available"
+            }
 
         return {
-            "success": True,
+            "success": len(scaled_deployments) > 0,
             "action": "scale_down",
-            "details": {"resources": resources},
+            "details": {
+                "scaled_deployments": scaled_deployments,
+                "resources": resources,
+                "errors": errors
+            },
         }
 
     async def _apply_rate_limit(
