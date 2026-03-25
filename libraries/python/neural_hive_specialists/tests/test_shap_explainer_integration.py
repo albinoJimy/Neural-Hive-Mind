@@ -4,9 +4,11 @@ Testes de integração para SHAPExplainer com modelos reais.
 Testa TreeExplainer e KernelExplainer com modelos sklearn treinados.
 """
 
+import time
 import pytest
 import numpy as np
 import pandas as pd
+from unittest.mock import patch, MagicMock
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.datasets import make_classification
@@ -82,24 +84,34 @@ class TestSHAPExplainerWithRandomForest:
         """Testa timeout de SHAP."""
         X, y, feature_names = sample_data
 
-        model = RandomForestClassifier(n_estimators=100, random_state=42)
+        model = RandomForestClassifier(n_estimators=10, random_state=42)
         model.fit(X, y)
 
         background_path = tmp_path / "background.parquet"
         background_dataset.to_parquet(background_path)
 
-        # Timeout muito curto
+        # Timeout curto mas confiável com mock
         config = {
             "shap_background_dataset_path": str(background_path),
-            "shap_timeout_seconds": 0.001,  # 1ms - deve dar timeout
+            "shap_timeout_seconds": 0.1,  # 100ms - suficiente para mock funcionar
         }
         explainer = SHAPExplainer(config)
 
         features = X.iloc[0].to_dict()
-        result = explainer.explain(model, features, feature_names)
+
+        # Mock _compute_shap para simular delay maior que timeout
+        def slow_compute(*args, **kwargs):
+            time.sleep(0.2)  # 200ms - maior que timeout de 100ms
+            return {
+                "method": "shap",
+                "feature_importances": [],
+            }
+
+        with patch.object(explainer, '_compute_shap', side_effect=slow_compute):
+            result = explainer.explain(model, features, feature_names)
 
         # Deve retornar erro de timeout
-        assert "error" in result
+        assert "error" in result, f"Esperado erro de timeout, got: {result}"
         assert result["error"] == "timeout"
 
     def test_top_features_extraction(self, sample_data, background_dataset, tmp_path):
