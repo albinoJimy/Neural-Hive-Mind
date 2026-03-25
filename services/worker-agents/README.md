@@ -34,6 +34,43 @@ Executores agora integram serviços reais (Code Forge, OPA/Trivy) e publicam res
 - **TestExecutor**: Suporta múltiplos providers (GitHub Actions, GitLab CI, Jenkins, Local, Simulação) com parsing de relatórios JUnit XML, Cobertura e LCOV.
 - **ValidateExecutor**: Valida políticas via OPA e roda SAST com Trivy (quando habilitado).
 - **DeployExecutor**: Integra com ArgoCD e Flux CD para deploy GitOps completo com health polling. Fallback simulado quando GitOps indisponivel.
+- **QueryExecutor**: Executa queries em MongoDB, Neo4j, Kafka e Redis com suporte a agregação.
+- **TransformExecutor**: Transforma dados (JSON, CSV, agregação, formatação, filtros).
+- **CompensateExecutor**: Executa tarefas de compensação para saga patterns.
+
+### Parallel Executor (NOVO)
+
+O `ParallelExecutor` permite execução avançada de múltiplos tickets em paralelo:
+
+- **Filas de Prioridade**: CRITICAL, HIGH, MEDIUM, LOW para SLA-aware execution
+- **Batch Processing**: Agrupamento automático de tickets do mesmo tipo
+- **Coordenação de Dependências**: Execução respeitando grafos de dependência complexos
+- **Limites de Concorrência**: Global e por task_type para fine-grained control
+- **Processor Workers**: Múltiplos workers processando filas concorrentemente
+
+```python
+from src.engine.parallel_executor import ParallelExecutor, ParallelExecutionConfig, TaskPriority
+
+# Configurar executor paralelo
+config = ParallelExecutionConfig(
+    max_parallel_tasks=10,
+    max_parallel_by_type={'BUILD': 3, 'DEPLOY': 2},
+    enable_batching=True,
+    enable_priority_queue=True
+)
+executor = ParallelExecutor(config, execution_engine, metrics)
+
+# Executar tickets independentes em paralelo
+results = await executor.execute_parallel_independent(tickets)
+
+# Executar com dependências
+results = await executor.execute_with_dependencies(tickets, dependency_graph)
+
+# Submeter com prioridade
+await executor.submit_ticket(urgent_ticket, TaskPriority.CRITICAL)
+```
+
+Ver documentação completa em `docs/PARALLEL_EXECUTOR.md`.
 
 ## Arquitetura
 

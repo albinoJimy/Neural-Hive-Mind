@@ -540,6 +540,82 @@ class WorkerAgentMetrics:
             buckets=[0.01, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10]
         )
 
+        # Parallel Executor Metrics
+        self.parallel_tickets_submitted_total = Counter(
+            'worker_agent_parallel_tickets_submitted_total',
+            'Total de tickets submetidos para execução paralela',
+            ['task_type', 'priority']
+        )
+
+        self.parallel_ticket_duration_seconds = Histogram(
+            'worker_agent_parallel_ticket_duration_seconds',
+            'Duração de execução de tickets em paralelo',
+            ['task_type'],
+            buckets=[1, 5, 10, 30, 60, 120, 300, 600]
+        )
+
+        self.parallel_tickets_failed_total = Counter(
+            'worker_agent_parallel_tickets_failed_total',
+            'Total de tickets falhados em execução paralela',
+            ['task_type', 'error_type']
+        )
+
+        self.parallel_batch_duration_seconds = Histogram(
+            'worker_agent_parallel_batch_duration_seconds',
+            'Duração de execução de batches paralelos',
+            buckets=[1, 5, 10, 30, 60, 120, 300, 600, 1800]
+        )
+
+        self.parallel_queue_size = Gauge(
+            'worker_agent_parallel_queue_size',
+            'Tamanho da fila de execução paralela',
+            ['priority']
+        )
+
+        self.parallel_active_tasks_by_type = Gauge(
+            'worker_agent_parallel_active_tasks_by_type',
+            'Número de tarefas ativas por tipo em execução paralela',
+            ['task_type']
+        )
+
+        self.parallel_processors_running = Gauge(
+            'worker_agent_parallel_processors_running',
+            'Número de processor workers em execução'
+        )
+
+        self.parallel_throughput_tickets_per_second = Gauge(
+            'worker_agent_parallel_throughput_tickets_per_second',
+            'Throughput de tickets processados por segundo'
+        )
+
+        # Transform Executor Metrics
+        self.transform_executed_total = Counter(
+            'worker_agent_transform_executed_total',
+            'Total de transformações executadas',
+            ['status', 'transform_type']
+        )
+
+        self.transform_duration_seconds = Histogram(
+            'worker_agent_transform_duration_seconds',
+            'Duração de transformações',
+            ['transform_type'],
+            buckets=[0.01, 0.05, 0.1, 0.5, 1, 2, 5, 10, 30]
+        )
+
+        # Compensate Executor Metrics
+        self.compensate_tasks_executed_total = Counter(
+            'worker_agent_compensate_tasks_executed_total',
+            'Total de tarefas de compensação executadas',
+            ['status']
+        )
+
+        self.compensate_duration_seconds = Histogram(
+            'worker_agent_compensate_duration_seconds',
+            'Duração de execuções de compensação',
+            ['compensation_type'],
+            buckets=[0.5, 1, 2, 5, 10, 30, 60, 120, 300]
+        )
+
         logger.info('worker_agent_metrics_initialized')
 
 
