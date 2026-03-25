@@ -86,6 +86,26 @@ async def ready(request: Request) -> JSONResponse:
         logger.error("health_check_grpc_failed", error=str(e))
         checks["grpc"] = False
 
+    # Leader Election - opcional, verifica se está rodando
+    try:
+        checks["leader_election"] = (
+            app_state.leader_election is not None
+            and app_state.leader_election.is_running
+        )
+    except Exception as e:
+        logger.error("health_check_leader_election_failed", error=str(e))
+        checks["leader_election"] = False
+
+    # Load Balancer - opcional, verifica se está rodando
+    try:
+        checks["load_balancer"] = (
+            app_state.load_balancer is not None
+            and app_state.load_balancer.is_running
+        )
+    except Exception as e:
+        logger.error("health_check_load_balancer_failed", error=str(e))
+        checks["load_balancer"] = False
+
     # Dependências críticas: MongoDB, Redis, Neo4j, Kafka
     critical_deps = ["mongodb", "redis", "neo4j", "kafka"]
     all_critical_healthy = all(checks.get(dep, False) for dep in critical_deps)

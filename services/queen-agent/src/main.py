@@ -29,6 +29,8 @@ from .services import (
     ExceptionApprovalService,
     TelemetryAggregator,
     MCPToolOrchestrator,
+    LeaderElection,
+    LoadBalancer,
 )
 from .consumers import ConsensusConsumer, TelemetryConsumer, IncidentConsumer
 from .producers import StrategicDecisionProducer
@@ -38,6 +40,8 @@ from .api import (
     exceptions_router,
     status_router,
     mcp_router,
+    election_router,
+    workers_router,
 )
 from .grpc_server import QueenAgentServicer
 from .proto import queen_agent_pb2_grpc
@@ -91,6 +95,10 @@ class AppState:
         self.mcp_scout_client: MCPClient | None = None
         self.mcp_optimizer_client: MCPClient | None = None
         self.mcp_orchestrator: MCPToolOrchestrator | None = None
+
+        # High Availability
+        self.leader_election: LeaderElection | None = None
+        self.load_balancer: LoadBalancer | None = None
 
         # Background tasks
         self.consumer_tasks: list[asyncio.Task] = []
@@ -227,6 +235,46 @@ async def lifespan(app: FastAPI):
                 scout_url=settings.MCP_SCOUT_URL,
                 optimizer_url=settings.MCP_OPTIMIZER_URL,
             )
+
+        # 3.5. Inicializar Leader Election (se habilitado)
+        if settings.ELECTION_ENABLED:
+            logger.info("initializing_leader_election")
+
+            # Gerar node_id único se não configurado
+            node_id = settings.ELECTION_NODE_ID
+            if node_id == "queen-agent-1":
+                # Adicionar timestamp para garantir unicidade
+                import socket
+                hostname = socket.gethostname()
+                node_id = f"queen-agent-{hostname}-{settings.SERVICE_VERSION}"
+
+            app_state.leader_election = LeaderElection(
+                redis_client=app_state.redis_client,
+                settings=settings,
+                node_id=node_id,
+            )
+            await app_state.leader_election.start()
+
+            logger.info(
+                "leader_election_initialized",
+                node_id=node_id,
+                ttl=settings.ELECTION_LEASE_TTL_SECONDS,
+            )
+
+        # 3.6. Inicializar Load Balancer
+        logger.info("initializing_load_balancer")
+
+        app_state.load_balancer = LoadBalancer(
+            redis_client=app_state.redis_client,
+            service_registry_client=app_state.service_registry_client,
+            settings=settings,
+        )
+        await app_state.load_balancer.start()
+
+        logger.info(
+            "load_balancer_initialized",
+            strategy=settings.LOAD_BALANCER_STRATEGY,
+        )
 
         # 4. Inicializar Kafka producer
         logger.info("initializing_kafka_producer")
@@ -369,6 +417,16 @@ async def lifespan(app: FastAPI):
 
         await asyncio.gather(*app_state.consumer_tasks, return_exceptions=True)
 
+        # 3.5. Parar Load Balancer
+        if app_state.load_balancer:
+            logger.info("stopping_load_balancer")
+            await app_state.load_balancer.stop()
+
+        # 3.6. Parar Leader Election
+        if app_state.leader_election:
+            logger.info("stopping_leader_election")
+            await app_state.leader_election.stop()
+
         # 4. Fechar producer
         if app_state.strategic_producer:
             await app_state.strategic_producer.close()
@@ -425,6 +483,8 @@ app.include_router(decisions_router)
 app.include_router(exceptions_router)
 app.include_router(status_router)
 app.include_router(mcp_router)
+app.include_router(election_router)
+app.include_router(workers_router)
 
 if __name__ == "__main__":
     import uvicorn

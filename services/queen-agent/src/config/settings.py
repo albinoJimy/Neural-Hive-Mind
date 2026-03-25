@@ -104,6 +104,18 @@ class Settings(BaseSettings):
     MCP_OPTIMIZER_URL: str = "http://optimizer-mcp-server.neural-hive-mcp.svc.cluster.local:8080"
     MCP_TIMEOUT: int = 30
 
+    # Leader Election
+    ELECTION_ENABLED: bool = True
+    ELECTION_LEASE_TTL_SECONDS: int = 10
+    ELECTION_HEARTBEAT_INTERVAL_SECONDS: int = 2
+    ELECTION_TIMEOUT_SECONDS: int = 5
+    ELECTION_NODE_ID: str = "queen-agent-1"  # Override via env var
+
+    # Load Balancing
+    LOAD_BALANCER_STRATEGY: str = "round_robin"  # round_robin, least_loaded, weighted, consistent_hash
+    WORKER_HEARTBEAT_TIMEOUT_SECONDS: int = 30
+    METRICS_TTL_SECONDS: int = 300
+
     @model_validator(mode="after")
     def validate_https_in_production(self) -> "Settings":
         """

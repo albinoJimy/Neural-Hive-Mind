@@ -3,6 +3,8 @@ from .decisions import router as decisions_router
 from .exceptions import router as exceptions_router
 from .status import router as status_router
 from .mcp import router as mcp_router
+from .election import router as election_router
+from .workers import router as workers_router
 
 __all__ = [
     "health_router",
@@ -10,4 +12,6 @@ __all__ = [
     "exceptions_router",
     "status_router",
     "mcp_router",
+    "election_router",
+    "workers_router",
 ]
