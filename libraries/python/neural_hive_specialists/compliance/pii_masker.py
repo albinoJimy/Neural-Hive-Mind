@@ -125,12 +125,22 @@ class PIIMasker:
             MaskResult com texto mascarado e entidades detectadas
         """
         if not text:
-            return MaskResult(text="", entities=[], metadata={"count": 0})
+            return MaskResult(text="", entities=[], metadata={"total": 0, "by_type": {}})
 
         entities = self._detect_entities(text, types_to_mask)
 
         # Ordenar por start (reverso para não quebrar índices)
         entities_sorted = sorted(entities, key=lambda e: e.start, reverse=True)
+
+        # Remove overlapping entities (keep longer matches)
+        filtered_entities = []
+        for entity in entities_sorted:
+            if not any(
+                e.start < entity.end and e.end > entity.start
+                for e in filtered_entities
+            ):
+                filtered_entities.append(entity)
+        entities_sorted = filtered_entities
 
         masked_text = text
         stats = {"total": 0, "by_type": {}}
@@ -303,6 +313,27 @@ class PIIMasker:
         return PIICategory.GLOBAL
 
 
-def create_masker(**kwargs) -> PIIMasker:
-    """Factory para criar PIIMasker."""
-    return PIIMasker(**kwargs)
+def create_masker(
+    strategy: MaskStrategy = MaskStrategy.PARTIAL,
+    mask_char: str = "*",
+    min_chars_to_preserve: int = 1,
+    enable_spacy: bool = True,
+) -> PIIMasker:
+    """
+    Factory para criar PIIMasker com configurações padrão.
+
+    Args:
+        strategy: Estratégia de mascaramento padrão
+        mask_char: Carácter para mascaramento
+        min_chars_to_preserve: Mínimo de caracteres a preservar
+        enable_spacy: Usar spaCy NER para detecção NLP
+
+    Returns:
+        Instância configurada de PIIMasker
+    """
+    return PIIMasker(
+        strategy=strategy,
+        mask_char=mask_char,
+        min_chars_to_preserve=min_chars_to_preserve,
+        enable_spacy=enable_spacy,
+    )
