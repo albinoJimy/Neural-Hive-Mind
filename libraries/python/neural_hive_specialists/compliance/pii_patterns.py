@@ -4,9 +4,12 @@ PII Patterns para detecção via regex.
 Contém patterns compilados para detecção de PII global, europeu e brasileiro.
 """
 import re
+import structlog
 from enum import Enum
 from typing import Dict, List, Tuple, Optional
 from dataclasses import dataclass
+
+logger = structlog.get_logger(__name__)
 
 
 class PIICategory(str, Enum):
@@ -69,7 +72,8 @@ PII_PATTERNS: List[PIIPattern] = [
     PIIPattern(
         type=PIIType.EMAIL,
         category=PIICategory.GLOBAL,
-        regex=r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b',
+        # Nota: re.IGNORECASE já lida com case, portanto [a-z] é suficiente
+        regex=r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[a-z]{2,}\b',
         mask_strategy="partial",
         show_first=1,
         show_last=0,  # j***@domain.com
@@ -90,6 +94,7 @@ PII_PATTERNS: List[PIIPattern] = [
         show_first=4,
         show_last=2,  # 192.168.*.*
     ),
+    # Nota: IPv6 pattern não suporta notação comprimida (::), mas aceitável para implementação inicial
     PIIPattern(
         type=PIIType.IP_ADDRESS,
         category=PIICategory.GLOBAL,
@@ -114,14 +119,17 @@ PII_PATTERNS: List[PIIPattern] = [
         show_first=8,
         show_last=4,  # 12345678-****-****-****-************
     ),
+    # API_KEY: Pattern genérico, deve ser usado com contexto adicional (prefixos como "sk_", "apiKey", etc.)
     PIIPattern(
         type=PIIType.API_KEY,
         category=PIICategory.GLOBAL,
-        regex=r'\b[A-Za-z0-9]{20,}\b',  # Generic, será refinado no contexto
+        regex=r'\b[A-Za-z0-9]{20,}\b',
         mask_strategy="hash",
     ),
 
     # === EUROPEU ===
+    # NIF (Portugal): 9 dígitos. Nota: Pattern genérico pode gerar falsos positivos,
+    # deve ser usado em contexto com validação adicional (dígito de controle)
     PIIPattern(
         type=PIIType.NIF,
         category=PIICategory.EUROPEAN,
@@ -172,10 +180,11 @@ PII_PATTERNS: List[PIIPattern] = [
         show_first=8,
         show_last=2,  # 12.345.678/***-**
     ),
+    # RG: Pattern genérico devido à variação entre estados. Formato típico: XX###XXX ou X###XXX#
     PIIPattern(
         type=PIIType.RG,
         category=PIICategory.BRAZILIAN,
-        regex=r'\b\d{1,2}[A-Z]{0,}\d{3}[A-Z]{0,}\b',
+        regex=r'\b\d{1,2}[A-Z]{0,2}\d{3}[A-Z0-9]{0,2}\b',
         mask_strategy="partial",
         show_first=2,
         show_last=1,
@@ -221,8 +230,12 @@ class PIIPatternRegistry:
                     self._patterns_by_category[pii_def.category] = []
                 self._patterns_by_category[pii_def.category].append(compiled)
             except re.error as e:
-                # Log mas não falhar
-                pass
+                logger.warning(
+                    "failed_to_compile_pii_pattern",
+                    pattern=pii_def.regex,
+                    pii_type=str(pii_def.type),
+                    error=str(e),
+                )
 
     def get_pattern(self, pii_type: PIIType) -> Optional[re.Pattern]:
         """Obtém primeiro pattern compilado por tipo (para compatibilidade)."""
@@ -235,24 +248,22 @@ class PIIPatternRegistry:
 
     def get_patterns_by_category(self, category: PIICategory) -> List[Tuple[PIIType, re.Pattern]]:
         """Obtém patterns por categoria."""
-        patterns = self._patterns_by_category.get(category, [])
-        return [
-            (ptype, pattern)
-            for ptype, pattern in self._patterns_by_type.items()
-            if pattern in patterns
-        ]
+        result = []
+        for pii_def in PII_PATTERNS:
+            if pii_def.category == category:
+                compiled = self.get_pattern(pii_def.type)
+                if compiled:
+                    result.append((pii_def.type, compiled))
+        return result
 
     def get_all_types(self) -> List[PIIType]:
         """Retorna todos os tipos suportados."""
         return list(self._patterns_by_type.keys())
 
 
-# Singleton
-_registry = None
+# Singleton - inicializado no carregamento do módulo (mais simples, thread-safe)
+_registry = PIIPatternRegistry()
 
 def get_pattern_registry() -> PIIPatternRegistry:
     """Retorna registry singleton."""
-    global _registry
-    if _registry is None:
-        _registry = PIIPatternRegistry()
     return _registry
