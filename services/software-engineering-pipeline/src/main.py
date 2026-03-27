@@ -1,5 +1,5 @@
 import structlog
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
@@ -9,6 +9,8 @@ from prometheus_client import make_asgi_app
 
 from src.config.settings import settings
 from src.api import api_router
+from src.observability.middleware import MetricsMiddleware
+from src.observability.metrics import get_metrics_text
 
 
 def configure_logging() -> None:
@@ -57,6 +59,9 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    # Middleware de métricas
+    app.add_middleware(MetricsMiddleware)
+
     app.include_router(api_router, prefix="/api/v1")
 
     # Prometheus metrics endpoint
@@ -86,3 +91,13 @@ async def shutdown_event() -> None:
 @app.get("/health")
 async def health_check() -> dict[str, str]:
     return {"status": "healthy", "service": settings.app_name}
+
+
+@app.get("/metrics")
+async def metrics() -> Response:
+    """Endpoint de métricas Prometheus customizadas."""
+    metrics_text = get_metrics_text()
+    return Response(
+        content=metrics_text,
+        media_type="text/plain; version=0.0.4; charset=utf-8",
+    )
