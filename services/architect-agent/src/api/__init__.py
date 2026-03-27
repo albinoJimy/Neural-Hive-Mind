@@ -1,4 +1,5 @@
-"""API module for Architect Agent"""
-from .router import api_router
+"""API REST para Architect Agent."""
 
-__all__ = ['api_router']
+from src.api.app import create_app, app
+
+__all__ = ["create_app", "app"]
