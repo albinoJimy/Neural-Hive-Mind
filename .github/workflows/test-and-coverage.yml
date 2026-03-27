@@ -412,6 +412,7 @@ jobs:
       - name: Run config validation tests
         working-directory: services/${{ matrix.service }}
         run: |
+          export PYTHONPATH="${PYTHONPATH}:src"
           pytest tests/unit/test_config_validation.py -v --tb=short
 
   quality-gate:
