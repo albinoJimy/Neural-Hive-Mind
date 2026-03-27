@@ -92,7 +92,7 @@ def mock_mcp_client():
 @pytest.fixture
 def tool_executor(mock_settings):
     """ToolExecutor basico sem MCP servers."""
-    with patch("src.services.tool_executor.get_settings", return_value=mock_settings):
+    with patch("src.config.get_settings", return_value=mock_settings):
         executor = ToolExecutor(settings=mock_settings)
         return executor
 
@@ -100,7 +100,7 @@ def tool_executor(mock_settings):
 @pytest.fixture
 def tool_executor_with_mcp(mock_settings_with_mcp, mock_metrics, mock_tool_registry):
     """ToolExecutor com MCP servers configurados."""
-    with patch("src.services.tool_executor.get_settings", return_value=mock_settings_with_mcp):
+    with patch("src.config.get_settings", return_value=mock_settings_with_mcp):
         executor = ToolExecutor(
             settings=mock_settings_with_mcp,
             metrics=mock_metrics,
@@ -123,7 +123,7 @@ def cli_tool():
         average_execution_time_ms=5000,
         integration_type=IntegrationType.CLI,
         authentication_method="NONE",
-        is_healthy=True,
+        output_format="text",
         metadata={
             "cli_command": "pytest",
             "homepage": "https://pytest.org"
@@ -145,8 +145,8 @@ def rest_tool():
         average_execution_time_ms=30000,
         integration_type=IntegrationType.REST_API,
         authentication_method="API_KEY",
-        is_healthy=True,
         endpoint_url="http://sonarqube:9000/api/analysis",
+        output_format="json",
         metadata={"homepage": "https://sonarqube.org"}
     )
 
@@ -157,7 +157,7 @@ def container_tool():
     return ToolDescriptor(
         tool_id="trivy-001",
         tool_name="trivy",
-        category=ToolCategory.SECURITY,
+        category=ToolCategory.ANALYSIS,
         version="0.45.0",
         capabilities=["vulnerability_scan", "container_security"],
         reputation_score=0.92,
@@ -165,7 +165,7 @@ def container_tool():
         average_execution_time_ms=60000,
         integration_type=IntegrationType.CONTAINER,
         authentication_method="NONE",
-        is_healthy=True,
+        output_format="json",
         metadata={
             "docker_image": "aquasec/trivy:latest",
             "homepage": "https://trivy.dev"
@@ -179,7 +179,7 @@ def mcp_tool():
     return ToolDescriptor(
         tool_id="trivy-001",  # Mesmo ID do container tool, mas com MCP
         tool_name="trivy",
-        category=ToolCategory.SECURITY,
+        category=ToolCategory.ANALYSIS,
         version="0.45.0",
         capabilities=["vulnerability_scan", "container_security"],
         reputation_score=0.92,
@@ -187,7 +187,7 @@ def mcp_tool():
         average_execution_time_ms=60000,
         integration_type=IntegrationType.CONTAINER,
         authentication_method="NONE",
-        is_healthy=True,
+        output_format="json",
         metadata={
             "docker_image": "aquasec/trivy:latest",
             "mcp_server": "http://trivy-mcp-server:3000"

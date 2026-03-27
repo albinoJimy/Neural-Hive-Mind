@@ -149,7 +149,7 @@ def trivy_tool():
     return ToolDescriptor(
         tool_id="trivy-001",
         tool_name="trivy",
-        category=ToolCategory.SECURITY,
+        category=ToolCategory.ANALYSIS,
         version="0.45.0",
         capabilities=["vulnerability_scan"],
         reputation_score=0.92,
@@ -157,7 +157,7 @@ def trivy_tool():
         average_execution_time_ms=60000,
         integration_type=IntegrationType.CONTAINER,
         authentication_method="NONE",
-        is_healthy=True,
+        output_format="json",
         metadata={"docker_image": "aquasec/trivy:latest"}
     )
 
@@ -176,7 +176,7 @@ def cli_tool():
         average_execution_time_ms=5000,
         integration_type=IntegrationType.CLI,
         authentication_method="NONE",
-        is_healthy=True,
+        output_format="text",
         metadata={"cli_command": "pytest"}
     )
 
@@ -226,7 +226,7 @@ class TestMCPFallback:
             "pytest-001": f"http://{failing_mcp_server.host}:{failing_mcp_server.port}"
         }
 
-        with patch("src.services.tool_executor.get_settings", return_value=settings):
+        with patch("src.config.get_settings", return_value=settings):
             executor = ToolExecutor(
                 settings=settings,
                 metrics=mock_metrics,
@@ -284,7 +284,7 @@ class TestMCPFallback:
             "trivy-001": f"http://{slow_mcp_server.host}:{slow_mcp_server.port}"
         }
 
-        with patch("src.services.tool_executor.get_settings", return_value=settings):
+        with patch("src.config.get_settings", return_value=settings):
             executor = ToolExecutor(
                 settings=settings,
                 metrics=mock_metrics,
@@ -347,7 +347,7 @@ class TestGracefulDegradation:
             "sonarqube-001": f"http://{failing_mcp_server.host}:{failing_mcp_server.port}"
         }
 
-        with patch("src.services.tool_executor.get_settings", return_value=settings):
+        with patch("src.config.get_settings", return_value=settings):
             executor = ToolExecutor(
                 settings=settings,
                 metrics=mock_metrics,
@@ -379,7 +379,7 @@ class TestGracefulDegradation:
             "trivy-001": f"http://{failing_mcp_server.host}:{failing_mcp_server.port}",
         }
 
-        with patch("src.services.tool_executor.get_settings", return_value=settings):
+        with patch("src.config.get_settings", return_value=settings):
             executor = ToolExecutor(
                 settings=settings,
                 metrics=mock_metrics,
@@ -443,7 +443,7 @@ class TestHybridMetrics:
             "trivy-001": f"http://{mcp_server.host}:{mcp_server.port}"
         }
 
-        with patch("src.services.tool_executor.get_settings", return_value=settings):
+        with patch("src.config.get_settings", return_value=settings):
             executor = ToolExecutor(
                 settings=settings,
                 metrics=mock_metrics,
@@ -483,7 +483,7 @@ class TestHybridMetrics:
         settings.MCP_SERVER_CIRCUIT_BREAKER_TIMEOUT_SECONDS = 60
         settings.MCP_SERVERS = {}  # Sem MCP servers
 
-        with patch("src.services.tool_executor.get_settings", return_value=settings):
+        with patch("src.config.get_settings", return_value=settings):
             executor = ToolExecutor(
                 settings=settings,
                 metrics=mock_metrics,
@@ -534,7 +534,7 @@ class TestHybridMetrics:
             "trivy-001": f"http://{failing_mcp_server.host}:{failing_mcp_server.port}"
         }
 
-        with patch("src.services.tool_executor.get_settings", return_value=settings):
+        with patch("src.config.get_settings", return_value=settings):
             executor = ToolExecutor(
                 settings=settings,
                 metrics=mock_metrics,
@@ -606,7 +606,7 @@ class TestMCPServerExecution:
             "trivy-001": f"http://{mcp_server.host}:{mcp_server.port}"
         }
 
-        with patch("src.services.tool_executor.get_settings", return_value=settings):
+        with patch("src.config.get_settings", return_value=settings):
             executor = ToolExecutor(
                 settings=settings,
                 metrics=mock_metrics,
