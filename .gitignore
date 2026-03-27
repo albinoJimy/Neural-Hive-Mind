@@ -95,3 +95,8 @@ mcp-servers/**/.pytest_cache/
 mcp-servers/**/__pycache__/
 mcp-servers/**/.coverage
 
+# Environment variables
+.env
+.env.local
+.env.*.local
+
