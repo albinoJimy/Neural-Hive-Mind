@@ -29,6 +29,20 @@ except ImportError:
     CACHE_METRICS_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
+
+# Importar compliance (PII masking) - import condicional para evitar dependências quebradas
+try:
+    from neural_hive_specialists.compliance import (
+        PIIDetectorLite,
+        PIIMasker,
+        MaskStrategy,
+        PIIType,
+    )
+    PII_MASKING_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"PII masking module not available: {e}. Using simple fallback.")
+    PII_MASKING_AVAILABLE = False
+
 try:
     from neural_hive_observability import get_tracer
 
@@ -1054,10 +1068,40 @@ class NLUPipeline:
         return text
 
     def _mask_pii(self, text: str) -> str:
-        """Mascarar informações pessoais"""
+        """
+        Mascarar informações pessoais com sistema avançado.
+
+        Usa PIIDetectorLite com regex + spaCy NER para detecção e
+        PIIMasker para mascaramento parcial configurável.
+        """
+        if not PII_MASKING_AVAILABLE:
+            # Fallback para método simples se módulo não disponível
+            return self._mask_pii_simple(text)
+
+        try:
+            # Usar detector lite (sem Presidio)
+            detector = PIIDetectorLite()
+
+            if not detector.is_enabled():
+                # Fallback para método simples se detector desabilitado
+                return self._mask_pii_simple(text)
+
+            # Aplicar mascaramento
+            masked_text, _ = detector.anonymize_text(text)
+
+            return masked_text
+
+        except Exception as e:
+            # Fallback em caso de erro
+            logger.warning("PII masking failed, using simple fallback", error=str(e))
+            return self._mask_pii_simple(text)
+
+
+    def _mask_pii_simple(self, text: str) -> str:
+        """Método simples de fallback (mantém compatibilidade)."""
         # Email
         text = re.sub(
-            r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b", "[EMAIL]", text
+            r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b", "[EMAIL]", text
         )
         # CPF
         text = re.sub(r"\b\d{3}\.\d{3}\.\d{3}-\d{2}\b", "[CPF]", text)

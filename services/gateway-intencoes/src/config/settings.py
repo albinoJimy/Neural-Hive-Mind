@@ -177,13 +177,40 @@ class Settings(BaseSettings):
         description="Permitir endpoints HTTP em staging (para comunicação interna do cluster)",
     )
 
-    # Segurança (mantido para compatibilidade)
-    jwt_secret_key: str = Field(default="your-secret-key")
+    # PII Masking
+    enable_pii_masking: bool = Field(
+        default=True,
+        description="Habilitar mascaramento de informações sensíveis (PII) no texto de entrada",
+    )
+    pii_masking_strategy: str = Field(
+        default="partial",
+        description="Estratégia de mascaramento: partial (preserva formato), redact (remove completamente)",
+    )
+    pii_masking_preserve_format: bool = Field(
+        default=True,
+        description="Preservar formato original ao mascarar (ex: ***-***-*** para CPF)",
+    )
+    pii_masking_spacy_model: str = Field(
+        default="pt_core_news_sm",
+        description="Modelo spaCy para detecção de entidades (pt_core_news_sm ou pt_core_news_lg)",
+    )
+
+    # Segurança (OBRIGATÓRIO em production)
+    jwt_secret_key: str = Field(
+        ...,
+        description="JWT secret key (OBRIGATÓRIO - usar valor forte em produção)"
+    )
     jwt_algorithm: str = Field(default="HS256")
 
-    # CORS e hosts
-    allowed_origins: List[str] = Field(default=["*"])
-    allowed_hosts: List[str] = Field(default=["*"])
+    # CORS e hosts (OBRIGATÓRIO)
+    allowed_origins: List[str] = Field(
+        ...,
+        description="CORS allowed origins (comma-separated string or list). Use ['*'] ONLY for development."
+    )
+    allowed_hosts: List[str] = Field(
+        default=["*"],
+        description="Allowed hosts for TrustedHostMiddleware"
+    )
 
     # Observabilidade - OpenTelemetry Collector OTLP endpoint
     otel_enabled: bool = Field(
@@ -240,6 +267,13 @@ class Settings(BaseSettings):
                 raise ValueError("token_validation_enabled must be True in production")
         return v
 
+    @validator("pii_masking_strategy")
+    def validate_pii_masking_strategy(cls, v):
+        allowed = ["partial", "redact", "full"]
+        if v not in allowed:
+            raise ValueError(f"pii_masking_strategy must be one of {allowed}")
+        return v
+
     @validator("nlu_routing_threshold_low")
     def validate_routing_thresholds(cls, v, values):
         high_threshold = values.get("nlu_routing_threshold_high", 0.5)
@@ -247,6 +281,13 @@ class Settings(BaseSettings):
             raise ValueError(
                 f"nlu_routing_threshold_low ({v}) must be < nlu_routing_threshold_high ({high_threshold})"
             )
+        return v
+
+    @validator("allowed_origins", pre=True)
+    def parse_cors_origins(cls, v):
+        """Parse CORS_ORIGINS from comma-separated string to list."""
+        if isinstance(v, str):
+            return [origin.strip() for origin in v.split(",")]
         return v
 
     @model_validator(mode="after")

@@ -356,3 +356,104 @@ class PIIDetector:
                 current[key] = {}
             current = current[key]
         current[keys[-1]] = value
+
+
+# === VERSÃO LITE (sem Presidio) ===
+
+class PIIDetectorLite:
+    """
+    Versão leve de detecção de PII sem dependência do Presidio.
+
+    Usa regex + spaCy para detecção e integra com PIIMasker para
+    mascaramento. Ideal para serviços onde o Presidio é muito pesado.
+    """
+
+    def __init__(self, config=None):
+        """
+        Inicializa detector lite.
+
+        Args:
+            config: Config (opcional, usa defaults se não fornecido)
+        """
+        try:
+            from .pii_masker import PIIMasker, MaskStrategy
+            from .pii_patterns import get_pattern_registry, PIIType
+
+            self.masker = PIIMasker(
+                strategy=MaskStrategy.PARTIAL,
+                enable_spacy=True,
+            )
+            self.pattern_registry = get_pattern_registry()
+            self.enabled = True
+
+            logger.info("PIIDetectorLite initialized", strategy="partial")
+        except ImportError as e:
+            logger.error(
+                "Falha ao importar dependências do PIIDetectorLite",
+                error=str(e),
+            )
+            self.enabled = False
+            self.masker = None
+            self.pattern_registry = None
+
+    def detect_pii(self, text: str, language: str = "pt") -> List[Dict]:
+        """
+        Detecta PII em texto.
+
+        Retorna lista de dicionários compatível com formato Presidio para
+        fácil migração.
+
+        Args:
+            text: Texto para analisar
+            language: Idioma do texto (pt, en, etc.)
+
+        Returns:
+            Lista de dicionários com keys: entity_type, start, end, score, value
+        """
+        if not self.enabled or not text:
+            return []
+
+        result = self.masker.mask(text)
+
+        # Converter para formato compatível
+        detected = []
+        for entity in result.entities:
+            detected.append({
+                "entity_type": entity.type.value,
+                "start": entity.start,
+                "end": entity.end,
+                "score": entity.confidence,
+                "value": entity.value,
+            })
+
+        return detected
+
+    def anonymize_text(self, text: str, language: str = "pt") -> Tuple[str, List[Dict[str, Any]]]:
+        """
+        Anonimiza texto (interface compatível com PIIDetector).
+
+        Args:
+            text: Texto para anonimizar
+            language: Idioma do texto
+
+        Returns:
+            Tuple de (texto_mascarado, metadata)
+        """
+        result = self.masker.mask(text)
+
+        metadata = [
+            {
+                "entity_type": e.type.value,
+                "start": e.start,
+                "end": e.end,
+                "score": e.confidence,
+                "value": e.value,
+            }
+            for e in result.entities
+        ]
+
+        return result.text, metadata
+
+    def is_enabled(self) -> bool:
+        """Verifica se detector está habilitado."""
+        return self.enabled
