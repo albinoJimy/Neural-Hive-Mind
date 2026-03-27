@@ -10,7 +10,9 @@ async def verify_token(token: str) -> Dict[str, Any]:
     """Verificar e decodificar token JWT"""
     try:
         settings = get_settings()
-        payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
+        payload = jwt.decode(
+            token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm]
+        )
         return payload
     except jwt.InvalidTokenError:
         raise HTTPException(

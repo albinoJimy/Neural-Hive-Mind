@@ -19,8 +19,9 @@ async def test_verify_token_uses_secret_from_settings():
 
     # Patch onde settings sera importado em auth.py (apos implementacao na Task 2)
     # Precisamos patchar antes da importacao em auth.py acontecer.
-    # Quando auth.py for modificado para importar settings, este patch ira interceptar.
-    with patch('src.config.settings.get_settings', return_value=mock_settings):
+    # Como auth.py faz "from config.settings import get_settings", precisamos
+    # patchar no modulo onde ele e usado (auth), nao onde e definido (settings).
+    with patch('src.security.auth.get_settings', return_value=mock_settings):
         # Create a valid token with the same secret
         import jwt
         test_payload = {'sub': 'user123', 'exp': 9999999999}
