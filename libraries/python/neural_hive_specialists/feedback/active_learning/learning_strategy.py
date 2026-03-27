@@ -30,7 +30,7 @@ class InformationValue:
     confidence: float  # Confiança da predição
     representation: float  # Representação no dataset (0-1)
     domain_novelty: float  # Novidade do domínio (0-1)
-    reason: str = ''  # Descrição do porquê é valioso
+    reason: str = ""  # Descrição do porquê é valioso
 
     def __post_init__(self):
         """Gera razão automaticamente se não fornecida."""
@@ -42,30 +42,30 @@ class InformationValue:
         parts = []
 
         if self.confidence < 0.4:
-            parts.append('alta incerteza')
+            parts.append("alta incerteza")
         elif self.confidence > 0.8:
-            parts.append('baixa incerteza')
+            parts.append("baixa incerteza")
 
         if self.representation < 0.2:
-            parts.append('baixa representação')
+            parts.append("baixa representação")
         elif self.representation > 0.8:
-            parts.append('alta representação')
+            parts.append("alta representação")
 
         if self.domain_novelty > 0.7:
-            parts.append('domínio novo')
+            parts.append("domínio novo")
 
         if parts:
             return f'{", ".join(parts)} (valor: {self.value:.2f})'
-        return f'Valor informacional: {self.value:.2f}'
+        return f"Valor informacional: {self.value:.2f}"
 
     def to_dict(self) -> Dict[str, Any]:
         """Converte para dicionário."""
         return {
-            'value': self.value,
-            'confidence': self.confidence,
-            'representation': self.representation,
-            'domain_novelty': self.domain_novelty,
-            'reason': self.reason
+            "value": self.value,
+            "confidence": self.confidence,
+            "representation": self.representation,
+            "domain_novelty": self.domain_novelty,
+            "reason": self.reason,
         }
 
 
@@ -84,7 +84,7 @@ class ActiveLearningStrategy:
         confidence_weight: float = DEFAULT_CONFIDENCE_WEIGHT,
         representation_weight: float = DEFAULT_REPRESENTATION_WEIGHT,
         novelty_weight: float = DEFAULT_NOVELTY_WEIGHT,
-        threshold: float = DEFAULT_THRESHOLD
+        threshold: float = DEFAULT_THRESHOLD,
     ):
         """
         Inicializa a estratégia.
@@ -98,10 +98,7 @@ class ActiveLearningStrategy:
         # Validar pesos somam 1.0
         total_weight = confidence_weight + representation_weight + novelty_weight
         if abs(total_weight - 1.0) > 0.01:
-            logger.warning(
-                'Weights do not sum to 1.0, normalizing',
-                total=total_weight
-            )
+            logger.warning("Weights do not sum to 1.0, normalizing", total=total_weight)
             # Normalizar
             self.confidence_weight = confidence_weight / total_weight
             self.representation_weight = representation_weight / total_weight
@@ -114,17 +111,14 @@ class ActiveLearningStrategy:
         self.threshold = threshold
 
         logger.info(
-            'ActiveLearningStrategy initialized',
+            "ActiveLearningStrategy initialized",
             confidence_weight=self.confidence_weight,
             representation_weight=self.representation_weight,
             novelty_weight=self.novelty_weight,
-            threshold=threshold
+            threshold=threshold,
         )
 
-    def calculate_information_value(
-        self,
-        case: Dict[str, Any]
-    ) -> float:
+    def calculate_information_value(self, case: Dict[str, Any]) -> float:
         """
         Calcula valor informacional de um caso.
 
@@ -137,26 +131,24 @@ class ActiveLearningStrategy:
         Returns:
             Valor informacional (0.0-1.0)
         """
-        confidence = case.get('confidence', 0.5)
-        representation = case.get('representation', 0.5)
-        novelty = case.get('domain_novelty', 0.5)
+        confidence = case.get("confidence", 0.5)
+        representation = case.get("representation", 0.5)
+        novelty = case.get("domain_novelty", 0.5)
 
         # Incerteza = 1 - confiança (quanto menor a confiança, maior a incerteza)
         uncertainty = 1.0 - confidence
 
         # Valor ponderado
         value = (
-            uncertainty * self.confidence_weight +
-            (1.0 - representation) * self.representation_weight +
-            novelty * self.novelty_weight
+            uncertainty * self.confidence_weight
+            + (1.0 - representation) * self.representation_weight
+            + novelty * self.novelty_weight
         )
 
         return round(min(1.0, max(0.0, value)), 3)
 
     def calculate_from_prediction(
-        self,
-        prediction: Dict[str, Any],
-        dataset_stats: Dict[str, Any]
+        self, prediction: Dict[str, Any], dataset_stats: Dict[str, Any]
     ) -> float:
         """
         Calcula valor informacional a partir de predição ML.
@@ -169,17 +161,17 @@ class ActiveLearningStrategy:
             Valor informacional (0.0-1.0)
         """
         # Extrair confiança
-        confidence = prediction.get('confidence', 0.5)
+        confidence = prediction.get("confidence", 0.5)
 
         # Extrair representação da classe
-        decision = prediction.get('decision', 'approve')
-        class_dist = dataset_stats.get('class_distribution', {})
+        decision = prediction.get("decision", "approve")
+        class_dist = dataset_stats.get("class_distribution", {})
         class_representation = class_dist.get(decision, 0.5)
 
         # Extrair novidade do domínio
-        nlp_features = prediction.get('nlp_features', {}) or {}
-        domain = nlp_features.get('primary_domain', 'unknown')
-        domain_dist = dataset_stats.get('domain_distribution', {})
+        nlp_features = prediction.get("nlp_features", {}) or {}
+        domain = nlp_features.get("primary_domain", "unknown")
+        domain_dist = dataset_stats.get("domain_distribution", {})
 
         if domain in domain_dist:
             domain_representation = domain_dist[domain]
@@ -189,16 +181,16 @@ class ActiveLearningStrategy:
             domain_novelty = 1.0
 
         # Calcular valor
-        return self.calculate_information_value({
-            'confidence': confidence,
-            'representation': class_representation,
-            'domain_novelty': domain_novelty
-        })
+        return self.calculate_information_value(
+            {
+                "confidence": confidence,
+                "representation": class_representation,
+                "domain_novelty": domain_novelty,
+            }
+        )
 
     def should_collect_feedback(
-        self,
-        case: Dict[str, Any],
-        threshold: Optional[float] = None
+        self, case: Dict[str, Any], threshold: Optional[float] = None
     ) -> bool:
         """
         Decide se deve coletar feedback para este caso.
@@ -211,18 +203,20 @@ class ActiveLearningStrategy:
             True se valor informacional >= threshold
         """
         # Tentar calcular a partir de prediction format
-        if 'decision' in case or 'confidence' in case:
+        if "decision" in case or "confidence" in case:
             # Verificar se tem dataset_stats (se não, usar método simples)
             # Para simplificar, extrair valores do case
-            confidence = case.get('confidence', 0.5)
-            representation = case.get('representation', 0.5)
-            novelty = case.get('domain_novelty', 0.5)
+            confidence = case.get("confidence", 0.5)
+            representation = case.get("representation", 0.5)
+            novelty = case.get("domain_novelty", 0.5)
 
-            value = self.calculate_information_value({
-                'confidence': confidence,
-                'representation': representation,
-                'domain_novelty': novelty
-            })
+            value = self.calculate_information_value(
+                {
+                    "confidence": confidence,
+                    "representation": representation,
+                    "domain_novelty": novelty,
+                }
+            )
         else:
             # Case já tem os campos necessários
             value = self.calculate_information_value(case)
@@ -235,7 +229,7 @@ class ActiveLearningStrategy:
         self,
         cases: list[Dict[str, Any]],
         dataset_stats: Dict[str, Any],
-        limit: int = None
+        limit: int = None,
     ) -> list[tuple[int, float]]:
         """
         Rankeia casos por valor informacional.
@@ -266,7 +260,7 @@ class ActiveLearningStrategy:
         self,
         predictions: list[Dict[str, Any]],
         dataset_stats: Dict[str, Any],
-        n: int = 10
+        n: int = 10,
     ) -> list[Dict[str, Any]]:
         """
         Retorna top N casos por valor informacional.
@@ -284,8 +278,8 @@ class ActiveLearningStrategy:
         result = []
         for idx, score in ranked:
             case = predictions[idx].copy()
-            case['_information_value'] = score
-            case['_information_rank'] = len(result) + 1
+            case["_information_value"] = score
+            case["_information_rank"] = len(result) + 1
             result.append(case)
 
         return result

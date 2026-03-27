@@ -105,10 +105,14 @@ def collector(mock_config, mock_metrics_registry):
         # Configurar cliente mock para retornar a collection correta
         # ledger_client[database][collection] -> mock_ledger_collection
         collector._ledger_client = MagicMock()
-        collector._ledger_client.__getitem__.return_value.__getitem__.return_value = mock_ledger_collection
+        collector._ledger_client.__getitem__.return_value.__getitem__.return_value = (
+            mock_ledger_collection
+        )
 
         collector._consensus_client = MagicMock()
-        collector._consensus_client.__getitem__.return_value.__getitem__.return_value = mock_consensus_collection
+        collector._consensus_client.__getitem__.return_value.__getitem__.return_value = (
+            mock_consensus_collection
+        )
 
         return collector
 
@@ -533,8 +537,12 @@ class TestCollectBusinessMetrics:
         ]
 
         # Mock das collections diretamente (já criadas pelo fixture)
-        mock_ledger_collection = collector._ledger_client.__getitem__.return_value.__getitem__.return_value
-        mock_consensus_collection = collector._consensus_client.__getitem__.return_value.__getitem__.return_value
+        mock_ledger_collection = (
+            collector._ledger_client.__getitem__.return_value.__getitem__.return_value
+        )
+        mock_consensus_collection = (
+            collector._consensus_client.__getitem__.return_value.__getitem__.return_value
+        )
 
         mock_ledger_collection.find.return_value = opinions
         mock_consensus_collection.find.return_value = decisions
@@ -581,8 +589,12 @@ class TestCollectBusinessMetrics:
         ]
 
         # Mock das collections diretamente (já criadas pelo fixture)
-        mock_ledger_collection = collector._ledger_client.__getitem__.return_value.__getitem__.return_value
-        mock_consensus_collection = collector._consensus_client.__getitem__.return_value.__getitem__.return_value
+        mock_ledger_collection = (
+            collector._ledger_client.__getitem__.return_value.__getitem__.return_value
+        )
+        mock_consensus_collection = (
+            collector._consensus_client.__getitem__.return_value.__getitem__.return_value
+        )
 
         mock_ledger_collection.find.return_value = opinions
         mock_consensus_collection.find.return_value = decisions
@@ -601,4 +613,7 @@ class TestCollectBusinessMetrics:
 
         # MongoDB não deve ter sido chamado novamente (cache funcionou)
         assert mock_ledger_collection.find.call_count == ledger_find_count_after_first
-        assert mock_consensus_collection.find.call_count == consensus_find_count_after_first
+        assert (
+            mock_consensus_collection.find.call_count
+            == consensus_find_count_after_first
+        )

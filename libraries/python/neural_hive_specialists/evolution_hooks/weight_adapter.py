@@ -13,10 +13,7 @@ class WeightAdapter:
     """Adapta pesos baseado em histórico de padrões similares."""
 
     def __init__(
-        self,
-        mongo_client,
-        min_similar_patterns: int = 5,
-        max_adjustment: float = 0.05
+        self, mongo_client, min_similar_patterns: int = 5, max_adjustment: float = 0.05
     ):
         """
         Inicializa adaptador.
@@ -47,14 +44,16 @@ class WeightAdapter:
             # Buscar padrões similares
             similar = await self.matcher.find_similar(fingerprint)
         except Exception as e:
-            self.logger.warning("Failed to find similar patterns, using defaults", error=str(e))
+            self.logger.warning(
+                "Failed to find similar patterns, using defaults", error=str(e)
+            )
             return DEFAULT_WEIGHTS.copy()
 
         if len(similar) < self.min_similar_patterns:
             self.logger.debug(
                 "Insufficient similar patterns",
                 found=len(similar),
-                required=self.min_similar_patterns
+                required=self.min_similar_patterns,
             )
             return DEFAULT_WEIGHTS.copy()
 
@@ -68,14 +67,13 @@ class WeightAdapter:
             "Adapted weights",
             fingerprint=fingerprint.complexity_signature,
             similar_count=len(similar),
-            adapted=adapted
+            adapted=adapted,
         )
 
         return adapted
 
     def _calculate_weight_adjustments(
-        self,
-        similar: List[PatternRecord]
+        self, similar: List[PatternRecord]
     ) -> Dict[str, float]:
         """
         Calcula ajustes baseado em histórico.
@@ -87,8 +85,13 @@ class WeightAdapter:
             Dict com ajustes por peso
         """
         adjustments = {}
-        weight_names = ["maintainability", "scalability", "extensibility",
-                       "modularity", "tech_debt_prevention"]
+        weight_names = [
+            "maintainability",
+            "scalability",
+            "extensibility",
+            "modularity",
+            "tech_debt_prevention",
+        ]
 
         for weight_name in weight_names:
             # Contar sucessos quando peso foi alto vs baixo
@@ -123,7 +126,9 @@ class WeightAdapter:
             if rate_high > rate_low:
                 # Aumentar peso
                 diff = rate_high - rate_low
-                adjustment = min(self.max_adjustment, diff / 20)  # Divide por 20 para suavizar
+                adjustment = min(
+                    self.max_adjustment, diff / 20
+                )  # Divide por 20 para suavizar
                 adjustments[weight_name] = +adjustment
             elif rate_low > rate_high:
                 # Diminuir peso
@@ -136,9 +141,7 @@ class WeightAdapter:
         return adjustments
 
     def _apply_adjustments_and_normalize(
-        self,
-        base: Dict[str, float],
-        adjustments: Dict[str, float]
+        self, base: Dict[str, float], adjustments: Dict[str, float]
     ) -> Dict[str, float]:
         """
         Aplica ajustes aos pesos base e normaliza.
@@ -177,29 +180,29 @@ class WeightAdapter:
                 min_val = max(0.0, default - self.max_adjustment)
                 max_val = min(1.0, default + self.max_adjustment)
                 deltas[name] = {
-                    'can_increase': max_val - value,
-                    'can_decrease': value - min_val
+                    "can_increase": max_val - value,
+                    "can_decrease": value - min_val,
                 }
 
             # Se total < 1, precisamos aumentar
             if total < 1.0:
                 # Aumentar proporcionalmente aos que podem aumentar
-                increase_available = sum(d['can_increase'] for d in deltas.values())
+                increase_available = sum(d["can_increase"] for d in deltas.values())
                 if increase_available > 0.0001:
                     needed = 1.0 - total
                     for name in result:
-                        ratio = deltas[name]['can_increase'] / increase_available
+                        ratio = deltas[name]["can_increase"] / increase_available
                         result[name] += ratio * needed
                 else:
                     # Não é possível ajustar sem violar limites
                     break
             else:
                 # Se total > 1, precisamos diminuir
-                decrease_available = sum(d['can_decrease'] for d in deltas.values())
+                decrease_available = sum(d["can_decrease"] for d in deltas.values())
                 if decrease_available > 0.0001:
                     excess = total - 1.0
                     for name in result:
-                        ratio = deltas[name]['can_decrease'] / decrease_available
+                        ratio = deltas[name]["can_decrease"] / decrease_available
                         result[name] -= ratio * excess
                 else:
                     # Não é possível ajustar sem violar limites

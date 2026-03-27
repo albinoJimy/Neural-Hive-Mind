@@ -35,6 +35,7 @@ from neural_hive_specialists.evolution_hooks.feedback_consumer import (
 # Fixtures E2E
 # ============================================================================
 
+
 @pytest.fixture
 def technical_fingerprint():
     """Fingerprint técnico para testes E2E."""
@@ -46,7 +47,7 @@ def technical_fingerprint():
         avg_dependency_count=1.5,
         has_conditional_deps=True,
         estimated_duration_range=DurationRange.MEDIUM,
-        complexity_signature="T-H-B-T-D-M"
+        complexity_signature="T-H-B-T-D-M",
     )
 
 
@@ -61,7 +62,7 @@ def business_fingerprint():
         avg_dependency_count=0.5,
         has_conditional_deps=False,
         estimated_duration_range=DurationRange.SHORT,
-        complexity_signature="B-N-A-R-S"
+        complexity_signature="B-N-A-R-S",
     )
 
 
@@ -78,9 +79,9 @@ def sample_evaluation():
                 "factor_name": "maintainability",
                 "weight": 0.25,
                 "score": 0.8,
-                "description": "Good maintainability"
+                "description": "Good maintainability",
             }
-        ]
+        ],
     )
 
 
@@ -115,9 +116,12 @@ async def e2e_clean_registry(mongo_client):
 # Cenário 1: Cold Start -> Learning
 # ============================================================================
 
+
 @pytest.mark.asyncio
 @pytest.mark.e2e
-async def test_cold_start_returns_defaults(e2e_clean_registry, mongo_client, technical_fingerprint):
+async def test_cold_start_returns_defaults(
+    e2e_clean_registry, mongo_client, technical_fingerprint
+):
     """
     Cenário 1.1: Cold Start - Sistema sem histórico retorna pesos defaults.
 
@@ -147,7 +151,9 @@ async def test_cold_start_returns_defaults(e2e_clean_registry, mongo_client, tec
 
 @pytest.mark.asyncio
 @pytest.mark.e2e
-async def test_cold_start_with_learning(e2e_clean_registry, mongo_client, technical_fingerprint, sample_evaluation):
+async def test_cold_start_with_learning(
+    e2e_clean_registry, mongo_client, technical_fingerprint, sample_evaluation
+):
     """
     Cenário 1.2: Cold Start -> Após feedback -> Sistema aprende.
 
@@ -175,14 +181,16 @@ async def test_cold_start_with_learning(e2e_clean_registry, mongo_client, techni
         plan_id = f"cold-start-plan-{i}"
 
         # Armazenar avaliação
-        await registry.store_evaluation(plan_id, technical_fingerprint, sample_evaluation)
+        await registry.store_evaluation(
+            plan_id, technical_fingerprint, sample_evaluation
+        )
 
         # Adicionar feedback positivo
         feedback = FeedbackData(
             outcome=FeedbackOutcome.APPROVE,
             source=FeedbackSource.HUMAN,
             reasoning=f"Approved plan {i}",
-            timestamp=datetime.now(timezone.utc)
+            timestamp=datetime.now(timezone.utc),
         )
         await registry.add_feedback(plan_id, feedback)
 
@@ -204,7 +212,9 @@ async def test_cold_start_with_learning(e2e_clean_registry, mongo_client, techni
 
 @pytest.mark.asyncio
 @pytest.mark.e2e
-async def test_learning_from_mixed_feedback(e2e_clean_registry, mongo_client, technical_fingerprint, sample_evaluation):
+async def test_learning_from_mixed_feedback(
+    e2e_clean_registry, mongo_client, technical_fingerprint, sample_evaluation
+):
     """
     Cenário 1.3: Aprendizado com feedbacks mistos (approve/reject).
 
@@ -220,12 +230,12 @@ async def test_learning_from_mixed_feedback(e2e_clean_registry, mongo_client, te
     outcomes = [
         FeedbackOutcome.APPROVE,  # 0
         FeedbackOutcome.APPROVE,  # 1
-        FeedbackOutcome.REJECT,   # 2
+        FeedbackOutcome.REJECT,  # 2
         FeedbackOutcome.APPROVE,  # 3
-        FeedbackOutcome.REJECT,   # 4
+        FeedbackOutcome.REJECT,  # 4
         FeedbackOutcome.APPROVE,  # 5
         FeedbackOutcome.APPROVE,  # 6
-        FeedbackOutcome.REJECT,   # 7
+        FeedbackOutcome.REJECT,  # 7
         FeedbackOutcome.APPROVE,  # 8
         FeedbackOutcome.APPROVE,  # 9
     ]  # 7 approves, 3 rejects = 70% success rate
@@ -233,13 +243,15 @@ async def test_learning_from_mixed_feedback(e2e_clean_registry, mongo_client, te
     for i, outcome in enumerate(outcomes):
         plan_id = f"mixed-feedback-plan-{i}"
 
-        await registry.store_evaluation(plan_id, technical_fingerprint, sample_evaluation)
+        await registry.store_evaluation(
+            plan_id, technical_fingerprint, sample_evaluation
+        )
 
         feedback = FeedbackData(
             outcome=outcome,
             source=FeedbackSource.HUMAN,
             reasoning=f"Plan {i} outcome",
-            timestamp=datetime.now(timezone.utc)
+            timestamp=datetime.now(timezone.utc),
         )
         await registry.add_feedback(plan_id, feedback)
 
@@ -255,8 +267,16 @@ async def test_learning_from_mixed_feedback(e2e_clean_registry, mongo_client, te
     # Buscar padrões similares e verificar feedbacks
     similar = await registry.find_similar_patterns(technical_fingerprint, limit=20)
 
-    approve_count = sum(1 for p in similar if p.feedback and p.feedback.outcome == FeedbackOutcome.APPROVE)
-    reject_count = sum(1 for p in similar if p.feedback and p.feedback.outcome == FeedbackOutcome.REJECT)
+    approve_count = sum(
+        1
+        for p in similar
+        if p.feedback and p.feedback.outcome == FeedbackOutcome.APPROVE
+    )
+    reject_count = sum(
+        1
+        for p in similar
+        if p.feedback and p.feedback.outcome == FeedbackOutcome.REJECT
+    )
 
     # Verificar contagens (considerando todos os padrões similares encontrados)
     assert approve_count == 7
@@ -267,9 +287,12 @@ async def test_learning_from_mixed_feedback(e2e_clean_registry, mongo_client, te
 # Cenário 2: Pattern Decay
 # ============================================================================
 
+
 @pytest.mark.asyncio
 @pytest.mark.e2e
-async def test_pattern_decay_high_success_then_failure(e2e_clean_registry, mongo_client, technical_fingerprint, sample_evaluation):
+async def test_pattern_decay_high_success_then_failure(
+    e2e_clean_registry, mongo_client, technical_fingerprint, sample_evaluation
+):
     """
     Cenário 2.1: Alta taxa de sucesso -> Feedback negativo -> Decaimento.
 
@@ -284,7 +307,9 @@ async def test_pattern_decay_high_success_then_failure(e2e_clean_registry, mongo
 
     # Passo 1-2: Criar padrão com alta success_rate
     plan_id = "decay-test-plan"
-    pattern_id = await registry.store_evaluation(plan_id, technical_fingerprint, sample_evaluation)
+    pattern_id = await registry.store_evaluation(
+        plan_id, technical_fingerprint, sample_evaluation
+    )
 
     # Adicionar 9 feedbacks positivos e atualizar métricas
     for i in range(9):
@@ -292,7 +317,7 @@ async def test_pattern_decay_high_success_then_failure(e2e_clean_registry, mongo
             outcome=FeedbackOutcome.APPROVE,
             source=FeedbackSource.HUMAN,
             reasoning=f"Good plan {i}",
-            timestamp=datetime.now(timezone.utc) + timedelta(seconds=i)
+            timestamp=datetime.now(timezone.utc) + timedelta(seconds=i),
         )
         await registry.add_feedback(plan_id, feedback)
         # Atualizar métricas explicitamente (assim como o sistema real faria)
@@ -309,7 +334,7 @@ async def test_pattern_decay_high_success_then_failure(e2e_clean_registry, mongo
         outcome=FeedbackOutcome.REJECT,
         source=FeedbackSource.HUMAN,
         reasoning="Security concerns found",
-        timestamp=datetime.now(timezone.utc) + timedelta(seconds=10)
+        timestamp=datetime.now(timezone.utc) + timedelta(seconds=10),
     )
     await registry.add_feedback(plan_id, negative_feedback)
     # Atualizar métricas com failure
@@ -323,7 +348,9 @@ async def test_pattern_decay_high_success_then_failure(e2e_clean_registry, mongo
 
 @pytest.mark.asyncio
 @pytest.mark.e2e
-async def test_weight_adjustment_after_decay(e2e_clean_registry, mongo_client, technical_fingerprint, sample_evaluation):
+async def test_weight_adjustment_after_decay(
+    e2e_clean_registry, mongo_client, technical_fingerprint, sample_evaluation
+):
     """
     Cenário 2.2: Ajuste de pesos após decaimento de padrão.
 
@@ -348,7 +375,7 @@ async def test_weight_adjustment_after_decay(e2e_clean_registry, mongo_client, t
             risk_score=0.20,
             recommendation="approve",
             weights_used=high_maintainability_weights.copy(),
-            reasoning_factors=[]
+            reasoning_factors=[],
         )
 
         await registry.store_evaluation(plan_id, technical_fingerprint, eval_high_maint)
@@ -357,7 +384,7 @@ async def test_weight_adjustment_after_decay(e2e_clean_registry, mongo_client, t
             outcome=FeedbackOutcome.APPROVE,
             source=FeedbackSource.HUMAN,
             reasoning=f"Good maintainability {i}",
-            timestamp=datetime.now(timezone.utc)
+            timestamp=datetime.now(timezone.utc),
         )
         await registry.add_feedback(plan_id, feedback)
 
@@ -374,7 +401,7 @@ async def test_weight_adjustment_after_decay(e2e_clean_registry, mongo_client, t
             risk_score=0.40,
             recommendation="approve",
             weights_used=low_maintainability_weights.copy(),
-            reasoning_factors=[]
+            reasoning_factors=[],
         )
 
         await registry.store_evaluation(plan_id, technical_fingerprint, eval_low_maint)
@@ -383,7 +410,7 @@ async def test_weight_adjustment_after_decay(e2e_clean_registry, mongo_client, t
             outcome=FeedbackOutcome.REJECT,
             source=FeedbackSource.HUMAN,
             reasoning=f"Poor maintainability {i}",
-            timestamp=datetime.now(timezone.utc)
+            timestamp=datetime.now(timezone.utc),
         )
         await registry.add_feedback(plan_id, feedback)
 
@@ -402,7 +429,9 @@ async def test_weight_adjustment_after_decay(e2e_clean_registry, mongo_client, t
 
 @pytest.mark.asyncio
 @pytest.mark.e2e
-async def test_pattern_decay_recovery(e2e_clean_registry, mongo_client, technical_fingerprint, sample_evaluation):
+async def test_pattern_decay_recovery(
+    e2e_clean_registry, mongo_client, technical_fingerprint, sample_evaluation
+):
     """
     Cenário 2.3: Recuperação após decaimento.
 
@@ -414,7 +443,9 @@ async def test_pattern_decay_recovery(e2e_clean_registry, mongo_client, technica
     registry = PatternRegistry(mongo_client, database="test_neural_hive_specialists")
 
     plan_id = "recovery-test-plan"
-    pattern_id = await registry.store_evaluation(plan_id, technical_fingerprint, sample_evaluation)
+    pattern_id = await registry.store_evaluation(
+        plan_id, technical_fingerprint, sample_evaluation
+    )
 
     # Alta success_rate inicial
     for _ in range(5):
@@ -422,7 +453,7 @@ async def test_pattern_decay_recovery(e2e_clean_registry, mongo_client, technica
             outcome=FeedbackOutcome.APPROVE,
             source=FeedbackSource.HUMAN,
             reasoning="Good",
-            timestamp=datetime.now(timezone.utc)
+            timestamp=datetime.now(timezone.utc),
         )
         await registry.add_feedback(plan_id, feedback)
         await registry.update_metrics(pattern_id, success=True)
@@ -436,7 +467,7 @@ async def test_pattern_decay_recovery(e2e_clean_registry, mongo_client, technica
             outcome=FeedbackOutcome.REJECT,
             source=FeedbackSource.AUTOMATED,
             reasoning="Failed",
-            timestamp=datetime.now(timezone.utc)
+            timestamp=datetime.now(timezone.utc),
         )
         await registry.add_feedback(plan_id, feedback)
         await registry.update_metrics(pattern_id, success=False)
@@ -451,7 +482,7 @@ async def test_pattern_decay_recovery(e2e_clean_registry, mongo_client, technica
             outcome=FeedbackOutcome.APPROVE,
             source=FeedbackSource.HUMAN,
             reasoning="Good again",
-            timestamp=datetime.now(timezone.utc)
+            timestamp=datetime.now(timezone.utc),
         )
         await registry.add_feedback(plan_id, feedback)
         await registry.update_metrics(pattern_id, success=True)
@@ -464,6 +495,7 @@ async def test_pattern_decay_recovery(e2e_clean_registry, mongo_client, technica
 # ============================================================================
 # Cenário 3: Fallback on MongoDB Failure
 # ============================================================================
+
 
 @pytest.mark.asyncio
 @pytest.mark.e2e
@@ -506,7 +538,9 @@ async def test_fallback_on_registry_unavailable(mongo_client, technical_fingerpr
     async def failing_find_similar(*args, **kwargs):
         raise Exception("Registry unavailable")
 
-    with patch.object(adapter.matcher.registry, "find_similar_patterns", failing_find_similar):
+    with patch.object(
+        adapter.matcher.registry, "find_similar_patterns", failing_find_similar
+    ):
         # Deve retornar defaults quando registry falha
         adapted = await adapter.adapt_weights(technical_fingerprint)
         assert adapted == DEFAULT_WEIGHTS
@@ -514,7 +548,9 @@ async def test_fallback_on_registry_unavailable(mongo_client, technical_fingerpr
 
 @pytest.mark.asyncio
 @pytest.mark.e2e
-async def test_fallback_on_timeout_during_pattern_search(e2e_clean_registry, mongo_client, technical_fingerprint):
+async def test_fallback_on_timeout_during_pattern_search(
+    e2e_clean_registry, mongo_client, technical_fingerprint
+):
     """
     Cenário 3.3: Fallback quando busca de padrões dá timeout.
 
@@ -540,7 +576,9 @@ async def test_fallback_on_timeout_during_pattern_search(e2e_clean_registry, mon
 
 @pytest.mark.asyncio
 @pytest.mark.e2e
-async def test_pattern_matcher_cache_invalidated_on_error(mongo_client, technical_fingerprint):
+async def test_pattern_matcher_cache_invalidated_on_error(
+    mongo_client, technical_fingerprint
+):
     """
     Cenário 3.4: Cache do PatternMatcher é invalidado em caso de erro.
 
@@ -572,9 +610,12 @@ async def test_pattern_matcher_cache_invalidated_on_error(mongo_client, technica
 # Cenário 4: Feedback Loop Integration E2E
 # ============================================================================
 
+
 @pytest.mark.asyncio
 @pytest.mark.e2e
-async def test_full_feedback_loop_integration(e2e_clean_registry, mongo_client, technical_fingerprint, sample_evaluation):
+async def test_full_feedback_loop_integration(
+    e2e_clean_registry, mongo_client, technical_fingerprint, sample_evaluation
+):
     """
     Cenário 4.1: Loop completo de feedback Kafka -> Registry -> Adaptation.
 
@@ -590,7 +631,7 @@ async def test_full_feedback_loop_integration(e2e_clean_registry, mongo_client, 
         bootstrap_servers="localhost:9092",
         topic="evolution.feedback.topic",
         group_id="test-group",
-        pattern_registry=registry
+        pattern_registry=registry,
     )
     adapter = WeightAdapter(mongo_client, min_similar_patterns=3)
 
@@ -612,8 +653,8 @@ async def test_full_feedback_loop_integration(e2e_clean_registry, mongo_client, 
             "outcome": "approve",
             "source": "human",
             "reasoning": "Approved after review",
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        }
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        },
     }
 
     success = await consumer.process_message(feedback_message)
@@ -634,7 +675,7 @@ async def test_full_feedback_loop_integration(e2e_clean_registry, mongo_client, 
             outcome=FeedbackOutcome.APPROVE,
             source=FeedbackSource.HUMAN,
             reasoning=f"Approved {i}",
-            timestamp=datetime.now(timezone.utc)
+            timestamp=datetime.now(timezone.utc),
         )
         await registry.add_feedback(pid, fb)
 
@@ -646,7 +687,13 @@ async def test_full_feedback_loop_integration(e2e_clean_registry, mongo_client, 
 
 @pytest.mark.asyncio
 @pytest.mark.e2e
-async def test_multiple_domains_separate_learning(e2e_clean_registry, mongo_client, technical_fingerprint, business_fingerprint, sample_evaluation):
+async def test_multiple_domains_separate_learning(
+    e2e_clean_registry,
+    mongo_client,
+    technical_fingerprint,
+    business_fingerprint,
+    sample_evaluation,
+):
     """
     Cenário 4.2: Aprendizado separado por domínio.
 
@@ -661,37 +708,45 @@ async def test_multiple_domains_separate_learning(e2e_clean_registry, mongo_clie
     # Criar padrões técnicos
     for i in range(5):
         plan_id = f"technical-plan-{i}"
-        await registry.store_evaluation(plan_id, technical_fingerprint, sample_evaluation)
+        await registry.store_evaluation(
+            plan_id, technical_fingerprint, sample_evaluation
+        )
 
         feedback = FeedbackData(
             outcome=FeedbackOutcome.APPROVE,
             source=FeedbackSource.HUMAN,
             reasoning=f"Technical plan approved {i}",
-            timestamp=datetime.now(timezone.utc)
+            timestamp=datetime.now(timezone.utc),
         )
         await registry.add_feedback(plan_id, feedback)
 
     # Criar padrões de negócio
     for i in range(5):
         plan_id = f"business-plan-{i}"
-        await registry.store_evaluation(plan_id, business_fingerprint, sample_evaluation)
+        await registry.store_evaluation(
+            plan_id, business_fingerprint, sample_evaluation
+        )
 
         feedback = FeedbackData(
             outcome=FeedbackOutcome.REJECT,
             source=FeedbackSource.HUMAN,
             reasoning=f"Business plan rejected {i}",
-            timestamp=datetime.now(timezone.utc)
+            timestamp=datetime.now(timezone.utc),
         )
         await registry.add_feedback(plan_id, feedback)
 
     # Buscar padrões técnicos
-    technical_similar = await registry.find_similar_patterns(technical_fingerprint, limit=10)
+    technical_similar = await registry.find_similar_patterns(
+        technical_fingerprint, limit=10
+    )
     assert len(technical_similar) > 0
     for p in technical_similar:
         assert p.fingerprint.domain == "technical"
 
     # Buscar padrões de negócio
-    business_similar = await registry.find_similar_patterns(business_fingerprint, limit=10)
+    business_similar = await registry.find_similar_patterns(
+        business_fingerprint, limit=10
+    )
     assert len(business_similar) > 0
     for p in business_similar:
         assert p.fingerprint.domain == "business"
@@ -705,7 +760,9 @@ async def test_multiple_domains_separate_learning(e2e_clean_registry, mongo_clie
 
 @pytest.mark.asyncio
 @pytest.mark.e2e
-async def test_corrected_weights_propagation(e2e_clean_registry, mongo_client, technical_fingerprint, sample_evaluation):
+async def test_corrected_weights_propagation(
+    e2e_clean_registry, mongo_client, technical_fingerprint, sample_evaluation
+):
     """
     Cenário 4.3: Propagação de pesos corrigidos via feedback.
 
@@ -726,7 +783,7 @@ async def test_corrected_weights_propagation(e2e_clean_registry, mongo_client, t
         "scalability": 0.20,
         "extensibility": 0.20,
         "modularity": 0.15,
-        "tech_debt_prevention": 0.15
+        "tech_debt_prevention": 0.15,
     }
 
     feedback = FeedbackData(
@@ -734,10 +791,12 @@ async def test_corrected_weights_propagation(e2e_clean_registry, mongo_client, t
         source=FeedbackSource.HUMAN,
         reasoning="Weights adjusted after review",
         timestamp=datetime.now(timezone.utc),
-        corrected_weights=corrected_weights
+        corrected_weights=corrected_weights,
     )
 
-    success = await registry.add_feedback(plan_id, feedback, corrected_weights=corrected_weights)
+    success = await registry.add_feedback(
+        plan_id, feedback, corrected_weights=corrected_weights
+    )
     assert success is True
 
     # Verificar que pesos corrigidos foram armazenados
@@ -753,9 +812,12 @@ async def test_corrected_weights_propagation(e2e_clean_registry, mongo_client, t
 # Cenário 5: Edge Cases e Limites
 # ============================================================================
 
+
 @pytest.mark.asyncio
 @pytest.mark.e2e
-async def test_weight_normalization_boundary(e2e_clean_registry, mongo_client, technical_fingerprint):
+async def test_weight_normalization_boundary(
+    e2e_clean_registry, mongo_client, technical_fingerprint
+):
     """
     Cenário 5.1: Normalização de pesos nos limites.
 
@@ -775,14 +837,14 @@ async def test_weight_normalization_boundary(e2e_clean_registry, mongo_client, t
             risk_score=0.30,
             recommendation="approve",
             weights_used=DEFAULT_WEIGHTS.copy(),
-            reasoning_factors=[]
+            reasoning_factors=[],
         )
         await registry.store_evaluation(plan_id, technical_fingerprint, eval_boundary)
 
         fb = FeedbackData(
             outcome=FeedbackOutcome.APPROVE,
             source=FeedbackSource.SYSTEM,
-            timestamp=datetime.now(timezone.utc)
+            timestamp=datetime.now(timezone.utc),
         )
         await registry.add_feedback(plan_id, fb)
 
@@ -798,12 +860,16 @@ async def test_weight_normalization_boundary(e2e_clean_registry, mongo_client, t
         default = DEFAULT_WEIGHTS[name]
         min_val = max(0.0, default - adapter.max_adjustment)
         max_val = min(1.0, default + adapter.max_adjustment)
-        assert min_val <= value <= max_val, f"Weight {name} = {value} outside [{min_val}, {max_val}]"
+        assert (
+            min_val <= value <= max_val
+        ), f"Weight {name} = {value} outside [{min_val}, {max_val}]"
 
 
 @pytest.mark.asyncio
 @pytest.mark.e2e
-async def test_empty_task_types_similarity(e2e_clean_registry, mongo_client, sample_evaluation):
+async def test_empty_task_types_similarity(
+    e2e_clean_registry, mongo_client, sample_evaluation
+):
     """
     Cenário 5.2: Similaridade com task_types vazio.
 
@@ -822,11 +888,13 @@ async def test_empty_task_types_similarity(e2e_clean_registry, mongo_client, sam
         avg_dependency_count=0,
         has_conditional_deps=False,
         estimated_duration_range=DurationRange.SHORT,
-        complexity_signature="T-L-S"
+        complexity_signature="T-L-S",
     )
 
     # Armazenar padrão com task_types vazio
-    await registry.store_evaluation("empty-types-plan", empty_fingerprint, sample_evaluation)
+    await registry.store_evaluation(
+        "empty-types-plan", empty_fingerprint, sample_evaluation
+    )
 
     # Buscar similares
     similar = await registry.find_similar_patterns(empty_fingerprint, limit=10)
@@ -838,7 +906,9 @@ async def test_empty_task_types_similarity(e2e_clean_registry, mongo_client, sam
 
 @pytest.mark.asyncio
 @pytest.mark.e2e
-async def test_concurrent_feedback_processing(e2e_clean_registry, mongo_client, technical_fingerprint, sample_evaluation):
+async def test_concurrent_feedback_processing(
+    e2e_clean_registry, mongo_client, technical_fingerprint, sample_evaluation
+):
     """
     Cenário 5.3: Processamento concorrente de feedbacks.
 
@@ -854,7 +924,9 @@ async def test_concurrent_feedback_processing(e2e_clean_registry, mongo_client, 
     for i in range(10):
         plan_id = f"concurrent-plan-{i}"
         plan_ids.append(plan_id)
-        await registry.store_evaluation(plan_id, technical_fingerprint, sample_evaluation)
+        await registry.store_evaluation(
+            plan_id, technical_fingerprint, sample_evaluation
+        )
 
     # Processar feedbacks concorrentemente
     async def add_feedback_async(plan_id, outcome):
@@ -862,13 +934,15 @@ async def test_concurrent_feedback_processing(e2e_clean_registry, mongo_client, 
             outcome=outcome,
             source=FeedbackSource.HUMAN,
             reasoning=f"Concurrent feedback for {plan_id}",
-            timestamp=datetime.now(timezone.utc)
+            timestamp=datetime.now(timezone.utc),
         )
         return await registry.add_feedback(plan_id, feedback)
 
     # Criar tarefas concorrentes
     tasks = [
-        add_feedback_async(plan_id, FeedbackOutcome.APPROVE if i % 2 == 0 else FeedbackOutcome.REJECT)
+        add_feedback_async(
+            plan_id, FeedbackOutcome.APPROVE if i % 2 == 0 else FeedbackOutcome.REJECT
+        )
         for i, plan_id in enumerate(plan_ids)
     ]
 
@@ -885,7 +959,13 @@ async def test_concurrent_feedback_processing(e2e_clean_registry, mongo_client, 
 
 @pytest.mark.asyncio
 @pytest.mark.e2e
-async def test_pattern_registry_statistics(e2e_clean_registry, mongo_client, technical_fingerprint, business_fingerprint, sample_evaluation):
+async def test_pattern_registry_statistics(
+    e2e_clean_registry,
+    mongo_client,
+    technical_fingerprint,
+    business_fingerprint,
+    sample_evaluation,
+):
     """
     Cenário 5.4: Estatísticas completas do registry.
 
@@ -899,31 +979,37 @@ async def test_pattern_registry_statistics(e2e_clean_registry, mongo_client, tec
     # Criar padrões técnicos (com feedback)
     for i in range(3):
         plan_id = f"stats-tech-{i}"
-        await registry.store_evaluation(plan_id, technical_fingerprint, sample_evaluation)
+        await registry.store_evaluation(
+            plan_id, technical_fingerprint, sample_evaluation
+        )
 
         fb = FeedbackData(
             outcome=FeedbackOutcome.APPROVE,
             source=FeedbackSource.HUMAN,
-            timestamp=datetime.now(timezone.utc)
+            timestamp=datetime.now(timezone.utc),
         )
         await registry.add_feedback(plan_id, fb)
 
     # Criar padrões de negócio (com feedback)
     for i in range(2):
         plan_id = f"stats-bus-{i}"
-        await registry.store_evaluation(plan_id, business_fingerprint, sample_evaluation)
+        await registry.store_evaluation(
+            plan_id, business_fingerprint, sample_evaluation
+        )
 
         fb = FeedbackData(
             outcome=FeedbackOutcome.REJECT,
             source=FeedbackSource.AUTOMATED,
-            timestamp=datetime.now(timezone.utc)
+            timestamp=datetime.now(timezone.utc),
         )
         await registry.add_feedback(plan_id, fb)
 
     # Criar padrões sem feedback
     for i in range(3):
         plan_id = f"stats-no-fb-{i}"
-        await registry.store_evaluation(plan_id, technical_fingerprint, sample_evaluation)
+        await registry.store_evaluation(
+            plan_id, technical_fingerprint, sample_evaluation
+        )
 
     # Obter estatísticas
     stats = await registry.get_statistics()
@@ -940,9 +1026,12 @@ async def test_pattern_registry_statistics(e2e_clean_registry, mongo_client, tec
 # Cenário 6: Simulação de Trajetória de Aprendizado
 # ============================================================================
 
+
 @pytest.mark.asyncio
 @pytest.mark.e2e
-async def test_learning_trajectory_simulation(e2e_clean_registry, mongo_client, technical_fingerprint, sample_evaluation):
+async def test_learning_trajectory_simulation(
+    e2e_clean_registry, mongo_client, technical_fingerprint, sample_evaluation
+):
     """
     Cenário 6.1: Simulação completa de trajetória de aprendizado.
 
@@ -974,7 +1063,7 @@ async def test_learning_trajectory_simulation(e2e_clean_registry, mongo_client, 
             risk_score=0.25,
             recommendation="approve",
             weights_used=eval_weights.copy(),
-            reasoning_factors=[]
+            reasoning_factors=[],
         )
 
         await registry.store_evaluation(plan_id, technical_fingerprint, evaluation)
@@ -985,7 +1074,7 @@ async def test_learning_trajectory_simulation(e2e_clean_registry, mongo_client, 
             outcome=outcome,
             source=FeedbackSource.HUMAN,
             reasoning=f"Phase2 feedback {i}",
-            timestamp=datetime.now(timezone.utc)
+            timestamp=datetime.now(timezone.utc),
         )
         await registry.add_feedback(plan_id, feedback)
 
@@ -1000,12 +1089,14 @@ async def test_learning_trajectory_simulation(e2e_clean_registry, mongo_client, 
     for i in range(10):
         plan_id = f"trajectory-phase4-{i}"
 
-        await registry.store_evaluation(plan_id, technical_fingerprint, sample_evaluation)
+        await registry.store_evaluation(
+            plan_id, technical_fingerprint, sample_evaluation
+        )
 
         feedback = FeedbackData(
             outcome=FeedbackOutcome.APPROVE,
             source=FeedbackSource.SYSTEM,
-            timestamp=datetime.now(timezone.utc)
+            timestamp=datetime.now(timezone.utc),
         )
         await registry.add_feedback(plan_id, feedback)
 

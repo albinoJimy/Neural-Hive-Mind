@@ -201,7 +201,9 @@ class TestDetectAnomalies:
         assert result["severity"] in ["warning", "critical"]
         assert len(result["anomalous_features"]) > 0
 
-    def test_severity_thresholds(self, detector, normal_metrics_history, anomalous_metrics):
+    def test_severity_thresholds(
+        self, detector, normal_metrics_history, anomalous_metrics
+    ):
         """Testa cálculo correto de severidade."""
         detector.train_on_historical_data(normal_metrics_history)
 

@@ -228,21 +228,24 @@ class TestAuthenticatedRequests:
             # Chamar EvaluatePlan
             # cognitive_plan é bytes JSON serializado
             import json
-            cognitive_plan_json = json.dumps({
-                "plan_id": "test-plan-123",
-                "intent_id": "test-intent-456",
-                "version": "1.0.0",
-                "tasks": [],
-                "execution_order": [],
-                "original_domain": "test",
-                "original_priority": "normal",
-                "risk_score": 0.3,
-            })
+
+            cognitive_plan_json = json.dumps(
+                {
+                    "plan_id": "test-plan-123",
+                    "intent_id": "test-intent-456",
+                    "version": "1.0.0",
+                    "tasks": [],
+                    "execution_order": [],
+                    "original_domain": "test",
+                    "original_priority": "normal",
+                    "risk_score": 0.3,
+                }
+            )
             request = specialist_pb2.EvaluatePlanRequest(
                 plan_id="test-plan-123",
                 intent_id="test-intent-456",
                 trace_id="test-trace-789",
-                cognitive_plan=cognitive_plan_json.encode('utf-8'),
+                cognitive_plan=cognitive_plan_json.encode("utf-8"),
             )
             response = stub.EvaluatePlan(request, metadata=metadata, timeout=2)
 

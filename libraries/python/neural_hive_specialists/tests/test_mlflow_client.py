@@ -19,8 +19,9 @@ class TestMLflowClient:
     def mlflow_client(self, mock_config):
         """Cria cliente MLflow para testes."""
         # Patch MLflowClient para evitar conexão real
-        with patch("neural_hive_specialists.mlflow_client.mlflow"), \
-             patch("neural_hive_specialists.mlflow_client.MLflowTrackingClient"):
+        with patch("neural_hive_specialists.mlflow_client.mlflow"), patch(
+            "neural_hive_specialists.mlflow_client.MLflowTrackingClient"
+        ):
             client = MLflowClient(mock_config)
             # Desabilitar explicitamente para evitar tentativas de conexão
             client._enabled = False
@@ -120,8 +121,9 @@ class TestLoadModel:
     @pytest.fixture
     def mlflow_client(self, mock_config):
         """Cria cliente MLflow para testes."""
-        with patch("neural_hive_specialists.mlflow_client.mlflow"), \
-             patch("neural_hive_specialists.mlflow_client.MLflowTrackingClient"):
+        with patch("neural_hive_specialists.mlflow_client.mlflow"), patch(
+            "neural_hive_specialists.mlflow_client.MLflowTrackingClient"
+        ):
             client = MLflowClient(mock_config)
             client._enabled = False
             # Criar mock de span que é um context manager
@@ -140,7 +142,10 @@ class TestLoadModel:
         mock_model = Mock()
 
         # Mock mlflow.pyfunc.load_model
-        with patch("neural_hive_specialists.mlflow_client.mlflow.pyfunc.load_model", return_value=mock_model):
+        with patch(
+            "neural_hive_specialists.mlflow_client.mlflow.pyfunc.load_model",
+            return_value=mock_model,
+        ):
             model = mlflow_client.load_model("test_model", "Production")
 
             assert model == mock_model
@@ -150,7 +155,9 @@ class TestLoadModel:
         mock_model = Mock()
 
         mock_load = Mock(return_value=mock_model)
-        with patch("neural_hive_specialists.mlflow_client.mlflow.pyfunc.load_model", mock_load):
+        with patch(
+            "neural_hive_specialists.mlflow_client.mlflow.pyfunc.load_model", mock_load
+        ):
             # Primeiro carregamento
             model1 = mlflow_client.load_model("test_model", "Production")
             # Segundo carregamento (deve usar cache)
@@ -164,7 +171,10 @@ class TestLoadModel:
         """Testa que modelo é cacheado e pode ser recarregado."""
         mock_model1 = Mock(name="model1")
 
-        with patch("neural_hive_specialists.mlflow_client.mlflow.pyfunc.load_model", return_value=mock_model1):
+        with patch(
+            "neural_hive_specialists.mlflow_client.mlflow.pyfunc.load_model",
+            return_value=mock_model1,
+        ):
             # Primeiro carregamento - deve buscar do MLflow
             model1 = mlflow_client.load_model("test_model", "Production")
 
@@ -182,7 +192,10 @@ class TestLoadModel:
         mock_model2 = Mock(name="model2")
         mlflow_client._model_cache.clear()
 
-        with patch("neural_hive_specialists.mlflow_client.mlflow.pyfunc.load_model", return_value=mock_model2):
+        with patch(
+            "neural_hive_specialists.mlflow_client.mlflow.pyfunc.load_model",
+            return_value=mock_model2,
+        ):
             model3 = mlflow_client.load_model("test_model", "Production")
             assert model3 == mock_model2
 
@@ -193,7 +206,10 @@ class TestLoadModel:
         mock_load = Mock(side_effect=[Exception("Transient error"), mock_model])
 
         with patch("neural_hive_specialists.mlflow_client.logger"):
-            with patch("neural_hive_specialists.mlflow_client.mlflow.pyfunc.load_model", mock_load):
+            with patch(
+                "neural_hive_specialists.mlflow_client.mlflow.pyfunc.load_model",
+                mock_load,
+            ):
                 model = mlflow_client.load_model("test_model", "Production")
 
                 assert model == mock_model
@@ -204,7 +220,9 @@ class TestLoadModel:
         """Testa que exceções são propagadas após retries."""
         mock_load = Mock(side_effect=Exception("Permanent error"))
 
-        with patch("neural_hive_specialists.mlflow_client.mlflow.pyfunc.load_model", mock_load):
+        with patch(
+            "neural_hive_specialists.mlflow_client.mlflow.pyfunc.load_model", mock_load
+        ):
             with pytest.raises(Exception, match="Permanent error"):
                 mlflow_client.load_model("test_model", "Production")
 
@@ -216,8 +234,9 @@ class TestLoadModelWithFallback:
     @pytest.fixture
     def mlflow_client(self, mock_config, mock_metrics):
         """Cria cliente MLflow com métricas para testes."""
-        with patch("neural_hive_specialists.mlflow_client.mlflow"), \
-             patch("neural_hive_specialists.mlflow_client.MLflowTrackingClient"):
+        with patch("neural_hive_specialists.mlflow_client.mlflow"), patch(
+            "neural_hive_specialists.mlflow_client.MLflowTrackingClient"
+        ):
             client = MLflowClient(mock_config, metrics=mock_metrics)
             client._enabled = False
             client.tracer = Mock()
@@ -295,8 +314,9 @@ class TestCircuitBreaker:
         mock_config.circuit_breaker_failure_threshold = 2
         mock_config.circuit_breaker_recovery_timeout = 1
 
-        with patch("neural_hive_specialists.mlflow_client.mlflow"), \
-             patch("neural_hive_specialists.mlflow_client.MLflowTrackingClient"):
+        with patch("neural_hive_specialists.mlflow_client.mlflow"), patch(
+            "neural_hive_specialists.mlflow_client.MLflowTrackingClient"
+        ):
             client = MLflowClient(mock_config, metrics=mock_metrics)
             client._enabled = False
             client.tracer = Mock()
@@ -325,8 +345,9 @@ class TestCacheManagement:
     @pytest.fixture
     def mlflow_client(self, mock_config):
         """Cria cliente para testes de cache."""
-        with patch("neural_hive_specialists.mlflow_client.mlflow"), \
-             patch("neural_hive_specialists.mlflow_client.MLflowTrackingClient"):
+        with patch("neural_hive_specialists.mlflow_client.mlflow"), patch(
+            "neural_hive_specialists.mlflow_client.MLflowTrackingClient"
+        ):
             client = MLflowClient(mock_config)
             client._enabled = False
             client.tracer = Mock()
@@ -337,9 +358,7 @@ class TestCacheManagement:
         """Testa que cache é válido dentro do TTL."""
         cache_key = "test_model:Production"
         # Novo formato de cache com timestamp dentro do dicionário
-        mlflow_client._model_cache = {
-            cache_key: {"model": Mock(), "timestamp": 1000}
-        }
+        mlflow_client._model_cache = {cache_key: {"model": Mock(), "timestamp": 1000}}
 
         with patch("time.time", return_value=1100):  # 100s depois, TTL=3600
             is_valid = mlflow_client._is_cache_valid(cache_key)
@@ -349,9 +368,7 @@ class TestCacheManagement:
     def test_is_cache_valid_false_expired(self, mlflow_client):
         """Testa que cache é inválido após TTL."""
         cache_key = "test_model:Production"
-        mlflow_client._model_cache = {
-            cache_key: {"model": Mock(), "timestamp": 1000}
-        }
+        mlflow_client._model_cache = {cache_key: {"model": Mock(), "timestamp": 1000}}
 
         with patch("time.time", return_value=5000):  # 4000s depois, TTL=3600
             is_valid = mlflow_client._is_cache_valid(cache_key)
@@ -380,8 +397,9 @@ class TestGetModelMetadata:
     @pytest.fixture
     def mlflow_client(self, mock_config):
         """Cria cliente MLflow para testes."""
-        with patch("neural_hive_specialists.mlflow_client.mlflow"), \
-             patch("neural_hive_specialists.mlflow_client.MLflowTrackingClient"):
+        with patch("neural_hive_specialists.mlflow_client.mlflow"), patch(
+            "neural_hive_specialists.mlflow_client.MLflowTrackingClient"
+        ):
             client = MLflowClient(mock_config)
             client._enabled = False
             # Criar mock de span que é um context manager
@@ -410,9 +428,7 @@ class TestGetModelMetadata:
         mock_version.run_id = "run_123"
 
         # Atualizar o mock para retornar a versão
-        mlflow_client._client.search_model_versions = Mock(
-            return_value=[mock_version]
-        )
+        mlflow_client._client.search_model_versions = Mock(return_value=[mock_version])
 
         metadata = mlflow_client.get_model_metadata("test_model", "Production")
 
@@ -449,8 +465,9 @@ class TestIsConnected:
     @pytest.fixture
     def mlflow_client(self, mock_config):
         """Cria cliente MLflow para testes."""
-        with patch("neural_hive_specialists.mlflow_client.mlflow"), \
-             patch("neural_hive_specialists.mlflow_client.MLflowTrackingClient"):
+        with patch("neural_hive_specialists.mlflow_client.mlflow"), patch(
+            "neural_hive_specialists.mlflow_client.MLflowTrackingClient"
+        ):
             client = MLflowClient(mock_config)
             client._enabled = False
             client.tracer = Mock()

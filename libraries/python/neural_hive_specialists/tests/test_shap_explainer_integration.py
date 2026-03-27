@@ -107,7 +107,7 @@ class TestSHAPExplainerWithRandomForest:
                 "feature_importances": [],
             }
 
-        with patch.object(explainer, '_compute_shap', side_effect=slow_compute):
+        with patch.object(explainer, "_compute_shap", side_effect=slow_compute):
             result = explainer.explain(model, features, feature_names)
 
         # Deve retornar erro de timeout

@@ -10,7 +10,7 @@ from neural_hive_specialists.evolution_hooks.models import (
     FeedbackOutcome,
     FeedbackSource,
     TaskCountRange,
-    DEFAULT_WEIGHTS
+    DEFAULT_WEIGHTS,
 )
 
 
@@ -38,7 +38,7 @@ class TestWeightAdapter:
             task_count_range=TaskCountRange.MEDIUM,
             task_types=["BUILD", "TEST"],
             avg_dependency_count=1.0,
-            complexity_signature="T-M-abcd"
+            complexity_signature="T-M-abcd",
         )
 
         weights = await adapter.adapt_weights(fingerprint)
@@ -55,14 +55,14 @@ class TestWeightAdapter:
                 task_count_range=TaskCountRange.MEDIUM,
                 task_types=["BUILD", "TEST"],
                 avg_dependency_count=1.0,
-                complexity_signature=f"T-M-{i:04d}"
+                complexity_signature=f"T-M-{i:04d}",
             )
             evaluation = EvolutionEvaluation(
-                confidence_score=0.7,
-                risk_score=0.3,
-                recommendation="approve"
+                confidence_score=0.7, risk_score=0.3, recommendation="approve"
             )
-            await adapter.registry.store_evaluation(f"plan-{i}", fingerprint, evaluation)
+            await adapter.registry.store_evaluation(
+                f"plan-{i}", fingerprint, evaluation
+            )
 
         search_fingerprint = Fingerprint(
             domain="technical",
@@ -70,7 +70,7 @@ class TestWeightAdapter:
             task_count_range=TaskCountRange.MEDIUM,
             task_types=["BUILD", "TEST"],
             avg_dependency_count=1.0,
-            complexity_signature="T-M-9999"
+            complexity_signature="T-M-9999",
         )
 
         weights = await adapter.adapt_weights(search_fingerprint)
@@ -87,7 +87,7 @@ class TestWeightAdapter:
                 task_count_range=TaskCountRange.MEDIUM,
                 task_types=["BUILD", "TEST"],
                 avg_dependency_count=1.0,
-                complexity_signature=f"T-M-{i:04d}"
+                complexity_signature=f"T-M-{i:04d}",
             )
 
             # Quando maintainability weight é alto, outcome é approve
@@ -96,14 +96,15 @@ class TestWeightAdapter:
                 confidence_score=0.8,
                 risk_score=0.2,
                 recommendation="approve",
-                weights_used=weights_high_maintainability
+                weights_used=weights_high_maintainability,
             )
-            pattern_id = await adapter.registry.store_evaluation(f"plan-{i}", fingerprint, evaluation)
+            pattern_id = await adapter.registry.store_evaluation(
+                f"plan-{i}", fingerprint, evaluation
+            )
 
             # Adicionar feedback positivo
             feedback = FeedbackData(
-                outcome=FeedbackOutcome.APPROVE,
-                source=FeedbackSource.SYSTEM
+                outcome=FeedbackOutcome.APPROVE, source=FeedbackSource.SYSTEM
             )
             await adapter.registry.add_feedback(f"plan-{i}", feedback)
 
@@ -113,7 +114,7 @@ class TestWeightAdapter:
             task_count_range=TaskCountRange.MEDIUM,
             task_types=["BUILD", "TEST"],
             avg_dependency_count=1.0,
-            complexity_signature="T-M-9999"
+            complexity_signature="T-M-9999",
         )
 
         weights = await adapter.adapt_weights(search_fingerprint)
@@ -132,19 +133,20 @@ class TestWeightAdapter:
                 task_count_range=TaskCountRange.MEDIUM,
                 task_types=["ANALYZE"],
                 avg_dependency_count=0.5,
-                complexity_signature=f"B-M-{i:04d}"
+                complexity_signature=f"B-M-{i:04d}",
             )
             evaluation = EvolutionEvaluation(
                 confidence_score=0.9,
                 risk_score=0.1,
                 recommendation="approve",
-                weights_used={**DEFAULT_WEIGHTS, "extensibility": 0.30}
+                weights_used={**DEFAULT_WEIGHTS, "extensibility": 0.30},
             )
-            pattern_id = await adapter.registry.store_evaluation(f"plan-{i}", fingerprint, evaluation)
+            pattern_id = await adapter.registry.store_evaluation(
+                f"plan-{i}", fingerprint, evaluation
+            )
 
             feedback = FeedbackData(
-                outcome=FeedbackOutcome.APPROVE,
-                source=FeedbackSource.SYSTEM
+                outcome=FeedbackOutcome.APPROVE, source=FeedbackSource.SYSTEM
             )
             await adapter.registry.add_feedback(f"plan-{i}", feedback)
 
@@ -154,7 +156,7 @@ class TestWeightAdapter:
             task_count_range=TaskCountRange.MEDIUM,
             task_types=["ANALYZE"],
             avg_dependency_count=0.5,
-            complexity_signature="B-M-9999"
+            complexity_signature="B-M-9999",
         )
 
         weights = await adapter.adapt_weights(search_fingerprint)
@@ -175,14 +177,14 @@ class TestWeightAdapter:
                 task_count_range=TaskCountRange.MEDIUM,
                 task_types=["BUILD", "TEST"],
                 avg_dependency_count=1.0,
-                complexity_signature=f"T-M-{i:04d}"
+                complexity_signature=f"T-M-{i:04d}",
             )
             evaluation = EvolutionEvaluation(
-                confidence_score=0.7,
-                risk_score=0.3,
-                recommendation="approve"
+                confidence_score=0.7, risk_score=0.3, recommendation="approve"
             )
-            await adapter.registry.store_evaluation(f"plan-{i}", fingerprint, evaluation)
+            await adapter.registry.store_evaluation(
+                f"plan-{i}", fingerprint, evaluation
+            )
 
         search_fingerprint = Fingerprint(
             domain="technical",
@@ -190,7 +192,7 @@ class TestWeightAdapter:
             task_count_range=TaskCountRange.MEDIUM,
             task_types=["BUILD", "TEST"],
             avg_dependency_count=1.0,
-            complexity_signature="T-M-9999"
+            complexity_signature="T-M-9999",
         )
 
         weights = await adapter.adapt_weights(search_fingerprint)
@@ -208,7 +210,7 @@ class TestWeightAdapter:
                 task_count_range=TaskCountRange.MEDIUM,
                 task_types=["BUILD", "TEST"],
                 avg_dependency_count=1.0,
-                complexity_signature=f"T-M-{i:04d}"
+                complexity_signature=f"T-M-{i:04d}",
             )
 
             # Quando maintainability weight é baixo, outcome é approve
@@ -217,14 +219,15 @@ class TestWeightAdapter:
                 confidence_score=0.8,
                 risk_score=0.2,
                 recommendation="approve",
-                weights_used=weights_low_maintainability
+                weights_used=weights_low_maintainability,
             )
-            pattern_id = await adapter.registry.store_evaluation(f"plan-{i}", fingerprint, evaluation)
+            pattern_id = await adapter.registry.store_evaluation(
+                f"plan-{i}", fingerprint, evaluation
+            )
 
             # Adicionar feedback positivo
             feedback = FeedbackData(
-                outcome=FeedbackOutcome.APPROVE,
-                source=FeedbackSource.SYSTEM
+                outcome=FeedbackOutcome.APPROVE, source=FeedbackSource.SYSTEM
             )
             await adapter.registry.add_feedback(f"plan-{i}", feedback)
 
@@ -234,7 +237,7 @@ class TestWeightAdapter:
             task_count_range=TaskCountRange.MEDIUM,
             task_types=["BUILD", "TEST"],
             avg_dependency_count=1.0,
-            complexity_signature="T-M-9999"
+            complexity_signature="T-M-9999",
         )
 
         weights = await adapter.adapt_weights(search_fingerprint)
@@ -250,7 +253,7 @@ class TestWeightAdapter:
             task_count_range=TaskCountRange.MEDIUM,
             task_types=["BUILD", "TEST"],
             avg_dependency_count=1.0,
-            complexity_signature="T-M-abcd"
+            complexity_signature="T-M-abcd",
         )
 
         weights1 = await adapter.adapt_weights(fingerprint)
@@ -271,14 +274,14 @@ class TestWeightAdapter:
                 task_count_range=TaskCountRange.MEDIUM,
                 task_types=["BUILD", "TEST"],
                 avg_dependency_count=1.0,
-                complexity_signature=f"T-M-{i:04d}"
+                complexity_signature=f"T-M-{i:04d}",
             )
             evaluation = EvolutionEvaluation(
-                confidence_score=0.7,
-                risk_score=0.3,
-                recommendation="approve"
+                confidence_score=0.7, risk_score=0.3, recommendation="approve"
             )
-            await adapter.registry.store_evaluation(f"plan-{i}", fingerprint, evaluation)
+            await adapter.registry.store_evaluation(
+                f"plan-{i}", fingerprint, evaluation
+            )
 
         search_fingerprint = Fingerprint(
             domain="technical",
@@ -286,7 +289,7 @@ class TestWeightAdapter:
             task_count_range=TaskCountRange.MEDIUM,
             task_types=["BUILD", "TEST"],
             avg_dependency_count=1.0,
-            complexity_signature="T-M-9999"
+            complexity_signature="T-M-9999",
         )
 
         # Não deve falhar, retorna default
@@ -303,14 +306,14 @@ class TestWeightAdapter:
                 task_count_range=TaskCountRange.MEDIUM,
                 task_types=["BUILD", "TEST"],
                 avg_dependency_count=1.0,
-                complexity_signature=f"T-M-{i:04d}"
+                complexity_signature=f"T-M-{i:04d}",
             )
             evaluation = EvolutionEvaluation(
-                confidence_score=0.7,
-                risk_score=0.3,
-                recommendation="approve"
+                confidence_score=0.7, risk_score=0.3, recommendation="approve"
             )
-            await adapter.registry.store_evaluation(f"plan-{i}", fingerprint, evaluation)
+            await adapter.registry.store_evaluation(
+                f"plan-{i}", fingerprint, evaluation
+            )
 
         search_fingerprint = Fingerprint(
             domain="technical",
@@ -318,7 +321,7 @@ class TestWeightAdapter:
             task_count_range=TaskCountRange.MEDIUM,
             task_types=["BUILD", "TEST"],
             avg_dependency_count=1.0,
-            complexity_signature="T-M-9999"
+            complexity_signature="T-M-9999",
         )
 
         weights = await adapter.adapt_weights(search_fingerprint)

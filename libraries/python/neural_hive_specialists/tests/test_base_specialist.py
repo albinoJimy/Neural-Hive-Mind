@@ -12,6 +12,7 @@ from pydantic import ValidationError
 # Store patches para cleanup após o módulo
 _patches = []
 
+
 # Mock para SemanticPipeline.evaluate_plan que retorna dict válido
 def mock_semantic_evaluate(self, plan, context=None):
     return {
@@ -22,9 +23,11 @@ def mock_semantic_evaluate(self, plan, context=None):
         "reasoning_factors": [],
     }
 
+
 # Mock para ExplainabilityGenerator.generate que retorna tupla válida
 def mock_explainability_generate(self, evaluation_result, cognitive_plan, model):
     return ("explainability-token-123", {"method": "heuristic"})
+
 
 _semantic_pipeline_mock = MagicMock()
 _semantic_pipeline_mock.evaluate_plan = mock_semantic_evaluate
@@ -33,24 +36,54 @@ _explainability_mock = MagicMock()
 _explainability_mock.generate = mock_explainability_generate
 
 # Criar patches e iniciá-los
-_patch_mlflow = patch("neural_hive_specialists.base_specialist.MLflowClient", return_value=None)
-_patch_ledger = patch("neural_hive_specialists.base_specialist.LedgerClient", return_value=None)
-_patch_feature_store = patch("neural_hive_specialists.base_specialist.FeatureStore", return_value=None)
-_patch_opinion_cache = patch("neural_hive_specialists.base_specialist.OpinionCache", return_value=None)
-_patch_feature_cache = patch("neural_hive_specialists.base_specialist.FeatureCache", return_value=None)
-_patch_feature_extractor = patch("neural_hive_specialists.base_specialist.FeatureExtractor", return_value=None)
-_patch_semantic_pipeline = patch("neural_hive_specialists.base_specialist.SemanticPipeline", return_value=_semantic_pipeline_mock)
-_patch_explainability = patch("neural_hive_specialists.base_specialist.ExplainabilityGenerator", return_value=_explainability_mock)
-_patch_embeddings = patch("neural_hive_specialists.feature_extraction.embeddings_generator.EmbeddingsGenerator", return_value=None)
+_patch_mlflow = patch(
+    "neural_hive_specialists.base_specialist.MLflowClient", return_value=None
+)
+_patch_ledger = patch(
+    "neural_hive_specialists.base_specialist.LedgerClient", return_value=None
+)
+_patch_feature_store = patch(
+    "neural_hive_specialists.base_specialist.FeatureStore", return_value=None
+)
+_patch_opinion_cache = patch(
+    "neural_hive_specialists.base_specialist.OpinionCache", return_value=None
+)
+_patch_feature_cache = patch(
+    "neural_hive_specialists.base_specialist.FeatureCache", return_value=None
+)
+_patch_feature_extractor = patch(
+    "neural_hive_specialists.base_specialist.FeatureExtractor", return_value=None
+)
+_patch_semantic_pipeline = patch(
+    "neural_hive_specialists.base_specialist.SemanticPipeline",
+    return_value=_semantic_pipeline_mock,
+)
+_patch_explainability = patch(
+    "neural_hive_specialists.base_specialist.ExplainabilityGenerator",
+    return_value=_explainability_mock,
+)
+_patch_embeddings = patch(
+    "neural_hive_specialists.feature_extraction.embeddings_generator.EmbeddingsGenerator",
+    return_value=None,
+)
 
-_patches.extend([
-    _patch_mlflow, _patch_ledger, _patch_feature_store, _patch_opinion_cache,
-    _patch_feature_cache, _patch_feature_extractor, _patch_semantic_pipeline,
-    _patch_explainability, _patch_embeddings
-])
+_patches.extend(
+    [
+        _patch_mlflow,
+        _patch_ledger,
+        _patch_feature_store,
+        _patch_opinion_cache,
+        _patch_feature_cache,
+        _patch_feature_extractor,
+        _patch_semantic_pipeline,
+        _patch_explainability,
+        _patch_embeddings,
+    ]
+)
 
 for p in _patches:
     p.start()
+
 
 # Fixture para garantir cleanup após os testes deste módulo
 @pytest.fixture(scope="module", autouse=True)
@@ -59,6 +92,7 @@ def cleanup_patches():
     yield
     for p in _patches:
         p.stop()
+
 
 from neural_hive_specialists.base_specialist import BaseSpecialist
 from neural_hive_specialists.schemas import (
@@ -121,9 +155,15 @@ class TestBaseSpecialistInitialization:
         mocker.patch("neural_hive_specialists.base_specialist.LedgerClient")
         mocker.patch("neural_hive_specialists.base_specialist.ExplainabilityGenerator")
         mocker.patch("neural_hive_specialists.base_specialist.SpecialistMetrics")
-        mocker.patch("neural_hive_specialists.base_specialist.FeatureStore", return_value=None)
-        mocker.patch("neural_hive_specialists.base_specialist.OpinionCache", return_value=None)
-        mocker.patch("neural_hive_specialists.base_specialist.FeatureCache", return_value=None)
+        mocker.patch(
+            "neural_hive_specialists.base_specialist.FeatureStore", return_value=None
+        )
+        mocker.patch(
+            "neural_hive_specialists.base_specialist.OpinionCache", return_value=None
+        )
+        mocker.patch(
+            "neural_hive_specialists.base_specialist.FeatureCache", return_value=None
+        )
 
         specialist = HelperTestSpecialist(mock_config)
 
@@ -174,9 +214,15 @@ class TestDeserializePlan:
         mocker.patch("neural_hive_specialists.base_specialist.LedgerClient")
         mocker.patch("neural_hive_specialists.base_specialist.ExplainabilityGenerator")
         mocker.patch("neural_hive_specialists.base_specialist.SpecialistMetrics")
-        mocker.patch("neural_hive_specialists.base_specialist.FeatureStore", return_value=None)
-        mocker.patch("neural_hive_specialists.base_specialist.OpinionCache", return_value=None)
-        mocker.patch("neural_hive_specialists.base_specialist.FeatureCache", return_value=None)
+        mocker.patch(
+            "neural_hive_specialists.base_specialist.FeatureStore", return_value=None
+        )
+        mocker.patch(
+            "neural_hive_specialists.base_specialist.OpinionCache", return_value=None
+        )
+        mocker.patch(
+            "neural_hive_specialists.base_specialist.FeatureCache", return_value=None
+        )
         return HelperTestSpecialist(mock_config)
 
     def test_deserialize_valid_plan(self, specialist, sample_cognitive_plan):
@@ -450,9 +496,15 @@ class TestValidateEvaluationResult:
         mocker.patch("neural_hive_specialists.base_specialist.LedgerClient")
         mocker.patch("neural_hive_specialists.base_specialist.ExplainabilityGenerator")
         mocker.patch("neural_hive_specialists.base_specialist.SpecialistMetrics")
-        mocker.patch("neural_hive_specialists.base_specialist.FeatureStore", return_value=None)
-        mocker.patch("neural_hive_specialists.base_specialist.OpinionCache", return_value=None)
-        mocker.patch("neural_hive_specialists.base_specialist.FeatureCache", return_value=None)
+        mocker.patch(
+            "neural_hive_specialists.base_specialist.FeatureStore", return_value=None
+        )
+        mocker.patch(
+            "neural_hive_specialists.base_specialist.OpinionCache", return_value=None
+        )
+        mocker.patch(
+            "neural_hive_specialists.base_specialist.FeatureCache", return_value=None
+        )
         return HelperTestSpecialist(mock_config)
 
     def test_validate_valid_result(self, specialist, sample_evaluation_result):
@@ -593,9 +645,15 @@ class TestGetCapabilities:
         mocker.patch("neural_hive_specialists.base_specialist.LedgerClient")
         mocker.patch("neural_hive_specialists.base_specialist.ExplainabilityGenerator")
         mocker.patch("neural_hive_specialists.base_specialist.SpecialistMetrics")
-        mocker.patch("neural_hive_specialists.base_specialist.FeatureStore", return_value=None)
-        mocker.patch("neural_hive_specialists.base_specialist.OpinionCache", return_value=None)
-        mocker.patch("neural_hive_specialists.base_specialist.FeatureCache", return_value=None)
+        mocker.patch(
+            "neural_hive_specialists.base_specialist.FeatureStore", return_value=None
+        )
+        mocker.patch(
+            "neural_hive_specialists.base_specialist.OpinionCache", return_value=None
+        )
+        mocker.patch(
+            "neural_hive_specialists.base_specialist.FeatureCache", return_value=None
+        )
         return HelperTestSpecialist(mock_config)
 
     def test_get_capabilities_returns_metadata(self, specialist):

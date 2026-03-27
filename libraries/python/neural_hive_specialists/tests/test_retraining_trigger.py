@@ -117,12 +117,17 @@ class TestRetrainingTrigger:
             # Como o trigger antigo é de 48h, ele não deve ser retornado
             if "triggered_at" in query:
                 triggered_at_filter = query["triggered_at"]
-                if isinstance(triggered_at_filter, dict) and "$gte" in triggered_at_filter:
+                if (
+                    isinstance(triggered_at_filter, dict)
+                    and "$gte" in triggered_at_filter
+                ):
                     # Query filtrando por data recente - trigger antigo não corresponde
                     return None
             return old_trigger
 
-        retraining_trigger._triggers_collection.find_one = Mock(side_effect=mock_find_one_filter)
+        retraining_trigger._triggers_collection.find_one = Mock(
+            side_effect=mock_find_one_filter
+        )
 
         is_cooldown = retraining_trigger._check_cooldown("technical")
 

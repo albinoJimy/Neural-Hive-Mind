@@ -255,7 +255,11 @@ class TestConnectionManagement:
         """Testa que is_connected retorna False após falha de ping."""
         with patch("neural_hive_specialists.opinion_cache.RedisCluster") as mock_redis:
             # side_effect: init(True), is_connected #1(True), is_connected #2(exceção)
-            mock_redis.return_value.ping.side_effect = [True, True, RedisError("Ping failed")]
+            mock_redis.return_value.ping.side_effect = [
+                True,
+                True,
+                RedisError("Ping failed"),
+            ]
 
             cache = OpinionCache(
                 redis_cluster_nodes="localhost:6379", specialist_type="technical"

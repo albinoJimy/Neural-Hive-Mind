@@ -53,7 +53,7 @@ def tenant_configs_file():
         },
     }
 
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
         json.dump(tenant_configs, f)
         temp_path = f.name
 
@@ -61,6 +61,7 @@ def tenant_configs_file():
 
     # Cleanup
     import os
+
     try:
         os.unlink(temp_path)
     except:
@@ -123,7 +124,9 @@ def mock_request():
 class TestMultiTenantSpecialist:
     """Testes para MultiTenantSpecialist."""
 
-    def test_extract_tenant_id_from_context(self, config_with_tenant_file, mock_request):
+    def test_extract_tenant_id_from_context(
+        self, config_with_tenant_file, mock_request
+    ):
         """Testa extração de tenant_id do request.context."""
         specialist = ConcreteMultiTenantSpecialist(config_with_tenant_file)
         mock_request.context = {"tenant_id": "tenant-A"}
@@ -132,7 +135,9 @@ class TestMultiTenantSpecialist:
 
         assert tenant_id == "tenant-A"
 
-    def test_extract_tenant_id_default_fallback(self, config_with_tenant_file, mock_request):
+    def test_extract_tenant_id_default_fallback(
+        self, config_with_tenant_file, mock_request
+    ):
         """Testa fallback para default quando tenant_id não fornecido."""
         specialist = ConcreteMultiTenantSpecialist(config_with_tenant_file)
         mock_request.context = {}

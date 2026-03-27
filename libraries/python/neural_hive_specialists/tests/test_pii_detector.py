@@ -153,7 +153,9 @@ class TestPIIDetectorInitialization:
 
         try:
             detector = PIIDetector(mock_config)
-            assert detector.enabled is False, f"Expected enabled=False, got {detector.enabled}"
+            assert (
+                detector.enabled is False
+            ), f"Expected enabled=False, got {detector.enabled}"
         finally:
             # Restaurar os mocks originais sempre
             if original_analyzer is not None:

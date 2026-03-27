@@ -12,6 +12,7 @@ import structlog
 
 try:
     from motor.motor_async import AsyncIOMotorClient
+
     MOTOR_AVAILABLE = True
 except ImportError:
     AsyncIOMotorClient = None
@@ -52,14 +53,11 @@ class PatternRegistry:
             "PatternRegistry initialized",
             collection=self.COLLECTION_NAME,
             database=database,
-            motor_available=MOTOR_AVAILABLE
+            motor_available=MOTOR_AVAILABLE,
         )
 
     async def store_evaluation(
-        self,
-        plan_id: str,
-        fingerprint: Fingerprint,
-        evaluation: EvolutionEvaluation
+        self, plan_id: str, fingerprint: Fingerprint, evaluation: EvolutionEvaluation
     ) -> str:
         """
         Armazena avaliação com fingerprint.
@@ -79,17 +77,17 @@ class PatternRegistry:
             "metrics": {
                 "times_matched": 0,
                 "success_rate": 0.5,
-                "last_updated": datetime.now(timezone.utc)
+                "last_updated": datetime.now(timezone.utc),
             },
             "created_at": datetime.now(timezone.utc),
-            "updated_at": datetime.now(timezone.utc)
+            "updated_at": datetime.now(timezone.utc),
         }
 
         result = await self.collection.insert_one(doc)
         logger.info(
             "Stored evaluation pattern",
             pattern_id=str(result.inserted_id),
-            plan_id=plan_id
+            plan_id=plan_id,
         )
         return str(result.inserted_id)
 
@@ -97,7 +95,7 @@ class PatternRegistry:
         self,
         plan_id: str,
         feedback: FeedbackData,
-        corrected_weights: Optional[dict] = None
+        corrected_weights: Optional[dict] = None,
     ) -> bool:
         """
         Adiciona feedback a uma avaliação existente.
@@ -118,34 +116,25 @@ class PatternRegistry:
         update_doc = {
             "$set": {
                 "feedback": feedback_dict,
-                "updated_at": datetime.now(timezone.utc)
+                "updated_at": datetime.now(timezone.utc),
             }
         }
 
-        result = await self.collection.update_one(
-            {"plan_id": plan_id},
-            update_doc
-        )
+        result = await self.collection.update_one({"plan_id": plan_id}, update_doc)
 
         if result.modified_count > 0:
             logger.info(
                 "Added feedback to pattern",
                 plan_id=plan_id,
-                outcome=feedback.outcome.value
+                outcome=feedback.outcome.value,
             )
             return True
 
-        logger.warning(
-            "Pattern not found for feedback",
-            plan_id=plan_id
-        )
+        logger.warning("Pattern not found for feedback", plan_id=plan_id)
         return False
 
     async def find_similar_patterns(
-        self,
-        fingerprint: Fingerprint,
-        limit: int = 50,
-        min_similarity: float = 0.0
+        self, fingerprint: Fingerprint, limit: int = 50, min_similarity: float = 0.0
     ) -> List[PatternRecord]:
         """
         Busca padrões similares baseado em fingerprint.
@@ -168,7 +157,7 @@ class PatternRegistry:
             "fingerprint.domain": fingerprint.domain,
             "fingerprint.complexity_signature": {
                 "$regex": f"^{fingerprint.complexity_signature[:3]}"
-            }
+            },
         }
 
         # Buscar candidatos (limit * 2 para filtrar depois)
@@ -180,8 +169,7 @@ class PatternRegistry:
         for doc in docs:
             doc_fingerprint = doc["fingerprint"]
             jaccard = self._calculate_jaccard(
-                set(fingerprint.task_types),
-                set(doc_fingerprint.get("task_types", []))
+                set(fingerprint.task_types), set(doc_fingerprint.get("task_types", []))
             )
 
             if jaccard >= min_similarity:
@@ -198,7 +186,7 @@ class PatternRegistry:
             fingerprint_domain=fingerprint.domain,
             candidates_found=len(docs),
             similar_filtered=len(similar),
-            returned=min(limit, len(similar))
+            returned=min(limit, len(similar)),
         )
 
         return similar[:limit]
@@ -233,7 +221,9 @@ class PatternRegistry:
         # Buscar padrão atual
         pattern = await self.collection.find_one({"_id": pattern_id})
         if not pattern:
-            logger.warning("Pattern not found for metrics update", pattern_id=pattern_id)
+            logger.warning(
+                "Pattern not found for metrics update", pattern_id=pattern_id
+            )
             return
 
         current_metrics = pattern.get("metrics", {})
@@ -241,15 +231,17 @@ class PatternRegistry:
         times_matched = current_metrics.get("times_matched", 0)
 
         # Calcular nova success rate (moving average)
-        new_rate = (current_rate * times_matched + (1.0 if success else 0.0)) / (times_matched + 1)
+        new_rate = (current_rate * times_matched + (1.0 if success else 0.0)) / (
+            times_matched + 1
+        )
 
         # Atualizar métricas
         update_doc = {
             "$inc": {"metrics.times_matched": 1},
             "$set": {
                 "metrics.success_rate": new_rate,
-                "metrics.last_updated": datetime.now(timezone.utc)
-            }
+                "metrics.last_updated": datetime.now(timezone.utc),
+            },
         }
 
         await self.collection.update_one({"_id": pattern_id}, update_doc)
@@ -259,7 +251,7 @@ class PatternRegistry:
             pattern_id=pattern_id,
             success=success,
             new_success_rate=new_rate,
-            times_matched=times_matched + 1
+            times_matched=times_matched + 1,
         )
 
     async def get_pattern_by_plan_id(self, plan_id: str) -> Optional[PatternRecord]:
@@ -287,9 +279,7 @@ class PatternRegistry:
         Returns:
             Número de padrões no domínio
         """
-        count = await self.collection.count_documents({
-            "fingerprint.domain": domain
-        })
+        count = await self.collection.count_documents({"fingerprint.domain": domain})
 
         return count
 
@@ -303,36 +293,26 @@ class PatternRegistry:
         total_patterns = await self.collection.count_documents({})
 
         # Contar por domínio
-        pipeline = [
-            {"$group": {
-                "_id": "$fingerprint.domain",
-                "count": {"$sum": 1}
-            }}
-        ]
+        pipeline = [{"$group": {"_id": "$fingerprint.domain", "count": {"$sum": 1}}}]
         domain_counts = await self.collection.aggregate(pipeline).to_list(None)
 
         # Contar com feedback
-        with_feedback = await self.collection.count_documents({
-            "feedback": {"$exists": True}
-        })
+        with_feedback = await self.collection.count_documents(
+            {"feedback": {"$exists": True}}
+        )
 
         # Contar aprovados vs rejeitados
-        approved = await self.collection.count_documents({
-            "feedback.outcome": "approve"
-        })
-        rejected = await self.collection.count_documents({
-            "feedback.outcome": "reject"
-        })
+        approved = await self.collection.count_documents(
+            {"feedback.outcome": "approve"}
+        )
+        rejected = await self.collection.count_documents({"feedback.outcome": "reject"})
 
         return {
             "total_patterns": total_patterns,
             "patterns_with_feedback": with_feedback,
             "approved_count": approved,
             "rejected_count": rejected,
-            "domain_distribution": {
-                doc["_id"]: doc["count"]
-                for doc in domain_counts
-            }
+            "domain_distribution": {doc["_id"]: doc["count"] for doc in domain_counts},
         }
 
 
@@ -361,14 +341,11 @@ class SyncPatternRegistry:
         logger.info(
             "SyncPatternRegistry initialized",
             collection=self.COLLECTION_NAME,
-            database=database
+            database=database,
         )
 
     def store_evaluation(
-        self,
-        plan_id: str,
-        fingerprint: Fingerprint,
-        evaluation: EvolutionEvaluation
+        self, plan_id: str, fingerprint: Fingerprint, evaluation: EvolutionEvaluation
     ) -> str:
         """
         Armazena avaliação com fingerprint (síncrono).
@@ -383,17 +360,17 @@ class SyncPatternRegistry:
             "metrics": {
                 "times_matched": 0,
                 "success_rate": 0.5,
-                "last_updated": datetime.now(timezone.utc)
+                "last_updated": datetime.now(timezone.utc),
             },
             "created_at": datetime.now(timezone.utc),
-            "updated_at": datetime.now(timezone.utc)
+            "updated_at": datetime.now(timezone.utc),
         }
 
         result = self.collection.insert_one(doc)
         logger.info(
             "Stored evaluation pattern (sync)",
             pattern_id=str(result.inserted_id),
-            plan_id=plan_id
+            plan_id=plan_id,
         )
         return str(result.inserted_id)
 
@@ -401,7 +378,7 @@ class SyncPatternRegistry:
         self,
         plan_id: str,
         feedback: FeedbackData,
-        corrected_weights: Optional[dict] = None
+        corrected_weights: Optional[dict] = None,
     ) -> bool:
         """
         Adiciona feedback a uma avaliação existente (síncrono).
@@ -417,30 +394,24 @@ class SyncPatternRegistry:
         update_doc = {
             "$set": {
                 "feedback": feedback_dict,
-                "updated_at": datetime.now(timezone.utc)
+                "updated_at": datetime.now(timezone.utc),
             }
         }
 
-        result = self.collection.update_one(
-            {"plan_id": plan_id},
-            update_doc
-        )
+        result = self.collection.update_one({"plan_id": plan_id}, update_doc)
 
         if result.modified_count > 0:
             logger.info(
                 "Added feedback to pattern (sync)",
                 plan_id=plan_id,
-                outcome=feedback.outcome.value
+                outcome=feedback.outcome.value,
             )
             return True
 
         return False
 
     def find_similar_patterns(
-        self,
-        fingerprint: Fingerprint,
-        limit: int = 50,
-        min_similarity: float = 0.0
+        self, fingerprint: Fingerprint, limit: int = 50, min_similarity: float = 0.0
     ) -> List[PatternRecord]:
         """
         Busca padrões similares (síncrono).
@@ -452,7 +423,7 @@ class SyncPatternRegistry:
             "fingerprint.domain": fingerprint.domain,
             "fingerprint.complexity_signature": {
                 "$regex": f"^{fingerprint.complexity_signature[:3]}"
-            }
+            },
         }
 
         cursor = self.collection.find(query).sort("created_at", -1).limit(limit * 2)
@@ -463,8 +434,7 @@ class SyncPatternRegistry:
         for doc in docs:
             doc_fingerprint = doc["fingerprint"]
             jaccard = self._calculate_jaccard(
-                set(fingerprint.task_types),
-                set(doc_fingerprint.get("task_types", []))
+                set(fingerprint.task_types), set(doc_fingerprint.get("task_types", []))
             )
 
             if jaccard >= min_similarity:
@@ -495,14 +465,16 @@ class SyncPatternRegistry:
         current_rate = current_metrics.get("success_rate", 0.5)
         times_matched = current_metrics.get("times_matched", 0)
 
-        new_rate = (current_rate * times_matched + (1.0 if success else 0.0)) / (times_matched + 1)
+        new_rate = (current_rate * times_matched + (1.0 if success else 0.0)) / (
+            times_matched + 1
+        )
 
         update_doc = {
             "$inc": {"metrics.times_matched": 1},
             "$set": {
                 "metrics.success_rate": new_rate,
-                "metrics.last_updated": datetime.now(timezone.utc)
-            }
+                "metrics.last_updated": datetime.now(timezone.utc),
+            },
         }
 
         self.collection.update_one({"_id": pattern_id}, update_doc)

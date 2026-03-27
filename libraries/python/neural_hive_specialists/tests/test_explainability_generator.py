@@ -63,7 +63,7 @@ class TestGenerateWithModel:
         generator._feature_extractor.extract_features = MagicMock(
             return_value={
                 "aggregated_features": {"feature1": 0.5, "feature2": 0.3},
-                "feature_names": ["feature1", "feature2"]
+                "feature_names": ["feature1", "feature2"],
             }
         )
 
@@ -71,8 +71,16 @@ class TestGenerateWithModel:
         generator.shap_explainer.explain = MagicMock(
             return_value={
                 "feature_importances": [
-                    {"feature_name": "feature1", "importance": 0.6, "contribution": "positive"},
-                    {"feature_name": "feature2", "importance": 0.3, "contribution": "positive"}
+                    {
+                        "feature_name": "feature1",
+                        "importance": 0.6,
+                        "contribution": "positive",
+                    },
+                    {
+                        "feature_name": "feature2",
+                        "importance": 0.3,
+                        "contribution": "positive",
+                    },
                 ]
             }
         )
@@ -222,7 +230,9 @@ class TestPersistenceAndRetrieval:
             "explainability_token": "token-123",
             "metadata": {"method": "heuristic"},
         }
-        with patch.object(generator, "retrieve_explanation_impl", return_value=mock_doc):
+        with patch.object(
+            generator, "retrieve_explanation_impl", return_value=mock_doc
+        ):
             result = generator.retrieve_explanation("token-123")
 
             assert result == mock_doc
@@ -244,9 +254,7 @@ class TestCircuitBreaker:
         """Cria generator com circuit breaker habilitado."""
         mock_config.enable_circuit_breaker = True
         mock_config.enable_legacy_explainability_persistence = True
-        with patch(
-            "neural_hive_specialists.explainability_generator.MongoClient"
-        ):
+        with patch("neural_hive_specialists.explainability_generator.MongoClient"):
             gen = ExplainabilityGenerator(mock_config, metrics=mock_metrics)
             return gen
 
@@ -394,16 +402,10 @@ class TestReasoningLinks:
 
     def test_build_reasoning_links_exact_match(self, generator):
         """Testa link exato entre factor e feature."""
-        reasoning_factors = [
-            {"factor_name": "complexity", "score": 0.8, "weight": 0.5}
-        ]
-        feature_importances = [
-            {"feature_name": "complexity", "importance": 0.6}
-        ]
+        reasoning_factors = [{"factor_name": "complexity", "score": 0.8, "weight": 0.5}]
+        feature_importances = [{"feature_name": "complexity", "importance": 0.6}]
 
-        links = generator._build_reasoning_links(
-            reasoning_factors, feature_importances
-        )
+        links = generator._build_reasoning_links(reasoning_factors, feature_importances)
 
         assert "complexity" in links
         assert links["complexity"]["match_type"] == "exact"

@@ -59,9 +59,7 @@ def ensemble_config():
 @pytest.fixture
 def mock_mlflow_client():
     """Mock do MLflowClient."""
-    with patch(
-        "neural_hive_specialists.base_specialist.MLflowClient"
-    ) as mock_client:
+    with patch("neural_hive_specialists.base_specialist.MLflowClient") as mock_client:
         client_instance = MagicMock()
 
         # Mock load_model para retornar modelos mock

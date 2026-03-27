@@ -26,16 +26,21 @@ mock_boto3 = ModuleType("boto3")
 mock_botocore = ModuleType("botocore")
 mock_botocore_config = ModuleType("botocore.config")
 
+
 class MockConfig:
     """Mock botocore.config.Config."""
+
     def __init__(self, **kwargs):
         self.kwargs = kwargs
 
+
 mock_boto3_client = Mock()
+
 
 def mock_boto3_client_factory(service, **kwargs):
     """Mock boto3.client function."""
     return mock_boto3_client
+
 
 mock_boto3.client = mock_boto3_client_factory
 mock_botocore_config.Config = MockConfig
@@ -52,14 +57,18 @@ mock_storage = ModuleType("google.cloud.storage")
 mock_google_oauth2 = ModuleType("google.oauth2")
 mock_service_account = ModuleType("google.oauth2.service_account")
 
+
 class MockGCSCredentials:
     """Mock google.oauth2.service_account.Credentials."""
+
     @staticmethod
     def from_service_account_file(filename):
         return Mock()
 
+
 class MockGCSClient:
     """Mock google.cloud.storage.Client."""
+
     def __init__(self, project=None, credentials=None):
         self.project = project
         self.credentials = credentials
@@ -72,6 +81,7 @@ class MockGCSClient:
 
     def list_blobs(self, bucket_name, prefix=None):
         return []
+
 
 mock_storage.Client = MockGCSClient
 mock_service_account.Credentials = MockGCSCredentials

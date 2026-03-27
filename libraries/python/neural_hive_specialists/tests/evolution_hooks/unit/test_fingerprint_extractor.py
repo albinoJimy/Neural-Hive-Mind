@@ -1,7 +1,9 @@
 """Testes para FingerprintExtractor."""
 
 import pytest
-from neural_hive_specialists.evolution_hooks.fingerprint_extractor import FingerprintExtractor
+from neural_hive_specialists.evolution_hooks.fingerprint_extractor import (
+    FingerprintExtractor,
+)
 from neural_hive_specialists.evolution_hooks.models import (
     Fingerprint,
     TaskCountRange,
@@ -24,9 +26,7 @@ class TestFingerprintExtractor:
             "plan_id": "test-1",
             "original_domain": "technical",
             "original_priority": "normal",
-            "tasks": [
-                {"name": "build", "task_type": "BUILD"}
-            ]
+            "tasks": [{"name": "build", "task_type": "BUILD"}],
         }
 
         result = extractor.extract(plan)
@@ -46,8 +46,8 @@ class TestFingerprintExtractor:
                 {"task_type": "BUILD"},
                 {"task_type": "TEST"},
                 {"task_type": "BUILD"},  # Duplicado
-                {"task_type": "DEPLOY"}
-            ]
+                {"task_type": "DEPLOY"},
+            ],
         }
 
         result = extractor.extract(plan)
@@ -63,8 +63,8 @@ class TestFingerprintExtractor:
             "tasks": [
                 {"dependencies": ["task1", "task2"]},
                 {"dependencies": ["task3"]},
-                {"dependencies": []}
-            ]
+                {"dependencies": []},
+            ],
         }
 
         result = extractor.extract(plan)
@@ -79,8 +79,8 @@ class TestFingerprintExtractor:
             "original_priority": "high",
             "tasks": [
                 {"task_type": "BUILD", "estimated_duration_ms": 5000},
-                {"task_type": "TEST", "estimated_duration_ms": 2000}
-            ]
+                {"task_type": "TEST", "estimated_duration_ms": 2000},
+            ],
         }
 
         result = extractor.extract(plan)
@@ -94,7 +94,7 @@ class TestFingerprintExtractor:
             "plan_id": "test-5",
             "original_domain": "technical",
             "original_priority": "normal",
-            "tasks": [{"task_type": "BUILD"} for _ in range(10)]
+            "tasks": [{"task_type": "BUILD"} for _ in range(10)],
         }
 
         result = extractor.extract(plan)
@@ -107,7 +107,7 @@ class TestFingerprintExtractor:
             "plan_id": "test-6",
             "original_domain": "technical",
             "original_priority": "normal",
-            "tasks": [{"task_type": "BUILD"} for _ in range(25)]
+            "tasks": [{"task_type": "BUILD"} for _ in range(25)],
         }
 
         result = extractor.extract(plan)
@@ -120,7 +120,7 @@ class TestFingerprintExtractor:
             "plan_id": "test-7",
             "original_domain": "technical",
             "original_priority": "normal",
-            "tasks": []
+            "tasks": [],
         }
 
         result = extractor.extract(plan)
@@ -133,9 +133,7 @@ class TestFingerprintExtractor:
             "plan_id": "test-8",
             "original_domain": "technical",
             "original_priority": "normal",
-            "tasks": [
-                {"dependencies": [{"task": "task1", "condition": "on_success"}]}
-            ]
+            "tasks": [{"dependencies": [{"task": "task1", "condition": "on_success"}]}],
         }
 
         result = extractor.extract(plan)
@@ -148,9 +146,7 @@ class TestFingerprintExtractor:
             "plan_id": "test-9",
             "original_domain": "technical",
             "original_priority": "normal",
-            "tasks": [
-                {"dependencies": ["task1", "task2"]}
-            ]
+            "tasks": [{"dependencies": ["task1", "task2"]}],
         }
 
         result = extractor.extract(plan)
@@ -165,8 +161,8 @@ class TestFingerprintExtractor:
             "original_priority": "normal",
             "tasks": [
                 {"task_type": "BUILD", "estimated_duration_ms": 500},
-                {"task_type": "TEST", "estimated_duration_ms": 300}
-            ]
+                {"task_type": "TEST", "estimated_duration_ms": 300},
+            ],
         }
 
         result = extractor.extract(plan)
@@ -181,8 +177,8 @@ class TestFingerprintExtractor:
             "original_priority": "normal",
             "tasks": [
                 {"task_type": "BUILD", "estimated_duration_ms": 5000},
-                {"task_type": "TEST", "estimated_duration_ms": 3000}
-            ]
+                {"task_type": "TEST", "estimated_duration_ms": 3000},
+            ],
         }
 
         result = extractor.extract(plan)
@@ -197,8 +193,8 @@ class TestFingerprintExtractor:
             "original_priority": "normal",
             "tasks": [
                 {"task_type": "BUILD", "estimated_duration_ms": 15000},
-                {"task_type": "TEST", "estimated_duration_ms": 20000}
-            ]
+                {"task_type": "TEST", "estimated_duration_ms": 20000},
+            ],
         }
 
         result = extractor.extract(plan)
@@ -211,9 +207,7 @@ class TestFingerprintExtractor:
             "plan_id": "test-13",
             "original_domain": "technical",
             "original_priority": "normal",
-            "tasks": [
-                {"name": "task1"}  # Sem task_type
-            ]
+            "tasks": [{"name": "task1"}],  # Sem task_type
         }
 
         result = extractor.extract(plan)
@@ -222,10 +216,7 @@ class TestFingerprintExtractor:
 
     def test_extract_default_values(self, extractor):
         """Usa valores defaults quando campos ausentes."""
-        plan = {
-            "plan_id": "test-14",
-            "tasks": []
-        }
+        plan = {"plan_id": "test-14", "tasks": []}
 
         result = extractor.extract(plan)
 
@@ -238,7 +229,7 @@ class TestFingerprintExtractor:
             "plan_id": "test-15",
             "original_domain": "technical",
             "original_priority": "normal",
-            "tasks": []
+            "tasks": [],
         }
 
         result = extractor.extract(plan)
@@ -251,9 +242,7 @@ class TestFingerprintExtractor:
             "plan_id": "test-16",
             "original_domain": "technical",
             "original_priority": "normal",
-            "tasks": [
-                {"task_type": "BUILD"}
-            ]
+            "tasks": [{"task_type": "BUILD"}],
         }
 
         result = extractor.extract(plan)

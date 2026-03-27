@@ -189,7 +189,9 @@ def test_mlflow_circuit_breaker_expired_cache_fallback(mocker):
     from circuitbreaker import CircuitBreakerError
 
     with patch.object(
-        mlflow_client, "load_model_impl", side_effect=CircuitBreakerError("MLflow unavailable")
+        mlflow_client,
+        "load_model_impl",
+        side_effect=CircuitBreakerError("MLflow unavailable"),
     ):
         # Deve usar cache expirado como fallback
         model = mlflow_client.load_model_with_fallback("test-model", "Production")

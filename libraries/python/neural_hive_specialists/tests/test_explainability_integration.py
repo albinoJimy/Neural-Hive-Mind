@@ -96,7 +96,9 @@ def cognitive_plan():
 class TestExplainabilityGeneratorIntegration:
     """Testes de integração end-to-end."""
 
-    @patch("neural_hive_specialists.explainability.explainability_ledger_v2.MongoClient")
+    @patch(
+        "neural_hive_specialists.explainability.explainability_ledger_v2.MongoClient"
+    )
     @patch("neural_hive_specialists.explainability_generator.MongoClient")
     def test_full_explainability_flow_with_shap(
         self,
@@ -129,6 +131,7 @@ class TestExplainabilityGeneratorIntegration:
         # Configurar ambos os mocks
         import neural_hive_specialists.explainability.explainability_ledger_v2 as ledger_module
         import neural_hive_specialists.explainability_generator as gen_module
+
         gen_module.MongoClient.return_value.__getitem__.return_value = mock_db
         ledger_module.MongoClient.return_value.__getitem__.return_value = mock_db
 
@@ -180,7 +183,9 @@ class TestExplainabilityGeneratorIntegration:
         call_count = mock_collection.insert_one.call_count
         assert call_count == 1  # Apenas ledger v2
 
-    @patch("neural_hive_specialists.explainability.explainability_ledger_v2.MongoClient")
+    @patch(
+        "neural_hive_specialists.explainability.explainability_ledger_v2.MongoClient"
+    )
     @patch("neural_hive_specialists.explainability_generator.MongoClient")
     def test_explainability_with_reasoning_links(
         self,
@@ -210,6 +215,7 @@ class TestExplainabilityGeneratorIntegration:
         # Configurar ambos os mocks
         import neural_hive_specialists.explainability.explainability_ledger_v2 as ledger_module
         import neural_hive_specialists.explainability_generator as gen_module
+
         gen_module.MongoClient.return_value.__getitem__.return_value = mock_db
         ledger_module.MongoClient.return_value.__getitem__.return_value = mock_db
 
@@ -242,7 +248,9 @@ class TestExplainabilityGeneratorIntegration:
             # mas registramos para validação manual
             print(f"Has reasoning links in narrative: {has_links}")
 
-    @patch("neural_hive_specialists.explainability.explainability_ledger_v2.MongoClient")
+    @patch(
+        "neural_hive_specialists.explainability.explainability_ledger_v2.MongoClient"
+    )
     @patch("neural_hive_specialists.explainability_generator.MongoClient")
     def test_explainability_fallback_to_heuristic(
         self,
@@ -272,6 +280,7 @@ class TestExplainabilityGeneratorIntegration:
         # Configurar ambos os mocks
         import neural_hive_specialists.explainability.explainability_ledger_v2 as ledger_module
         import neural_hive_specialists.explainability_generator as gen_module
+
         gen_module.MongoClient.return_value.__getitem__.return_value = mock_db
         ledger_module.MongoClient.return_value.__getitem__.return_value = mock_db
 
@@ -297,7 +306,9 @@ class TestExplainabilityGeneratorIntegration:
         assert len(metadata["feature_importances"]) > 0
         assert metadata["feature_importances"][0]["feature_name"] == "num_tasks"
 
-    @patch("neural_hive_specialists.explainability.explainability_ledger_v2.MongoClient")
+    @patch(
+        "neural_hive_specialists.explainability.explainability_ledger_v2.MongoClient"
+    )
     @patch("neural_hive_specialists.explainability_generator.MongoClient")
     def test_ledger_v2_persistence_format(
         self,
@@ -327,6 +338,7 @@ class TestExplainabilityGeneratorIntegration:
         # Configurar ambos os mocks
         import neural_hive_specialists.explainability.explainability_ledger_v2 as ledger_module
         import neural_hive_specialists.explainability_generator as gen_module
+
         gen_module.MongoClient.return_value.__getitem__.return_value = mock_db
         ledger_module.MongoClient.return_value.__getitem__.return_value = mock_db
 

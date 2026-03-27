@@ -14,6 +14,7 @@ logger = structlog.get_logger(__name__)
 
 class PIICategory(str, Enum):
     """Categoria de PII"""
+
     GLOBAL = "global"
     EUROPEAN = "european"
     BRAZILIAN = "brazilian"
@@ -22,6 +23,7 @@ class PIICategory(str, Enum):
 
 class PIIType(str, Enum):
     """Tipos de PII suportados"""
+
     # Global
     EMAIL = "EMAIL"
     PHONE = "PHONE"
@@ -56,6 +58,7 @@ class PIIType(str, Enum):
 @dataclass
 class PIIPattern:
     """Pattern de PII com regex e estratégia de mascaramento"""
+
     type: PIIType
     category: PIICategory
     regex: str
@@ -73,7 +76,7 @@ PII_PATTERNS: List[PIIPattern] = [
         type=PIIType.EMAIL,
         category=PIICategory.GLOBAL,
         # Nota: re.IGNORECASE já lida com case, portanto [a-z] é suficiente
-        regex=r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[a-z]{2,}\b',
+        regex=r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[a-z]{2,}\b",
         mask_strategy="partial",
         show_first=1,
         show_last=0,  # j***@domain.com
@@ -81,7 +84,7 @@ PII_PATTERNS: List[PIIPattern] = [
     PIIPattern(
         type=PIIType.PHONE,
         category=PIICategory.GLOBAL,
-        regex=r'(\+\d{1,3}[\s-]?)?(\d{2,3}[\s-]?)?(\d{4,5}[\s-]?)(\d{4})',
+        regex=r"(\+\d{1,3}[\s-]?)?(\d{2,3}[\s-]?)?(\d{4,5}[\s-]?)(\d{4})",
         mask_strategy="partial",
         show_first=6,
         show_last=4,  # +351 912 *** ***
@@ -89,7 +92,7 @@ PII_PATTERNS: List[PIIPattern] = [
     PIIPattern(
         type=PIIType.IP_ADDRESS,
         category=PIICategory.GLOBAL,
-        regex=r'\b(?:\d{1,3}\.){3}\d{1,3}\b',
+        regex=r"\b(?:\d{1,3}\.){3}\d{1,3}\b",
         mask_strategy="partial",
         show_first=4,
         show_last=2,  # 192.168.*.*
@@ -98,7 +101,7 @@ PII_PATTERNS: List[PIIPattern] = [
     PIIPattern(
         type=PIIType.IP_ADDRESS,
         category=PIICategory.GLOBAL,
-        regex=r'\b(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}\b',
+        regex=r"\b(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}\b",
         mask_strategy="partial",
         show_first=4,
         show_last=4,  # 2001:db8::***:****
@@ -106,7 +109,7 @@ PII_PATTERNS: List[PIIPattern] = [
     PIIPattern(
         type=PIIType.CREDIT_CARD,
         category=PIICategory.GLOBAL,
-        regex=r'\b(?:\d[ -]*?){13,19}\b',
+        regex=r"\b(?:\d[ -]*?){13,19}\b",
         mask_strategy="partial",
         show_first=4,
         show_last=4,  # 4532 **** **** 1234
@@ -114,7 +117,7 @@ PII_PATTERNS: List[PIIPattern] = [
     PIIPattern(
         type=PIIType.UUID,
         category=PIICategory.GLOBAL,
-        regex=r'\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b',
+        regex=r"\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b",
         mask_strategy="partial",
         show_first=8,
         show_last=4,  # 12345678-****-****-****-************
@@ -123,17 +126,16 @@ PII_PATTERNS: List[PIIPattern] = [
     PIIPattern(
         type=PIIType.API_KEY,
         category=PIICategory.GLOBAL,
-        regex=r'\b[A-Za-z0-9]{20,}\b',
+        regex=r"\b[A-Za-z0-9]{20,}\b",
         mask_strategy="hash",
     ),
-
     # === EUROPEU ===
     # NIF (Portugal): 9 dígitos. Nota: Pattern genérico pode gerar falsos positivos,
     # deve ser usado em contexto com validação adicional (dígito de controle)
     PIIPattern(
         type=PIIType.NIF,
         category=PIICategory.EUROPEAN,
-        regex=r'\b\d{9}\b',
+        regex=r"\b\d{9}\b",
         mask_strategy="partial",
         show_first=3,
         show_last=2,  # 123***45
@@ -141,7 +143,7 @@ PII_PATTERNS: List[PIIPattern] = [
     PIIPattern(
         type=PIIType.IBAN,
         category=PIICategory.EUROPEAN,
-        regex=r'\b[A-Z]{2}\d{2}[A-Z0-9]{4,30}\b',
+        regex=r"\b[A-Z]{2}\d{2}[A-Z0-9]{4,30}\b",
         mask_strategy="partial",
         show_first=4,
         show_last=4,  # PT12********1234
@@ -149,7 +151,7 @@ PII_PATTERNS: List[PIIPattern] = [
     PIIPattern(
         type=PIIType.PASSPORT,
         category=PIICategory.EUROPEAN,
-        regex=r'\b[A-Z]{1,2}[0-9]{6,9}\b',
+        regex=r"\b[A-Z]{1,2}[0-9]{6,9}\b",
         mask_strategy="partial",
         show_first=1,
         show_last=1,  # P1234567*
@@ -157,17 +159,16 @@ PII_PATTERNS: List[PIIPattern] = [
     PIIPattern(
         type=PIIType.SSN,
         category=PIICategory.EUROPEAN,
-        regex=r'\b\d{3}-\d{2}-\d{4}\b',
+        regex=r"\b\d{3}-\d{2}-\d{4}\b",
         mask_strategy="partial",
         show_first=3,
         show_last=4,  # 123-**-****
     ),
-
     # === BRASILEIRO ===
     PIIPattern(
         type=PIIType.CPF,
         category=PIICategory.BRAZILIAN,
-        regex=r'\b\d{3}\.\d{3}\.\d{3}-\d{2}\b',
+        regex=r"\b\d{3}\.\d{3}\.\d{3}-\d{2}\b",
         mask_strategy="partial",
         show_first=6,
         show_last=2,  # 123.456.***-**
@@ -175,7 +176,7 @@ PII_PATTERNS: List[PIIPattern] = [
     PIIPattern(
         type=PIIType.CNPJ,
         category=PIICategory.BRAZILIAN,
-        regex=r'\b\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}\b',
+        regex=r"\b\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}\b",
         mask_strategy="partial",
         show_first=8,
         show_last=2,  # 12.345.678/***-**
@@ -184,7 +185,7 @@ PII_PATTERNS: List[PIIPattern] = [
     PIIPattern(
         type=PIIType.RG,
         category=PIICategory.BRAZILIAN,
-        regex=r'\b\d{1,2}[A-Z]{0,2}\d{3}[A-Z0-9]{0,2}\b',
+        regex=r"\b\d{1,2}[A-Z]{0,2}\d{3}[A-Z0-9]{0,2}\b",
         mask_strategy="partial",
         show_first=2,
         show_last=1,
@@ -192,7 +193,7 @@ PII_PATTERNS: List[PIIPattern] = [
     PIIPattern(
         type=PIIType.TITULO_ELEITOR,
         category=PIICategory.BRAZILIAN,
-        regex=r'\b\d{4}\s?\d{4}\s?\d{4}\s?\d{4}\b',
+        regex=r"\b\d{4}\s?\d{4}\s?\d{4}\s?\d{4}\b",
         mask_strategy="partial",
         show_first=4,
         show_last=4,  # 1234 5678 **** ****
@@ -200,7 +201,7 @@ PII_PATTERNS: List[PIIPattern] = [
     PIIPattern(
         type=PIIType.BANK_ACCOUNT,
         category=PIICategory.BRAZILIAN,
-        regex=r'\b\d{3,}-?\d{5,}-?\d{1}\b',
+        regex=r"\b\d{3,}-?\d{5,}-?\d{1}\b",
         mask_strategy="partial",
         show_first=3,
         show_last=1,  # 123-*****-*
@@ -246,7 +247,9 @@ class PIIPatternRegistry:
         """Obtém todos os patterns compilados por tipo."""
         return self._patterns_by_type.get(pii_type, [])
 
-    def get_patterns_by_category(self, category: PIICategory) -> List[Tuple[PIIType, re.Pattern]]:
+    def get_patterns_by_category(
+        self, category: PIICategory
+    ) -> List[Tuple[PIIType, re.Pattern]]:
         """Obtém patterns por categoria."""
         result = []
         for pii_def in PII_PATTERNS:
@@ -263,6 +266,7 @@ class PIIPatternRegistry:
 
 # Singleton - inicializado no carregamento do módulo (mais simples, thread-safe)
 _registry = PIIPatternRegistry()
+
 
 def get_pattern_registry() -> PIIPatternRegistry:
     """Retorna registry singleton."""

@@ -125,7 +125,9 @@ class PIIMasker:
             MaskResult com texto mascarado e entidades detectadas
         """
         if not text:
-            return MaskResult(text="", entities=[], metadata={"total": 0, "by_type": {}})
+            return MaskResult(
+                text="", entities=[], metadata={"total": 0, "by_type": {}}
+            )
 
         entities = self._detect_entities(text, types_to_mask)
 
@@ -136,8 +138,7 @@ class PIIMasker:
         filtered_entities = []
         for entity in entities_sorted:
             if not any(
-                e.start < entity.end and e.end > entity.start
-                for e in filtered_entities
+                e.start < entity.end and e.end > entity.start for e in filtered_entities
             ):
                 filtered_entities.append(entity)
         entities_sorted = filtered_entities

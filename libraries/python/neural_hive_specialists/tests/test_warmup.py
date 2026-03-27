@@ -79,15 +79,31 @@ def specialist(specialist_config):
         with patch("neural_hive_specialists.base_specialist.LedgerClient"):
             with patch("neural_hive_specialists.base_specialist.FeatureStore"):
                 # SOBRESCREVER patches de test_base_specialist.py para isolamento
-                with patch("neural_hive_specialists.base_specialist.SemanticPipeline", return_value=mock_semantic_pipeline):
-                    with patch("neural_hive_specialists.base_specialist.ExplainabilityGenerator", return_value=mock_explainability):
+                with patch(
+                    "neural_hive_specialists.base_specialist.SemanticPipeline",
+                    return_value=mock_semantic_pipeline,
+                ):
+                    with patch(
+                        "neural_hive_specialists.base_specialist.ExplainabilityGenerator",
+                        return_value=mock_explainability,
+                    ):
                         # Patch SentenceTransformer import in embeddings_generator
-                        with patch.dict("sys.modules", {"sentence_transformers": MagicMock()}):
-                            with patch("neural_hive_specialists.feature_extraction.embeddings_generator.EmbeddingsGenerator._load_model", return_value=None):
-                                with patch("neural_hive_specialists.semantic_pipeline.semantic_analyzer._get_sentence_transformer", return_value=None):
+                        with patch.dict(
+                            "sys.modules", {"sentence_transformers": MagicMock()}
+                        ):
+                            with patch(
+                                "neural_hive_specialists.feature_extraction.embeddings_generator.EmbeddingsGenerator._load_model",
+                                return_value=None,
+                            ):
+                                with patch(
+                                    "neural_hive_specialists.semantic_pipeline.semantic_analyzer._get_sentence_transformer",
+                                    return_value=None,
+                                ):
                                     specialist = MockSpecialist(specialist_config)
                                     # Injetar mocks diretamente para garantir isolamento
-                                    specialist.semantic_pipeline = mock_semantic_pipeline
+                                    specialist.semantic_pipeline = (
+                                        mock_semantic_pipeline
+                                    )
                                     specialist.explainability_gen = mock_explainability
                                     yield specialist
 

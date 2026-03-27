@@ -96,6 +96,7 @@ jobs:
         env:
           MONGODB_URI: mongodb://localhost:27017
           REDIS_URL: redis://localhost:6379
+          PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python
         run: |
           pytest tests/ \
             -v \

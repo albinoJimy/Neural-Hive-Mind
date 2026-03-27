@@ -422,9 +422,7 @@ class TestCreateGRPCServer:
                     create_grpc_server_with_observability,
                 )
 
-                server = create_grpc_server_with_observability(
-                    specialist, mock_config
-                )
+                server = create_grpc_server_with_observability(specialist, mock_config)
 
                 # Verificar que servidor foi criado
                 assert mock_server.called
@@ -441,9 +439,7 @@ class TestCreateGRPCServer:
                     create_grpc_server_with_observability,
                 )
 
-                server = create_grpc_server_with_observability(
-                    specialist, mock_config
-                )
+                server = create_grpc_server_with_observability(specialist, mock_config)
 
                 # Verificar que opções foram passadas
                 call_args = mock_server.call_args

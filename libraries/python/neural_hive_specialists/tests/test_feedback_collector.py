@@ -175,7 +175,11 @@ class TestFeedbackCollector:
             feedback_collector.submit_feedback(sample_feedback_data)
 
     def test_submit_feedback_audits_submission(
-        self, feedback_collector, sample_feedback_data, sample_opinion_document, mock_audit_logger
+        self,
+        feedback_collector,
+        sample_feedback_data,
+        sample_opinion_document,
+        mock_audit_logger,
     ):
         """Teste de auditoria de submissão."""
         feedback_collector.validate_opinion_exists = Mock(return_value=True)

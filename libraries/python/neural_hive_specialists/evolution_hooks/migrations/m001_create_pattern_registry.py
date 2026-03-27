@@ -34,38 +34,37 @@ def upgrade(mongo_client):
     index_names = [idx.get("name") for idx in existing_indexes]
 
     if "idx_domain_signature" not in index_names:
-        collection.create_index([
-            ("fingerprint.domain", 1),
-            ("fingerprint.complexity_signature", 1)
-        ], name="idx_domain_signature")
+        collection.create_index(
+            [("fingerprint.domain", 1), ("fingerprint.complexity_signature", 1)],
+            name="idx_domain_signature",
+        )
         print("Created index: idx_domain_signature")
     else:
         print("Index idx_domain_signature already exists")
 
     # Índice 2: Analytics por outcome
     if "idx_outcome_created" not in index_names:
-        collection.create_index([
-            ("feedback.outcome", 1),
-            ("created_at", -1)
-        ], name="idx_outcome_created")
+        collection.create_index(
+            [("feedback.outcome", 1), ("created_at", -1)], name="idx_outcome_created"
+        )
         print("Created index: idx_outcome_created")
     else:
         print("Index idx_outcome_created already exists")
 
     # Índice 3: Popularidade de padrões
     if "idx_times_matched" not in index_names:
-        collection.create_index([
-            ("metrics.times_matched", -1)
-        ], name="idx_times_matched")
+        collection.create_index(
+            [("metrics.times_matched", -1)], name="idx_times_matched"
+        )
         print("Created index: idx_times_matched")
     else:
         print("Index idx_times_matched already exists")
 
     # Índice 4: TTL - remove registros antigos após 90 dias
     if "idx_ttl" not in index_names:
-        collection.create_index([
-            ("created_at", 1)
-        ], expireAfterSeconds=90 * 24 * 3600, name="idx_ttl")
+        collection.create_index(
+            [("created_at", 1)], expireAfterSeconds=90 * 24 * 3600, name="idx_ttl"
+        )
         print("Created index: idx_ttl (TTL 90 days)")
     else:
         print("Index idx_ttl already exists")

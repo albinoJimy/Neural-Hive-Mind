@@ -34,7 +34,7 @@ class TestFingerprint:
             priority="high",
             task_count_range=TaskCountRange.MEDIUM,
             avg_dependency_count=0.0,
-            complexity_signature="TEST"
+            complexity_signature="TEST",
         )
         assert fingerprint.domain == "technical"
         assert fingerprint.priority == "high"
@@ -53,7 +53,7 @@ class TestFingerprint:
             avg_dependency_count=2.5,
             has_conditional_deps=True,
             estimated_duration_range=DurationRange.LONG,
-            complexity_signature="B-L-B-T-D-M"
+            complexity_signature="B-L-B-T-D-M",
         )
         assert len(fingerprint.task_types) == 4
         assert fingerprint.avg_dependency_count == 2.5
@@ -68,7 +68,7 @@ class TestFingerprint:
             task_count_range=TaskCountRange.MEDIUM,
             task_types=["BUILD", "TEST"],
             avg_dependency_count=1.0,
-            complexity_signature="T-M-B-T"
+            complexity_signature="T-M-B-T",
         )
         data = fingerprint.model_dump()
         assert data["domain"] == "technical"
@@ -91,7 +91,7 @@ class TestDefaultWeights:
             "scalability",
             "extensibility",
             "modularity",
-            "tech_debt_prevention"
+            "tech_debt_prevention",
         }
         assert set(DEFAULT_WEIGHTS.keys()) == expected_keys
 
@@ -114,9 +114,7 @@ class TestEvolutionEvaluation:
     def test_create_evaluation_minimal(self):
         """Cria avaliação com campos mínimos."""
         evaluation = EvolutionEvaluation(
-            confidence_score=0.75,
-            risk_score=0.25,
-            recommendation="approve"
+            confidence_score=0.75, risk_score=0.25, recommendation="approve"
         )
         assert evaluation.confidence_score == 0.75
         assert evaluation.risk_score == 0.25
@@ -136,9 +134,9 @@ class TestEvolutionEvaluation:
                     "factor_name": "maintainability",
                     "weight": 0.30,
                     "score": 0.8,
-                    "description": "Good maintainability"
+                    "description": "Good maintainability",
                 }
-            ]
+            ],
         )
         assert evaluation.weights_used["maintainability"] == 0.30
         assert len(evaluation.reasoning_factors) == 1
@@ -147,18 +145,14 @@ class TestEvolutionEvaluation:
         """Rejeita confiança fora do range [0, 1]."""
         with pytest.raises(ValidationError):
             EvolutionEvaluation(
-                confidence_score=1.5,
-                risk_score=0.25,
-                recommendation="approve"
+                confidence_score=1.5, risk_score=0.25, recommendation="approve"
             )
 
     def test_evaluation_invalid_risk(self):
         """Rejeita risco fora do range [0, 1]."""
         with pytest.raises(ValidationError):
             EvolutionEvaluation(
-                confidence_score=0.75,
-                risk_score=-0.1,
-                recommendation="approve"
+                confidence_score=0.75, risk_score=-0.1, recommendation="approve"
             )
 
     def test_evaluation_invalid_recommendation(self):
@@ -167,7 +161,7 @@ class TestEvolutionEvaluation:
             EvolutionEvaluation(
                 confidence_score=0.75,
                 risk_score=0.25,
-                recommendation="invalid_recommendation"
+                recommendation="invalid_recommendation",
             )
 
     def test_evaluation_valid_recommendations(self):
@@ -175,9 +169,7 @@ class TestEvolutionEvaluation:
         valid_recommendations = ["approve", "reject", "review_required", "conditional"]
         for rec in valid_recommendations:
             evaluation = EvolutionEvaluation(
-                confidence_score=0.75,
-                risk_score=0.25,
-                recommendation=rec
+                confidence_score=0.75, risk_score=0.25, recommendation=rec
             )
             assert evaluation.recommendation == rec
 
@@ -195,11 +187,7 @@ class TestPatternMetrics:
     def test_create_metrics_custom(self):
         """Cria métricas com valores customizados."""
         now = datetime.utcnow()
-        metrics = PatternMetrics(
-            times_matched=100,
-            success_rate=0.85,
-            last_updated=now
-        )
+        metrics = PatternMetrics(times_matched=100, success_rate=0.85, last_updated=now)
         assert metrics.times_matched == 100
         assert metrics.success_rate == 0.85
         assert metrics.last_updated == now
@@ -221,8 +209,7 @@ class TestFeedbackData:
     def test_create_feedback_minimal(self):
         """Cria feedback com campos mínimos."""
         feedback = FeedbackData(
-            outcome=FeedbackOutcome.APPROVE,
-            source=FeedbackSource.HUMAN
+            outcome=FeedbackOutcome.APPROVE, source=FeedbackSource.HUMAN
         )
         assert feedback.outcome == FeedbackOutcome.APPROVE
         assert feedback.source == FeedbackSource.HUMAN
@@ -235,7 +222,7 @@ class TestFeedbackData:
             outcome=FeedbackOutcome.REJECT,
             source=FeedbackSource.AUTOMATED,
             reasoning="Failed validation",
-            corrected_weights={"maintainability": 0.30}
+            corrected_weights={"maintainability": 0.30},
         )
         assert feedback.outcome == FeedbackOutcome.REJECT
         assert feedback.source == FeedbackSource.AUTOMATED
@@ -264,18 +251,14 @@ class TestPatternRecord:
             priority="high",
             task_count_range=TaskCountRange.MEDIUM,
             avg_dependency_count=0.0,
-            complexity_signature="TEST"
+            complexity_signature="TEST",
         )
         evaluation = EvolutionEvaluation(
-            confidence_score=0.75,
-            risk_score=0.25,
-            recommendation="approve"
+            confidence_score=0.75, risk_score=0.25, recommendation="approve"
         )
 
         record = PatternRecord(
-            plan_id="plan-123",
-            fingerprint=fingerprint,
-            evaluation=evaluation
+            plan_id="plan-123", fingerprint=fingerprint, evaluation=evaluation
         )
         assert record.plan_id == "plan-123"
         assert record.feedback is None
@@ -288,16 +271,13 @@ class TestPatternRecord:
             priority="high",
             task_count_range=TaskCountRange.MEDIUM,
             avg_dependency_count=1.5,
-            complexity_signature="TEST"
+            complexity_signature="TEST",
         )
         evaluation = EvolutionEvaluation(
-            confidence_score=0.75,
-            risk_score=0.25,
-            recommendation="approve"
+            confidence_score=0.75, risk_score=0.25, recommendation="approve"
         )
         feedback = FeedbackData(
-            outcome=FeedbackOutcome.APPROVE,
-            source=FeedbackSource.HUMAN
+            outcome=FeedbackOutcome.APPROVE, source=FeedbackSource.HUMAN
         )
 
         record = PatternRecord(
@@ -306,7 +286,7 @@ class TestPatternRecord:
             fingerprint=fingerprint,
             evaluation=evaluation,
             feedback=feedback,
-            metrics=PatternMetrics(times_matched=10, success_rate=0.8)
+            metrics=PatternMetrics(times_matched=10, success_rate=0.8),
         )
         assert record.id == "record-456"
         assert record.feedback is not None
@@ -324,23 +304,20 @@ class TestFeedbackMessage:
             task_count_range=TaskCountRange.MEDIUM,
             task_types=["BUILD", "TEST"],
             avg_dependency_count=1.0,
-            complexity_signature="T-M-B-T"
+            complexity_signature="T-M-B-T",
         )
         evaluation = EvolutionEvaluation(
-            confidence_score=0.75,
-            risk_score=0.25,
-            recommendation="approve"
+            confidence_score=0.75, risk_score=0.25, recommendation="approve"
         )
         feedback = FeedbackData(
-            outcome=FeedbackOutcome.APPROVE,
-            source=FeedbackSource.HUMAN
+            outcome=FeedbackOutcome.APPROVE, source=FeedbackSource.HUMAN
         )
 
         message = FeedbackMessage(
             plan_id="plan-123",
             fingerprint=fingerprint,
             evaluation=evaluation,
-            feedback=feedback
+            feedback=feedback,
         )
         assert message.plan_id == "plan-123"
         assert message.fingerprint.domain == "technical"
@@ -356,17 +333,14 @@ class TestFeedbackMessage:
                 priority="high",
                 task_count_range=TaskCountRange.MEDIUM,
                 avg_dependency_count=0.0,
-                complexity_signature="TEST"
+                complexity_signature="TEST",
             ),
             evaluation=EvolutionEvaluation(
-                confidence_score=0.75,
-                risk_score=0.25,
-                recommendation="approve"
+                confidence_score=0.75, risk_score=0.25, recommendation="approve"
             ),
             feedback=FeedbackData(
-                outcome=FeedbackOutcome.APPROVE,
-                source=FeedbackSource.HUMAN
-            )
+                outcome=FeedbackOutcome.APPROVE, source=FeedbackSource.HUMAN
+            ),
         )
         data = message.model_dump()
         assert data["plan_id"] == "plan-123"
@@ -386,16 +360,14 @@ class TestEdgeCases:
             task_count_range=TaskCountRange.SMALL,
             task_types=[],
             avg_dependency_count=0.0,
-            complexity_signature="T-S"
+            complexity_signature="T-S",
         )
         assert fingerprint.task_types == []
 
     def test_evaluation_zero_scores(self):
         """Avaliação com scores zero."""
         evaluation = EvolutionEvaluation(
-            confidence_score=0.0,
-            risk_score=0.0,
-            recommendation="reject"
+            confidence_score=0.0, risk_score=0.0, recommendation="reject"
         )
         assert evaluation.confidence_score == 0.0
         assert evaluation.risk_score == 0.0
@@ -403,9 +375,7 @@ class TestEdgeCases:
     def test_evaluation_perfect_scores(self):
         """Avaliação com scores perfeitos."""
         evaluation = EvolutionEvaluation(
-            confidence_score=1.0,
-            risk_score=1.0,
-            recommendation="approve"
+            confidence_score=1.0, risk_score=1.0, recommendation="approve"
         )
         assert evaluation.confidence_score == 1.0
         assert evaluation.risk_score == 1.0
@@ -413,16 +383,12 @@ class TestEdgeCases:
     def test_pattern_record_copy_weights(self):
         """Garante que weights_used é uma cópia, não referência."""
         evaluation1 = EvolutionEvaluation(
-            confidence_score=0.75,
-            risk_score=0.25,
-            recommendation="approve"
+            confidence_score=0.75, risk_score=0.25, recommendation="approve"
         )
         evaluation1.weights_used["maintainability"] = 0.5
 
         evaluation2 = EvolutionEvaluation(
-            confidence_score=0.75,
-            risk_score=0.25,
-            recommendation="approve"
+            confidence_score=0.75, risk_score=0.25, recommendation="approve"
         )
         # Deve ter valor default, não o modificado
         assert evaluation2.weights_used["maintainability"] == 0.25

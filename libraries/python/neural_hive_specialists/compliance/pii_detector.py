@@ -360,6 +360,7 @@ class PIIDetector:
 
 # === VERSÃO LITE (sem Presidio) ===
 
+
 class PIIDetectorLite:
     """
     Versão leve de detecção de PII sem dependência do Presidio.
@@ -418,17 +419,21 @@ class PIIDetectorLite:
         # Converter para formato compatível
         detected = []
         for entity in result.entities:
-            detected.append({
-                "entity_type": entity.type.value,
-                "start": entity.start,
-                "end": entity.end,
-                "score": entity.confidence,
-                "value": entity.value,
-            })
+            detected.append(
+                {
+                    "entity_type": entity.type.value,
+                    "start": entity.start,
+                    "end": entity.end,
+                    "score": entity.confidence,
+                    "value": entity.value,
+                }
+            )
 
         return detected
 
-    def anonymize_text(self, text: str, language: str = "pt") -> Tuple[str, List[Dict[str, Any]]]:
+    def anonymize_text(
+        self, text: str, language: str = "pt"
+    ) -> Tuple[str, List[Dict[str, Any]]]:
         """
         Anonimiza texto (interface compatível com PIIDetector).
 

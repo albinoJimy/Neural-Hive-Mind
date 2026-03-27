@@ -55,7 +55,7 @@ class FingerprintExtractor:
             plan_id=cognitive_plan.get("plan_id"),
             domain=domain,
             task_count=len(tasks),
-            signature=complexity_signature
+            signature=complexity_signature,
         )
 
         return Fingerprint(
@@ -66,7 +66,7 @@ class FingerprintExtractor:
             avg_dependency_count=avg_dependency_count,
             has_conditional_deps=has_conditional_deps,
             estimated_duration_range=estimated_duration_range,
-            complexity_signature=complexity_signature
+            complexity_signature=complexity_signature,
         )
 
     def _get_task_count_range(self, count: int) -> TaskCountRange:
@@ -130,7 +130,7 @@ class FingerprintExtractor:
         domain: str,
         task_count_range: TaskCountRange,
         task_types: List[str],
-        avg_dependency_count: float
+        avg_dependency_count: float,
     ) -> str:
         """
         Gera signature de complexidade para matching.

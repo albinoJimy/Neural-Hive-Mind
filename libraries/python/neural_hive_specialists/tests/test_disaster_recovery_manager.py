@@ -356,7 +356,10 @@ class TestDeleteExpiredBackups:
         # Both tar.gz and .sha256 are deleted
         assert mock_storage_client.delete_backup.call_count == 2
         # Verify the expired backup key was deleted
-        assert "backup-20240101" in mock_storage_client.delete_backup.call_args_list[0][0][0]
+        assert (
+            "backup-20240101"
+            in mock_storage_client.delete_backup.call_args_list[0][0][0]
+        )
 
     def test_delete_expired_backups_pairs_checksums(
         self, dr_manager, mock_storage_client
@@ -584,6 +587,7 @@ class TestRecoveryValidation:
             # Mock download to return our test archive
             def mock_download(remote_key, local_path):
                 import shutil
+
                 shutil.copy2(backup_archive, local_path)
                 return True
 
@@ -591,6 +595,7 @@ class TestRecoveryValidation:
 
             # Mock tarfile extraction to avoid Unicode decode issues
             import shutil
+
             with patch("tarfile.open") as mock_tar_open:
                 # Setup mock for reading tar
                 mock_tar = MagicMock()
@@ -604,7 +609,9 @@ class TestRecoveryValidation:
 
                 # Create a temporary file for the mock manifest
                 manifest_file = os.path.join(temp_dir, "manifest.json")
-                shutil.copy2(os.path.join(backup_content_dir, "metadata.json"), manifest_file)
+                shutil.copy2(
+                    os.path.join(backup_content_dir, "metadata.json"), manifest_file
+                )
 
                 def mock_extract(path=None):
                     if path:
@@ -707,7 +714,9 @@ class TestErrorHandling:
             ), patch(
                 "neural_hive_specialists.disaster_recovery.disaster_recovery_manager.tempfile.mkdtemp",
                 return_value=backup_dir,
-            ), patch("shutil.rmtree"), patch(
+            ), patch(
+                "shutil.rmtree"
+            ), patch(
                 "os.remove"
             ):
                 os.makedirs(os.path.join(backup_dir, "model"), exist_ok=True)
@@ -736,7 +745,10 @@ class TestErrorHandling:
         assert result["status"] == "failed"
         assert "error" in result
         # Error message is in Portuguese
-        assert "não encontrado" in result["error"] or "not found" in result["error"].lower()
+        assert (
+            "não encontrado" in result["error"]
+            or "not found" in result["error"].lower()
+        )
 
 
 class TestIncrementalBackup:
@@ -869,7 +881,10 @@ class TestIncrementalBackup:
                 "os.path.getsize", return_value=2048
             ):
                 # SHA-256 diferente para cada componente
-                sha256_values = {"model": "sha256_model_new", "config": "sha256_config_new"}
+                sha256_values = {
+                    "model": "sha256_model_new",
+                    "config": "sha256_config_new",
+                }
                 mock_checksum.side_effect = lambda path: sha256_values.get(
                     os.path.basename(path).replace(".tar.gz", ""), "sha256_default"
                 )
@@ -952,6 +967,7 @@ class TestIncrementalBackup:
                 "config": "sha256_config_def",
                 "ledger": "sha256_ledger_ghi",
             }
+
             def mock_checksum_func(path):
                 # Extract component name from path
                 for comp in expected_checksums:
@@ -962,9 +978,13 @@ class TestIncrementalBackup:
             with patch.object(dr_manager_incremental, "_restore_model"), patch.object(
                 dr_manager_incremental, "_restore_config"
             ), patch.object(dr_manager_incremental, "_restore_ledger"), patch.object(
-                dr_manager_incremental, "_run_smoke_tests", return_value={"passed": True}
+                dr_manager_incremental,
+                "_run_smoke_tests",
+                return_value={"passed": True},
             ), patch.object(
-                dr_manager_incremental, "_calculate_file_checksum", side_effect=mock_checksum_func
+                dr_manager_incremental,
+                "_calculate_file_checksum",
+                side_effect=mock_checksum_func,
             ), patch(
                 "neural_hive_specialists.disaster_recovery.disaster_recovery_manager.tempfile.mkdtemp",
                 return_value=restore_dir,

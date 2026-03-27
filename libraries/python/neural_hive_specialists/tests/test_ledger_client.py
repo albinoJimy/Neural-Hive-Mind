@@ -285,6 +285,7 @@ class TestBuffer:
 
         # Adicionar pareceres ao buffer com estrutura correta para flush
         from datetime import datetime
+
         for i in range(2):
             opinion_data = {
                 "opinion_id": f"opinion-{i}",

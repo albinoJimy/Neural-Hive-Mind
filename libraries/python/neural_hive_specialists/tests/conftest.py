@@ -12,8 +12,10 @@ import sys
 # Mock MongoDB ANTES de qualquer importação
 # ============================================================================
 
+
 class MockMongoCollection:
     """Mock de coleção MongoDB."""
+
     def __init__(self):
         self.data = {}
 
@@ -24,7 +26,7 @@ class MockMongoCollection:
         return None
 
     def insert_one(self, *args, **kwargs):
-        return Mock(inserted_id='test_id')
+        return Mock(inserted_id="test_id")
 
     def update_one(self, *args, **kwargs):
         return Mock(modified_count=1)
@@ -47,8 +49,10 @@ class MockMongoCollection:
     def __getitem__(self, name):
         return self
 
+
 class MockMongoDatabase:
     """Mock de database MongoDB."""
+
     def __init__(self):
         self._collections = {}
 
@@ -61,8 +65,10 @@ class MockMongoDatabase:
         """Mock para command (ping etc)."""
         return {"ok": 1}
 
+
 class MockMongoClient:
     """Mock de cliente MongoDB."""
+
     def __init__(self, *args, **kwargs):
         self._db = MockMongoDatabase()
         self.admin = MockMongoDatabase()  # Para ping e outros comandos admin
@@ -76,27 +82,39 @@ class MockMongoClient:
     def close(self):
         pass
 
+
 # Patch MongoClient, RedisCluster e AuditLogger antes de imports
 # Patches em diferentes módulos que usam MongoClient
-_mongo_patch = patch('pymongo.MongoClient', return_value=MockMongoClient())
-_motor_patch = patch('motor.motor_asyncio.AsyncIOMotorClient', return_value=MockMongoClient())
-_redis_patch = patch('redis.cluster.RedisCluster', return_value=MockMongoClient())
+_mongo_patch = patch("pymongo.MongoClient", return_value=MockMongoClient())
+_motor_patch = patch(
+    "motor.motor_asyncio.AsyncIOMotorClient", return_value=MockMongoClient()
+)
+_redis_patch = patch("redis.cluster.RedisCluster", return_value=MockMongoClient())
 _mongo_patch.start()
 _motor_patch.start()
 _redis_patch.start()
 
 # Patches específicos para módulos que importam MongoClient
-_compliance_mongo_patch = patch('neural_hive_specialists.compliance.audit_logger.MongoClient', return_value=MockMongoClient())
+_compliance_mongo_patch = patch(
+    "neural_hive_specialists.compliance.audit_logger.MongoClient",
+    return_value=MockMongoClient(),
+)
 _compliance_mongo_patch.start()
-_ledger_mongo_patch = patch('neural_hive_specialists.ledger_client.MongoClient', return_value=MockMongoClient())
+_ledger_mongo_patch = patch(
+    "neural_hive_specialists.ledger_client.MongoClient", return_value=MockMongoClient()
+)
 _ledger_mongo_patch.start()
-_query_api_mongo_patch = patch('neural_hive_specialists.ledger.query_api.MongoClient', return_value=MockMongoClient())
+_query_api_mongo_patch = patch(
+    "neural_hive_specialists.ledger.query_api.MongoClient",
+    return_value=MockMongoClient(),
+)
 _query_api_mongo_patch.start()
 
 # Desabilitar ledger na config de teste
 import os
-os.environ['ENABLE_LEDGER'] = 'false'
-os.environ['LEDGER_REQUIRED'] = 'false'
+
+os.environ["ENABLE_LEDGER"] = "false"
+os.environ["LEDGER_REQUIRED"] = "false"
 
 from neural_hive_specialists.config import SpecialistConfig
 from neural_hive_specialists.schemas import CognitivePlanSchema, TaskSchema
