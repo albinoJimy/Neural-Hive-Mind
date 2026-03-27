@@ -1,0 +1,18 @@
+# Scout MCP Server Requirements
+
+# FastMCP - Framework oficial para MCP Servers
+fastmcp==2.1.2
+
+# FastAPI e servidor ASGI
+fastapi==0.109.2
+uvicorn[standard]>=0.27.0
+
+# Validação e configuração
+pydantic==2.12.5
+pydantic-settings==2.7.1
+
+# Logging estruturado
+structlog==24.4.0
+
+# Métricas Prometheus
+prometheus-client==0.21.1

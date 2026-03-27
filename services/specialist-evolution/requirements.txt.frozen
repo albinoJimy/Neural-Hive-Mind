@@ -1,0 +1,27 @@
+# Base (via neural_hive_specialists)
+# neuralHiveSpecialists @ file:///app/libraries/python/neural_hive_specialists
+
+# HTTP server and client
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+requests==2.32.3
+
+# Data validation
+pydantic==2.10.4
+pydantic-settings==2.6.1  # 2.7.x has _lenient_issubclass bug
+
+# Circuit breaker and resilience
+tenacity==9.0.0
+pybreaker>=1.0.1
+
+# Business-specific
+pandas==2.2.3
+numpy==1.26.4
+scikit-learn==1.5.2
+
+# Nota: Dependências de process mining (pm4py), time series forecasting (prophet, statsmodels),
+# e optimization (pulp) foram removidas pois não são utilizadas pelos specialists.
+# Estas dependências estão disponíveis no optimizer-agents onde são realmente necessárias.
+
+# Logging
+structlog==24.4.0

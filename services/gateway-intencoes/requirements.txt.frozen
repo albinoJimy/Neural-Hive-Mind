@@ -1,0 +1,61 @@
+# FastAPI e servidor
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+python-multipart==0.0.6
+
+# Cliente Kafka
+confluent-kafka==2.6.1
+
+# Cache Redis Cluster
+redis[hiredis]==5.2.1
+
+# Processamento de áudio (ASR)
+# NOTA: torch 2.5.1 é compatível com openai-whisper e resolve conflito triton
+# openai-whisper instalado com --no-deps no Dockerfile para evitar conflito
+torch==2.5.1
+torchaudio==2.5.1
+tiktoken==0.8.0
+numba==0.62.1
+
+# Processamento de linguagem natural (NLU)
+spacy==3.7.2
+nltk==3.8.1
+
+# Validação e serialização
+pydantic[email]==2.10.4
+pydantic-settings==2.6.1  # 2.7.x has _lenient_issubclass bug
+jsonschema==4.20.0
+orjson==3.10.7  # Otimização: serialização JSON 3-5x mais rápida que json padrão
+
+# Esquemas Avro
+avro-python3==1.10.2
+fastavro==1.9.7
+
+# Observabilidade
+# Atualizado para >= 1.30.0 para corrigir bug de formatação de string no exporter
+opentelemetry-api==1.39.1
+opentelemetry-sdk==1.39.1
+opentelemetry-instrumentation-fastapi==0.60b1
+opentelemetry-instrumentation-kafka-python==0.50b0
+opentelemetry-exporter-otlp==1.29.0
+prometheus-client==0.21.1
+structlog==24.4.0
+
+# Segurança e autenticação
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+cryptography==41.0.7
+
+# Utilitários
+httpx==0.28.1
+aiofiles==23.2.1
+asyncio-mqtt==0.16.1
+numpy==1.26.4
+pandas==2.2.3
+
+# Logging e configuração
+python-dotenv==1.0.1
+click==8.1.7
+rich==13.7.0
+
+# Internal libraries (installed via Dockerfile)

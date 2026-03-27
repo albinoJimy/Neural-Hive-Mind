@@ -1,0 +1,78 @@
+# Code Forge - Neural Code Generation Pipeline Dependencies
+
+# Web Framework
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+
+# gRPC - versão consolidada
+grpcio==1.68.1
+grpcio-tools==1.68.1
+protobuf==5.29.2
+
+# Kafka
+aiokafka==0.12.0
+
+# Data Validation
+pydantic==2.10.4
+pydantic-settings==2.6.1  # 2.7.x tem bug com _lenient_issubclass
+
+# Database - PostgreSQL
+sqlalchemy==2.0.40
+asyncpg==0.29.0
+alembic==1.16.5
+
+# Database - MongoDB
+motor==3.7.1
+pymongo==4.10.1
+
+# Database - Redis
+redis[hiredis]==5.2.1
+
+# HTTP Client
+httpx==0.28.1
+
+# LLM SDKs
+openai==1.105.0
+anthropic==0.66.0
+
+# OpenTelemetry
+opentelemetry-api==1.29.0
+opentelemetry-sdk==1.29.0
+opentelemetry-instrumentation-fastapi==0.50b0
+opentelemetry-instrumentation-grpc==0.50b0
+opentelemetry-instrumentation-httpx==0.50b0
+opentelemetry-instrumentation-sqlalchemy==0.50b0
+opentelemetry-exporter-otlp==1.29.0
+
+# Prometheus
+prometheus-client==0.21.1
+
+# Logging
+structlog==24.4.0
+python-json-logger==2.0.7
+
+# Template Engine
+jinja2==3.1.6
+
+# Git Operations
+gitpython==3.1.45
+
+# YAML/JSON
+pyyaml==6.0.4
+orjson==3.10.16
+
+# Security
+python-jose[cryptography]>=3.3.0
+cryptography==45.0.7
+
+# Utility
+python-dateutil==2.9.0.post0
+aiofiles==23.2.1
+tenacity==9.0.0
+
+# AWS SDK
+boto3==1.37.22
+
+# Integration library
+# neural_hive_integration - instalado localmente via Dockerfile
+

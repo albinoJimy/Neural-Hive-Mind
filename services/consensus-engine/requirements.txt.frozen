@@ -1,0 +1,51 @@
+# Web Framework
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+
+# Data Validation
+pydantic==2.10.4
+pydantic-settings==2.6.1  # 2.7.x has _lenient_issubclass bug
+
+# Kafka
+confluent-kafka==2.6.1
+httpx==0.28.1
+cachetools==5.5.0  # Required by confluent-kafka==2.6.1 schema_registry
+attrs==25.3.0
+authlib==1.5.1
+fastavro==1.9.7
+
+# gRPC - versão 1.75.1+ para compatibilidade com protobuf 5.x
+grpcio==1.68.1
+grpcio-tools==1.68.1
+protobuf==5.29.2  # Suporta runtime_version (protoc 6.x)
+
+# MongoDB
+pymongo==4.10.1
+motor==3.7.1
+
+# Redis
+redis[hiredis]==5.2.1
+
+# Scientific Computing
+numpy==1.26.4
+scipy==1.14.1
+
+# Logging
+structlog==24.4.0
+python-json-logger==2.0.7
+
+# OpenTelemetry
+opentelemetry-api==1.29.0
+opentelemetry-sdk==1.29.0
+opentelemetry-exporter-otlp==1.29.0
+opentelemetry-instrumentation-fastapi==0.50b0
+opentelemetry-instrumentation-grpc==0.50b0
+
+# Prometheus
+prometheus-client==0.21.1
+
+# Retry Logic
+tenacity==9.0.0
+
+# HTTP Client (required by neural_hive_observability health checks)
+aiohttp==3.12.15

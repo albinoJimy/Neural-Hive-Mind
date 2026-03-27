@@ -1,0 +1,26 @@
+# Core Framework
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+
+# Kafka
+aiokafka==0.12.0
+
+# Databases
+motor==3.7.1
+redis[hiredis]==5.2.1
+
+# Kubernetes Client
+kubernetes>=28.1.0
+
+# Playbook execution
+jinja2==3.1.6
+pyyaml==6.0.4
+
+prometheus-client==0.21.1
+structlog==24.4.0
+
+# Utilities
+httpx==0.28.1
+aiohttp==3.12.15
+python-json-logger==2.0.7
+python-dotenv==1.0.1

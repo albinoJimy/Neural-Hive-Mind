@@ -1,0 +1,26 @@
+# FastAPI stack
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+
+# Data layer
+motor==3.7.1
+numpy==2.2.6
+
+# Kafka
+aiokafka==0.10.0
+
+# Observability completa
+prometheus-client==0.21.1
+structlog==24.4.0
+opentelemetry-api==1.29.0
+opentelemetry-sdk==1.29.0
+opentelemetry-instrumentation-fastapi==0.50b0
+opentelemetry-exporter-otlp==1.29.0
+
+# Data validation
+pydantic==2.10.4
+pydantic-settings==2.6.1  # 2.7.x has _lenient_issubclass bug
+
+# Utilities
+python-json-logger==2.0.7
+python-dotenv==1.0.1

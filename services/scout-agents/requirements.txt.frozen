@@ -1,0 +1,44 @@
+# Core dependencies
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+pydantic-settings==2.6.1  # 2.7.x has _lenient_issubclass bug
+
+# Logging and observability
+structlog==24.4.0
+prometheus-client==0.21.1
+opentelemetry-api==1.29.0
+opentelemetry-sdk==1.29.0
+opentelemetry-instrumentation-fastapi==0.50b0
+opentelemetry-exporter-jaeger>=1.21.0
+
+# Kafka
+aiokafka==0.12.0
+avro-python3>=1.10.2
+
+# HTTP and gRPC clients
+httpx==0.28.1
+
+# gRPC - versão consolidada
+grpcio==1.68.1
+grpcio-tools==1.68.1
+protobuf==5.29.2
+
+# Redis
+redis[hiredis]==5.2.1
+
+# ML and numerical computing (MVP stubs)
+numpy==1.26.4
+scipy==1.14.1
+
+# Utilities
+python-json-logger==2.0.7
+tenacity==9.0.0
+
+# Code parsing for multi-language support
+PyYAML>=6.0
+esprima>=0.4.0  # JavaScript/TypeScript AST parsing
+tree-sitter>=0.21.0  # Multi-language AST parsing (Java, C#, Go, C/C++, Rust)
+
+# Internal libraries - installed from /libraries in Docker build
+/libraries/python/neural_hive_domain
