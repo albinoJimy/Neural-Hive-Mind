@@ -331,6 +331,8 @@ run_pytest_tests() {
     pytest_args+=("-n" "${PARALLEL_JOBS:-4}")
   fi
   local status="passed"
+  # Set protobuf implementation for compatibility with temporalio and protobuf 5.29.2
+  export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
   if ! pytest "${pytest_args[@]}"; then
     status="failed"
     TEST_FAILURE_COUNT=$((TEST_FAILURE_COUNT + 1))

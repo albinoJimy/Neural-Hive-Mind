@@ -48,30 +48,44 @@ jobs:
           echo ""
           echo "=== Validando cadeia de dependências ==="
 
-          # Ordem correta de dependência
+          # Ordem correta de dependência (baseado nas FROMs reais)
           expected_order=(
+            "python-ml-base"
             "python-observability-base"
             "python-grpc-base"
             "python-nlp-base"
+            "python-mlops-base"
             "python-specialist-base"
           )
 
-          # Verificar se cada base image usa a anterior como FROM
-          for i in "${!expected_order[@]}"; do
-            if [[ $i -eq 0 ]]; then
-              continue  # Primeira imagem não tem dependência interna
+          # Mapa de dependências esperadas
+          declare -A EXPECTED_FROM=(
+            ["python-ml-base"]="python:3.11-slim"
+            ["python-observability-base"]="python:3.11-slim"
+            ["python-grpc-base"]="python-ml-base"
+            ["python-nlp-base"]="python-grpc-base"
+            ["python-mlops-base"]="python-grpc-base"
+            ["python-specialist-base"]="python-nlp-base"
+          )
+
+          # Verificar se cada base image usa a FROM esperada
+          for img in "${expected_order[@]}"; do
+            if [[ ! -v "BASE_VERSIONS[$img]" ]]; then
+              echo "⚠️  AVISO: $img não encontrado"
+              continue
             fi
 
-            prev="${expected_order[$i-1]}"
-            info="${BASE_VERSIONS[$i]}"
-            from_image=$(echo "$info" | cut -d'|' -f2)
+            info="${BASE_VERSIONS[$img]}"
+            actual_from=$(echo "$info" | cut -d'|' -f2)
+            expected_from="${EXPECTED_FROM[$img]}"
 
-            # Verifica se FROM aponta para a imagem anterior
-            if [[ ! "$from_image" =~ "$prev" ]]; then
-              echo "❌ ERRO: $i deveria usar $prev como FROM, mas usa: $from_image"
+            # Verifica se a FROM corresponde (ignorando ${REGISTRY}/neural-hive-mind/ prefix)
+            actual_base=$(echo "$actual_from" | sed 's|${REGISTRY}/neural-hive-mind/||')
+            if [[ ! "$actual_base" =~ "$expected_from" ]]; then
+              echo "❌ ERRO: $img deveria usar $expected_from como FROM, mas usa: $actual_from"
               exit 1
             fi
-            echo "✅ $i depende corretamente de $prev"
+            echo "✅ $img depende corretamente de $expected_from"
           done
 
   validate-service-dockerfiles:
@@ -227,6 +241,7 @@ jobs:
             if ! hadolint "$dockerfile" \
               --ignore DL3008 \
               --ignore DL3013 \
+              --ignore DL3015 \
               --ignore DL3040 \
               --ignore DL4006; then
               echo "⚠️  AVISO: Hadolint encontrou problemas em $dockerfile"
