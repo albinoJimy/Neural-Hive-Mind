@@ -1,0 +1,34 @@
+# mutmut configuration for neural_hive_specialists
+# See: https://github.com/mutmut/mutmut
+
+mutation_targets:
+  - neural_hive_specialists/ml_governance
+  - neural_hive_specialists/observability
+  - neural_hive_specialists/compliance
+  - neural_hive_specialists/semantic_pipeline
+  - neural_hive_specialists/feedback
+  - neural_hive_specialists/explainability
+
+runner: pytest
+tests_dir: tests
+
+# Exclude files/directories from mutation
+paths_to_mutate:
+  - neural_hive_specialists/ml_governance/
+  - neural_hive_specialists/observability/
+  - neural_hive_specialists/compliance/
+  - neural_hive_specialists/semantic_pipeline/
+  - neural_hive_specialists/feedback/
+  - neural_hive_specialists/explainability/
+
+# No coverage data - run all tests
+no_coverage: true
+
+# Exclude from mutation (optional)
+whitelist:
+  - tests/
+
+# Exclude patterns from mutation (optional)
+blacklist:
+  - .*_pb2.py  # generated protobuf files
+  - .*_pb2_grpc.py
