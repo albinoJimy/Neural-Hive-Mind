@@ -68,7 +68,7 @@ class ScoutAgentsConfig(BaseModel):
 class OPAConfig(BaseModel):
     """Open Policy Agent configuration"""
     url: str = Field(default="http://localhost:8181", description="OPA server URL")
-    policy_path: str = Field(default="/v1/data/architect/rules", description="OPA policy path")
+    policy_path: str = Field(default="architecture/rules", description="OPA policy path (without /v1/data/ prefix)")
     timeout_seconds: int = Field(default=10, description="Request timeout in seconds")
 
     @field_validator('timeout_seconds')

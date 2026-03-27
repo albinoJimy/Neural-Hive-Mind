@@ -12,6 +12,7 @@ class OPAClient:
         settings = get_settings()
         self.base_url = settings.opa.url
         self.timeout = settings.opa.timeout_seconds
+        self.policy_path = settings.opa.policy_path
 
     async def evaluate_policy(
         self, policy_path: str, input_data: Dict[str, Any]
@@ -33,5 +34,5 @@ class OPAClient:
             "patterns": patterns,
             "insights": insights
         }
-        result = await self.evaluate_policy("architecture/rules", input_data)
+        result = await self.evaluate_policy(self.policy_path, input_data)
         return result.get("violations", [])

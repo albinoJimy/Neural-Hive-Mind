@@ -2,7 +2,8 @@
 
 import uuid
 from typing import Dict, Any
-from datetime import datetime
+from datetime import datetime, timezone
+import structlog
 
 from src.models.validation import (
     ValidationReport, Violation, Suggestion, ViolationType, Severity, Trend
@@ -11,6 +12,8 @@ from src.validators.base import BaseValidator
 from src.validators.scout_client import ScoutAgentsClient
 from src.validators.opa_client import OPAClient
 from src.validators.rules import ArchitecturalRules
+
+logger = structlog.get_logger(__name__)
 
 
 class ValidateEngine(BaseValidator):
@@ -76,31 +79,54 @@ class ValidateEngine(BaseValidator):
                 "class_count": len([p for p in patterns if p.get("type") == "class"]),
                 "interface_count": len([p for p in patterns if p.get("type") == "interface"]),
             },
-            created_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc)
         )
 
     async def _get_patterns_safe(self, repo_url: str, branch: str) -> list:
         try:
             return await self.scout_client.get_patterns(repo_url, branch)
-        except Exception:
+        except Exception as e:
+            logger.warning(
+                "scout_patterns_error",
+                repo_url=repo_url,
+                branch=branch,
+                error=str(e)
+            )
             return []
 
     async def _get_insights_safe(self, repo_url: str, branch: str) -> dict:
         try:
             return await self.scout_client.get_insights(repo_url, branch)
-        except Exception:
+        except Exception as e:
+            logger.warning(
+                "scout_insights_error",
+                repo_url=repo_url,
+                branch=branch,
+                error=str(e)
+            )
             return {}
 
     async def _check_duplication_safe(self, repo_url: str, branch: str) -> dict:
         try:
             return await self.scout_client.check_duplication(repo_url, branch)
-        except Exception:
+        except Exception as e:
+            logger.warning(
+                "scout_duplication_error",
+                repo_url=repo_url,
+                branch=branch,
+                error=str(e)
+            )
             return {"percentage": 0}
 
     async def _check_opa_safe(self, patterns: list, insights: dict) -> list:
         try:
             return await self.opa_client.check_architecture_rules(patterns, insights)
-        except Exception:
+        except Exception as e:
+            logger.warning(
+                "opa_evaluation_error",
+                patterns_count=len(patterns),
+                error=str(e)
+            )
             return []
 
     def _check_duplication_violations(self, duplication: dict) -> list:
