@@ -1,0 +1,117 @@
+name: E2E Suite 01 - Gateway API
+
+description: Gateway API, authentication, rate limiting, and routing tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'services/gateway-intencoes/**'
+      - '.github/workflows/e2e-suite-01-gateway.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'services/gateway-intencoes/**'
+
+jobs:
+  gateway-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+      keycloak:
+        image: quay.io/keycloak/keycloak:23.0
+        ports:
+          - 8080:8080
+        env:
+          KEYCLOAK_ADMIN: admin
+          KEYCLOAK_ADMIN_PASSWORD: admin
+          KC_HEALTH_ENABLED: "true"
+        options: >-
+          --health-cmd="curl -sf http://localhost:8080/health/ready || exit 1"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install -r tests/requirements-test.txt
+          pip install -e libraries/python/neural_hive_resilience
+          pip install -e libraries/neural_hive_integration
+
+      - name: Install Gateway dependencies
+        run: |
+          cd services/gateway-intencoes
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Run Gateway Unit Tests
+        run: |
+          cd services/gateway-intencoes
+          pytest tests/unit/ -v --tb=short --junit-xml=../../tests/results/gateway-unit-junit.xml
+
+      - name: Run Gateway Integration Tests
+        env:
+          REDIS_URL: redis://localhost:6379
+          KEYCLOAK_URL: http://localhost:8080
+          KEYCLOAK_CLIENT_ID: test-client
+          KEYCLOAK_CLIENT_SECRET: test-secret
+        run: |
+          cd services/gateway-intencoes
+          pytest tests/integration/ -v --tb=short --junit-xml=../../tests/results/gateway-integration-junit.xml
+        timeout-minutes: 10
+
+      - name: Run Gateway E2E Tests
+        env:
+          GATEWAY_HOST: localhost
+          GATEWAY_PORT: 8000
+          REDIS_URL: redis://localhost:6379
+        run: |
+          pytest tests/e2e/test_01_setup_validation.py \
+            tests/e2e/test_correlation_id_propagation.py \
+            tests/e2e/test_load_correlation_id.py \
+            -v \
+            --tb=short \
+            -m "gateway" \
+            --junit-xml=tests/results/gateway-e2e-junit.xml \
+            --log-cli-level=INFO
+        timeout-minutes: 10
+
+      - name: Upload Gateway Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gateway-e2e-results
+          path: tests/results/gateway-*-junit.xml
+
+      - name: Gateway Test Summary
+        if: always()
+        run: |
+          echo "## Gateway API E2E Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f "tests/results/gateway-e2e-junit.xml" ]; then
+            echo "✅ Gateway tests completed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Gateway tests failed" >> $GITHUB_STEP_SUMMARY
+          fi
