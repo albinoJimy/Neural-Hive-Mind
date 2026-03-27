@@ -1,0 +1,104 @@
+name: E2E Suite 03 - Consensus Engine
+
+description: Consensus engine, specialists, hierarchical weights, and decision aggregation tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'services/consensus-engine/**'
+      - 'libraries/python/neural_hive_specialists/**'
+      - '.github/workflows/e2e-suite-03-consensus.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'services/consensus-engine/**'
+      - 'libraries/python/neural_hive_specialists/**'
+
+jobs:
+  consensus-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    services:
+      mongodb:
+        image: mongo:7.0
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd="mongosh --eval 'db.adminCommand({ping: 1})'"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install -r tests/requirements-test.txt
+          pip install -e libraries/python/neural_hive_resilience
+          pip install -e libraries/neural_hive_integration
+          pip install -e libraries/python/neural_hive_specialists
+
+      - name: Install Consensus Engine dependencies
+        run: |
+          cd services/consensus-engine
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Run Consensus Unit Tests
+        run: |
+          cd services/consensus-engine
+          pytest tests/ -v --tb=short --junit-xml=../../tests/results/consensus-unit-junit.xml
+
+      - name: Run Consensus Integration Tests
+        env:
+          MONGODB_URI: mongodb://localhost:27017
+        run: |
+          pytest tests/integration/test_consensus_integration.py \
+            -v \
+            --tb=short \
+            --junit-xml=tests/results/consensus-integration-junit.xml \
+            --log-cli-level=INFO
+        timeout-minutes: 10
+
+      - name: Run Specialist Consensus Tests
+        env:
+          MONGODB_URI: mongodb://localhost:27017
+        run: |
+          pytest tests/e2e/specialists/test_phase2_flow_c_complete.py \
+            tests/e2e/specialists/complete-flow-test.py \
+            -v \
+            --tb=short \
+            -m "consensus" \
+            --junit-xml=tests/results/specialist-consensus-junit.xml \
+            --log-cli-level=INFO
+        timeout-minutes: 12
+        continue-on-error: true
+
+      - name: Upload Consensus Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: consensus-e2e-results
+          path: tests/results/consensus-*-junit.xml
+
+      - name: Consensus Summary
+        if: always()
+        run: |
+          echo "## Consensus Engine E2E Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f "tests/results/consensus-integration-junit.xml" ]; then
+            echo "✅ Consensus integration tests completed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Consensus integration tests not found" >> $GITHUB_STEP_SUMMARY
+          fi
