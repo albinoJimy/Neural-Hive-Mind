@@ -333,11 +333,10 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Middleware de CORS - deve ser o PRIMEIRO middleware adicionado
-# em produção, considere limitar allow_origins para domínios específicos
+# Middleware de CORS - configurado via ALLOWED_ORIGINS environment variable
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Em produção, usar domínios específicos
+    allow_origins=settings.allowed_origins,  # From settings, not hardcoded
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
