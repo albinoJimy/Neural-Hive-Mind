@@ -98,6 +98,47 @@ make ml-train         # Treinar modelos
 ### Documentação de Arquitetura e Fluxos
 - **[Fluxo Completo do Sistema](docs/FLUXO_COMPLETO_NEURAL_HIVE_MIND.md)** ⭐ - Referência técnica principal
 - [Visão Geral](documento-01-visao-geral-neural-hive-mind.md)
+
+## 📁 Estrutura de Diretórios
+
+```
+Neural-Hive-Mind/
+├── services/                    # Microserviços (27 serviços)
+│   ├── gateway-intencoes/      # API Gateway + NLU
+│   ├── approval-service/       # Aprovação humana
+│   ├── consensus-engine/       # Consenso entre especialistas
+│   ├── orchestrator-dynamic/   # Orquestração via Temporal
+│   ├── worker-agents/          # Execução de tarefas
+│   ├── specialist-*/           # Especialistas (4 tipos)
+│   ├── mcp-servers/            # MCP Servers (5 servidores)
+│   └── ...
+├── libraries/                   # Bibliotecas Python compartilhadas
+│   └── python/
+│       ├── neural_hive_domain/         # Domínio e modelos
+│       ├── neural_hive_specialists/    # Framework de especialistas
+│       └── neural_hive_observability/  # Observabilidade
+├── docs/                        # Documentação
+│   ├── archive/                # Documentos históricos (90+ arquivos)
+│   ├── scripts/                # Documentação de scripts
+│   ├── specs/                  # Especificações
+│   └── superpowers/            # Planos de trabalho
+├── scripts/                     # Scripts de automação
+│   ├── build.sh                # CLI de build
+│   ├── deploy.sh               # CLI de deploy
+│   ├── validate.sh             # CLI de validação
+│   ├── security.sh             # CLI de segurança
+│   └── freeze_requirements.sh  # Pinning de dependências
+├── ml_pipelines/               # ML Pipelines
+├── infrastructure/             # IaC (Terraform, Helm)
+├── k8s/                        # Manifests Kubernetes
+├── helm-charts/                # Helm Charts
+├── tests/                      # Testes (unit, E2E)
+└── .github/workflows/          # CI/CD workflows
+```
+
+### Documentação Histórica
+
+Relatórios históricos, validações e documentação de sessões anteriores foram movidos para `docs/archive/`. Ver [docs/archive/index.md](docs/archive/index.md) para o índice completo.
 - [Arquitetura e Topologias](documento-02-arquitetura-e-topologias-neural-hive-mind.md)
 - [Componentes e Processos](documento-03-componentes-e-processos-neural-hive-mind.md)
 - [Segurança e Governança](documento-04-seguranca-governanca-neural-hive-mind.md)
