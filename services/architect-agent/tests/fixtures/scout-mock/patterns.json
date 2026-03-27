@@ -1,0 +1,31 @@
+{
+  "patterns": [
+    {
+      "name": "microservices",
+      "description": "Microservices architecture pattern",
+      "components": ["api-gateway", "service-discovery", "circuit-breaker"]
+    },
+    {
+      "name": "event-driven",
+      "description": "Event-driven architecture pattern",
+      "components": ["message-broker", "event-store", "event-handler"]
+    },
+    {
+      "name": "cqrs",
+      "description": "Command Query Responsibility Segregation",
+      "components": ["command-side", "query-side", "event-sourcing"]
+    }
+  ],
+  "best_practices": [
+    {
+      "category": "scalability",
+      "practice": "horizontal_scaling",
+      "description": "Design for horizontal scaling"
+    },
+    {
+      "category": "resilience",
+      "practice": "circuit_breaker",
+      "description": "Use circuit breakers for external calls"
+    }
+  ]
+}

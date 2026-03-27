@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "architect-agent.fullname" . }}
+  labels:
+    {{- include "architect-agent.labels" . | nindent 4 }}
+data:
+  SERVICE_VERSION: "{{ .Chart.AppVersion }}"
+  PYTHONUNBUFFERED: "1"
+  PYTHONDONTWRITEBYTECODE: "1"
+  {{- if .Values.observability.enabled }}
+  OBSERVABILITY_ENABLED: "true"
+  {{- end }}
+  {{- if .Values.config.kafka.enabled }}
+  KAFKA_ENABLED: "true"
+  {{- end }}
+  {{- if .Values.config.opa.enabled }}
+  OPA_ENABLED: "true"
+  {{- end }}
+  {{- if .Values.config.llm.enabled }}
+  LLM_ENABLED: "true"
+  {{- end }}

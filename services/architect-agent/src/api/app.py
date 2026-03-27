@@ -16,7 +16,7 @@ def create_app() -> FastAPI:
 
     app = FastAPI(
         title="Architect Agent",
-        description="Microserviço para geração e validação de arquiteturas",
+        description="Sistema de arquitetura de software - planejamento e validacao",
         version=settings.service.version,
         docs_url="/docs",
         redoc_url="/redoc",

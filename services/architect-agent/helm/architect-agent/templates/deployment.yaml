@@ -1,0 +1,155 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "architect-agent.fullname" . }}
+  labels:
+    {{- include "architect-agent.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "architect-agent.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "architect-agent.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "architect-agent.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.config.httpPort }}
+              protocol: TCP
+            {{- if .Values.observability.enabled }}
+            - name: metrics
+              containerPort: {{ .Values.observability.prometheus.port }}
+              protocol: TCP
+            {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          env:
+            - name: SERVICE__SERVICE_NAME
+              value: {{ include "architect-agent.name" . }}
+            - name: SERVICE__VERSION
+              value: {{ .Chart.AppVersion | quote }}
+            - name: SERVICE__ENVIRONMENT
+              value: {{ .Values.config.environment | quote }}
+            - name: SERVICE__LOG_LEVEL
+              value: {{ .Values.config.logLevel | quote }}
+            - name: SERVICE__HTTP_PORT
+              value: {{ .Values.config.httpPort | quote }}
+            - name: MONGODB_URL
+              value: {{ .Values.config.mongodb.url | quote }}
+            - name: MONGODB_DATABASE
+              value: {{ .Values.config.mongodb.database | quote }}
+            - name: MONGODB_COLLECTION_ARCHITECTURE
+              value: {{ .Values.config.mongodb.collectionArchitecture | quote }}
+            - name: MONGODB_COLLECTION_VALIDATION
+              value: {{ .Values.config.mongodb.collectionValidation | quote }}
+            - name: MONGODB_COLLECTION_EVOLUTION
+              value: {{ .Values.config.mongodb.collectionEvolution | quote }}
+            {{- if .Values.config.kafka.enabled }}
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: {{ .Values.config.kafka.bootstrapServers | quote }}
+            - name: KAFKA_COGNITIVE_PLANS_TOPIC
+              value: {{ .Values.config.kafka.cognitivePlansTopic | quote }}
+            - name: KAFKA_CONSUMER_GROUP
+              value: {{ .Values.config.kafka.consumerGroup | quote }}
+            - name: KAFKA_AUTO_OFFSET_RESET
+              value: {{ .Values.config.kafka.autoOffsetReset | quote }}
+            {{- end }}
+            - name: SCOUT_AGENTS_URL
+              value: {{ .Values.config.scoutAgents.url | quote }}
+            - name: SCOUT_AGENTS_TIMEOUT_SECONDS
+              value: {{ .Values.config.scoutAgents.timeoutSeconds | quote }}
+            {{- if .Values.config.opa.enabled }}
+            - name: OPA_URL
+              value: {{ .Values.config.opa.url | quote }}
+            - name: OPA_POLICY_PATH
+              value: {{ .Values.config.opa.policyPath | quote }}
+            - name: OPA_TIMEOUT_SECONDS
+              value: {{ .Values.config.opa.timeoutSeconds | quote }}
+            {{- end }}
+            {{- if .Values.config.llm.enabled }}
+            - name: LLM_PROVIDER
+              value: {{ .Values.config.llm.provider | quote }}
+            - name: LLM_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "architect-agent.fullname" . }}-llm
+                  key: api-key
+            - name: LLM_MODEL
+              value: {{ .Values.config.llm.model | quote }}
+            - name: LLM_TIMEOUT_SECONDS
+              value: {{ .Values.config.llm.timeoutSeconds | quote }}
+            - name: LLM_MAX_TOKENS
+              value: {{ .Values.config.llm.maxTokens | quote }}
+            {{- end }}
+            {{- if .Values.observability.tracing.enabled }}
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: {{ .Values.observability.tracing.endpoint | quote }}
+            - name: OTEL_TRACES_SAMPLER
+              value: "traceidratio"
+            - name: OTEL_TRACES_SAMPLER_ARG
+              value: {{ .Values.observability.tracing.sampleRate | quote }}
+            {{- end }}
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "architect-agent.fullname" . }}
+          volumeMounts:
+            {{- with .Values.volumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+      volumes:
+        {{- with .Values.volumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

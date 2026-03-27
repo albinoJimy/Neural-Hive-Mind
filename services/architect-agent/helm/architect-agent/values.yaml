@@ -1,0 +1,144 @@
+# Valores padrão para architect-agent
+replicaCount: 2
+
+image:
+  repository: ghcr.io/albinojimy/neural-hive-mind/architect-agent
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+
+service:
+  type: ClusterIP
+  port: 8008
+  annotations: {}
+
+ingress:
+  enabled: false
+  className: "nginx"
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+  hosts:
+    - host: architect-agent.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 200m
+    memory: 256Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# Configurações do Architect Agent
+config:
+  environment: production
+  logLevel: INFO
+  httpPort: 8008
+
+  # MongoDB configuration
+  mongodb:
+    url: "mongodb://mongodb:27017"
+    database: "architect_agent"
+    collectionArchitecture: "architecture_plans"
+    collectionValidation: "validation_reports"
+    collectionEvolution: "evolution_history"
+
+  # Kafka configuration
+  kafka:
+    enabled: true
+    bootstrapServers: "kafka:9092"
+    cognitivePlansTopic: "cognitive.plans.created"
+    consumerGroup: "architect-agent"
+    autoOffsetReset: "earliest"
+
+  # Scout Agents configuration
+  scoutAgents:
+    url: "http://scout-agents:8000"
+    timeoutSeconds: 30
+
+  # OPA configuration
+  opa:
+    enabled: true
+    url: "http://opa:8181"
+    policyPath: "architecture/rules"
+    timeoutSeconds: 10
+
+  # LLM configuration (optional)
+  llm:
+    enabled: false
+    provider: ""
+    apiKey: ""
+    model: "gpt-4"
+    timeoutSeconds: 60
+    maxTokens: 2000
+
+# Configurações de Observabilidade
+observability:
+  enabled: true
+  prometheus:
+    port: 9098
+    path: /metrics
+    serviceMonitor:
+      enabled: false
+      interval: 30s
+      scrapeTimeout: 10s
+  tracing:
+    enabled: true
+    endpoint: "http://jaeger-collector:4317"
+    sampleRate: 0.1
+  logging:
+    format: json
+    level: INFO
+
+# Configurações adicionais
+extraEnv: []
+# extraEnv:
+#   - name: CUSTOM_VAR
+#     value: "custom-value"
+
+# Volume mounts para tmp (necessário para readOnlyRootFilesystem)
+volumeMounts:
+  - name: tmp
+    mountPath: /tmp
+
+volumes:
+  - name: tmp
+    emptyDir: {}

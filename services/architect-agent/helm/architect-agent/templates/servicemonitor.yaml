@@ -1,0 +1,17 @@
+{{- if and .Values.observability.enabled .Values.observability.prometheus.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "architect-agent.fullname" . }}
+  labels:
+    {{- include "architect-agent.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "architect-agent.selectorLabels" . | nindent 6 }}
+  endpoints:
+    - port: metrics
+      path: {{ .Values.observability.prometheus.path }}
+      interval: {{ .Values.observability.prometheus.serviceMonitor.interval }}
+      scrapeTimeout: {{ .Values.observability.prometheus.serviceMonitor.scrapeTimeout }}
+{{- end }}

@@ -1,0 +1,16 @@
+{
+  "insights": [
+    {
+      "type": "pattern_recommendation",
+      "pattern": "api_gateway",
+      "confidence": 0.9,
+      "rationale": "API Gateway pattern recommended for microservices"
+    },
+    {
+      "type": "anti_pattern_warning",
+      "pattern": "shared_database",
+      "confidence": 0.7,
+      "rationale": "Shared database can cause coupling between services"
+    }
+  ]
+}

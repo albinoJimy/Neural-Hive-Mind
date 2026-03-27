@@ -1,0 +1,17 @@
+apiVersion: v2
+name: architect-agent
+description: Neural Hive-Mind Architect Agent - Software architecture planning and validation service
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - neural-hive-mind
+  - architect-agent
+  - architecture-planning
+  - validation
+  - evolution-tracking
+maintainers:
+  - name: Neural Hive-Mind Team
+home: https://github.com/albinoJimy/Neural-Hive-Mind
+sources:
+  - https://github.com/albinoJimy/Neural-Hive-Mind
