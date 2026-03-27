@@ -28,9 +28,9 @@ class TestHealthChecks:
     @pytest.fixture
     def mock_dependencies(self):
         """Mock de dependências externas."""
-        with patch('neural_hive_specialists.obsability.health_checks.MongoClient') as mock_mongo:
-            with patch('neural_hive_specialists.obsability.health_checks.Redis') as mock_redis:
-                with patch('neural_hive_specialists.obsability.health_checks.GraphDatabase') as mock_neo4j:
+        with patch('neural_hive_specialists.observability.health_checks.MongoClient') as mock_mongo:
+            with patch('neural_hive_specialists.observability.health_checks.Redis') as mock_redis:
+                with patch('neural_hive_specialists.observability.health_checks.GraphDatabase') as mock_neo4j:
                     yield {
                         "mongo": mock_mongo,
                         "redis": mock_redis,
@@ -48,7 +48,7 @@ class TestHealthChecks:
 
     def test_check_mongodb_healthy(self, config):
         """Testa check de MongoDB quando saudável."""
-        with patch('neural_hive_specialists.obsability.health_checks.MongoClient') as mock_mongo_class:
+        with patch('neural_hive_specialists.observability.health_checks.MongoClient') as mock_mongo_class:
             mock_client = MagicMock()
             mock_db = MagicMock()
             mock_client.server_info.return_value = {"version": "5.0.0"}
@@ -66,7 +66,7 @@ class TestHealthChecks:
 
     def test_check_mongodb_unhealthy(self, config):
         """Testa check de MongoDB quando não saudável."""
-        with patch('neural_hive_specialists.obsability.health_checks.MongoClient') as mock_mongo_class:
+        with patch('neural_hive_specialists.observability.health_checks.MongoClient') as mock_mongo_class:
             mock_client = MagicMock()
             mock_client.server_info.side_effect = Exception("Connection error")
             mock_mongo_class.return_value = mock_client
@@ -81,7 +81,7 @@ class TestHealthChecks:
 
     def test_check_redis_healthy(self, config):
         """Testa check de Redis quando saudável."""
-        with patch('neural_hive_specialists.obsability.health_checks.Redis') as mock_redis_class:
+        with patch('neural_hive_specialists.observability.health_checks.Redis') as mock_redis_class:
             mock_redis = MagicMock()
             mock_redis.ping.return_value = True
             mock_redis_class.return_value = mock_redis
@@ -96,7 +96,7 @@ class TestHealthChecks:
 
     def test_check_redis_unhealthy(self, config):
         """Testa check de Redis quando não saudável."""
-        with patch('neural_hive_specialists.obsability.health_checks.Redis') as mock_redis_class:
+        with patch('neural_hive_specialists.observability.health_checks.Redis') as mock_redis_class:
             mock_redis = MagicMock()
             mock_redis.ping.side_effect = Exception("Connection error")
             mock_redis_class.return_value = mock_redis
@@ -111,7 +111,7 @@ class TestHealthChecks:
 
     def test_check_neo4j_healthy(self, config):
         """Testa check de Neo4j quando saudável."""
-        with patch('neural_hive_specialists.obsability.health_checks.GraphDatabase') as mock_neo4j_class:
+        with patch('neural_hive_specialists.observability.health_checks.GraphDatabase') as mock_neo4j_class:
             mock_driver = MagicMock()
             mock_session = MagicMock()
             mock_result = MagicMock()
@@ -130,7 +130,7 @@ class TestHealthChecks:
 
     def test_check_neo4j_unhealthy(self, config):
         """Testa check de Neo4j quando não saudável."""
-        with patch('neural_hive_specialists.obsability.health_checks.GraphDatabase') as mock_neo4j_class:
+        with patch('neural_hive_specialists.observability.health_checks.GraphDatabase') as mock_neo4j_class:
             mock_driver = MagicMock()
             mock_driver.session.side_effect = Exception("Connection error")
             mock_neo4j_class.driver.return_value = mock_driver
@@ -145,9 +145,9 @@ class TestHealthChecks:
 
     def test_check_all_services(self, config):
         """Testa check de todos os serviços."""
-        with patch('neural_hive_specialists.obsability.health_checks.MongoClient') as mock_mongo:
-            with patch('neural_hive_specialists.obsability.health_checks.Redis') as mock_redis:
-                with patch('neural_hive_specialists.obsability.health_checks.GraphDatabase') as mock_neo4j:
+        with patch('neural_hive_specialists.observability.health_checks.MongoClient') as mock_mongo:
+            with patch('neural_hive_specialists.observability.health_checks.Redis') as mock_redis:
+                with patch('neural_hive_specialists.observability.health_checks.GraphDatabase') as mock_neo4j:
                     # Setup mocks
                     mock_client = MagicMock()
                     mock_client.server_info.return_value = {"version": "5.0.0"}
@@ -178,9 +178,9 @@ class TestHealthChecks:
 
     def test_get_health_summary_degraded(self, config):
         """Testa resumo de saúde com serviços degradados."""
-        with patch('neural_hive_specialists.obsability.health_checks.MongoClient') as mock_mongo:
-            with patch('neural_hive_specialists.obsability.health_checks.Redis') as mock_redis:
-                with patch('neural_hive_specialists.obsability.health_checks.GraphDatabase') as mock_neo4j:
+        with patch('neural_hive_specialists.observability.health_checks.MongoClient') as mock_mongo:
+            with patch('neural_hive_specialists.observability.health_checks.Redis') as mock_redis:
+                with patch('neural_hive_specialists.observability.health_checks.GraphDatabase') as mock_neo4j:
                     # Mongo healthy, Redis unhealthy, Neo4j healthy
                     mock_client = MagicMock()
                     mock_client.server_info.return_value = {"version": "5.0.0"}
@@ -208,9 +208,9 @@ class TestHealthChecks:
 
     def test_get_health_summary_unhealthy(self, config):
         """Testa resumo de saúde com todos serviços não saudáveis."""
-        with patch('neural_hive_specialists.obsability.health_checks.MongoClient') as mock_mongo:
-            with patch('neural_hive_specialists.obsability.health_checks.Redis') as mock_redis:
-                with patch('neural_hive_specialists.obsability.health_checks.GraphDatabase') as mock_neo4j:
+        with patch('neural_hive_specialists.observability.health_checks.MongoClient') as mock_mongo:
+            with patch('neural_hive_specialists.observability.health_checks.Redis') as mock_redis:
+                with patch('neural_hive_specialists.observability.health_checks.GraphDatabase') as mock_neo4j:
                     # Todos unhealthy
                     mock_client = MagicMock()
                     mock_client.server_info.side_effect = Exception("Error")
@@ -233,7 +233,7 @@ class TestHealthChecks:
 
     def test_check_disk_space(self, config):
         """Testa check de espaço em disco."""
-        with patch('neural_hive_specialists.obsability.health_checks.shutil') as mock_shutil:
+        with patch('neural_hive_specialists.observability.health_checks.shutil') as mock_shutil:
             mock_shutil.disk_usage.return_value = MagicMock(
                 total=1000000000,  # 1GB
                 used=500000000,   # 500MB
@@ -251,7 +251,7 @@ class TestHealthChecks:
 
     def test_check_disk_space_high_usage(self, config):
         """Testa check de espaço em disco com uso alto."""
-        with patch('neural_hive_specialists.obsability.health_checks.shutil') as mock_shutil:
+        with patch('neural_hive_specialists.observability.health_checks.shutil') as mock_shutil:
             mock_shutil.disk_usage.return_value = MagicMock(
                 total=1000000000,
                 used=900000000,  # 90%
@@ -268,7 +268,7 @@ class TestHealthChecks:
 
     def test_check_memory_usage(self, config):
         """Testa check de uso de memória."""
-        with patch('neural_hive_specialists.obsability.health_checks.psutil') as mock_psutil:
+        with patch('neural_hive_specialists.observability.health_checks.psutil') as mock_psutil:
             mock_psutil.virtual_memory.return_value = MagicMock(
                 total=8000000000,   # 8GB
                 available=4000000000,  # 4GB livre
@@ -286,7 +286,7 @@ class TestHealthChecks:
 
     def test_check_cpu_usage(self, config):
         """Testa check de uso de CPU."""
-        with patch('neural_hive_specialists.obsability.health_checks.psutil') as mock_psutil:
+        with patch('neural_hive_specialists.observability.health_checks.psutil') as mock_psutil:
             mock_psutil.cpu_percent.return_value = 45.0
 
             from neural_hive_specialists.observability.health_checks import HealthChecks
@@ -300,7 +300,7 @@ class TestHealthChecks:
 
     def test_check_cpu_usage_high(self, config):
         """Testa check de CPU com uso alto."""
-        with patch('neural_hive_specialists.obsability.health_checks.psutil') as mock_psutil:
+        with patch('neural_hive_specialists.observability.health_checks.psutil') as mock_psutil:
             mock_psutil.cpu_percent.return_value = 95.0
 
             from neural_hive_specialists.observability.health_checks import HealthChecks
@@ -313,7 +313,7 @@ class TestHealthChecks:
 
     def test_readiness_check(self, config):
         """Testa check de prontidão (readiness)."""
-        with patch('neural_hive_specialists.obsability.health_checks.MongoClient') as mock_mongo:
+        with patch('neural_hive_specialists.observability.health_checks.MongoClient') as mock_mongo:
             mock_client = MagicMock()
             mock_client.server_info.return_value = {"version": "5.0.0"}
             mock_mongo.return_value = mock_client
@@ -338,8 +338,8 @@ class TestHealthChecks:
 
     def test_check_service_dependencies(self, config):
         """Testa check de dependências de serviço."""
-        with patch('neural_hive_specialists.obsability.health_checks.MongoClient') as mock_mongo:
-            with patch('neural_hive_specialists.obsability.health_checks.Redis') as mock_redis:
+        with patch('neural_hive_specialists.observability.health_checks.MongoClient') as mock_mongo:
+            with patch('neural_hive_specialists.observability.health_checks.Redis') as mock_redis:
                 mock_client = MagicMock()
                 mock_client.server_info.return_value = {"version": "5.0.0"}
                 mock_mongo.return_value = mock_client
@@ -369,7 +369,7 @@ class TestHealthChecks:
 
     def test_is_healthy_true(self, config):
         """Testa is_healthy retorna True quando tudo está saudável."""
-        with patch('neural_hive_specialists.obsability.health_checks.MongoClient') as mock_mongo:
+        with patch('neural_hive_specialists.observability.health_checks.MongoClient') as mock_mongo:
             mock_client = MagicMock()
             mock_client.server_info.return_value = {"version": "5.0.0"}
             mock_mongo.return_value = mock_client
@@ -381,7 +381,7 @@ class TestHealthChecks:
 
     def test_is_healthy_false(self, config):
         """Testa is_healthy retorna False quando algo está não saudável."""
-        with patch('neural_hive_specialists.obsability.health_checks.MongoClient') as mock_mongo:
+        with patch('neural_hive_specialists.observability.health_checks.MongoClient') as mock_mongo:
             mock_client = MagicMock()
             mock_client.server_info.side_effect = Exception("Error")
             mock_mongo.return_value = mock_client
@@ -393,7 +393,7 @@ class TestHealthChecks:
 
     def test_timeout_handling(self, config):
         """Testa handling de timeout em checks."""
-        with patch('neural_hive_specialists.obsability.health_checks.MongoClient') as mock_mongo:
+        with patch('neural_hive_specialists.observability.health_checks.MongoClient') as mock_mongo:
             import time
 
             def slow_server_info():
