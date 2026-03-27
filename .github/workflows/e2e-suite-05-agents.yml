@@ -1,0 +1,126 @@
+name: E2E Suite 05 - Agents
+
+description: Worker agents, scout agents, queen agent, and specialist execution tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'services/worker-agents/**'
+      - 'services/scout-agents/**'
+      - 'services/queen-agent/**'
+      - 'services/analyst-agents/**'
+      - 'services/guard-agents/**'
+      - 'services/optimizer-agents/**'
+      - '.github/workflows/e2e-suite-05-agents.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'services/worker-agents/**'
+      - 'services/scout-agents/**'
+      - 'services/queen-agent/**'
+
+jobs:
+  agents-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    services:
+      mongodb:
+        image: mongo:7.0
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd="mongosh --eval 'db.adminCommand({ping: 1})'"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install -r tests/requirements-test.txt
+          pip install -e libraries/python/neural_hive_resilience
+          pip install -e libraries/neural_hive_integration
+          pip install -e libraries/python/neural_hive_specialists
+
+      - name: Run Worker Agents Tests
+        env:
+          MONGODB_URI: mongodb://localhost:27017
+        run: |
+          pytest tests/e2e/test_worker_agents_e2e.py \
+            tests/integration/test_worker_agents_integration.py \
+            -v \
+            --tb=short \
+            --junit-xml=tests/results/worker-agents-junit.xml \
+            --log-cli-level=INFO
+        timeout-minutes: 10
+
+      - name: Run Queen Agent Tests
+        env:
+          MONGODB_URI: mongodb://localhost:27017
+        run: |
+          pytest tests/e2e/test_queen_agent_e2e.py \
+            -v \
+            --tb=short \
+            --junit-xml=tests/results/queen-agent-junit.xml \
+            --log-cli-level=INFO
+        timeout-minutes: 8
+
+      - name: Run Guard Agents Tests
+        env:
+          MONGODB_URI: mongodb://localhost:27017
+        run: |
+          cd services/guard-agents
+          pip install -r requirements.txt
+          pytest tests/integration/ -v --tb=short \
+            --junit-xml=../../tests/results/guard-agents-junit.xml
+        timeout-minutes: 8
+
+      - name: Run Optimizer Agents Tests
+        env:
+          MONGODB_URI: mongodb://localhost:27017
+        run: |
+          cd services/optimizer-agents
+          pip install -r requirements.txt
+          pytest tests/ -v --tb=short \
+            --junit-xml=../../tests/results/optimizer-agents-junit.xml
+        timeout-minutes: 8
+
+      - name: Run Analyst Agents Tests
+        env:
+          MONGODB_URI: mongodb://localhost:27017
+        run: |
+          cd services/analyst-agents
+          pip install -r requirements.txt
+          pytest tests/ -v --tb=short \
+            --junit-xml=../../tests/results/analyst-agents-junit.xml
+        timeout-minutes: 8
+
+      - name: Upload Agents Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agents-e2e-results
+          path: tests/results/*agents*-junit.xml
+
+      - name: Agents Summary
+        if: always()
+        run: |
+          echo "## Agents E2E Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          for result in tests/results/*agents*-junit.xml; do
+            if [ -f "$result" ]; then
+              echo "✅ $(basename $result)" >> $GITHUB_STEP_SUMMARY
+            fi
+          done
