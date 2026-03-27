@@ -1099,11 +1099,9 @@ class NLUPipeline:
 
     def _mask_pii_simple(self, text: str) -> str:
         """Método simples de fallback (mantém compatibilidade)."""
-        import re
-
         # Email
         text = re.sub(
-            r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b", "[EMAIL]", text
+            r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b", "[EMAIL]", text
         )
         # CPF
         text = re.sub(r"\b\d{3}\.\d{3}\.\d{3}-\d{2}\b", "[CPF]", text)
