@@ -1,0 +1,153 @@
+name: E2E Suite 04 - Orchestrator
+
+description: Orchestrator Dynamic, Temporal workflows, compensation, and execution tickets tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'services/orchestrator-dynamic/**'
+      - 'services/execution-ticket-service/**'
+      - '.github/workflows/e2e-suite-04-orchestrator.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'services/orchestrator-dynamic/**'
+      - 'services/execution-ticket-service/**'
+
+jobs:
+  orchestrator-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    services:
+      mongodb:
+        image: mongo:7.0
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd="mongosh --eval 'db.adminCommand({ping: 1})'"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+      temporal:
+        image: temporalio/auto-setup:1.22.4
+        ports:
+          - 7233:7233
+        env:
+          DB: mongodb
+          MONGODB_URI: mongodb://localhost:27017
+        options: >-
+          --health-cmd="tctl --address localhost:7233 cluster health"
+          --health-interval=10s
+          --health-timeout=10s
+          --health-retries=20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install -r tests/requirements-test.txt
+          pip install -e libraries/python/neural_hive_resilience
+          pip install -e libraries/python/neural_hive_ml
+          pip install -e libraries/neural_hive_integration
+          pip install scikit-learn pandas numpy mlflow pytest-asyncio motor
+
+      - name: Install Orchestrator dependencies
+        run: |
+          cd services/orchestrator-dynamic
+          grep -v '^/libraries' requirements.txt | pip install -r /dev/stdin
+
+      - name: Run ML Integration Tests (Staging Gate)
+        env:
+          MONGODB_URI: mongodb://localhost:27017
+          MLFLOW_TRACKING_URI: file:///tmp/mlflow_test
+          PYTHONPATH: services/orchestrator-dynamic/src
+        run: |
+          pytest tests/integration/ml/ \
+            -v \
+            --tb=short \
+            -m "ml_integration" \
+            --junit-xml=tests/results/ml-staging-gate-junit.xml \
+            --cov=services/orchestrator-dynamic/src/ml \
+            --cov-report=xml:tests/results/ml-staging-gate-coverage.xml \
+            --log-cli-level=INFO \
+            --strict-markers
+        timeout-minutes: 15
+
+      - name: Run Orchestrator Integration Tests
+        env:
+          MONGODB_URI: mongodb://localhost:27017
+          TEMPORAL_HOST: localhost:7233
+        run: |
+          pytest tests/integration/test_orchestrator_integration.py \
+            -v \
+            --tb=short \
+            --junit-xml=tests/results/orchestrator-integration-junit.xml \
+            --log-cli-level=INFO
+        timeout-minutes: 10
+
+      - name: Run Temporal Workflow Tests
+        env:
+          MONGODB_URI: mongodb://localhost:27017
+          TEMPORAL_HOST: localhost:7233
+        run: |
+          pytest tests/e2e/test_orchestration_flow_c.py \
+            tests/e2e/test_temporal_workflow_queries.py \
+            tests/e2e/test_workflow_compensation.py \
+            tests/e2e/test_compensation_flow.py \
+            -v \
+            --tb=short \
+            -m "orchestrator and not slow" \
+            --junit-xml=tests/results/temporal-workflow-junit.xml \
+            --log-cli-level=INFO
+        timeout-minutes: 12
+        continue-on-error: true
+
+      - name: Run Execution Ticket Service Tests
+        env:
+          MONGODB_URI: mongodb://localhost:27017
+        run: |
+          pytest tests/e2e/test_execution_ticket_service_e2e.py \
+            -v \
+            --tb=short \
+            --junit-xml=tests/results/execution-ticket-junit.xml \
+            --log-cli-level=INFO
+        timeout-minutes: 8
+
+      - name: Upload Orchestrator Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: orchestrator-e2e-results
+          path: tests/results/*orchestrator*-junit.xml,tests/results/*temporal*-junit.xml,tests/results/*execution*-junit.xml,tests/results/ml-staging-gate-*.xml
+
+      - name: Upload ML coverage
+        if: always()
+        uses: codecov/codecov-action@v3
+        with:
+          files: tests/results/ml-staging-gate-coverage.xml
+          flags: e2e,orchestrator,ml
+          fail_ci_if_error: false
+
+      - name: Orchestrator Summary
+        if: always()
+        run: |
+          echo "## Orchestrator E2E Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f "tests/results/ml-staging-gate-junit.xml" ]; then
+            echo "✅ ML integration gate passed" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ -f "tests/results/orchestrator-integration-junit.xml" ]; then
+            echo "✅ Orchestrator integration tests completed" >> $GITHUB_STEP_SUMMARY
+          fi
