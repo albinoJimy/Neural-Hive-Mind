@@ -6,6 +6,8 @@ from typing import List, Optional
 
 from pydantic import BaseModel, Field, ConfigDict
 
+from .validation import Severity
+
 
 class DriftType(str, Enum):
     """Tipos de divergência entre arquitetura planejada e implementada."""
@@ -25,9 +27,7 @@ class DriftDetection(BaseModel):
     description: str = Field(..., description="Descrição da divergência")
     expected: str = Field(..., description="Valor esperado")
     actual: str = Field(..., description="Valor encontrado")
-    severity: str = Field(
-        default="medium", description="Severidade: low, medium, high, critical"
-    )
+    severity: Severity = Field(default=Severity.MEDIUM)
 
 
 class EvolutionHistory(BaseModel):

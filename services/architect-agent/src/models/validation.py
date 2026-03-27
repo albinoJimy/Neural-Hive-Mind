@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Literal
 
 from pydantic import BaseModel, Field, ConfigDict
 
@@ -61,7 +61,7 @@ class Suggestion(BaseModel):
         ..., ge=1, le=5, description="Prioridade 1-5 (1 mais alta)"
     )
     description: str = Field(..., description="Descrição da sugestão")
-    effort: str = Field(
+    effort: Literal["XS", "S", "M", "L", "XL"] = Field(
         default="M",
         description="Esforço estimado: XS, S, M, L, XL",
     )
