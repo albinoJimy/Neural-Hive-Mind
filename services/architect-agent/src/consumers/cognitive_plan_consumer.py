@@ -1,11 +1,9 @@
 """Consumidor de CognitivePlans para arquitetura."""
 
-from typing import Awaitable, Callable
 import json
 
 from src.consumers.base import BaseKafkaConsumer
 from src.planners.design_planner import DesignPlanner
-from src.models.architecture import ArchitecturePlan
 from src.repositories.architecture_repository import ArchitectureRepository
 from src.config.settings import get_settings
 import structlog
@@ -21,7 +19,6 @@ class CognitivePlanConsumer(BaseKafkaConsumer):
         super().__init__()
         self.planner = DesignPlanner()
         self.repository = ArchitectureRepository()
-        self._last_created_plan: ArchitecturePlan | None = None
 
     def get_topic(self) -> str:
         """Retorna o tópico de CognitivePlans."""
@@ -65,9 +62,6 @@ class CognitivePlanConsumer(BaseKafkaConsumer):
             # Persistir no MongoDB
             await self.repository.create(architecture_plan)
 
-            # Armazenar referência para callbacks
-            self._last_created_plan = architecture_plan
-
             logger.info(
                 "architecture_plan_created",
                 architecture_plan_id=architecture_plan.plan_id,
@@ -80,17 +74,3 @@ class CognitivePlanConsumer(BaseKafkaConsumer):
             logger.error("invalid_json_in_message", error=str(e))
         except Exception as e:
             logger.error("cognitive_plan_processing_error", error=str(e))
-
-    async def on_plan_created(self, callback: Callable[[ArchitecturePlan], Awaitable[None]]) -> None:
-        """Registra callback para quando plano é criado.
-
-        Args:
-            callback: Função assíncrona que recebe ArchitecturePlan
-        """
-
-        async def wrapper(message: dict) -> None:
-            """Wrapper que extrai o plano criado e executa o callback."""
-            if self._last_created_plan:
-                await callback(self._last_created_plan)
-
-        self.register_callback(wrapper)

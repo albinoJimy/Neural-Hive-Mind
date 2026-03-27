@@ -14,12 +14,15 @@ from src.consumers.lifecycle import ConsumerManager
 class MockConsumer(BaseKafkaConsumer):
     """Mock consumer para testes."""
 
+    def __init__(self):
+        super().__init__()
+        self.processed_messages: list[dict] = []
+
     def get_topic(self) -> str:
         return "test.topic"
 
     async def process_message(self, message: dict) -> None:
         self.processed_messages.append(message)
-        self.processed_messages = getattr(self, "processed_messages", [])
 
 
 @pytest.fixture
@@ -187,42 +190,6 @@ async def test_cognitive_plan_consumer_process_message_with_dict_value(
     await consumer.process_message(message)
 
     consumer.planner.plan.assert_called_once()
-
-
-@pytest.mark.asyncio
-async def test_cognitive_plan_consumer_on_plan_created(
-    mock_settings_cognitive, mock_settings
-):
-    consumer = CognitivePlanConsumer()
-
-    # Mock planner e repository
-    mock_plan = Mock()
-    mock_plan.plan_id = "arch-999"
-    mock_plan.architecture_type = Mock(value="hybrid")
-    mock_plan.components = []
-
-    consumer.planner.plan = AsyncMock(return_value=mock_plan)
-    consumer.repository.create = AsyncMock()
-
-    # Callback mock
-    callback_mock = AsyncMock()
-
-    # Registrar callback
-    await consumer.on_plan_created(callback_mock)
-
-    # Processar mensagem
-    message = {
-        "key": None,
-        "value": json.dumps({"plan_id": "cog-999", "intent": "Hybrid architecture"}),
-        "topic": "cognitive.plans.created"
-    }
-
-    await consumer.process_message(message)
-
-    # Nota: O callback é executado via register_callback,
-    # mas no fluxo atual é chamado dentro de process_message
-    # Vamos verificar que o plano foi criado
-    assert consumer._last_created_plan is not None
 
 
 # ConsumerManager Tests

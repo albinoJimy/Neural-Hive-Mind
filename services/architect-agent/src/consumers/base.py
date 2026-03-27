@@ -1,7 +1,10 @@
 """Consumidor base para Kafka."""
 
+import asyncio
 from abc import ABC, abstractmethod
 from typing import Callable, Awaitable
+
+from aiokafka import AIOKafkaConsumer
 from src.config.settings import get_settings
 import structlog
 
@@ -38,9 +41,6 @@ class BaseKafkaConsumer(ABC):
 
     async def start(self) -> None:
         """Inicia consumo de mensagens."""
-        from aiokafka import AIOKafkaConsumer
-        import asyncio
-
         self._running = True
         consumer = AIOKafkaConsumer(
             self.get_topic(),
