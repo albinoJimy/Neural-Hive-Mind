@@ -195,13 +195,22 @@ class Settings(BaseSettings):
         description="Modelo spaCy para detecção de entidades (pt_core_news_sm ou pt_core_news_lg)",
     )
 
-    # Segurança (mantido para compatibilidade)
-    jwt_secret_key: str = Field(default="your-secret-key")
+    # Segurança (OBRIGATÓRIO em production)
+    jwt_secret_key: str = Field(
+        ...,
+        description="JWT secret key (OBRIGATÓRIO - usar valor forte em produção)"
+    )
     jwt_algorithm: str = Field(default="HS256")
 
-    # CORS e hosts
-    allowed_origins: List[str] = Field(default=["*"])
-    allowed_hosts: List[str] = Field(default=["*"])
+    # CORS e hosts (OBRIGATÓRIO)
+    allowed_origins: List[str] = Field(
+        ...,
+        description="CORS allowed origins (comma-separated string or list). Use ['*'] ONLY for development."
+    )
+    allowed_hosts: List[str] = Field(
+        default=["*"],
+        description="Allowed hosts for TrustedHostMiddleware"
+    )
 
     # Observabilidade - OpenTelemetry Collector OTLP endpoint
     otel_enabled: bool = Field(
@@ -272,6 +281,13 @@ class Settings(BaseSettings):
             raise ValueError(
                 f"nlu_routing_threshold_low ({v}) must be < nlu_routing_threshold_high ({high_threshold})"
             )
+        return v
+
+    @validator("allowed_origins", pre=True)
+    def parse_cors_origins(cls, v):
+        """Parse CORS_ORIGINS from comma-separated string to list."""
+        if isinstance(v, str):
+            return [origin.strip() for origin in v.split(",")]
         return v
 
     @model_validator(mode="after")
