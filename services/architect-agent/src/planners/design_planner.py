@@ -5,6 +5,7 @@ import re
 import uuid
 from datetime import datetime
 from typing import Dict, Any, Optional
+from pydantic import ValidationError
 
 from src.models.architecture import (
     ArchitecturePlan,
@@ -96,7 +97,17 @@ class DesignPlanner(BasePlanner):
             components = []
             for comp in data.get("components", []):
                 if isinstance(comp, dict):
-                    components.append(Component(**comp))
+                    # Filtrar apenas campos permitidos pelo modelo Component
+                    allowed_fields = {"name", "stack", "replicas", "ha", "resources"}
+                    filtered_comp = {
+                        k: v for k, v in comp.items() if k in allowed_fields
+                    }
+                    # Garantir campos obrigatórios
+                    if "name" not in filtered_comp:
+                        filtered_comp["name"] = "unknown"
+                    if "stack" not in filtered_comp:
+                        filtered_comp["stack"] = "python/fastapi"
+                    components.append(Component(**filtered_comp))
                 elif isinstance(comp, str):
                     components.append(
                         Component(name=comp, stack="python/fastapi")
@@ -134,7 +145,7 @@ class DesignPlanner(BasePlanner):
                 ),
                 "requirements": data.get("requirements", {}),
             }
-        except (json.JSONDecodeError, KeyError) as e:
+        except (json.JSONDecodeError, KeyError, ValidationError) as e:
             # Fallback para resposta padrão
             return {
                 "architecture_type": ArchitectureType.MONOLITH,
