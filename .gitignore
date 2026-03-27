@@ -41,7 +41,9 @@ infrastructure/terraform/modules/observability-stack/.terraform/
 build/
 dist/
 
-# Coverage
+# Coverage (recursive patterns)
+**/.coverage
+**/.coverage.*
 .coverage
 htmlcov/
 

@@ -1,0 +1,35 @@
+# Scout Agents - Dependencies with exact pinning for reproducible builds
+# Generated: 2026-03-27
+
+# Core dependencies
+fastapi==0.115.6
+uvicorn==0.34.0
+pydantic==2.10.4
+pydantic-settings==2.6.1
+
+# Logging and observability
+structlog==24.4.0
+prometheus-client==0.21.1
+opentelemetry-api==1.29.0
+opentelemetry-sdk==1.29.0
+opentelemetry-instrumentation-fastapi==0.50b0
+opentelemetry-exporter-otlp==1.29.0
+
+# Kafka
+aiokafka==0.12.0
+avro-python3==1.10.2
+
+# HTTP and gRPC clients
+httpx==0.28.1
+
+# gRPC
+grpcio==1.68.1
+grpcio-tools==1.68.1
+protobuf==5.29.2
+
+# Redis
+redis==5.2.1
+hiredis==2.4.0
+
+# ML and numerical computing
+numpy==1.26.4

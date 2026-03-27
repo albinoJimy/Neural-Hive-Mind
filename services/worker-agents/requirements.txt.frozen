@@ -1,0 +1,37 @@
+# Worker Agents - Dependencies with exact pinning for reproducible builds
+# Generated: 2026-03-27
+
+# Core dependencies
+fastapi==0.115.6
+uvicorn==0.34.0
+pydantic==2.10.4
+pydantic-settings==2.6.1
+
+# Kafka
+confluent-kafka==2.6.1
+fastavro==1.9.7
+
+# gRPC
+grpcio==1.68.1
+grpcio-tools==1.68.1
+protobuf==5.29.2
+
+# Temporal
+temporalio==1.5.0
+
+# HTTP clients
+httpx==0.28.1
+PyJWT==2.8.0
+
+# Observability
+structlog==24.4.0
+prometheus-client==0.21.1
+opentelemetry-api==1.29.0
+opentelemetry-sdk==1.29.0
+opentelemetry-instrumentation-fastapi==0.50b0
+opentelemetry-exporter-otlp==1.29.0
+
+# Database
+motor==3.7.1
+pymongo==4.10.1
+redis==5.2.1

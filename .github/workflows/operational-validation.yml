@@ -1,0 +1,267 @@
+name: Operational Validation
+
+on:
+  push:
+    branches: [main, staging]
+  pull_request:
+    branches: [main, staging]
+  workflow_dispatch:
+
+jobs:
+  # Job 1: Verificar arquivos órfãos
+  check-orphaned-files:
+    name: Check Orphaned Files
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check for orphaned files in root
+        run: |
+          echo "Checking for orphaned files in repository root..."
+
+          # List of patterns to check (should not exist)
+          ORPHANS=(
+            "=0*"
+            "crane"
+            "*.tar.gz"
+            "*.log"
+          )
+
+          FOUND=0
+          for pattern in "${ORPHANS[@]}"; do
+            if ls $pattern 2>/dev/null; then
+              echo "::error::Found orphaned file matching pattern: $pattern"
+              FOUND=1
+            fi
+          done
+
+          # Check for large files (>10MB) in root
+          find . -maxdepth 1 -type f -size +10M -not -path "./.git/*" | while read -r file; do
+            echo "::warning::Large file in root: $file"
+          done
+
+          if [ $FOUND -eq 1 ]; then
+            echo "::error::Orphaned files found in repository root!"
+            exit 1
+          fi
+
+          echo "✓ No orphaned files found"
+
+      - name: Check for worktrees in git
+        run: |
+          if git ls-files --others --ignored --exclude-standard | grep -q ".claude/worktrees"; then
+            echo "::error::Worktrees found in git index!"
+            echo "Run: git rm --cached -r .claude/worktrees/"
+            exit 1
+          fi
+          echo "✓ No worktrees in git index"
+
+  # Job 2: Validar pinning de dependências
+  check-dependencies:
+    name: Check Dependency Pinning
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check for unpinned dependencies
+        run: |
+          echo "Checking for unpinned dependencies (>=, ~=, >, <, ~, !==, ===, !=, <>)..."
+
+          # Find all requirements.txt (not dev, test, frozen, mlruns)
+          FILES=$(find services -name "requirements*.txt" \
+            -not -name "*dev*" \
+            -not -name "*test*" \
+            -not -name "*frozen*" \
+            -not -path "*/mlruns/*")
+
+          RANGES_FOUND=0
+          for file in $FILES; do
+            # Check for any range specifier (skip comments and empty lines)
+            while IFS= read -r line; do
+              # Skip empty lines, comments, and -r references
+              [[ -z "$line" ]] && continue
+              [[ "$line" =~ ^#.* ]] && continue
+              [[ "$line" =~ ^-r[[:space:]] ]] && continue
+
+              # Check for range operators
+              if [[ "$line" =~ (>=|~=|>|<|~|!==|===|!=|<>) ]]; then
+                echo "::error::Unpinned dependency in $file: $line"
+                RANGES_FOUND=1
+              fi
+            done < "$file"
+          done
+
+          if [ $RANGES_FOUND -eq 1 ]; then
+            echo "::error::Found unpinned dependencies!"
+            echo "All dependencies must be pinned to exact versions."
+            exit 1
+          fi
+
+          echo "✓ All dependencies are pinned"
+
+      - name: Verify .frozen files have exact versions only
+        run: |
+          echo "Checking requirements.frozen files for exact pinning..."
+
+          # Find all .frozen files
+          FILES=$(find services -name "*.frozen" -not -path "*/mlruns/*")
+
+          RANGES_FOUND=0
+          for file in $FILES; do
+            # Check for any range specifier in .frozen files
+            while IFS= read -r line; do
+              [[ -z "$line" ]] && continue
+              [[ "$line" =~ ^#.* ]] && continue
+              [[ "$line" =~ ^-r[[:space:]] ]] && continue
+
+              # .frozen files MUST have exact versions only
+              if [[ "$line" =~ (>=|~=|>|<|~|!==|===|!=|<>|\[|\]|\;|@) ]]; then
+                echo "::error::Non-exact version in $file: $line"
+                RANGES_FOUND=1
+              fi
+            done < "$file"
+          done
+
+          if [ $RANGES_FOUND -eq 1 ]; then
+            echo "::error::.frozen files must contain exact versions only!"
+            echo "Example: package==1.2.3 (not package>=1.2.3)"
+            exit 1
+          fi
+
+          echo "✓ All .frozen files use exact versions"
+
+  # Job 3: Docker image security scan
+  docker-scan:
+    name: Docker Security Scan
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          - gateway-intencoes
+          - approval-service
+          - consensus-engine
+          - orchestrator-dynamic
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        run: |
+          if [ -f "services/${{ matrix.service }}/Dockerfile" ]; then
+            docker build -f services/${{ matrix.service }}/Dockerfile -t test-${{ matrix.service }} services/${{ matrix.service }}/
+          else
+            echo "::error::Dockerfile not found for ${{ matrix.service }}"
+            exit 1
+          fi
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: test-${{ matrix.service }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Check for critical vulnerabilities
+        run: |
+          # Check if Trivy found CRITICAL vulnerabilities
+          CRITICAL_COUNT=$(grep -o '"severity": "CRITICAL"' trivy-results.sarif 2>/dev/null | wc -l)
+
+          if [ "$CRITICAL_COUNT" -gt 0 ]; then
+            echo "::error::Found $CRITICAL_COUNT CRITICAL vulnerabilities in ${{ matrix.service }}!"
+            echo "Review the Security tab for detailed results."
+            echo "CRITICAL vulnerabilities must be fixed before merge."
+            exit 1
+          else
+            echo "✓ No critical vulnerabilities found in ${{ matrix.service }}"
+          fi
+
+  # Job 4: Check docs/archive organization
+  check-docs-organization:
+    name: Check Documentation Organization
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check archive structure
+        run: |
+          echo "Checking docs/archive/ structure..."
+
+          # Archive directory should exist
+          if [ ! -d "docs/archive" ]; then
+            echo "::warning::docs/archive/ directory not found (creating it)"
+            mkdir -p docs/archive
+            touch docs/archive/.gitkeep
+          fi
+
+          # Check for historical docs in root (should be archived)
+          HISTORICAL_PATTERNS=(
+            "RELATORIO_*.md"
+            "RESUMO_*.md"
+            "SUMARIO_*.md"
+            "STATUS_*.md"
+            "RESULTADO_*.md"
+            "SESSAO_*.md"
+            "EKS_*.md"
+            "DEPLOYMENT_*.md"
+            "VALIDACAO_*.md"
+            "VALIDATION_*.md"
+            "TESTE_*.md"
+            "DIAGNOSTIC_*.md"
+          )
+
+          FOUND_UNARCHIVED=0
+          for pattern in "${HISTORICAL_PATTERNS[@]}"; do
+            if ls $pattern 2>/dev/null; then
+              echo "::warning::Historical document in root matching: $pattern"
+              FOUND_UNARCHIVED=1
+            fi
+          done
+
+          if [ $FOUND_UNARCHIVED -eq 1 ]; then
+            echo "::warning::Some historical documents may need to be archived"
+          else
+            echo "✓ Root directory is clean"
+          fi
+
+  # Summary
+  summary:
+    name: Validation Summary
+    runs-on: ubuntu-latest
+    needs: [check-orphaned-files, check-dependencies, docker-scan, check-docs-organization]
+    if: always()
+    steps:
+      - name: Print summary
+        run: |
+          echo "## Operational Validation Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Orphaned Files | ${{ needs.check-orphaned-files.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Dependencies | ${{ needs.check-dependencies.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Docker Scan | ${{ needs.docker-scan.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Docs Organization | ${{ needs.check-docs-organization.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # ALL jobs must succeed, including docker-scan
+          if [ "${{ needs.check-orphaned-files.result }}" = "success" ] && \
+             [ "${{ needs.check-dependencies.result }}" = "success" ] && \
+             [ "${{ needs.docker-scan.result }}" = "success" ] && \
+             [ "${{ needs.check-docs-organization.result }}" = "success" ]; then
+            echo "✅ All operational validations passed!" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Some validations failed. Please review." >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
