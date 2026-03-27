@@ -1,3 +1,4 @@
+import contextlib
 import structlog
 from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -43,12 +44,22 @@ def configure_tracing() -> None:
     trace.set_tracer_provider(provider)
 
 
+@contextlib.asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Context manager for startup and shutdown events."""
+    logger = structlog.get_logger()
+    logger.info("software_engineering_pipeline_starting", port=settings.api_port)
+    yield
+    logger.info("software_engineering_pipeline_shutting_down")
+
+
 def create_app() -> FastAPI:
     app = FastAPI(
         title=settings.app_name,
         version=settings.app_version,
         docs_url="/api/docs",
         redoc_url="/api/redoc",
+        lifespan=lifespan,
     )
 
     app.add_middleware(
@@ -76,16 +87,6 @@ configure_tracing()
 
 app = create_app()
 logger = structlog.get_logger()
-
-
-@app.on_event("startup")
-async def startup_event() -> None:
-    logger.info("software_engineering_pipeline_starting", port=settings.api_port)
-
-
-@app.on_event("shutdown")
-async def shutdown_event() -> None:
-    logger.info("software_engineering_pipeline_shutting_down")
 
 
 @app.get("/health")
