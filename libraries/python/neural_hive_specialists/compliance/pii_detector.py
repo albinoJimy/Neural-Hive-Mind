@@ -375,17 +375,26 @@ class PIIDetectorLite:
         Args:
             config: Config (opcional, usa defaults se não fornecido)
         """
-        from .pii_masker import PIIMasker, MaskStrategy
-        from .pii_patterns import get_pattern_registry, PIIType
+        try:
+            from .pii_masker import PIIMasker, MaskStrategy
+            from .pii_patterns import get_pattern_registry, PIIType
 
-        self.masker = PIIMasker(
-            strategy=MaskStrategy.PARTIAL,
-            enable_spacy=True,
-        )
-        self.pattern_registry = get_pattern_registry()
-        self.enabled = True
+            self.masker = PIIMasker(
+                strategy=MaskStrategy.PARTIAL,
+                enable_spacy=True,
+            )
+            self.pattern_registry = get_pattern_registry()
+            self.enabled = True
 
-        logger.info("PIIDetectorLite initialized", strategy="partial")
+            logger.info("PIIDetectorLite initialized", strategy="partial")
+        except ImportError as e:
+            logger.error(
+                "Falha ao importar dependências do PIIDetectorLite",
+                error=str(e),
+            )
+            self.enabled = False
+            self.masker = None
+            self.pattern_registry = None
 
     def detect_pii(self, text: str, language: str = "pt") -> List[Dict]:
         """
@@ -419,7 +428,7 @@ class PIIDetectorLite:
 
         return detected
 
-    def anonymize_text(self, text: str, language: str = "pt") -> Tuple[str, List]:
+    def anonymize_text(self, text: str, language: str = "pt") -> Tuple[str, List[Dict[str, Any]]]:
         """
         Anonimiza texto (interface compatível com PIIDetector).
 
@@ -438,6 +447,7 @@ class PIIDetectorLite:
                 "start": e.start,
                 "end": e.end,
                 "score": e.confidence,
+                "value": e.value,
             }
             for e in result.entities
         ]
