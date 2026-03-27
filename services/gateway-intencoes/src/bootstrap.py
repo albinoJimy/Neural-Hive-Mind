@@ -117,6 +117,49 @@ class InfrastructurePhase(InitializationPhase):
             logger.debug("rate_limit_user_overrides_parse_skipped", error=str(e))
 
 
+class SecurityValidationPhase(InitializationPhase):
+    """Fase 0: Validação de configurações de segurança OBRIGATÓRIAS."""
+
+    def __init__(self, settings):
+        super().__init__("security_validation", required=True)
+        self.settings = settings
+
+    async def execute(self, context: ApplicationContext) -> bool:
+        """Valida que variáveis de segurança obrigatórias estão definidas."""
+        try:
+            logger.info("phase_security_validation_start")
+
+            # Verificar JWT secret não é o default (que não existe mais, mas defensive check)
+            if self.settings.jwt_secret_key in ("", "your-secret-key", "secret", "change-me"):
+                error_msg = (
+                    "JWT_SECRET_KEY não está configurado corretamente. "
+                    "Use uma string forte e única em produção."
+                )
+                logger.error("phase_security_validation_failed", reason="invalid_jwt_secret")
+                context.errors.append(error_msg)
+                return False
+
+            # Verificar CORS não é wildcard em produção
+            if self.settings.environment in ("production", "prod"):
+                if "*" in self.settings.allowed_origins:
+                    error_msg = (
+                        "CORS wildcard (*) não é permitido em produção. "
+                        "Configure ALLOWED_ORIGINS com domínios específicos."
+                    )
+                    logger.error("phase_security_validation_failed", reason="cors_wildcard_in_prod")
+                    context.errors.append(error_msg)
+                    return False
+
+            logger.info("phase_security_validation_complete")
+            return True
+
+        except Exception as e:
+            error_msg = f"Security validation phase failed: {str(e)}"
+            logger.error("phase_security_validation_failed", error=str(e), exc_info=True)
+            context.errors.append(error_msg)
+            return False
+
+
 class ProcessingPhase(InitializationPhase):
     """Fase 2: Pipelines de processamento (ASR, NLU)."""
 
@@ -386,6 +429,7 @@ class ApplicationBootstrapper:
     def _setup_phases(self):
         """Configura a ordem das fases de inicialização."""
         self.phases = [
+            SecurityValidationPhase(self.settings),  # PRIMEIRO: validar segurança
             InfrastructurePhase(self.settings),
             ProcessingPhase(self.settings),
             ObservabilityPhase(self.settings),
