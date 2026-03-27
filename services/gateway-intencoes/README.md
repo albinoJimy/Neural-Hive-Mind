@@ -11,6 +11,41 @@ Gateway para captura e processamento de intenções do Neural Hive-Mind, com sup
 - **Observabilidade**: Métricas Prometheus e tracing OpenTelemetry
 - **Segurança**: Autenticação OAuth2/Keycloak e mascaramento de PII
 
+## Configuração de Segurança
+
+Este serviço requer configuração OBRIGATÓRIA de variáveis de ambiente para funcionar em segurança.
+
+### Variáveis Obrigatórias
+
+| Variável | Descrição | Exemplo |
+|----------|-----------|---------|
+| `JWT_SECRET_KEY` | Secret key para assinar tokens JWT | Use `python -c "import secrets; print(secrets.token_urlsafe(32))"` |
+| `CORS_ORIGINS` | Origens CORS permitidas (separadas por vírgula) | `http://localhost:3000,https://app.example.com` |
+
+### Setup Rápido
+
+```bash
+# 1. Copiar template
+cp .env.example .env
+
+# 2. Gerar JWT secret
+JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")
+
+# 3. Editar .env
+nano .env
+# Preencha JWT_SECRET_KEY e CORS_ORIGINS
+
+# 4. Verificar configuração
+python -c "from src.config.settings import Settings; print(Settings().dict())"
+```
+
+### ⚠️ Importante
+
+- **NUNCA** faça commit de ficheiros `.env` com valores reais
+- **NUNCA** use `JWT_SECRET_KEY="secret"` ou valores padrão em produção
+- **NUNCA** use `CORS_ORIGINS="*"` em produção
+- Rodar o serviço sem estas variáveis causará erro no startup
+
 ## Configurações NLU
 
 O serviço oferece configurações avançadas para o pipeline de Natural Language Understanding (NLU):
