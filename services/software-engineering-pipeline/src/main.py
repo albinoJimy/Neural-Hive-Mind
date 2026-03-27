@@ -18,7 +18,7 @@ def configure_logging() -> None:
             structlog.stdlib.add_logger_name,
             structlog.stdlib.add_log_level,
             structlog.stdlib.PositionalArgumentsFormatter(),
-            structlog.processors.TimeStamper(fmt='iso'),
+            structlog.processors.TimeStamper(fmt="iso"),
             structlog.processors.StackInfoRenderer(),
             structlog.processors.format_exc_info,
             structlog.processors.UnicodeDecoder(),
@@ -45,23 +45,23 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title=settings.app_name,
         version=settings.app_version,
-        docs_url='/api/docs',
-        redoc_url='/api/redoc',
+        docs_url="/api/docs",
+        redoc_url="/api/redoc",
     )
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=['*'],
+        allow_origins=settings.cors_allowed_origins,
         allow_credentials=True,
-        allow_methods=['*'],
-        allow_headers=['*'],
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
 
-    app.include_router(api_router, prefix='/api/v1')
+    app.include_router(api_router, prefix="/api/v1")
 
     # Prometheus metrics endpoint
     metrics_app = make_asgi_app()
-    app.mount('/metrics', metrics_app)
+    app.mount("/metrics", metrics_app)
 
     return app
 
@@ -73,16 +73,16 @@ app = create_app()
 logger = structlog.get_logger()
 
 
-@app.on_event('startup')
+@app.on_event("startup")
 async def startup_event() -> None:
-    logger.info('software_engineering_pipeline_starting', port=settings.api_port)
+    logger.info("software_engineering_pipeline_starting", port=settings.api_port)
 
 
-@app.on_event('shutdown')
+@app.on_event("shutdown")
 async def shutdown_event() -> None:
-    logger.info('software_engineering_pipeline_shutting_down')
+    logger.info("software_engineering_pipeline_shutting_down")
 
 
-@app.get('/health')
+@app.get("/health")
 async def health_check() -> dict[str, str]:
-    return {'status': 'healthy', 'service': settings.app_name}
+    return {"status": "healthy", "service": settings.app_name}
