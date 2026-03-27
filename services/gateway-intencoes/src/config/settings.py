@@ -177,6 +177,24 @@ class Settings(BaseSettings):
         description="Permitir endpoints HTTP em staging (para comunicação interna do cluster)",
     )
 
+    # PII Masking
+    enable_pii_masking: bool = Field(
+        default=True,
+        description="Habilitar mascaramento de informações sensíveis (PII) no texto de entrada",
+    )
+    pii_masking_strategy: str = Field(
+        default="partial",
+        description="Estratégia de mascaramento: partial (preserva formato), redact (remove completamente)",
+    )
+    pii_masking_preserve_format: bool = Field(
+        default=True,
+        description="Preservar formato original ao mascarar (ex: ***-***-*** para CPF)",
+    )
+    pii_masking_spacy_model: str = Field(
+        default="pt_core_news_sm",
+        description="Modelo spaCy para detecção de entidades (pt_core_news_sm ou pt_core_news_lg)",
+    )
+
     # Segurança (mantido para compatibilidade)
     jwt_secret_key: str = Field(default="your-secret-key")
     jwt_algorithm: str = Field(default="HS256")
@@ -238,6 +256,13 @@ class Settings(BaseSettings):
             # Em produção, alguns recursos de segurança são obrigatórios
             if not values.get("token_validation_enabled", True):
                 raise ValueError("token_validation_enabled must be True in production")
+        return v
+
+    @validator("pii_masking_strategy")
+    def validate_pii_masking_strategy(cls, v):
+        allowed = ["partial", "redact", "full"]
+        if v not in allowed:
+            raise ValueError(f"pii_masking_strategy must be one of {allowed}")
         return v
 
     @validator("nlu_routing_threshold_low")
