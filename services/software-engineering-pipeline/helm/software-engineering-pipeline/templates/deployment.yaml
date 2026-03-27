@@ -1,0 +1,133 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "software-engineering-pipeline.fullname" . }}
+  labels:
+    {{- include "software-engineering-pipeline.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "software-engineering-pipeline.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "software-engineering-pipeline.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "software-engineering-pipeline.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          env:
+            - name: API_HOST
+              value: "0.0.0.0"
+            - name: API_PORT
+              value: "{{ .Values.service.port | toString }}"
+            - name: LOG_LEVEL
+              value: {{ .Values.env.log_level | quote }}
+            - name: ENVIRONMENT
+              value: {{ .Values.env.environment | quote }}
+            - name: MONGODB_URL
+              value: {{ .Values.mongodb.url | quote }}
+            - name: MONGODB_DB_NAME
+              value: {{ .Values.mongodb.db_name | quote }}
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: {{ .Values.kafka.bootstrap_servers | quote }}
+            - name: KAFKA_GROUP_ID
+              value: {{ .Values.kafka.group_id | quote }}
+            {{- if .Values.otel.enabled }}
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: {{ .Values.otel.endpoint | quote }}
+            {{- end }}
+            {{- if .Values.github.token }}
+            - name: GITHUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: github-credentials
+                  key: token
+            {{- end }}
+            {{- if .Values.gitlab.token }}
+            - name: GITLAB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: gitlab-credentials
+                  key: token
+            - name: GITLAB_URL
+              value: {{ .Values.gitlab.url | quote }}
+            {{- end }}
+            {{- if .Values.argocd.token }}
+            - name: ARGOCD_URL
+              value: {{ .Values.argocd.url | quote }}
+            - name: ARGOCD_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: argocd-credentials
+                  key: token
+            - name: ARGOCD_NAMESPACE
+              value: {{ .Values.argocd.namespace | quote }}
+            {{- end }}
+            - name: ANOMALY_DETECTION_ENABLED
+              value: {{ .Values.anomaly_detection.enabled | quote }}
+            - name: ANOMALY_THRESHOLD
+              value: {{ .Values.anomaly_detection.threshold | quote }}
+            - name: FLAKY_TEST_THRESHOLD
+              value: {{ .Values.flaky_test_threshold | quote }}
+            - name: PIPELINE_INSIGHTS_RETENTION_DAYS
+              value: {{ .Values.insights_retention_days | quote }}
+            - name: DEFAULT_TIMEOUT_MINUTES
+              value: {{ .Values.default_timeout_minutes | quote }}
+            - name: MAX_RETRIES
+              value: {{ .Values.max_retries | quote }}
+            - name: ROLLBACK_ON_HEALTH_CHECK_FAILURE
+              value: {{ .Values.rollback_on_health_check_failure | quote }}
+            - name: ROLLBACK_ON_METRICS_DEGRADATION
+              value: {{ .Values.rollback_on_metrics_degradation | quote }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

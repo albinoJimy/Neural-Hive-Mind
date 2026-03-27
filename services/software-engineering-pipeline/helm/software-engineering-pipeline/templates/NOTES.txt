@@ -1,0 +1,33 @@
+O software-engineering-pipeline foi implantado com sucesso!
+
+{{- if contains .Values.service.type "LoadBalancer" }}
+O serviço será acessível via LoadBalancer externo:
+    {{- range $key, $val := .Values.ingress }}
+    {{- if $val.enabled }}
+    {{- range $val.hosts }}
+    http{{ if $val.tls }}s{{ end }}://{{ $val.host }}{{ $val.path }}
+    {{- end }}
+    {{- end }}
+{{- else if contains .Values.service.type "ClusterIP" }}
+O serviço será acessível apenas dentro do cluster.
+
+Para acessar o serviço de fora, use port-forwarding:
+  kubectl port-forward svc/{{ include "software-engineering-pipeline.fullname" . }} 8080:8008
+
+A API estará disponível em http://localhost:8080/api/v1
+{{- end }}
+
+Para verificar o status do pod:
+  kubectl get pods -l app.kubernetes.io/name={{ include "software-engineering-pipeline.name" . }}
+
+Para ver os logs:
+  kubectl logs -l app.kubernetes.io/name={{ include "software-engineering-pipeline.name" . }}
+
+Para fazer upgrade da release:
+  helm upgrade {{ .Release.Name }} .
+
+Para rollback para versão anterior:
+  helm rollback {{ .Release.Name }}
+
+Para limpar tudo:
+  helm uninstall {{ .Release.Name }}
