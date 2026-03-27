@@ -252,7 +252,7 @@ class TestD3BuildFlowEndToEnd:
         )
 
         # Executar (deve falhar e criar compensação)
-        result = await mock_d3_pipeline_engine.execute_pipeline(d3_build_ticket)
+        await mock_d3_pipeline_engine.execute_pipeline(d3_build_ticket)
 
         # Verificar que compensação foi criada
         assert mock_ticket_client.create_compensation_ticket.called, \
@@ -420,7 +420,7 @@ class TestD3ExternalServicesIntegration:
         - Status PENDING → RUNNING → COMPLETED
         - pipeline_id adicionado aos metadata
         """
-        result = await mock_d3_pipeline_engine.execute_pipeline(d3_build_ticket)
+        await mock_d3_pipeline_engine.execute_pipeline(d3_build_ticket)
 
         # Verificar chamadas de update_status
         assert mock_ticket_client.update_status.called, \
@@ -507,9 +507,6 @@ class TestD3FailureScenarios:
         """
         # Mock que falha validação
         async def _failing_validation(context):
-            from src.models.artifact import (
-                ValidationResult, ValidationType, ValidationStatus
-            )
             validation = ValidationResult(
                 validation_type=ValidationType.SAST,
                 tool_name='SonarQube',

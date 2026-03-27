@@ -13,10 +13,10 @@ from unittest.mock import MagicMock
 import pytest
 
 from src.models.artifact import (
-from src.types.artifact_types import ArtifactCategory, CodeLanguage
     ArtifactCategory, CodeForgeArtifact, PipelineResult, PipelineStatus,
     PipelineStage, StageStatus, ValidationResult, ValidationType, ValidationStatus
 )
+from src.types.artifact_types import ArtifactCategory, CodeLanguage
 from src.models.execution_ticket import TaskType, TicketStatus
 from src.models.pipeline_context import PipelineContext
 

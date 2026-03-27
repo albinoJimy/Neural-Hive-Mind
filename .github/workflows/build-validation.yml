@@ -49,7 +49,7 @@ jobs:
           echo "=== Validando cadeia de dependências ==="
 
           # Ordem correta de dependência
-          local -a expected_order=(
+          expected_order=(
             "python-observability-base"
             "python-grpc-base"
             "python-nlp-base"

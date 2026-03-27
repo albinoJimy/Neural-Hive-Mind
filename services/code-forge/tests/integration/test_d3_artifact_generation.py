@@ -767,6 +767,6 @@ class TestD3MultipleArtifacts:
         # Verificar ordem
         for i, artifact in enumerate(d3_pipeline_context.generated_artifacts):
             if i > 0:
-                prev = d3_pipeline_context.generated_artifacts[i-1]
+                prev = d3_pipeline_context.generated_artifacts[i - 1]
                 # Ordem de criação
                 assert artifact.created_at >= prev.created_at
