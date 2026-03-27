@@ -16,7 +16,7 @@ setup(
         "neural_hive_integration.proto_stubs": ["*.py"],
     },
     include_package_data=True,
-    python_requires=">=3.11",
+    python_requires=">=3.10",
     install_requires=[
         "httpx>=0.25.2",
         "grpcio>=1.68.1",  # Aligned with proto stubs GRPC_GENERATED_VERSION

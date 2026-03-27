@@ -15,11 +15,11 @@ from neural_hive_integration.clients.code_forge_client import PipelineStatus
 
 
 # Import test helpers
-from tests.fixtures.executor_fixtures import (
+from fixtures.executor_fixtures import (
     create_mock_code_forge_client,
     create_pipeline_status,
 )
-from tests.helpers.integration_helpers import (
+from helpers.integration_helpers import (
     ExecutorTestHelper,
     ResultValidator,
 )
@@ -36,7 +36,7 @@ class TestBuildExecutorWithMockCodeForge:
         self, worker_config, mock_vault_client, mock_metrics
     ):
         """Test successful build execution with mocked Code Forge."""
-        from services.worker_agents.src.executors.build_executor import BuildExecutor
+        from src.executors.build_executor import BuildExecutor
 
         # Create mock Code Forge client
         mock_client = create_mock_code_forge_client(
@@ -81,7 +81,7 @@ class TestBuildExecutorWithMockCodeForge:
         self, worker_config, mock_vault_client, mock_metrics
     ):
         """Test fallback to simulation when Code Forge is unavailable."""
-        from services.worker_agents.src.executors.build_executor import BuildExecutor
+        from src.executors.build_executor import BuildExecutor
 
         # Create mock that always fails
         mock_client = create_mock_code_forge_client(should_fail=True)
@@ -107,7 +107,7 @@ class TestBuildExecutorWithMockCodeForge:
         self, worker_config, mock_vault_client, mock_metrics
     ):
         """Test handling of pipeline timeout."""
-        from services.worker_agents.src.executors.build_executor import BuildExecutor
+        from src.executors.build_executor import BuildExecutor
 
         # Create mock that returns timeout status
         mock_client = create_mock_code_forge_client(
@@ -136,7 +136,7 @@ class TestBuildExecutorWithMockCodeForge:
         self, worker_config, mock_vault_client, mock_metrics
     ):
         """Test handling of failed pipeline status."""
-        from services.worker_agents.src.executors.build_executor import BuildExecutor
+        from src.executors.build_executor import BuildExecutor
 
         # Create mock that returns failed status
         mock_client = create_mock_code_forge_client(
@@ -164,7 +164,7 @@ class TestBuildExecutorWithMockCodeForge:
         self, worker_config, mock_vault_client, mock_metrics
     ):
         """Test retry logic when trigger fails initially then succeeds."""
-        from services.worker_agents.src.executors.build_executor import BuildExecutor
+        from src.executors.build_executor import BuildExecutor
 
         # Track call count for retry verification
         call_count = {'value': 0}
@@ -209,7 +209,7 @@ class TestBuildExecutorWithMockCodeForge:
         self, worker_config, mock_vault_client, mock_metrics
     ):
         """Test fallback when all retries are exhausted."""
-        from services.worker_agents.src.executors.build_executor import BuildExecutor
+        from src.executors.build_executor import BuildExecutor
 
         # Mock that always fails
         mock_client = AsyncMock()
@@ -247,7 +247,7 @@ class TestBuildExecutorSimulation:
         self, worker_config_minimal, mock_vault_client, mock_metrics
     ):
         """Test build execution in pure simulation mode."""
-        from services.worker_agents.src.executors.build_executor import BuildExecutor
+        from src.executors.build_executor import BuildExecutor
 
         executor = BuildExecutor(
             config=worker_config_minimal,
@@ -271,7 +271,7 @@ class TestBuildExecutorSimulation:
         self, worker_config_minimal, mock_vault_client, mock_metrics
     ):
         """Test that metrics are recorded in simulation mode."""
-        from services.worker_agents.src.executors.build_executor import BuildExecutor
+        from src.executors.build_executor import BuildExecutor
 
         executor = BuildExecutor(
             config=worker_config_minimal,
@@ -338,7 +338,7 @@ class TestBuildExecutorRealCodeForge:
     @pytest.mark.asyncio
     async def test_build_executor_with_real_code_forge(self, worker_config, mock_vault_client, mock_metrics):
         """Test with real Code Forge (requires CODE_FORGE_URL env var)."""
-        from services.worker_agents.src.executors.build_executor import BuildExecutor
+        from src.executors.build_executor import BuildExecutor
         from neural_hive_integration.clients.code_forge_client import CodeForgeClient
 
         code_forge_url = os.getenv('CODE_FORGE_URL')

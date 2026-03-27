@@ -108,7 +108,7 @@ def worker_config():
 
     This creates a mock config that can be customized per test.
     """
-    from services.worker_agents.src.config.settings import WorkerAgentSettings
+    from src.config.settings import WorkerAgentSettings
 
     class TestSettings(WorkerAgentSettings):
         """Test settings with environment overrides."""
@@ -147,7 +147,7 @@ def worker_config():
 @pytest.fixture
 def worker_config_minimal():
     """Minimal config with all integrations disabled."""
-    from services.worker_agents.src.config.settings import WorkerAgentSettings
+    from src.config.settings import WorkerAgentSettings
 
     return WorkerAgentSettings(
         service_name='worker-agents-test-minimal',
