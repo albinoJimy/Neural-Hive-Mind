@@ -2,10 +2,9 @@
 
 from typing import List, Optional
 from datetime import datetime, timezone
+from pymongo.errors import DuplicateKeyError
 
-from motor.motor_asyncio import AsyncIOMotorClient
-
-from src.models.validation import ValidationReport, Trend
+from src.models.validation import ValidationReport
 from src.repositories.base import BaseRepository
 from src.config.settings import get_settings
 
@@ -16,9 +15,15 @@ class ValidationRepository(BaseRepository[ValidationReport]):
     def __init__(self):
         """Inicializa repositório de validação."""
         settings = get_settings()
-        self.client = AsyncIOMotorClient(settings.mongodb.url)
-        self.db = self.client[settings.mongodb.database]
-        self.collection = self.db[settings.mongodb.collection_validation]
+        super().__init__(settings.mongodb.collection_validation, ValidationReport)
+
+    def _doc_to_model(self, doc: dict) -> ValidationReport:
+        """Converte documento MongoDB para modelo Pydantic."""
+        doc_copy = doc.copy()
+        doc_id = doc_copy.pop("_id", None)
+        if doc_id:
+            doc_copy["report_id"] = doc_id
+        return ValidationReport(**doc_copy)
 
     async def create(self, report: ValidationReport) -> str:
         """Cria novo relatório de validação."""
@@ -29,19 +34,13 @@ class ValidationRepository(BaseRepository[ValidationReport]):
         try:
             await self.collection.insert_one(doc)
             return report.report_id
-        except Exception as e:
+        except DuplicateKeyError as e:
             raise ValueError(f"Report com ID {report.report_id} já existe") from e
-
-    def _doc_to_model(self, doc: dict) -> ValidationReport:
-        """Converte documento MongoDB para modelo Pydantic."""
-        doc.pop("_id", None)
-        return ValidationReport(**doc)
 
     async def get_by_report_id(self, report_id: str) -> Optional[ValidationReport]:
         """Busca relatório por report_id."""
         doc = await self.collection.find_one({"_id": report_id})
         if doc:
-            doc["report_id"] = report_id
             return self._doc_to_model(doc)
         return None
 
@@ -63,7 +62,6 @@ class ValidationRepository(BaseRepository[ValidationReport]):
             {"repo_url": repo_url}, sort=[("created_at", -1)]
         )
         if doc:
-            doc["report_id"] = doc.get("_id")
             return self._doc_to_model(doc)
         return None
 

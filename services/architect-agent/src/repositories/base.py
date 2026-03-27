@@ -4,8 +4,24 @@ from typing import TypeVar, Generic, List, Optional, Dict, Any
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel
 from src.config.settings import get_settings
+import structlog
+
+logger = structlog.get_logger(__name__)
 
 T = TypeVar("T", bound=BaseModel)
+
+# Singleton MongoDB client
+_mongo_client: AsyncIOMotorClient | None = None
+
+
+def get_mongo_client() -> AsyncIOMotorClient:
+    """Retorna cliente MongoDB singleton."""
+    global _mongo_client
+    if _mongo_client is None:
+        settings = get_settings()
+        _mongo_client = AsyncIOMotorClient(settings.mongodb.url)
+        logger.info("mongo_client_created", url=settings.mongodb.url)
+    return _mongo_client
 
 
 class BaseRepository(Generic[T]):
@@ -19,10 +35,11 @@ class BaseRepository(Generic[T]):
             model_class: Classe Pydantic para (de)serialização
         """
         settings = get_settings()
-        self.client: AsyncIOMotorClient = AsyncIOMotorClient(settings.mongodb.url)
+        self.client = get_mongo_client()
         self.db = self.client[settings.mongodb.database]
         self.collection = self.db[collection_name]
         self.model_class = model_class
+        self.collection_name = collection_name
 
     async def create(self, item: T) -> str:
         """Cria novo documento.
@@ -37,16 +54,16 @@ class BaseRepository(Generic[T]):
         result = await self.collection.insert_one(doc)
         return str(result.inserted_id)
 
-    async def get_by_id(self, id: str) -> Optional[T]:
+    async def get_by_id(self, doc_id: str) -> Optional[T]:
         """Busca documento por ID.
 
         Args:
-            id: ID do documento
+            doc_id: ID do documento
 
         Returns:
             Modelo Pydantic ou None
         """
-        doc = await self.collection.find_one({"_id": id})
+        doc = await self.collection.find_one({"_id": doc_id})
         if doc:
             return self.model_class(**doc)
         return None
@@ -68,29 +85,29 @@ class BaseRepository(Generic[T]):
         docs = await cursor.to_list(length=limit)
         return [self.model_class(**doc) for doc in docs]
 
-    async def update(self, id: str, updates: Dict[str, Any]) -> bool:
+    async def update(self, doc_id: str, updates: Dict[str, Any]) -> bool:
         """Atualiza documento.
 
         Args:
-            id: ID do documento
+            doc_id: ID do documento
             updates: Campos a atualizar
 
         Returns:
             True se atualizado, False se não encontrado
         """
-        result = await self.collection.update_one({"_id": id}, {"$set": updates})
+        result = await self.collection.update_one({"_id": doc_id}, {"$set": updates})
         return result.modified_count > 0
 
-    async def delete(self, id: str) -> bool:
+    async def delete(self, doc_id: str) -> bool:
         """Remove documento.
 
         Args:
-            id: ID do documento
+            doc_id: ID do documento
 
         Returns:
             True se removido, False se não encontrado
         """
-        result = await self.collection.delete_one({"_id": id})
+        result = await self.collection.delete_one({"_id": doc_id})
         return result.deleted_count > 0
 
     async def count(self, filter_dict: Dict[str, Any] | None = None) -> int:
@@ -106,5 +123,6 @@ class BaseRepository(Generic[T]):
         return await self.collection.count_documents(query)
 
     async def close(self):
-        """Fecha conexão com MongoDB."""
-        self.client.close()
+        """Fecha conexão com MongoDB (no-op para singleton)."""
+        # Cliente é singleton, não fecha aqui
+        pass

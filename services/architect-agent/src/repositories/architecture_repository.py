@@ -2,8 +2,7 @@
 
 from typing import List, Optional
 from datetime import datetime, timezone
-
-from motor.motor_asyncio import AsyncIOMotorClient
+from pymongo.errors import DuplicateKeyError
 
 from src.models.architecture import ArchitecturePlan, ArchitectureType
 from src.repositories.base import BaseRepository
@@ -16,13 +15,18 @@ class ArchitectureRepository(BaseRepository[ArchitecturePlan]):
     def __init__(self):
         """Inicializa repositório de planos arquiteturais."""
         settings = get_settings()
-        self.client = AsyncIOMotorClient(settings.mongodb.url)
-        self.db = self.client[settings.mongodb.database]
-        self.collection = self.db[settings.mongodb.collection_architecture]
+        super().__init__(settings.mongodb.collection_architecture, ArchitecturePlan)
+
+    def _doc_to_model(self, doc: dict) -> ArchitecturePlan:
+        """Converte documento MongoDB para modelo Pydantic."""
+        doc_copy = doc.copy()
+        doc_id = doc_copy.pop("_id", None)
+        if doc_id:
+            doc_copy["plan_id"] = doc_id
+        return ArchitecturePlan(**doc_copy)
 
     async def create(self, plan: ArchitecturePlan) -> str:
         """Cria novo plano arquitetural."""
-        # Usar plan_id como _id
         doc = plan.model_dump(by_alias=True, exclude_none=True)
         doc["_id"] = plan.plan_id
         doc["created_at"] = datetime.now(timezone.utc)
@@ -30,20 +34,13 @@ class ArchitectureRepository(BaseRepository[ArchitecturePlan]):
         try:
             await self.collection.insert_one(doc)
             return plan.plan_id
-        except Exception as e:
-            # Documento já existe
+        except DuplicateKeyError as e:
             raise ValueError(f"Plano com ID {plan.plan_id} já existe") from e
-
-    def _doc_to_model(self, doc: dict) -> ArchitecturePlan:
-        """Converte documento MongoDB para modelo Pydantic."""
-        doc.pop("_id", None)
-        return ArchitecturePlan(**doc)
 
     async def get_by_plan_id(self, plan_id: str) -> Optional[ArchitecturePlan]:
         """Busca plano por plan_id."""
         doc = await self.collection.find_one({"_id": plan_id})
         if doc:
-            doc["plan_id"] = plan_id
             return self._doc_to_model(doc)
         return None
 
