@@ -4,7 +4,7 @@ Risk Scoring Models
 Modelos Pydantic para representação de avaliações de risco.
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Dict, Any
 from datetime import datetime
 from .config import RiskBand
@@ -22,6 +22,8 @@ class RiskFactor(BaseModel):
 
 class RiskAssessment(BaseModel):
     """Avaliação de risco completa."""
+    model_config = ConfigDict(use_enum_values=False)
+
     score: float = Field(ge=0.0, le=1.0, description='Score de risco agregado')
     band: RiskBand = Field(description='Classificação de risco')
     domain: UnifiedDomain = Field(description='Domínio de avaliação')
@@ -30,12 +32,11 @@ class RiskAssessment(BaseModel):
     assessed_at: datetime = Field(default_factory=datetime.utcnow)
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
-    class Config:
-        use_enum_values = True
-
 
 class RiskMatrix(BaseModel):
     """Matriz de risco multi-domínio."""
+    model_config = ConfigDict(use_enum_values=False)
+
     entity_id: str
     entity_type: str  # 'plan', 'decision', 'execution'
     assessments: Dict[str, RiskAssessment]  # Por domínio
