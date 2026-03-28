@@ -51,8 +51,8 @@
 
 ## Epics em Andamento
 
-### Epic 4: PheromoneClient Integration 🔄
-**Status:** EM PROGRESSO (2026-03-28)
+### Epic 4: PheromoneClient Integration ✅
+**Status:** COMPLETO (2026-03-28)
 
 | ID | Ticket | Prioridade | Complexidade | Status |
 |----|--------|------------|--------------|--------|
@@ -60,7 +60,7 @@
 | GAP-01-A | Integração em 5 specialist services | Must | M | ✅ |
 
 **Resultados:**
-- PheromoneClient criado em neural_hive_specialists
+- PheromoneClient criado em neural_hive_specialists (352 linhas)
 - BaseSpecialist com publicação automática de feromônios
 - 5 Helm charts atualizados (architecture, behavior, business, technical, evolution)
 - Configurações: enable_pheromone, pheromone_ttl, pheromone_decay_rate
@@ -166,28 +166,42 @@
 | Métrica | Valor |
 |---------|-------|
 | Total de Epics | 9 |
-| Epics Concluídos | 8 |
+| Epics Concluídos | 9 |
 | Total de Tickets | 70+ |
-| Tickets Concluídos | 65+ |
-| Completude Global | ~90% |
-| Testes Automatizados | 600+ |
+| Tickets Concluídos | 70+ |
+| Completude Global | ~95% |
+| Testes Automatizados | 850+ |
 | GAPS Resolvidos | 7/7 (100%) |
 
 ### GAPS Resolvidos (Sessão 2026-03-28)
 
 | GAP | Descrição | Status | Artefatos |
 |-----|-----------|--------|----------|
-| GAP-01 | PheromoneClient Integration | ✅ | 5 services, 200+ linhas |
+| GAP-01 | PheromoneClient Integration | ✅ | 5 services, 352 linhas |
 | GAP-02 | gRPC Contract Tests | ✅ | 24 testes |
 | GAP-03 | SDK Tests (Python) | ✅ | 32 testes |
+| GAP-04 | Resilience Library | ✅ | 123 testes |
 | GAP-05 | Vault/SPIFFE Activation | ✅ | Scripts + Docs |
 | GAP-06 | Multi-Language Support | ✅ | Go SDK + Spec |
 | GAP-07 | TASKS.md | ✅ | Backlog documentado |
+| GAP-08 | Risk Scoring Library | ✅ | 98 testes |
+
+### Bibliotecas Python Completadas
+
+| Biblioteca | Testes | Status |
+|-----------|--------|--------|
+| neural_hive_resilience | 123 | ✅ |
+| neural_hive_risk_scoring | 98 | ✅ |
+| neural_hive_specialists | 68+ | ✅ |
+| neural_hive_agent_sdk | 32 | ✅ |
 
 ## Referências
 
 - **Documentação GAPS:** `docs/GAPS-03-CONSENSO_HIERARQUICO.md`
 - **Active Learning:** `services/approval-service/docs/ACTIVE_LEARNING_DEPLOY.md`
 - **Vault/SPIFFE:** `docs/security/VAULT_SPIFFE_DEPLOYMENT.md`
+- **Multi-Language SDK:** `docs/sdk/MULTI_LANGUAGE_SDK.md`
+- **Resilience Library:** `libraries/python/neural_hive_resilience/`
+- **Risk Scoring Library:** `libraries/python/neural_hive_risk_scoring/`
 - **Feature Map:** `docs/feature-map.md`
 - **CLAUDE.md:** `CLAUDE.md` (regras do projeto)
