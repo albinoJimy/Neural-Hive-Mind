@@ -115,6 +115,37 @@ Construir lista de env vars para o deployment
 {{/* Security Configuration */}}
 {{- $envVars = append $envVars (dict "name" "ALLOW_INSECURE_HTTP_ENDPOINTS" "valueFrom" (dict "configMapKeyRef" (dict "name" (include "gateway-intencoes.configMapName" .) "key" "allow_insecure_http_endpoints"))) }}
 
+{{/* Vault Security Integration */}}
+{{- if .Values.config.security.vault.enabled }}
+{{- $envVars = append $envVars (dict "name" "SECURITY_ENABLE_VAULT" "value" "true") }}
+{{- $envVars = append $envVars (dict "name" "VAULT_ADDRESS" "value" .Values.config.security.vault.address) }}
+{{- $envVars = append $envVars (dict "name" "VAULT_NAMESPACE" "value" .Values.config.security.vault.namespace) }}
+{{- $envVars = append $envVars (dict "name" "VAULT_AUTH_METHOD" "value" .Values.config.security.vault.authMethod) }}
+{{- $envVars = append $envVars (dict "name" "VAULT_KUBERNETES_ROLE" "value" .Values.config.security.vault.kubernetesRole) }}
+{{- $envVars = append $envVars (dict "name" "VAULT_MOUNT_PATH_KV" "value" .Values.config.security.vault.mountPathKv) }}
+{{- $envVars = append $envVars (dict "name" "VAULT_MOUNT_PATH_PKI" "value" .Values.config.security.vault.mountPathPki) }}
+{{- $envVars = append $envVars (dict "name" "VAULT_MOUNT_PATH_DATABASE" "value" .Values.config.security.vault.mountPathDatabase) }}
+{{- $envVars = append $envVars (dict "name" "VAULT_TLS_VERIFY" "value" (.Values.config.security.vault.tlsVerify | toString)) }}
+{{- $envVars = append $envVars (dict "name" "VAULT_TOKEN_TTL_SECONDS" "value" (.Values.config.security.vault.tokenTtlSeconds | toString)) }}
+{{- $envVars = append $envVars (dict "name" "VAULT_TOKEN_RENEW_THRESHOLD" "value" (.Values.config.security.vault.tokenRenewThreshold | toString)) }}
+{{- $envVars = append $envVars (dict "name" "VAULT_FAIL_OPEN" "value" (.Values.config.security.vault.failOpen | toString)) }}
+{{- else }}
+{{- $envVars = append $envVars (dict "name" "SECURITY_ENABLE_VAULT" "value" "false") }}
+{{- end }}
+
+{{/* SPIFFE/SPIRE Security Integration */}}
+{{- if .Values.config.security.spiffe.enabled }}
+{{- $envVars = append $envVars (dict "name" "SECURITY_ENABLE_SPIFFE" "value" "true") }}
+{{- $envVars = append $envVars (dict "name" "SPIFFE_TRUST_DOMAIN" "value" .Values.config.security.spiffe.trustDomain) }}
+{{- $envVars = append $envVars (dict "name" "SPIFFE_WORKLOAD_API_SOCKET" "value" .Values.config.security.spiffe.workloadApiSocket) }}
+{{- $envVars = append $envVars (dict "name" "SPIFFE_JWT_AUDIENCE" "value" .Values.config.security.spiffe.jwtAudience) }}
+{{- $envVars = append $envVars (dict "name" "SPIFFE_JWT_TTL_SECONDS" "value" (.Values.config.security.spiffe.jwtTtlSeconds | toString)) }}
+{{- $envVars = append $envVars (dict "name" "SPIFFE_SVID_REFRESH_THRESHOLD" "value" (.Values.config.security.spiffe.svidRefreshThreshold | toString)) }}
+{{- $envVars = append $envVars (dict "name" "SPIFFE_ENABLE_X509" "value" (.Values.config.security.spiffe.enableX509 | toString)) }}
+{{- else }}
+{{- $envVars = append $envVars (dict "name" "SECURITY_ENABLE_SPIFFE" "value" "false") }}
+{{- end }}
+
 {{/* Kubernetes Downward API */}}
 {{- $envVars = append $envVars (dict "name" "POD_UID" "valueFrom" (dict "fieldRef" (dict "fieldPath" "metadata.uid"))) }}
 {{- $envVars = append $envVars (dict "name" "POD_NAME" "valueFrom" (dict "fieldRef" (dict "fieldPath" "metadata.name"))) }}
@@ -137,6 +168,9 @@ Construir volume mounts
 {{- end }}
 {{- if .Values.config.kafka.schemaRegistry.tls.enabled }}
 {{- $volumeMounts = append $volumeMounts (dict "name" "schema-registry-ca-cert" "mountPath" "/etc/ssl/certs/schema-registry-ca.crt" "subPath" "ca.crt" "readOnly" true) }}
+{{- end }}
+{{- if .Values.config.security.spiffe.enabled }}
+{{- $volumeMounts = append $volumeMounts (dict "name" "spire-agent-socket" "mountPath" "/run/spire/sockets" "readOnly" true) }}
 {{- end }}
 
 {{/*
@@ -162,6 +196,9 @@ Construir volumes
 {{- end }}
 {{- if .Values.config.kafka.schemaRegistry.tls.enabled }}
 {{- $volumes = append $volumes (dict "name" "schema-registry-ca-cert" "secret" (dict "secretName" .Values.config.kafka.schemaRegistry.tls.caSecretName "items" (list (dict "key" "ca.crt" "path" "ca.crt")))) }}
+{{- end }}
+{{- if .Values.config.security.spiffe.enabled }}
+{{- $volumes = append $volumes (dict "name" "spire-agent-socket" "hostPath" (dict "path" "/run/spire/sockets" "type" "DirectoryOrCreate")) }}
 {{- end }}
 
 {{/*

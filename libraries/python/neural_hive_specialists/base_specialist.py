@@ -28,6 +28,7 @@ from .compliance import ComplianceLayer
 from .feature_cache import FeatureCache
 from .gpu_inference import GPUInferenceWrapper
 from .batch_evaluator import BatchEvaluator
+from .pheromone_client import PheromoneType
 from pydantic import ValidationError
 from .schemas import (
     CognitivePlanSchema,
@@ -336,6 +337,30 @@ class BaseSpecialist(ABC):
             except Exception as e:
                 logger.error("Failed to initialize ComplianceLayer", error=str(e))
                 # Continuar sem compliance layer (degradação graciosa)
+
+        # Inicializar PheromoneClient para comunicação assíncrona
+        self.pheromone_client = None
+        if getattr(config, "enable_pheromone", False) and config.enable_caching:
+            try:
+                from .pheromone_client import PheromoneClient
+
+                self.pheromone_client = PheromoneClient(
+                    redis_cluster_nodes=config.redis_cluster_nodes,
+                    redis_password=config.redis_password,
+                    redis_ssl_enabled=config.redis_ssl_enabled,
+                    pheromone_ttl=getattr(config, "pheromone_ttl_seconds", 3600),
+                    pheromone_decay_rate=getattr(config, "pheromone_decay_rate", 0.1)
+                )
+                logger.info(
+                    "PheromoneClient initialized",
+                    ttl_seconds=getattr(config, "pheromone_ttl_seconds", 3600),
+                )
+            except Exception as e:
+                logger.warning(
+                    "PheromoneClient unavailable - continuing without",
+                    error=str(e)
+                )
+                self.pheromone_client = None
 
         # Inicializar OpenTelemetry tracer
         self.tracer = None
@@ -1860,6 +1885,23 @@ class BaseSpecialist(ABC):
                 processing_time_ms=int(processing_time * 1000),
             )
 
+            # Publicar feromônios se habilitado
+            domain = cognitive_plan.get("original_domain", "unknown")
+            try:
+                self._publish_result_pheromones(
+                    opinion=opinion,
+                    plan_id=plan_id,
+                    intent_id=intent_id,
+                    domain=domain,
+                    processing_time_ms=int(processing_time * 1000),
+                )
+            except Exception as e:
+                logger.warning(
+                    "Failed to publish pheromones",
+                    error=str(e),
+                    plan_id=plan_id,
+                )
+
             # Construir response
             response = {
                 "opinion_id": opinion_id,
@@ -2042,6 +2084,133 @@ class BaseSpecialist(ABC):
         valid_recommendations = ["approve", "reject", "review_required", "conditional"]
         if result["recommendation"] not in valid_recommendations:
             raise ValueError(f"Invalid recommendation: {result['recommendation']}")
+
+    def _publish_pheromone_async(
+        self,
+        pheromone_type: str,
+        strength: float,
+        plan_id: str,
+        intent_id: str,
+        domain: str,
+        decision_id: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """
+        Publica feromônio de forma assíncrona (fire-and-forget).
+
+        Args:
+            pheromone_type: Tipo do feromônio (PheromoneType.SUCCESS/FAILURE/WARNING)
+            strength: Força do sinal (0.0 a 1.0)
+            plan_id: ID do plano
+            intent_id: ID da intenção
+            domain: Domínio da avaliação
+            decision_id: ID da decisão (opcional)
+            metadata: Metadados adicionais
+        """
+        if not self.pheromone_client:
+            return
+
+        try:
+            # Criar tarefa async mas não aguardar resultado
+            loop = asyncio.get_event_loop()
+            loop.create_task(
+                self.pheromone_client.publish_pheromone(
+                    specialist_type=self.specialist_type,
+                    domain=domain,
+                    pheromone_type=pheromone_type,
+                    strength=strength,
+                    plan_id=plan_id,
+                    intent_id=intent_id,
+                    decision_id=decision_id,
+                    metadata=metadata or {},
+                )
+            )
+            logger.debug(
+                "Pheromone publication scheduled",
+                specialist_type=self.specialist_type,
+                domain=domain,
+                pheromone_type=pheromone_type,
+                strength=strength,
+            )
+        except Exception as e:
+            logger.warning(
+                "Failed to schedule pheromone publication",
+                error=str(e),
+                specialist_type=self.specialist_type,
+            )
+
+    def _publish_result_pheromones(
+        self,
+        opinion: Dict[str, Any],
+        plan_id: str,
+        intent_id: str,
+        domain: str,
+        processing_time_ms: int,
+    ) -> None:
+        """
+        Publica feromônios baseados no resultado da avaliação.
+
+        Args:
+            opinion: Opinião gerada pelo especialista
+            plan_id: ID do plano
+            intent_id: ID da intenção
+            domain: Domínio da avaliação
+            processing_time_ms: Tempo de processamento em ms
+        """
+        if not self.pheromone_client:
+            return
+
+        # Verificar configurações de publicação
+        publish_on_success = getattr(self.config, "pheromone_publish_on_success", True)
+        publish_on_failure = getattr(self.config, "pheromone_publish_on_failure", True)
+
+        recommendation = opinion.get("recommendation", "review_required")
+        confidence = opinion.get("confidence_score", 0.5)
+        risk = opinion.get("risk_score", 0.5)
+
+        # Metadados do feromônio
+        metadata = {
+            "specialist_version": self.version,
+            "processing_time_ms": processing_time_ms,
+            "recommendation": recommendation,
+        }
+
+        # Determinar tipo de feromônio baseado na recomendação
+        if recommendation == "approve":
+            if publish_on_success:
+                # SUCCESS com força baseada na confiança
+                strength = confidence
+                self._publish_pheromone_async(
+                    pheromone_type=PheromoneType.SUCCESS,
+                    strength=strength,
+                    plan_id=plan_id,
+                    intent_id=intent_id,
+                    domain=domain,
+                    metadata=metadata,
+                )
+        elif recommendation == "reject":
+            if publish_on_failure:
+                # FAILURE com força baseada no risco
+                strength = risk
+                self._publish_pheromone_async(
+                    pheromone_type=PheromoneType.FAILURE,
+                    strength=strength,
+                    plan_id=plan_id,
+                    intent_id=intent_id,
+                    domain=domain,
+                    metadata=metadata,
+                )
+        else:
+            # review_required ou conditional -> WARNING
+            strength = (1.0 - confidence + risk) / 2
+            self._publish_pheromone_async(
+                pheromone_type=PheromoneType.WARNING,
+                strength=strength,
+                plan_id=plan_id,
+                intent_id=intent_id,
+                domain=domain,
+                metadata=metadata,
+            )
 
     async def evaluate_plans_batch(
         self, requests: list, max_concurrency: Optional[int] = None

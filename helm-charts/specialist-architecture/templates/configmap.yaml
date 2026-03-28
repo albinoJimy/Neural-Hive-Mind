@@ -30,6 +30,13 @@ data:
   enable_caching: {{ .Values.config.features.enableCaching | quote }}
   enable_model_monitoring: {{ .Values.config.features.enableModelMonitoring | quote }}
 
+  # Pheromone Configuration
+  enable_pheromone: {{ .Values.config.features.enablePheromone | quote }}
+  pheromone_ttl_seconds: {{ .Values.config.features.pheromoneTtlSeconds | quote }}
+  pheromone_decay_rate: {{ .Values.config.features.pheromoneDecayRate | quote }}
+  pheromone_publish_on_success: {{ .Values.config.features.pheromonePublishOnSuccess | quote }}
+  pheromone_publish_on_failure: {{ .Values.config.features.pheromonePublishOnFailure | quote }}
+
   design_patterns_enabled: {{ .Values.config.architecture.designPatternsEnabled | quote }}
   solid_analysis_enabled: {{ .Values.config.architecture.solidAnalysisEnabled | quote }}
   coupling_threshold_high: {{ .Values.config.architecture.couplingThresholdHigh | quote }}

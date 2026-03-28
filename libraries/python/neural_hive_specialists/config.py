@@ -76,6 +76,31 @@ class SpecialistConfig(BaseSettings):
         description="Tamanho máximo do cache em MB",
     )
 
+    # Pheromone Configuration
+    enable_pheromone: bool = Field(
+        default=False,
+        env="ENABLE_PHEROMONE",
+        description="Habilitar publicação de feromônios digitais",
+    )
+    pheromone_ttl_seconds: int = Field(
+        default=3600,
+        env="PHEROMONE_TTL_SECONDS",
+        description="TTL dos feromônios em segundos (1 hora padrão)",
+    )
+    pheromone_decay_rate: float = Field(
+        default=0.1,
+        env="PHEROMONE_DECAY_RATE",
+        description="Taxa de decay por hora (0.0 a 1.0)",
+    )
+    pheromone_publish_on_success: bool = Field(
+        default=True,
+        description="Publicar feromônio SUCCESS em avaliações bem-sucedidas",
+    )
+    pheromone_publish_on_failure: bool = Field(
+        default=True,
+        description="Publicar feromônio FAILURE em avaliações mal-sucedidas",
+    )
+
     # OpenTelemetry Tracing Configuration
     enable_tracing: bool = Field(
         default=True,

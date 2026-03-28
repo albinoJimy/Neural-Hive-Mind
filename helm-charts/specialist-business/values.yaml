@@ -145,6 +145,12 @@ config:
     enableModelMonitoring: true
     enableTracing: true
     useSemanticFallback: true
+    # Pheromone Configuration
+    enablePheromone: true
+    pheromoneTtlSeconds: 3600
+    pheromoneDecayRate: 0.1
+    pheromonePublishOnSuccess: true
+    pheromonePublishOnFailure: true
 
   # Feedback Collection Configuration
   feedback:

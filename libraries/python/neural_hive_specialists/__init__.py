@@ -28,6 +28,7 @@ from . import probabilistic_wrapper as _pw_module
 sys.modules["probabilistic_wrapper"] = _pw_module
 
 from .base_specialist import BaseSpecialist
+from .pheromone_client import PheromoneClient, PheromoneType, PheromoneSignal
 from .cached_specialist import CachedSpecialist
 from .ensemble_specialist import EnsembleSpecialist
 from .ab_testing_specialist import ABTestingSpecialist
@@ -69,4 +70,7 @@ __all__ = [
     "TaskDependencyError",
     "SCHEMA_VERSION",
     "ProbabilisticModelWrapper",
+    "PheromoneClient",
+    "PheromoneType",
+    "PheromoneSignal",
 ]

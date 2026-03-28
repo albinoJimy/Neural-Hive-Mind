@@ -310,6 +310,31 @@ config:
     # Em produção deve ser sempre false
     allowInsecureHttpEndpoints: false
 
+    # Vault integration for secrets management
+    vault:
+      enabled: false  # Set to true to enable Vault integration
+      address: "http://vault.vault.svc.cluster.local:8200"
+      namespace: ""
+      authMethod: "kubernetes"  # kubernetes, jwt, approle
+      kubernetesRole: "gateway-intencoes"
+      mountPathKv: "secret"
+      mountPathPki: "pki"
+      mountPathDatabase: "database"
+      tlsVerify: true
+      tokenTtlSeconds: 3600
+      tokenRenewThreshold: 0.8
+      failOpen: false  # If true, falls back to env vars on Vault errors
+
+    # SPIFFE/SPIRE for workload identity and mTLS
+    spiffe:
+      enabled: false  # Set to true to enable SPIFFE integration
+      trustDomain: "neural-hive.local"
+      workloadApiSocket: "unix:///run/spire/sockets/agent.sock"
+      jwtAudience: "vault.neural-hive.local"
+      jwtTtlSeconds: 3600
+      svidRefreshThreshold: 0.8
+      enableX509: false  # X.509-SVID support (for mTLS)
+
 # Secrets
 secrets:
   jwtSecretKey: "change-in-production"

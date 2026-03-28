@@ -108,3 +108,35 @@ data:
 
   # Security Configuration
   allow_insecure_http_endpoints: {{ .Values.config.security.allowInsecureHttpEndpoints | default "false" | quote }}
+  {{- if .Values.config.security.vault.enabled }}
+  # Vault Integration (enabled)
+  vault_enabled: "true"
+  vault_address: {{ .Values.config.security.vault.address | quote }}
+  vault_namespace: {{ .Values.config.security.vault.namespace | quote }}
+  vault_auth_method: {{ .Values.config.security.vault.authMethod | quote }}
+  vault_kubernetes_role: {{ .Values.config.security.vault.kubernetesRole | quote }}
+  vault_mount_path_kv: {{ .Values.config.security.vault.mountPathKv | quote }}
+  vault_mount_path_pki: {{ .Values.config.security.vault.mountPathPki | quote }}
+  vault_mount_path_database: {{ .Values.config.security.vault.mountPathDatabase | quote }}
+  vault_tls_verify: {{ .Values.config.security.vault.tlsVerify | quote }}
+  vault_token_ttl_seconds: {{ .Values.config.security.vault.tokenTtlSeconds | quote }}
+  vault_token_renew_threshold: {{ .Values.config.security.vault.tokenRenewThreshold | quote }}
+  vault_fail_open: {{ .Values.config.security.vault.failOpen | quote }}
+  {{- else }}
+  # Vault Integration (disabled)
+  vault_enabled: "false"
+  {{- end }}
+
+  {{- if .Values.config.security.spiffe.enabled }}
+  # SPIFFE/SPIRE Integration (enabled)
+  spiffe_enabled: "true"
+  spiffe_trust_domain: {{ .Values.config.security.spiffe.trustDomain | quote }}
+  spiffe_workload_api_socket: {{ .Values.config.security.spiffe.workloadApiSocket | quote }}
+  spiffe_jwt_audience: {{ .Values.config.security.spiffe.jwtAudience | quote }}
+  spiffe_jwt_ttl_seconds: {{ .Values.config.security.spiffe.jwtTtlSeconds | quote }}
+  spiffe_svid_refresh_threshold: {{ .Values.config.security.spiffe.svidRefreshThreshold | quote }}
+  spiffe_enable_x509: {{ .Values.config.security.spiffe.enableX509 | quote }}
+  {{- else }}
+  # SPIFFE/SPIRE Integration (disabled)
+  spiffe_enabled: "false"
+  {{- end }}
