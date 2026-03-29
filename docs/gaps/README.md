@@ -12,8 +12,8 @@ Este diretório contém os planos de implementação detalhados para os GAPS cr�
 
 | ID | GAP | Impacto | Estimativa | Status |
 |----|-----|---------|------------|--------|
-| **GAP-01** | Fluxo STE → Consensus Quebrado | CRÍTICO | 1 dia | 🔴 Planejado |
-| **GAP-02** | execution.results Sem Consumer | ALTO | 3 dias | 🔴 Planejado |
+| **GAP-01** | Fluxo STE → Consensus Quebrado | CRÍTICO | 1 dia | ✅ COMPLETO |
+| **GAP-02** | execution.results Sem Consumer | ALTO | 3 dias | 🟡 Em Progresso |
 | **GAP-03** | Dependências Vulneráveis (CVE) | ALTO | 13 dias | 🔴 Planejado |
 | **GAP-04** | Cobertura de Testes 16% → 70% | MÉDIO | 11 semanas | 🟡 Planejado |
 | **GAP-05** | CORS Wildcards | MÉDIO | 5 dias | 🟡 Planejado |
