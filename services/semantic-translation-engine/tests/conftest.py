@@ -124,7 +124,7 @@ def mock_settings() -> MagicMock:
     settings.kafka_security_protocol = 'PLAINTEXT'
     settings.kafka_enable_idempotence = True
     settings.kafka_approval_topic = 'cognitive-plans-approval-requests'
-    settings.kafka_plans_topic = 'cognitive-plans'
+    settings.kafka_plans_topic = 'plans.ready'
     settings.kafka_approval_responses_topic = 'cognitive-plans-approval-responses'
     settings.kafka_consumer_group_id = 'semantic-translation-engine-test'
     settings.kafka_auto_offset_reset = 'earliest'

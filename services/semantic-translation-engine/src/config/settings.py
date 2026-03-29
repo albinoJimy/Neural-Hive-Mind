@@ -48,7 +48,7 @@ class Settings(BaseSettings):
     kafka_session_timeout_ms: int = Field(default=30000, description='Session timeout (ms)')
 
     # Kafka Producer configuration
-    kafka_plans_topic: str = Field(default='cognitive-plans', description='Plans output topic')
+    kafka_plans_topic: str = Field(default='plans.ready', description='Plans output topic (matches Helm chart)')
     kafka_approval_topic: str = Field(
         default='cognitive-plans-approval-requests',
         description='Topic for plans requiring approval'
