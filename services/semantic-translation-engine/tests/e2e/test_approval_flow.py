@@ -121,7 +121,7 @@ STE_METRICS_URL = os.getenv(
 
 # Tópicos Kafka
 TOPIC_INTENTS = 'intents'
-TOPIC_COGNITIVE_PLANS = 'cognitive-plans'
+TOPIC_COGNITIVE_PLANS = 'plans.ready'
 TOPIC_APPROVAL_REQUESTS = 'cognitive-plans-approval-requests'
 TOPIC_APPROVAL_RESPONSES = 'cognitive-plans-approval-responses'
 

@@ -469,7 +469,7 @@ class TestApprovalResponseFlowIntegration:
         settings.kafka_session_timeout_ms = 30000
         settings.kafka_security_protocol = 'PLAINTEXT'
         settings.kafka_approval_responses_topic = 'cognitive-plans-approval-responses'
-        settings.kafka_plans_topic = 'cognitive-plans'
+        settings.kafka_plans_topic = 'plans.ready'
         settings.kafka_enable_idempotence = True
         settings.schema_registry_url = None
         settings.environment = 'test'
