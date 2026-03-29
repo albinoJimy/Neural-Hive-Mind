@@ -64,6 +64,20 @@ class OrchestratorSettings(BaseSettings):
         description='Diretório base para schemas Avro'
     )
 
+    # Kafka Consumer (execution.results) - GAP-02
+    execution_result_consumer_enabled: bool = Field(
+        default=True,
+        description='Habilitar consumer de execution.results'
+    )
+    execution_result_consumer_group: str = Field(
+        default='orchestrator-execution-results',
+        description='Group ID para consumer de execution.results'
+    )
+    execution_result_workers: int = Field(
+        default=1,
+        description='Número de workers para consumer de execution.results'
+    )
+
     # Self-Healing Engine
     self_healing_engine_url: str = Field(
         default='https://self-healing-engine.neural-hive.svc.cluster.local:8443',

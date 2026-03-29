@@ -85,8 +85,26 @@
     {
       "name": "schema_version",
       "type": "int",
-      "default": 1,
+      "default": 2,
       "doc": "Versão do schema"
+    },
+    {
+      "name": "plan_id",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "ID do Cognitive Plan para correlação"
+    },
+    {
+      "name": "workflow_id",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "ID do workflow Temporal para signal"
+    },
+    {
+      "name": "correlation_id",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "ID de correlação para tracing distribuído"
     }
   ]
 }

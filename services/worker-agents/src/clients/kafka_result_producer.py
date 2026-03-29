@@ -84,7 +84,11 @@ class KafkaResultProducer:
         status: str,
         result: Dict[str, Any],
         error_message: Optional[str] = None,
-        actual_duration_ms: Optional[int] = None
+        actual_duration_ms: Optional[int] = None,
+        # NOVOS PARÂMETROS para GAP-02: Execution Results Consumer
+        plan_id: Optional[str] = None,
+        workflow_id: Optional[str] = None,
+        correlation_id: Optional[str] = None
     ) -> Dict[str, Any]:
         '''Publicar resultado no Kafka'''
         try:
@@ -96,7 +100,11 @@ class KafkaResultProducer:
                 'actual_duration_ms': actual_duration_ms,
                 'agent_id': self.config.agent_id,
                 'timestamp': int(datetime.now().timestamp() * 1000),
-                'schema_version': 1
+                'schema_version': 2,  # Atualizado para GAP-02
+                # NOVOS CAMPOS para GAP-02: Execution Results Consumer
+                'plan_id': plan_id,
+                'workflow_id': workflow_id,
+                'correlation_id': correlation_id
             }
 
             topic = self.config.kafka_results_topic

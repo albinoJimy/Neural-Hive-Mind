@@ -25,9 +25,10 @@ _policy_validator = None
 _config = None
 _ml_predictor = None
 _scheduling_optimizer = None
+_redis_client = None
 
 
-def set_activity_dependencies(kafka_producer, mongodb_client, registry_client=None, intelligent_scheduler=None, policy_validator=None, config=None, ml_predictor=None, scheduling_optimizer=None):
+def set_activity_dependencies(kafka_producer, mongodb_client, registry_client=None, intelligent_scheduler=None, policy_validator=None, config=None, ml_predictor=None, scheduling_optimizer=None, redis_client=None):
     """
     Injeta dependências globais nas activities.
 
@@ -40,8 +41,9 @@ def set_activity_dependencies(kafka_producer, mongodb_client, registry_client=No
         config: OrchestratorSettings (opcional)
         ml_predictor: MLPredictor para predições ML (opcional)
         scheduling_optimizer: SchedulingOptimizer para enriquecer metadata (opcional)
+        redis_client: Cliente Redis para cache de workflow_id (opcional)
     """
-    global _kafka_producer, _mongodb_client, _registry_client, _intelligent_scheduler, _policy_validator, _config, _ml_predictor, _scheduling_optimizer
+    global _kafka_producer, _mongodb_client, _registry_client, _intelligent_scheduler, _policy_validator, _config, _ml_predictor, _scheduling_optimizer, _redis_client
     _kafka_producer = kafka_producer
     _mongodb_client = mongodb_client
     _registry_client = registry_client
@@ -50,6 +52,7 @@ def set_activity_dependencies(kafka_producer, mongodb_client, registry_client=No
     _config = config
     _ml_predictor = ml_predictor
     _scheduling_optimizer = scheduling_optimizer
+    _redis_client = redis_client
 
 
 @activity.defn
@@ -278,6 +281,53 @@ async def generate_execution_tickets(
     except Exception as e:
         logger.error(f'Erro ao gerar execution tickets: {e}', exc_info=True)
         raise
+
+
+async def cache_workflow_mapping(
+    ticket_id: str,
+    workflow_id: str,
+    redis_client
+) -> None:
+    """
+    Cache mapeamento ticket_id → workflow_id no Redis.
+
+    Este mapeamento é usado pelo ExecutionResultConsumer para recuperar
+    o workflow_id quando receber resultados de execução.
+
+    Args:
+        ticket_id: ID do ticket de execução
+        workflow_id: ID do workflow Temporal
+        redis_client: Cliente Redis assíncrono
+    """
+    if not redis_client:
+        logger.warning(
+            'redis_client_unavailable_for_workflow_cache',
+            ticket_id=ticket_id,
+            workflow_id=workflow_id
+        )
+        return
+
+    try:
+        cache_key = f"workflow:by:ticket:{ticket_id}"
+        await redis_client.setex(
+            cache_key,
+            86400,  # 24h TTL
+            workflow_id
+        )
+        logger.debug(
+            'workflow_mapping_cached',
+            ticket_id=ticket_id,
+            workflow_id=workflow_id,
+            ttl=86400
+        )
+    except Exception as e:
+        logger.error(
+            'workflow_cache_set_error',
+            ticket_id=ticket_id,
+            workflow_id=workflow_id,
+            error=str(e)
+        )
+        # Fail-open: não propagar erro de cache
 
 
 async def _get_available_workers() -> List[Dict[str, Any]]:
@@ -829,6 +879,24 @@ async def publish_ticket_to_kafka(ticket: Dict[str, Any]) -> Dict[str, Any]:
             offset=kafka_result['offset'],
             webhook_url=ticket.get('metadata', {}).get('webhook_url')
         )
+
+        # Cache mapeamento ticket_id → workflow_id para ExecutionResultConsumer
+        # Isso permite que o consumer recupere o workflow_id ao receber execution.results
+        workflow_id = ticket.get('metadata', {}).get('workflow_id')
+        if workflow_id and _redis_client:
+            try:
+                await cache_workflow_mapping(ticket_id, workflow_id, _redis_client)
+                logger.debug(
+                    'workflow_mapping_cached_after_publish',
+                    ticket_id=ticket_id,
+                    workflow_id=workflow_id
+                )
+            except Exception as cache_error:
+                logger.warning(
+                    'workflow_cache_failed_after_publish',
+                    ticket_id=ticket_id,
+                    error=str(cache_error)
+                )
 
         # Persistir ticket no MongoDB para auditoria
         try:

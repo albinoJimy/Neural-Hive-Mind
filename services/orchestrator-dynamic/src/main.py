@@ -19,6 +19,13 @@ from neural_hive_observability import init_observability, get_logger
 
 from src.config import get_settings
 from src.consumers.decision_consumer import DecisionConsumer
+# GAP-02: Import ExecutionResultConsumer
+try:
+    from src.consumers.execution_result_consumer import ExecutionResultConsumer
+    EXECUTION_RESULT_CONSUMER_AVAILABLE = True
+except ImportError:
+    EXECUTION_RESULT_CONSUMER_AVAILABLE = False
+    ExecutionResultConsumer = None
 from src.workers.temporal_worker import TemporalWorkerManager, create_temporal_client
 from src.temporal_client import TemporalClientWrapper
 from src.clients.mongodb_client import MongoDBClient
@@ -129,11 +136,13 @@ class AppState:
     def __init__(self):
         self.temporal_client: Optional[TemporalClientWrapper] = None
         self.kafka_consumer: Optional[DecisionConsumer] = None
+        self.execution_result_consumer: Optional[Any] = None  # GAP-02
         self.flow_c_consumer: Optional[FlowCConsumer] = None
         self.approval_response_consumer: Optional[FlowCApprovalResponseConsumer] = None
         self.temporal_worker: Optional[TemporalWorkerManager] = None
         self.worker_task: Optional[asyncio.Task] = None
         self.consumer_task: Optional[asyncio.Task] = None
+        self.execution_result_task: Optional[asyncio.Task] = None  # GAP-02
         self.flow_c_task: Optional[asyncio.Task] = None
         self.approval_response_task: Optional[asyncio.Task] = None
         self.mongodb_client: Optional[MongoDBClient] = None
@@ -709,6 +718,21 @@ async def lifespan(app: FastAPI):
         )
         await app_state.kafka_consumer.initialize()
 
+        # GAP-02: Inicializar Execution Result Consumer (se disponível)
+        if (EXECUTION_RESULT_CONSUMER_AVAILABLE and
+                getattr(config, 'execution_result_consumer_enabled', True)):
+            logger.info('Inicializando Execution Result Consumer')
+            app_state.execution_result_consumer = ExecutionResultConsumer(
+                config,
+                app_state.temporal_client,
+                app_state.redis_client,
+                metrics=orchestrator_metrics
+            )
+            await app_state.execution_result_consumer.initialize()
+            logger.info('Execution Result Consumer inicializado')
+        else:
+            logger.info('Execution Result Consumer desabilitado ou não disponível')
+
         # Inicializar Optimizer Agents client (se habilitado)
         if config.enable_optimizer_integration:
             logger.info('Inicializando Optimizer Agents client')
@@ -779,6 +803,13 @@ async def lifespan(app: FastAPI):
         # Iniciar Kafka Consumer em background
         app_state.consumer_task = asyncio.create_task(app_state.kafka_consumer.start())
         logger.info('Kafka Consumer iniciado em background')
+
+        # GAP-02: Iniciar Execution Result Consumer em background
+        if app_state.execution_result_consumer:
+            app_state.execution_result_task = asyncio.create_task(
+                app_state.execution_result_consumer.start()
+            )
+            logger.info('Execution Result Consumer iniciado em background')
 
         # Inicializar Flow C Consumer com config injetada
         logger.info('Inicializando Flow C Consumer')
@@ -921,6 +952,17 @@ async def lifespan(app: FastAPI):
             app_state.consumer_task.cancel()
             try:
                 await app_state.consumer_task
+            except asyncio.CancelledError:
+                pass
+
+        # GAP-02: Fechar Execution Result Consumer
+        if app_state.execution_result_consumer:
+            await app_state.execution_result_consumer.stop()
+            logger.info('Execution Result Consumer fechado')
+        if app_state.execution_result_task:
+            app_state.execution_result_task.cancel()
+            try:
+                await app_state.execution_result_task
             except asyncio.CancelledError:
                 pass
 
