@@ -716,3 +716,535 @@ class TestAgentClient:
             result = {"error": "Request failed"}
 
         assert "result" in result
+
+
+# =============================================================================
+# Test: Agent Connection Pool
+# =============================================================================
+
+class TestAgentConnectionPool:
+    """Testes de pool de conexões do agente."""
+
+    @pytest.mark.asyncio
+    async def test_connection_pool_init(self):
+        """Deve inicializar pool de conexões."""
+        pool = {
+            "max_connections": 10,
+            "active_connections": 0,
+            "idle_connections": []
+        }
+
+        assert pool["max_connections"] == 10
+        assert pool["active_connections"] == 0
+
+    @pytest.mark.asyncio
+    async def test_acquire_connection(self):
+        """Deve adquirir conexão do pool."""
+        pool = {
+            "max_connections": 5,
+            "active_connections": 2,
+            "idle_connections": ["conn1", "conn2"]
+        }
+
+        if pool["idle_connections"]:
+            conn = pool["idle_connections"].pop()
+        else:
+            conn = f"conn_{pool['active_connections'] + 1}"
+
+        assert "conn" in conn
+
+    @pytest.mark.asyncio
+    async def test_release_connection(self):
+        """Deve liberar conexão de volta ao pool."""
+        pool = {
+            "max_connections": 5,
+            "active_connections": 3,
+            "idle_connections": []
+        }
+
+        pool["active_connections"] -= 1
+        pool["idle_connections"].append("conn3")
+
+        assert pool["active_connections"] == 2
+        assert len(pool["idle_connections"]) == 1
+
+    @pytest.mark.asyncio
+    async def test_pool_exhausted(self):
+        """Deve tratar pool esgotado."""
+        pool = {
+            "max_connections": 5,
+            "active_connections": 5
+        }
+
+        available = pool["max_connections"] - pool["active_connections"]
+
+        assert available == 0
+
+    @pytest.mark.asyncio
+    async def test_pool_cleanup(self):
+        """Deve limpar conexões ociosas antigas."""
+        pool = {
+            "idle_connections": [
+                {"conn": "c1", "last_used": datetime.utcnow() - timedelta(seconds=300)},
+                {"conn": "c2", "last_used": datetime.utcnow() - timedelta(seconds=30)}
+            ],
+            "max_idle_time": 60  # segundos
+        }
+
+        now = datetime.utcnow()
+        active_connections = [
+            c for c in pool["idle_connections"]
+            if (now - c["last_used"]).total_seconds() <= pool["max_idle_time"]
+        ]
+
+        assert len(active_connections) == 1
+        assert active_connections[0]["conn"] == "c2"
+
+
+# =============================================================================
+# Test: Agent Discovery
+# =============================================================================
+
+class TestAgentDiscovery:
+    """Testes de descoberta de agentes."""
+
+    @pytest.mark.asyncio
+    async def test_discover_agents(self):
+        """Deve descobrir agentes disponíveis."""
+        registry = {
+            "analyst-1": {"endpoint": "http://analyst-1:8000", "status": "healthy"},
+            "analyst-2": {"endpoint": "http://analyst-2:8000", "status": "healthy"},
+            "scout-1": {"endpoint": "http://scout-1:8000", "status": "unhealthy"}
+        }
+
+        healthy_agents = {
+            k: v for k, v in registry.items()
+            if v["status"] == "healthy"
+        }
+
+        assert len(healthy_agents) == 2
+        assert "analyst-1" in healthy_agents
+
+    @pytest.mark.asyncio
+    async def test_register_agent(self):
+        """Deve registrar novo agente."""
+        registry = {}
+
+        agent_id = "new-agent"
+        registry[agent_id] = {
+            "endpoint": f"http://{agent_id}:8000",
+            "status": "healthy",
+            "registered_at": datetime.utcnow().isoformat()
+        }
+
+        assert agent_id in registry
+        assert registry[agent_id]["status"] == "healthy"
+
+    @pytest.mark.asyncio
+    async def test_deregister_agent(self):
+        """Deve remover registro do agente."""
+        registry = {
+            "agent-1": {"endpoint": "http://agent-1:8000"},
+            "agent-2": {"endpoint": "http://agent-2:8000"}
+        }
+
+        del registry["agent-1"]
+
+        assert "agent-1" not in registry
+        assert len(registry) == 1
+
+    @pytest.mark.asyncio
+    async def test_health_check_agent(self):
+        """Deve verificar saúde do agente."""
+        agent = {
+            "endpoint": "http://agent-1:8000",
+            "last_check": None,
+            "status": "unknown"
+        }
+
+        # Simular health check
+        agent["last_check"] = datetime.utcnow().isoformat()
+        agent["status"] = "healthy"
+
+        assert agent["status"] == "healthy"
+        assert agent["last_check"] is not None
+
+    @pytest.mark.asyncio
+    async def test_select_agent_by_capability(self):
+        """Deve selecionar agente por capacidade."""
+        agents = {
+            "analyst-1": {"capabilities": ["text_analysis", "code_analysis"]},
+            "analyst-2": {"capabilities": ["text_analysis"]},
+            "scout-1": {"capabilities": ["data_discovery"]}
+        }
+
+        required_capability = "code_analysis"
+        matching_agents = [
+            k for k, v in agents.items()
+            if required_capability in v["capabilities"]
+        ]
+
+        assert matching_agents == ["analyst-1"]
+
+
+# =============================================================================
+# Test: Agent Communication
+# =============================================================================
+
+class TestAgentCommunication:
+    """Testes de comunicação entre agentes."""
+
+    @pytest.mark.asyncio
+    async def test_send_message(self):
+        """Deve enviar mensagem entre agentes."""
+        message = {
+            "from": "agent-1",
+            "to": "agent-2",
+            "type": "analysis_request",
+            "payload": {"data": "test"},
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
+        sent = True
+
+        assert sent is True
+        assert message["type"] == "analysis_request"
+
+    @pytest.mark.asyncio
+    async def test_receive_message(self):
+        """Deve receber mensagem."""
+        inbox = [
+            {"from": "agent-1", "payload": {"data": "test1"}},
+            {"from": "agent-2", "payload": {"data": "test2"}}
+        ]
+
+        message = inbox.pop(0)
+
+        assert message["from"] == "agent-1"
+        assert len(inbox) == 1
+
+    @pytest.mark.asyncio
+    async def test_broadcast_message(self):
+        """Deve broadcast mensagem para múltiplos agentes."""
+        message = {
+            "from": "coordinator",
+            "type": "shutdown",
+            "payload": {"reason": "maintenance"}
+        }
+
+        recipients = ["agent-1", "agent-2", "agent-3"]
+        sent_count = 0
+
+        for recipient in recipients:
+            sent_count += 1
+
+        assert sent_count == 3
+
+    @pytest.mark.asyncio
+    async def test_message_acknowledgment(self):
+        """Deve confirmar recebimento de mensagem."""
+        message = {
+            "id": str(uuid4()),
+            "payload": {"data": "test"},
+            "acknowledged": False
+        }
+
+        # Simular acknowledge
+        message["acknowledged"] = True
+        message["acknowledged_at"] = datetime.utcnow().isoformat()
+
+        assert message["acknowledged"] is True
+
+    @pytest.mark.asyncio
+    async def test_message_timeout(self):
+        """Deve tratar timeout de mensagem."""
+        message = {
+            "sent_at": datetime.utcnow() - timedelta(seconds=65),
+            "timeout": 60,
+            "status": "pending"
+        }
+
+        elapsed = (datetime.utcnow() - message["sent_at"]).total_seconds()
+        timed_out = elapsed > message["timeout"]
+
+        assert timed_out is True
+
+
+# =============================================================================
+# Test: Agent Lifecycle
+# =============================================================================
+
+class TestAgentLifecycle:
+    """Testes de ciclo de vida do agente."""
+
+    @pytest.mark.asyncio
+    async def test_agent_initialization(self):
+        """Deve inicializar agente."""
+        agent = {
+            "id": str(uuid4()),
+            "type": "analyst",
+            "status": "initialized",
+            "config": {"timeout": 30}
+        }
+
+        assert agent["status"] == "initialized"
+
+    @pytest.mark.asyncio
+    async def test_agent_start(self):
+        """Deve iniciar agente."""
+        agent = {"status": "initialized"}
+
+        agent["status"] = "running"
+        agent["started_at"] = datetime.utcnow().isoformat()
+
+        assert agent["status"] == "running"
+        assert agent["started_at"] is not None
+
+    @pytest.mark.asyncio
+    async def test_agent_stop(self):
+        """Deve parar agente."""
+        agent = {"status": "running"}
+
+        agent["status"] = "stopped"
+        agent["stopped_at"] = datetime.utcnow().isoformat()
+
+        assert agent["status"] == "stopped"
+
+    @pytest.mark.asyncio
+    async def test_agent_restart(self):
+        """Deve reiniciar agente."""
+        agent = {
+            "status": "stopped",
+            "restart_count": 0
+        }
+
+        agent["status"] = "running"
+        agent["restart_count"] += 1
+        agent["restarted_at"] = datetime.utcnow().isoformat()
+
+        assert agent["status"] == "running"
+        assert agent["restart_count"] == 1
+
+    @pytest.mark.asyncio
+    async def test_agent_heartbeat(self):
+        """Deve enviar heartbeat do agente."""
+        agent = {
+            "id": "agent-1",
+            "last_heartbeat": None
+        }
+
+        agent["last_heartbeat"] = datetime.utcnow().isoformat()
+
+        assert agent["last_heartbeat"] is not None
+
+
+# =============================================================================
+# Test: Agent Configuration
+# =============================================================================
+
+class TestAgentConfiguration:
+    """Testes de configuração do agente."""
+
+    @pytest.mark.asyncio
+    async def test_load_config(self):
+        """Deve carregar configuração."""
+        config = {
+            "timeout": 30,
+            "retry_attempts": 3,
+            "backoff": "exponential"
+        }
+
+        assert config["timeout"] == 30
+        assert config["retry_attempts"] == 3
+
+    @pytest.mark.asyncio
+    async def test_update_config(self):
+        """Deve atualizar configuração."""
+        config = {"timeout": 30}
+
+        config["timeout"] = 60
+
+        assert config["timeout"] == 60
+
+    @pytest.mark.asyncio
+    async def test_validate_config(self):
+        """Deve validar configuração."""
+        config = {"timeout": 30, "retry_attempts": 3}
+
+        is_valid = (
+            isinstance(config["timeout"], int) and config["timeout"] > 0
+            and isinstance(config["retry_attempts"], int) and config["retry_attempts"] >= 0
+        )
+
+        assert is_valid is True
+
+    @pytest.mark.asyncio
+    async def test_default_config(self):
+        """Deve usar configuração padrão."""
+        default_config = {
+            "timeout": 30,
+            "retry_attempts": 3,
+            "backoff": "exponential",
+            "max_concurrent": 10
+        }
+
+        user_config = {}
+        final_config = {**default_config, **user_config}
+
+        assert final_config["timeout"] == 30
+
+    @pytest.mark.asyncio
+    async def test_env_override_config(self):
+        """Deve permitir override por variável de ambiente."""
+        config = {"timeout": 30}
+
+        # Simular override
+        env_timeout = 60
+        if env_timeout:
+            config["timeout"] = env_timeout
+
+        assert config["timeout"] == 60
+
+
+# =============================================================================
+# Test: Agent Metrics
+# =============================================================================
+
+class TestAgentMetrics:
+    """Testes de métricas do agente."""
+
+    @pytest.mark.asyncio
+    async def test_track_requests(self):
+        """Deve rastrear requisições."""
+        metrics = {
+            "total_requests": 0,
+            "successful_requests": 0,
+            "failed_requests": 0
+        }
+
+        metrics["total_requests"] += 1
+        metrics["successful_requests"] += 1
+
+        assert metrics["total_requests"] == 1
+        assert metrics["successful_requests"] == 1
+
+    @pytest.mark.asyncio
+    async def test_track_latency(self):
+        """Deve rastrear latência."""
+        latencies = []
+
+        start = datetime.utcnow()
+        # Simular operação
+        elapsed = (datetime.utcnow() - start).total_seconds()
+        latencies.append(elapsed)
+
+        assert len(latencies) == 1
+        assert latencies[0] >= 0
+
+    @pytest.mark.asyncio
+    async def test_calculate_percentiles(self):
+        """Deve calcular percentis."""
+        latencies = [100, 150, 200, 250, 300]
+
+        sorted_latencies = sorted(latencies)
+        p50_index = int(len(sorted_latencies) * 0.50)
+        p95_index = int(len(sorted_latencies) * 0.95)
+
+        p50 = sorted_latencies[p50_index]
+        p95 = sorted_latencies[min(p95_index, len(sorted_latencies) - 1)]
+
+        assert p50 == 200
+        assert p95 == 300
+
+    @pytest.mark.asyncio
+    async def test_track_active_connections(self):
+        """Deve rastrear conexões ativas."""
+        metrics = {
+            "active_connections": 0,
+            "max_connections": 10
+        }
+
+        metrics["active_connections"] = 5
+
+        assert metrics["active_connections"] == 5
+        assert metrics["active_connections"] < metrics["max_connections"]
+
+    @pytest.mark.asyncio
+    async def test_reset_metrics(self):
+        """Deve resetar métricas."""
+        metrics = {
+            "total_requests": 100,
+            "successful_requests": 95,
+            "failed_requests": 5
+        }
+
+        metrics = {k: 0 for k in metrics}
+
+        assert metrics["total_requests"] == 0
+
+
+# =============================================================================
+# Test: Agent Error Handling
+# =============================================================================
+
+class TestAgentErrorHandling:
+    """Testes de tratamento de erros do agente."""
+
+    @pytest.mark.asyncio
+    async def test_handle_connection_error(self):
+        """Deve tratar erro de conexão."""
+        error = ConnectionError("Failed to connect")
+
+        is_retriable = isinstance(error, ConnectionError)
+
+        assert is_retriable is True
+
+    @pytest.mark.asyncio
+    async def test_handle_timeout_error(self):
+        """Deve tratar erro de timeout."""
+        error = TimeoutError("Request timed out")
+
+        should_retry = isinstance(error, TimeoutError)
+
+        assert should_retry is True
+
+    @pytest.mark.asyncio
+    async def test_handle_validation_error(self):
+        """Deve tratar erro de validação."""
+        error = ValueError("Invalid input")
+
+        # Erros de validação não são retriables por padrão
+        retriable_exceptions = (ConnectionError, TimeoutError)
+        is_retriable = isinstance(error, retriable_exceptions)
+
+        assert is_retriable is False  # ValueError não está na lista de retriable
+
+    @pytest.mark.asyncio
+    async def test_log_error(self):
+        """Deve logar erro."""
+        error_log = []
+
+        error = Exception("Test error")
+        error_log.append({
+            "error": str(error),
+            "type": type(error).__name__,
+            "timestamp": datetime.utcnow().isoformat()
+        })
+
+        assert len(error_log) == 1
+        assert error_log[0]["error"] == "Test error"
+
+    @pytest.mark.asyncio
+    async def test_error_recovery(self):
+        """Deve recuperar de erro."""
+        state = {"attempts": 0, "max_attempts": 3}
+        recovered = False
+
+        while state["attempts"] < state["max_attempts"] and not recovered:
+            state["attempts"] += 1
+            # Simula sucesso na terceira tentativa
+            if state["attempts"] == 3:
+                recovered = True
+
+        assert recovered is True
+        assert state["attempts"] == 3

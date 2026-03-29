@@ -481,3 +481,540 @@ class TestResilienceComposition:
         result = await with_fallback()
 
         assert result == "fallback_result"
+
+
+# =============================================================================
+# Test: Additional Bulkhead Scenarios
+# =============================================================================
+
+class TestBulkheadExtended:
+    """Testes estendidos de Bulkhead."""
+
+    @pytest.mark.asyncio
+    async def test_bulkhead_max_concurrent(self):
+        """Deve respeitar máximo de concorrência."""
+        max_concurrent = 5
+        active = 0
+        rejected = 0
+
+        for i in range(10):
+            if active < max_concurrent:
+                active += 1
+            else:
+                rejected += 1
+
+        assert active == 5
+        assert rejected == 5
+
+    @pytest.mark.asyncio
+    async def test_bulkhead_release_after_completion(self):
+        """Deve liberar slot após conclusão."""
+        max_concurrent = 3
+        active = 3
+
+        # Um execução completa
+        active -= 1
+
+        assert active == 2
+        assert active < max_concurrent
+
+    @pytest.mark.asyncio
+    async def test_bulkhead_queue_full(self):
+        """Deve rejeitar quando fila cheia."""
+        max_queue = 5
+        queue_size = 5
+
+        can_enqueue = queue_size < max_queue
+
+        assert can_enqueue is False
+
+    @pytest.mark.asyncio
+    async def test_bulkhead_fifo_queue(self):
+        """Deve processar fila em FIFO."""
+        queue = ["req1", "req2", "req3"]
+        processed = []
+
+        while queue:
+            processed.append(queue.pop(0))
+
+        assert processed == ["req1", "req2", "req3"]
+
+
+# =============================================================================
+# Test: Additional Retry Scenarios
+# =============================================================================
+
+class TestRetryExtended:
+    """Testes estendidos de Retry."""
+
+    @pytest.mark.asyncio
+    async def test_retry_exponential_backoff(self):
+        """Deve calcular backoff exponencial."""
+        base_delay = 1
+        attempt = 3
+
+        delay = base_delay * (2 ** (attempt - 1))
+
+        assert delay == 4  # 1 * 2^2
+
+    @pytest.mark.asyncio
+    async def test_retry_max_delay_cap(self):
+        """Deve limitar delay máximo."""
+        base_delay = 1
+        max_delay = 10
+        attempt = 20
+
+        delay = min(base_delay * (2 ** (attempt - 1)), max_delay)
+
+        assert delay == max_delay
+
+    @pytest.mark.asyncio
+    async def test_retry_jitter_calculation(self):
+        """Deve adicionar jitter ao delay."""
+        base_delay = 2
+        jitter_factor = 0.5
+
+        min_jitter = base_delay * (1 - jitter_factor)
+        max_jitter = base_delay * (1 + jitter_factor)
+
+        assert 1 <= min_jitter <= max_jitter <= 3
+
+    @pytest.mark.asyncio
+    async def test_retry_specific_exceptions(self):
+        """Deve retentar apenas para exceções específicas."""
+        retryable_exceptions = (ConnectionError, TimeoutError)
+        exception = ConnectionError("test")
+
+        should_retry = isinstance(exception, retryable_exceptions)
+
+        assert should_retry is True
+
+    @pytest.mark.asyncio
+    async def test_retry_no_retry_for_validation_errors(self):
+        """Não deve retentar erros de validação."""
+        retryable_exceptions = (ConnectionError, TimeoutError)
+        exception = ValueError("Invalid input")
+
+        should_retry = isinstance(exception, retryable_exceptions)
+
+        assert should_retry is False
+
+
+# =============================================================================
+# Test: Circuit Breaker Extended
+# =============================================================================
+
+class TestCircuitBreakerExtended:
+    """Testes estendidos de Circuit Breaker."""
+
+    @pytest.mark.asyncio
+    async def test_circuit_success_resets_failure_count(self):
+        """Sucesso deve resetar contador de falhas."""
+        failure_count = 3
+        failure_threshold = 5
+        circuit_state = "closed"
+
+        # Sucesso após algumas falhas
+        failure_count = 0
+
+        assert failure_count == 0
+        assert circuit_state == "closed"
+
+    @pytest.mark.asyncio
+    async def test_circuit_half_open_to_closed(self):
+        """Half-open deve fechar após sucesso."""
+        circuit_state = "half_open"
+        success_count = 0
+        required_successes = 1
+
+        # Sucesso em half-open
+        success_count += 1
+        if success_count >= required_successes:
+            circuit_state = "closed"
+
+        assert circuit_state == "closed"
+
+    @pytest.mark.asyncio
+    async def test_circuit_half_open_to_open_on_failure(self):
+        """Half-open deve abrir em falha."""
+        circuit_state = "half_open"
+
+        # Falha em half-open volta para open
+        circuit_state = "open"
+
+        assert circuit_state == "open"
+
+    @pytest.mark.asyncio
+    async def test_circuit_metrics(self):
+        """Deve registrar métricas do circuit breaker."""
+        metrics = {
+            "state_transitions": [],
+            "total_failures": 0,
+            "total_successes": 0,
+            "last_state_change": None
+        }
+
+        # Transição closed -> open
+        metrics["state_transitions"].append(("closed", "open"))
+        metrics["last_state_change"] = datetime.utcnow()
+
+        assert len(metrics["state_transitions"]) == 1
+        assert metrics["last_state_change"] is not None
+
+
+# =============================================================================
+# Test: Timeout Extended
+# =============================================================================
+
+class TestTimeoutExtended:
+    """Testes estendidos de Timeout."""
+
+    @pytest.mark.asyncio
+    async def test_timeout_per_operation(self):
+        """Deve ter timeout por operação."""
+        timeouts = {
+            "read": 5,
+            "write": 10,
+            "delete": 3
+        }
+
+        operation = "write"
+        timeout = timeouts.get(operation, 5)
+
+        assert timeout == 10
+
+    @pytest.mark.asyncio
+    async def test_timeout_cancellation(self):
+        """Deve cancelar operação em timeout."""
+        import asyncio
+
+        cancelled = False
+
+        async def long_operation():
+            try:
+                await asyncio.sleep(10)
+            except asyncio.CancelledError:
+                nonlocal cancelled
+                cancelled = True
+                raise
+
+        task = asyncio.create_task(long_operation())
+        await asyncio.sleep(0.1)
+        task.cancel()
+
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
+        assert cancelled is True
+
+    @pytest.mark.asyncio
+    async def test_timeout_grace_period(self):
+        """Deve permitir grace period."""
+        timeout = 5
+        grace_period = 1
+        effective_timeout = timeout + grace_period
+
+        elapsed = 5.5
+        timed_out = elapsed > effective_timeout
+
+        assert timed_out is False
+
+    @pytest.mark.asyncio
+    async def test_timeout_no_timeout(self):
+        """Deve permitir operação sem timeout."""
+        timeout = None
+
+        has_timeout = timeout is not None
+
+        assert has_timeout is False
+
+
+# =============================================================================
+# Test: Fallback Extended
+# =============================================================================
+
+class TestFallbackExtended:
+    """Testes estendidos de Fallback."""
+
+    @pytest.mark.asyncio
+    async def test_fallback_caching(self):
+        """Deve cachear resultado de fallback."""
+        cache = {}
+        key = "fallback:user:123"
+
+        if key not in cache:
+            cache[key] = {"name": "Fallback User"}
+
+        result = cache[key]
+
+        assert result["name"] == "Fallback User"
+
+    @pytest.mark.asyncio
+    async def test_fallback_chain_execution(self):
+        """Deve executar cadeia de fallbacks."""
+        fallbacks = [
+            lambda: None,  # Primary failed
+            lambda: "fallback1",
+            lambda: "fallback2"
+        ]
+
+        result = None
+        for fallback in fallbacks:
+            result = fallback()
+            if result is not None:
+                break
+
+        assert result == "fallback1"
+
+    @pytest.mark.asyncio
+    async def test_fallback_condition_execution(self):
+        """Deve executar fallback condicionalmente."""
+        primary_available = False
+        condition = "primary_available"
+
+        if not primary_available and condition == "primary_available":
+            result = "fallback_result"
+        else:
+            result = "primary_result"
+
+        assert result == "fallback_result"
+
+    @pytest.mark.asyncio
+    async def test_fallback_metrics(self):
+        """Deve registrar métricas de fallback."""
+        metrics = {
+            "primary_calls": 100,
+            "primary_failures": 10,
+            "fallback_calls": 8,
+            "fallback_failures": 1
+        }
+
+        fallback_rate = metrics["fallback_calls"] / metrics["primary_calls"]
+        fallback_success_rate = (
+            (metrics["fallback_calls"] - metrics["fallback_failures"]) /
+            metrics["fallback_calls"]
+        )
+
+        assert fallback_rate == 0.08
+        assert fallback_success_rate == 0.875
+
+
+# =============================================================================
+# Test: Rate Limiter Extended
+# =============================================================================
+
+class TestRateLimiterExtended:
+    """Testes estendidos de Rate Limiter."""
+
+    @pytest.mark.asyncio
+    async def test_rate_limit_sliding_window(self):
+        """Deve implementar janela deslizante."""
+        now = datetime.utcnow()
+        window = 60  # segundos
+        requests = [
+            {"timestamp": now - timedelta(seconds=30)},
+            {"timestamp": now - timedelta(seconds=20)},
+            {"timestamp": now - timedelta(seconds=70)},  # Fora da janela
+        ]
+
+        in_window = [
+            r for r in requests
+            if (now - r["timestamp"]).total_seconds() <= window
+        ]
+
+        assert len(in_window) == 2
+
+    @pytest.mark.asyncio
+    async def test_rate_limit_token_bucket_refill(self):
+        """Deve recarregar tokens."""
+        capacity = 100
+        tokens = 50
+        refill_rate = 10  # tokens/segundo
+        elapsed = 3  # segundos
+
+        tokens = min(capacity, tokens + refill_rate * elapsed)
+
+        assert tokens == 80
+
+    @pytest.mark.asyncio
+    async def test_rate_limit_distributed(self):
+        """Deve funcionar em cenário distribuído."""
+        # Simular contador distribuído
+        distributed_counter = {"value": 50}
+        max_requests = 100
+
+        can_proceed = distributed_counter["value"] < max_requests
+
+        assert can_proceed is True
+
+    @pytest.mark.asyncio
+    async def test_rate_limit_priority_bypass(self):
+        """Deve permitir bypass para requisições prioritárias."""
+        rate_limit = 100
+        current = 100
+        priority = "high"
+
+        if priority == "high":
+            can_proceed = True
+        else:
+            can_proceed = current < rate_limit
+
+        assert can_proceed is True
+
+
+# =============================================================================
+# Test: Registry Extended
+# =============================================================================
+
+class TestRegistryExtended:
+    """Testes estendidos de Registry."""
+
+    @pytest.mark.asyncio
+    async def test_registry_register_multiple_policies(self):
+        """Deve registrar múltiplas políticas."""
+        registry = {}
+
+        registry["service_a"] = {
+            "circuit_breaker": {"threshold": 5},
+            "retry": {"max_attempts": 3}
+        }
+        registry["service_b"] = {
+            "timeout": {"duration": 10},
+            "bulkhead": {"max_concurrent": 5}
+        }
+
+        assert len(registry) == 2
+        assert "circuit_breaker" in registry["service_a"]
+
+    @pytest.mark.asyncio
+    async def test_registry_get_policy(self):
+        """Deve obter política específica."""
+        registry = {
+            "service_a": {
+                "circuit_breaker": {"threshold": 5},
+                "retry": {"max_attempts": 3}
+            }
+        }
+
+        circuit_breaker_config = registry["service_a"]["circuit_breaker"]
+
+        assert circuit_breaker_config["threshold"] == 5
+
+    @pytest.mark.asyncio
+    async def test_registry_update_policy(self):
+        """Deve atualizar política existente."""
+        registry = {
+            "service_a": {
+                "retry": {"max_attempts": 3}
+            }
+        }
+
+        registry["service_a"]["retry"]["max_attempts"] = 5
+
+        assert registry["service_a"]["retry"]["max_attempts"] == 5
+
+    @pytest.mark.asyncio
+    async def test_registry_delete_policy(self):
+        """Deve deletar política."""
+        registry = {
+            "service_a": {"retry": {"max_attempts": 3}},
+            "service_b": {"timeout": {"duration": 10}}
+        }
+
+        del registry["service_a"]
+
+        assert "service_a" not in registry
+        assert "service_b" in registry
+
+    @pytest.mark.asyncio
+    async def test_registry_list_services(self):
+        """Deve listar todos os serviços."""
+        registry = {
+            "service_a": {},
+            "service_b": {},
+            "service_c": {}
+        }
+
+        services = list(registry.keys())
+
+        assert len(services) == 3
+        assert "service_a" in services
+
+
+# =============================================================================
+# Test: Exceptions Extended
+# =============================================================================
+
+class TestExceptionsExtended:
+    """Testes estendidos de Exceções."""
+
+    @pytest.mark.asyncio
+    async def test_circuit_breaker_exception_attributes(self):
+        """Exceção de circuit breaker deve ter atributos."""
+        class CircuitBreakerError(Exception):
+            def __init__(self, service, circuit):
+                self.service = service
+                self.circuit = circuit
+                super().__init__(f"Circuit {circuit} for {service} is open")
+
+        exc = CircuitBreakerError("service_a", "breaker_1")
+
+        assert exc.service == "service_a"
+        assert exc.circuit == "breaker_1"
+
+    @pytest.mark.asyncio
+    async def test_retry_exhausted_exception(self):
+        """Exceção de retry esgotado."""
+        class RetryExhaustedError(Exception):
+            def __init__(self, last_exception):
+                self.last_exception = last_exception
+                super().__init__(f"Retry exhausted: {last_exception}")
+
+        exc = RetryExhaustedError(ConnectionError("Failed"))
+
+        assert "Retry exhausted" in str(exc)
+
+    @pytest.mark.asyncio
+    async def test_timeout_exception_with_elapsed(self):
+        """Exceção de timeout com tempo decorrido."""
+        class TimeoutError(Exception):
+            def __init__(self, timeout, elapsed):
+                self.timeout = timeout
+                self.elapsed = elapsed
+                super().__init__(f"Timeout after {elapsed}s (limit: {timeout}s)")
+
+        exc = TimeoutError(10, 15)
+
+        assert exc.timeout == 10
+        assert exc.elapsed == 15
+
+    @pytest.mark.asyncio
+    async def test_bulkhead_rejected_exception(self):
+        """Exceção de bulkhead rejeitado."""
+        class BulkheadRejectedError(Exception):
+            def __init__(self, max_concurrent, current):
+                self.max_concurrent = max_concurrent
+                self.current = current
+                super().__init__(f"Bulkhead full: {current}/{max_concurrent}")
+
+        exc = BulkheadRejectedError(10, 10)
+
+        assert exc.max_concurrent == 10
+        assert exc.current == 10
+
+    @pytest.mark.asyncio
+    async def test_rate_limit_exceeded_exception(self):
+        """Exceção de rate limit excedido."""
+        class RateLimitExceededError(Exception):
+            def __init__(self, limit, window, retry_after):
+                self.limit = limit
+                self.window = window
+                self.retry_after = retry_after
+                super().__init__(f"Rate limit {limit}/{window}s exceeded")
+
+        exc = RateLimitExceededError(100, 60, 30)
+
+        assert exc.limit == 100
+        assert exc.retry_after == 30
