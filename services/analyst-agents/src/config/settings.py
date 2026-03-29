@@ -1,7 +1,9 @@
 from pydantic_settings import BaseSettings
-from pydantic import Field
+from pydantic import Field, model_validator
 from typing import List, Optional
 from functools import lru_cache
+
+from neural_hive_security.cors import CORSConfig
 
 
 class Settings(BaseSettings):
@@ -14,7 +16,17 @@ class Settings(BaseSettings):
     # FastAPI
     FASTAPI_HOST: str = '0.0.0.0'
     FASTAPI_PORT: int = 8000
-    CORS_ORIGINS: List[str] = Field(default=['*'])
+
+    # CORS - Serviço interno (gRPC/Kafka), sem CORS
+    IS_PUBLIC_API: bool = Field(default=False)
+
+    @property
+    def CORS_ORIGINS(self) -> List[str]:
+        """CORS origins dinâmicas por ambiente."""
+        return CORSConfig.get_origins_for_environment(
+            self.ENVIRONMENT,
+            is_public_api=self.IS_PUBLIC_API
+        )
 
     # gRPC
     GRPC_ENABLED: bool = True
@@ -98,6 +110,25 @@ class Settings(BaseSettings):
     # Embeddings
     EMBEDDINGS_MODEL: str = 'sentence-transformers/all-MiniLM-L6-v2'
     EMBEDDINGS_DIMENSION: int = 384
+
+    @model_validator(mode="after")
+    def validate_cors_in_production(self) -> "Settings":
+        """
+        Valida que serviços internos não usam wildcard CORS em produção.
+        """
+        is_prod = self.ENVIRONMENT.lower() in ("production", "prod")
+
+        if not is_prod:
+            return self
+
+        # Serviços internos NÃO podem usar wildcard
+        if not self.IS_PUBLIC_API and "*" in self.CORS_ORIGINS:
+            raise ValueError(
+                "Internal services cannot use wildcard CORS in production. "
+                f"Service: {self.SERVICE_NAME}, Environment: {self.ENVIRONMENT}"
+            )
+
+        return self
 
     class Config:
         env_file = '.env'

@@ -4,9 +4,11 @@ Configuracao do Approval Service
 Gerencia todas as configuracoes usando Pydantic Settings com suporte a variaveis de ambiente.
 """
 
-from typing import Optional
+from typing import Optional, List
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings
+
+from neural_hive_security.cors import CORSConfig
 
 
 class Settings(BaseSettings):
@@ -18,6 +20,17 @@ class Settings(BaseSettings):
     log_level: str = Field(default='INFO', description='Nivel de log')
     service_name: str = Field(default='approval-service', description='Nome do servico')
     service_version: str = Field(default='1.0.0', description='Versao do servico')
+
+    # CORS - Approval service é API pública
+    is_public_api: bool = Field(default=True, description='API pública requer CORS')
+
+    @property
+    def cors_origins(self) -> List[str]:
+        """CORS origins dinâmicas por ambiente."""
+        return CORSConfig.get_origins_for_environment(
+            self.environment,
+            is_public_api=self.is_public_api
+        )
 
     # Kafka Consumer configuration
     kafka_bootstrap_servers: str = Field(..., description='Servidores Kafka bootstrap')
@@ -164,6 +177,21 @@ class Settings(BaseSettings):
         if values.get('environment') == 'production' and v == 'PLAINTEXT':
             raise ValueError('Ambiente de producao requer conexao Kafka encriptada')
         return v
+
+    @model_validator(mode='after')
+    def validate_cors_in_production(self) -> 'Settings':
+        """
+        Valida que serviços públicos não usam wildcard CORS em produção.
+        """
+        is_prod = self.environment.lower() in ('production', 'prod')
+
+        if not is_prod:
+            return self
+
+        # Valida que não tem wildcard nas origens
+        CORSConfig.validate_no_wildcard(self.cors_origins, self.environment)
+
+        return self
 
     @model_validator(mode='after')
     def validate_https_in_production(self) -> 'Settings':

@@ -353,13 +353,15 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Configura CORS
+# Configura CORS - usa origens do settings por ambiente
+settings = get_settings()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=["X-Request-ID", "X-Correlation-ID"],
 )
 
 # Registra metricas

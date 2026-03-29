@@ -13,10 +13,10 @@ Este diretório contém os planos de implementação detalhados para os GAPS cr�
 | ID | GAP | Impacto | Estimativa | Status |
 |----|-----|---------|------------|--------|
 | **GAP-01** | Fluxo STE → Consensus Quebrado | CRÍTICO | 1 dia | ✅ COMPLETO |
-| **GAP-02** | execution.results Sem Consumer | ALTO | 3 dias | 🟡 Em Progresso |
+| **GAP-02** | execution.results Sem Consumer | ALTO | 3 dias | ✅ COMPLETO |
+| **GAP-05** | CORS Wildcards | MÉDIO | 5 dias | ✅ COMPLETO |
 | **GAP-03** | Dependências Vulneráveis (CVE) | ALTO | 13 dias | 🔴 Planejado |
 | **GAP-04** | Cobertura de Testes 16% → 70% | MÉDIO | 11 semanas | 🟡 Planejado |
-| **GAP-05** | CORS Wildcards | MÉDIO | 5 dias | 🟡 Planejado |
 | **GAP-06** | Scheduler de Workflows | MÉDIO | 2 semanas | 🟡 Planejado |
 
 ## Estrutura de Documentação
@@ -37,8 +37,8 @@ docs/gaps/
 ## Cronograma Consolidado
 
 ```
-Semana 1:  ████████░░░░░░░░░░░░░░░░  GAP-01 + GAP-02 (bloqueios removidos)
-Semana 2-3: ████████████░░░░░░░░░░░  GAP-05 (CORS)
+Semana 1:  ██████████████████████████  GAP-01 ✅ + GAP-02 ✅ COMPLETOS
+Semana 2:  ██████████████████████████  GAP-05 ✅ COMPLETO (CORS)
 Semana 3-4: ████████████████░░░░░░  GAP-03 (dependências)
 Semana 4-6: ██████████████████░░░░  GAP-06 (Scheduler)
 Semana 7-16:██████████████████████░  GAP-04 (Testes - paralelo)

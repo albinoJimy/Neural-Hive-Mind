@@ -2,6 +2,8 @@ from functools import lru_cache
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from neural_hive_security.cors import CORSConfig
+
 
 class Settings(BaseSettings):
     """Configurações do Queen Agent via variáveis de ambiente"""
@@ -19,7 +21,17 @@ class Settings(BaseSettings):
     # FastAPI
     FASTAPI_HOST: str = "0.0.0.0"
     FASTAPI_PORT: int = 8000
-    CORS_ORIGINS: list[str] = Field(default_factory=lambda: ["*"])
+
+    # CORS - Serviço interno (gRPC/Kafka), sem CORS
+    IS_PUBLIC_API: bool = Field(default=False)
+
+    @property
+    def CORS_ORIGINS(self) -> list[str]:
+        """CORS origins dinâmicas por ambiente."""
+        return CORSConfig.get_origins_for_environment(
+            self.ENVIRONMENT,
+            is_public_api=self.IS_PUBLIC_API
+        )
 
     # gRPC
     GRPC_PORT: int = 50053
@@ -115,6 +127,25 @@ class Settings(BaseSettings):
     LOAD_BALANCER_STRATEGY: str = "round_robin"  # round_robin, least_loaded, weighted, consistent_hash
     WORKER_HEARTBEAT_TIMEOUT_SECONDS: int = 30
     METRICS_TTL_SECONDS: int = 300
+
+    @model_validator(mode="after")
+    def validate_cors_in_production(self) -> "Settings":
+        """
+        Valida que serviços internos não usam wildcard CORS em produção.
+        """
+        is_prod = self.ENVIRONMENT.lower() in ("production", "prod")
+
+        if not is_prod:
+            return self
+
+        # Serviços internos NÃO podem usar wildcard
+        if not self.IS_PUBLIC_API and "*" in self.CORS_ORIGINS:
+            raise ValueError(
+                "Internal services cannot use wildcard CORS in production. "
+                f"Service: {self.SERVICE_NAME}, Environment: {self.ENVIRONMENT}"
+            )
+
+        return self
 
     @model_validator(mode="after")
     def validate_https_in_production(self) -> "Settings":

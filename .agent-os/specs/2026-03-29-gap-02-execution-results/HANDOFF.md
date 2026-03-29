@@ -112,7 +112,7 @@
 - [x] Integração no main do orchestrator
 - [x] Sintaxe validada (todos os arquivos)
 - [x] Commit criado e pushado (fe66261)
-- [ ] Testes unitários escritos
+- [x] Testes unitários escritos (14 testes, 100% pass)
 - [ ] Testes de integração executados
 - [ ] Validação E2E com Kafka local
 

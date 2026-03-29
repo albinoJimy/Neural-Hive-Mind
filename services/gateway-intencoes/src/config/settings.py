@@ -2,6 +2,8 @@ from typing import List, Optional
 from pydantic import Field, validator, model_validator
 from pydantic_settings import BaseSettings
 
+from neural_hive_security.cors import CORSConfig
+
 
 class Settings(BaseSettings):
     """Configurações da aplicação Gateway de Intenções"""
@@ -10,6 +12,15 @@ class Settings(BaseSettings):
     environment: str = Field(default="dev")
     debug: bool = Field(default=False)
     log_level: str = Field(default="INFO")
+
+    # CORS - Gateway é API pública
+    is_public_api: bool = Field(default=True, description="API pública requer CORS")
+
+    # Override de CORS (opcional, para casos especiais)
+    cors_origins_override: Optional[List[str]] = Field(
+        default=None,
+        description="Override manual de CORS origins (None = usar configuração automática)"
+    )
 
     # Kafka
     kafka_bootstrap_servers: str = Field(
@@ -202,15 +213,29 @@ class Settings(BaseSettings):
     )
     jwt_algorithm: str = Field(default="HS256")
 
-    # CORS e hosts (OBRIGATÓRIO)
-    allowed_origins: List[str] = Field(
-        ...,
-        description="CORS allowed origins (comma-separated string or list). Use ['*'] ONLY for development."
-    )
+    # CORS e hosts (usa biblioteca neural_hive_security)
     allowed_hosts: List[str] = Field(
         default=["*"],
         description="Allowed hosts for TrustedHostMiddleware"
     )
+
+    @property
+    def allowed_origins(self) -> List[str]:
+        """
+        CORS origins dinâmicas por ambiente.
+
+        Usa neural_hive_security.CORSConfig para configurar origens
+        seguras por ambiente, com opção de override manual.
+        """
+        # Se override foi fornecido, usa ele
+        if self.cors_origins_override is not None:
+            return self.cors_origins_override
+
+        # Caso contrário, usa configuração automática
+        return CORSConfig.get_origins_for_environment(
+            self.environment,
+            is_public_api=self.is_public_api
+        )
 
     # Observabilidade - OpenTelemetry Collector OTLP endpoint
     otel_enabled: bool = Field(
@@ -283,12 +308,32 @@ class Settings(BaseSettings):
             )
         return v
 
-    @validator("allowed_origins", pre=True)
-    def parse_cors_origins(cls, v):
+    @validator("cors_origins_override", pre=True)
+    def parse_cors_origins_override(cls, v):
         """Parse CORS_ORIGINS from comma-separated string to list."""
+        if v is None:
+            return None
         if isinstance(v, str):
             return [origin.strip() for origin in v.split(",")]
         return v
+
+    @model_validator(mode="after")
+    def validate_cors_in_production(self) -> "Settings":
+        """
+        Valida que não usa wildcard CORS em produção.
+        """
+        # Se override foi fornecido, valida ele
+        origins = self.allowed_origins
+
+        is_prod = self.environment.lower() in ("production", "prod", "staging", "stage")
+
+        if not is_prod:
+            return self
+
+        # Valida que não tem wildcard nas origens
+        CORSConfig.validate_no_wildcard(origins, self.environment)
+
+        return self
 
     @model_validator(mode="after")
     def validate_https_in_production(self) -> "Settings":
