@@ -2,7 +2,7 @@
 # neuralHiveSpecialists @ file:///app/libraries/python/neural_hive_specialists
 
 # HTTP server and client
-fastapi==0.115.6
+fastapi==0.115.10
 uvicorn[standard]==0.34.0
 requests>=2.31.0
 

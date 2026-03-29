@@ -16,7 +16,7 @@ Este diretório contém os planos de implementação detalhados para os GAPS cr�
 | **GAP-02** | execution.results Sem Consumer | ALTO | 3 dias | ✅ COMPLETO |
 | **GAP-05** | CORS Wildcards | MÉDIO | 5 dias | ✅ COMPLETO |
 | **GAP-06** | Scheduler de Workflows | MÉDIO | 2 semanas | ✅ COMPLETO |
-| **GAP-03** | Dependências Vulneráveis (CVE) | ALTO | 13 dias | 🔴 Planejado |
+| **GAP-03** | Dependências Vulneráveis (CVE) | ALTO | 13 dias | ✅ COMPLETO |
 | **GAP-04** | Cobertura de Testes 16% → 70% | MÉDIO | 11 semanas | 🟡 Planejado |
 
 ## Estrutura de Documentação
@@ -39,8 +39,8 @@ docs/gaps/
 ```
 Semana 1:  ██████████████████████████  GAP-01 ✅ + GAP-02 ✅ COMPLETOS
 Semana 2:  ██████████████████████████  GAP-05 ✅ + GAP-06 ✅ COMPLETOS
-Semana 3-4: ████████████████░░░░░░  GAP-03 (dependências)
-Semana 5-16:██████████████████████░  GAP-04 (Testes - paralelo)
+Semana 3:  ██████████████████████████  GAP-03 ✅ COMPLETO (Dependências)
+Semana 4-16:███████████████████████░  GAP-04 (Testes - paralelo)
 ```
 
 ## Priorização de Execução

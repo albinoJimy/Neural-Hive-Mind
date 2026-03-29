@@ -1,7 +1,7 @@
 # Code Forge - Neural Code Generation Pipeline Dependencies
 
 # Web Framework
-fastapi==0.115.6
+fastapi==0.115.10
 uvicorn[standard]==0.34.0
 
 # gRPC - versão consolidada
@@ -62,7 +62,7 @@ pyyaml>=6.0.1
 orjson>=3.9.10
 
 # Security
-python-jose[cryptography]>=3.3.0
+python-jose[cryptography]==4.0.0  # CVE-2022-24314 fix - GAP-03
 cryptography>=41.0.0
 
 # Utility
