@@ -10,8 +10,8 @@ CONS_SRC = ROOT / "services" / "consensus-engine" / "src"
 if str(CONS_SRC) not in sys.path:
     sys.path.append(str(CONS_SRC))
 
-from src.config.settings import Settings  # noqa: E402
-from src.services.consensus_orchestrator import ConsensusOrchestrator  # noqa: E402
+from config.settings import Settings  # noqa: E402
+from services.consensus_orchestrator import ConsensusOrchestrator  # noqa: E402
 
 
 class _DummyPheromoneClient:

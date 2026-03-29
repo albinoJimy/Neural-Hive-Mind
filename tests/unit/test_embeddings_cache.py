@@ -133,7 +133,7 @@ def test_feature_extractor_skips_embeddings_when_disabled():
 
     plan = {
         'plan_id': 'skip-embeddings',
-        'tasks': [{'description': 'skip me', 'dependencies': []}],
+        'tasks': [{'task_id': 'task-1', 'description': 'skip me', 'dependencies': []}],
         'original_domain': 'test',
         'original_priority': 'normal'
     }

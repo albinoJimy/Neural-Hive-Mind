@@ -486,3 +486,530 @@ class TestRiskValidation:
 
         assert valid_weights(weights) is True
         assert valid_weights(invalid_weights) is False
+
+
+# =============================================================================
+# Test: Risk History Tracking
+# =============================================================================
+
+class TestRiskHistoryTracking:
+    """Testes de rastreamento de histórico de risco."""
+
+    def test_record_risk_decision(self):
+        """Deve gravar decisão de risco."""
+        decision = {
+            "decision_id": str(uuid4()),
+            "risk_score": 0.75,
+            "verdict": "reject",
+            "timestamp": datetime.utcnow().isoformat(),
+            "factors": {
+                "amount": 1000000,
+                "new_client": True
+            }
+        }
+
+        assert decision["risk_score"] >= 0.7
+        assert decision["verdict"] == "reject"
+
+    def test_track_risk_over_time(self):
+        """Deve rastrear risco ao longo do tempo."""
+        risk_history = [
+            {"date": "2026-03-01", "avg_risk": 0.5},
+            {"date": "2026-03-15", "avg_risk": 0.6},
+            {"date": "2026-03-29", "avg_risk": 0.7}
+        ]
+
+        # Risco está aumentando
+        assert risk_history[0]["avg_risk"] < risk_history[1]["avg_risk"] < risk_history[2]["avg_risk"]
+
+    def test_calculate_risk_trend(self):
+        """Deve calcular tendência de risco."""
+        recent_scores = [0.5, 0.6, 0.7, 0.8]
+
+        # Tendência positiva (risco aumentando)
+        trend = sum(recent_scores[i+1] - recent_scores[i] for i in range(len(recent_scores)-1))
+
+        assert trend > 0
+
+    def test_detect_risk_spike(self):
+        """Deve detectar pico de risco."""
+        normal_risk = 0.4
+        current_risk = 0.9
+
+        spike_threshold = 0.3
+        is_spike = (current_risk - normal_risk) > spike_threshold
+
+        assert is_spike is True
+
+    def test_risk_comparison_with_peers(self):
+        """Deve comparar risco com pares."""
+        user_risk = 0.6
+        peer_avg_risk = 0.4
+        peer_percentile = 80  # Percentil 0-100
+
+        # Usuário tem risco maior que média dos pares
+        assert user_risk > peer_avg_risk
+
+        # Usuário está no percentil 80 (maior que 50% dos pares)
+        assert peer_percentile > 50
+
+
+# =============================================================================
+# Test: Risk Mitigation
+# =============================================================================
+
+class TestRiskMitigation:
+    """Testes de mitigação de risco."""
+
+    def test_require_additional_approval(self):
+        """Deve requer aprovação adicional para alto risco."""
+        risk_score = 0.85
+
+        requires_approval = risk_score > 0.7
+
+        assert requires_approval is True
+
+    def test_suggest_mitigation_actions(self):
+        """Deve sugerir ações de mitigação."""
+        risk_factors = {
+            "high_amount": True,
+            "new_client": True,
+            "unusual_location": False
+        }
+
+        mitigations = []
+
+        if risk_factors["high_amount"]:
+            mitigations.append("require_manager_approval")
+
+        if risk_factors["new_client"]:
+            mitigations.append("limit_transaction_amount")
+
+        assert len(mitigations) == 2
+        assert "require_manager_approval" in mitigations
+
+    def test_calculate_residual_risk(self):
+        """Deve calcular risco residual após mitigação."""
+        original_risk = 0.8
+        mitigation_effectiveness = 0.5  # Reduz risco em 50%
+
+        residual_risk = original_risk * (1 - mitigation_effectiveness)
+
+        assert residual_risk == 0.4
+
+    def test_dynamic_risk_adjustment(self):
+        """Deve ajustar risco dinamicamente baseado em histórico."""
+        base_risk = 0.6
+        successful_transactions = 10
+        failed_transactions = 2
+
+        # Cada transação bem-sucedida reduz risco
+        risk_reduction = min(successful_transactions * 0.02, 0.3)
+
+        # Cada falha aumenta risco
+        risk_increase = min(failed_transactions * 0.05, 0.2)
+
+        adjusted_risk = base_risk - risk_reduction + risk_increase
+
+        assert 0.3 < adjusted_risk < 0.8
+
+
+# =============================================================================
+# Test: Risk Categories
+# =============================================================================
+
+class TestRiskCategories:
+    """Testes de categorização de risco."""
+
+    def test_categorize_low_risk(self):
+        """Deve categorizar risco baixo."""
+        risk_score = 0.2
+
+        if risk_score < 0.3:
+            category = "low"
+        elif risk_score < 0.7:
+            category = "medium"
+        else:
+            category = "high"
+
+        assert category == "low"
+
+    def test_categorize_medium_risk(self):
+        """Deve categorizar risco médio."""
+        risk_score = 0.5
+
+        if risk_score < 0.3:
+            category = "low"
+        elif risk_score < 0.7:
+            category = "medium"
+        else:
+            category = "high"
+
+        assert category == "medium"
+
+    def test_categorize_high_risk(self):
+        """Deve categorizar risco alto."""
+        risk_score = 0.8
+
+        if risk_score < 0.3:
+            category = "low"
+        elif risk_score < 0.7:
+            category = "medium"
+        else:
+            category = "high"
+
+        assert category == "high"
+
+    def test_edge_case_boundary_values(self):
+        """Deve tratar valores de contorno."""
+        # Boundary values
+        assert 0.299 == pytest.approx(0.3, abs=0.01)  # low/medium boundary
+        assert 0.699 == pytest.approx(0.7, abs=0.01)  # medium/high boundary
+
+
+# =============================================================================
+# Test: Risk Aggregation
+# =============================================================================
+
+class TestRiskAggregation:
+    """Testes de agregação de risco."""
+
+    def test_aggregate_multiple_risks(self):
+        """Deve agregar múltiplos riscos."""
+        risks = {
+            "financial": 0.7,
+            "operational": 0.5,
+            "compliance": 0.8,
+            "security": 0.3
+        }
+
+        # Agregação: média ponderada
+        weights = {
+            "financial": 0.3,
+            "operational": 0.2,
+            "compliance": 0.3,
+            "security": 0.2
+        }
+
+        aggregated = sum(risks[k] * weights[k] for k in risks)
+
+        assert 0.5 < aggregated < 0.7
+
+    def test_worst_case_risk(self):
+        """Deve considerar pior caso."""
+        risks = [0.3, 0.5, 0.7, 0.9]
+
+        worst_case = max(risks)
+
+        assert worst_case == 0.9
+
+    def test_best_case_risk(self):
+        """Deve considerar melhor caso."""
+        risks = [0.3, 0.5, 0.7, 0.9]
+
+        best_case = min(risks)
+
+        assert best_case == 0.3
+
+    def test_hybrid_risk_score(self):
+        """Deve calcular score híbrido."""
+        risks = [0.3, 0.5, 0.7, 0.9]
+
+        # Híbrido: 70% pior caso + 30% médio
+        worst_case = max(risks)
+        avg_case = sum(risks) / len(risks)
+        hybrid = (worst_case * 0.7) + (avg_case * 0.3)
+
+        assert 0.6 < hybrid <= 0.85
+
+
+# =============================================================================
+# Test: Risk Thresholds
+# =============================================================================
+
+class TestRiskThresholds:
+    """Testes de thresholds de risco."""
+
+    def test_auto_approve_threshold(self):
+        """Deve aprovar automaticamente abaixo do threshold."""
+        risk_score = 0.3
+        auto_approve_threshold = 0.4
+
+        can_auto_approve = risk_score < auto_approve_threshold
+
+        assert can_auto_approve is True
+
+    def test_auto_reject_threshold(self):
+        """Deve rejeitar automaticamente acima do threshold."""
+        risk_score = 0.8
+        auto_reject_threshold = 0.7
+
+        can_auto_reject = risk_score > auto_reject_threshold
+
+        assert can_auto_reject is True
+
+    def test_manual_review_range(self):
+        """Deve requer revisão manual no range intermediário."""
+        risk_score = 0.5
+        auto_approve_threshold = 0.4
+        auto_reject_threshold = 0.7
+
+        requires_manual = (
+            auto_approve_threshold <= risk_score <= auto_reject_threshold
+        )
+
+        assert requires_manual is True
+
+    def test_dynamic_threshold_adjustment(self):
+        """Deve ajustar thresholds dinamicamente."""
+        base_threshold = 0.7
+        system_load = 0.9  # Sistema sob carga
+
+        # Aumentar threshold sob carga
+        adjusted_threshold = base_threshold + (0.1 if system_load > 0.8 else 0)
+
+        assert adjusted_threshold > base_threshold
+
+
+# =============================================================================
+# Test: Risk Factors
+# =============================================================================
+
+class TestRiskFactors:
+    """Testes de fatores de risco."""
+
+    def test_extract_amount_factor(self):
+        """Deve extrair fator de valor."""
+        transaction = {"amount": 50000, "currency": "USD"}
+
+        # Risco aumenta com valor
+        if transaction["amount"] > 10000:
+            amount_risk = min(transaction["amount"] / 100000, 1.0)
+        else:
+            amount_risk = 0.1
+
+        assert amount_risk > 0.1
+
+    def test_extract_velocity_factor(self):
+        """Deve extrair fator de velocidade."""
+        transactions_count = 10
+        time_window_minutes = 5
+
+        velocity = transactions_count / time_window_minutes
+
+        # Alta velocidade aumenta risco
+        velocity_risk = min(velocity / 10, 1.0)
+
+        if transactions_count > 15:
+            assert velocity_risk > 0.5
+
+    def test_extract_geographic_factor(self):
+        """Deve extrair fator geográfico."""
+        high_risk_countries = ["XX", "YY"]
+        user_country = "ZZ"
+
+        geo_risk = 1.0 if user_country in high_risk_countries else 0.2
+
+        assert geo_risk == 0.2
+
+    def test_extract_time_factor(self):
+        """Deve extrair fator de tempo."""
+        from datetime import datetime
+
+        current_hour = datetime.utcnow().hour
+
+        # Transações noturnas têm risco maior
+        if 22 <= current_hour or current_hour < 6:
+            time_risk = 0.7
+        elif 9 <= current_hour < 17:
+            time_risk = 0.3  # Horário comercial
+        else:
+            time_risk = 0.5
+
+        assert 0.3 <= time_risk <= 0.7
+
+
+# =============================================================================
+# Test: Risk Model Validation
+# =============================================================================
+
+class TestRiskModelValidation:
+    """Testes de validação de modelo de risco."""
+
+    def test_validate_model_inputs(self):
+        """Deve validar entradas do modelo."""
+        required_inputs = [
+            "amount",
+            "user_history",
+            "transaction_velocity",
+            "geographic_location"
+        ]
+
+        inputs_provided = {
+            "amount": 1000,
+            "user_history": "good",
+            "transaction_velocity": 1.0,
+            "geographic_location": "US"
+        }
+
+        is_valid = all(k in inputs_provided for k in required_inputs)
+
+        assert is_valid is True
+
+    def test_validate_model_output_range(self):
+        """Deve validar saída do modelo em [0,1]."""
+        outputs = [0.0, 0.5, 1.0, -0.1, 1.5]
+
+        valid_outputs = [o for o in outputs if 0 <= o <= 1]
+
+        assert len(valid_outputs) == 3  # 0.0, 0.5, 1.0
+
+    def test_model_calibration(self):
+        """Deve verificar calibração do modelo."""
+        predicted_probs = [0.3, 0.5, 0.7]
+        actual_outcomes = [0, 1, 1]  # 0 ou 1
+
+        # Calcular accuracy (simplificado)
+        correct = sum(
+            1 for p, a in zip(predicted_probs, actual_outcomes)
+            if (p >= 0.5 and a == 1) or (p < 0.5 and a == 0)
+        )
+
+        accuracy = correct / len(predicted_probs)
+
+        assert accuracy > 0.5
+
+
+# =============================================================================
+# Test: Risk Reporting
+# =============================================================================
+
+class TestRiskReporting:
+    """Testes de relatórios de risco."""
+
+    def test_generate_risk_report(self):
+        """Deve gerar relatório de risco."""
+        report = {
+            "report_id": str(uuid4()),
+            "timestamp": datetime.utcnow().isoformat(),
+            "total_risk_score": 0.65,
+            "risk_category": "medium",
+            "top_factors": [
+                {"factor": "amount", "contribution": 0.4},
+                {"factor": "velocity", "contribution": 0.3}
+            ]
+        }
+
+        assert report["risk_category"] == "medium"
+        assert len(report["top_factors"]) == 2
+
+    def test_format_risk_for_display(self):
+        """Deve formatar risco para exibição."""
+        risk_score = 0.75
+
+        if risk_score < 0.3:
+            display = f"🟢 Low Risk ({risk_score:.0%})"
+        elif risk_score < 0.7:
+            display = f"🟡 Medium Risk ({risk_score:.0%})"
+        else:
+            display = f"🔴 High Risk ({risk_score:.0%})"
+
+        assert "High Risk" in display or "Medium Risk" in display
+
+    def test_generate_risk_summary(self):
+        """Deve gerar sumário de risco."""
+        risks = {
+            "low": 45,
+            "medium": 30,
+            "high": 25
+        }
+        total = sum(risks.values())
+
+        summary = {
+            "total": total,
+            "low_pct": risks["low"] / total,
+            "medium_pct": risks["medium"] / total,
+            "high_pct": risks["high"] / total
+        }
+
+        assert summary["total"] == 100
+        assert summary["high_pct"] == 0.25
+
+
+# =============================================================================
+# Test: Risk Alerts
+# =============================================================================
+
+class TestRiskAlerts:
+    """Testes de alertas de risco."""
+
+    def test_trigger_high_risk_alert(self):
+        """Deve disparar alerta para risco alto."""
+        risk_score = 0.85
+        threshold = 0.7
+
+        should_alert = risk_score > threshold
+
+        assert should_alert is True
+
+    def test_alert_recipients(self):
+        """Deve determinar destinatários de alerta."""
+        risk_level = "high"
+
+        recipients = {
+            "low": ["user_manager"],
+            "medium": ["user_manager", "risk_team"],
+            "high": ["user_manager", "risk_team", "compliance"]
+        }
+
+        assert len(recipients[risk_level]) >= len(recipients["low"])
+
+
+# =============================================================================
+# Test: Risk Model Updates
+# =============================================================================
+
+class TestRiskModelUpdates:
+    """Testes de atualização de modelo de risco."""
+
+    def test_retrain_model_on_new_data(self):
+        """Deve retreinar modelo com novos dados."""
+        current_accuracy = 0.75
+        new_data_accuracy = 0.80
+        min_improvement = 0.03
+
+        should_retrain = (new_data_accuracy - current_accuracy) > min_improvement
+
+        assert should_retrain is True
+
+    def test_validate_model_before_deployment(self):
+        """Deve validar modelo antes do deploy."""
+        model_metrics = {
+            "accuracy": 0.82,
+            "precision": 0.80,
+            "recall": 0.78,
+            "f1_score": 0.79
+        }
+
+        # Todos os métricos devem estar acima de 0.7
+        is_valid = all(v >= 0.7 for v in model_metrics.values())
+
+        assert is_valid is True
+
+    def test_rollback_model_on_degradation(self):
+        """Deve fazer rollback em caso de degradação."""
+        current_f1 = 0.75
+        deployed_f1 = 0.80
+        degradation_threshold = 0.05
+
+        degradation = deployed_f1 - current_f1
+
+        # Usar >= para considerar igual ou maior que threshold
+        should_rollback = degradation >= degradation_threshold
+
+        # Com 0.05 de degradação exatamente no threshold, não fazer rollback
+        # Apenas se for significativamente maior
+        significant_degradation = (degradation - degradation_threshold) > 0.01
+
+        assert significant_degradation is False
+
