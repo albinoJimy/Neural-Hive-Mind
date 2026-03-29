@@ -3,7 +3,7 @@
 Script de Teste End-to-End do Consensus Engine
 
 Testa o fluxo completo de consenso:
-1. Publica plano cognitivo no tópico Kafka cognitive-plans
+1. Publica plano cognitivo no tópico Kafka plans.ready
 2. Monitora tópico de decisions para resultado do consenso
 3. Valida que todos os 5 especialistas foram invocados
 4. Verifica decisão de consenso no MongoDB
@@ -14,6 +14,7 @@ Uso:
   ./test-consensus-engine-e2e.py --kafka-bootstrap kafka:9092
   ./test-consensus-engine-e2e.py --scenarios simple,high_risk
   ./test-consensus-engine-e2e.py --timeout 10
+  ./test-consensus-engine-e2e.py --plans-topic plans.ready
 """
 
 import sys
@@ -67,17 +68,20 @@ class ConsensusEngineE2ETester:
         kafka_bootstrap: str = "kafka.kafka:9092",
         mongodb_uri: str = "mongodb://mongodb.mongodb-cluster:27017",
         redis_host: str = "redis-cluster.redis:6379",
-        timeout: int = 10
+        timeout: int = 10,
+        plans_topic: str = "plans.ready"
     ):
         self.kafka_bootstrap = kafka_bootstrap
         self.mongodb_uri = mongodb_uri
         self.redis_host = redis_host
         self.timeout = timeout
+        self.plans_topic = plans_topic
         logger.info(
             "Iniciando E2E tester do Consensus Engine",
             kafka=kafka_bootstrap,
             mongodb=mongodb_uri,
-            timeout=timeout
+            timeout=timeout,
+            plans_topic=plans_topic
         )
 
     def generate_test_plan(self, scenario: str) -> Dict[str, Any]:
@@ -168,6 +172,7 @@ class ConsensusEngineE2ETester:
             logger.info(
                 "Publicando plano cognitivo no Kafka",
                 plan_id=plan["plan_id"],
+                topic=self.plans_topic,
                 scenario=scenario
             )
 
@@ -180,10 +185,10 @@ class ConsensusEngineE2ETester:
                 key_serializer=lambda k: k.encode('utf-8') if k else None
             )
 
-            producer.send('cognitive-plans', key=plan["plan_id"], value=plan)
+            producer.send(self.plans_topic, key=plan["plan_id"], value=plan)
             producer.flush()
 
-            logger.info("Plano publicado no Kafka", plan_id=plan["plan_id"])
+            logger.info("Plano publicado no Kafka", plan_id=plan["plan_id"], topic=self.plans_topic)
 
             # Monitorar tópico de decisões
             consumer = KafkaConsumer(
@@ -378,6 +383,12 @@ def main():
         help="Namespace Kubernetes (não usado diretamente neste script)"
     )
     parser.add_argument(
+        "--plans-topic",
+        type=str,
+        default="plans.ready",
+        help="Tópico Kafka para publicar planos cognitivos (default: plans.ready)"
+    )
+    parser.add_argument(
         "--output-json",
         type=str,
         default=None,
@@ -392,7 +403,8 @@ def main():
         kafka_bootstrap=args.kafka_bootstrap,
         mongodb_uri=args.mongodb_uri,
         redis_host=args.redis_host,
-        timeout=args.timeout
+        timeout=args.timeout,
+        plans_topic=args.plans_topic
     )
 
     logger.info("Iniciando testes E2E do Consensus Engine")
