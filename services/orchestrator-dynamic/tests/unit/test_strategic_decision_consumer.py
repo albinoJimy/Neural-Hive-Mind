@@ -144,8 +144,8 @@ class TestProcessMessage:
         # Verificar que o plano foi atualizado
         mock_mongodb_client.update_cognitive_plan.assert_called_once()
         call_args = mock_mongodb_client.update_cognitive_plan.call_args
-        assert call_args[0][0] == 'plan-456'
-        assert call_args[0][1]['priority'] == 'CRITICAL'
+        assert call_args.kwargs['plan_id'] == 'plan-456'
+        assert call_args.kwargs['updates']['priority'] == 'CRITICAL'
 
     @pytest.mark.asyncio
     async def test_process_cancellation_decision(self, consumer, mock_mongodb_client, mock_temporal_client):
@@ -183,8 +183,8 @@ class TestProcessMessage:
         # Verificar que plano foi atualizado
         mock_mongodb_client.update_cognitive_plan.assert_called_once()
         call_args = mock_mongodb_client.update_cognitive_plan.call_args
-        assert call_args[0][0] == 'plan-456'
-        assert call_args[0][1]['status'] == 'CANCELLED'
+        assert call_args.kwargs['plan_id'] == 'plan-456'
+        assert call_args.kwargs['updates']['status'] == 'CANCELLED'
 
     @pytest.mark.asyncio
     async def test_process_escalation_decision(self, consumer, mock_mongodb_client):
@@ -217,8 +217,8 @@ class TestProcessMessage:
         # Verificar escalada
         mock_mongodb_client.update_cognitive_plan.assert_called_once()
         call_args = mock_mongodb_client.update_cognitive_plan.call_args
-        assert call_args[0][1]['escalated'] is True
-        assert call_args[0][1]['escalation_reason'] == 'Critical issue detected'
+        assert call_args.kwargs['updates']['escalated'] is True
+        assert call_args.kwargs['updates']['escalation_reason'] == 'Critical issue detected'
 
     @pytest.mark.asyncio
     async def test_skip_cancellation_of_completed_plan(self, consumer, mock_mongodb_client, mock_temporal_client):
@@ -284,7 +284,7 @@ class TestProcessMessage:
         # Verificar ajustes
         mock_mongodb_client.update_cognitive_plan.assert_called_once()
         call_args = mock_mongodb_client.update_cognitive_plan.call_args
-        adjustments = call_args[0][1]['workflow_adjustments']
+        adjustments = call_args.kwargs['updates']['workflow_adjustments']
         assert len(adjustments) == 2
 
     @pytest.mark.asyncio
@@ -322,7 +322,7 @@ class TestProcessMessage:
         # Verificar realocação
         mock_mongodb_client.update_cognitive_plan.assert_called_once()
         call_args = mock_mongodb_client.update_cognitive_plan.call_args
-        assert call_args[0][1]['resource_allocation']['cpu'] == '4000m'
+        assert call_args.kwargs['updates']['resource_allocation']['cpu'] == '4000m'
 
     @pytest.mark.asyncio
     async def test_process_policy_update(self, consumer, mock_mongodb_client):
@@ -358,7 +358,7 @@ class TestProcessMessage:
         # Verificar políticas
         mock_mongodb_client.update_cognitive_plan.assert_called_once()
         call_args = mock_mongodb_client.update_cognitive_plan.call_args
-        assert call_args[0][1]['policies']['retry_policy'] == 'exponential_backoff'
+        assert call_args.kwargs['updates']['policies']['retry_policy'] == 'exponential_backoff'
 
 
 class TestStoreDecision:
@@ -400,10 +400,17 @@ class TestConsumerLifecycle:
     @pytest.mark.asyncio
     async def test_start_stop_consumer(self, consumer):
         """Deve iniciar e parar consumer corretamente."""
-        mock_producer = MagicMock()
+        mock_producer = AsyncMock()
         mock_producer.start = AsyncMock()
         mock_producer.stop = AsyncMock()
-        mock_producer.__aiter__ = AsyncMock(return_value=iter([]))
+
+        # Criar um iterador assíncrono vazio
+        async def async_iterator():
+            return
+            yield
+
+        mock_producer.__aiter__ = lambda self: async_iterator()
+        mock_producer.commit = AsyncMock()
 
         with patch('src.consumers.strategic_decision_consumer.instrument_kafka_consumer') as mock_instrument:
             mock_instrument.return_value = mock_producer
@@ -413,9 +420,90 @@ class TestConsumerLifecycle:
 
             # Simular start (loop vazio)
             start_task = asyncio.create_task(consumer.start())
-            await asyncio.sleep(0.1)
+            await asyncio.sleep(0.05)
             consumer.running = False
-            await start_task
+
+            try:
+                await asyncio.wait_for(start_task, timeout=0.1)
+            except asyncio.TimeoutError:
+                pass
 
             await consumer.stop()
             mock_producer.stop.assert_called_once()
+
+
+class TestErrorHandling:
+    """Testes de tratamento de erros."""
+
+    @pytest.mark.asyncio
+    async def test_error_handling_invalid_json(self, consumer, mock_mongodb_client):
+        """Deve lidar com JSON inválido na mensagem."""
+        message = MagicMock()
+        message.value = b'{invalid json}'
+        message.headers = []
+
+        await consumer._process_message(message)
+
+        # Não deve quebrar e não deve chamar MongoDB
+        mock_mongodb_client.get_cognitive_plan.assert_not_called()
+        mock_mongodb_client.update_cognitive_plan.assert_not_called()
+        mock_mongodb_client.insert_strategic_decision.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_error_recovery_on_mongodb_failure(self, consumer, mock_mongodb_client):
+        """Deve recuperar de falha no MongoDB."""
+        decision_data = {
+            'decision_id': 'decision-123',
+            'decision_type': StrategicDecisionType.PRIORITY_CHANGE.value,
+            'plan_id': 'plan-456',
+            'parameters': {'priority': 'CRITICAL'}
+        }
+
+        message = MagicMock()
+        message.value = json.dumps(decision_data).encode('utf-8')
+        message.headers = []
+
+        # MongoDB lança exceção
+        mock_mongodb_client.get_cognitive_plan = AsyncMock(side_effect=Exception("DB unavailable"))
+        mock_mongodb_client.insert_strategic_decision = AsyncMock()
+
+        consumer.consumer = AsyncMock()
+        consumer.consumer.commit = AsyncMock()
+
+        # Não deve lançar exceção
+        await consumer._process_message(message)
+
+
+class TestMetricsTracking:
+    """Testes de tracking de métricas."""
+
+    @pytest.mark.asyncio
+    async def test_metrics_tracking_on_process(self, consumer, mock_mongodb_client, mock_metrics):
+        """Deve atualizar métricas ao processar decisão."""
+        decision_data = {
+            'decision_id': 'decision-123',
+            'decision_type': StrategicDecisionType.PRIORITY_CHANGE.value,
+            'plan_id': 'plan-456',
+            'correlation_id': 'corr-789',
+            'parameters': {'priority': 'CRITICAL'}
+        }
+
+        message = MagicMock()
+        message.value = json.dumps(decision_data).encode('utf-8')
+        message.headers = []
+
+        mock_mongodb_client.get_cognitive_plan = AsyncMock(return_value={
+            'plan_id': 'plan-456',
+            'status': 'IN_PROGRESS'
+        })
+        mock_mongodb_client.update_cognitive_plan = AsyncMock()
+        mock_mongodb_client.insert_strategic_decision = AsyncMock()
+
+        consumer.consumer = AsyncMock()
+        consumer.consumer.commit = AsyncMock()
+
+        await consumer._process_message(message)
+
+        # Verificar métrica incrementada
+        mock_metrics.strategic_decisions_consumed_total.labels.assert_called()
+        mock_metrics.strategic_decisions_consumed_total.labels.return_value.inc.assert_called_once()

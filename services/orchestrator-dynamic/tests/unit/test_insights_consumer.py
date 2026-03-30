@@ -368,3 +368,77 @@ class TestConsumerLifecycle:
 
             await consumer.stop()
             mock_consumer.stop.assert_called_once()
+
+
+class TestErrorHandling:
+    """Testes de tratamento de erros."""
+
+    @pytest.mark.asyncio
+    async def test_error_handling_invalid_json(self, consumer, mock_mongodb_client):
+        """Deve lidar com JSON inválido na mensagem."""
+        message = MagicMock()
+        message.value = b'{invalid json}'
+        message.headers = []
+
+        await consumer._process_message(message)
+
+        # Não deve quebrar e não deve chamar MongoDB
+        mock_mongodb_client.get_cognitive_plan.assert_not_called()
+        mock_mongodb_client.insert_insight.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_error_handling_mongodb_unavailable(self, consumer):
+        """Deve lidar com MongoDB indisponível."""
+        insight_data = {
+            'insight_id': 'insight-123',
+            'insight_type': 'PREDICTIVE',
+            'priority': 'HIGH',
+            'plan_id': 'plan-456',
+            'description': 'Test insight'
+        }
+
+        message = MagicMock()
+        message.value = json.dumps(insight_data).encode('utf-8')
+        message.headers = []
+
+        # MongoDB retorna erro
+        consumer.mongodb_client = None
+
+        # Não deve lançar exceção
+        await consumer._process_message(message)
+
+
+class TestMetricsTracking:
+    """Testes de tracking de métricas."""
+
+    @pytest.mark.asyncio
+    async def test_metrics_tracking_on_process(self, consumer, mock_mongodb_client, mock_metrics):
+        """Deve atualizar métricas ao processar insight."""
+        insight_data = {
+            'insight_id': 'insight-123',
+            'insight_type': 'PREDICTIVE',
+            'priority': 'HIGH',
+            'plan_id': 'plan-456',
+            'description': 'Test insight'
+        }
+
+        message = MagicMock()
+        message.value = json.dumps(insight_data).encode('utf-8')
+        message.headers = []
+
+        mock_mongodb_client.get_cognitive_plan = AsyncMock(return_value={
+            'plan_id': 'plan-456',
+            'status': 'IN_PROGRESS',
+            'insights': []
+        })
+        mock_mongodb_client.update_cognitive_plan = AsyncMock()
+        mock_mongodb_client.insert_insight = AsyncMock()
+
+        consumer.consumer = AsyncMock()
+        consumer.consumer.commit = AsyncMock()
+
+        await consumer._process_message(message)
+
+        # Verificar métrica incrementada
+        mock_metrics.insights_consumed_total.labels.assert_called()
+        mock_metrics.insights_consumed_total.labels.return_value.inc.assert_called_once()
