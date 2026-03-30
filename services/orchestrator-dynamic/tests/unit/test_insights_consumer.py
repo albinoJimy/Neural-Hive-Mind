@@ -20,8 +20,6 @@ if src_path not in sys.path:
 # Mock de dependências problemáticas antes de importar
 sys.modules['neural_hive_security'] = MagicMock()
 sys.modules['neural_hive_security.cors'] = MagicMock()
-sys.modules['neural_have_security'] = MagicMock()
-sys.modules['neural_have_security.cors'] = MagicMock()
 
 from src.consumers.insights_consumer import InsightsConsumer
 
