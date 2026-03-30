@@ -264,3 +264,270 @@ class TestRiskExplainability:
             if f.direction == 'decreases_risk'
         ]
         assert len(decreasing_factors) >= 2
+
+    def test_factor_description_generation(self, explainability):
+        """Testa geração de descrições de fatores."""
+        assessment = RiskAssessment(
+            score=0.7,
+            band=RiskBand.HIGH,
+            domain=UnifiedDomain.SECURITY,
+            factors={
+                'security_level': 0.8,
+                'pii_exposure': 0.7,
+                'authentication': 0.6,
+                'encryption': 0.5
+            },
+            reasoning='test'
+        )
+
+        explanation = explainability.explain_assessment(
+            assessment=assessment,
+            entity_id='test-entity'
+        )
+
+        # Todas as fatores devem ter descrição
+        for factor in explanation.factors:
+            assert len(factor.description) > 0
+            assert isinstance(factor.description, str)
+
+    def test_what_if_scenario_no_band_change(self, explainability):
+        """Testa cenário what-if sem mudança de band."""
+        assessment = RiskAssessment(
+            score=0.6,
+            band=RiskBand.MEDIUM,
+            domain=UnifiedDomain.BUSINESS,
+            factors={'priority': 0.6, 'cost': 0.6},
+            reasoning='test'
+        )
+
+        scenarios = {
+            'small_change': {'priority': 0.55}  # Pequena mudança
+        }
+
+        results = explainability.what_if_analysis(
+            assessment=assessment,
+            entity_id='test-entity',
+            scenarios=scenarios
+        )
+
+        result = results[0]
+        # Pequena mudança não deve alterar band
+        assert result.band_change is None
+        assert result.impact == 'minimal'
+
+    def test_compare_assessments_different_domains(self, explainability):
+        """Testa comparação de avaliações de domínios diferentes."""
+        assessment1 = RiskAssessment(
+            score=0.5,
+            band=RiskBand.MEDIUM,
+            domain=UnifiedDomain.BUSINESS,
+            factors={'priority': 0.5},
+            reasoning='Business risk'
+        )
+
+        assessment2 = RiskAssessment(
+            score=0.5,
+            band=RiskBand.MEDIUM,
+            domain=UnifiedDomain.SECURITY,
+            factors={'security_level': 0.5},
+            reasoning='Security risk'
+        )
+
+        comparison = explainability.compare_assessments(
+            assessment1=assessment1,
+            assessment2=assessment2,
+            entity_id='test-entity'
+        )
+
+        assert comparison['domain1'] == 'BUSINESS'
+        assert comparison['domain2'] == 'SECURITY'
+        assert comparison['score_delta'] == 0.0
+
+    def test_compare_assessments_no_change(self, explainability):
+        """Testa comparação sem mudança."""
+        assessment = RiskAssessment(
+            score=0.5,
+            band=RiskBand.MEDIUM,
+            domain=UnifiedDomain.BUSINESS,
+            factors={'priority': 0.5},
+            reasoning='test'
+        )
+
+        comparison = explainability.compare_assessments(
+            assessment1=assessment,
+            assessment2=assessment,
+            entity_id='test-entity'
+        )
+
+        assert comparison['score_delta'] == 0.0
+        assert comparison['band_changed'] == False
+        assert len(comparison['factor_changes']) == 0
+
+    def test_feature_importance_ordering(self, explainability):
+        """Testa ordenação de importância de features."""
+        importance = explainability.get_feature_importance(UnifiedDomain.BUSINESS)
+
+        # Deve estar ordenado por peso (decrescente)
+        weights = [weight for _, weight in importance]
+        for i in range(1, len(weights)):
+            assert weights[i] <= weights[i-1]
+
+    def test_recommendations_for_low_risk(self, explainability):
+        """Testa recomendações para risco baixo."""
+        assessment = RiskAssessment(
+            score=0.2,
+            band=RiskBand.LOW,
+            domain=UnifiedDomain.BUSINESS,
+            factors={
+                'priority': 0.1,
+                'cost': 0.2,
+                'complexity': 0.3,
+                'kpi_alignment': 0.2
+            },
+            reasoning='Low risk'
+        )
+
+        explanation = explainability.explain_assessment(
+            assessment=assessment,
+            entity_id='test-entity'
+        )
+
+        recommendations = explainability.generate_recommendations(explanation)
+
+        # Para risco baixo, não deve haver recomendações de bandeiras
+        # Pode ter recomendações específicas de fatores
+        assert isinstance(recommendations, list)
+
+    def test_summary_report_sections(self, explainability, sample_assessment):
+        """Testa seções do relatório resumido."""
+        explanation = explainability.explain_assessment(
+            assessment=sample_assessment,
+            entity_id='test-entity'
+        )
+
+        report = explainability.create_summary_report(explanation)
+
+        # Verificar seções obrigatórias
+        assert '=== RELATÓRIO DE AVALIAÇÃO DE RISCO ===' in report
+        assert '--- Fatores de Risco ---' in report
+        assert '--- Recomendações ---' in report
+        assert '--- Justificativa ---' in report
+
+    def test_factor_contribution_to_dict(self, explainability, sample_assessment):
+        """Testa conversão de FactorContribution para dicionário."""
+        explanation = explainability.explain_assessment(
+            assessment=sample_assessment,
+            entity_id='test-entity'
+        )
+
+        if explanation.factors:
+            factor_dict = explanation.factors[0].to_dict()
+
+            assert 'name' in factor_dict
+            assert 'value' in factor_dict
+            assert 'weight' in factor_dict
+            assert 'contribution' in factor_dict
+            assert 'contribution_percentage' in factor_dict
+            assert 'direction' in factor_dict
+            assert 'description' in factor_dict
+
+    def test_risk_explanation_to_dict(self, explainability, sample_assessment):
+        """Testa conversão de RiskExplanation para dicionário."""
+        explanation = explainability.explain_assessment(
+            assessment=sample_assessment,
+            entity_id='test-entity'
+        )
+
+        explanation_dict = explanation.to_dict()
+
+        assert 'entity_id' in explanation_dict
+        assert 'domain' in explanation_dict
+        assert 'final_score' in explanation_dict
+        assert 'final_band' in explanation_dict
+        assert 'base_score' in explanation_dict
+        assert 'total_adjustment' in explanation_dict
+        assert 'reasoning' in explanation_dict
+        assert 'timestamp' in explanation_dict
+        assert 'factors' in explanation_dict
+
+    def test_what_if_impact_classification(self, explainability):
+        """Testa classificação de impacto em cenários what-if."""
+        assessment = RiskAssessment(
+            score=0.5,
+            band=RiskBand.MEDIUM,
+            domain=UnifiedDomain.BUSINESS,
+            factors={'priority': 0.5, 'cost': 0.5},
+            reasoning='test'
+        )
+
+        scenarios = {
+            'minimal': {'priority': 0.48},  # Delta pequeno
+            'moderate': {'priority': 0.4},   # Delta moderado
+            'significant': {'priority': 0.1}  # Delta significativo
+        }
+
+        results = explainability.what_if_analysis(
+            assessment=assessment,
+            entity_id='test-entity',
+            scenarios=scenarios
+        )
+
+        impact_types = {r.impact for r in results}
+        assert 'minimal' in impact_types
+        assert 'significant' in impact_types
+        # 'moderate' pode ou não estar presente dependendo dos thresholds
+
+    def test_contribution_percentage_sum(self, explainability, sample_assessment):
+        """Testa que percentuais de contribuição somam 100%."""
+        explanation = explainability.explain_assessment(
+            assessment=sample_assessment,
+            entity_id='test-entity'
+        )
+
+        total_percentage = sum(f.contribution_percentage for f in explanation.factors)
+
+        # Deve somar aproximadamente 100%
+        assert abs(total_percentage - 100.0) < 1.0
+
+    def test_explanation_with_custom_base_score(self, explainability, sample_assessment):
+        """Testa explicação com score base customizado."""
+        custom_base = 0.3
+
+        explanation = explainability.explain_assessment(
+            assessment=sample_assessment,
+            entity_id='test-entity',
+            base_score=custom_base
+        )
+
+        assert explanation.base_score == custom_base
+
+    def test_get_recommendation_unknown_factor(self, explainability):
+        """Testa recomendação para fator desconhecido."""
+        from unittest.mock import Mock
+        from neural_hive_risk_scoring.explainability import FactorContribution
+
+        # Fator sem recomendação específica
+        factor = FactorContribution(
+            name='unknown_factor',
+            value=0.8,
+            weight=0.25,
+            contribution=0.075,
+            contribution_percentage=15.0,
+            direction='increases_risk',
+            description='Unknown factor'
+        )
+
+        explanation = Mock(
+            final_band=RiskBand.HIGH,
+            domain=UnifiedDomain.BUSINESS,
+            factors=[factor]
+        )
+
+        recommendation = explainability._get_recommendation_for_factor(
+            'unknown_factor',
+            0.8,
+            UnifiedDomain.BUSINESS
+        )
+
+        # Deve retornar None para fator desconhecido
+        assert recommendation is None

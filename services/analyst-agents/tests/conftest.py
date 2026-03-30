@@ -45,8 +45,10 @@ os.environ.setdefault('KAFKA_TOPICS_CONSENSUS', 'consensus')
 os.environ.setdefault('KAFKA_TOPICS_EXECUTION', 'execution')
 os.environ.setdefault('KAFKA_TOPICS_PHEROMONES', 'pheromones')
 
-# Add src to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+# Add src to path - use absolute path to avoid conflicts
+_src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src'))
+if _src_path not in sys.path:
+    sys.path.insert(0, _src_path)
 
 # Mock problematic modules before importing
 sys.modules['elasticsearch'] = MagicMock()

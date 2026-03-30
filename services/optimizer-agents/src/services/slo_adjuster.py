@@ -110,7 +110,7 @@ class SLOAdjuster:
                 # Aplicar ajuste
                 success = await self.orchestrator_client.update_slos(
                     slo_updates={hypothesis.target_component: proposed_slos},
-                    justification=hypothesis.rationale,
+                    justification=hypothesis.hypothesis_text,
                     optimization_id=hypothesis.hypothesis_id,
                 )
 
@@ -219,9 +219,9 @@ class SLOAdjuster:
                 adjustments.append(
                     Adjustment(
                         parameter=param,
-                        previous_value=old_value,
-                        new_value=new_value,
-                        justification=f"Ajuste baseado em RL Q-value: {hypothesis.rationale}",
+                        previous_value=float(old_value),
+                        new_value=str(new_value),
+                        justification=f"Ajuste baseado em RL Q-value: {hypothesis.hypothesis_text}",
                     )
                 )
 
@@ -229,7 +229,7 @@ class SLOAdjuster:
         causal_analysis = CausalAnalysis(
             root_cause=f"Degradação de SLO em {hypothesis.target_component}",
             contributing_factors=[f"Métricas baseline: {hypothesis.baseline_metrics}"],
-            confidence_score=hypothesis.confidence,
+            confidence_score=hypothesis.confidence_score,
         )
 
         # Criar rollback plan

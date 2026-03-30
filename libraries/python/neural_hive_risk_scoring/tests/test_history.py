@@ -358,3 +358,321 @@ class TestRiskHistory:
 
         # Deve ter no máximo max_snapshots
         assert len(history) <= 5
+
+    def test_analyze_trend_stable(self, risk_history):
+        """Testa análise de tendência estável."""
+        now = datetime.utcnow()
+
+        # Criar tendência estável
+        for i in range(10):
+            assessment = RiskAssessment(
+                score=0.5,
+                band=RiskBand.MEDIUM,
+                domain=UnifiedDomain.BUSINESS,
+                factors={},
+                reasoning='test'
+            )
+            assessment.assessed_at = now - timedelta(hours=10 - i)
+            risk_history.record_assessment(assessment, 'test-entity')
+
+        trend = risk_history.analyze_trend('test-entity', window_hours=10)
+
+        assert trend is not None
+        assert trend.direction == TrendDirection.STABLE
+        assert abs(trend.delta) < 0.1
+
+    def test_anomaly_no_detection(self, risk_history):
+        """Testa não detecção quando score está dentro do esperado."""
+        now = datetime.utcnow()
+
+        # Histórico consistente
+        for i in range(20):
+            assessment = RiskAssessment(
+                score=0.5,
+                band=RiskBand.MEDIUM,
+                domain=UnifiedDomain.BUSINESS,
+                factors={},
+                reasoning='normal'
+            )
+            assessment.assessed_at = now - timedelta(hours=24 - i)
+            risk_history.record_assessment(assessment, 'test-entity')
+
+        # Score semelhante
+        normal = RiskAssessment(
+            score=0.52,
+            band=RiskBand.MEDIUM,
+            domain=UnifiedDomain.BUSINESS,
+            factors={},
+            reasoning='normal too'
+        )
+        risk_history.record_assessment(normal, 'test-entity')
+
+        detection = risk_history.detect_anomaly('test-entity')
+
+        # Não deve ser anomalia (ou muito baixa severidade)
+        if detection:
+            assert detection.is_anomaly == False or detection.severity == 'low'
+
+    def test_percentile_extremes(self, risk_history):
+        """Testa percentil em valores extremos."""
+        # Criar distribuição
+        for i in range(100):
+            assessment = RiskAssessment(
+                score=i / 100,
+                band=RiskBand.MEDIUM,
+                domain=UnifiedDomain.BUSINESS,
+                factors={},
+                reasoning='test'
+            )
+            risk_history.record_assessment(assessment, 'test-entity')
+
+        # Percentil 0 deve ser ~0
+        p0 = risk_history.get_percentile('test-entity', score=0.0)
+        assert 0.0 <= p0 <= 0.05
+
+        # Percentil 100 deve ser ~1
+        p100 = risk_history.get_percentile('test-entity', score=1.0)
+        assert 0.95 <= p100 <= 1.0
+
+    def test_get_statistics_with_single_value(self, risk_history):
+        """Testa estatísticas com valor único."""
+        assessment = RiskAssessment(
+            score=0.5,
+            band=RiskBand.MEDIUM,
+            domain=UnifiedDomain.BUSINESS,
+            factors={},
+            reasoning='test'
+        )
+        risk_history.record_assessment(assessment, 'test-entity')
+
+        stats = risk_history.get_statistics('test-entity')
+
+        assert stats['count'] == 1
+        assert stats['mean'] == 0.5
+        assert stats['min'] == 0.5
+        assert stats['max'] == 0.5
+        assert stats['std_dev'] == 0.0
+
+    def test_record_matrix(self, risk_history):
+        """Testa registro de matriz de risco."""
+        from neural_hive_risk_scoring import RiskMatrix
+
+        assessments = {
+            'BUSINESS': RiskAssessment(
+                score=0.3,
+                band=RiskBand.LOW,
+                domain=UnifiedDomain.BUSINESS,
+                factors={},
+                reasoning='test'
+            ),
+            'SECURITY': RiskAssessment(
+                score=0.7,
+                band=RiskBand.HIGH,
+                domain=UnifiedDomain.SECURITY,
+                factors={},
+                reasoning='test'
+            )
+        }
+
+        matrix = RiskMatrix(
+            entity_id='test-entity',
+            entity_type='plan',
+            assessments=assessments,
+            overall_score=0.5,
+            overall_band=RiskBand.MEDIUM,
+            highest_risk_domain=UnifiedDomain.SECURITY
+        )
+
+        snapshots = risk_history.record_matrix(matrix)
+
+        assert len(snapshots) == 2
+        assert all(isinstance(s, RiskSnapshot) for s in snapshots)
+
+    def test_snapshot_to_dict(self, risk_history, sample_assessment):
+        """Testa conversão de snapshot para dicionário."""
+        snapshot = risk_history.record_assessment(sample_assessment, 'test-entity')
+
+        snapshot_dict = snapshot.to_dict()
+
+        assert 'timestamp' in snapshot_dict
+        assert 'score' in snapshot_dict
+        assert 'band' in snapshot_dict
+        assert 'domain' in snapshot_dict
+        assert 'entity_id' in snapshot_dict
+
+    def test_get_latest_with_domain_filter(self, risk_history):
+        """Testa get_latest com filtro de domínio."""
+        # Registrar avaliações de domínios diferentes
+        business = RiskAssessment(
+            score=0.3,
+            band=RiskBand.LOW,
+            domain=UnifiedDomain.BUSINESS,
+            factors={},
+            reasoning='test'
+        )
+        technical = RiskAssessment(
+            score=0.7,
+            band=RiskBand.HIGH,
+            domain=UnifiedDomain.TECHNICAL,
+            factors={},
+            reasoning='test'
+        )
+
+        risk_history.record_assessment(business, 'test-entity')
+        risk_history.record_assessment(technical, 'test-entity')
+
+        # Latest BUSINESS
+        latest_business = risk_history.get_latest('test-entity', domain=UnifiedDomain.BUSINESS)
+        assert latest_business is not None
+        assert latest_business.domain == UnifiedDomain.BUSINESS
+
+        # Latest TECHNICAL
+        latest_technical = risk_history.get_latest('test-entity', domain=UnifiedDomain.TECHNICAL)
+        assert latest_technical is not None
+        assert latest_technical.domain == UnifiedDomain.TECHNICAL
+
+    def test_anomaly_severity_levels(self, risk_history):
+        """Testa níveis de severidade de anomalia."""
+        now = datetime.utcnow()
+
+        # Histórico consistente em 0.5
+        for i in range(20):
+            assessment = RiskAssessment(
+                score=0.5,
+                band=RiskBand.MEDIUM,
+                domain=UnifiedDomain.BUSINESS,
+                factors={},
+                reasoning='normal'
+            )
+            assessment.assessed_at = now - timedelta(hours=24 - i)
+            risk_history.record_assessment(assessment, 'severity-entity')
+
+        # Anomalia de baixa severidade
+        low_anomaly = RiskAssessment(
+            score=0.65,  # 1.5 desvios (assumindo std pequeno)
+            band=RiskBand.HIGH,
+            domain=UnifiedDomain.BUSINESS,
+            factors={},
+            reasoning='low anomaly'
+        )
+        risk_history.record_assessment(low_anomaly, 'severity-entity')
+
+        detection = risk_history.detect_anomaly('severity-entity')
+        if detection and detection.is_anomaly:
+            assert detection.severity in ['low', 'medium', 'high']
+
+    def test_trend_strength_calculation(self, risk_history):
+        """Testa cálculo de força da tendência."""
+        now = datetime.utcnow()
+
+        # Criar tendência forte (linear perfeita)
+        for i in range(10):
+            assessment = RiskAssessment(
+                score=0.1 + i * 0.08,  # 0.1, 0.18, 0.26, ..., 0.82
+                band=RiskBand.MEDIUM,
+                domain=UnifiedDomain.BUSINESS,
+                factors={},
+                reasoning='test'
+            )
+            assessment.assessed_at = now - timedelta(hours=10 - i)
+            risk_history.record_assessment(assessment, 'strong-trend')
+
+        trend = risk_history.analyze_trend('strong-trend')
+
+        if trend:
+            # Força deve ser alta (correlação forte)
+            assert trend.strength > 0.5
+
+    def test_volatility_calculation(self, risk_history):
+        """Testa cálculo de volatilidade."""
+        # Série estável
+        for i in range(10):
+            assessment = RiskAssessment(
+                score=0.5,
+                band=RiskBand.MEDIUM,
+                domain=UnifiedDomain.BUSINESS,
+                factors={},
+                reasoning='stable'
+            )
+            risk_history.record_assessment(assessment, 'stable-entity')
+
+        trend = risk_history.analyze_trend('stable-entity')
+
+        if trend:
+            # Volatilidade deve ser muito baixa
+            assert trend.volatility < 0.1
+
+    def test_get_entity_ids_by_domain(self, risk_history):
+        """Testa obtenção de IDs por domínio."""
+        # Registrar para diferentes domínios
+        risk_history.record_assessment(
+            RiskAssessment(
+                score=0.5,
+                band=RiskBand.MEDIUM,
+                domain=UnifiedDomain.BUSINESS,
+                factors={},
+                reasoning='test'
+            ),
+            'entity-1'
+        )
+
+        risk_history.record_assessment(
+            RiskAssessment(
+                score=0.5,
+                band=RiskBand.MEDIUM,
+                domain=UnifiedDomain.SECURITY,
+                factors={},
+                reasoning='test'
+            ),
+            'entity-2'
+        )
+
+        business_ids = risk_history.get_entity_ids(domain=UnifiedDomain.BUSINESS)
+        security_ids = risk_history.get_entity_ids(domain=UnifiedDomain.SECURITY)
+
+        assert 'entity-1' in business_ids
+        assert 'entity-2' in security_ids
+
+    def test_snapshot_metadata(self, risk_history, sample_assessment):
+        """Testa metadados do snapshot."""
+        custom_metadata = {'source': 'manual', 'reviewer': 'user-1'}
+
+        snapshot = risk_history.record_assessment(
+            assessment=sample_assessment,
+            entity_id='test-entity',
+            metadata=custom_metadata
+        )
+
+        assert snapshot.metadata == custom_metadata
+
+    def test_trend_delta_percentage(self, risk_history):
+        """Testa cálculo de delta percentual na tendência."""
+        now = datetime.utcnow()
+
+        # Criar mudança de 50% (0.4 -> 0.6)
+        assessment1 = RiskAssessment(
+            score=0.4,
+            band=RiskBand.MEDIUM,
+            domain=UnifiedDomain.BUSINESS,
+            factors={},
+            reasoning='start'
+        )
+        assessment1.assessed_at = now - timedelta(hours=2)
+
+        assessment2 = RiskAssessment(
+            score=0.6,
+            band=RiskBand.MEDIUM,
+            domain=UnifiedDomain.BUSINESS,
+            factors={},
+            reasoning='end'
+        )
+        assessment2.assessed_at = now - timedelta(hours=1)
+
+        risk_history.record_assessment(assessment1, 'delta-entity')
+        risk_history.record_assessment(assessment2, 'delta-entity')
+
+        trend = risk_history.analyze_trend('delta-entity')
+
+        if trend:
+            # Delta percentual deve ser aproximadamente 50%
+            assert abs(trend.delta_percentage - 50.0) < 5.0

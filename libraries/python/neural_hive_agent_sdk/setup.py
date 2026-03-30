@@ -14,7 +14,7 @@ setup(
         'structlog>=23.1.0',
         'protobuf>=4.24.0',
     ],
-    python_requires='>=3.11',
+    python_requires='>=3.10',
     classifiers=[
         'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
