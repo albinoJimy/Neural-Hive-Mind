@@ -1,0 +1,8 @@
+apiVersion: v2
+name: feature-store
+description: Helm chart for Neural Hive Feature Store Service
+version: 1.0.0
+appVersion: "1.0"
+maintainers:
+  - name: Neural Hive-Mind Team
+    email: team@neural-hive-mind.org

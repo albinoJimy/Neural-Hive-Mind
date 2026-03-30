@@ -215,9 +215,29 @@ class Settings(BaseSettings):
 
     # CORS e hosts (usa biblioteca neural_hive_security)
     allowed_hosts: List[str] = Field(
-        default=["*"],
-        description="Allowed hosts for TrustedHostMiddleware"
+        default=[],
+        description="Allowed hosts for TrustedHostMiddleware (configurado via property)"
     )
+
+    @property
+    def allowed_hosts_property(self) -> List[str]:
+        """
+        Retorna hosts permitidos por ambiente.
+
+        Prioriza configuração explícita, senão usa defaults seguros por ambiente.
+        Nunca retorna wildcard em produção.
+        """
+        # Se configurado explicitamente, retorna configuração
+        if self.allowed_hosts:
+            return self.allowed_hosts
+
+        # Defaults por ambiente (sem wildcard em produção)
+        if self.environment == "production":
+            return ["api.neural-hive.com", "gateway.neural-hive.com", "neural-hive.com"]
+        elif self.environment == "staging":
+            return ["api.staging.neural-hive.com", "gateway.staging.neural-hive.com"]
+        else:  # development
+            return ["localhost", "127.0.0.1", "neural-hive.local", "*.neural-hive.local"]
 
     @property
     def allowed_origins(self) -> List[str]:
@@ -290,6 +310,20 @@ class Settings(BaseSettings):
             # Em produção, alguns recursos de segurança são obrigatórios
             if not values.get("token_validation_enabled", True):
                 raise ValueError("token_validation_enabled must be True in production")
+        return v
+
+    @validator("allowed_hosts")
+    def validate_allowed_hosts(cls, v, values):
+        """Bloqueia wildcard ou lista vazia de allowed_hosts em produção."""
+        env = values.get("environment", "development")
+        env_lower = env.lower() if env else "development"
+
+        if env_lower in ("production", "prod"):
+            if "*" in v or not v:
+                raise ValueError(
+                    "allowed_hosts nao pode ser wildcard ou vazio em producao. "
+                    "Configure hosts explicitos ou use a propriedade allowed_hosts_property."
+                )
         return v
 
     @validator("pii_masking_strategy")
