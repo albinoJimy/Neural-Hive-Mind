@@ -10,7 +10,6 @@ from datetime import datetime, timedelta
 from dataclasses import dataclass, field
 from enum import Enum
 from collections import defaultdict, deque
-from abc import ABC, abstractmethod
 
 from .config import RiskBand, RiskScoringConfig
 from .models import RiskAssessment, RiskMatrix
@@ -150,9 +149,9 @@ class AlertRule:
         return False
 
 
-class AlertHandler(ABC):
+class AlertHandler:
     """
-    Handler base abstrato para processamento de alertas.
+    Handler base para processamento de alertas.
 
     Subclasses devem implementar o método handle().
     """
@@ -160,7 +159,6 @@ class AlertHandler(ABC):
     def __init__(self, name: str):
         self.name = name
 
-    @abstractmethod
     def handle(self, alert: RiskAlert) -> bool:
         """
         Processa alerta.
@@ -170,8 +168,11 @@ class AlertHandler(ABC):
 
         Returns:
             True se processado com sucesso, False caso contrário
+
+        Raises:
+            NotImplementedError: Se a subclasse não implementar este método
         """
-        pass
+        raise NotImplementedError(f"{self.__class__.__name__} must implement handle()")
 
 
 class LoggingAlertHandler(AlertHandler):
