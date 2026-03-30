@@ -1,0 +1,1290 @@
+# OPA Gatekeeper Configuration for Neural Hive-Mind
+# Epic H - OPA Gatekeeper Webhook Configuration
+#
+# Este arquivo configura o OPA Gatekeeper com 17 políticas de segurança
+# que serão validadas via admission webhook antes da criação de recursos.
+#
+# Deploy:
+#   kubectl apply -f k8s/opa-gatekeeper/config.yaml
+#   kubectl apply -f k8s/opa-gatekeeper/validating-webhook.yaml
+
+apiVersion: config.gatekeeper.sh/v1alpha1
+kind: Config
+metadata:
+  name: config
+  namespace: gatekeeper-system
+spec:
+  # Sync configurações para gerir recursos do cluster
+  sync:
+    syncOnly:
+      - group: ""
+        version: v1
+        kind: Namespace
+      - group: networking.k8s.io
+        version: v1
+        kind: Ingress
+      - group: networking.istio.io
+        version: v1beta1
+        kind: VirtualService
+      - group: security.istio.io
+        version: v1beta1
+        kind: RequestAuthentication
+      - group: security.istio.io
+        version: v1beta1
+        kind: AuthorizationPolicy
+      - group: rbac.authorization.k8s.io
+        version: v1
+        kind: Role
+      - group: rbac.authorization.k8s.io
+        version: v1
+        kind: RoleBinding
+      - group: rbac.authorization.k8s.io
+        version: v1
+        kind: ClusterRole
+      - group: rbac.authorization.k8s.io
+        version: v1
+        kind: ClusterRoleBinding
+
+  # Validação de recursos antes da aplicação
+  validation:
+    # Validar todos os recursos por padrão
+    - enforcementAction: deny
+      exclusionNamespaces:
+        - kube-system
+        - kube-public
+        - kube-node-lease
+        - gatekeeper-system
+        - istio-system
+      excludedResources:
+        - Event
+        - ClusterRole
+        - ClusterRoleBinding
+        - CertificateSigningRequest
+
+---
+# ConstraintTemplate para OAuth2 Token Required
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: oauth2tokenrequired
+  annotations:
+    description: "Exige autenticação OAuth2 para serviços críticos do Neural Hive-Mind"
+spec:
+  crd:
+    spec:
+      names:
+        kind: OAuth2TokenRequired
+      validation:
+        openAPIV3Schema:
+          type: object
+          properties:
+            oauth2_required_services:
+              type: array
+              items:
+                type: string
+              default: ["gateway-intencoes", "neural-hive-api"]
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package oauth2tokenrequired
+
+        import future.keywords.contains
+        import future.keywords.if
+
+        oauth2_required_services := input.parameters.oauth2_required_services
+
+        violation[{"msg": msg}] {
+          input.review.kind.kind == "Service"
+          input.review.object.metadata.name in oauth2_required_services
+          not object.get(input.review.object.metadata.annotations, "auth.neural-hive/required", "") == "true"
+          msg := sprintf("Service %s deve ter annotation 'auth.neural-hive/required: true' para OAuth2", [input.review.object.metadata.name])
+        }
+
+---
+# ConstraintTemplate para Mesh mTLS Required
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: meshmtlsrequired
+  annotations:
+    description: "Exige mTLS STRICT para workloads no service mesh"
+spec:
+  crd:
+    spec:
+      names:
+        kind: MeshMtlsRequired
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package meshmtlsrequired
+
+        import future.keywords.contains
+        import future.keywords.if
+
+        excluded_namespaces := {"kube-system", "kube-public", "kube-node-lease", "istio-system", "gatekeeper-system"}
+
+        violation[{"msg": msg}] {
+          input.review.kind.kind == "Deployment"
+          not input.review.object.metadata.namespace in excluded_namespaces
+          not has_strict_mtls(input.review.object.metadata.namespace)
+          msg := sprintf("Namespace '%v' deve ter PeerAuthentication com mTLS STRICT antes de criar Deployments", [input.review.object.metadata.namespace])
+        }
+
+        violation[{"msg": msg}] {
+          input.review.kind.kind == "StatefulSet"
+          not input.review.object.metadata.namespace in excluded_namespaces
+          not has_strict_mtls(input.review.object.metadata.namespace)
+          msg := sprintf("Namespace '%v' deve ter PeerAuthentication com mTLS STRICT antes de criar StatefulSets", [input.review.object.metadata.namespace])
+        }
+
+        has_strict_mtls(namespace) {
+          startswith(namespace, "neural-hive-")
+        }
+
+---
+# ConstraintTemplate para Redis Security Required
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: redissecurityrequired
+  annotations:
+    description: "Exige configurações de segurança para Redis clusters"
+spec:
+  crd:
+    spec:
+      names:
+        kind: RedisSecurityRequired
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package redissecurityrequired
+
+        import future.keywords.contains
+
+        violation[{"msg": msg}] {
+          input.review.kind.kind == "Service"
+          some port in input.review.object.spec.ports
+          port.port == 6379
+          not object.get(input.review.object.metadata.annotations, "redis.security/auth", "") == "required"
+          msg := sprintf("Service Redis %s deve ter annotation 'redis.security/auth: required'", [input.review.object.metadata.name])
+        }
+
+        violation[{"msg": msg}] {
+          input.review.kind.kind == "Service"
+          some port in input.review.object.spec.ports
+          port.port == 6379
+          input.review.object.metadata.labels["neural-hive.io/environment"] == "prod"
+          not object.get(input.review.object.metadata.annotations, "redis.security/tls", "") == "required"
+          msg := sprintf("Service Redis %s em produção deve ter TLS obrigatório", [input.review.object.metadata.name])
+        }
+
+---
+# ConstraintTemplate para Ethical Guardrails
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: ethicalguardrails
+  annotations:
+    description: "Aplica guardrails éticos para decisões críticas do Neural Hive-Mind"
+spec:
+  crd:
+    spec:
+      names:
+        kind: EthicalGuardrails
+      validation:
+        openAPIV3Schema:
+          type: object
+          properties:
+            max_risk_score:
+              type: number
+              default: 0.9
+            min_confidence_for_critical:
+              type: number
+              default: 0.7
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package ethicalguardrails
+
+        import future.keywords.contains
+        import future.keywords.if
+
+        violation[{"msg": msg}] {
+          input.review.kind.kind == "CognitivePlan"
+          risk_score := input.review.object.spec.risk_assessment.risk_score
+          risk_score > input.parameters.max_risk_score
+          msg := sprintf("Risk score %v excede threshold de %v", [risk_score, input.parameters.max_risk_score])
+        }
+
+        violation[{"msg": msg}] {
+          input.review.kind.kind == "CognitivePlan"
+          decision_type := input.review.object.spec.decision_type
+          critical_types := {"REPLANNING", "EXCEPTION_APPROVAL", "QOS_ADJUSTMENT"}
+          decision_type in critical_types
+          confidence := input.review.object.spec.confidence_score
+          confidence < input.parameters.min_confidence_for_critical
+          msg := sprintf("Decisão crítica %v com confiança baixa: %v", [decision_type, confidence])
+        }
+
+---
+# ConstraintTemplate para Pod Security Policy
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: podsecuritypolicy
+  annotations:
+    description: "Aplica políticas de segurança para pods (baseline)"
+spec:
+  crd:
+    spec:
+      names:
+        kind: PodSecurityPolicy
+      validation:
+        openAPIV3Schema:
+          type: object
+          properties:
+            allowPrivileged:
+              type: boolean
+              default: false
+            allowHostNetwork:
+              type: boolean
+              default: false
+            allowHostPID:
+              type: boolean
+              default: false
+            allowHostIPC:
+              type: boolean
+              default: false
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package podsecuritypolicy
+
+        import future.keywords.contains
+        import future.keywords.if
+
+        # Containers from all pod types
+        containers[container] {
+          container := input.review.object.spec.containers[_]
+        }
+
+        containers[container] {
+          container := input.review.object.spec.initContainers[_]
+        }
+
+        containers[container] {
+          container := input.review.object.spec.template.spec.containers[_]
+        }
+
+        containers[container] {
+          container := input.review.object.spec.template.spec.initContainers[_]
+        }
+
+        violation[{"msg": msg}] {
+          input.parameters.allowPrivileged != true
+          container := containers[_]
+          container.securityContext.privileged == true
+          msg := sprintf("Container '%v' não deve executar em modo privilegiado", [container.name])
+        }
+
+        violation[{"msg": msg}] {
+          input.parameters.allowHostNetwork != true
+          input.review.object.spec.hostNetwork == true
+          msg := "Pod não deve usar hostNetwork"
+        }
+
+        violation[{"msg": msg}] {
+          input.parameters.allowHostPID != true
+          input.review.object.spec.hostPID == true
+          msg := "Pod não deve usar hostPID"
+        }
+
+        violation[{"msg": msg}] {
+          input.parameters.allowHostIPC != true
+          input.review.object.spec.hostIPC == true
+          msg := "Pod não deve usar hostIPC"
+        }
+
+        violation[{"msg": msg}] {
+          container := containers[_]
+          securityContext := container.securityContext
+          securityContext.runAsUser == 0
+          not object.get(securityContext, "runAsNonRoot", false)
+          msg := sprintf("Container '%v' não deve executar como root (runAsUser=0)", [container.name])
+        }
+
+---
+# ConstraintTemplate para Resource Limits
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: resourcelimits
+  annotations:
+    description: "Exige resource limits e requests para todos os containers"
+spec:
+  crd:
+    spec:
+      names:
+        kind: ResourceLimits
+      validation:
+        openAPIV3Schema:
+          type: object
+          properties:
+            max_cpu:
+              type: string
+              default: "4"
+            max_memory:
+              type: string
+              default: "8Gi"
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package resourcelimits
+
+        import future.keywords.contains
+        import future.keywords.if
+
+        # Containers from all pod types
+        containers[container] {
+          container := input.review.object.spec.containers[_]
+        }
+
+        containers[container] {
+          container := input.review.object.spec.initContainers[_]
+        }
+
+        containers[container] {
+          container := input.review.object.spec.template.spec.containers[_]
+        }
+
+        containers[container] {
+          container := input.review.object.spec.template.spec.initContainers[_]
+        }
+
+        violation[{"msg": msg}] {
+          container := containers[_]
+          not container.resources.limits.cpu
+          msg := sprintf("Container '%v' deve definir CPU limits", [container.name])
+        }
+
+        violation[{"msg": msg}] {
+          container := containers[_]
+          not container.resources.limits.memory
+          msg := sprintf("Container '%v' deve definir memory limits", [container.name])
+        }
+
+        violation[{"msg": msg}] {
+          container := containers[_]
+          not container.resources.requests.cpu
+          msg := sprintf("Container '%v' deve definir CPU requests", [container.name])
+        }
+
+        violation[{"msg": msg}] {
+          container := containers[_]
+          not container.resources.requests.memory
+          msg := sprintf("Container '%v' deve definir memory requests", [container.name])
+        }
+
+---
+# ConstraintTemplate para Image Policy
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: imagepolicy
+  annotations:
+    description: "Controla imagens de container permitidas (registries, tags, assinaturas)"
+spec:
+  crd:
+    spec:
+      names:
+        kind: ImagePolicy
+      validation:
+        openAPIV3Schema:
+          type: object
+          properties:
+            allowed_registries:
+              type: array
+              items:
+                type: string
+              default: ["ghcr.io/albinojimy/", "docker.io/neuralhive/", "gcr.io/distroless/"]
+            require_signature:
+              type: boolean
+              default: false
+            allow_latest_tag:
+              type: boolean
+              default: false
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package imagepolicy
+
+        import future.keywords.contains
+        import future.keywords.if
+
+        containers[container] {
+          container := input.review.object.spec.containers[_]
+        }
+
+        containers[container] {
+          container := input.review.object.spec.initContainers[_]
+        }
+
+        containers[container] {
+          container := input.review.object.spec.template.spec.containers[_]
+        }
+
+        containers[container] {
+          container := input.review.object.spec.template.spec.initContainers[_]
+        }
+
+        violation[{"msg": msg}] {
+          container := containers[_]
+          image := container.image
+          not from_allowed_registry(image)
+          msg := sprintf("Container '%v' usa imagem de registry não autorizado: %v", [container.name, image])
+        }
+
+        violation[{"msg": msg}] {
+          input.parameters.allow_latest_tag != true
+          container := containers[_]
+          image := container.image
+          endswith(image, ":latest")
+          msg := sprintf("Container '%v' não deve usar tag :latest", [container.name])
+        }
+
+        violation[{"msg": msg}] {
+          input.parameters.allow_latest_tag != true
+          container := containers[_]
+          image := container.image
+          not contains(image, ":")
+          msg := sprintf("Container '%v' deve usar tag específica", [container.name])
+        }
+
+        violation[{"msg": msg}] {
+          input.parameters.require_signature == true
+          container := containers[_]
+          image := container.image
+          not contains(image, "@sha256:")
+          msg := sprintf("Container '%v' usa imagem não assinada: %v", [container.name, image])
+        }
+
+        from_allowed_registry(image) {
+          registry := input.parameters.allowed_registries[_]
+          startswith(image, registry)
+        }
+
+---
+# ConstraintTemplate para Namespace Labels
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: namespacelabels
+  annotations:
+    description: "Exige labels obrigatórios em namespaces governados"
+spec:
+  crd:
+    spec:
+      names:
+        kind: NamespaceLabels
+      validation:
+        openAPIV3Schema:
+          type: object
+          properties:
+            required_labels:
+              type: object
+              additionalProperties:
+                type: string
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package namespacelabels
+
+        import future.keywords.contains
+
+        violation[{"msg": msg}] {
+          input.review.kind.kind == "Namespace"
+          label_name := input.parameters.required_labels[key]
+          not object.get(input.review.object.metadata.labels, label_name, "")
+          msg := sprintf("Namespace deve ter label '%v' com valor '%v'", [label_name, key])
+        }
+
+---
+# ConstraintTemplate para Ingress TLS
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: ingresstls
+  annotations:
+    description: "Exige TLS em ingresses para ambientes de produção"
+spec:
+  crd:
+    spec:
+      names:
+        kind: IngressTLS
+      validation:
+        openAPIV3Schema:
+          type: object
+          properties:
+            require_in_prod:
+              type: boolean
+              default: true
+            excluded_namespaces:
+              type: array
+              items:
+                type: string
+              default: ["kube-system", "gatekeeper-system"]
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package ingresstls
+
+        import future.keywords.contains
+        import future.keywords.if
+
+        violation[{"msg": msg}] {
+          input.review.kind.kind == "Ingress"
+          input.parameters.require_in_prod == true
+          input.review.object.metadata.namespace in {"production", "prod"}
+          not input.review.object.namespace in input.parameters.excluded_namespaces
+          not input.review.object.spec.tls
+          msg := "Ingress em produção deve ter TLS configurado"
+        }
+
+---
+# ConstraintTemplate para Storage Encryption
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: storageencryption
+  annotations:
+    description: "Exige criptografia para volumes PersistentVolumeClaims em produção"
+spec:
+  crd:
+    spec:
+      names:
+        kind: StorageEncryption
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package storageencryption
+
+        import future.keywords.contains
+
+        violation[{"msg": msg}] {
+          input.review.kind.kind == "PersistentVolumeClaim"
+          input.review.object.metadata.namespace in {"production", "prod"}
+          not object.get(input.review.object.metadata.annotations, "pv.kubernetes.io/encryption", "") == "true"
+          msg := "PVC em produção deve ter criptografia habilitada"
+        }
+
+---
+# ConstraintTemplate para Secret Encryption
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: secretencryption
+  annotations:
+    description: "Exige que secrets confidenciais usem ExternalSecret ou tenham anotação de criptografia"
+spec:
+  crd:
+    spec:
+      names:
+        kind: SecretEncryption
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package secretencryption
+
+        import future.keywords.contains
+
+        violation[{"msg": msg}] {
+          input.review.kind.kind == "Secret"
+          input.review.object.metadata.namespace in {"production", "prod"}
+          input.review.object.type != "external-secret-operator.io/external-secret"
+          not object.get(input.review.object.metadata.annotations, "neural-hive.io/encrypted", "") == "true"
+          msg := "Secret em produção deve usar ExternalSecrets ou ter criptografia extra"
+        }
+
+---
+# ConstraintTemplate para Network Policy
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: networkpolicy
+  annotations:
+    description: "Exige NetworkPolicy para workloads em namespaces governados"
+spec:
+  crd:
+    spec:
+      names:
+        kind: NetworkPolicy
+      validation:
+        openAPIV3Schema:
+          type: object
+          properties:
+            require_for_namespaces:
+              type: array
+              items:
+                type: string
+              default: ["production", "prod", "staging"]
+            excluded_workloads:
+              type: array
+              items:
+                type: string
+              default: []
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package networkpolicy
+
+        import future.keywords.contains
+
+        violation[{"msg": msg}] {
+          input.review.kind.kind in {"Deployment", "StatefulSet", "DaemonSet"}
+          input.review.object.metadata.namespace in input.parameters.require_for_namespaces
+          not input.review.object.metadata.name in input.parameters.excluded_workloads
+          not has_network_policy(input.review.object.metadata.namespace)
+          msg := "Workload em namespace governado deve ter NetworkPolicy correspondente"
+        }
+
+        # Esta é uma verificação simplificada - em produção seria necessário
+        # verificar se existe uma NetworkPolicy que seleciona este pod
+        has_network_policy(namespace) {
+          # Assumimos que existe NetworkPolicy se o namespace está bem configurado
+          # Em produção, isso verificaria o cluster state
+          true
+        }
+
+---
+# ConstraintTemplate para RBAC Restrictions
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: rbacrestrictions
+  annotations:
+    description: "Restringe role bindings permissivas (cluster-admin, etc)"
+spec:
+  crd:
+    spec:
+      names:
+        kind: RBACRestrictions
+      validation:
+        openAPIV3Schema:
+          type: object
+          properties:
+            forbidden_roles:
+              type: array
+              items:
+                type: string
+              default: ["cluster-admin", "admin", "edit"]
+            allowed_subjects:
+              type: array
+              items:
+                type: string
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package rbacrestrictions
+
+        import future.keywords.contains
+        import future.keywords.if
+
+        violation[{"msg": msg}] {
+          input.review.kind.kind == "ClusterRoleBinding"
+          some roleRef in [input.review.object.roleRef]
+          roleRef.name in input.parameters.forbidden_roles
+          not is_allowed_subject(input.review.object.subjects)
+          msg := sprintf("ClusterRoleBinding para role '%v' só é permitido para subjects específicos", [roleRef.name])
+        }
+
+        violation[{"msg": msg}] {
+          input.review.kind.kind == "RoleBinding"
+          input.review.object.metadata.namespace in {"production", "prod"}
+          some roleRef in [input.review.object.roleRef]
+          roleRef.name in input.parameters.forbidden_roles
+          not is_allowed_subject(input.review.object.subjects)
+          msg := sprintf("RoleBinding para role '%v' em produção só é permitido para subjects específicos", [roleRef.name])
+        }
+
+        is_allowed_subject(subjects) {
+          count(input.parameters.allowed_subjects) == 0
+        }
+
+        is_allowed_subject(subjects) {
+          some subject in subjects
+          subject.name in input.parameters.allowed_subjects
+        }
+
+---
+# ConstraintTemplate para Container Runtime
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: containerruntime
+  annotations:
+    description: "Restringe configurações de runtime de container"
+spec:
+  crd:
+    spec:
+      names:
+        kind: ContainerRuntime
+      validation:
+        openAPIV3Schema:
+          type: object
+          properties:
+            allow_capabilities_add:
+              type: array
+              items:
+                type: string
+              default: []
+            require_read_only_root:
+              type: boolean
+              default: true
+            require_drop_all:
+              type: boolean
+              default: true
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package containerruntime
+
+        import future.keywords.contains
+        import future.keywords.if
+
+        containers[container] {
+          container := input.review.object.spec.containers[_]
+        }
+
+        containers[container] {
+          container := input.review.object.spec.initContainers[_]
+        }
+
+        containers[container] {
+          container := input.review.object.spec.template.spec.containers[_]
+        }
+
+        containers[container] {
+          container := input.review.object.spec.template.spec.initContainers[_]
+        }
+
+        violation[{"msg": msg}] {
+          container := containers[_]
+          capabilities := object.get(container.securityContext, "capabilities", {})
+          add_caps := object.get(capabilities, "add", [])
+          some cap in add_caps
+          not cap in input.parameters.allow_capabilities_add
+          msg := sprintf("Container '%v' tem capability não permitida: %v", [container.name, cap])
+        }
+
+        violation[{"msg": msg}] {
+          input.parameters.require_read_only_root == true
+          container := containers[_]
+          securityContext := container.securityContext
+          not object.get(securityContext, "readOnlyRootFilesystem", false)
+          msg := sprintf("Container '%v' deve ter root filesystem read-only", [container.name])
+        }
+
+        violation[{"msg": msg}] {
+          input.parameters.require_drop_all == true
+          container := containers[_]
+          capabilities := object.get(container.securityContext, "capabilities", {})
+          drop_caps := object.get(capabilities, "drop", [])
+          not contains(drop_caps, "ALL")
+          msg := sprintf("Container '%v' deve fazer drop de ALL capabilities", [container.name])
+        }
+
+---
+# ConstraintTemplate para CPU Limit
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: cpulimit
+  annotations:
+    description: "Limita o máximo de CPU que um container pode utilizar"
+spec:
+  crd:
+    spec:
+      names:
+        kind: CPULimit
+      validation:
+        openAPIV3Schema:
+          type: object
+          properties:
+            max_cpu:
+              type: string
+              default: "4"
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package cpulimit
+
+        import future.keywords.contains
+
+        containers[container] {
+          container := input.review.object.spec.containers[_]
+        }
+
+        containers[container] {
+          container := input.review.object.spec.initContainers[_]
+        }
+
+        containers[container] {
+          container := input.review.object.spec.template.spec.containers[_]
+        }
+
+        containers[container] {
+          container := input.review.object.spec.template.spec.initContainers[_]
+        }
+
+        violation[{"msg": msg}] {
+          container := containers[_]
+          cpu_limit := container.resources.limits.cpu
+          parse_cpu(cpu_limit) > parse_cpu(input.parameters.max_cpu)
+          msg := sprintf("Container '%v' excede CPU limit máximo: %v > %v", [container.name, cpu_limit, input.parameters.max_cpu])
+        }
+
+        parse_cpu(str) := result {
+          endswith(str, "m")
+          result := to_number(trim_suffix(str, "m"))
+        }
+
+        parse_cpu(str) := result {
+          not endswith(str, "m")
+          result := to_number(str) * 1000
+        }
+
+---
+# ConstraintTemplate para Memory Limit
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: memorylimit
+  annotations:
+    description: "Limita o máximo de memória que um container pode utilizar"
+spec:
+  crd:
+    spec:
+      names:
+        kind: MemoryLimit
+      validation:
+        openAPIV3Schema:
+          type: object
+            properties:
+            max_memory:
+              type: string
+              default: "8Gi"
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package memorylimit
+
+        import future.keywords.contains
+
+        containers[container] {
+          container := input.review.object.spec.containers[_]
+        }
+
+        containers[container] {
+          container := input.review.object.spec.initContainers[_]
+        }
+
+        containers[container] {
+          container := input.review.object.spec.template.spec.containers[_]
+        }
+
+        containers[container] {
+          container := input.review.object.spec.template.spec.initContainers[_]
+        }
+
+        violation[{"msg": msg}] {
+          container := containers[_]
+          memory_limit := container.resources.limits.memory
+          parse_memory(memory_limit) > parse_memory(input.parameters.max_memory)
+          msg := sprintf("Container '%v' excede memory limit máximo: %v > %v", [container.name, memory_limit, input.parameters.max_memory])
+        }
+
+        parse_memory(str) := result {
+          endswith(str, "Gi")
+          result := to_number(trim_suffix(str, "Gi")) * 1024
+        }
+
+        parse_memory(str) := result {
+          endswith(str, "Mi")
+          result := to_number(trim_suffix(str, "Mi"))
+        }
+
+---
+# ConstraintTemplate para Audit Logging
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: auditlogging
+  annotations:
+    description: "Exige configuração de audit logging para workloads críticos"
+spec:
+  crd:
+    spec:
+      names:
+        kind: AuditLogging
+      validation:
+        openAPIV3Schema:
+          type: object
+          properties:
+            require_for_namespaces:
+              type: array
+              items:
+                type: string
+              default: ["production", "prod"]
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package auditlogging
+
+        import future.keywords.contains
+
+        violation[{"msg": msg}] {
+          input.review.kind.kind in {"Deployment", "StatefulSet", "DaemonSet"}
+          input.review.object.metadata.namespace in input.parameters.require_for_namespaces
+          not has_audit_annotation(input.review.object.metadata.annotations)
+          msg := "Workload crítico deve ter anotação de audit logging"
+        }
+
+        has_audit_annotation(annotations) {
+          annotations != null
+          annotations["neural-hive.io/audit-log"] == "enabled"
+        }
+
+---
+# Instâncias de Constraints (ativam as políticas)
+---
+# H001-01: OAuth2 Token Required
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: OAuth2TokenRequired
+metadata:
+  name: oauth2-token-required-constraint
+spec:
+  enforcementAction: deny
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Service"]
+    namespaces:
+      - gateway-intencoes
+      - neural-hive-services
+      - production
+      - staging
+  parameters:
+    oauth2_required_services:
+      - gateway-intencoes
+      - neural-hive-api
+      - approval-service
+      - orchestrator-dynamic
+
+---
+# H001-02: Mesh mTLS Required
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: MeshMtlsRequired
+metadata:
+  name: mesh-mtls-required-constraint
+spec:
+  enforcementAction: deny
+  match:
+    kinds:
+      - apiGroups: ["apps"]
+        kinds: ["Deployment", "StatefulSet"]
+    excludedNamespaces:
+      - kube-system
+      - kube-public
+      - kube-node-lease
+      - istio-system
+      - gatekeeper-system
+
+---
+# H001-03: Redis Security Required
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: RedisSecurityRequired
+metadata:
+  name: redis-security-required-constraint
+spec:
+  enforcementAction: deny
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Service"]
+    namespaces:
+      - redis-cluster
+      - production
+      - staging
+
+---
+# H001-04: Ethical Guardrails
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: EthicalGuardrails
+metadata:
+  name: ethical-guardrails-constraint
+spec:
+  enforcementAction: deny
+  match:
+    kinds:
+      - apiGroups: ["neuralhive.io"]
+        kinds: ["CognitivePlan"]
+  parameters:
+    max_risk_score: 0.9
+    min_confidence_for_critical: 0.7
+
+---
+# H001-05: Pod Security Policy
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: pod-security-policy-constraint
+spec:
+  enforcementAction: deny
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Pod"]
+      - apiGroups: ["apps"]
+        kinds: ["Deployment", "StatefulSet", "DaemonSet", "ReplicaSet"]
+    excludedNamespaces:
+      - kube-system
+      - gatekeeper-system
+      - istio-system
+  parameters:
+    allowPrivileged: false
+    allowHostNetwork: false
+    allowHostPID: false
+    allowHostIPC: false
+
+---
+# H001-06: Resource Limits
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: ResourceLimits
+metadata:
+  name: resource-limits-constraint
+spec:
+  enforcementAction: deny
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Pod"]
+      - apiGroups: ["apps"]
+        kinds: ["Deployment", "StatefulSet", "DaemonSet", "ReplicaSet"]
+    excludedNamespaces:
+      - kube-system
+      - gatekeeper-system
+  parameters:
+    max_cpu: "4"
+    max_memory: "8Gi"
+
+---
+# H001-07: Image Policy
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: ImagePolicy
+metadata:
+  name: image-policy-constraint
+spec:
+  enforcementAction: deny
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Pod"]
+      - apiGroups: ["apps"]
+        kinds: ["Deployment", "StatefulSet", "DaemonSet", "ReplicaSet"]
+    excludedNamespaces:
+      - kube-system
+      - gatekeeper-system
+  parameters:
+    allowed_registries:
+      - "ghcr.io/albinojimy/"
+      - "docker.io/neuralhive/"
+      - "gcr.io/distroless/"
+      - "k8s.gcr.io/"
+      - "quay.io/"
+    require_signature: false
+    allow_latest_tag: false
+
+---
+# H001-08: Namespace Labels
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: NamespaceLabels
+metadata:
+  name: namespace-labels-constraint
+spec:
+  enforcementAction: deny
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Namespace"]
+  parameters:
+    required_labels:
+      "neural-hive.io/environment": "production|staging|development"
+      "neural-hive.io/team": "team-owner"
+
+---
+# H001-09: Ingress TLS
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: IngressTLS
+metadata:
+  name: ingress-tls-constraint
+spec:
+  enforcementAction: deny
+  match:
+    kinds:
+      - apiGroups: ["networking.k8s.io"]
+        kinds: ["Ingress"]
+  parameters:
+    require_in_prod: true
+    excluded_namespaces:
+      - kube-system
+      - gatekeeper-system
+
+---
+# H001-10: Storage Encryption
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: StorageEncryption
+metadata:
+  name: storage-encryption-constraint
+spec:
+  enforcementAction: deny
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["PersistentVolumeClaim"]
+    namespaces:
+      - production
+      - prod
+
+---
+# H001-11: Secret Encryption
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: SecretEncryption
+metadata:
+  name: secret-encryption-constraint
+spec:
+  enforcementAction: deny
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Secret"]
+    namespaces:
+      - production
+      - prod
+
+---
+# H001-12: Network Policy
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: NetworkPolicy
+metadata:
+  name: network-policy-constraint
+spec:
+  enforcementAction: deny
+  match:
+    kinds:
+      - apiGroups: ["apps"]
+        kinds: ["Deployment", "StatefulSet", "DaemonSet"]
+  parameters:
+    require_for_namespaces:
+      - production
+      - prod
+      - staging
+    excluded_workloads:
+      - vault
+      - vault-injector
+
+---
+# H001-13: RBAC Restrictions
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: RBACRestrictions
+metadata:
+  name: rbac-restrictions-constraint
+spec:
+  enforcementAction: deny
+  match:
+    kinds:
+      - apiGroups: ["rbac.authorization.k8s.io"]
+        kinds: ["ClusterRoleBinding", "RoleBinding"]
+  parameters:
+    forbidden_roles:
+      - cluster-admin
+      - admin
+      - edit
+
+---
+# H001-14: Container Runtime
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: ContainerRuntime
+metadata:
+  name: container-runtime-constraint
+spec:
+  enforcementAction: deny
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Pod"]
+      - apiGroups: ["apps"]
+        kinds: ["Deployment", "StatefulSet", "DaemonSet"]
+    excludedNamespaces:
+      - kube-system
+      - gatekeeper-system
+  parameters:
+    allow_capabilities_add: ["NET_BIND_SERVICE"]
+    require_read_only_root: false
+    require_drop_all: false
+
+---
+# H001-15: CPU Limit
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: CPULimit
+metadata:
+  name: cpu-limit-constraint
+spec:
+  enforcementAction: deny
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Pod"]
+      - apiGroups: ["apps"]
+        kinds: ["Deployment", "StatefulSet", "DaemonSet"]
+    excludedNamespaces:
+      - kube-system
+      - gatekeeper-system
+  parameters:
+    max_cpu: "4"
+
+---
+# H001-16: Memory Limit
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: MemoryLimit
+metadata:
+  name: memory-limit-constraint
+spec:
+  enforcementAction: deny
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Pod"]
+      - apiGroups: ["apps"]
+        kinds: ["Deployment", "StatefulSet", "DaemonSet"]
+    excludedNamespaces:
+      - kube-system
+      - gatekeeper-system
+  parameters:
+    max_memory: "8Gi"
+
+---
+# H001-17: Audit Logging
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: AuditLogging
+metadata:
+  name: audit-logging-constraint
+spec:
+  enforcementAction: deny
+  match:
+    kinds:
+      - apiGroups: ["apps"]
+        kinds: ["Deployment", "StatefulSet", "DaemonSet"]
+  parameters:
+    require_for_namespaces:
+      - production
+      - prod

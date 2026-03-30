@@ -1,8 +1,10 @@
 """Configuration settings for Architect Agent using Pydantic"""
 from functools import lru_cache
-from typing import Dict, Any
+from typing import Dict, Any, List
 from pydantic import BaseModel, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from neural_hive_security.cors import CORSConfig
 
 
 class ServiceConfig(BaseModel):
@@ -10,6 +12,7 @@ class ServiceConfig(BaseModel):
     service_name: str = Field(default="architect-agent", description="Service name")
     version: str = Field(default="1.0.0", description="Service version")
     environment: str = Field(default="development", description="Environment (development/staging/production)")
+    is_public_api: bool = Field(default=True, description="API pública requer CORS")
     log_level: str = Field(default="INFO", description="Log level")
     http_port: int = Field(default=8008, description="HTTP server port")
 
@@ -131,6 +134,16 @@ class Settings(BaseSettings):
     opa: OPAConfig = Field(default_factory=OPAConfig)
     llm: LLMConfig = Field(default_factory=LLMConfig)
     observability: ObservabilityConfig = Field(default_factory=ObservabilityConfig)
+
+    @property
+    def CORS_ORIGINS(self) -> List[str]:
+        """
+        CORS origins dinâmicas por ambiente usando neural_hive_security.
+        """
+        return CORSConfig.get_origins_for_environment(
+            self.service.environment,
+            is_public_api=self.service.is_public_api
+        )
 
 
 @lru_cache

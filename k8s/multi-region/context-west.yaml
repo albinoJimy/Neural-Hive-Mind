@@ -1,0 +1,55 @@
+# =============================================================================
+# Neural Hive-Mind - Kubernetes Context US West 2
+# =============================================================================
+# Contexto para cluster secundário em us-west-2
+# =============================================================================
+
+apiVersion: v1
+kind: Config
+clusters:
+  - name: neural-hive-west
+    cluster:
+      # Substituir com valores reais após criar o cluster
+      server: https://ABCDEF123456.gr7.us-west-2.eks.amazonaws.com
+      certificate-authority-data: LS0tLS1CRUdJTi...
+
+# -----------------------------------------------------------------------------
+# Users
+# -----------------------------------------------------------------------------
+users:
+  - name: neural-hive-admin-west
+    user:
+      execProvider:
+        apiVersion: client.authentication.k8s.io/v1beta1
+        command: aws
+        args:
+          - eks
+          - get-token
+          - --cluster-name
+          - neural-hive-west
+          - --region
+          - us-west-2
+        env:
+          - name: AWS_PROFILE
+            value: nhm-prod
+
+# -----------------------------------------------------------------------------
+# Contexts
+# -----------------------------------------------------------------------------
+contexts:
+  - name: neural-hive-west
+    context:
+      cluster: neural-hive-west
+      user: neural-hive-admin-west
+      namespace: neural-hive-mind
+
+# -----------------------------------------------------------------------------
+# Current Context
+# -----------------------------------------------------------------------------
+current-context: neural-hive-west
+
+# -----------------------------------------------------------------------------
+# Namespace
+# -----------------------------------------------------------------------------
+# O namespace neural-hive-mind deve ser criado separadamente
+# kubectl create namespace neural-hive-mind --context=neural-hive-west

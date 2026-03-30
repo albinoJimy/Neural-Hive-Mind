@@ -72,6 +72,8 @@ class CodeReviewClient:
             headers["PRIVATE-TOKEN"] = self.token
         elif self.provider == GitProvider.BITBUCKET:
             headers["Authorization"] = f"Bearer {self.token}"
+        elif self.provider == GitProvider.AZURE_DEVOPS:
+            headers["Authorization"] = f"Bearer {self.token}"
 
         return headers
 
@@ -271,6 +273,14 @@ class CodeReviewClient:
             return await self._add_gitlab_comment(
                 repo_owner, repo_name, pr_number, comment_body
             )
+        elif self.provider == GitProvider.BITBUCKET:
+            return await self._add_bitbucket_comment(
+                repo_owner, repo_name, pr_number, comment_body
+            )
+        elif self.provider == GitProvider.AZURE_DEVOPS:
+            return await self._add_azure_devops_comment(
+                repo_owner, repo_name, pr_number, comment_body
+            )
         else:
             raise NotImplementedError(f"Comments not supported for {self.provider}")
 
@@ -441,6 +451,14 @@ class CodeReviewClient:
             return await self._set_gitlab_review_status(
                 repo_owner, repo_name, pr_number, status, comment
             )
+        elif self.provider == GitProvider.BITBUCKET:
+            return await self._set_bitbucket_review_status(
+                repo_owner, repo_name, pr_number, status, comment
+            )
+        elif self.provider == GitProvider.AZURE_DEVOPS:
+            return await self._set_azure_devops_review_status(
+                repo_owner, repo_name, pr_number, status, comment
+            )
         else:
             raise NotImplementedError(f"Review not supported for {self.provider}")
 
@@ -512,6 +530,275 @@ class CodeReviewClient:
             "project_id": project_id,
             "mr_number": mr_number
         }
+
+    async def _add_bitbucket_comment(
+        self,
+        repo_owner: str,
+        repo_name: str,
+        pr_number: int,
+        body: str
+    ) -> Dict[str, Any]:
+        """
+        Adiciona comentário no Pull Request do Bitbucket.
+
+        Bitbucket API v2: POST /repositories/{workspace}/{repo_slug}/pullrequests/{id}/comments
+        """
+        # Formatar o workspace e repo slug
+        workspace = repo_owner
+        repo_slug = repo_name.lower().replace(' ', '-')
+
+        endpoint = f"/repositories/{workspace}/{repo_slug}/pullrequests/{pr_number}/comments"
+        payload = {"content": {"raw": body}}
+
+        response = await self._client.post(endpoint, json=payload)
+        response.raise_for_status()
+        comment_data = response.json()
+
+        logger.info(
+            'bitbucket_comment_added',
+            pr_number=pr_number,
+            comment_id=comment_data.get('id'),
+            repo=f"{workspace}/{repo_slug}"
+        )
+
+        return {
+            "comment_id": comment_data.get('id'),
+            "url": comment_data.get('links', {}).get('html', {}).get('href')
+        }
+
+    async def _add_azure_devops_comment(
+        self,
+        repo_owner: str,
+        repo_name: str,
+        pr_number: int,
+        body: str
+    ) -> Dict[str, Any]:
+        """
+        Adiciona comentário no Pull Request do Azure DevOps.
+
+        Azure DevOps API: POST /repos/{repo_name}/pullrequests/{pr_number}/threads
+        Requires: project, organization
+        """
+        # Para Azure DevOps, base_url deve conter organization
+        # repo_name deve incluir project
+        project = repo_owner  # Azure DevOps usa project como owner
+        repository = repo_name
+
+        endpoint = f"/{project}/_apis/git/repositories/{repository}/pullrequests/{pr_number}/threads"
+        payload = {
+            "comments": [
+                {
+                    "parentCommentId": 0,
+                    "content": body,
+                    "commentType": "text"
+                }
+            ]
+        }
+
+        # Adicionar api-version para Azure DevOps
+        headers = self._get_headers()
+        response = await self._client.post(
+            f"{endpoint}?api-version=7.0",
+            json=payload,
+            headers=headers
+        )
+        response.raise_for_status()
+        comment_data = response.json()
+
+        logger.info(
+            'azure_devops_comment_added',
+            pr_number=pr_number,
+            thread_id=comment_data.get('id'),
+            project=project,
+            repository=repository
+        )
+
+        return {
+            "thread_id": comment_data.get('id'),
+            "comment_count": len(comment_data.get('comments', []))
+        }
+
+    async def _set_bitbucket_review_status(
+        self,
+        repo_owner: str,
+        repo_name: str,
+        pr_number: int,
+        status: ReviewStatus,
+        comment: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Define status de aprovação no Bitbucket.
+
+        Bitbucket usa approving/rejecting individual users.
+        """
+        workspace = repo_owner
+        repo_slug = repo_name.lower().replace(' ', '-')
+
+        # Mapear status para ação Bitbucket
+        action_map = {
+            ReviewStatus.APPROVED: "approve",
+            ReviewStatus.CHANGES_REQUESTED: "request_changes",
+            ReviewStatus.COMMENTED: "comment"
+        }
+
+        action = action_map.get(status, "comment")
+
+        # Bitbucket API para aprovação
+        if status == ReviewStatus.APPROVED:
+            endpoint = f"/repositories/{workspace}/{repo_slug}/pullrequests/{pr_number}/approve"
+            response = await self._client.post(endpoint)
+            response.raise_for_status()
+
+            logger.info(
+                'bitbucket_pr_approved',
+                pr_number=pr_number,
+                repo=f"{workspace}/{repo_slug}"
+            )
+
+            result = {"status": "approved", "pr_number": pr_number}
+
+        elif status == ReviewStatus.CHANGES_REQUESTED:
+            endpoint = f"/repositories/{workspace}/{repo_slug}/pullrequests/{pr_number}/request-changes"
+            response = await self._client.post(endpoint)
+            response.raise_for_status()
+
+            logger.info(
+                'bitbucket_pr_changes_requested',
+                pr_number=pr_number,
+                repo=f"{workspace}/{repo_slug}"
+            )
+
+            result = {"status": "changes_requested", "pr_number": pr_number}
+
+        else:
+            # Para comentário, apenas adiciona o comentário
+            result = {"status": "commented", "pr_number": pr_number}
+
+        # Adicionar comentário se fornecido
+        if comment:
+            comment_result = await self._add_bitbucket_comment(
+                workspace, repo_slug, pr_number, comment
+            )
+            result["comment_id"] = comment_result.get("comment_id")
+
+        return result
+
+    async def _set_azure_devops_review_status(
+        self,
+        repo_owner: str,
+        repo_name: str,
+        pr_number: int,
+        status: ReviewStatus,
+        comment: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Define status de aprovação no Azure DevOps.
+
+        Azure DevOps usa reviewer approval status.
+        """
+        project = repo_owner
+        repository = repo_name
+
+        # Mapear status para Azure DevOps
+        status_map = {
+            ReviewStatus.APPROVED: "approved",
+            ReviewStatus.CHANGES_REQUESTED: "changes_requested",
+            ReviewStatus.COMMENTED: "needs_review"
+        }
+
+        # Azure DevOps API para atualizar reviewer status
+        endpoint = f"/{project}/_apis/git/repositories/{repository}/pullrequests/{pr_number}/reviewers"
+        headers = self._get_headers()
+
+        # Obter identidade do usuário atual (token owner)
+        # Para simplificar, usamos um placeholder - em prod obter do profile
+        identity_response = await self._client.get(
+            "/_apis/connectedAccounts?api-version=7.0-preview.1",
+            headers=headers
+        )
+
+        user_id = None
+        if identity_response.status_code == 200:
+            accounts = identity_response.json()
+            if accounts and len(accounts) > 0:
+                user_id = accounts[0].get('id')
+
+        if not user_id:
+            # Fallback: tentar obter do endpoint de profile
+            profile_response = await self._client.get(
+                "/_apis/profile/profiles/me?api-version=7.0-preview.3",
+                headers=headers
+            )
+            if profile_response.status_code == 200:
+                user_id = profile_response.json().get('id')
+
+        if not user_id:
+            logger.warning(
+                'azure_devops_user_id_not_found',
+                pr_number=pr_number,
+                project=project
+            )
+            # Se não conseguir obter user_id, apenas adiciona comentário
+            if comment:
+                return await self._add_azure_devops_comment(
+                    repo_owner, repo_name, pr_number, comment
+                )
+            return {"status": "commented", "pr_number": pr_number}
+
+        # Atualizar status do reviewer
+        reviewer_endpoint = (
+            f"/{project}/_apis/git/repositories/{repository}"
+            f"/pullrequests/{pr_number}/reviewers/{user_id}?api-version=7.0"
+        )
+
+        payload = {
+            "vote": self._map_azure_devops_vote(status)
+        }
+
+        response = await self._client.put(reviewer_endpoint, json=payload, headers=headers)
+        response.raise_for_status()
+
+        logger.info(
+            'azure_devops_review_status_set',
+            pr_number=pr_number,
+            status=status_map.get(status),
+            project=project,
+            repository=repository
+        )
+
+        result = {
+            "status": status_map.get(status),
+            "pr_number": pr_number,
+            "user_id": user_id
+        }
+
+        # Adicionar comentário se fornecido
+        if comment:
+            comment_result = await self._add_azure_devops_comment(
+                repo_owner, repo_name, pr_number, comment
+            )
+            result["thread_id"] = comment_result.get("thread_id")
+
+        return result
+
+    def _map_azure_devops_vote(self, status: ReviewStatus) -> int:
+        """
+        Mapeia ReviewStatus para voto Azure DevOps.
+
+        Azure DevOps usa valores de voto:
+        - 10: approved
+        - 5: approved with suggestions
+        - 0: no vote
+        - -5: waiting for author
+        - -10: rejected
+        """
+        vote_map = {
+            ReviewStatus.APPROVED: 10,
+            ReviewStatus.CHANGES_REQUESTED: -10,
+            ReviewStatus.COMMENTED: 5,
+            ReviewStatus.PENDING: 0
+        }
+        return vote_map.get(status, 0)
 
     async def close(self):
         """Fecha o cliente HTTP."""

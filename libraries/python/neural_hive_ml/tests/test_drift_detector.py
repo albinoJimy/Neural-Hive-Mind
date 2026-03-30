@@ -177,3 +177,180 @@ class TestGetDriftMetrics:
         assert "drift_detected" in result
         assert "baseline" in result
         assert "current" in result
+
+
+class TestBuildAggregationPipeline:
+    """Testes de construção de pipeline de agregação."""
+
+    def test_build_aggregation_pipeline_structure(self, drift_detector):
+        """Testa estrutura do pipeline."""
+        pipeline = drift_detector._build_aggregation_pipeline(24)
+
+        assert len(pipeline) == 2
+        assert "$match" in pipeline[0]
+        assert "$group" in pipeline[1]
+
+    def test_build_aggregation_pipeline_match_stage(self, drift_detector):
+        """Testa estágio $match do pipeline."""
+        pipeline = drift_detector._build_aggregation_pipeline(48)
+
+        match_stage = pipeline[0]["$match"]
+        assert "created_at" in match_stage
+        assert "$gte" in match_stage["created_at"]
+
+    def test_build_aggregation_pipeline_group_stage(self, drift_detector):
+        """Testa estágio $group do pipeline."""
+        pipeline = drift_detector._build_aggregation_pipeline(24)
+
+        group_stage = pipeline[1]["$group"]
+        assert "_id" in group_stage
+        assert "approve_rate" in group_stage
+        assert "avg_confidence" in group_stage
+        assert "count" in group_stage
+
+
+class TestDbProperty:
+    """Testes da propriedade db."""
+
+    def test_db_property_returns_mongo_client(self, drift_detector, mock_mongo_client):
+        """Testa que db retorna mongo_client."""
+        assert drift_detector.db is mock_mongo_client
+
+
+class TestCalculateBaselineEdgeCases:
+    """Testes de edge cases para calculate_baseline."""
+
+    @pytest.mark.asyncio
+    async def test_calculate_baseline_empty_results(self, drift_detector, mock_mongo_client):
+        """Testa calculate_baseline com resultados vazios."""
+        cursor_mock = Mock()
+        cursor_mock.to_list = AsyncMock(return_value=[])
+        mock_mongo_client.db.plan_approvals.aggregate = Mock(return_value=cursor_mock)
+
+        result = await drift_detector.calculate_baseline()
+
+        # Deve retornar valores padrão
+        assert result["approve_rate"] == 0.65
+        assert result["avg_confidence"] == 0.72
+        assert result["sample_count"] == 0
+
+    @pytest.mark.asyncio
+    async def test_calculate_baseline_with_missing_fields(self, drift_detector, mock_mongo_client):
+        """Testa calculate_baseline com campos faltando."""
+        cursor_mock = Mock()
+        cursor_mock.to_list = AsyncMock(return_value=[
+            {"_id": None}  # Sem os campos esperados
+        ])
+        mock_mongo_client.db.plan_approvals.aggregate = Mock(return_value=cursor_mock)
+
+        result = await drift_detector.calculate_baseline()
+
+        # get() com valor padrão deve retornar 0.0
+        assert result["approve_rate"] == 0.0
+        assert result["avg_confidence"] == 0.0
+        assert result["sample_count"] == 0
+
+
+class TestCalculateCurrentEdgeCases:
+    """Testes de edge cases para calculate_current."""
+
+    @pytest.mark.asyncio
+    async def test_calculate_current_empty_results(self, drift_detector, mock_mongo_client):
+        """Testa calculate_current com resultados vazios."""
+        cursor_mock = Mock()
+        cursor_mock.to_list = AsyncMock(return_value=[])
+        mock_mongo_client.db.plan_approvals.aggregate = Mock(return_value=cursor_mock)
+
+        result = await drift_detector.calculate_current()
+
+        assert result["approve_rate"] == 0.0
+        assert result["avg_confidence"] == 0.0
+        assert result["sample_count"] == 0
+
+
+class TestDetectDriftEdgeCases:
+    """Testes de edge cases para detect_drift."""
+
+    @pytest.mark.asyncio
+    async def test_detect_drift_with_no_baseline_data(self, drift_detector, mock_mongo_client):
+        """Testa detect_drift sem dados de baseline."""
+        cursor_mock = Mock()
+        cursor_mock.to_list = AsyncMock(return_value=[])
+
+        call_count = [0]
+        def side_effect(*args, **kwargs):
+            call_count[0] += 1
+            return cursor_mock
+
+        mock_mongo_client.db.plan_approvals.aggregate = side_effect
+
+        result = await drift_detector.detect_drift()
+
+        # Deve usar valores padrão
+        assert "baseline" in result
+        assert "current" in result
+
+    @pytest.mark.asyncio
+    async def test_detect_drift_with_approve_rate_change_only(self, drift_detector, mock_mongo_client):
+        """Testa detecção de drift apenas em approve_rate."""
+        # Baseline: approve_rate 0.70, confidence 0.75
+        baseline_cursor = Mock()
+        baseline_cursor.to_list = AsyncMock(return_value=[
+            {"_id": None, "approve_rate": 0.70, "avg_confidence": 0.75, "count": 500}
+        ])
+
+        # Current: approve_rate 0.50 (mudança de 0.20), confidence 0.75 (sem mudança)
+        current_cursor = Mock()
+        current_cursor.to_list = AsyncMock(return_value=[
+            {"_id": None, "approve_rate": 0.50, "avg_confidence": 0.75, "count": 100}
+        ])
+
+        call_count = [0]
+        def side_effect(*args, **kwargs):
+            call_count[0] += 1
+            return baseline_cursor if call_count[0] == 1 else current_cursor
+
+        mock_mongo_client.db.plan_approvals.aggregate = side_effect
+
+        result = await drift_detector.detect_drift()
+
+        # Mudança de 0.20 > 0.15 (approve_rate_threshold)
+        assert result["drift_detected"] is True
+        # Verificar alerta específico para approve_rate
+        approve_alerts = [a for a in result["alerts"] if a["metric"] == "approve_rate"]
+        assert len(approve_alerts) > 0
+        assert approve_alerts[0]["change"] == -0.200
+
+
+class TestPublishDriftAlertEdgeCases:
+    """Testes de edge cases para publish_drift_alert."""
+
+    @pytest.mark.asyncio
+    async def test_publish_alert_with_kafka_error(self, drift_detector, mock_kafka_producer):
+        """Testa publicação quando Kafka falha."""
+        mock_kafka_producer.produce_and_wait = AsyncMock(side_effect=Exception("Kafka error"))
+
+        drift_data = {
+            "drift_detected": True,
+            "confidence_drop": 0.15
+        }
+
+        result = await drift_detector.publish_drift_alert(drift_data)
+
+        # Deve retornar False mesmo com erro
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_publish_alert_without_drift(self, drift_detector, mock_kafka_producer):
+        """Testa que alerta é publicado mesmo sem drift (comportamento atual)."""
+        drift_data = {
+            "drift_detected": False,
+            "confidence_change": 0.02,
+            "alerts": []
+        }
+
+        result = await drift_detector.publish_drift_alert(drift_data)
+
+        # O comportamento atual publica mesmo sem drift
+        mock_kafka_producer.produce_and_wait.assert_called_once()
+        assert result is True

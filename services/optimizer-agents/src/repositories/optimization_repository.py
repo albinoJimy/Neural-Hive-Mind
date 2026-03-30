@@ -27,20 +27,18 @@ class OptimizationRepository:
         """Cria índices para a coleção de recomendações."""
         await self.collection.create_index([("ticket_id", 1)], name="idx_ticket_id")
         await self.collection.create_index(
-            [("workflow_id", 1), ("created_at", -1)],
-            name="idx_workflow_created"
+            [("workflow_id", 1), ("created_at", -1)], name="idx_workflow_created"
         )
         await self.collection.create_index(
-            [("status", 1), ("created_at", -1)],
-            name="idx_status_created"
+            [("status", 1), ("created_at", -1)], name="idx_status_created"
         )
         await self.collection.create_index(
             [("recommendations.status", 1), ("recommendations.auto_apply", 1)],
-            name="idx_pending_auto_apply"
+            name="idx_pending_auto_apply",
         )
         await self.collection.create_index(
             [("performance_analysis.bottlenecks.issue", 1)],
-            name="idx_bottleneck_issues"
+            name="idx_bottleneck_issues",
         )
         logger.info("optimization_indexes_created")
 
@@ -112,10 +110,7 @@ class OptimizationRepository:
 
         total = await self.collection.count_documents(query)
         cursor = (
-            self.collection.find(query)
-            .sort("created_at", -1)
-            .skip(offset)
-            .limit(limit)
+            self.collection.find(query).sort("created_at", -1).skip(offset).limit(limit)
         )
 
         items = []
@@ -252,18 +247,75 @@ class OptimizationRepository:
 
         # Calcular métricas de performance (simplificado)
         applied_pipeline = [
-            {"$match": {**query, "status": "applied"}},
-            {"$group": {"_id": None, "avg_improvement": {"$avg": "$validation.improvement_pct"}}},
+            {
+                "$match": {
+                    **query,
+                    "status": "applied",
+                    "validation.improvement_pct": {"$exists": True},
+                }
+            },
+            {
+                "$group": {
+                    "_id": None,
+                    "avg_improvement": {"$avg": "$validation.improvement_pct"},
+                }
+            },
         ]
 
         avg_improvement = 0.0
         async for doc in self.collection.aggregate(applied_pipeline):
             avg_improvement = doc.get("avg_improvement", 0.0)
 
+        # Calcular total_time_saved_ms: soma das melhorias de tempo das otimizações aplicadas
+        time_saved_pipeline = [
+            {"$match": {**query, "status": "applied"}},
+            {
+                "$group": {
+                    "_id": None,
+                    "total_time_saved_ms": {
+                        "$sum": {
+                            "$subtract": [
+                                "$performance_analysis.total_duration_ms",
+                                {
+                                    "$ifNull": [
+                                        "$validation.after_duration_ms",
+                                        "$performance_analysis.total_duration_ms",
+                                    ]
+                                },
+                            ]
+                        }
+                    },
+                }
+            },
+        ]
+
+        total_time_saved_ms = 0
+        async for doc in self.collection.aggregate(time_saved_pipeline):
+            total_time_saved_ms = doc.get("total_time_saved_ms", 0)
+
+        # Calcular best_improvement_pct: melhor percentual de melhoria
+        best_improvement_pipeline = [
+            {
+                "$match": {
+                    **query,
+                    "status": "applied",
+                    "validation.improvement_pct": {"$exists": True},
+                }
+            },
+            {"$sort": {"validation.improvement_pct": -1}},
+            {"$limit": 1},
+        ]
+
+        best_improvement_pct = 0.0
+        async for doc in self.collection.aggregate(best_improvement_pipeline):
+            best_improvement_pct = doc.get("validation", {}).get("improvement_pct", 0.0)
+
         return {
             "total": total,
             "by_status": status_counts,
-            "avg_improvement_pct": avg_improvement,
+            "avg_improvement_pct": round(avg_improvement, 2),
+            "total_time_saved_ms": total_time_saved_ms,
+            "best_improvement_pct": round(best_improvement_pct, 2),
         }
 
     async def get_dashboard_data(self) -> Dict[str, Any]:
@@ -296,11 +348,7 @@ class OptimizationRepository:
             top_issues.append({"type": doc["_id"], "count": doc["count"]})
 
         # Recomendações recentes
-        cursor = (
-            self.collection.find({})
-            .sort("created_at", -1)
-            .limit(5)
-        )
+        cursor = self.collection.find({}).sort("created_at", -1).limit(5)
 
         recent = []
         async for doc in cursor:
@@ -319,7 +367,12 @@ class OptimizationRepository:
     async def _get_avg_improvement(self) -> float:
         """Calcula melhoria média das otimizações aplicadas."""
         pipeline = [
-            {"$match": {"status": "applied", "validation.improvement_pct": {"$exists": True}}},
+            {
+                "$match": {
+                    "status": "applied",
+                    "validation.improvement_pct": {"$exists": True},
+                }
+            },
             {
                 "$group": {
                     "_id": None,
@@ -343,20 +396,21 @@ class OptimizationRepository:
         Returns:
             Lista de otimizações ordenadas por data
         """
-        cursor = (
-            self.collection.find({"workflow_id": workflow_id})
-            .sort("created_at", 1)
+        cursor = self.collection.find({"workflow_id": workflow_id}).sort(
+            "created_at", 1
         )
 
         timeline = []
         async for doc in cursor:
-            timeline.append({
-                "id": str(doc.pop("_id")),
-                "ticket_id": doc.get("ticket_id"),
-                "status": doc.get("status"),
-                "applied_at": doc.get("applied_at"),
-                "improvement_pct": doc.get("validation", {}).get("improvement_pct"),
-            })
+            timeline.append(
+                {
+                    "id": str(doc.pop("_id")),
+                    "ticket_id": doc.get("ticket_id"),
+                    "status": doc.get("status"),
+                    "applied_at": doc.get("applied_at"),
+                    "improvement_pct": doc.get("validation", {}).get("improvement_pct"),
+                }
+            )
 
         return timeline
 

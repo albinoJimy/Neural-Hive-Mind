@@ -5,6 +5,7 @@ Fornece configuração centralizada de CORS por ambiente e tipo de serviço.
 Remove wildcards inseguros de produção enquanto mantém desenvolvedores produtivos.
 """
 
+import warnings
 from typing import List
 
 
@@ -126,6 +127,36 @@ class CORSConfig:
             )
 
         return True
+
+    @classmethod
+    def warn_if_wildcard_in_production(cls, origins: List[str], environment: str) -> None:
+        """
+        Emite aviso se detectar wildcard CORS em produção.
+
+        Não lança exceção, apenas avisa via logging/warnings.
+
+        Args:
+            origins: Lista de origens a validar
+            environment: Ambiente atual
+
+        Examples:
+            >>> CORSConfig.warn_if_wildcard_in_production(["*"], "prod")
+            UserWarning: Potential security issue: Wildcard CORS detected in production environment
+        """
+        env = environment.lower()
+
+        # Apenas verifica em produção
+        if env not in ("prod", "production") or not env.startswith("prod"):
+            return
+
+        if "*" in origins:
+            warnings.warn(
+                f"Potential security issue: Wildcard CORS ('*') detected in production environment. "
+                f"Environment: {environment}. "
+                f"This allows any origin to access your API. Consider using specific origins.",
+                UserWarning,
+                stacklevel=2
+            )
 
     @classmethod
     def get_cors_middleware_config(

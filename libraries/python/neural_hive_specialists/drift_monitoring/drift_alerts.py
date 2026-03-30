@@ -17,22 +17,32 @@ logger = structlog.get_logger(__name__)
 class DriftAlerter:
     """Envia alertas de drift."""
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: Dict[str, Any], ledger_client=None):
         """
         Inicializa alerter.
 
         Args:
             config: Configuração com alertmanager_url, slack_webhook, etc.
+            ledger_client: Cliente opcional para ledger de eventos.
         """
         self.config = config
+        self.ledger_client = ledger_client
         self.alertmanager_url = config.get("alertmanager_url")
         self.slack_webhook = config.get("slack_webhook_url")
-        self.enable_alerts = config.get("enable_drift_alerts", True)
+
+        # Suportar ambos os nomes de configuração: drift_alert_enabled e enable_drift_alerts
+        alert_enabled = config.get("drift_alert_enabled", config.get("enable_drift_alerts", True))
+        self.enable_alerts = alert_enabled
+        self.enabled = alert_enabled
+
+        # Suportar drift_alert_webhook e slack_webhook_url
+        self.webhook_url = config.get("drift_alert_webhook") or self.slack_webhook
 
         logger.info(
             "DriftAlerter initialized",
             alertmanager_configured=bool(self.alertmanager_url),
             slack_configured=bool(self.slack_webhook),
+            enabled=self.enabled,
         )
 
     async def send_alert(

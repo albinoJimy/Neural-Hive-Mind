@@ -1,21 +1,23 @@
 """Testes da API de otimizações."""
 import pytest
 from fastapi.testclient import TestClient
+from unittest.mock import AsyncMock, patch, MagicMock
 from datetime import datetime
 
 from src.main import app
-from src.api.optimizations import _recommendations_store
 
 
 @pytest.fixture
-def client():
-    """Cliente de teste."""
-    # Adicionar dado de teste
-    _recommendations_store.append({
+def mock_repository():
+    """Mock do repository de otimizações."""
+    repo = AsyncMock()
+
+    # Dado de teste padrão
+    test_recommendation = {
         "id": "test-001",
         "ticket_id": "TICKET-001",
         "workflow_id": "workflow-001",
-        "status": "pending",
+        "status": "approved",
         "created_at": datetime.utcnow().isoformat(),
         "updated_at": datetime.utcnow().isoformat(),
         "performance_analysis": {"total_duration_ms": 5000, "peak_memory_mb": 128},
@@ -28,12 +30,59 @@ def client():
                 "target_type": "code",
             }
         ],
-    })
+    }
+
+    repo.list_by_filters.return_value = {
+        "total": 1,
+        "offset": 0,
+        "limit": 50,
+        "items": [test_recommendation]
+    }
+
+    # get_by_id retorna o dado se for test-001, None caso contrário
+    async def mock_get_by_id(rec_id):
+        if rec_id == "test-001":
+            return test_recommendation.copy()
+        return None
+
+    repo.get_by_id.side_effect = mock_get_by_id
+    repo.update_status.return_value = True
+    repo.get_metrics.return_value = {
+        "total": 10,
+        "by_status": {"pending": 3, "approved": 2, "applied": 4, "rejected": 1},
+        "avg_improvement_pct": 15.5,
+        "total_time_saved_ms": 50000,
+        "best_improvement_pct": 35.2,
+    }
+    repo.get_dashboard_data.return_value = {
+        "total_recommendations": 10,
+        "pending_approval": 3,
+        "applied": 4,
+        "avg_improvement_pct": 15.5,
+        "top_issue_types": [
+            {"type": "high_complexity", "count": 5},
+            {"type": "slow_query", "count": 3}
+        ],
+        "recent_recommendations": []
+    }
+    repo.get_timeline.return_value = []
+    return repo
+
+
+@pytest.fixture
+def client(mock_repository):
+    """Cliente de teste com repository mockado."""
+    app.dependency_overrides = {}
+
+    async def override_get_repo():
+        return mock_repository
+
+    from src.api.optimizations import get_optimization_repository
+    app.dependency_overrides[get_optimization_repository] = override_get_repo
 
     yield TestClient(app)
 
-    # Limpar após teste
-    _recommendations_store.clear()
+    app.dependency_overrides = {}
 
 
 class TestOptimizationsAPI:
@@ -69,15 +118,26 @@ class TestOptimizationsAPI:
         data = response.json()
         assert data["status"] == "approved"
 
-    def test_apply_recommendation(self, client):
+    def test_apply_recommendation(self, client, mock_repository):
         """Testa aplicação de otimização."""
-        # Primeiro aprovar
-        client.post(
-            "/api/v1/optimizations/recommendations/test-001/approve",
-            json={"recommendation_ids": ["rec-001"], "approved_by": "test@example.com"}
-        )
+        # Garantir que o status da recomendação é approved
+        async def mock_get_by_id_approved(rec_id):
+            if rec_id == "test-001":
+                rec = {
+                    "id": "test-001",
+                    "ticket_id": "TICKET-001",
+                    "workflow_id": "workflow-001",
+                    "status": "approved",  # Precisa estar approved para apply
+                    "created_at": datetime.utcnow().isoformat(),
+                    "updated_at": datetime.utcnow().isoformat(),
+                    "performance_analysis": {"total_duration_ms": 5000, "peak_memory_mb": 128},
+                    "recommendations": [{"id": "rec-001"}],
+                }
+                return rec
+            return None
 
-        # Depois aplicar
+        mock_repository.get_by_id.side_effect = mock_get_by_id_approved
+
         response = client.post(
             "/api/v1/optimizations/recommendations/test-001/apply",
             json={"recommendation_ids": ["rec-001"], "validate": True}
@@ -93,6 +153,10 @@ class TestOptimizationsAPI:
         data = response.json()
         assert "summary" in data
         assert "performance" in data
+        # Verificar que os novos campos estão presentes
+        assert "total_time_saved_ms" in data["performance"]
+        assert "best_improvement_pct" in data["performance"]
+        assert "top_issues" in data
 
     def test_dashboard(self, client):
         """Testa endpoint de dashboard."""

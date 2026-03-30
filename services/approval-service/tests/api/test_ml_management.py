@@ -215,6 +215,11 @@ class TestPromoteModel:
             "version": "v9",
             "stage": "staging"
         })
+        # Mock para retornar modelo atual de produção
+        mock_model_repo.list_models = AsyncMock(return_value=[
+            {"version": "v8", "stage": "production", "is_active": True}
+        ])
+        mock_model_repo.promote_model = AsyncMock(return_value=True)
 
         response = client.post("/api/v1/ml/models/v9/promote", json={
             "strategy": "canary"
@@ -271,3 +276,115 @@ class TestGetMetrics:
         assert response.status_code == 200
         # Verifica que retorna texto plano
         assert "ml_approval_model_version" in response.text
+
+
+class TestDeleteModel:
+    """Testes DELETE /models/{version}."""
+
+    def test_delete_model_success(self, client, mock_model_repo):
+        """Testa DELETE /models/{version} com sucesso."""
+        mock_model_repo.get_model_version = AsyncMock(return_value={
+            "version": "v7",
+            "stage": "archived"
+        })
+        mock_model_repo.delete_model = AsyncMock(return_value=True)
+
+        response = client.delete("/api/v1/ml/models/v7")
+
+        assert response.status_code == 204
+
+    def test_delete_model_in_production(self, client, mock_model_repo):
+        """Testa DELETE /models/{version} em production (deve falhar)."""
+        mock_model_repo.get_model_version = AsyncMock(return_value={
+            "version": "v8",
+            "stage": "production",
+            "is_active": True
+        })
+
+        response = client.delete("/api/v1/ml/models/v8")
+
+        assert response.status_code == 400
+
+
+class TestRollbackModel:
+    """Testes POST /models/{version}/rollback."""
+
+    def test_rollback_to_previous_version(self, client, mock_model_repo):
+        """Testa rollback para versão anterior."""
+        mock_model_repo.get_model_version = AsyncMock(return_value={
+            "version": "v7",
+            "stage": "production"
+        })
+        mock_model_repo.list_models = AsyncMock(return_value=[
+            {"version": "v8", "stage": "production", "is_active": True}
+        ])
+        mock_model_repo.promote_model = AsyncMock(return_value=True)
+
+        response = client.post("/api/v1/ml/models/v7/rollback")
+
+        assert response.status_code == 200
+
+    def test_rollback_model_not_found(self, client, mock_model_repo):
+        """Testa rollback para modelo inexistente."""
+        mock_model_repo.get_model_version = AsyncMock(return_value=None)
+
+        response = client.post("/api/v1/ml/models/v99/rollback")
+
+        assert response.status_code == 404
+
+
+class TestGetModelStats:
+    """Testes GET /models/{version}/stats."""
+
+    def test_get_model_stats_success(self, client, mock_model_repo):
+        """Testa GET /models/{version}/stats com sucesso."""
+        mock_model_repo.get_model_stats = AsyncMock(return_value={
+            "version": "v8",
+            "total_predictions": 10000,
+            "correct_predictions": 8000,
+            "accuracy": 0.80,
+            "f1_score": 0.73,
+            "precision": 0.75,
+            "recall": 0.71
+        })
+
+        response = client.get("/api/v1/ml/models/v8/stats")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["version"] == "v8"
+        assert data["accuracy"] == 0.80
+
+    def test_get_model_stats_not_found(self, client, mock_model_repo):
+        """Testa GET /models/{version}/stats para modelo inexistente."""
+        mock_model_repo.get_model_stats = AsyncMock(return_value=None)
+
+        response = client.get("/api/v1/ml/models/v99/stats")
+
+        assert response.status_code == 404
+
+
+class TestModelComparison:
+    """Testes GET /models/compare."""
+
+    def test_compare_two_models(self, client, mock_model_repo):
+        """Testa comparação entre dois modelos."""
+        mock_model_repo.compare_models = AsyncMock(return_value={
+            "v8": {"f1_score": 0.73, "accuracy": 0.80},
+            "v9": {"f1_score": 0.75, "accuracy": 0.82},
+            "improvement": {"f1_score": 0.02, "accuracy": 0.02}
+        })
+
+        response = client.get("/api/v1/ml/models/compare?v1=v8&v2=v9")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "v8" in data
+        assert "v9" in data
+        assert "improvement" in data
+
+    def test_compare_models_missing_params(self, client):
+        """Testa comparação sem parâmetros obrigatórios."""
+        response = client.get("/api/v1/ml/models/compare?v1=v8")
+
+        assert response.status_code == 400

@@ -1,0 +1,24 @@
+replicaCount: 1
+
+image:
+  tag: "dev"
+
+service:
+  type: ClusterIP
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    cpu: 200m
+    memory: 256Mi
+
+autoscaling:
+  enabled: false
+
+env:
+  ENVIRONMENT: development
+  LOG_LEVEL: DEBUG
+  ENABLE_ML_PREDICTION: "false"
+  ENABLE_ACTIVE_LEARNING: "false"

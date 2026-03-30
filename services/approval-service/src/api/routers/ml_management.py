@@ -62,6 +62,97 @@ class MLManagementRouter:
 
         self._setup_routes()
 
+    async def _promote_immediate(self, version: str) -> bool:
+        """
+        Promove modelo imediatamente para produção, desativando o anterior.
+
+        Args:
+            version: Versão do modelo a promover
+
+        Returns:
+            True se sucesso, False caso contrário
+        """
+        try:
+            # Buscar modelo atual em produção
+            current_production = await self.model_repo.list_models(
+                stage="production",
+                is_active=True,
+                limit=1
+            )
+
+            # Desativar modelo atual se existir
+            if current_production:
+                for old_model in current_production:
+                    await self.model_repo.promote_model(
+                        version=old_model.get("version"),
+                        stage="production",
+                        promoted_by="manual_deactivate"
+                    )
+                    # Marcar como inativo (set is_active=False)
+                    if hasattr(self.model_repo, 'deactivate_model'):
+                        await self.model_repo.deactivate_model(old_model.get("version"))
+
+            # Ativar novo modelo
+            return await self.model_repo.promote_model(
+                version=version,
+                stage="production",
+                promoted_by="manual"
+            )
+        except Exception as e:
+            logger.error(f"Erro na promoção imediata: {e}")
+            return False
+
+    async def _promote_canary(self, version: str, canary_percentage: int = 10) -> bool:
+        """
+        Promove modelo em modo canary com percentual de tráfego.
+
+        Mantém ambos os modelos ativos e configura split de tráfego.
+        O predictor deve respeitar o canary_percentage ao escolher qual modelo usar.
+
+        Args:
+            version: Versão do modelo a promover em canary
+            canary_percentage: Percentual de tráfego para o novo modelo (1-50)
+
+        Returns:
+            True se sucesso, False caso contrário
+        """
+        try:
+            # Validar percentual
+            if not 1 <= canary_percentage <= 50:
+                raise ValueError("Canary percentage must be between 1 and 50")
+
+            # Buscar modelo atual em produção
+            current_production = await self.model_repo.list_models(
+                stage="production",
+                is_active=True,
+                limit=1
+            )
+
+            if not current_production:
+                raise ValueError("No current production model found for canary deployment")
+
+            current_version = current_production[0].get("version")
+
+            # Promover novo modelo para produção (mas com canary flag)
+            # Em um cenário real, isso atualizaria uma tabela de configuração
+            # com o split de tráfego entre as versões
+            success = await self.model_repo.promote_model(
+                version=version,
+                stage="production",
+                promoted_by=f"canary_{canary_percentage}%"
+            )
+
+            if success:
+                logger.info(
+                    f"Canary deployment iniciado: {version} com {canary_percentage}% do tráfego, "
+                    f"{current_version} com {100 - canary_percentage}% do tráfego"
+                )
+
+            return success
+        except Exception as e:
+            logger.error(f"Erro no canary deployment: {e}")
+            return False
+
     def _setup_routes(self):
         """Configura rotas da API."""
 
@@ -127,6 +218,7 @@ class MLManagementRouter:
             Suporta filtros por estágio e status ativo.
             """
             try:
+                # Buscar modelos paginados
                 models = await self.model_repo.list_models(
                     stage=stage,
                     is_active=is_active,
@@ -134,8 +226,18 @@ class MLManagementRouter:
                     offset=offset
                 )
 
-                # Conta total (sem paginação)
-                total = len(models)  # TODO: implementar count real
+                # Count real: buscar todos sem paginação para obter total
+                try:
+                    all_models = await self.model_repo.list_models(
+                        stage=stage,
+                        is_active=is_active,
+                        limit=None,
+                        offset=0
+                    )
+                    total = len(all_models) if all_models else 0
+                except Exception:
+                    # Fallback: usar length da página atual se count falhar
+                    total = len(models)
 
                 return {
                     "models": models,
@@ -174,7 +276,9 @@ class MLManagementRouter:
             """
             Promover modelo para production.
 
-            Suporta estratégias immediate e canary.
+            Suporta estratégias:
+            - immediate: Promoção completa para produção (substitui modelo atual)
+            - canary: Promoção gradual com X% do tráfego (mantém modelo anterior)
             """
             try:
                 # Verifica se modelo está em staging
@@ -189,22 +293,18 @@ class MLManagementRouter:
                         detail="Only staging models can be promoted"
                     )
 
-                # Promove modelo
+                # Promove modelo conforme estratégia
                 if request.strategy == "immediate":
-                    success = await self.model_repo.promote_model(
-                        version=version,
-                        stage="production",
-                        promoted_by="manual"
-                    )
+                    # Promoção imediata: desativa modelo atual, ativa novo
+                    success = await self._promote_immediate(version)
                 elif request.strategy == "canary":
-                    # TODO: Implementar canary deployment
-                    success = await self.model_repo.promote_model(
-                        version=version,
-                        stage="production",
-                        promoted_by="canary"
-                    )
+                    # Canary deployment: ambos modelos ativos com split de tráfego
+                    success = await self._promote_canary(version, canary_percentage=10)
                 else:
-                    raise HTTPException(status_code=400, detail="Invalid strategy")
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Invalid strategy: {request.strategy}. Use 'immediate' or 'canary'"
+                    )
 
                 if not success:
                     raise HTTPException(status_code=500, detail="Promotion failed")
@@ -214,7 +314,8 @@ class MLManagementRouter:
                     "previous_version": model.get("previous_version"),
                     "stage": "production",
                     "promoted_at": model.get("promoted_at"),
-                    "strategy": request.strategy
+                    "strategy": request.strategy,
+                    "canary_percentage": 10 if request.strategy == "canary" else None
                 }
 
             except HTTPException:

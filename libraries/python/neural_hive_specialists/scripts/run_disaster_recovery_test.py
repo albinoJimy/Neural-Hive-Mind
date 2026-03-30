@@ -21,7 +21,10 @@ import sys
 import os
 import json
 from datetime import datetime
+from typing import Optional
 import structlog
+import aiohttp
+import asyncio
 
 # Adicionar path do library ao sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
@@ -128,15 +131,72 @@ def push_metrics_to_gateway(pushgateway_url: str, metrics: dict, job_name: str):
         logger.error("Erro ao enviar métricas", error=str(e))
 
 
-def send_alert(message: str):
+async def send_alert_async(
+    message: str,
+    specialist_type: str,
+    alertmanager_url: Optional[str] = None,
+    slack_webhook_url: Optional[str] = None,
+):
     """
-    Envia alerta em caso de falha.
+    Envia alerta de forma assíncrona para sistemas externos.
 
     Args:
         message: Mensagem de alerta
+        specialist_type: Tipo de especialista (business, technical, etc.)
+        alertmanager_url: URL do Prometheus Alertmanager (opcional)
+        slack_webhook_url: URL do webhook do Slack (opcional)
     """
-    # TODO: Implementar integração com sistema de alertas (PagerDuty, Slack, etc.)
-    logger.error("ALERTA DE DISASTER RECOVERY", message=message)
+    alert_data = {
+        "timestamp": datetime.utcnow().isoformat(),
+        "severity": "critical",
+        "service": "neural-hive-disaster-recovery",
+        "specialist_type": specialist_type,
+        "message": message,
+    }
+
+    # Enviar para Alertmanager
+    if alertmanager_url:
+        await _send_to_alertmanager(alertmanager_url, alert_data)
+
+    # Enviar para Slack
+    if slack_webhook_url:
+        await _send_to_slack(slack_webhook_url, alert_data, specialist_type)
+
+
+def send_alert(
+    message: str,
+    specialist_type: str = "unknown",
+    alertmanager_url: Optional[str] = None,
+    slack_webhook_url: Optional[str] = None,
+):
+    """
+    Envia alerta em caso de falha.
+
+    Integra com Prometheus Alertmanager e Slack para notificação
+    de falhas críticas no recovery de backups.
+
+    Args:
+        message: Mensagem de alerta
+        specialist_type: Tipo de especialista (business, technical, etc.)
+        alertmanager_url: URL do Prometheus Alertmanager (opcional, via env)
+        slack_webhook_url: URL do webhook do Slack (opcional, via env)
+    """
+    # Tentar obter URLs de variáveis de ambiente se não fornecidas
+    if not alertmanager_url:
+        alertmanager_url = os.getenv("DR_ALERTMANAGER_URL")
+    if not slack_webhook_url:
+        slack_webhook_url = os.getenv("DR_SLACK_WEBHOOK_URL")
+
+    # Log local sempre
+    logger.error(
+        "ALERTA DE DISASTER RECOVERY",
+        message=message,
+        specialist_type=specialist_type,
+        has_alertmanager=bool(alertmanager_url),
+        has_slack=bool(slack_webhook_url),
+    )
+
+    # Output formatado no console
     print()
     print("=" * 80)
     print("ALERTA: Teste de Recovery Falhou")
@@ -144,6 +204,118 @@ def send_alert(message: str):
     print(message)
     print("=" * 80)
     print()
+
+    # Enviar alertas externos de forma assíncrona
+    if alertmanager_url or slack_webhook_url:
+        try:
+            asyncio.run(send_alert_async(message, specialist_type, alertmanager_url, slack_webhook_url))
+        except Exception as e:
+            logger.error("Erro ao enviar alertas externos", error=str(e))
+
+
+async def _send_to_alertmanager(alertmanager_url: str, alert_data: dict):
+    """
+    Envia alerta para Prometheus Alertmanager.
+
+    Args:
+        alertmanager_url: URL base do Alertmanager
+        alert_data: Dicionário com dados do alerta
+    """
+    try:
+        alert_payload = [
+            {
+                "labels": {
+                    "alertname": "DisasterRecoveryFailed",
+                    "severity": alert_data["severity"],
+                    "service": alert_data["service"],
+                    "specialist_type": alert_data["specialist_type"],
+                },
+                "annotations": {
+                    "summary": "Teste de Disaster Recovery falhou",
+                    "message": alert_data["message"],
+                    "specialist_type": alert_data["specialist_type"],
+                },
+                "startsAt": alert_data["timestamp"],
+            }
+        ]
+
+        timeout = aiohttp.ClientTimeout(total=5)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.post(
+                f"{alertmanager_url}/api/v1/alerts",
+                json=alert_payload,
+            ) as response:
+                if response.status == 200:
+                    logger.info("Alerta enviado para Alertmanager")
+                else:
+                    logger.warning(
+                        "Falha ao enviar alerta para Alertmanager",
+                        status=response.status,
+                    )
+
+    except Exception as e:
+        logger.error("Erro ao enviar alerta para Alertmanager", error=str(e))
+
+
+async def _send_to_slack(
+    slack_webhook_url: str,
+    alert_data: dict,
+    specialist_type: str,
+):
+    """
+    Envia alerta para Slack via webhook.
+
+    Args:
+        slack_webhook_url: URL do webhook do Slack
+        alert_data: Dicionário com dados do alerta
+        specialist_type: Tipo de especialista
+    """
+    try:
+        slack_payload = {
+            "attachments": [
+                {
+                    "color": "#FF0000",  # Vermelho para crítico
+                    "title": "🚨 Disaster Recovery Test Failed",
+                    "text": alert_data["message"],
+                    "fields": [
+                        {
+                            "title": "Specialist Type",
+                            "value": specialist_type,
+                            "short": True,
+                        },
+                        {
+                            "title": "Severity",
+                            "value": alert_data["severity"].upper(),
+                            "short": True,
+                        },
+                        {
+                            "title": "Timestamp",
+                            "value": alert_data["timestamp"],
+                            "short": False,
+                        },
+                    ],
+                    "footer": "Neural Hive Specialists - Disaster Recovery",
+                    "ts": int(datetime.utcnow().timestamp()),
+                }
+            ]
+        }
+
+        timeout = aiohttp.ClientTimeout(total=5)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.post(
+                slack_webhook_url,
+                json=slack_payload,
+            ) as response:
+                if response.status == 200:
+                    logger.info("Alerta enviado para Slack")
+                else:
+                    logger.warning(
+                        "Falha ao enviar alerta para Slack",
+                        status=response.status,
+                    )
+
+    except Exception as e:
+        logger.error("Erro ao enviar alerta para Slack", error=str(e))
 
 
 def print_test_results(result: dict, verbose: bool = False):
@@ -301,7 +473,7 @@ def main():
                 f"Erro: {result.get('error', 'Desconhecido')}\n"
                 f"Timestamp: {datetime.utcnow().isoformat()}"
             )
-            send_alert(alert_message)
+            send_alert(alert_message, specialist_type=args.specialist_type)
 
         # Código de saída
         return 0 if result["status"] == "success" else 1
@@ -312,7 +484,10 @@ def main():
 
         # Enviar alerta em caso de exceção
         if args.alert_on_failure:
-            send_alert(f"Erro fatal no teste de recovery: {str(e)}")
+            send_alert(
+                f"Erro fatal no teste de recovery: {str(e)}",
+                specialist_type=args.specialist_type,
+            )
 
         return 1
 

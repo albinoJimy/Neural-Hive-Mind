@@ -1,0 +1,219 @@
+# =============================================================================
+# Neural Hive-Mind - Multi-Region Failover Policy
+# =============================================================================
+# Políticas de failover entre regiões usando Istio e Kubernetes
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Circuit Breaker para Proteção Cross-Region
+# -----------------------------------------------------------------------------
+
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: mongo-circuit-breaker
+  namespace: neural-hive-mind
+spec:
+  host: mongodb-replica
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 50
+    outlierDetection:
+      consecutiveGatewayErrors: 5
+      interval: 30s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+      minHealthPercent: 40
+
+---
+# -----------------------------------------------------------------------------
+# Retry Policy para Resiliência
+# -----------------------------------------------------------------------------
+
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: api-retry-policy
+  namespace: neural-hive-mind
+spec:
+  hosts:
+    - "api.neural-hive.com"
+  http:
+    - route:
+        - destination:
+            host: gateway-intencoes
+      retries:
+        attempts: 3
+        perTryTimeout: 2s
+        retryOn: 5xx,connect-failure,refused-stream
+      timeout: 10s
+
+---
+# -----------------------------------------------------------------------------
+# Session Affinity para Sticky Sessions
+# -----------------------------------------------------------------------------
+
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: session-affinity
+  namespace: neural-hive-mind
+spec:
+  host: gateway-intencoes
+  trafficPolicy:
+    loadBalancer:
+      simple: LEAST_CONN
+      consistencyHash:
+        httpCookie:
+          name: nhm-session
+          ttl: 300s
+
+---
+# -----------------------------------------------------------------------------
+# Fault Injection para Testes de Chaos
+# -----------------------------------------------------------------------------
+
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: chaos-testing
+  namespace: neural-hive-mind
+spec:
+  hosts:
+    - gateway-intencoes
+  http:
+    - fault:
+        delay:
+          percentage:
+            value: 0.1
+          fixedDelay: 5s
+      route:
+        - destination:
+            host: gateway-intencoes
+            subset: west
+      match:
+        - headers:
+            x-chaos-test:
+              exact: "true"
+
+---
+# -----------------------------------------------------------------------------
+# Regional Priority (Local First)
+# -----------------------------------------------------------------------------
+
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: local-priority
+  namespace: neural-hive-mind
+spec:
+  hosts:
+    - gateway-intencoes
+  http:
+    - match:
+        - sourceLabels:
+            region: us-east-1
+      route:
+        - destination:
+            host: gateway-intencoes
+            subset: east
+          weight: 90
+        - destination:
+            host: gateway-intencoes
+            subset: west
+          weight: 10
+      headers:
+        request:
+          add:
+            x-routing: "local-priority"
+
+    - match:
+        - sourceLabels:
+            region: us-west-2
+      route:
+        - destination:
+            host: gateway-intencoes
+            subset: west
+          weight: 90
+        - destination:
+            host: gateway-intencoes
+            subset: east
+          weight: 10
+
+    - match:
+        - sourceLabels:
+            region: eu-west-1
+      route:
+        - destination:
+            host: gateway-intencoes
+            subset: eu
+          weight: 100
+      headers:
+        request:
+          add:
+            x-gdpr: "true"
+
+---
+# -----------------------------------------------------------------------------
+# Health Check Regional
+# -----------------------------------------------------------------------------
+
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: regional-health-check
+  namespace: neural-hive-mind
+spec:
+  host: gateway-intencoes
+  trafficPolicy:
+    outlierDetection:
+      consecutiveErrors: 3
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+      minHealthPercent: 30
+
+---
+# -----------------------------------------------------------------------------
+# Timeout Policy por Operação
+# -----------------------------------------------------------------------------
+
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: operation-timeouts
+  namespace: neural-hive-mind
+spec:
+  hosts:
+    - gateway-intencoes
+  http:
+    # Operações rápidas
+    - match:
+        - uri:
+            prefix: /api/v1/health
+      route:
+        - destination:
+            host: gateway-intencoes
+      timeout: 2s
+
+    # Operações normais
+    - match:
+        - uri:
+            prefix: /api/v1/intent
+      route:
+        - destination:
+            host: gateway-intencoes
+      timeout: 10s
+
+    # Operações longas
+    - match:
+        - uri:
+            prefix: /api/v1/analysis
+      route:
+        - destination:
+            host: gateway-intencoes
+      timeout: 60s
+      retries:
+        attempts: 2
+        perTryTimeout: 30s

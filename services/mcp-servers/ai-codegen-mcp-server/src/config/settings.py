@@ -1,8 +1,10 @@
 """Configurações do AI CodeGen MCP Server."""
 
 from functools import lru_cache
-from typing import Literal
+from typing import Literal, List
 from pydantic_settings import BaseSettings
+
+from neural_hive_security.cors import CORSConfig
 
 
 class Settings(BaseSettings):
@@ -38,12 +40,21 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     metrics_port: int = 9091
 
-    # CORS
-    cors_origins: str = "*"
+    # Ambiente
+    environment: str = "development"
+    is_public_api: bool = True
 
     class Config:
         env_prefix = ""
         case_sensitive = False
+
+    @property
+    def CORS_ORIGINS(self) -> List[str]:
+        """CORS origins dinâmicas por ambiente."""
+        return CORSConfig.get_origins_for_environment(
+            self.environment,
+            is_public_api=self.is_public_api
+        )
 
 
 @lru_cache()

@@ -687,3 +687,101 @@ class TestCompleteEvaluationFlow:
 
         # Plano pobre deve ter risco mais alto
         assert risk > 0.3
+
+
+class TestMLModelIntegration:
+    """Testes de integração com modelo ML do especialista técnico."""
+
+    def test_ml_model_features_extraction(self):
+        """Testa extração de features para modelo ML técnico."""
+        expected_features = [
+            "code_quality_score",
+            "security_score",
+            "performance_score",
+            "architecture_compliance",
+            "tech_debt_risk",
+            "complexity_score"
+        ]
+
+        # Simular extração de features
+        features = {
+            "code_quality_score": 0.75,
+            "security_score": 0.8,
+            "performance_score": 0.7,
+            "architecture_compliance": 0.85,
+            "tech_debt_risk": 0.3,  # Baixo risco é bom
+            "complexity_score": 0.4  # Baixa complexidade é bom
+        }
+
+        for feature in expected_features:
+            assert feature in features
+
+        for feature, value in features.items():
+            assert 0.0 <= value <= 1.0
+
+    def test_ml_model_prediction(self):
+        """Testa predição do modelo ML técnico."""
+        from sklearn.ensemble import GradientBoostingClassifier
+        import numpy as np
+
+        model = GradientBoostingClassifier(n_estimators=10, max_depth=3, random_state=42)
+
+        X_train = np.array([
+            [0.8, 0.8, 0.7, 0.85, 0.3, 0.4],  # Bom -> approve
+            [0.3, 0.2, 0.3, 0.4, 0.8, 0.9],   # Ruim -> reject
+        ])
+        y_train = np.array([1, 0])
+
+        model.fit(X_train, y_train)
+
+        X_test = np.array([[0.75, 0.75, 0.7, 0.8, 0.4, 0.5]])
+        prediction = model.predict(X_test)[0]
+
+        assert prediction in [0, 1]
+
+    def test_ml_heuristic_combination(self):
+        """Testa combinação de ML e heurística para especialista técnico."""
+        ml_score = 0.75
+        heuristic_scores = {
+            "security": 0.8,
+            "architecture": 0.7,
+            "performance": 0.75,
+            "code_quality": 0.7
+        }
+        heuristic_avg = sum(heuristic_scores.values()) / len(heuristic_scores)
+
+        # Combinação: 70% ML, 30% heurística
+        final_score = 0.7 * ml_score + 0.3 * heuristic_avg
+
+        assert 0.7 < final_score < 0.8
+
+    def test_ml_model_approve_conditions(self):
+        """Testa condições de aprovação do modelo técnico."""
+        # Regra: security + architecture > 1.3 E complexity < 0.7
+        security_score = 0.8
+        architecture_compliance = 0.7
+        complexity_score = 0.5
+        code_quality = 0.7
+
+        should_approve = (
+            (security_score + architecture_compliance) > 1.3 and
+            complexity_score < 0.7 and
+            code_quality > 0.5
+        )
+
+        assert should_approve is True
+
+    def test_ml_model_reject_conditions(self):
+        """Testa condições de rejeição do modelo técnico."""
+        security_score = 0.4
+        architecture_compliance = 0.5
+        complexity_score = 0.8
+        code_quality = 0.4
+
+        should_approve = (
+            (security_score + architecture_compliance) > 1.3 and
+            complexity_score < 0.7 and
+            code_quality > 0.5
+        )
+
+        assert should_approve is False

@@ -287,6 +287,8 @@ async def startup():
             argo_client=argo_client,
             mongodb_client=mongodb_client,
             redis_client=redis_client,
+            consensus_engine_client=consensus_engine_client,
+            orchestrator_client=orchestrator_client,
         )
         logger.info("experiment_manager_initialized")
 

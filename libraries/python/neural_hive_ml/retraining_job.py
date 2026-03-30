@@ -95,12 +95,37 @@ class RetrainingJob:
             }
 
     async def _count_pending_samples(self) -> int:
-        """Conta samples pendentes para treino."""
-        # TODO: Implementar contagem real do MongoDB
-        # Por ora, retorna valor mockado
-        if hasattr(self.model_repo, "count_pending_samples"):
-            return await self.model_repo.count_pending_samples()
-        return 0
+        """
+        Conta samples pendentes para treino.
+
+        Busca na coleção specialist_feedback do MongoDB,
+        contando registros com features semânticas disponíveis
+        para treinamento (nlp_features preenchidos).
+        """
+        try:
+            # Tenta obter acesso ao MongoDB através do model_repo
+            if hasattr(self.model_repo, "db"):
+                db = self.model_repo.db
+
+                # Conta documentos com nlp_features (feedbacks enriquecidos)
+                # Estes são os samples válidos para retreino
+                count = await db.specialist_feedback.count_documents(
+                    {
+                        "nlp_features": {"$exists": True, "$ne": {}},
+                        "balanced_dataset": True  # Samples do active learning
+                    }
+                )
+
+                logger.info(f"Samples pendentes contados: {count}")
+                return count
+
+            # Fallback: retorna 0 se não tiver acesso ao MongoDB
+            logger.warning("model_repo não tem acesso ao db, retornando 0")
+            return 0
+
+        except Exception as e:
+            logger.error(f"Erro ao contar samples pendentes: {e}")
+            return 0
 
     async def execute_retraining(
         self, script_args: Optional[list] = None

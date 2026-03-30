@@ -48,7 +48,7 @@ class SonarQubeMCPServer(BaseMCPServer):
 server = SonarQubeMCPServer(
     name=settings.service_name,
     version=settings.service_version,
-    allowed_origins=settings.cors_origins.split(",")
+    allowed_origins=settings.CORS_ORIGINS
 )
 
 

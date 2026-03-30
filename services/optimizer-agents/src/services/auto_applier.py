@@ -3,8 +3,9 @@ import logging
 import os
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from datetime import datetime
+import hashlib
 
 logger = logging.getLogger(__name__)
 
@@ -204,6 +205,127 @@ class OptimizationApplier:
             "file_path": file_path,
         }
 
+    def _parse_unified_diff(self, patch: str) -> List[Dict[str, Any]]:
+        """
+        Parse unified diff format em estruturas aplicáveis.
+
+        Formato esperado (unified diff):
+        --- a/file.py
+        +++ b/file.py
+        @@ -lineno,count +lineno,count @@
+         -linha removida
+         +linha adicionada
+          linha de contexto
+
+        Args:
+            patch: String contendo o unified diff
+
+        Returns:
+            Lista de hunks com metadados e mudanças
+        """
+        hunks = []
+        lines = patch.split("\n")
+
+        i = 0
+        current_hunk = None
+
+        while i < len(lines):
+            line = lines[i]
+
+            # Detectar inicio de um hunk (@@ -x,y +a,b @@)
+            if line.startswith("@@"):
+                if current_hunk:
+                    hunks.append(current_hunk)
+
+                # Parse da linha do hunk: @@ -old_start,old_count +new_start,new_count @@
+                match = re.search(r"@@\s*-(\d+),?(\d+)?\s*\+(\d+),?(\d+)?\s*@@", line)
+                if match:
+                    old_start = int(match.group(1)) - 1  # 0-indexed
+                    old_count = int(match.group(2)) if match.group(2) else 1
+                    new_start = int(match.group(3)) - 1  # 0-indexed
+                    new_count = int(match.group(4)) if match.group(4) else 1
+
+                    current_hunk = {
+                        "old_start": old_start,
+                        "old_count": old_count,
+                        "new_start": new_start,
+                        "new_count": new_count,
+                        "changes": [],
+                    }
+
+            # Processar linhas dentro do hunk
+            elif current_hunk is not None:
+                if line.startswith("-"):
+                    current_hunk["changes"].append(("delete", line[1:]))
+                elif line.startswith("+"):
+                    current_hunk["changes"].append(("insert", line[1:]))
+                elif line.startswith(" "):
+                    current_hunk["changes"].append(("context", line[1:]))
+
+            i += 1
+
+        if current_hunk:
+            hunks.append(current_hunk)
+
+        return hunks
+
+    def _apply_hunk_to_lines(
+        self,
+        lines: List[str],
+        hunk: Dict[str, Any],
+    ) -> Tuple[List[str], bool]:
+        """
+        Aplica um hunk a uma lista de linhas.
+
+        Args:
+            lines: Lista de linhas do arquivo original
+            hunk: Hunk parsed do unified diff
+
+        Returns:
+            Tuple de (novas linhas, sucesso)
+        """
+        old_start = hunk["old_start"]
+        old_count = hunk["old_count"]
+        changes = hunk["changes"]
+
+        # Verificar se temos linhas suficientes
+        if old_start + old_count > len(lines):
+            return lines, False
+
+        # Verificar contexto (linhas que devem existir)
+        new_lines = lines[:old_start]
+        old_idx = old_start
+        change_idx = 0
+
+        while change_idx < len(changes):
+            change_type, content = changes[change_idx]
+
+            if change_type == "context":
+                # Verificar se a linha de contexto bate
+                if old_idx >= len(lines) or lines[old_idx] != content:
+                    return lines, False
+                new_lines.append(content)
+                old_idx += 1
+                change_idx += 1
+
+            elif change_type == "delete":
+                # Remover linha (verificar se bate)
+                if old_idx >= len(lines) or lines[old_idx] != content:
+                    return lines, False
+                old_idx += 1
+                change_idx += 1
+
+            elif change_type == "insert":
+                # Inserir nova linha
+                new_lines.append(content)
+                change_idx += 1
+
+        # Adicionar linhas restantes após o hunk
+        if old_idx < len(lines):
+            new_lines.extend(lines[old_idx:])
+
+        return new_lines, True
+
     async def _apply_patch(
         self,
         file_path: str,
@@ -211,11 +333,11 @@ class OptimizationApplier:
         recommendation: Dict[str, Any],
     ) -> Dict[str, Any]:
         """
-        Aplica patch ao arquivo.
+        Aplica patch ao arquivo usando unified diff format.
 
         Args:
             file_path: Caminho do arquivo
-            patch: Diff a ser aplicado
+            patch: Diff a ser aplicado (unified diff format)
             recommendation: Dados da recomendação
 
         Returns:
@@ -223,7 +345,8 @@ class OptimizationApplier:
         """
         if self.dry_run:
             logger.info(
-                f"[DRY RUN] Would apply patch to {file_path}",
+                "[DRY_RUN] Would apply patch",
+                file_path=file_path,
                 patch_lines=len(patch.split("\n")),
             )
             return {
@@ -237,22 +360,73 @@ class OptimizationApplier:
 
         try:
             # Ler arquivo original
-            with open(file_path, "r") as f:
-                original_content = f.read()
+            with open(file_path, "r", encoding="utf-8") as f:
+                original_lines = f.readlines()
 
-            # TODO: Aplicar patch usando unified diff format
-            # Por enquanto, apenas log
-            logger.info(f"Applying patch to {file_path}")
+            # Salvar hash do conteúdo original para verificação
+            original_hash = hashlib.md5("".join(original_lines).encode()).hexdigest()
 
-            # Salvar backup
+            # Parse do unified diff
+            hunks = self._parse_unified_diff(patch)
+
+            if not hunks:
+                return {
+                    "success": False,
+                    "recommendation_id": recommendation.get("id"),
+                    "reason": "No valid hunks found in patch",
+                }
+
+            logger.info(
+                "applying_patch",
+                file_path=file_path,
+                hunks_count=len(hunks),
+            )
+
+            # Aplicar hunks sequencialmente (de trás para frente para preservar line numbers)
+            applied_hunks = 0
+            current_lines = original_lines
+
+            for hunk in reversed(hunks):
+                new_lines, success = self._apply_hunk_to_lines(current_lines, hunk)
+                if success:
+                    current_lines = new_lines
+                    applied_hunks += 1
+                else:
+                    logger.warning(
+                        "hunk_application_failed",
+                        old_start=hunk["old_start"],
+                        old_count=hunk["old_count"],
+                    )
+
+            if applied_hunks == 0:
+                return {
+                    "success": False,
+                    "recommendation_id": recommendation.get("id"),
+                    "reason": "Failed to apply any hunks - patch may not match file content",
+                }
+
+            # Salvar backup antes de escrever
             backup_path = f"{file_path}.backup.{datetime.now().strftime('%Y%m%d%H%M%S')}"
-            with open(backup_path, "w") as f:
-                f.write(original_content)
+            with open(backup_path, "w", encoding="utf-8") as f:
+                f.writelines(original_lines)
 
-            # Aplicar mudanças (simplificado - implementação real usaria patch.apply)
-            # result = patch.apply(original_content, patch)
+            # Escrever novo conteúdo
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.writelines(current_lines)
+
+            # Verificar hash novo
+            new_hash = hashlib.md5("".join(current_lines).encode()).hexdigest()
 
             self._applied_count += 1
+
+            logger.info(
+                "patch_applied_successfully",
+                file_path=file_path,
+                backup_path=backup_path,
+                hunks_applied=applied_hunks,
+                original_hash=original_hash,
+                new_hash=new_hash,
+            )
 
             return {
                 "success": True,
@@ -260,10 +434,28 @@ class OptimizationApplier:
                 "applied": True,
                 "file_path": file_path,
                 "backup_path": backup_path,
+                "hunks_applied": applied_hunks,
+                "total_hunks": len(hunks),
+                "original_hash": original_hash,
+                "new_hash": new_hash,
             }
 
+        except FileNotFoundError:
+            logger.error("file_not_found", file_path=file_path)
+            return {
+                "success": False,
+                "recommendation_id": recommendation.get("id"),
+                "reason": f"File not found: {file_path}",
+            }
+        except PermissionError:
+            logger.error("permission_denied", file_path=file_path)
+            return {
+                "success": False,
+                "recommendation_id": recommendation.get("id"),
+                "reason": f"Permission denied: {file_path}",
+            }
         except Exception as e:
-            logger.error(f"Failed to apply patch to {file_path}: {e}")
+            logger.error("patch_application_failed", file_path=file_path, error=str(e))
             return {
                 "success": False,
                 "recommendation_id": recommendation.get("id"),

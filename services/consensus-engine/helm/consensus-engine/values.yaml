@@ -1,0 +1,77 @@
+replicaCount: 2
+
+image:
+  repository: 37.60.241.150:30500/consensus-engine
+  tag: "1.0.0"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  ports:
+    http: 8000
+    metrics: 8000
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+env:
+  SERVICE_NAME: consensus-engine
+  SERVICE_VERSION: 1.0.0
+  ENVIRONMENT: production
+  LOG_LEVEL: INFO
+  KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+  MONGODB_URI: mongodb://mongodb:27017
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+  REDIS_CLUSTER_NODES: "redis:6379"
+  REDIS_SSL_ENABLED: "false"
+  SPECIALISTS_GRPC_HOST: specialists
+  SPECIALISTS_GRPC_PORT: "50051"
+  QUEEN_AGENT_GRPC_HOST: queen-agent
+  QUEEN_AGENT_GRPC_PORT: "50056"
+  ANALYST_AGENT_GRPC_HOST: analyst-agents
+  ANALYST_AGENT_GRPC_PORT: "50051"
+  OTEL_ENDPOINT: http://otel-collector:4317
+  PROMETHEUS_PORT: "9090"
+
+secrets:
+  mongodb_uri: ""
+  redis_password: ""
+  kafka_sasl_username: ""
+  kafka_sasl_password: ""
+
+serviceAccount:
+  create: true
+  name: consensus-engine
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - consensus-engine
+          topologyKey: kubernetes.io/hostname
+
+nodeSelector: {}
+tolerations: []

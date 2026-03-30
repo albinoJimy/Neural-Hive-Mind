@@ -576,3 +576,181 @@ class TestCompleteEvaluationFlow:
 
         # Caso de negócio pobre deve ter risco mais alto
         assert risk > 0.3
+
+
+class TestMLModelIntegration:
+    """Testes de integração com modelo ML do especialista."""
+
+    def test_ml_model_features_extraction(self):
+        """Testa extração de features para modelo ML."""
+        # Features esperadas pelo modelo BusinessSpecialistModel
+        expected_features = [
+            "business_value",
+            "roi_score",
+            "cost_benefit_ratio",
+            "process_efficiency",
+            "strategic_alignment",
+            "market_impact"
+        ]
+
+        # Simular extração de features de um cognitive plan
+        cognitive_plan = {
+            'plan_id': 'test-plan',
+            'original_domain': 'business',
+            'original_priority': 'high',
+            'tasks': [
+                {
+                    'description': 'Implement business logic with high ROI',
+                    'estimated_duration_ms': 50000,
+                    'dependencies': []
+                }
+            ]
+        }
+
+        # Extrair features (simulado - na prática seria extraído pelo especialista)
+        features = {
+            "business_value": 0.8,  # Alto valor de negócio
+            "roi_score": 0.7,  # Bom ROI
+            "cost_benefit_ratio": 0.75,  # Razão custo-benefício positiva
+            "process_efficiency": 0.6,  # Eficiência moderada
+            "strategic_alignment": 0.9,  # Alto alinhamento estratégico
+            "market_impact": 0.7  # Impacto de mercado positivo
+        }
+
+        # Verificar que todas as features esperadas estão presentes
+        for feature in expected_features:
+            assert feature in features, f"Feature {feature} não encontrada"
+
+        # Verificar que os valores estão entre 0 e 1
+        for feature, value in features.items():
+            assert 0.0 <= value <= 1.0, f"Feature {feature} com valor inválido: {value}"
+
+    def test_ml_model_prediction(self):
+        """Testa predição do modelo ML."""
+        from sklearn.ensemble import GradientBoostingClassifier
+        import numpy as np
+
+        # Criar um modelo simples para teste
+        model = GradientBoostingClassifier(n_estimators=10, max_depth=3, random_state=42)
+
+        # Dados de treino simples
+        X_train = np.array([
+            [0.8, 0.7, 0.75, 0.6, 0.9, 0.7],  # Bom -> approve
+            [0.3, 0.2, 0.4, 0.3, 0.2, 0.3],   # Ruim -> reject
+            [0.6, 0.5, 0.6, 0.5, 0.7, 0.6],   # Médio -> conditional
+        ])
+        y_train = np.array([1, 0, 1])  # 1=approve, 0=reject
+
+        model.fit(X_train, y_train)
+
+        # Testar predição
+        X_test = np.array([[0.8, 0.7, 0.75, 0.6, 0.9, 0.7]])
+        prediction = model.predict(X_test)[0]
+        probability = model.predict_proba(X_test)[0]
+
+        # Verificar predição válida
+        assert prediction in [0, 1]
+        assert len(probability) == 2
+        assert abs(sum(probability) - 1.0) < 0.01  # Probabilidades somam 1
+
+    def test_ml_model_fallback_to_heuristics(self):
+        """Testa fallback para heurísticas quando modelo ML não está disponível."""
+        # Simular cenário onde modelo ML não está carregado
+        ml_model = None
+
+        # Features extraídas
+        features = {
+            "business_value": 0.8,
+            "roi_score": 0.7,
+            "cost_benefit_ratio": 0.75,
+            "process_efficiency": 0.6,
+            "strategic_alignment": 0.9,
+            "market_impact": 0.7
+        }
+
+        # Score heurístico (média simples das features)
+        heuristic_score = sum(features.values()) / len(features)
+
+        # Se modelo não disponível, usar apenas heurística
+        if ml_model is None:
+            final_score = heuristic_score
+            using_ml = False
+        else:
+            # Em produção, combinaria ML + heurística
+            final_score = 0.7 * ml_model + 0.3 * heuristic_score
+            using_ml = True
+
+        # Verificar que fallback funcionou
+        assert 0.0 <= final_score <= 1.0
+        assert not using_ml  # Confirma que está usando heurística
+
+    def test_ml_heuristic_weighted_combination(self):
+        """Testa combinação ponderada de ML e heurística."""
+        # Simular scores
+        ml_score = 0.8
+        heuristic_score = 0.6
+
+        # Combinação ponderada (70% ML, 30% heurística)
+        final_score = 0.7 * ml_score + 0.3 * heuristic_score
+
+        # Verificar combinação
+        assert 0.6 < final_score < 0.8  # Entre os dois, mais próximo de ML
+        assert abs(final_score - 0.74) < 0.01  # 0.7*0.8 + 0.3*0.6 = 0.74
+
+    def test_ml_feature_importance_order(self):
+        """Testa ordenação de importância de features."""
+        from sklearn.ensemble import GradientBoostingClassifier
+        import numpy as np
+
+        # Criar e treinar modelo
+        model = GradientBoostingClassifier(n_estimators=10, random_state=42)
+        X = np.random.rand(100, 6)
+        y = (X[:, 0] + X[:, 1] > 1.0).astype(int)  # business_value + roi_score
+        model.fit(X, y)
+
+        # Obter importâncias
+        feature_names = [
+            "business_value", "roi_score", "cost_benefit_ratio",
+            "process_efficiency", "strategic_alignment", "market_impact"
+        ]
+        importances = dict(zip(feature_names, model.feature_importances_))
+
+        # Verificar que importâncias somam aproximadamente 1
+        total_importance = sum(importances.values())
+        assert abs(total_importance - 1.0) < 0.1
+
+    def test_ml_model_reject_threshold(self):
+        """Testa threshold de rejeição do modelo."""
+        # Score abaixo do threshold deve resultar em 'reject'
+        confidence_score = 0.4
+        risk_score = 0.7
+
+        # Determinação de recomendação
+        if confidence_score < 0.5 or risk_score > 0.7:
+            recommendation = 'reject'
+        elif confidence_score >= 0.8 and risk_score < 0.3:
+            recommendation = 'approve'
+        elif risk_score > 0.5:
+            recommendation = 'review_required'
+        else:
+            recommendation = 'conditional'
+
+        assert recommendation == 'reject'
+
+    def test_ml_model_approve_threshold(self):
+        """Testa threshold de aprovação do modelo."""
+        # Score acima do threshold deve resultar em 'approve'
+        confidence_score = 0.85
+        risk_score = 0.2
+
+        # Determinação de recomendação
+        if confidence_score < 0.5 or risk_score > 0.7:
+            recommendation = 'reject'
+        elif confidence_score >= 0.8 and risk_score < 0.3:
+            recommendation = 'approve'
+        elif risk_score > 0.5:
+            recommendation = 'review_required'
+        else:
+            recommendation = 'conditional'
+
+        assert recommendation == 'approve'

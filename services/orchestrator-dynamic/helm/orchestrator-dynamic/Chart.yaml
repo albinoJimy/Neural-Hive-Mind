@@ -1,0 +1,15 @@
+apiVersion: v2
+name: orchestrator-dynamic
+description: Orchestrator Dynamic - Orquestração de Workflows via Temporal
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+maintainers:
+  - name: Neural Hive-Mind Team
+    email: team@neuralhive.io
+keywords:
+  - neural-hive-mind
+  - orchestrator-dynamic
+  - temporal
+  - orchestration
+  - workflows

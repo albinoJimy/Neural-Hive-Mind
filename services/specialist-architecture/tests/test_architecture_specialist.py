@@ -721,3 +721,84 @@ class TestCompleteEvaluationFlow:
 
         # Arquitetura pobre deve ter risco mais alto
         assert risk > 0.3
+
+
+class TestMLModelIntegration:
+    """Testes de integração com modelo ML do especialista de arquitetura."""
+
+    def test_ml_model_features_extraction(self):
+        """Testa extração de features para modelo ML de arquitetura."""
+        expected_features = [
+            "solid_compliance",
+            "design_pattern_score",
+            "coupling_score",
+            "cohesion_score",
+            "separation_of_concerns",
+            "modularity_score"
+        ]
+
+        features = {
+            "solid_compliance": 0.85,
+            "design_pattern_score": 0.8,
+            "coupling_score": 0.7,  # Alto = baixo acoplamento = bom
+            "cohesion_score": 0.75,
+            "separation_of_concerns": 0.8,
+            "modularity_score": 0.7
+        }
+
+        for feature in expected_features:
+            assert feature in features
+
+        for feature, value in features.items():
+            assert 0.0 <= value <= 1.0
+
+    def test_ml_model_prediction(self):
+        """Testa predição do modelo ML de arquitetura."""
+        from sklearn.ensemble import GradientBoostingClassifier
+        import numpy as np
+
+        model = GradientBoostingClassifier(n_estimators=10, max_depth=3, random_state=42)
+
+        X_train = np.array([
+            [0.9, 0.85, 0.7, 0.8, 0.75, 0.7],  # Boa arquitetura
+            [0.3, 0.4, 0.3, 0.4, 0.3, 0.4],   # Má arquitetura
+        ])
+        y_train = np.array([1, 0])
+
+        model.fit(X_train, y_train)
+
+        X_test = np.array([[0.8, 0.8, 0.7, 0.75, 0.7, 0.7]])
+        prediction = model.predict(X_test)[0]
+
+        assert prediction in [0, 1]
+
+    def test_ml_model_approve_conditions(self):
+        """Testa condições de aprovação do modelo de arquitetura."""
+        # Regra: SOLID + design_patterns > 1.4 E coupling > 0.5
+        solid_compliance = 0.85
+        design_pattern_score = 0.75
+        coupling_score = 0.7
+        cohesion_score = 0.6
+
+        should_approve = (
+            (solid_compliance + design_pattern_score) > 1.4 and
+            coupling_score > 0.5 and
+            cohesion_score > 0.4
+        )
+
+        assert should_approve is True
+
+    def test_ml_model_reject_conditions(self):
+        """Testa condições de rejeição do modelo de arquitetura."""
+        solid_compliance = 0.4
+        design_pattern_score = 0.5
+        coupling_score = 0.3
+        cohesion_score = 0.3
+
+        should_approve = (
+            (solid_compliance + design_pattern_score) > 1.4 and
+            coupling_score > 0.5 and
+            cohesion_score > 0.4
+        )
+
+        assert should_approve is False

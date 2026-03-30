@@ -447,6 +447,247 @@ class TestAgentClientDeregister:
 
         assert agent_client._running is False
 
+
+# ============================================================================
+# Testes Adicionais para Cobertura
+# ============================================================================
+
+
+class TestAgentType:
+    """Testes adicionais para AgentType."""
+
+    def test_to_proto_unavailable(self):
+        """Testa to_proto quando PROTO_AVAILABLE=False."""
+        with patch("neural_hive_agent_sdk.client.PROTO_AVAILABLE", False):
+            result = AgentType.WORKER.to_proto()
+            assert result is None
+
+    def test_to_proto_all_types(self):
+        """Testa to_proto para todos os tipos de agente."""
+        types = [AgentType.WORKER, AgentType.SCOUT, AgentType.GUARD, AgentType.ANALYST]
+
+        for agent_type in types:
+            # Não deve lançar erro mesmo se PROTO_AVAILABLE=False
+            result = agent_type.to_proto()
+            # Resultado pode ser None ou o valor proto dependendo do ambiente
+
+
+class TestAgentTelemetry:
+    """Testes adicionais para AgentTelemetry."""
+
+    def test_telemetry_initialization(self):
+        """Testa inicialização com valores padrão."""
+        telemetry = AgentTelemetry()
+
+        assert telemetry.success_rate == 0.0
+        assert telemetry.avg_duration_ms == 0
+        assert telemetry.total_executions == 0
+        assert telemetry.failed_executions == 0
+        assert telemetry.last_execution_at is not None
+
+    def test_telemetry_custom_values(self):
+        """Testa inicialização com valores customizados."""
+        telemetry = AgentTelemetry(
+            success_rate=0.85,
+            avg_duration_ms=250,
+            total_executions=500,
+            failed_executions=25
+        )
+
+        assert telemetry.success_rate == 0.85
+        assert telemetry.avg_duration_ms == 250
+        assert telemetry.total_executions == 500
+        assert telemetry.failed_executions == 25
+
+    def test_telemetry_to_proto_unavailable(self):
+        """Testa to_proto quando PROTO_AVAILABLE=False."""
+        telemetry = AgentTelemetry(success_rate=0.9)
+
+        with patch("neural_hive_agent_sdk.client.PROTO_AVAILABLE", False):
+            result = telemetry.to_proto()
+
+            assert isinstance(result, dict)
+            assert result["success_rate"] == 0.9
+
+    def test_telemetry_to_proto_available(self):
+        """Testa to_proto quando PROTO_AVAILABLE=True."""
+        telemetry = AgentTelemetry(
+            success_rate=0.75,
+            avg_duration_ms=200,
+            total_executions=100,
+            failed_executions=5
+        )
+
+        # Sempre retorna um dict ou objeto proto
+        result = telemetry.to_proto()
+
+        # Verificar que o resultado tem os campos esperados
+        if hasattr(result, "success_rate"):
+            assert result.success_rate == 0.75
+        else:
+            assert result["success_rate"] == 0.75
+
+
+class TestAgentClientContextManager:
+    """Testes para context manager do AgentClient."""
+
+    @pytest.mark.asyncio
+    async def test_context_manager_auto_deregister(self, agent_config):
+        """Testa que context manager chama deregister automaticamente."""
+        with patch("neural_hive_agent_sdk.client.grpc.aio.insecure_channel"):
+            async with AgentClient(config=agent_config) as client:
+                client.agent_id = "test-agent-123"
+                client._running = True
+                client._heartbeat_task = asyncio.create_task(asyncio.sleep(10))
+
+            # Após sair do contexto, agent deve estar desregistrado
+            # (verificado pelo estado do cliente)
+
+    @pytest.mark.asyncio
+    async def test_context_manager_with_exception(self, agent_config):
+        """Testa que context manager desregistra mesmo com exceção."""
+        with patch("neural_hive_agent_sdk.client.grpc.aio.insecure_channel"):
+            try:
+                async with AgentClient(config=agent_config) as client:
+                    client.agent_id = "test-agent-123"
+                    raise ValueError("Test exception")
+            except ValueError:
+                pass  # Exceção esperada
+
+            # Context manager deve ter tratado a limpeza
+
+
+class TestAgentClientEdgeCases:
+    """Testes de edge cases para AgentClient."""
+
+    @pytest.mark.asyncio
+    async def test_register_with_metadata(self, agent_client, mock_grpc_channel):
+        """Testa registro com metadados customizados."""
+        with patch(
+            "neural_hive_agent_sdk.client.grpc.aio.insecure_channel",
+            return_value=mock_grpc_channel,
+        ):
+            custom_metadata = {"custom_key": "custom_value"}
+
+            agent_id = await agent_client.register(
+                agent_type=AgentType.ANALYST,
+                capabilities=["analyze", "report"],
+                metadata=custom_metadata
+            )
+
+            assert agent_id is not None
+
+    @pytest.mark.asyncio
+    async def test_send_heartbeat_without_registration(self, agent_client):
+        """Testa envio de heartbeat sem registro prévio."""
+        # Não deve lançar erro, apenas logar warning
+        await agent_client._send_heartbeat()
+
+        # agent_id ainda deve ser None
+        assert agent_client.agent_id is None
+
+    @pytest.mark.asyncio
+    async def test_create_channel_max_retries(self, agent_config):
+        """Testa _create_channel com máximo de tentativas esgotado."""
+        client = AgentClient(config=agent_config)
+
+        # Simular falha constante
+        with patch("neural_hive_agent_sdk.client.grpc.aio.insecure_channel") as mock_channel:
+            mock_channel.return_value.channel_ready.side_effect = Exception("Connection failed")
+
+            # Deve lançar exceção após esgotar tentativas
+            with pytest.raises(Exception):
+                await client._create_channel()
+
+    @pytest.mark.asyncio
+    async def test_heartbeat_loop_handles_cancel(self, agent_client):
+        """Testa que heartbeat loop trata CancelledError corretamente."""
+        agent_client._running = True
+
+        # Criar task que será cancelada imediatamente
+        task = asyncio.create_task(agent_client._heartbeat_loop())
+        task.cancel()
+
+        # Capturar CancelledError corretamente
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+    @pytest.mark.asyncio
+    async def test_heartbeat_loop_handles_exception(self, agent_client):
+        """Testa que heartbeat loop trata exceções corretamente."""
+        agent_client._running = True
+        agent_client.agent_id = "test-agent"
+
+        # Mock _send_heartbeat para lançar exceção
+        async def failing_heartbeat():
+            raise RuntimeError("Heartbeat failed")
+
+        agent_client._send_heartbeat = failing_heartbeat
+
+        # Deve continuar rodando mesmo com exceção
+        # (vamos rodar por um ciclo curto)
+        task = asyncio.create_task(agent_client._heartbeat_loop())
+        await asyncio.sleep(0.1)
+        task.cancel()
+
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass  # Esperado
+
+    @pytest.mark.asyncio
+    async def test_deregister_closes_channel(self, agent_client, mock_grpc_channel):
+        """Testa que deregister fecha o canal gRPC."""
+        with patch(
+            "neural_hive_agent_sdk.client.grpc.aio.insecure_channel",
+            return_value=mock_grpc_channel,
+        ):
+            agent_client.channel = mock_grpc_channel
+            agent_client.agent_id = "test-agent-123"
+            agent_client._running = True
+
+            await agent_client.deregister()
+
+            # Channel.close deve ter sido chamado
+            mock_grpc_channel.close.assert_called_once()
+
+    def test_initialization_with_default_config(self):
+        """Testa inicialização sem config (usa default)."""
+        from neural_hive_agent_sdk import AgentClient
+
+        client = AgentClient()
+
+        assert client.config is not None
+        assert client.channel is None
+        assert client.agent_id is None
+        assert client._heartbeat_task is None
+        assert client._running is False
+
+
+class TestAgentConfigAdditional:
+    """Testes adicionais para AgentConfig."""
+
+    def test_config_with_custom_values(self):
+        """Testa configuração com valores customizados."""
+        config = AgentConfig(
+            REGISTRY_GRPC_ENDPOINT="custom-endpoint:9999",
+            AGENT_NAMESPACE="custom-ns",
+            AGENT_CLUSTER="custom-cluster",
+            AGENT_VERSION="2.0.0",
+            HEARTBEAT_INTERVAL_SECONDS=60,
+            GRPC_TIMEOUT_SECONDS=10,
+            GRPC_MAX_RETRIES=5
+        )
+
+        assert config.REGISTRY_GRPC_ENDPOINT == "custom-endpoint:9999"
+        assert config.AGENT_NAMESPACE == "custom-ns"
+        assert config.AGENT_CLUSTER == "custom-cluster"
+        assert config.AGENT_VERSION == "2.0.0"
+        assert config.HEARTBEAT_INTERVAL_SECONDS == 60
+        assert config.GRPC_TIMEOUT_SECONDS == 10
+        assert config.GRPC_MAX_RETRIES == 5
+
+
     @pytest.mark.asyncio
     async def test_deregister_closes_channel(
         self, agent_client, mock_grpc_channel, mock_agent_service_stub

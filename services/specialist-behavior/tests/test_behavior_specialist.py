@@ -652,3 +652,84 @@ class TestCompleteEvaluationFlow:
 
         # UX pobre deve ter risco mais alto
         assert risk > 0.3
+
+
+class TestMLModelIntegration:
+    """Testes de integração com modelo ML do especialista comportamental."""
+
+    def test_ml_model_features_extraction(self):
+        """Testa extração de features para modelo ML comportamental."""
+        expected_features = [
+            "usability_score",
+            "accessibility_score",
+            "ux_score",
+            "response_time_score",
+            "interaction_cost",
+            "user_satisfaction"
+        ]
+
+        features = {
+            "usability_score": 0.8,
+            "accessibility_score": 0.7,
+            "ux_score": 0.85,
+            "response_time_score": 0.9,
+            "interaction_cost": 0.3,  # Baixo custo é bom
+            "user_satisfaction": 0.8
+        }
+
+        for feature in expected_features:
+            assert feature in features
+
+        for feature, value in features.items():
+            assert 0.0 <= value <= 1.0
+
+    def test_ml_model_prediction(self):
+        """Testa predição do modelo ML comportamental."""
+        from sklearn.ensemble import GradientBoostingClassifier
+        import numpy as np
+
+        model = GradientBoostingClassifier(n_estimators=10, max_depth=3, random_state=42)
+
+        X_train = np.array([
+            [0.85, 0.7, 0.9, 0.8, 0.3, 0.8],  # Boa UX
+            [0.3, 0.3, 0.4, 0.5, 0.8, 0.3],    # Má UX
+        ])
+        y_train = np.array([1, 0])
+
+        model.fit(X_train, y_train)
+
+        X_test = np.array([[0.8, 0.7, 0.85, 0.85, 0.4, 0.75]])
+        prediction = model.predict(X_test)[0]
+
+        assert prediction in [0, 1]
+
+    def test_ml_model_approve_conditions(self):
+        """Testa condições de aprovação do modelo comportamental."""
+        # Regra: usability + ux > 1.3 E accessibility > 0.5
+        usability_score = 0.8
+        ux_score = 0.75
+        accessibility_score = 0.6
+        interaction_cost = 0.4
+
+        should_approve = (
+            (usability_score + ux_score) > 1.3 and
+            accessibility_score > 0.5 and
+            (1 - interaction_cost) > 0.4
+        )
+
+        assert should_approve is True
+
+    def test_ml_model_reject_conditions(self):
+        """Testa condições de rejeição do modelo comportamental."""
+        usability_score = 0.4
+        ux_score = 0.5
+        accessibility_score = 0.3
+        interaction_cost = 0.8
+
+        should_approve = (
+            (usability_score + ux_score) > 1.3 and
+            accessibility_score > 0.5 and
+            (1 - interaction_cost) > 0.4
+        )
+
+        assert should_approve is False

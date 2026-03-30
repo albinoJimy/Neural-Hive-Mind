@@ -21,6 +21,7 @@ from src.models.approval import (
 )
 from src.clients.mongodb_client import MongoDBClient
 from src.clients.cognitive_ledger_client import CognitiveLedgerClient
+from src.clients.feature_store_client import FeatureStoreClient
 from src.producers.approval_response_producer import ApprovalResponseProducer
 from src.observability.metrics import NeuralHiveMetrics
 
@@ -42,6 +43,18 @@ except ImportError:
     PriorityFeedbackQueue = None
     HAS_ACTIVE_LEARNING = False
 
+# NLP Feature Extractor (opcional, para extracao de domain)
+try:
+    from neural_hive_specialists.feature_extraction.nlp_feature_extractor import (
+        NLPFeatureExtractor,
+        get_nlp_extractor
+    )
+    HAS_NLP_EXTRACTOR = True
+except ImportError:
+    NLPFeatureExtractor = None
+    get_nlp_extractor = None
+    HAS_NLP_EXTRACTOR = False
+
 logger = structlog.get_logger()
 
 
@@ -59,7 +72,8 @@ class ApprovalService:
         ml_predictor: Optional[Any] = None,
         balance_analyzer: Optional[Any] = None,
         learning_strategy: Optional[Any] = None,
-        priority_queue: Optional[Any] = None
+        priority_queue: Optional[Any] = None,
+        feature_store_client: Optional[FeatureStoreClient] = None
     ):
         self.settings = settings
         self.mongodb_client = mongodb_client
@@ -68,6 +82,7 @@ class ApprovalService:
         self.feedback_collector = feedback_collector
         self.ledger_client = ledger_client
         self.ml_predictor = ml_predictor
+        self.feature_store_client = feature_store_client
 
         # Active Learning components (opcional)
         self.balance_analyzer = balance_analyzer
@@ -81,6 +96,17 @@ class ApprovalService:
             learning_strategy is not None,
             priority_queue is not None
         ])
+
+        # NLP Extractor para extracao de domain (cache singleton)
+        self._nlp_extractor: Optional[NLPFeatureExtractor] = None
+        if HAS_NLP_EXTRACTOR:
+            try:
+                self._nlp_extractor = get_nlp_extractor()
+            except Exception as e:
+                logger.warning(
+                    'nlp_extractor_init_failed',
+                    error=str(e)
+                )
 
     async def process_approval_request(self, approval_request: ApprovalRequest) -> ApprovalRequest:
         """
@@ -103,6 +129,9 @@ class ApprovalService:
 
             # Persiste no MongoDB
             await self.mongodb_client.save_approval_request(approval_request)
+
+            # Feature Store: computar features assincronamente
+            await self._maybe_compute_features(approval_request)
 
             # Emite metricas
             self.metrics.increment_approval_requests_received(
@@ -138,6 +167,51 @@ class ApprovalService:
             )
             raise
 
+    async def _maybe_compute_features(
+        self,
+        approval_request: ApprovalRequest
+    ) -> None:
+        """
+        Computa features do plano no Feature Store de forma assíncrona.
+
+        Args:
+            approval_request: ApprovalRequest com cognitive_plan
+        """
+        if not self.feature_store_client:
+            return
+
+        try:
+            # Extrai cognitive_plan do approval request
+            cognitive_plan = approval_request.cognitive_plan
+            if not cognitive_plan:
+                logger.debug(
+                    'feature_store_skip_no_cognitive_plan',
+                    plan_id=approval_request.plan_id
+                )
+                return
+
+            # Computa features de forma assíncrona (não bloqueia o fluxo)
+            asyncio.create_task(
+                self.feature_store_client.compute_and_save_features(
+                    plan_id=approval_request.plan_id,
+                    cognitive_plan=cognitive_plan,
+                    force_recompute=False
+                )
+            )
+
+            logger.debug(
+                'feature_store_computation_scheduled',
+                plan_id=approval_request.plan_id
+            )
+
+        except Exception as e:
+            # Erros no Feature Store não devem bloquear o approval
+            logger.warning(
+                'feature_store_computation_failed',
+                plan_id=approval_request.plan_id,
+                error=str(e)
+            )
+
     async def _maybe_enqueue_for_active_learning(
         self,
         approval_request: ApprovalRequest
@@ -171,13 +245,16 @@ class ApprovalService:
             else:
                 ml_confidence = 0.5
 
+            # Extrair domain do texto da intencao
+            domain = self._extract_domain_from_text(approval_request.original_intent_text)
+
             # Calcular valor informacional
             information_value = await self.learning_strategy.calculate_information_value(
                 plan_id=approval_request.plan_id,
                 intent_text=approval_request.original_intent_text,
                 predicted_decision=ml_decision,
                 confidence=ml_confidence,
-                domain=None  # TODO: extrair do intent_text se disponível
+                domain=domain
             )
 
             # Enfileirar se valor informacional acima do threshold
@@ -197,7 +274,7 @@ class ApprovalService:
                     intent_preview=intent_preview,
                     information_value=information_value,
                     priority_reason=priority_reason,
-                    domain=None,
+                    domain=domain,
                     confidence=ml_confidence,
                     predicted_decision=ml_decision
                 )
@@ -223,6 +300,30 @@ class ApprovalService:
                 plan_id=approval_request.plan_id,
                 error=str(e)
             )
+
+    def _extract_domain_from_text(self, intent_text: Optional[str]) -> Optional[str]:
+        """
+        Extrai dominio primario do texto da intencao usando NLPFeatureExtractor.
+
+        Args:
+            intent_text: Texto da intencao do usuario
+
+        Returns:
+            Dominio primario (ex: 'security', 'performance') ou None
+        """
+        if not intent_text or not self._nlp_extractor:
+            return None
+
+        try:
+            features = self._nlp_extractor.extract_features(intent_text)
+            return features.get('primary_domain')
+        except Exception as e:
+            logger.warning(
+                'domain_extraction_failed',
+                intent_text_preview=intent_text[:50] if intent_text else None,
+                error=str(e)
+            )
+            return None
 
     def _get_priority_reason(self, information_value: float, confidence: float) -> str:
         """Gera razão da prioridade baseado em valor informacional e confiança."""

@@ -1042,13 +1042,14 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Configurar CORS
+# Configurar CORS - usa configuração segura por ambiente via neural_hive_security
+config = get_settings()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=['*'],
+    allow_origins=config.CORS_ORIGINS,
     allow_credentials=True,
-    allow_methods=['*'],
-    allow_headers=['*'],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allow_headers=["*"],
 )
 
 # Montar métricas Prometheus

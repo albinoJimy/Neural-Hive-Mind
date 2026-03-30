@@ -479,3 +479,183 @@ async def test_model_persistence_and_reload(
 
             # Validar que predições são consistentes (mesmo modelo = mesma predição)
             assert abs(pred1['predicted_duration_ms'] - pred2['predicted_duration_ms']) < 100
+
+
+# =============================================================================
+# Testes Adicionais para Cobertura
+# =============================================================================
+
+@pytest.mark.asyncio
+async def test_heuristic_duration_estimate(mock_config, sample_ticket):
+    """Testa estimativa heurística de duração."""
+    predictor = SchedulingPredictor(config=mock_config)
+
+    # Testar com ticket que tem estimated_duration_ms
+    result = predictor._heuristic_duration_estimate(sample_ticket)
+
+    assert result > 0
+    # Heurística deve usar estimated_duration_ms como base
+    assert result >= sample_ticket['estimated_duration_ms'] * 0.8
+
+
+@pytest.mark.asyncio
+async def test_calculate_confidence(mock_config, sample_ticket):
+    """Testa cálculo de confiança."""
+    predictor = SchedulingPredictor(config=mock_config)
+
+    # Criar features_dict simulado
+    features_dict = {
+        'risk_weight': 50,
+        'has_historical_stats': True,
+        'task_type_frequency': 100
+    }
+
+    confidence = predictor._calculate_confidence(5000, features_dict)
+
+    assert 0 <= confidence <= 1
+
+
+@pytest.mark.asyncio
+async def test_predict_resources_with_fallback(mock_config, sample_ticket):
+    """Testa predição de recursos com fallback."""
+    predictor = SchedulingPredictor(config=mock_config)
+    predictor.model = None  # Forçar fallback
+
+    result = await predictor.predict_resources(sample_ticket)
+
+    assert 'cpu_cores' in result
+    assert 'memory_mb' in result
+    assert result['cpu_cores'] >= 0.5
+    assert result['memory_mb'] >= 128
+
+
+@pytest.mark.asyncio
+async def test_predict_duration_error_handling(mock_config, sample_ticket):
+    """Testa tratamento de erro na predição de duração."""
+    predictor = SchedulingPredictor(config=mock_config)
+    predictor.model = Mock()
+    predictor.model.predict = Mock(side_effect=Exception("Model error"))
+
+    result = await predictor.predict_duration(sample_ticket)
+
+    # Deve retornar estimativa com erro
+    assert 'predicted_duration_ms' in result
+    assert 'error' in result
+    assert result['predicted_duration_ms'] > 0
+
+
+@pytest.mark.asyncio
+async def test_get_feature_names(mock_config):
+    """Testa obtenção de nomes de features."""
+    predictor = SchedulingPredictor(config=mock_config)
+
+    feature_names = predictor._get_feature_names()
+
+    assert isinstance(feature_names, list)
+    assert len(feature_names) > 0
+    # Verificar algumas features esperadas
+    assert 'risk_weight' in feature_names
+    assert 'qos_priority' in feature_names
+
+
+@pytest.mark.asyncio
+async def test_predict_resources_based_on_duration(mock_config, sample_ticket):
+    """Testa que recursos são baseados na duração predita."""
+    predictor = SchedulingPredictor(config=mock_config)
+
+    # Mock para retornar duração específica
+    predictor.predict_duration = AsyncMock(return_value={
+        'predicted_duration_ms': 10000,  # 10 segundos
+        'confidence': 0.8
+    })
+
+    result = await predictor.predict_resources(sample_ticket)
+
+    # Recursos devem ser proporcionais à duração
+    assert 'cpu_cores' in result
+    assert 'memory_mb' in result
+
+
+@pytest.mark.asyncio
+async def test_predict_duration_without_model(mock_config, sample_ticket):
+    """Testa predição sem modelo carregado."""
+    predictor = SchedulingPredictor(config=mock_config)
+
+    result = await predictor.predict_duration(sample_ticket)
+
+    # Deve usar heurística
+    assert 'predicted_duration_ms' in result
+    assert 'confidence' in result
+    assert result['predicted_duration_ms'] > 0
+
+
+@pytest.mark.asyncio
+async def test_predict_duration_with_ensemble(mock_config_ensemble, sample_ticket):
+    """Testa predição com ensemble de modelos."""
+    predictor = SchedulingPredictor(config=mock_config_ensemble)
+
+    # Criar modelos mock
+    mock_xgb = Mock()
+    mock_xgb.predict = Mock(return_value=np.array([8000]))
+
+    mock_lgb = Mock()
+    mock_lgb.predict = Mock(return_value=np.array([12000]))
+
+    predictor.xgb_model = mock_xgb
+    predictor.lgb_model = mock_lgb
+
+    result = await predictor.predict_duration(sample_ticket)
+
+    # Ensemble deve fazer média das predições
+    assert 'predicted_duration_ms' in result
+    # Média de 8000 e 12000 = 10000
+    assert abs(result['predicted_duration_ms'] - 10000) < 100
+
+
+@pytest.mark.asyncio
+async def test_initialize_with_model_types(mock_config, mock_registry):
+    """Testa inicialização com diferentes tipos de modelo."""
+    # Testar com lightgbm
+    mock_config['model_type'] = 'lightgbm'
+    predictor = SchedulingPredictor(
+        config=mock_config,
+        model_registry=mock_registry
+    )
+
+    assert predictor.model_type == 'lightgbm'
+
+
+@pytest.mark.asyncio
+async def test_initialize_loads_from_registry(mock_config, mock_registry):
+    """Testa que initialize carrega modelo do registry."""
+    predictor = SchedulingPredictor(
+        config=mock_config,
+        model_registry=mock_registry
+    )
+
+    # Mock load_model
+    mock_model = Mock()
+    mock_model.predict = Mock(return_value=np.array([5000]))
+    predictor._load_from_registry = Mock(return_value=mock_model)
+
+    await predictor.initialize()
+
+    assert predictor.model is not None
+
+
+@pytest.mark.asyncio
+async def test_initialize_handles_errors(mock_config, mock_registry):
+    """Testa tratamento de erro na inicialização."""
+    predictor = SchedulingPredictor(
+        config=mock_config,
+        model_registry=mock_registry
+    )
+
+    # Simular erro no carregamento
+    predictor._load_from_registry = Mock(side_effect=Exception("Load error"))
+
+    # Não deve levantar erro
+    await predictor.initialize()
+
+    # Modelo deve continuar None
+    assert predictor.model is None
