@@ -397,3 +397,298 @@ class TestRiskEnsemble:
         assert 'final_band' in result_dict
         assert 'model_votes' in result_dict
         assert 'confidence' in result_dict
+
+    def test_borda_count_method(self, config, sample_models, sample_entity):
+        """Testa método de contagem Borda."""
+        ens = RiskEnsemble(
+            method=EnsembleMethod.BORDA_COUNT,
+            config=config
+        )
+        for model in sample_models:
+            ens.add_model(model)
+
+        result = ens.assess(
+            entity=sample_entity,
+            domain=UnifiedDomain.BUSINESS,
+            entity_id='test-entity'
+        )
+
+        assert result.method == EnsembleMethod.BORDA_COUNT
+        assert 0.0 <= result.final_score <= 1.0
+
+    def test_confidence_weighted_method(self, config, sample_models, sample_entity):
+        """Testa método ponderado por confiança."""
+        ens = RiskEnsemble(
+            method=EnsembleMethod.CONFIDENCE_WEIGHTED,
+            config=config
+        )
+        for model in sample_models:
+            ens.add_model(model)
+
+        result = ens.assess(
+            entity=sample_entity,
+            domain=UnifiedDomain.TECHNICAL,
+            entity_id='test-entity'
+        )
+
+        assert result.method == EnsembleMethod.CONFIDENCE_WEIGHTED
+        # Confiança deve ser calculada
+        assert 0.0 <= result.confidence <= 1.0
+
+    def test_model_domains_filtering(self, config):
+        """Testa filtragem de modelos por domínio."""
+        # Modelo que apenas suporta BUSINESS
+        def business_assessor(e, d):
+            return RiskAssessment(
+                score=0.5,
+                band=RiskBand.MEDIUM,
+                domain=d,
+                factors={},
+                reasoning='test'
+            )
+
+        model = RiskModel(
+            name='business_only',
+            assessor=business_assessor,
+            domains=[UnifiedDomain.BUSINESS]
+        )
+
+        ens = RiskEnsemble(config=config)
+        ens.add_model(model)
+
+        # Deve funcionar para BUSINESS
+        result = ens.assess(
+            entity={'id': 'test'},
+            domain=UnifiedDomain.BUSINESS,
+            entity_id='test-entity',
+        )
+        assert result.model_count == 1
+
+        # Deve fallback para TECHNICAL (modelo não suporta)
+        result = ens.assess(
+            entity={'id': 'test'},
+            domain=UnifiedDomain.TECHNICAL,
+            entity_id='test-entity',
+        )
+        assert result.model_count == 0
+
+    def test_model_call_count_tracking(self, config, sample_entity):
+        """Testa rastreamento de chamadas do modelo."""
+        call_count = {'count': 0}
+
+        def counting_assessor(e, d):
+            call_count['count'] += 1
+            return RiskAssessment(
+                score=0.5,
+                band=RiskBand.MEDIUM,
+                domain=d,
+                factors={},
+                reasoning='test'
+            )
+
+        model = RiskModel(name='counter', assessor=counting_assessor)
+        ens = RiskEnsemble(config=config)
+        ens.add_model(model)
+
+        # Chamar múltiplas vezes
+        for i in range(3):
+            ens.assess(
+                entity=sample_entity,
+                domain=UnifiedDomain.BUSINESS,
+                entity_id=f'entity-{i}'
+            )
+
+        assert model._call_count == 3
+
+    def test_consensus_with_disagreement(self, config, sample_entity):
+        """Testa cálculo de consenso com discordância."""
+        def assessor_1(e, d):
+            return RiskAssessment(
+                score=0.1,
+                band=RiskBand.LOW,
+                domain=d,
+                factors={},
+                reasoning='very low'
+            )
+
+        def assessor_2(e, d):
+            return RiskAssessment(
+                score=0.9,
+                band=RiskBand.CRITICAL,
+                domain=d,
+                factors={},
+                reasoning='very high'
+            )
+
+        def assessor_3(e, d):
+            return RiskAssessment(
+                score=0.5,
+                band=RiskBand.MEDIUM,
+                domain=d,
+                factors={},
+                reasoning='medium'
+            )
+
+        ens = RiskEnsemble(
+            method=EnsembleMethod.WEIGHTED_AVERAGE,
+            config=config
+        )
+        ens.add_model(RiskModel(name='m1', assessor=assessor_1))
+        ens.add_model(RiskModel(name='m2', assessor=assessor_2))
+        ens.add_model(RiskModel(name='m3', assessor=assessor_3))
+
+        result = ens.assess(
+            entity=sample_entity,
+            domain=UnifiedDomain.BUSINESS,
+            entity_id='test-entity'
+        )
+
+        # Conenso deve ser baixo (modeles discordam muito)
+        assert result.consensus_level < 0.8
+
+    def test_consensus_with_agreement(self, config, sample_entity):
+        """Testa cálculo de consenso com acordo."""
+        # Mesmo assessor para todos
+        def agreeing_assessor(e, d):
+            return RiskAssessment(
+                score=0.5,
+                band=RiskBand.MEDIUM,
+                domain=d,
+                factors={},
+                reasoning='agreed'
+            )
+
+        ens = RiskEnsemble(
+            method=EnsembleMethod.WEIGHTED_AVERAGE,
+            config=config
+        )
+        for i in range(3):
+            ens.add_model(RiskModel(name=f'm{i}', assessor=agreeing_assessor))
+
+        result = ens.assess(
+            entity=sample_entity,
+            domain=UnifiedDomain.BUSINESS,
+            entity_id='test-entity'
+        )
+
+        # Conenso deve ser alto (todos concordam)
+        assert result.consensus_level > 0.9
+
+    def test_accuracy_history_limit(self, config):
+        """Testa limite de histórico de acurácia."""
+        def assessor(e, d):
+            return RiskAssessment(
+                score=0.5,
+                band=RiskBand.MEDIUM,
+                domain=d,
+                factors={},
+                reasoning='test'
+            )
+
+        model = RiskModel(name='test', assessor=assessor)
+
+        # Registrar mais que 100 acurácias
+        for i in range(150):
+            model.record_accuracy(0.8 + (i % 10) * 0.01)
+
+        # Histórico deve ser limitado a 100
+        assert len(model._accuracy_history) <= 100
+
+    def test_reweight_with_no_accuracy(self, config):
+        """Testa recalibração sem histórico de acurácia."""
+        def assessor(e, d):
+            return RiskAssessment(
+                score=0.5,
+                band=RiskBand.MEDIUM,
+                domain=d,
+                factors={},
+                reasoning='test'
+            )
+
+        ens = RiskEnsemble(method=EnsembleMethod.WEIGHTED_AVERAGE, config=config)
+
+        model1 = RiskModel(name='m1', assessor=assessor, weight=1.0)
+        model2 = RiskModel(name='m2', assessor=assessor, weight=1.0)
+
+        ens.add_model(model1)
+        ens.add_model(model2)
+
+        # Reajustar sem acurácia - não deve falhar
+        ens.reweight_by_accuracy()
+
+        # Pesos devem ser iguais (sem histórico para diferenciar)
+        assert model1.weight == model2.weight
+
+    def test_ensemble_result_metadata(self, config, sample_models, sample_entity):
+        """Testa metadados do resultado do ensemble."""
+        ens = RiskEnsemble(method=EnsembleMethod.WEIGHTED_AVERAGE, config=config)
+        for model in sample_models:
+            ens.add_model(model)
+
+        result = ens.assess(
+            entity=sample_entity,
+            domain=UnifiedDomain.BUSINESS,
+            entity_id='test-entity'
+        )
+
+        # Verificar campos do resultado
+        assert hasattr(result, 'entity_id')
+        assert hasattr(result, 'domain')
+        assert hasattr(result, 'final_score')
+        assert hasattr(result, 'final_band')
+        assert hasattr(result, 'method')
+        assert hasattr(result, 'model_count')
+        assert hasattr(result, 'model_votes')
+        assert hasattr(result, 'confidence')
+        assert hasattr(result, 'consensus_level')
+        assert hasattr(result, 'timestamp')
+
+    def test_model_metadata(self):
+        """Testa metadados do modelo."""
+        def assessor(e, d):
+            return RiskAssessment(
+                score=0.5,
+                band=RiskBand.MEDIUM,
+                domain=d,
+                factors={},
+                reasoning='test'
+            )
+
+        custom_metadata = {'version': '1.0', 'trained_on': '2026-01-01'}
+
+        model = RiskModel(
+            name='test_model',
+            assessor=assessor,
+            metadata=custom_metadata
+        )
+
+        assert model.metadata == custom_metadata
+
+    def test_remove_nonexistent_model(self, ensemble):
+        """Testa remoção de modelo inexistente."""
+        initial_count = len(ensemble._models)
+
+        # Tentar remover modelo que não existe
+        ensemble.remove_model('nonexistent_model')
+
+        # Contagem não deve mudar
+        assert len(ensemble._models) == initial_count
+
+    def test_assessment_exception_handling(self, config):
+        """Testa tratamento de exceções na avaliação."""
+        def failing_assessor(e, d):
+            raise ValueError("Simulated failure")
+
+        model = RiskModel(name='failing', assessor=failing_assessor)
+        ens = RiskEnsemble(config=config, min_models=1, fallback_to_default=True)
+        ens.add_model(model)
+
+        # Não deve falhar - deve retornar None internamente
+        result = ens.assess(
+            entity={'id': 'test'},
+            domain=UnifiedDomain.BUSINESS,
+            entity_id='test-entity'
+        )
+
+        # Deve usar fallback
+        assert result.model_count == 0

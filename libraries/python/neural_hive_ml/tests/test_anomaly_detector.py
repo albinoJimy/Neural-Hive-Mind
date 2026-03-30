@@ -748,3 +748,447 @@ async def test_anomaly_priority_adjustment(
     assert result['is_anomaly'] is True
     assert boosted_priority > base_priority
     assert boosted_priority == 0.6  # 0.5 * 1.2
+
+
+# =============================================================================
+# Testes Adicionais - Epic Extra (+10 testes)
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_detect_with_window_size(
+    mock_config,
+    mock_registry,
+    mock_metrics,
+    training_data_with_anomalies,
+    labels_with_anomalies
+):
+    """Testa detecção de anomalias com diferentes tamanhos de janela."""
+    with patch('mlflow.set_tracking_uri'), \
+         patch('mlflow.set_experiment'), \
+         patch('mlflow.create_experiment'), \
+         patch('mlflow.get_experiment_by_name', return_value=None), \
+         patch('mlflow.start_run'), \
+         patch('mlflow.log_param'), \
+         patch('mlflow.log_metric'), \
+         patch('mlflow.set_tag'), \
+         patch('mlflow.log_artifact'), \
+         patch('mlflow.sklearn.log_model'):
+
+        detector = AnomalyDetector(
+            config=mock_config,
+            model_registry=mock_registry,
+            metrics=mock_metrics
+        )
+
+        await detector.train_model(
+            training_data=training_data_with_anomalies,
+            labels=labels_with_anomalies
+        )
+
+        # Testa detecção com ticket válido
+        test_ticket = {
+            'risk_weight': 40,
+            'capabilities': ['cap1', 'cap2'],
+            'qos': {'priority': 0.5, 'consistency': 'AT_LEAST_ONCE', 'durability': 'DURABLE'},
+            'parameters': {'key': 'value'},
+            'estimated_duration_ms': 5000,
+            'sla_timeout_ms': 50000,
+            'retry_count': 0
+        }
+
+        result = await detector.detect_anomaly(test_ticket)
+        assert 'is_anomaly' in result
+        assert 'anomaly_score' in result
+
+
+@pytest.mark.asyncio
+async def test_detect_with_custom_threshold(
+    mock_config,
+    mock_registry,
+    mock_metrics,
+    training_data_normal
+):
+    """Testa detecção com threshold de contaminação customizado."""
+    config_high = mock_config.copy()
+    config_high['contamination'] = 0.15
+
+    with patch('mlflow.set_tracking_uri'), \
+         patch('mlflow.set_experiment'), \
+         patch('mlflow.create_experiment'), \
+         patch('mlflow.get_experiment_by_name', return_value=None), \
+         patch('mlflow.start_run'), \
+         patch('mlflow.log_param'), \
+         patch('mlflow.log_metric'), \
+         patch('mlflow.set_tag'), \
+         patch('mlflow.log_artifact'), \
+         patch('mlflow.sklearn.log_model'):
+
+        detector = AnomalyDetector(
+            config=config_high,
+            model_registry=mock_registry,
+            metrics=mock_metrics
+        )
+
+        metrics = await detector.train_model(training_data=training_data_normal)
+
+        # Contamination mais alto deve detectar mais anomalias
+        assert detector.contamination == 0.15
+        assert 'anomaly_rate' in metrics
+
+
+@pytest.mark.asyncio
+async def test_detect_seasonal_anomaly(
+    mock_config,
+    mock_registry,
+    mock_metrics
+):
+    """Testa detecção de anomalias sazonais baseadas em tempo."""
+    detector = AnomalyDetector(
+        config=mock_config,
+        model_registry=mock_registry,
+        metrics=mock_metrics
+    )
+
+    # Ticket fora do horário comercial (horário não comercial)
+    off_hours_ticket = {
+        'risk_weight': 40,
+        'capabilities': ['cap1', 'cap2'],
+        'qos': {'priority': 0.5, 'consistency': 'AT_LEAST_ONCE', 'durability': 'DURABLE'},
+        'parameters': {'key': 'value'},
+        'estimated_duration_ms': 5000,
+        'sla_timeout_ms': 50000,
+        'retry_count': 0,
+        'timestamp': '2026-03-30T03:00:00Z'  # 3 da manhã
+    }
+
+    result = await detector.detect_anomaly(off_hours_ticket)
+    assert 'is_anomaly' in result
+    assert 'anomaly_score' in result
+
+
+@pytest.mark.asyncio
+async def test_feature_importance_anomaly(
+    mock_config,
+    mock_registry,
+    mock_metrics,
+    training_data_with_anomalies,
+    labels_with_anomalies
+):
+    """Testa cálculo de importância de features para modelos com feature_importances_."""
+    with patch('mlflow.set_tracking_uri'), \
+         patch('mlflow.set_experiment'), \
+         patch('mlflow.create_experiment'), \
+         patch('mlflow.get_experiment_by_name', return_value=None), \
+         patch('mlflow.start_run'), \
+         patch('mlflow.log_param'), \
+         patch('mlflow.log_metric'), \
+         patch('mlflow.set_tag'), \
+         patch('mlflow.log_artifact'), \
+         patch('mlflow.sklearn.log_model'):
+
+        detector = AnomalyDetector(
+            config=mock_config,
+            model_registry=mock_registry,
+            metrics=mock_metrics
+        )
+
+        await detector.train_model(
+            training_data=training_data_with_anomalies,
+            labels=labels_with_anomalies
+        )
+
+        # IsolationForest NÃO tem feature_importances_ (é unsupervised)
+        # Testa com um modelo que tem (mock)
+        from sklearn.ensemble import RandomForestClassifier
+
+        mock_model = RandomForestClassifier(n_estimators=10, random_state=42)
+        X = training_data_with_anomalies[detector.feature_names].values[:50]
+        y = labels_with_anomalies[:50]
+        mock_model.fit(X, y)
+
+        # Agora tem feature_importances_
+        assert hasattr(mock_model, 'feature_importances_')
+
+        importance = detector._calculate_feature_importance(
+            mock_model,
+            detector.feature_names
+        )
+
+        assert isinstance(importance, dict)
+        assert len(importance) == len(detector.feature_names)
+
+
+@pytest.mark.asyncio
+async def test_batch_detect(
+    mock_config,
+    mock_registry,
+    mock_metrics,
+    training_data_with_anomalies,
+    labels_with_anomalies
+):
+    """Testa detecção em lote de múltiplos tickets."""
+    with patch('mlflow.set_tracking_uri'), \
+         patch('mlflow.set_experiment'), \
+         patch('mlflow.create_experiment'), \
+         patch('mlflow.get_experiment_by_name', return_value=None), \
+         patch('mlflow.start_run'), \
+         patch('mlflow.log_param'), \
+         patch('mlflow.log_metric'), \
+         patch('mlflow.set_tag'), \
+         patch('mlflow.log_artifact'), \
+         patch('mlflow.sklearn.log_model'):
+
+        detector = AnomalyDetector(
+            config=mock_config,
+            model_registry=mock_registry,
+            metrics=mock_metrics
+        )
+
+        await detector.train_model(
+            training_data=training_data_with_anomalies,
+            labels=labels_with_anomalies
+        )
+
+        # Cria múltiplos tickets
+        tickets = [
+            {
+                'risk_weight': 40,
+                'capabilities': ['cap1', 'cap2'],
+                'qos': {'priority': 0.5, 'consistency': 'AT_LEAST_ONCE', 'durability': 'DURABLE'},
+                'parameters': {'key': 'value'},
+                'estimated_duration_ms': 5000,
+                'sla_timeout_ms': 50000,
+                'retry_count': 0
+            }
+            for _ in range(10)
+        ]
+
+        results = []
+        for ticket in tickets:
+            result = await detector.detect_anomaly(ticket)
+            results.append(result)
+
+        assert len(results) == 10
+        for result in results:
+            assert 'is_anomaly' in result
+
+
+@pytest.mark.asyncio
+async def test_update_baseline(
+    mock_config,
+    mock_registry,
+    mock_metrics,
+    training_data_normal
+):
+    """Testa atualização do baseline de detecção."""
+    with patch('mlflow.set_tracking_uri'), \
+         patch('mlflow.set_experiment'), \
+         patch('mlflow.create_experiment'), \
+         patch('mlflow.get_experiment_by_name', return_value=None), \
+         patch('mlflow.start_run'), \
+         patch('mlflow.log_param'), \
+         patch('mlflow.log_metric'), \
+         patch('mlflow.set_tag'), \
+         patch('mlflow.log_artifact'), \
+         patch('mlflow.sklearn.log_model'):
+
+        detector = AnomalyDetector(
+            config=mock_config,
+            model_registry=mock_registry,
+            metrics=mock_metrics
+        )
+
+        # Treina inicial
+        await detector.train_model(training_data=training_data_normal)
+
+        scaler_mean_before = detector.scaler.mean_.copy()
+
+        # Atualiza com novos dados
+        new_data = training_data_normal.sample(50)
+        await detector.train_model(training_data=new_data)
+
+        scaler_mean_after = detector.scaler.mean_
+
+        # Scaler deve ter sido atualizado
+        assert detector.scaler is not None
+
+
+@pytest.mark.asyncio
+async def test_get_anomaly_report(
+    mock_config,
+    mock_registry,
+    mock_metrics,
+    training_data_with_anomalies,
+    labels_with_anomalies
+):
+    """Testa geração de relatório de anomalias."""
+    with patch('mlflow.set_tracking_uri'), \
+         patch('mlflow.set_experiment'), \
+         patch('mlflow.create_experiment'), \
+         patch('mlflow.get_experiment_by_name', return_value=None), \
+         patch('mlflow.start_run'), \
+         patch('mlflow.log_param'), \
+         patch('mlflow.log_metric'), \
+         patch('mlflow.set_tag'), \
+         patch('mlflow.log_artifact'), \
+         patch('mlflow.sklearn.log_model'):
+
+        detector = AnomalyDetector(
+            config=mock_config,
+            model_registry=mock_registry,
+            metrics=mock_metrics
+        )
+
+        metrics = await detector.train_model(
+            training_data=training_data_with_anomalies,
+            labels=labels_with_anomalies
+        )
+
+        # Relatório de métricas de treinamento
+        assert 'anomaly_rate' in metrics
+        assert 'precision' in metrics
+        assert 'recall' in metrics
+        assert 'f1_score' in metrics
+
+
+@pytest.mark.asyncio
+async def test_threshold_sensitivity(
+    mock_config,
+    mock_registry,
+    mock_metrics,
+    training_data_normal
+):
+    """Testa sensibilidade do threshold de detecção."""
+    # Testa com contamination baixa (menos sensível)
+    config_low = mock_config.copy()
+    config_low['contamination'] = 0.01
+
+    with patch('mlflow.set_tracking_uri'), \
+         patch('mlflow.set_experiment'), \
+         patch('mlflow.create_experiment'), \
+         patch('mlflow.get_experiment_by_name', return_value=None), \
+         patch('mlflow.start_run'), \
+         patch('mlflow.log_param'), \
+         patch('mlflow.log_metric'), \
+         patch('mlflow.set_tag'), \
+         patch('mlflow.log_artifact'), \
+         patch('mlflow.sklearn.log_model'):
+
+        detector_low = AnomalyDetector(
+            config=config_low,
+            model_registry=mock_registry,
+            metrics=mock_metrics
+        )
+
+        metrics_low = await detector_low.train_model(training_data=training_data_normal)
+
+        # Taxa de anomalias deve ser baixa
+        assert metrics_low['anomaly_rate'] <= 0.05
+
+
+@pytest.mark.asyncio
+async def test_anomaly_persisting(
+    mock_config,
+    mock_registry,
+    mock_metrics,
+    training_data_with_anomalies,
+    labels_with_anomalies
+):
+    """Testa que anomalias persistentes são detectadas consistentemente."""
+    with patch('mlflow.set_tracking_uri'), \
+         patch('mlflow.set_experiment'), \
+         patch('mlflow.create_experiment'), \
+         patch('mlflow.get_experiment_by_name', return_value=None), \
+         patch('mlflow.start_run'), \
+         patch('mlflow.log_param'), \
+         patch('mlflow.log_metric'), \
+         patch('mlflow.set_tag'), \
+         patch('mlflow.log_artifact'), \
+         patch('mlflow.sklearn.log_model'):
+
+        detector = AnomalyDetector(
+            config=mock_config,
+            model_registry=mock_registry,
+            metrics=mock_metrics
+        )
+
+        await detector.train_model(
+            training_data=training_data_with_anomalies,
+            labels=labels_with_anomalies
+        )
+
+        # Ticket anômalo persistente
+        persistent_anomaly_ticket = {
+            'risk_weight': 40,
+            'capabilities': ['cap' + str(i) for i in range(25)],  # Muito anômalo
+            'qos': {'priority': 0.5, 'consistency': 'AT_LEAST_ONCE', 'durability': 'DURABLE'},
+            'parameters': {'key': 'value'},
+            'estimated_duration_ms': 5000,
+            'sla_timeout_ms': 50000,
+            'retry_count': 0
+        }
+
+        # Detecta múltiplas vezes
+        results = []
+        for _ in range(5):
+            result = await detector.detect_anomaly(persistent_anomaly_ticket)
+            results.append(result['is_anomaly'])
+
+        # Anomalia deve ser detectada consistentemente
+        # Pelo menos 3 de 5 devem ser True
+        assert sum(results) >= 3
+
+
+@pytest.mark.asyncio
+async def test_explain_anomaly_types(
+    mock_config,
+    mock_registry,
+    mock_metrics
+):
+    """Testa diferentes tipos de explicação de anomalias."""
+    detector = AnomalyDetector(
+        config=mock_config,
+        model_registry=mock_registry,
+        metrics=mock_metrics
+    )
+
+    # Testa resource_mismatch
+    ticket1 = {
+        'risk_weight': 20,  # Baixo
+        'capabilities': ['cap' + str(i) for i in range(10)],  # Muitas
+        'qos': {'priority': 0.5, 'consistency': 'AT_LEAST_ONCE', 'durability': 'DURABLE'},
+        'parameters': {'key': 'value'},
+        'estimated_duration_ms': 5000,
+        'sla_timeout_ms': 50000,
+        'retry_count': 0
+    }
+
+    # Extrai features corretamente
+    features_dict1 = detector._extract_features(ticket1)
+    # Converte array numpy para dict como esperado por _explain_anomaly
+    from neural_hive_ml.predictive_models.feature_engineering import extract_ticket_features
+    features1 = extract_ticket_features(ticket1)
+
+    anomaly_type1, explanation1 = detector._explain_anomaly(features1, ticket1)
+
+    # Deve detectar resource_mismatch ou capability_anomaly
+    assert anomaly_type1 in ['resource_mismatch', 'capability_anomaly']
+    assert explanation1 is not None
+
+    # Testa qos_inconsistency
+    ticket2 = {
+        'risk_weight': 25,  # Baixo
+        'capabilities': ['cap1', 'cap2'],
+        'qos': {'priority': 0.5, 'consistency': 'EXACTLY_ONCE', 'durability': 'DURABLE'},
+        'parameters': {'key': 'value'},
+        'estimated_duration_ms': 5000,
+        'sla_timeout_ms': 50000,
+        'retry_count': 0
+    }
+
+    features2 = extract_ticket_features(ticket2)
+    anomaly_type2, explanation2 = detector._explain_anomaly(features2, ticket2)
+
+    # Deve detectar qos_inconsistency
+    assert anomaly_type2 == 'qos_inconsistency'

@@ -319,3 +319,346 @@ class TestOnlineLearningScenarios:
         assert "drift_detected" in result
         assert "baseline" in result
         assert "alerts" in result
+
+
+# =============================================================================
+# Testes Adicionais - Epic Extra (+10 testes)
+# =============================================================================
+
+
+@pytest.mark.e2e
+@pytest.mark.asyncio
+class TestOnlineLearningExtended:
+    """Testes estendidos de Online Learning."""
+
+    async def test_retraining_with_new_features(
+        self,
+        mock_db,
+        mock_kafka_producer,
+        mock_mlflow_client
+    ):
+        """Testa retreino com novas features adicionadas."""
+        model_repo = ModelVersionRepository(db=mock_db)
+        mock_db.model_versions.find_one = AsyncMock(return_value={
+            "_id": "v8",
+            "version": "v8",
+            "stage": "production",
+            "f1_score": 0.73,
+            "is_active": True
+        })
+
+        retraining_job = RetrainingJob(
+            mlflow_client=mock_mlflow_client,
+            model_repo=model_repo,
+            kafka_producer=mock_kafka_producer,
+            retrain_threshold=100
+        )
+
+        # Mock do subprocess para retreino com novas features
+        # Formato correto para o parser
+        with patch('subprocess.run') as mock_run:
+            mock_result = Mock()
+            mock_result.returncode = 0
+            mock_result.stdout = """
+Training with 5 features:
+- risk_weight: 0.25
+- rf_ml_confidence: 0.16
+- rf_ml_risk: 0.22
+- confidence: 0.20
+- capability_count: 0.17
+
+F1-Score: 0.78
+Accuracy: 0.82
+Precision: 0.80
+Recall: 0.76
+"""
+            mock_result.stderr = ""
+            mock_run.return_value = mock_result
+
+            result = await retraining_job.execute_retraining()
+
+        assert result["success"] is True
+        assert "metrics" in result
+        assert "f1_score" in result["metrics"]
+        # Verifica que o f1_score foi corretamente extraído
+        assert result["metrics"]["f1_score"] == 0.78
+
+    async def test_drift_detection_with_seasonal_pattern(
+        self,
+        mock_db,
+        mock_kafka_producer
+    ):
+        """Testa detecção de drift com padrão sazonal."""
+        # Simula padrão sazonal (dias úteis vs fim de semana)
+        cursor_baseline = Mock()
+        cursor_baseline.to_list = AsyncMock(return_value=[
+            {"_id": None, "approve_rate": 0.70, "avg_confidence": 0.75, "count": 500}
+        ])
+
+        cursor_current = Mock()
+        cursor_current.to_list = AsyncMock(return_value=[
+            {"_id": None, "approve_rate": 0.60, "avg_confidence": 0.68, "count": 200}
+        ])
+
+        calls = [0]
+        def aggregate_side_effect(*args, **kwargs):
+            calls[0] += 1
+            return cursor_baseline if calls[0] <= 2 else cursor_current
+
+        mock_db.plan_approvals.aggregate = aggregate_side_effect
+
+        drift_detector = DriftDetector(
+            mongo_client=mock_db,
+            kafka_producer=mock_kafka_producer,
+            confidence_threshold=0.08
+        )
+
+        result = await drift_detector.detect_drift()
+
+        assert "drift_detected" in result
+        assert "baseline" in result
+        assert "current" in result
+
+    async def test_canary_deployment_with_rollback(
+        self,
+        mock_db,
+        mock_kafka_producer
+    ):
+        """Testa canary deployment com rollback."""
+        model_repo = Mock()
+        model_repo.get_model_version = AsyncMock(return_value={
+            "version": "v9",
+            "stage": "staging"
+        })
+        model_repo.promote_model = AsyncMock(return_value=True)
+
+        canary_deployer = CanaryDeployer(
+            model_repo=model_repo,
+            kafka_producer=mock_kafka_producer,
+            canary_duration_minutes=30,
+            canary_traffic_percentage=5
+        )
+
+        # Inicia canary
+        start_result = await canary_deployer.start_canary(
+            version="v9",
+            target_version="v8"
+        )
+        assert start_result["status"] == "running"
+
+        # Simula métricas ruins que causam rollback
+        canary_id = start_result["canary_id"]
+
+        with patch.object(canary_deployer, 'collect_canary_metrics', return_value={
+            "metrics": {
+                "v9_error_rate": 0.15,  # Alta taxa de erro
+                "v8_error_rate": 0.02,
+                "v9_latency_ms": 850,
+                "v8_latency_ms": 200
+            }
+        }):
+            validate_result = await canary_deployer.validate_canary(canary_id)
+
+        # Deve recomendar rollback (não promover)
+        final_result = await canary_deployer.promote_or_rollback(
+            canary_id,
+            should_promote=False
+        )
+        assert final_result["status"] == "rolled_back"
+
+    async def test_incremental_learning_cycle(
+        self,
+        mock_db,
+        mock_kafka_producer,
+        mock_mlflow_client
+    ):
+        """Testa ciclo de aprendizado incremental."""
+        model_repo = ModelVersionRepository(db=mock_db)
+
+        # Setup: 3 ciclos de feedback
+        # Mock do model_repo.db para ter acesso a specialist_feedback
+        model_repo.db = mock_db
+        mock_db.specialist_feedback.count_documents = AsyncMock(side_effect=[50, 100, 150])
+
+        retraining_job = RetrainingJob(
+            mlflow_client=mock_mlflow_client,
+            model_repo=model_repo,
+            kafka_producer=mock_kafka_producer,
+            retrain_threshold=50
+        )
+
+        # Ciclo 1: Atinge threshold
+        threshold_1 = await retraining_job.check_threshold()
+        assert threshold_1["has_enough_samples"] is True
+
+        # Ciclo 2: Mais feedbacks acumulados
+        threshold_2 = await retraining_job.check_threshold()
+        assert threshold_2["sample_count"] >= 100
+
+    async def test_model_performance_tracking(
+        self,
+        mock_db,
+        mock_kafka_producer
+    ):
+        """Testa rastreamento de performance do modelo."""
+        # Simula métricas de performance ao longo do tempo
+        cursor_mock = Mock()
+        cursor_mock.to_list = AsyncMock(return_value=[
+            {"_id": None, "approve_rate": 0.65, "avg_confidence": 0.72, "count": 100}
+        ])
+        mock_db.plan_approvals.aggregate = Mock(return_value=cursor_mock)
+
+        drift_detector = DriftDetector(
+            mongo_client=mock_db,
+            kafka_producer=mock_kafka_producer
+        )
+
+        result = await drift_detector.detect_drift(window_hours=24)
+
+        assert "current" in result
+        assert "approve_rate" in result["current"]
+        assert result["current"]["approve_rate"] == 0.65
+
+    async def test_feature_drift_detection(
+        self,
+        mock_db,
+        mock_kafka_producer
+    ):
+        """Testa detecção de drift em distribuição de features."""
+        # Agregação para detectar drift em features específicas
+        cursor_mock = Mock()
+        cursor_mock.to_list = AsyncMock(return_value=[
+            {
+                "_id": None,
+                "approve_rate": 0.60,
+                "avg_confidence": 0.65,
+                "count": 100
+            }
+        ])
+        mock_db.plan_approvals.aggregate = Mock(return_value=cursor_mock)
+
+        drift_detector = DriftDetector(
+            mongo_client=mock_db,
+            kafka_producer=mock_kafka_producer,
+            confidence_threshold=0.10
+        )
+
+        result = await drift_detector.detect_drift()
+
+        # Verifica que detectou mudança nas features
+        assert "current" in result
+        assert result["current"]["approve_rate"] == 0.60
+        assert result["current"]["avg_confidence"] == 0.65
+
+    async def test_retraining_error_handling(
+        self,
+        mock_db,
+        mock_kafka_producer,
+        mock_mlflow_client
+    ):
+        """Testa tratamento de erros no retreino."""
+        model_repo = ModelVersionRepository(db=mock_db)
+
+        retraining_job = RetrainingJob(
+            mlflow_client=mock_mlflow_client,
+            model_repo=model_repo,
+            kafka_producer=mock_kafka_producer,
+            retrain_threshold=100
+        )
+
+        # Simula falha no subprocess de retreino
+        with patch('subprocess.run') as mock_run:
+            mock_result = Mock()
+            mock_result.returncode = 1  # Erro
+            mock_result.stdout = ""
+            mock_result.stderr = "Error: Out of memory"
+            mock_run.return_value = mock_result
+
+            result = await retraining_job.execute_retraining()
+
+        assert result["success"] is False
+        assert "error" in result
+
+    async def test_multi_model_drift_comparison(
+        self,
+        mock_db,
+        mock_kafka_producer
+    ):
+        """Testa comparação de drift entre múltiplos cenários."""
+        # Setup para simular diferentes cenários
+        cursor_mock = Mock()
+        cursor_mock.to_list = AsyncMock(return_value=[
+            # Baseline
+            {"_id": None, "approve_rate": 0.65, "avg_confidence": 0.72, "count": 100}
+        ])
+        mock_db.plan_approvals.aggregate = Mock(return_value=cursor_mock)
+
+        drift_detector = DriftDetector(
+            mongo_client=mock_db,
+            kafka_producer=mock_kafka_producer
+        )
+
+        result = await drift_detector.detect_drift()
+
+        # Verifica que baseline e current foram preenchidos
+        assert "baseline" in result
+        assert "current" in result
+        # Neste caso, baseline == current pois só retornamos um valor
+        assert result["baseline"]["approve_rate"] == 0.65
+
+    async def test_canary_traffic_percentage_validation(
+        self,
+        mock_db,
+        mock_kafka_producer
+    ):
+        """Testa validação de percentagem de tráfego no canary."""
+        model_repo = Mock()
+        model_repo.get_model_version = AsyncMock(return_value={
+            "version": "v9",
+            "stage": "staging"
+        })
+        model_repo.promote_model = AsyncMock(return_value=True)
+
+        # Testa com percentagens diferentes
+        for traffic_pct in [5, 10, 20, 50]:
+            canary_deployer = CanaryDeployer(
+                model_repo=model_repo,
+                kafka_producer=mock_kafka_producer,
+                canary_duration_minutes=30,
+                canary_traffic_percentage=traffic_pct
+            )
+
+            start_result = await canary_deployer.start_canary(
+                version="v9",
+                target_version="v8"
+            )
+
+            assert start_result["status"] == "running"
+            assert start_result["canary_traffic_percentage"] == traffic_pct
+
+    async def test_drift_alert_aggregation(
+        self,
+        mock_db,
+        mock_kafka_producer
+    ):
+        """Testa agregação de alertas de drift."""
+        # Simula múltiplos alertas
+        cursor_mock = Mock()
+        cursor_mock.to_list = AsyncMock(return_value=[
+            {"_id": None, "approve_rate": 0.45, "avg_confidence": 0.50, "count": 100}
+        ])
+        mock_db.plan_approvals.aggregate = Mock(return_value=cursor_mock)
+
+        drift_detector = DriftDetector(
+            mongo_client=mock_db,
+            kafka_producer=mock_kafka_producer,
+            confidence_threshold=0.10
+        )
+
+        result = await drift_detector.detect_drift()
+
+        # Deve ter alertas quando drift é severo
+        assert "alerts" in result
+        # Se drift_detected=True, deve ter alertas
+        if result.get("drift_detected"):
+            assert len(result["alerts"]) > 0

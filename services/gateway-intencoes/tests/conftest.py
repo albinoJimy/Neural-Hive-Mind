@@ -20,9 +20,35 @@ sys.modules['thinc'] = MagicMock()
 sys.modules['neural_hive_domain'] = MagicMock()
 sys.modules['neural_hive_domain'].UnifiedDomain = MockUnifiedDomain
 sys.modules['neural_hive_observability'] = MagicMock()
-sys.modules['neural_hive_security'] = MagicMock()
-sys.modules['neural_hive_security'].cors = MagicMock()
-sys.modules['neural_hive_security'].cors.CORSConfig = MagicMock()
+
+# Create proper CORSConfig mock
+class MockCORSConfig:
+    """Mock de CORSConfig para testes"""
+    DEV_ORIGINS = ["http://localhost:3000", "http://localhost:8000"]
+    STAGING_ORIGINS = ["https://staging.neural-hive.local"]
+    PROD_ORIGINS = ["https://neural-hive.com"]
+    INTERNAL_SERVICES = []
+
+    @classmethod
+    def get_origins_for_environment(cls, environment: str, is_public_api: bool = True):
+        if environment == "dev":
+            return cls.DEV_ORIGINS
+        elif environment in ["staging", "stage"]:
+            return cls.STAGING_ORIGINS
+        elif environment in ["prod", "production"]:
+            return cls.PROD_ORIGINS
+        return cls.DEV_ORIGINS
+
+# Mock neural_hive_security properly - need to mock both module and submodule
+mock_security_module = MagicMock()
+mock_security_module.CORSConfig = MockCORSConfig
+sys.modules['neural_hive_security'] = mock_security_module
+
+# Also mock the submodule path since some imports use 'from neural_hive_security.cors import'
+mock_cors_module = MagicMock()
+mock_cors_module.CORSConfig = MockCORSConfig
+sys.modules['neural_hive_security.cors'] = mock_cors_module
+
 sys.modules['neural_hive_integration'] = MagicMock()
 
 # Add src to path

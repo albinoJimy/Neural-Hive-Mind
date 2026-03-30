@@ -200,8 +200,8 @@ class WeightRecalibrator:
                     Adjustment(
                         parameter=specialist,
                         previous_value=old_weight,
-                        new_value=new_weight,
-                        justification=f"Ajuste baseado em RL Q-value: {hypothesis.rationale}",
+                        new_value=str(new_weight),
+                        justification=f"Ajuste baseado em RL Q-value: {hypothesis.hypothesis_text}",
                     )
                 )
 
@@ -209,7 +209,7 @@ class WeightRecalibrator:
         causal_analysis = CausalAnalysis(
             root_cause=f"Divergência de consenso em {hypothesis.target_component}",
             contributing_factors=[f"Specialist accuracy: {hypothesis.baseline_metrics}"],
-            confidence_score=hypothesis.confidence,
+            confidence_score=hypothesis.confidence_score,
         )
 
         # Criar rollback plan

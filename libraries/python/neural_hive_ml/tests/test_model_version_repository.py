@@ -398,3 +398,204 @@ class TestGetModelHistory:
         assert len(result) == 3
         assert result[0]["version"] == "v7"
         assert result[2]["version"] == "v9"
+
+
+# =============================================================================
+# Testes Adicionais - Epic Extra (+10 testes)
+# =============================================================================
+
+
+class TestSaveModelVersion:
+    """Testes de save_model_version."""
+
+    async def test_save_model_version_success(self, repository, mock_db):
+        """Testa salvar nova versão de modelo."""
+        mock_db.model_versions.insert_one = AsyncMock(return_value=Mock(inserted_id="new-id"))
+
+        result = await repository.create(
+            version="v10",
+            mlflow_run_id="run-456",
+            stage="staging",
+            f1_score=0.78,
+            accuracy=0.85,
+            precision=0.80,
+            recall=0.76,
+            n_samples=600,
+            feature_importance={"confidence": 0.65, "risk": 0.35}
+        )
+
+        assert result["version"] == "v10"
+        assert result["stage"] == "staging"
+        assert result["f1_score"] == 0.78
+
+
+class TestGetLatestVersion:
+    """Testes de get_latest_version."""
+
+    async def test_get_latest_version_by_stage(self, repository, mock_db):
+        """Testa buscar versão mais recente por estágio."""
+        mock_db.model_versions.find_one = AsyncMock(return_value={
+            "_id": "id-latest",
+            "version": "v9",
+            "stage": "staging",
+            "created_at": datetime.now()
+        })
+
+        result = await repository.get_latest_by_stage("staging")
+
+        mock_db.model_versions.find_one.assert_called_once_with(
+            {"stage": "staging"},
+            sort=[("created_at", -1)]
+        )
+        assert result["version"] == "v9"
+
+    async def test_get_latest_version_not_found(self, repository, mock_db):
+        """Testa buscar versão mais recente quando não existe."""
+        mock_db.model_versions.find_one = AsyncMock(return_value=None)
+
+        result = await repository.get_latest_by_stage("production")
+
+        assert result is None
+
+
+class TestGetVersionById:
+    """Testes de get_version_by_id."""
+
+    async def test_get_version_by_id_success(self, repository, mock_db, sample_model_version):
+        """Testa busca de versão por ID do documento."""
+        mock_db.model_versions.find_one = AsyncMock(return_value=sample_model_version)
+
+        result = await repository.get_by_id("507f1f77bcf86cd799439011")
+
+        assert result is not None
+        assert result["version"] == "v9"
+        assert result["mlflow_run_id"] == "run-123"
+
+
+class TestListVersionsByModel:
+    """Testes de list_versions_by_model."""
+
+    async def test_list_versions_by_stage_production(self, repository, mock_db):
+        """Testa listar versões de produção."""
+        cursor_mock = AsyncMock()
+        cursor_mock.to_list = AsyncMock(return_value=[
+            {"version": "v8", "stage": "production", "is_active": True},
+            {"version": "v7", "stage": "production", "is_active": False}
+        ])
+        cursor_mock.limit = Mock(return_value=cursor_mock)
+        cursor_mock.skip = Mock(return_value=cursor_mock)
+        mock_db.model_versions.find.return_value = cursor_mock
+
+        result = await repository.list_models(stage="production")
+
+        assert len(result) == 2
+        assert all(v["stage"] == "production" for v in result)
+
+
+class TestDeprecateVersion:
+    """Testes de deprecate_version."""
+
+    async def test_deprecate_version_via_update(self, repository, mock_db):
+        """Testa deprecar versão via update."""
+        mock_db.model_versions.update_one = AsyncMock(return_value=Mock(modified_count=1))
+
+        result = await repository.update(
+            version="v8",
+            stage="archived",
+            is_active=False
+        )
+
+        assert result is True
+
+
+class TestGetActiveVersion:
+    """Testes de get_active_version."""
+
+    async def test_get_active_version_success(self, repository, mock_db):
+        """Testa buscar versão ativa."""
+        mock_db.model_versions.find_one = AsyncMock(return_value={
+            "_id": "active-id",
+            "version": "v8",
+            "stage": "production",
+            "is_active": True,
+            "f1_score": 0.75
+        })
+
+        result = await repository.get_active_model()
+
+        assert result is not None
+        assert result["version"] == "v8"
+        assert result["is_active"] is True
+
+
+class TestSetActiveVersion:
+    """Testes de set_active_version."""
+
+    async def test_set_active_version_promote(self, repository, mock_db):
+        """Testa definir versão como ativa via promoção."""
+        mock_db.model_versions.find_one = AsyncMock(return_value=None)
+        mock_db.model_versions.update_one = AsyncMock(return_value=Mock(modified_count=1))
+
+        result = await repository.promote_model(
+            version="v9",
+            stage="production",
+            promoted_by="manual"
+        )
+
+        assert result is True
+
+
+class TestVersionMetadata:
+    """Testes de version_metadata."""
+
+    async def test_version_metadata_with_drift(self, repository, mock_db):
+        """Testa metadados de versão com drift metrics."""
+        mock_db.model_versions.find_one = AsyncMock(return_value={
+            "_id": "meta-id",
+            "version": "v9",
+            "stage": "production",
+            "f1_score": 0.75,
+            "drift_metrics": {
+                "last_check": datetime.now(),
+                "confidence_drop": 0.05,
+                "approve_rate_change": 0.10
+            }
+        })
+
+        result = await repository.get_by_version("v9")
+
+        assert "drift_metrics" in result
+        assert "confidence_drop" in result["drift_metrics"]
+
+
+class TestDeleteVersion:
+    """Testes de delete_version."""
+
+    async def test_delete_version_success(self, repository, mock_db):
+        """Testa deletar versão com sucesso."""
+        mock_db.model_versions.delete_one = AsyncMock(return_value=Mock(deleted_count=1))
+
+        result = await repository.delete("v7")
+
+        assert result is True
+        mock_db.model_versions.delete_one.assert_called_once_with({"version": "v7"})
+
+
+class TestCountModelsByStage:
+    """Testes de count_models_by_stage."""
+
+    async def test_count_models_by_stage(self, repository, mock_db):
+        """Testa contagem de modelos por estágio."""
+        cursor_mock = AsyncMock()
+        cursor_mock.to_list = AsyncMock(return_value=[
+            {"_id": "production", "count": 2},
+            {"_id": "staging", "count": 1},
+            {"_id": "archived", "count": 5}
+        ])
+        mock_db.model_versions.aggregate.return_value = cursor_mock
+
+        result = await repository.count_models_by_stage()
+
+        assert result["production"] == 2
+        assert result["staging"] == 1
+        assert result["archived"] == 5

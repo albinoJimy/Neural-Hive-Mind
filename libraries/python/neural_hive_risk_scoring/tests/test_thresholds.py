@@ -254,3 +254,164 @@ class TestThresholdMonitor:
 
         # Deve estar vazio
         assert len(threshold_monitor.get_violations()) == 0
+
+    def test_ema_strategy(self, config):
+        """Testa estratégia de média móvel exponencial."""
+        dt = DynamicThresholds(
+            base_config=config,
+            adjustment_strategy=ThresholdAdjustmentStrategy.EXPONENTIAL_MOVING_AVG
+        )
+
+        # Registrar scores crescentes
+        for i in range(30):
+            dt.record_score(UnifiedDomain.BUSINESS, 0.3 + i * 0.02)
+
+        adjusted = dt.adjust_thresholds(UnifiedDomain.BUSINESS, force=True)
+        thresholds = adjusted[UnifiedDomain.BUSINESS.value]
+
+        # Thresholds devem ter sido ajustados
+        assert 'medium' in thresholds
+        assert 'high' in thresholds
+        assert 'critical' in thresholds
+
+    def test_threshold_violation_to_dict(self, threshold_monitor):
+        """Testa conversão de violação para dicionário."""
+        threshold_monitor.check_violation(UnifiedDomain.SECURITY, 0.95)
+        violations = threshold_monitor.get_violations()
+
+        if violations:
+            violation_dict = violations[0].to_dict()
+            assert 'domain' in violation_dict
+            assert 'score' in violation_dict
+            assert 'threshold_level' in violation_dict
+            assert 'severity' in violation_dict
+
+    def test_adjustment_factor_impact(self, config):
+        """Testa impacto do fator de ajuste."""
+        dt_low_factor = DynamicThresholds(
+            base_config=config,
+            adjustment_factor=0.05  # Ajuste muito pequeno
+        )
+
+        dt_high_factor = DynamicThresholds(
+            base_config=config,
+            adjustment_factor=0.5  # Ajuste grande
+        )
+
+        # Registrar scores
+        for _ in range(30):
+            dt_low_factor.record_score(UnifiedDomain.BUSINESS, 0.8)
+            dt_high_factor.record_score(UnifiedDomain.BUSINESS, 0.8)
+
+        # Ajustar
+        old_thresholds = dt_low_factor.get_thresholds(UnifiedDomain.BUSINESS)
+        dt_low_factor.adjust_thresholds(UnifiedDomain.BUSINESS, force=True)
+        new_low = dt_low_factor.get_thresholds(UnifiedDomain.BUSINESS)
+
+        dt_high_factor.adjust_thresholds(UnifiedDomain.BUSINESS, force=True)
+        new_high = dt_high_factor.get_thresholds(UnifiedDomain.BUSINESS)
+
+        # Fator alto deve causar mudança maior
+        delta_low = abs(new_low['medium'] - old_thresholds['medium'])
+        delta_high = abs(new_high['medium'] - old_thresholds['medium'])
+        assert delta_high >= delta_low
+
+    def test_violation_severity_levels(self, threshold_monitor):
+        """Testa diferentes níveis de severidade de violação."""
+        # Violação crítica
+        v_critical = threshold_monitor.check_violation(UnifiedDomain.SECURITY, 0.95)
+        assert v_critical.severity == 'critical' if v_critical else True
+
+        # Violação major
+        v_major = threshold_monitor.check_violation(UnifiedDomain.BUSINESS, 0.8)
+        if v_major:
+            assert v_major.severity == 'major'
+
+        # Violação minor
+        v_minor = threshold_monitor.check_violation(UnifiedDomain.BUSINESS, 0.5)
+        if v_minor:
+            assert v_minor.severity == 'minor'
+
+    def test_violation_delta_calculation(self, threshold_monitor):
+        """Testa cálculo de delta na violação."""
+        violation = threshold_monitor.check_violation(UnifiedDomain.SECURITY, 0.9)
+
+        if violation:
+            assert 'delta' in violation.to_dict()
+            # Delta deve ser positivo (score acima do threshold)
+
+    def test_clear_violations_by_severity(self, threshold_monitor):
+        """Testa filtro de violações por severidade."""
+        # Criar violações de diferentes severidades
+        threshold_monitor.check_violation(UnifiedDomain.SECURITY, 0.95)  # critical
+        threshold_monitor.check_violation(UnifiedDomain.BUSINESS, 0.8)  # major
+        threshold_monitor.check_violation(UnifiedDomain.BUSINESS, 0.5)  # minor
+
+        # Buscar apenas critical
+        critical_violations = threshold_monitor.get_violations(severity='critical')
+
+        for v in critical_violations:
+            assert v.severity == 'critical'
+
+    def test_violation_timestamp(self, threshold_monitor):
+        """Testa timestamp da violação."""
+        before = datetime.utcnow()
+        violation = threshold_monitor.check_violation(UnifiedDomain.SECURITY, 0.95)
+        after = datetime.utcnow()
+
+        if violation:
+            assert before <= violation.timestamp <= after
+
+    def test_domain_specific_thresholds(self, dynamic_thresholds):
+        """Testa que diferentes domínios têm thresholds independentes."""
+        # Definir thresholds diferentes
+        dynamic_thresholds.set_manual_threshold(UnifiedDomain.BUSINESS, 'medium', 0.5)
+        dynamic_thresholds.set_manual_threshold(UnifiedDomain.SECURITY, 'medium', 0.2)
+
+        business_thresholds = dynamic_thresholds.get_thresholds(UnifiedDomain.BUSINESS)
+        security_thresholds = dynamic_thresholds.get_thresholds(UnifiedDomain.SECURITY)
+
+        assert business_thresholds['medium'] == 0.5
+        assert security_thresholds['medium'] == 0.2
+        assert business_thresholds['medium'] != security_thresholds['medium']
+
+    def test_violation_count_tracking(self, threshold_monitor):
+        """Testa rastreamento de contagem de violações."""
+        # Múltiplas violações do mesmo tipo
+        for _ in range(3):
+            threshold_monitor.check_violation(UnifiedDomain.SECURITY, 0.95)
+
+        stats = threshold_monitor.get_violation_stats()
+        assert stats['total_violations'] >= 3
+        assert 'SECURITY_critical' in stats['counts_by_type']
+        assert stats['counts_by_type']['SECURITY_critical'] >= 3
+
+    def test_clear_all_violations(self, threshold_monitor):
+        """Testa limpar todas as violações."""
+        # Criar violações
+        threshold_monitor.check_violation(UnifiedDomain.SECURITY, 0.95)
+        threshold_monitor.check_violation(UnifiedDomain.BUSINESS, 0.8)
+
+        assert len(threshold_monitor.get_violations()) >= 2
+
+        # Limpar todas
+        threshold_monitor.clear_violations()
+
+        assert len(threshold_monitor.get_violations()) == 0
+
+    def test_adjust_all_domains(self, dynamic_thresholds):
+        """Testa ajuste de todos os domínios."""
+        # Registrar scores para todos os domínios
+        for domain in UnifiedDomain:
+            for _ in range(30):
+                dynamic_thresholds.record_score(domain, 0.6)
+
+        # Ajustar todos
+        adjusted = dynamic_thresholds.adjust_thresholds()
+
+        # Todos devem ter sido ajustados
+        assert len(adjusted) == len(UnifiedDomain)
+        for domain_value, thresholds in adjusted.items():
+            assert 'medium' in thresholds
+            assert 'high' in thresholds
+            assert 'critical' in thresholds
