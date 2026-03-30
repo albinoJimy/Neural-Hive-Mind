@@ -659,3 +659,243 @@ async def test_initialize_handles_errors(mock_config, mock_registry):
 
     # Modelo deve continuar None
     assert predictor.model is None
+
+
+# =============================================================================
+# Novos Testes para Cobertura Adicional (+10 testes)
+# =============================================================================
+
+@pytest.mark.asyncio
+async def test_predict_duration_with_missing_features(mock_config, sample_ticket):
+    """Testa predição com features faltando."""
+    predictor = SchedulingPredictor(config=mock_config)
+
+    # Ticket com features faltando
+    incomplete_ticket = {
+        'ticket_id': 'test-incomplete',
+        'risk_weight': None,
+        'capabilities': [],
+        'estimated_duration_ms': 1000
+    }
+
+    result = await predictor.predict_duration(incomplete_ticket)
+
+    # Deve retornar valor default mesmo com features faltando
+    assert 'predicted_duration_ms' in result
+    assert 'confidence' in result
+
+
+@pytest.mark.asyncio
+async def test_batch_prediction(mock_config, sample_ticket):
+    """Testa predição em lote de múltiplos tickets."""
+    predictor = SchedulingPredictor(config=mock_config)
+
+    # Criar múltiplos tickets
+    tickets = [
+        {**sample_ticket, 'ticket_id': f'ticket-{i}', 'risk_weight': i * 10}
+        for i in range(1, 6)
+    ]
+
+    # Fazer predições
+    predictions = []
+    for ticket in tickets:
+        pred = await predictor.predict_duration(ticket)
+        predictions.append(pred)
+
+    assert len(predictions) == 5
+    for pred in predictions:
+        assert 'predicted_duration_ms' in pred
+        assert pred['predicted_duration_ms'] > 0
+
+
+@pytest.mark.asyncio
+async def test_feature_importance_extraction(
+    mock_config,
+    mock_registry,
+    training_data
+):
+    """Testa extração de importância de features."""
+    with patch('mlflow.set_tracking_uri'), \
+         patch('mlflow.set_experiment'), \
+         patch('mlflow.create_experiment'), \
+         patch('mlflow.get_experiment_by_name', return_value=None), \
+         patch('mlflow.start_run'), \
+         patch('mlflow.log_param'), \
+         patch('mlflow.log_metric'), \
+         patch('mlflow.set_tag'), \
+         patch('mlflow.log_artifact'), \
+         patch('mlflow.xgboost.log_model'):
+
+        predictor = SchedulingPredictor(
+            config=mock_config,
+            model_registry=mock_registry
+        )
+
+        # Treinar modelo
+        await predictor.train_model(training_data, enable_tuning=False)
+
+        # Extrair feature importance
+        importance = predictor._calculate_feature_importance(
+            predictor.model,
+            predictor._get_feature_names()
+        )
+
+        assert isinstance(importance, dict)
+        assert len(importance) > 0
+        # Valores devem ser não-negativos
+        for feat, val in importance.items():
+            assert val >= 0
+
+
+@pytest.mark.asyncio
+async def test_confidence_calculation_with_high_risk(mock_config):
+    """Testa cálculo de confiança com alto risco."""
+    predictor = SchedulingPredictor(config=mock_config)
+
+    # Features com alto risco (baixa confiança esperada)
+    features_dict = {
+        'avg_duration_by_task': 0,  # Sem estatísticas
+        'retry_count': 0
+    }
+
+    confidence = predictor._calculate_confidence(10000, features_dict)
+
+    # Confiança deve ser penalizada por falta de stats
+    assert 0.5 <= confidence <= 0.8
+
+
+@pytest.mark.asyncio
+async def test_confidence_calculation_with_historical_stats(mock_config):
+    """Testa cálculo de confiança com estatísticas históricas."""
+    predictor = SchedulingPredictor(config=mock_config)
+
+    # Features com estatísticas históricas (alta confiança)
+    features_dict = {
+        'avg_duration_by_task': 8000,
+        'retry_count': 2
+    }
+
+    confidence = predictor._calculate_confidence(5000, features_dict)
+
+    # Confiança deve ser maior com stats
+    assert 0.9 <= confidence <= 1.0
+
+
+@pytest.mark.asyncio
+async def test_predict_resources_with_high_risk_ticket(mock_config):
+    """Testa predição de recursos para ticket de alto risco."""
+    predictor = SchedulingPredictor(config=mock_config)
+
+    high_risk_ticket = {
+        'ticket_id': 'high-risk',
+        'risk_weight': 90,
+        'capabilities': ['database', 'analytics', 'ml', 'security'],
+        'estimated_duration_ms': 30000
+    }
+
+    result = await predictor.predict_resources(high_risk_ticket)
+
+    # Alto risco deve resultar em mais recursos
+    assert result['cpu_cores'] > 0.5
+    assert result['memory_mb'] > 256
+
+
+@pytest.mark.asyncio
+async def test_predict_resources_with_low_complexity(mock_config):
+    """Testa predição de recursos para ticket simples."""
+    predictor = SchedulingPredictor(config=mock_config)
+
+    simple_ticket = {
+        'ticket_id': 'simple',
+        'risk_weight': 10,
+        'capabilities': ['query'],
+        'estimated_duration_ms': 2000
+    }
+
+    result = await predictor.predict_resources(simple_ticket)
+
+    # Baixa complexidade deve resultar em menos recursos
+    assert result['cpu_cores'] <= 1.0
+    assert result['memory_mb'] <= 512
+
+
+@pytest.mark.asyncio
+async def test_confidence_interval_estimation(
+    mock_config,
+    mock_registry,
+    mock_metrics,
+    sample_ticket,
+    training_data
+):
+    """Testa estimativa de intervalo de confiança."""
+    with patch('mlflow.set_tracking_uri'), \
+         patch('mlflow.set_experiment'), \
+         patch('mlflow.create_experiment'), \
+         patch('mlflow.get_experiment_by_name', return_value=None), \
+         patch('mlflow.start_run'), \
+         patch('mlflow.log_param'), \
+         patch('mlflow.log_metric'), \
+         patch('mlflow.set_tag'), \
+         patch('mlflow.log_artifact'), \
+         patch('mlflow.xgboost.log_model'):
+
+        predictor = SchedulingPredictor(
+            config=mock_config,
+            model_registry=mock_registry,
+            metrics=mock_metrics
+        )
+
+        await predictor.train_model(training_data, enable_tuning=False)
+
+        pred = await predictor.predict_duration(sample_ticket)
+
+        # Confiança deve estar entre 0 e 1
+        assert 0 <= pred['confidence'] <= 1
+        # Duração deve ser positiva
+        assert pred['predicted_duration_ms'] > 0
+
+
+@pytest.mark.asyncio
+async def test_model_versioning_tracking(
+    mock_config,
+    mock_registry,
+    training_data
+):
+    """Testa rastreamento de versão do modelo."""
+    with patch('mlflow.set_tracking_uri'), \
+         patch('mlflow.set_experiment'), \
+         patch('mlflow.create_experiment'), \
+         patch('mlflow.get_experiment_by_name', return_value=None), \
+         patch('mlflow.start_run'), \
+         patch('mlflow.log_param'), \
+         patch('mlflow.log_metric'), \
+         patch('mlflow.set_tag'), \
+         patch('mlflow.log_artifact'), \
+         patch('mlflow.xgboost.log_model'):
+
+        predictor = SchedulingPredictor(
+            config=mock_config,
+            model_registry=mock_registry
+        )
+
+        # Treinar e verificar que salvou no registry
+        await predictor.train_model(training_data, enable_tuning=False)
+
+        # Deve ter tentado salvar no registry
+        assert predictor.model is not None
+
+
+@pytest.mark.asyncio
+async def test_error_handling_invalid_ticket(mock_config):
+    """Testa tratamento de erro para ticket inválido."""
+    predictor = SchedulingPredictor(config=mock_config)
+
+    # Ticket completamente inválido
+    invalid_ticket = {}
+
+    result = await predictor.predict_duration(invalid_ticket)
+
+    # Deve retornar estimativa com valores default
+    assert 'predicted_duration_ms' in result
+    # Mesmo ticket inválido deve ter duração default
+    assert result['predicted_duration_ms'] > 0

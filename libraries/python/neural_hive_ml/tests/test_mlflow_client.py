@@ -308,3 +308,180 @@ class TestDeleteModel:
             name="approval-model-v9",
             version="9"
         )
+
+
+# =============================================================================
+# Novos Testes para Cobertura Adicional (+10 testes)
+# =============================================================================
+
+class TestGetRunHistory:
+    """Testes de get_run_history."""
+
+    def test_get_run_history_success(self, mlflow_client, mock_mlflow):
+        """Testa busca de histórico de runs."""
+        # Mock experiment
+        mock_exp = MagicMock()
+        mock_exp.experiment_id = "exp-123"
+        mock_mlflow.get_experiment_by_name.return_value = mock_exp
+
+        # Mock runs
+        mock_run = MagicMock()
+        mock_run.info.run_id = "run-123"
+        mock_run.info.start_time = 1234567890000
+        mock_run.info.status = "COMPLETED"
+        mock_run.data.metrics = {"f1_score": 0.75}
+        mock_run.data.params = {"n_estimators": 100}
+
+        mlflow_client.client.search_runs.return_value = [mock_run]
+
+        result = mlflow_client.get_run_history("v9", limit=10)
+
+        assert len(result) == 1
+        assert result[0]["run_id"] == "run-123"
+
+    def test_get_run_history_no_experiment(self, mlflow_client, mock_mlflow):
+        """Testa histórico quando experimento não existe."""
+        mock_mlflow.get_experiment_by_name.return_value = None
+
+        result = mlflow_client.get_run_history("nonexistent")
+
+        assert result == []
+
+    def test_get_run_history_with_limit(self, mlflow_client, mock_mlflow):
+        """Testa histórico com limite de resultados."""
+        mock_exp = MagicMock()
+        mock_exp.experiment_id = "exp-123"
+        mock_mlflow.get_experiment_by_name.return_value = mock_exp
+        mlflow_client.client.search_runs.return_value = []
+
+        mlflow_client.get_run_history("v9", limit=5)
+
+        # Verifica que search_runs foi chamado com max_results=5
+        mlflow_client.client.search_runs.assert_called_once()
+        call_kwargs = mlflow_client.client.search_runs.call_args[1]
+        assert call_kwargs["max_results"] == 5
+
+
+class TestPromoteModelVariations:
+    """Testes de variações de promote_model."""
+
+    def test_promote_without_archiving_current(self, mlflow_client):
+        """Testa promoção sem arquivar versão atual."""
+        mlflow_client.client.get_latest_versions.return_value = []
+
+        mlflow_client.promote_model(
+            model_name="approval-model-v9",
+            version="9",
+            stage="Production",
+            archive_current=False
+        )
+
+        # Deve chamar transition apenas uma vez
+        assert mlflow_client.client.transition_model_version_stage.call_count == 1
+
+    def test_promote_to_archived_stage(self, mlflow_client):
+        """Testa promoção para Archived."""
+        mlflow_client.promote_model(
+            model_name="approval-model-v9",
+            version="8",
+            stage="Archived",
+            archive_current=False
+        )
+
+        mlflow_client.client.transition_model_version_stage.assert_called_once_with(
+            name="approval-model-v9",
+            version="8",
+            stage="Archived"
+        )
+
+
+class TestLogModelWithTags:
+    """Testes de log_model com tags."""
+
+    def test_log_model_with_custom_tags(self, mlflow_client, mock_mlflow):
+        """Testa logging com tags customizadas."""
+        mock_model = MagicMock()
+
+        custom_tags = {
+            "training_date": "2026-03-30",
+            "dataset_version": "v2.0"
+        }
+
+        mlflow_client.log_model(
+            model=mock_model,
+            version="v10",
+            metrics={"f1_score": 0.75},
+            params={},
+            tags=custom_tags,
+            n_samples=500
+        )
+
+        # Verifica que tags foram setadas
+        assert mock_mlflow.set_tag.called
+
+
+class TestGetModelVersionWithFeatureImportance:
+    """Testes de get_model_version com feature importance."""
+
+    def test_get_model_version_extracts_feature_importance(self, mlflow_client):
+        """Testa extração de feature importance das tags."""
+        # Mock run com feature importance nas tags
+        mlflow_client.client.get_run.return_value = MagicMock(
+            data=MagicMock(
+                metrics={"f1_score": 0.75},
+                params={},
+                tags={
+                    "feature_importance_confidence": "0.6147",
+                    "feature_importance_rf_ml_risk": "0.2221",
+                    "model_type": "approval"
+                }
+            )
+        )
+
+        result = mlflow_client.get_model_version("approval-model-v9")
+
+        assert "feature_importance" in result
+        assert result["feature_importance"]["confidence"] == 0.6147
+        assert result["feature_importance"]["rf_ml_risk"] == 0.2221
+
+
+class TestListModelsVariations:
+    """Testes de variações de list_models."""
+
+    def test_list_models_empty(self, mlflow_client):
+        """Testa listagem quando não há modelos."""
+        mlflow_client.client.search_registered_models.return_value = []
+
+        result = mlflow_client.list_models()
+
+        assert result == []
+
+    def test_list_models_with_description(self, mlflow_client):
+        """Testa listagem com descrição."""
+        model = MagicMock()
+        model.name = "approval-model-v9"
+        model.creation_timestamp = 123000
+        model.last_updated_timestamp = 456000
+        model.description = "Latest approval model"
+        model.latest_versions = []
+
+        mlflow_client.client.search_registered_models.return_value = [model]
+
+        result = mlflow_client.list_models()
+
+        assert result[0]["description"] == "Latest approval model"
+
+
+class TestDeleteModelErrorHandling:
+    """Testes de tratamento de erro em delete_model."""
+
+    def test_delete_model_with_mlflow_exception(self, mlflow_client):
+        """Testa deleção quando MLflow lança exceção."""
+        from mlflow.exceptions import MlflowException
+        mlflow_client.client.delete_model_version.side_effect = MlflowException("Not found")
+
+        with pytest.raises(MlflowException):
+            mlflow_client.delete_model(
+                model_name="approval-model-v9",
+                version="9"
+            )
