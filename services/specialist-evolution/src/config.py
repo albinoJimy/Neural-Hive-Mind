@@ -37,6 +37,9 @@ class EvolutionSpecialistConfig(SpecialistConfig):
     tech_debt_threshold_low: float = 0.3
 
     # Evolution Hooks - Meta-learning config
+    # Activado em producao em 2026-03-30 (Epic G002 - GAP-02-05-06)
+    # Pre-requisitos: evolution_hooks library implementada, testes E2E passando
+    # ROLLBACK: Mudar para False e redeloyar specialist-evolution
     evolution_hooks_enabled: bool = True
     evolution_hooks_min_similar_patterns: int = 5
     evolution_hooks_max_adjustment: float = 0.05

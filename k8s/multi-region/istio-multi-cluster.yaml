@@ -1,0 +1,245 @@
+# =============================================================================
+# Neural Hive-Mind - Istio Multi-Cluster Mesh
+# =============================================================================
+# Configuração do service mesh Istio para multi-cluster
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Istio Operator Config - Cluster Primary (East)
+# -----------------------------------------------------------------------------
+
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+metadata:
+  name: istio-operator-primary
+  namespace: istio-system
+spec:
+  profile: default
+  values:
+    global:
+      meshID: mesh1
+      network: network1
+      multiCluster:
+        # Cluster primário gerencia o mesh
+        enabled: true
+        clusterName: neural-hive-east
+
+  components:
+    pilot:
+      k8s:
+        env:
+          # Enable multi-cluster
+          - name: ENABLE_AUTO_MERGE
+            value: "true"
+          - name: ENABLE_MERGE_GATEWAY
+            value: "true"
+
+    istiodRemote:
+      # Enable for remote clusters
+      enabled: false
+
+---
+# -----------------------------------------------------------------------------
+# Istio Remote Config - Cluster Secondary (West)
+# -----------------------------------------------------------------------------
+
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+metadata:
+  name: istio-operator-remote-west
+  namespace: istio-system
+spec:
+  profile: remote
+  values:
+    global:
+      meshID: mesh1
+      network: network2
+      multiCluster:
+        enabled: true
+        clusterName: neural-hive-west
+
+    istiodRemote:
+      enabled: true
+
+---
+# -----------------------------------------------------------------------------
+# Istio Remote Config - Cluster Tertiary (EU)
+# -----------------------------------------------------------------------------
+
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+metadata:
+  name: istio-operator-remote-eu
+  namespace: istio-system
+spec:
+  profile: remote
+  values:
+    global:
+      meshID: mesh1
+      network: network3
+      multiCluster:
+        enabled: true
+      network: network3
+      clusterName: neural-hive-eu
+
+    # GDPR compliance
+    meshConfig:
+      defaultConfig:
+        # Não exportar traces fora da região
+        tracing:
+          sampling: 0.1
+          customTags:
+            compliance:
+              environment: "GDPR"
+
+---
+# -----------------------------------------------------------------------------
+# Secret de Mesh Expansion (Primary Cluster)
+# -----------------------------------------------------------------------------
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: istio-remote-secret-west
+  namespace: istio-system
+type: istio.io/mesh-expansion-secret
+data:
+  # Base64 encoded kubeconfig from secondary cluster
+  kubeconfig: BASE64_ENCODED_KUBECONFIG_WEST
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: istio-remote-secret-eu
+  namespace: istio-system
+type: istio.io/mesh-expansion-secret
+data:
+  # Base64 encoded kubeconfig from tertiary cluster
+  kubeconfig: BASE64_ENCODED_KUBECONFIG_EU
+
+---
+# -----------------------------------------------------------------------------
+# ServiceEntry para Cross-Cluster Communication
+# -----------------------------------------------------------------------------
+
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: mongodb-replica-west
+  namespace: neural-hive-mind
+spec:
+  hosts:
+    - mongodb-replica.neural-hive-west.svc.cluster.local
+  location: MESH_INTERNAL
+  ports:
+    - number: 27017
+      name: mongo
+      protocol: TCP
+  resolution: DNS
+  endpoints:
+    - address: mongodb-replica.neural-hive-west.svc.cluster.local
+      network: network2
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: mongodb-replica-eu
+  namespace: neural-hive-mind
+spec:
+  hosts:
+    - mongodb-replica.neural-hive-eu.svc.cluster.local
+  location: MESH_INTERNAL
+  ports:
+    - number: 27017
+      name: mongo
+      protocol: TCP
+  resolution: DNS
+  endpoints:
+    - address: mongodb-replica.neural-hive-eu.svc.cluster.local
+      network: network3
+
+---
+# -----------------------------------------------------------------------------
+# VirtualService para Multi-Region Load Balancing
+# -----------------------------------------------------------------------------
+
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: gateway-intencoes-multi-region
+  namespace: neural-hive-mind
+spec:
+  hosts:
+    - "api.neural-hive.com"
+  gateways:
+    - neural-hive-gateway
+  http:
+    - match:
+        - headers:
+            x-region:
+              exact: us-east
+      route:
+        - destination:
+            host: gateway-intencoes
+            subset: v1
+          weight: 100
+
+    - match:
+        - headers:
+            x-region:
+              exact: us-west
+      route:
+        - destination:
+            host: gateway-intencoes
+            subset: v1
+          weight: 100
+
+    - match:
+        - headers:
+            x-region:
+              exact: eu
+      route:
+        - destination:
+            host: gateway-intencoes
+            subset: v1
+          weight: 100
+
+    # Default: weighted routing
+    - route:
+        - destination:
+            host: gateway-intencoes
+            subset: east
+          weight: 60
+        - destination:
+            host: gateway-intencoes
+            subset: west
+          weight: 30
+        - destination:
+            host: gateway-intencoes
+            subset: eu
+          weight: 10
+
+---
+# -----------------------------------------------------------------------------
+# DestinationRule com Subset Regions
+# -----------------------------------------------------------------------------
+
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: gateway-intencoes-subsets
+  namespace: neural-hive-mind
+spec:
+  host: gateway-intencoes
+  subsets:
+    - name: east
+      labels:
+        region: us-east-1
+    - name: west
+      labels:
+        region: us-west-2
+    - name: eu
+      labels:
+        region: eu-west-1

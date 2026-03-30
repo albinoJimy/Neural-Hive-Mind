@@ -1,11 +1,11 @@
 # Core dependencies
-fastapi==0.115.6
+fastapi==0.115.10
 uvicorn[standard]==0.34.0
 pydantic==2.10.4
 pydantic-settings==2.6.1  # 2.7.x has _lenient_issubclass bug
 
 # Kafka
-confluent-kafka[avro]==2.6.1
+confluent-kafka[avro]==2.8.0
 fastavro==1.9.7
 
 # gRPC - versão consolidada

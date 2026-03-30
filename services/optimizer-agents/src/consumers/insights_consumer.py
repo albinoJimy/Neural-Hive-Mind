@@ -5,6 +5,7 @@ import structlog
 from confluent_kafka import Consumer, KafkaError, KafkaException
 
 from src.config.settings import get_settings
+from src.services.experiment_manager import ExperimentManager
 
 logger = structlog.get_logger()
 
@@ -16,9 +17,10 @@ class InsightsConsumer:
     Consome insights analíticos e identifica oportunidades de otimização.
     """
 
-    def __init__(self, settings=None, optimization_engine=None, metrics=None):
+    def __init__(self, settings=None, optimization_engine=None, experiment_manager=None, metrics=None):
         self.settings = settings or get_settings()
         self.optimization_engine = optimization_engine
+        self.experiment_manager = experiment_manager
         self.metrics = metrics
         self.consumer: Optional[Consumer] = None
         self.running = False
@@ -123,7 +125,7 @@ class InsightsConsumer:
                         count=len(hypotheses),
                     )
 
-                    # TODO: Submeter hipóteses para validação via ExperimentManager
+                    # Submeter hipóteses para validação via ExperimentManager
                     for hypothesis in hypotheses:
                         logger.info(
                             "hypothesis_generated",
@@ -132,6 +134,34 @@ class InsightsConsumer:
                             expected_improvement=hypothesis.expected_improvement,
                             risk=hypothesis.risk_score,
                         )
+
+                        # Submeter experimento se ExperimentManager disponível
+                        if self.experiment_manager:
+                            try:
+                                experiment_id = await self.experiment_manager.submit_experiment(hypothesis)
+                                if experiment_id:
+                                    logger.info(
+                                        "hypothesis_submitted_for_validation",
+                                        hypothesis_id=hypothesis.hypothesis_id,
+                                        experiment_id=experiment_id,
+                                    )
+                                else:
+                                    logger.warning(
+                                        "hypothesis_submission_failed",
+                                        hypothesis_id=hypothesis.hypothesis_id,
+                                        reason="submit_experiment returned None",
+                                    )
+                            except Exception as e:
+                                logger.error(
+                                    "hypothesis_submission_error",
+                                    hypothesis_id=hypothesis.hypothesis_id,
+                                    error=str(e),
+                                )
+                        else:
+                            logger.debug(
+                                "experiment_manager_not_available",
+                                hypothesis_id=hypothesis.hypothesis_id,
+                            )
 
                         if self.metrics:
                             self.metrics.record_hypothesis_generated(hypothesis.optimization_type.value)

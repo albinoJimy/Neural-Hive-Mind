@@ -17,6 +17,7 @@ from src.consumers.approval_request_consumer import ApprovalRequestConsumer
 from src.producers.approval_response_producer import ApprovalResponseProducer
 from src.clients.mongodb_client import MongoDBClient
 from src.clients.cognitive_ledger_client import CognitiveLedgerClient
+from src.clients.feature_store_client import FeatureStoreClient
 from src.services.approval_service import ApprovalService
 from src.services.ml_predictor_service import get_ml_predictor_service
 from src.observability.metrics import NeuralHiveMetrics, register_metrics
@@ -274,6 +275,19 @@ async def lifespan(app: FastAPI):
         await request_consumer.initialize()
         state['consumer'] = request_consumer
 
+        # Inicializa Feature Store Client (opcional)
+        feature_store_client = None
+        try:
+            feature_store_client = FeatureStoreClient(settings)
+            await feature_store_client.initialize()
+            state['feature_store_client'] = feature_store_client
+            logger.info("Feature Store client inicializado")
+        except Exception as e:
+            logger.warning(
+                "Feature Store client não disponível",
+                error=str(e)
+            )
+
         # Inicializa servico de aprovacao
         approval_service = ApprovalService(
             settings=settings,
@@ -285,7 +299,8 @@ async def lifespan(app: FastAPI):
             ml_predictor=ml_predictor,
             balance_analyzer=balance_analyzer,
             learning_strategy=learning_strategy,
-            priority_queue=priority_queue
+            priority_queue=priority_queue,
+            feature_store_client=feature_store_client
         )
         state['approval_service'] = approval_service
 
@@ -341,6 +356,9 @@ async def lifespan(app: FastAPI):
 
         if 'feedback_collector' in state:
             state['feedback_collector'].close()
+
+        if 'feature_store_client' in state:
+            await state['feature_store_client'].close()
 
         logger.info("Shutdown complete")
 

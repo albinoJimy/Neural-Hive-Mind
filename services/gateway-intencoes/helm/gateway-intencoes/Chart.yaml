@@ -1,0 +1,15 @@
+apiVersion: v2
+name: gateway-intencoes
+description: Gateway de Intenções - Neural Hive-Mind API Gateway
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+maintainers:
+  - name: Neural Hive-Mind Team
+    email: team@neuralhive.io
+keywords:
+  - neural-hive-mind
+  - gateway-intencoes
+  - api-gateway
+  - nlu
+  - intents

@@ -6,7 +6,7 @@ pydantic-settings==2.1.0
 structlog==24.1.0
 
 # Kafka
-confluent-kafka==2.3.0
+confluent-kafka==2.8.0
 
 # MongoDB
 motor==3.3.2

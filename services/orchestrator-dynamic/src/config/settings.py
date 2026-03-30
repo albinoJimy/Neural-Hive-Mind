@@ -10,6 +10,8 @@ from functools import lru_cache
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from neural_hive_security.cors import CORSConfig
+
 
 class OrchestratorSettings(BaseSettings):
     """Configurações do Orchestrator Dynamic."""
@@ -19,6 +21,7 @@ class OrchestratorSettings(BaseSettings):
     service_version: str = Field(default='1.0.0', description='Versão do serviço')
     environment: str = Field(default='development', description='Ambiente de execução')
     log_level: str = Field(default='INFO', description='Nível de log')
+    is_public_api: bool = Field(default=True, description='API pública requer CORS')
 
     # Temporal
     temporal_enabled: bool = Field(
@@ -1059,6 +1062,16 @@ class OrchestratorSettings(BaseSettings):
         case_sensitive=False,
         extra='ignore',  # Ignorar variáveis de ambiente extras
     )
+
+    @property
+    def CORS_ORIGINS(self) -> List[str]:
+        """
+        CORS origins dinâmicas por ambiente usando neural_hive_security.
+        """
+        return CORSConfig.get_origins_for_environment(
+            self.environment,
+            is_public_api=self.is_public_api
+        )
 
     def _is_kubernetes_internal_service(self, url: str) -> bool:
         """

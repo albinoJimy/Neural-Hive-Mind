@@ -18,6 +18,9 @@ def mock_mlflow_client():
 @pytest.fixture
 def mock_model_repo():
     """Mock ModelVersionRepository."""
+    # Criar mock de banco de dados
+    mock_db = AsyncMock()
+
     repo = AsyncMock()
     repo.get_active_model = AsyncMock(return_value={
         "version": "v8",
@@ -26,6 +29,7 @@ def mock_model_repo():
     })
     repo.create = AsyncMock()
     repo.promote_model = AsyncMock(return_value=True)
+    repo.db = mock_db  # Adicionar db attribute
     return repo
 
 
@@ -78,7 +82,8 @@ class TestCheckThreshold:
 
     async def test_threshold_met(self, retraining_job, mock_model_repo):
         """Testa que threshold é atingido."""
-        mock_model_repo.count_pending_samples = AsyncMock(return_value=150)
+        # Mock do banco de dados para retornar 150 samples
+        mock_model_repo.db.specialist_feedback.count_documents = AsyncMock(return_value=150)
 
         result = await retraining_job.check_threshold()
 
@@ -87,7 +92,7 @@ class TestCheckThreshold:
 
     async def test_threshold_not_met(self, retraining_job, mock_model_repo):
         """Testa que threshold não é atingido."""
-        mock_model_repo.count_pending_samples = AsyncMock(return_value=50)
+        mock_model_repo.db.specialist_feedback.count_documents = AsyncMock(return_value=50)
 
         result = await retraining_job.check_threshold()
 
@@ -218,7 +223,7 @@ class TestRunRetraining:
     async def test_run_retraining_success(self, mock_run, retraining_job, mock_model_repo, mock_mlflow_client):
         """Testa fluxo completo de retreino com sucesso."""
         # Setup mocks
-        mock_model_repo.count_pending_samples = AsyncMock(return_value=150)
+        mock_model_repo.db.specialist_feedback.count_documents = AsyncMock(return_value=150)
         mock_model_repo.get_active_model = AsyncMock(return_value={
             "version": "v8",
             "f1_score": 0.70
@@ -256,3 +261,169 @@ class TestGetJobStatus:
         result = await retraining_job.get_job_status("nonexistent")
 
         assert result is None
+
+
+# =============================================================================
+# Novos Testes para Cobertura Adicional (+10 testes)
+# =============================================================================
+
+class TestCountPendingSamples:
+    """Testes de _count_pending_samples."""
+
+    async def test_count_pending_samples_with_db_access(self, retraining_job, mock_model_repo):
+        """Testa contagem de samples com acesso ao MongoDB."""
+        # Mock que retorna db attribute
+        mock_db = AsyncMock()
+        mock_db.specialist_feedback.count_documents = AsyncMock(return_value=125)
+
+        mock_model_repo.db = mock_db
+
+        result = await retraining_job._count_pending_samples()
+
+        assert result == 125
+
+    async def test_count_pending_samples_no_db_access(self, retraining_job, mock_model_repo):
+        """Testa contagem quando não há acesso ao db."""
+        # Remover db attribute
+        mock_model_repo.db = None
+
+        result = await retraining_job._count_pending_samples()
+
+        assert result == 0
+
+    async def test_count_pending_samples_with_error(self, retraining_job, mock_model_repo):
+        """Testa contagem quando ocorre erro."""
+        mock_db = AsyncMock()
+        mock_db.specialist_feedback.count_documents = AsyncMock(
+            side_effect=Exception("DB error")
+        )
+        mock_model_repo.db = mock_db
+
+        result = await retraining_job._count_pending_samples()
+
+        assert result == 0
+
+
+class TestParseTrainingOutput:
+    """Testes de _parse_training_output."""
+
+    def test_parse_f1_score(self, retraining_job):
+        """Testa extração de F1 score do output."""
+        output = "Training complete\nF1-Score: 0.75\nAccuracy: 0.82"
+
+        result = retraining_job._parse_training_output(output)
+
+        assert result["f1_score"] == 0.75
+
+    def test_parse_accuracy(self, retraining_job):
+        """Testa extração de accuracy do output."""
+        output = "Metrics:\naccuracy: 0.85\nf1_score: 0.78"
+
+        result = retraining_job._parse_training_output(output)
+
+        assert result["accuracy"] == 0.85
+
+    def test_parse_multiple_metrics(self, retraining_job):
+        """Testa extração de múltiplas métricas."""
+        output = "F1-Score: 0.75\nAccuracy: 0.82\nPrecision: 0.80"
+
+        result = retraining_job._parse_training_output(output)
+
+        assert "f1_score" in result
+        assert "accuracy" in result
+        assert result["f1_score"] == 0.75
+        assert result["accuracy"] == 0.82
+
+    def test_parse_empty_output(self, retraining_job):
+        """Testa parse de output vazio."""
+        result = retraining_job._parse_training_output("")
+
+        assert result == {}
+
+
+class TestRunRetrainingEdgeCases:
+    """Testes de edge cases para run_retraining."""
+
+    @patch('neural_hive_ml.retraining_job.subprocess.run')
+    async def test_run_retraining_insufficient_samples(self, mock_run, retraining_job, mock_model_repo):
+        """Testa retreino quando não há samples suficientes."""
+        mock_model_repo.count_pending_samples = AsyncMock(return_value=50)
+
+        result = await retraining_job.run_retraining()
+
+        assert result["success"] is False
+        assert "Insufficient samples" in result.get("reason", "")
+
+    @patch('neural_hive_ml.retraining_job.subprocess.run')
+    async def test_run_retraining_force_mode(self, mock_run, retraining_job, mock_model_repo, mock_mlflow_client):
+        """Testa retreino forçado (ignora threshold)."""
+        # Setup mocks
+        mock_model_repo.get_active_model = AsyncMock(return_value={
+            "version": "v8",
+            "f1_score": 0.70
+        })
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout="F1-Score: 0.75\nAccuracy: 0.82"
+        )
+        mock_model = MagicMock()
+
+        # force=True deve ignorar verificação de threshold
+        result = await retraining_job.run_retraining(model=mock_model, force=True)
+
+        assert result["success"] is True
+
+
+class TestRegisterToMLflowWithFeatureImportance:
+    """Testes de register_to_mlflow com feature importance."""
+
+    async def test_register_with_feature_importance(self, retraining_job, mock_mlflow_client):
+        """Testa registro com feature importance."""
+        mock_model = MagicMock()
+        feature_importance = {
+            "confidence": 0.6147,
+            "rf_ml_risk": 0.2221,
+            "rf_ml_confidence": 0.1632
+        }
+
+        result = await retraining_job.register_to_mlflow(
+            model=mock_model,
+            version="v10",
+            metrics={"f1_score": 0.75},
+            params={},
+            feature_importance=feature_importance,
+            n_samples=500
+        )
+
+        assert result["success"] is True
+        mock_mlflow_client.log_model.assert_called_once()
+
+
+class TestPublishKafkaEventErrorHandling:
+    """Testes de tratamento de erro em publish_kafka_event."""
+
+    async def test_publish_event_without_producer(self, retraining_job):
+        """Testa publicação quando não há producer."""
+        retraining_job.kafka_producer = None
+
+        result = await retraining_job.publish_kafka_event(
+            event_type="model_trained",
+            version="v9"
+        )
+
+        # Deve retornar False mas não lançar erro
+        assert result is False
+
+    async def test_publish_event_with_producer_error(self, retraining_job, mock_kafka_producer):
+        """Testa publicação quando producer falha."""
+        mock_kafka_producer.produce_and_wait = AsyncMock(
+            side_effect=Exception("Kafka connection error")
+        )
+
+        result = await retraining_job.publish_kafka_event(
+            event_type="model_trained",
+            version="v9"
+        )
+
+        # Deve retornar False em caso de erro
+        assert result is False

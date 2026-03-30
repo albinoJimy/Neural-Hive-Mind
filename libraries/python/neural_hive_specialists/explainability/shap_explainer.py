@@ -79,7 +79,23 @@ class SHAPExplainer:
         """
         if model is None:
             logger.warning("No model provided for SHAP")
-            return {"method": "shap", "feature_importances": [], "error": "No model"}
+            # Retornar features com valores zero em vez de lista vazia
+            fallback_features = [
+                {
+                    "feature_name": name,
+                    "shap_value": 0.0,
+                    "feature_value": features.get(name, 0.0),
+                    "contribution": "neutral",
+                    "importance": 0.0,
+                }
+                for name in feature_names
+            ]
+            return {
+                "method": "shap",
+                "base_value": 0.5,
+                "feature_importances": fallback_features,
+                "error": "No model"
+            }
 
         try:
             # Importar SHAP
@@ -98,22 +114,62 @@ class SHAPExplainer:
                         "SHAP computation timed out",
                         timeout_seconds=self.timeout_seconds,
                     )
+                    # Retornar features com valores zero em caso de timeout
+                    fallback_features = [
+                        {
+                            "feature_name": name,
+                            "shap_value": 0.0,
+                            "feature_value": features.get(name, 0.0),
+                            "contribution": "neutral",
+                            "importance": 0.0,
+                        }
+                        for name in feature_names
+                    ]
                     return {
                         "method": "shap",
-                        "feature_importances": [],
+                        "base_value": 0.5,
+                        "feature_importances": fallback_features,
                         "error": "timeout",
                     }
 
         except ImportError:
             logger.error("SHAP library not installed. Install with: pip install shap")
+            # Retornar features com valores zero em caso de erro
+            fallback_features = [
+                {
+                    "feature_name": name,
+                    "shap_value": 0.0,
+                    "feature_value": features.get(name, 0.0),
+                    "contribution": "neutral",
+                    "importance": 0.0,
+                }
+                for name in feature_names
+            ]
             return {
                 "method": "shap",
-                "feature_importances": [],
+                "base_value": 0.5,
+                "feature_importances": fallback_features,
                 "error": "shap_not_installed",
             }
         except Exception as e:
             logger.error("SHAP explanation failed", error=str(e), exc_info=True)
-            return {"method": "shap", "feature_importances": [], "error": str(e)}
+            # Retornar features com valores zero em caso de erro
+            fallback_features = [
+                {
+                    "feature_name": name,
+                    "shap_value": 0.0,
+                    "feature_value": features.get(name, 0.0),
+                    "contribution": "neutral",
+                    "importance": 0.0,
+                }
+                for name in feature_names
+            ]
+            return {
+                "method": "shap",
+                "base_value": 0.5,
+                "feature_importances": fallback_features,
+                "error": str(e)
+            }
 
     def _compute_shap(
         self, model: Any, features: Dict[str, Any], feature_names: List[str]

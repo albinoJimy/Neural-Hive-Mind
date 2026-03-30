@@ -24,25 +24,28 @@ logger = structlog.get_logger(__name__)
 
 class AlertSeverity(str, Enum):
     """Severidade do alerta."""
-    INFO = 'info'
-    WARNING = 'warning'
-    ERROR = 'error'
-    CRITICAL = 'critical'
+
+    INFO = "info"
+    WARNING = "warning"
+    ERROR = "error"
+    CRITICAL = "critical"
 
 
 class AlertType(str, Enum):
     """Tipo de alerta."""
-    THRESHOLD_VIOLATION = 'threshold_violation'
-    ANOMALY_DETECTED = 'anomaly_detected'
-    TREND_WORSENING = 'trend_worsening'
-    RAPID_ESCALATION = 'rapid_escalation'
-    CONSECUTIVE_HIGH_RISK = 'consecutive_high_risk'
-    CROSS_DOMAIN_SPIKE = 'cross_domain_spike'
+
+    THRESHOLD_VIOLATION = "threshold_violation"
+    ANOMALY_DETECTED = "anomaly_detected"
+    TREND_WORSENING = "trend_worsening"
+    RAPID_ESCALATION = "rapid_escalation"
+    CONSECUTIVE_HIGH_RISK = "consecutive_high_risk"
+    CROSS_DOMAIN_SPIKE = "cross_domain_spike"
 
 
 @dataclass
 class RiskAlert:
     """Alerta de risco."""
+
     id: str
     alert_type: AlertType
     severity: AlertSeverity
@@ -62,27 +65,30 @@ class RiskAlert:
     def to_dict(self) -> Dict:
         """Converte para dicionário."""
         return {
-            'id': self.id,
-            'alert_type': self.alert_type.value,
-            'severity': self.severity.value,
-            'entity_id': self.entity_id,
-            'domain': self.domain.value if self.domain else None,
-            'score': self.score,
-            'band': self.band.value,
-            'message': self.message,
-            'details': self.details,
-            'timestamp': self.timestamp.isoformat(),
-            'acknowledged': self.acknowledged,
-            'acknowledged_by': self.acknowledged_by,
-            'acknowledged_at': self.acknowledged_at.isoformat() if self.acknowledged_at else None,
-            'resolved': self.resolved,
-            'resolved_at': self.resolved_at.isoformat() if self.resolved_at else None
+            "id": self.id,
+            "alert_type": self.alert_type.value,
+            "severity": self.severity.value,
+            "entity_id": self.entity_id,
+            "domain": self.domain.value if self.domain else None,
+            "score": self.score,
+            "band": self.band.value,
+            "message": self.message,
+            "details": self.details,
+            "timestamp": self.timestamp.isoformat(),
+            "acknowledged": self.acknowledged,
+            "acknowledged_by": self.acknowledged_by,
+            "acknowledged_at": self.acknowledged_at.isoformat()
+            if self.acknowledged_at
+            else None,
+            "resolved": self.resolved,
+            "resolved_at": self.resolved_at.isoformat() if self.resolved_at else None,
         }
 
 
 @dataclass
 class AlertRule:
     """Regra de geração de alertas."""
+
     name: str
     alert_type: AlertType
     enabled: bool = True
@@ -94,7 +100,7 @@ class AlertRule:
         self,
         entity_id: str,
         context: Dict[str, Any],
-        last_alert_time: Optional[datetime]
+        last_alert_time: Optional[datetime],
     ) -> bool:
         """Verifica se regra deve ser disparada."""
         if not self.enabled:
@@ -112,48 +118,61 @@ class AlertRule:
     def _check_conditions(self, context: Dict[str, Any]) -> bool:
         """Verifica condições específicas da regra."""
         if self.alert_type == AlertType.THRESHOLD_VIOLATION:
-            return context.get('threshold_violation', False)
+            return context.get("threshold_violation", False)
 
         elif self.alert_type == AlertType.ANOMALY_DETECTED:
-            anomaly: AnomalyDetection = context.get('anomaly')
+            anomaly: AnomalyDetection = context.get("anomaly")
             return anomaly is not None and anomaly.is_anomaly
 
         elif self.alert_type == AlertType.TREND_WORSENING:
-            trend = context.get('trend')
+            trend = context.get("trend")
             return trend is not None and trend.direction == TrendDirection.WORSENING
 
         elif self.alert_type == AlertType.RAPID_ESCALATION:
             # Aumento rápido de score
-            score_delta = context.get('score_delta', 0)
-            time_delta_hours = context.get('time_delta_hours', 1)
-            escalation_rate = score_delta / time_delta_hours if time_delta_hours > 0 else 0
-            return escalation_rate > self.conditions.get('max_escalation_rate', 0.5)
+            score_delta = context.get("score_delta", 0)
+            time_delta_hours = context.get("time_delta_hours", 1)
+            escalation_rate = (
+                score_delta / time_delta_hours if time_delta_hours > 0 else 0
+            )
+            return escalation_rate > self.conditions.get("max_escalation_rate", 0.5)
 
         elif self.alert_type == AlertType.CONSECUTIVE_HIGH_RISK:
-            consecutive_count = context.get('consecutive_high_risk_count', 0)
-            return consecutive_count >= self.conditions.get('min_consecutive', 3)
+            consecutive_count = context.get("consecutive_high_risk_count", 0)
+            return consecutive_count >= self.conditions.get("min_consecutive", 3)
 
         elif self.alert_type == AlertType.CROSS_DOMAIN_SPIKE:
             # Spike em múltiplos domínios
-            spiking_domains = context.get('spiking_domains', [])
-            return len(spiking_domains) >= self.conditions.get('min_domains', 2)
+            spiking_domains = context.get("spiking_domains", [])
+            return len(spiking_domains) >= self.conditions.get("min_domains", 2)
 
         return False
 
 
 class AlertHandler:
-    """Handler para processamento de alertas."""
+    """
+    Handler base para processamento de alertas.
+
+    Subclasses devem implementar o método handle().
+    """
 
     def __init__(self, name: str):
         self.name = name
 
     def handle(self, alert: RiskAlert) -> bool:
-        """Processa alerta.
+        """
+        Processa alerta.
+
+        Args:
+            alert: Alerta a ser processado
 
         Returns:
-            True se processado com sucesso
+            True se processado com sucesso, False caso contrário
+
+        Raises:
+            NotImplementedError: Se a subclasse não implementar este método
         """
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__} must implement handle()")
 
 
 class LoggingAlertHandler(AlertHandler):
@@ -168,7 +187,7 @@ class LoggingAlertHandler(AlertHandler):
             AlertSeverity.INFO: logger.info,
             AlertSeverity.WARNING: logger.warning,
             AlertSeverity.ERROR: logger.error,
-            AlertSeverity.CRITICAL: logger.critical
+            AlertSeverity.CRITICAL: logger.critical,
         }.get(alert.severity, logger.info)
 
         log_func(
@@ -180,7 +199,7 @@ class LoggingAlertHandler(AlertHandler):
             domain=alert.domain.value if alert.domain else None,
             score=alert.score,
             band=alert.band.value,
-            message=alert.message
+            message=alert.message,
         )
 
         return True
@@ -202,7 +221,7 @@ class CallbackAlertHandler(AlertHandler):
                 "alert_callback_failed",
                 handler=self.name,
                 alert_id=alert.id,
-                error=str(e)
+                error=str(e),
             )
             return False
 
@@ -214,7 +233,7 @@ class RiskAlertManager:
         self,
         threshold_monitor: ThresholdMonitor,
         risk_history: RiskHistory,
-        config: Optional[RiskScoringConfig] = None
+        config: Optional[RiskScoringConfig] = None,
     ):
         """Inicializa gerenciador de alertas.
 
@@ -252,34 +271,34 @@ class RiskAlertManager:
                 name="threshold_violation_critical",
                 alert_type=AlertType.THRESHOLD_VIOLATION,
                 min_severity=AlertSeverity.CRITICAL,
-                cooldown_minutes=30
+                cooldown_minutes=30,
             ),
             AlertRule(
                 name="anomaly_high_severity",
                 alert_type=AlertType.ANOMALY_DETECTED,
                 min_severity=AlertSeverity.ERROR,
                 cooldown_minutes=60,
-                conditions={'min_severity': 'high'}
+                conditions={"min_severity": "high"},
             ),
             AlertRule(
                 name="trend_worsening",
                 alert_type=AlertType.TREND_WORSENING,
                 min_severity=AlertSeverity.WARNING,
-                cooldown_minutes=120
+                cooldown_minutes=120,
             ),
             AlertRule(
                 name="rapid_escalation",
                 alert_type=AlertType.RAPID_ESCALATION,
                 min_severity=AlertSeverity.WARNING,
                 cooldown_minutes=60,
-                conditions={'max_escalation_rate': 0.3}
+                conditions={"max_escalation_rate": 0.3},
             ),
             AlertRule(
                 name="consecutive_high_risk",
                 alert_type=AlertType.CONSECUTIVE_HIGH_RISK,
                 min_severity=AlertSeverity.WARNING,
                 cooldown_minutes=180,
-                conditions={'min_consecutive': 3}
+                conditions={"min_consecutive": 3},
             ),
         ]
 
@@ -294,9 +313,7 @@ class RiskAlertManager:
         logger.info("alert_handler_added", handler_name=handler.name)
 
     def process_assessment(
-        self,
-        assessment: RiskAssessment,
-        entity_id: str
+        self, assessment: RiskAssessment, entity_id: str
     ) -> List[RiskAlert]:
         """Processa avaliação e gera alertas se necessário.
 
@@ -321,7 +338,9 @@ class RiskAlertManager:
                 if alert:
                     generated_alerts.append(alert)
                     self._store_alert(alert)
-                    self._last_alert_time[(entity_id, rule.alert_type)] = alert.timestamp
+                    self._last_alert_time[
+                        (entity_id, rule.alert_type)
+                    ] = alert.timestamp
 
         # Notificar handlers
         for alert in generated_alerts:
@@ -333,7 +352,7 @@ class RiskAlertManager:
                         "alert_handler_error",
                         handler=handler.name,
                         alert_id=alert.id,
-                        error=str(e)
+                        error=str(e),
                     )
 
         # Atualizar estado
@@ -342,44 +361,41 @@ class RiskAlertManager:
         return generated_alerts
 
     def _build_context(
-        self,
-        assessment: RiskAssessment,
-        entity_id: str
+        self, assessment: RiskAssessment, entity_id: str
     ) -> Dict[str, Any]:
         """Constrói contexto para avaliação de regras."""
         context = {
-            'assessment': assessment,
-            'entity_id': entity_id,
-            'domain': assessment.domain,
-            'score': assessment.score,
-            'band': assessment.band
+            "assessment": assessment,
+            "entity_id": entity_id,
+            "domain": assessment.domain,
+            "score": assessment.score,
+            "band": assessment.band,
         }
 
         # Verificar violação de threshold
         violation = self.threshold_monitor.check_violation(
-            assessment.domain,
-            assessment.score
+            assessment.domain, assessment.score
         )
-        context['threshold_violation'] = violation is not None
-        context['violation'] = violation
+        context["threshold_violation"] = violation is not None
+        context["violation"] = violation
 
         # Detectar anomalia
         anomaly = self.risk_history.detect_anomaly(entity_id, assessment.domain)
-        context['anomaly'] = anomaly
+        context["anomaly"] = anomaly
 
         # Analisar tendência
         trend = self.risk_history.analyze_trend(entity_id, assessment.domain)
-        context['trend'] = trend
+        context["trend"] = trend
 
         # Calcular delta de score
         previous_score = self._previous_scores.get(entity_id)
         if previous_score is not None:
             score_delta = assessment.score - previous_score
-            context['score_delta'] = score_delta
-            context['time_delta_hours'] = 1.0  # Simplificado
+            context["score_delta"] = score_delta
+            context["time_delta_hours"] = 1.0  # Simplificado
         else:
-            context['score_delta'] = 0.0
-            context['time_delta_hours'] = 1.0
+            context["score_delta"] = 0.0
+            context["time_delta_hours"] = 1.0
 
         # Contar risco alto consecutivo
         if assessment.band in [RiskBand.HIGH, RiskBand.CRITICAL]:
@@ -387,7 +403,9 @@ class RiskAlertManager:
         else:
             self._consecutive_high_risk[entity_id] = 0
 
-        context['consecutive_high_risk_count'] = self._consecutive_high_risk.get(entity_id, 0)
+        context["consecutive_high_risk_count"] = self._consecutive_high_risk.get(
+            entity_id, 0
+        )
 
         return context
 
@@ -396,11 +414,13 @@ class RiskAlertManager:
         rule: AlertRule,
         assessment: RiskAssessment,
         entity_id: str,
-        context: Dict[str, Any]
+        context: Dict[str, Any],
     ) -> Optional[RiskAlert]:
         """Cria alerta baseado na regra."""
         self._alert_id_counter += 1
-        alert_id = f"ALT-{datetime.utcnow().strftime('%Y%m%d')}-{self._alert_id_counter:06d}"
+        alert_id = (
+            f"ALT-{datetime.utcnow().strftime('%Y%m%d')}-{self._alert_id_counter:06d}"
+        )
 
         # Determinar severidade
         severity = self._determine_severity(rule, assessment, context)
@@ -410,21 +430,21 @@ class RiskAlertManager:
 
         # Detalhes
         details = {
-            'rule_name': rule.name,
-            'factors': assessment.factors.copy(),
+            "rule_name": rule.name,
+            "factors": assessment.factors.copy(),
         }
 
-        if context.get('violation'):
-            details['violation'] = context['violation'].to_dict()
-        if context.get('anomaly'):
-            details['anomaly'] = {
-                'is_anomaly': context['anomaly'].is_anomaly,
-                'severity': context['anomaly'].severity
+        if context.get("violation"):
+            details["violation"] = context["violation"].to_dict()
+        if context.get("anomaly"):
+            details["anomaly"] = {
+                "is_anomaly": context["anomaly"].is_anomaly,
+                "severity": context["anomaly"].severity,
             }
-        if context.get('trend'):
-            details['trend'] = {
-                'direction': context['trend'].direction.value,
-                'delta': context['trend'].delta
+        if context.get("trend"):
+            details["trend"] = {
+                "direction": context["trend"].direction.value,
+                "delta": context["trend"].delta,
             }
 
         alert = RiskAlert(
@@ -436,16 +456,13 @@ class RiskAlertManager:
             score=assessment.score,
             band=assessment.band,
             message=message,
-            details=details
+            details=details,
         )
 
         return alert
 
     def _determine_severity(
-        self,
-        rule: AlertRule,
-        assessment: RiskAssessment,
-        context: Dict[str, Any]
+        self, rule: AlertRule, assessment: RiskAssessment, context: Dict[str, Any]
     ) -> AlertSeverity:
         """Determina severidade do alerta."""
         # Baseado na band
@@ -459,15 +476,12 @@ class RiskAlertManager:
             return AlertSeverity.INFO
 
     def _generate_message(
-        self,
-        rule: AlertRule,
-        assessment: RiskAssessment,
-        context: Dict[str, Any]
+        self, rule: AlertRule, assessment: RiskAssessment, context: Dict[str, Any]
     ) -> str:
         """Gera mensagem do alerta."""
-        entity_id = context.get('entity_id', 'unknown')
-        score_delta = context.get('score_delta', 0)
-        consecutive_count = context.get('consecutive_high_risk_count', 0)
+        entity_id = context.get("entity_id", "unknown")
+        score_delta = context.get("score_delta", 0)
+        consecutive_count = context.get("consecutive_high_risk_count", 0)
 
         templates = {
             AlertType.THRESHOLD_VIOLATION: (
@@ -510,7 +524,7 @@ class RiskAlertManager:
             band=assessment.band.value,
             domain=assessment.domain.value,
             score_delta=score_delta,
-            consecutive_count=consecutive_count
+            consecutive_count=consecutive_count,
         )
 
         return message
@@ -528,11 +542,7 @@ class RiskAlertManager:
         """Atualiza estado interno."""
         self._previous_scores[entity_id] = assessment.score
 
-    def acknowledge_alert(
-        self,
-        alert_id: str,
-        acknowledged_by: str
-    ) -> bool:
+    def acknowledge_alert(self, alert_id: str, acknowledged_by: str) -> bool:
         """Confirma alerta.
 
         Args:
@@ -551,18 +561,14 @@ class RiskAlertManager:
                 logger.info(
                     "alert_acknowledged",
                     alert_id=alert_id,
-                    acknowledged_by=acknowledged_by
+                    acknowledged_by=acknowledged_by,
                 )
 
                 return True
 
         return False
 
-    def resolve_alert(
-        self,
-        alert_id: str,
-        resolved_by: str
-    ) -> bool:
+    def resolve_alert(self, alert_id: str, resolved_by: str) -> bool:
         """Resolve alerta.
 
         Args:
@@ -578,9 +584,7 @@ class RiskAlertManager:
                 alert.resolved_at = datetime.utcnow()
 
                 logger.info(
-                    "alert_resolved",
-                    alert_id=alert_id,
-                    resolved_by=resolved_by
+                    "alert_resolved", alert_id=alert_id, resolved_by=resolved_by
                 )
 
                 return True
@@ -596,7 +600,7 @@ class RiskAlertManager:
         unresolved_only: bool = False,
         start: Optional[datetime] = None,
         end: Optional[datetime] = None,
-        limit: Optional[int] = None
+        limit: Optional[int] = None,
     ) -> List[RiskAlert]:
         """Retorna alertas filtrados.
 
@@ -667,12 +671,12 @@ class RiskAlertManager:
         top_entities = sorted(by_entity.items(), key=lambda x: x[1], reverse=True)[:10]
 
         return {
-            'total_alerts': total,
-            'unacknowledged': unacknowledged,
-            'unresolved': unresolved,
-            'by_type': dict(by_type),
-            'by_severity': dict(by_severity),
-            'top_entities': top_entities
+            "total_alerts": total,
+            "unacknowledged": unacknowledged,
+            "unresolved": unresolved,
+            "by_type": dict(by_type),
+            "by_severity": dict(by_severity),
+            "top_entities": top_entities,
         }
 
     def cleanup_old_alerts(self, days: int = 30):

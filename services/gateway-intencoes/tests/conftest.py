@@ -21,6 +21,8 @@ sys.modules['neural_hive_domain'] = MagicMock()
 sys.modules['neural_hive_domain'].UnifiedDomain = MockUnifiedDomain
 sys.modules['neural_hive_observability'] = MagicMock()
 sys.modules['neural_hive_security'] = MagicMock()
+sys.modules['neural_hive_security'].cors = MagicMock()
+sys.modules['neural_hive_security'].cors.CORSConfig = MagicMock()
 sys.modules['neural_hive_integration'] = MagicMock()
 
 # Add src to path

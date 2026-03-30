@@ -12,8 +12,12 @@ import structlog
 from temporalio.client import Client
 
 from src.models.schedule import (
-    Schedule, ScheduleType, ScheduleStatus, ScheduleTrigger,
-    ScheduleExecution, SchedulePriority
+    Schedule,
+    ScheduleType,
+    ScheduleStatus,
+    ScheduleTrigger,
+    ScheduleExecution,
+    SchedulePriority,
 )
 from src.clients.postgresql_client import PostgreSQLClient
 
@@ -29,7 +33,7 @@ class ScheduleManager:
         postgresql_client: PostgreSQLClient,
         temporal_client: Client,
         temporal_namespace: str = "default",
-        temporal_task_queue: str = "sla-tasks"
+        temporal_task_queue: str = "sla-tasks",
     ):
         self.postgresql_client = postgresql_client
         self.temporal_client = temporal_client
@@ -44,7 +48,7 @@ class ScheduleManager:
         schedule_type: ScheduleType,
         trigger: ScheduleTrigger,
         priority: SchedulePriority = SchedulePriority.MEDIUM,
-        metadata: Dict[str, Any] = None
+        metadata: Dict[str, Any] = None,
     ) -> str:
         """
         Cria novo schedule.
@@ -75,13 +79,16 @@ class ScheduleManager:
             priority=priority,
             status=ScheduleStatus.ACTIVE,
             next_run_at=next_run_at,
-            metadata=metadata or {}
+            metadata=metadata or {},
         )
 
         await self._save_schedule(schedule)
 
         # Iniciar task para schedules cron
-        if schedule_type == ScheduleType.CRON and schedule.status == ScheduleStatus.ACTIVE:
+        if (
+            schedule_type == ScheduleType.CRON
+            and schedule.status == ScheduleStatus.ACTIVE
+        ):
             await self._start_cron_schedule(schedule)
 
         self.logger.info(
@@ -89,7 +96,7 @@ class ScheduleManager:
             schedule_id=schedule_id,
             workflow=workflow,
             type=schedule_type.value,
-            priority=priority.value
+            priority=priority.value,
         )
 
         return schedule_id
@@ -123,7 +130,7 @@ class ScheduleManager:
         workflow_type: Optional[str] = None,
         status: Optional[str] = None,
         limit: int = 50,
-        offset: int = 0
+        offset: int = 0,
     ) -> List[Schedule]:
         """
         Lista schedules com filtros.
@@ -169,9 +176,7 @@ class ScheduleManager:
         return [self._row_to_schedule(row) for row in rows]
 
     async def trigger_workflow(
-        self,
-        schedule_id: str,
-        manual: bool = False
+        self, schedule_id: str, manual: bool = False
     ) -> Dict[str, Any]:
         """
         Dispara workflow baseado no schedule.
@@ -192,14 +197,16 @@ class ScheduleManager:
             raise ValueError(f"Schedule {schedule_id} is not active")
 
         # Iniciar workflow Temporal
-        workflow_id = f"{schedule.workflow}-{schedule_id}-{datetime.utcnow().timestamp()}"
+        workflow_id = (
+            f"{schedule.workflow}-{schedule_id}-{datetime.utcnow().timestamp()}"
+        )
 
         try:
             handle = await self.temporal_client.start_workflow(
                 schedule.workflow,
                 id=workflow_id,
                 task_queue=self.temporal_task_queue,
-                args=schedule.trigger.parameters or {}
+                args=schedule.trigger.parameters or {},
             )
 
             # Atualizar última execução
@@ -210,7 +217,7 @@ class ScheduleManager:
                 schedule_id=schedule_id,
                 workflow_id=handle.id,
                 started_at=datetime.utcnow(),
-                status="running"
+                status="running",
             )
             await self._save_execution(execution)
 
@@ -218,14 +225,14 @@ class ScheduleManager:
                 "workflow_triggered",
                 schedule_id=schedule_id,
                 workflow_id=handle.id,
-                manual=manual
+                manual=manual,
             )
 
             return {
                 "schedule_id": schedule_id,
                 "workflow_id": handle.id,
                 "triggered_at": datetime.utcnow().isoformat(),
-                "manual": manual
+                "manual": manual,
             }
 
         except Exception as e:
@@ -233,9 +240,7 @@ class ScheduleManager:
             await self._increment_failure_count(schedule_id)
 
             self.logger.error(
-                "workflow_trigger_failed",
-                schedule_id=schedule_id,
-                error=str(e)
+                "workflow_trigger_failed", schedule_id=schedule_id, error=str(e)
             )
             raise
 
@@ -330,7 +335,9 @@ class ScheduleManager:
 
                     # Calcular próxima execução
                     if schedule.trigger.cron_expression:
-                        next_run = self._calculate_next_run(schedule.trigger.cron_expression)
+                        next_run = self._calculate_next_run(
+                            schedule.trigger.cron_expression
+                        )
                         await self._update_next_run(schedule.schedule_id, next_run)
 
                 except asyncio.CancelledError:
@@ -339,7 +346,7 @@ class ScheduleManager:
                     self.logger.error(
                         "cron_worker_error",
                         schedule_id=schedule.schedule_id,
-                        error=str(e)
+                        error=str(e),
                     )
                     await asyncio.sleep(60)  # Esperar 1min antes de retry
 
@@ -424,7 +431,7 @@ class ScheduleManager:
             schedule.next_run_at,
             schedule.total_runs,
             schedule.failure_count,
-            schedule.metadata
+            schedule.metadata,
         )
 
     async def _save_execution(self, execution: ScheduleExecution) -> None:
@@ -444,13 +451,11 @@ class ScheduleManager:
             execution.completed_at,
             execution.status,
             execution.error_message,
-            execution.output
+            execution.output,
         )
 
     async def _update_schedule_status(
-        self,
-        schedule_id: str,
-        status: ScheduleStatus
+        self, schedule_id: str, status: ScheduleStatus
     ) -> None:
         """Atualiza status do schedule."""
         query = """
@@ -462,9 +467,7 @@ class ScheduleManager:
         )
 
     async def _update_schedule_last_run(
-        self,
-        schedule_id: str,
-        last_run: datetime
+        self, schedule_id: str, last_run: datetime
     ) -> None:
         """Atualiza última execução do schedule."""
         query = """
@@ -476,11 +479,7 @@ class ScheduleManager:
             query, last_run, datetime.utcnow(), schedule_id
         )
 
-    async def _update_next_run(
-        self,
-        schedule_id: str,
-        next_run: datetime
-    ) -> None:
+    async def _update_next_run(self, schedule_id: str, next_run: datetime) -> None:
         """Atualiza próxima execução do schedule."""
         query = """
             UPDATE schedules SET next_run_at = $1, updated_at = $2
@@ -497,9 +496,7 @@ class ScheduleManager:
             SET failure_count = failure_count + 1, updated_at = $1
             WHERE schedule_id = $2
         """
-        await self.postgresql_client.execute(
-            query, datetime.utcnow(), schedule_id
-        )
+        await self.postgresql_client.execute(query, datetime.utcnow(), schedule_id)
 
     def _row_to_schedule(self, row) -> Schedule:
         """Converte linha do banco para modelo Schedule."""
@@ -518,8 +515,46 @@ class ScheduleManager:
             next_run_at=row["next_run_at"],
             total_runs=row["total_runs"],
             failure_count=row["failure_count"],
-            metadata=loads(row["metadata"]) if row["metadata"] else {}
+            metadata=loads(row["metadata"]) if row["metadata"] else {},
         )
+
+    async def list_schedule_executions(
+        self, schedule_id: str, limit: int = 50, offset: int = 0
+    ) -> List[ScheduleExecution]:
+        """
+        Lista execuções de um schedule específico.
+
+        Args:
+            schedule_id: ID do schedule
+            limit: Limite de resultados
+            offset: Offset para paginação
+
+        Returns:
+            Lista de execuções
+        """
+        query = """
+            SELECT execution_id, schedule_id, workflow_id, started_at,
+                   completed_at, status, error_message, output
+            FROM schedule_executions
+            WHERE schedule_id = $1
+            ORDER BY started_at DESC
+            LIMIT $2 OFFSET $3
+        """
+        rows = await self.postgresql_client.fetch_all(query, schedule_id, limit, offset)
+
+        return [
+            ScheduleExecution(
+                execution_id=row["execution_id"],
+                schedule_id=row["schedule_id"],
+                workflow_id=row["workflow_id"],
+                started_at=row["started_at"],
+                completed_at=row["completed_at"],
+                status=row["status"],
+                error_message=row["error_message"],
+                output=row["output"],
+            )
+            for row in rows
+        ]
 
     async def shutdown(self) -> None:
         """Para todas as tasks de schedule."""

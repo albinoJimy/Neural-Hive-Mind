@@ -201,11 +201,27 @@ class DriftDetector:
             }
 
     async def _get_active_model_version(self) -> str:
-        """Obtém versão do modelo ativo."""
+        """
+        Obtém versão do modelo ativo.
+
+        Busca na coleção model_versions do MongoDB
+        pelo modelo com stage='production' e is_active=True.
+        """
         try:
-            # TODO: Buscar do MLflow ou model_versions
-            return "v8"
-        except Exception:
+            doc = await self.db.model_versions.find_one(
+                {"stage": "production", "is_active": True},
+                sort=[("created_at", -1)]
+            )
+
+            if doc and "version" in doc:
+                return doc["version"]
+
+            # Fallback se não encontrar modelo ativo
+            logger.warning("Nenhum modelo ativo encontrado em model_versions")
+            return "unknown"
+
+        except Exception as e:
+            logger.error(f"Erro ao buscar versão do modelo ativo: {e}")
             return "unknown"
 
     async def publish_drift_alert(self, drift_data: Dict[str, Any]) -> bool:

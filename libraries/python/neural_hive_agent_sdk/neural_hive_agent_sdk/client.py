@@ -28,6 +28,11 @@ except ImportError:
     PROTO_AVAILABLE = False
     ProtoAgentType = None
     AgentServiceStub = None
+    # Criar classes mock para evitar erros de tipo
+    HeartbeatRequest = None
+    HeartbeatResponse = None
+    DeregisterRequest = None
+    DeregisterResponse = None
 
 logger = structlog.get_logger()
 
@@ -276,22 +281,29 @@ class AgentClient:
             return
 
         try:
-            # TODO: Usar proto real
-            # request = service_registry_pb2.HeartbeatRequest(
-            #     agent_id=self.agent_id,
-            #     telemetry=self.telemetry.to_proto()
-            # )
+            if PROTO_AVAILABLE and HeartbeatRequest:
+                request = HeartbeatRequest(
+                    agent_id=self.agent_id,
+                    telemetry=self.telemetry.to_proto()
+                )
 
-            # response = await self.stub.Heartbeat(
-            #     request,
-            #     timeout=self.config.GRPC_TIMEOUT_SECONDS
-            # )
+                response = await self.stub.Heartbeat(
+                    request,
+                    timeout=self.config.GRPC_TIMEOUT_SECONDS
+                )
 
-            logger.debug(
-                "heartbeat_sent",
-                agent_id=self.agent_id,
-                telemetry=self.telemetry.to_proto()
-            )
+                logger.debug(
+                    "heartbeat_sent",
+                    agent_id=self.agent_id,
+                    status=response.status,
+                    telemetry=self.telemetry.to_proto()
+                )
+            else:
+                logger.debug(
+                    "heartbeat_sent_mock",
+                    agent_id=self.agent_id,
+                    telemetry=self.telemetry.to_proto()
+                )
 
         except Exception as e:
             logger.error("heartbeat_send_failed", error=str(e))
@@ -324,17 +336,21 @@ class AgentClient:
 
             # Chamar RPC Deregister
             if self.stub:
-                # TODO: Usar proto real
-                # request = service_registry_pb2.DeregisterRequest(
-                #     agent_id=self.agent_id
-                # )
+                if PROTO_AVAILABLE and DeregisterRequest:
+                    request = DeregisterRequest(agent_id=self.agent_id)
 
-                # await self.stub.Deregister(
-                #     request,
-                #     timeout=self.config.GRPC_TIMEOUT_SECONDS
-                # )
+                    response = await self.stub.Deregister(
+                        request,
+                        timeout=self.config.GRPC_TIMEOUT_SECONDS
+                    )
 
-                logger.info("agent_deregistered", agent_id=self.agent_id)
+                    logger.info(
+                        "agent_deregistered",
+                        agent_id=self.agent_id,
+                        success=response.success
+                    )
+                else:
+                    logger.info("agent_deregistered_mock", agent_id=self.agent_id)
 
             # Fechar canal
             if self.channel:

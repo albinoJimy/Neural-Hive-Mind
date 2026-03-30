@@ -261,3 +261,177 @@ class TestDetectorReset:
         assert len(signal_detector._signals) == 0
         assert len(signal_detector._file_hashes) == 0
         assert len(signal_detector._activity_counts) == 0
+
+
+class TestSignalFiltering:
+    """Testes de filtragem de sinais."""
+
+    def test_filter_by_intensity(self, signal_detector, temp_codebase):
+        """Testa filtro por intensidade mínima."""
+        signal_detector.scan_directory(temp_codebase)
+
+        # Filtrar sinais com intensidade > 0.1
+        filtered = signal_detector.filter_signals(min_intensity=0.1)
+
+        # Todos os sinais com intensidade maior que 0.1
+        for signal in filtered:
+            assert signal.intensity >= 0.1
+
+    def test_filter_by_type(self, signal_detector, temp_codebase):
+        """Testa filtro por tipo de sinal."""
+        signal_detector.scan_directory(temp_codebase)
+
+        created_signals = signal_detector.filter_signals(signal_type='created')
+
+        # Todos devem ser do tipo created
+        for signal in created_signals:
+            assert signal.signal_type == 'created'
+
+    def test_filter_by_path_pattern(self, signal_detector, temp_codebase):
+        """Testa filtro por padrão de caminho."""
+        signal_detector.scan_directory(temp_codebase)
+
+        # Filtrar apenas arquivos .py
+        py_signals = signal_detector.filter_signals(path_pattern='*.py')
+
+        # Todos devem terminar com .py
+        for signal in py_signals:
+            assert signal.filepath.endswith('.py')
+
+
+class TestSignalStatistics:
+    """Testes de estatísticas de sinais."""
+
+    def test_get_activity_trend(self, signal_detector, temp_codebase):
+        """Testa cálculo de tendência de atividade."""
+        # Gerar atividade em múltiplos pontos
+        for i in range(5):
+            signal_detector.scan_directory(temp_codebase)
+            (Path(temp_codebase) / 'simple.py').write_text(f'x = {i}')
+
+        trend = signal_detector.get_activity_trend()
+
+        assert 'trend' in trend  # 'increasing', 'decreasing', 'stable'
+        assert 'average_intensity' in trend
+        assert 'total_signals' in trend
+
+    def test_get_most_changed_files(self, signal_detector, temp_codebase):
+        """Testa identificar arquivos mais modificados."""
+        # Modificar simple.py múltiplas vezes
+        for i in range(8):
+            signal_detector.scan_directory(temp_codebase)
+            (Path(temp_codebase) / 'simple.py').write_text(f'x = {i}')
+
+        most_changed = signal_detector.get_most_changed_files(limit=5)
+
+        assert len(most_changed) > 0
+        assert 'filepath' in most_changed[0]
+        assert 'change_count' in most_changed[0]
+        # simple.py deve estar no topo
+        assert any('simple.py' in f['filepath'] for f in most_changed)
+
+
+class TestSignalCorrelation:
+    """Testes de correlação entre sinais."""
+
+    def test_detect_related_changes(self, signal_detector, temp_codebase):
+        """Testa detecção de mudanças relacionadas."""
+        # Criar múltiplos arquivos em sequência
+        for i in range(3):
+            filepath = Path(temp_codebase) / f'module_{i}.py'
+            filepath.write_text(f'class Module{i}: pass')
+            signal_detector.scan_directory(temp_codebase)
+
+        # Detectar grupos de mudanças relacionadas
+        related = signal_detector.detect_related_changes(time_window_seconds=60)
+
+        # Deve identificar ao menos um grupo
+        assert len(related) >= 1
+
+
+class TestSignalExport:
+    """Testes de exportação de sinais."""
+
+    def test_export_to_json(self, signal_detector, temp_codebase):
+        """Testa exportação de sinais para JSON."""
+        signal_detector.scan_directory(temp_codebase)
+
+        import json
+        json_str = signal_detector.export_to_json()
+
+        # Validar JSON
+        data = json.loads(json_str)
+        assert 'signals' in data
+        assert 'metadata' in data
+        assert len(data['signals']) >= 2
+
+    def test_export_to_csv(self, signal_detector, temp_codebase, tmp_path):
+        """Testa exportação de sinais para CSV."""
+        signal_detector.scan_directory(temp_codebase)
+
+        csv_path = tmp_path / 'signals.csv'
+        signal_detector.export_to_csv(str(csv_path))
+
+        # Validar arquivo criado
+        assert csv_path.exists()
+
+        # Validar conteúdo
+        content = csv_path.read_text()
+        assert 'filepath' in content
+        assert 'signal_type' in content
+        assert 'intensity' in content
+
+
+class TestSignalValidation:
+    """Testes de validação de sinais."""
+
+    def test_validate_signal_integrity(self, signal_detector):
+        """Testa validação de integridade do sinal."""
+        signal = FileSignal('/valid/path.py', 'created', 0.5)
+
+        is_valid = signal_detector.validate_signal(signal)
+
+        assert is_valid is True
+
+    def test_validate_invalid_signal(self, signal_detector):
+        """Testa validação de sinal inválido."""
+        # Criar sinal com intensidade negativa (inválida)
+        signal = FileSignal('/path.py', 'created', -0.1)
+
+        is_valid = signal_detector.validate_signal(signal)
+
+        assert is_valid is False
+
+    def test_validate_signal_without_filepath(self, signal_detector):
+        """Testa validação de sinal sem filepath."""
+        signal = FileSignal('', 'created', 0.5)
+
+        is_valid = signal_detector.validate_signal(signal)
+
+        assert is_valid is False
+
+
+class TestSignalClustering:
+    """Testes de agrupamento de sinais."""
+
+    def test_cluster_signals_by_directory(self, signal_detector, temp_codebase):
+        """Testa agrupamento de sinais por diretório."""
+        signal_detector.scan_directory(temp_codebase)
+
+        clusters = signal_detector.cluster_signals_by_directory()
+
+        assert len(clusters) > 0
+        assert 'directory' in clusters[0]
+        assert 'signal_count' in clusters[0]
+
+    def test_cluster_signals_by_extension(self, signal_detector, temp_codebase):
+        """Testa agrupamento de sinais por extensão."""
+        signal_detector.scan_directory(temp_codebase)
+
+        clusters = signal_detector.cluster_signals_by_extension()
+
+        assert len(clusters) > 0
+        assert 'extension' in clusters[0]
+        assert 'signal_count' in clusters[0]
+        # Deve ter .py
+        assert any(c['extension'] == '.py' for c in clusters)

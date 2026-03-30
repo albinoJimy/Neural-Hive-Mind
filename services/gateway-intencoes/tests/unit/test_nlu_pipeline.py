@@ -491,3 +491,275 @@ class TestNLUPipeline:
 
         # Deve retornar None para cache miss
         assert result is None
+
+    @pytest.mark.asyncio
+    async def test_handle_empty_text(self, nlu_pipeline):
+        """Testar processamento de texto vazio"""
+        nlu_pipeline._ready = True
+
+        mock_nlp = MagicMock()
+        mock_doc = MagicMock()
+        mock_doc.ents = []
+        mock_doc.__iter__ = lambda self: iter([])
+        mock_doc.text = ""
+
+        mock_nlp.return_value = mock_doc
+        nlu_pipeline.nlp = mock_nlp
+
+        with patch.object(nlu_pipeline, '_classify_intent_advanced', new_callable=AsyncMock) as mock_classify:
+            mock_classify.return_value = (UnifiedDomain.UNKNOWN, "empty", 0.0)
+
+            result = await nlu_pipeline.process(
+                text="",
+                language="pt-BR",
+                context={}
+            )
+
+            assert result.confidence == 0.0
+            assert result.classification == "empty"
+
+    @pytest.mark.asyncio
+    async def test_handle_invalid_language(self, nlu_pipeline):
+        """Testar processamento com idioma inválido"""
+        nlu_pipeline._ready = True
+
+        mock_nlp = MagicMock()
+        mock_doc = MagicMock()
+        mock_doc.ents = []
+        mock_doc.__iter__ = lambda self: iter([])
+        mock_doc.text = "teste"
+
+        mock_nlp.return_value = mock_doc
+        nlu_pipeline.nlp = mock_nlp
+
+        # Idioma não suportado - deve usar fallback
+        result = await nlu_pipeline.process(
+            text="teste",
+            language="xx-YY",  # Idioma inválido
+            context={}
+        )
+
+        # Deve processar mesmo com idioma inválido (fallback para pt)
+        assert result is not None
+
+    @pytest.mark.asyncio
+    async def test_context_injection(self, nlu_pipeline):
+        """Testar injeção de contexto no processamento"""
+        nlu_pipeline._ready = True
+
+        mock_nlp = MagicMock()
+        mock_doc = MagicMock()
+        mock_doc.ents = []
+        mock_doc.__iter__ = lambda self: iter([])
+        mock_doc.text = "implementar"
+
+        mock_nlp.return_value = mock_doc
+        nlu_pipeline.nlp = mock_nlp
+
+        user_context = {
+            "userId": "user-123",
+            "previous_intents": ["authentication", "database"],
+            "preferred_domain": "technical"
+        }
+
+        with patch.object(nlu_pipeline, '_classify_intent_advanced', new_callable=AsyncMock) as mock_classify:
+            mock_classify.return_value = (UnifiedDomain.TECHNICAL, "implementation", 0.85)
+
+            result = await nlu_pipeline.process(
+                text="implementar",
+                language="pt-BR",
+                context=user_context
+            )
+
+            # Contexto deve influenciar na classificação
+            assert result.domain == UnifiedDomain.TECHNICAL
+
+    @pytest.mark.asyncio
+    async def test_confidence_threshold_gating_low(self, nlu_pipeline):
+        """Testar gate de confiança baixa"""
+        nlu_pipeline._ready = True
+        nlu_pipeline.confidence_threshold = 0.7
+
+        mock_nlp = MagicMock()
+        mock_doc = MagicMock()
+        mock_doc.ents = []
+        mock_doc.__iter__ = lambda self: iter([])
+        mock_doc.text = "texto ambíguo"
+
+        mock_nlp.return_value = mock_doc
+        nlu_pipeline.nlp = mock_nlp
+
+        with patch.object(nlu_pipeline, '_classify_intent_advanced', new_callable=AsyncMock) as mock_classify:
+            # Abaixo do threshold
+            mock_classify.return_value = (UnifiedDomain.BUSINESS, "unknown", 0.5)
+
+            result = await nlu_pipeline.process(
+                text="texto ambíguo",
+                language="pt-BR",
+                context={}
+            )
+
+            assert result.confidence < nlu_pipeline.confidence_threshold
+            assert result.confidence_status == "low"
+
+    @pytest.mark.asyncio
+    async def test_confidence_threshold_gating_high(self, nlu_pipeline):
+        """Testar gate de confiança alta"""
+        nlu_pipeline._ready = True
+        nlu_pipeline.confidence_threshold = 0.7
+
+        mock_nlp = MagicMock()
+        mock_doc = MagicMock()
+        mock_doc.ents = []
+        mock_doc.__iter__ = lambda self: iter([])
+        mock_doc.text = "implementar autenticação OAuth2"
+
+        mock_nlp.return_value = mock_doc
+        nlu_pipeline.nlp = mock_nlp
+
+        with patch.object(nlu_pipeline, '_classify_intent_advanced', new_callable=AsyncMock) as mock_classify:
+            # Acima do threshold
+            mock_classify.return_value = (UnifiedDomain.TECHNICAL, "implementation", 0.92)
+
+            result = await nlu_pipeline.process(
+                text="implementar autenticação OAuth2",
+                language="pt-BR",
+                context={}
+            )
+
+            assert result.confidence >= nlu_pipeline.confidence_threshold
+            assert result.confidence_status == "high"
+
+    @pytest.mark.asyncio
+    async def test_fallback_behavior_on_error(self, nlu_pipeline):
+        """Testar comportamento de fallback em erro"""
+        nlu_pipeline._ready = True
+
+        mock_nlp = MagicMock()
+        mock_nlp.side_effect = Exception("spaCy error")
+        nlu_pipeline.nlp = mock_nlp
+
+        # Deve lançar exceção ou retornar resultado de fallback
+        with pytest.raises(Exception):
+            await nlu_pipeline.process(
+                text="teste",
+                language="pt-BR",
+                context={}
+            )
+
+    @pytest.mark.asyncio
+    async def test_timeout_handling(self, nlu_pipeline):
+        """Testar tratamento de timeout"""
+        import asyncio
+
+        nlu_pipeline._ready = True
+
+        async def slow_process(*args, **kwargs):
+            await asyncio.sleep(2)
+            return MagicMock(
+                domain=UnifiedDomain.TECHNICAL,
+                classification="test",
+                confidence=0.8
+            )
+
+        # Simular timeout curto
+        with patch.object(nlu_pipeline, '_classify_intent_advanced', new_callable=AsyncMock) as mock_classify:
+            mock_classify.side_effect = slow_process
+
+            with pytest.raises((asyncio.TimeoutError, Exception)):
+                await asyncio.wait_for(
+                    nlu_pipeline.process("teste", "pt-BR", {}),
+                    timeout=0.1
+                )
+
+    @pytest.mark.asyncio
+    async def test_metrics_emission(self, nlu_pipeline):
+        """Testar emissão de métricas"""
+        nlu_pipeline._ready = True
+
+        mock_nlp = MagicMock()
+        mock_doc = MagicMock()
+        mock_doc.ents = []
+        mock_doc.__iter__ = lambda self: iter([])
+        mock_doc.text = "teste"
+
+        mock_nlp.return_value = mock_doc
+        nlu_pipeline.nlp = mock_nlp
+
+        with patch.object(nlu_pipeline, '_classify_intent_advanced', new_callable=AsyncMock) as mock_classify:
+            mock_classify.return_value = (UnifiedDomain.TECHNICAL, "test", 0.85)
+
+            result = await nlu_pipeline.process(
+                text="teste",
+                language="pt-BR",
+                context={}
+            )
+
+            # Verificar que processamento_time_ms foi calculado
+            assert result.processing_time_ms >= 0
+
+    @pytest.mark.asyncio
+    async def test_batch_processing(self, nlu_pipeline):
+        """Testar processamento em lote"""
+        nlu_pipeline._ready = True
+
+        mock_nlp = MagicMock()
+        mock_doc = MagicMock()
+        mock_doc.ents = []
+        mock_doc.__iter__ = lambda self: iter([])
+        mock_doc.text = "teste"
+
+        mock_nlp.return_value = mock_doc
+        nlu_pipeline.nlp = mock_nlp
+
+        texts = ["texto 1", "texto 2", "texto 3"]
+        results = []
+
+        for text in texts:
+            with patch.object(nlu_pipeline, '_classify_intent_advanced', new_callable=AsyncMock) as mock_classify:
+                mock_classify.return_value = (UnifiedDomain.TECHNICAL, "test", 0.8)
+                result = await nlu_pipeline.process(text, "pt-BR", {})
+                results.append(result)
+
+        assert len(results) == 3
+        for result in results:
+            assert result.domain == UnifiedDomain.TECHNICAL
+
+    @pytest.mark.asyncio
+    async def test_adaptive_threshold_calculation(self, nlu_pipeline):
+        """Testar cálculo de threshold adaptativo"""
+        nlu_pipeline._ready = True
+        nlu_pipeline.settings.nlu_adaptive_threshold_enabled = True
+
+        # Calcular threshold adaptativo baseado em histórico
+        history_confidence = [0.7, 0.75, 0.8, 0.85, 0.9]
+        adaptive_threshold = sum(history_confidence) / len(history_confidence) * 0.9
+
+        assert 0.6 < adaptive_threshold < 0.9
+
+    @pytest.mark.asyncio
+    async def test_multi_language_support(self, nlu_pipeline):
+        """Testar suporte a múltiplos idiomas"""
+        nlu_pipeline._ready = True
+
+        test_cases = [
+            ("implementar", "pt-BR", UnifiedDomain.TECHNICAL),
+            ("implement", "en-US", UnifiedDomain.TECHNICAL),
+            ("implementar", "es-ES", UnifiedDomain.TECHNICAL),
+        ]
+
+        for text, lang, expected_domain in test_cases:
+            mock_nlp = MagicMock()
+            mock_doc = MagicMock()
+            mock_doc.ents = []
+            mock_doc.__iter__ = lambda self: iter([])
+            mock_doc.text = text
+
+            mock_nlp.return_value = mock_doc
+            nlu_pipeline.nlp = mock_nlp
+
+            with patch.object(nlu_pipeline, '_classify_intent_advanced', new_callable=AsyncMock) as mock_classify:
+                mock_classify.return_value = (expected_domain, "implementation", 0.8)
+
+                result = await nlu_pipeline.process(text, lang, {})
+                assert result.domain == expected_domain

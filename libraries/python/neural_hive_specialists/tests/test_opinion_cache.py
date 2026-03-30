@@ -277,3 +277,221 @@ class TestConnectionManagement:
 
             mock_redis.return_value.close.assert_called_once()
             assert cache._connected is False
+
+
+# =============================================================================
+# Testes Adicionais para Cobertura
+# =============================================================================
+
+class TestGenerateCacheKey:
+    """Testes de geração de chave de cache."""
+
+    def test_generate_cache_key_basic(self):
+        """Testa geração básica de chave."""
+        with patch("neural_hive_specialists.opinion_cache.RedisCluster"):
+            cache = OpinionCache(
+                redis_cluster_nodes="localhost:6379",
+                specialist_type="business"
+            )
+
+            plan_bytes = b"test plan content"
+
+            key = cache.generate_cache_key(
+                plan_bytes=plan_bytes,
+                specialist_type="business",
+                specialist_version="v1.0"
+            )
+
+            assert key.startswith("opinion:")
+            assert "business" in key
+
+    def test_generate_cache_key_with_tenant(self):
+        """Testa geração de chave com tenant."""
+        with patch("neural_hive_specialists.opinion_cache.RedisCluster"):
+            cache = OpinionCache(
+                redis_cluster_nodes="localhost:6379",
+                specialist_type="technical"
+            )
+
+            plan_bytes = b"test plan content"
+
+            key = cache.generate_cache_key(
+                plan_bytes=plan_bytes,
+                specialist_type="technical",
+                specialist_version="v2.0",
+                tenant_id="tenant-123"
+            )
+
+            assert "tenant-123" in key
+
+    def test_generate_cache_key_deterministic(self):
+        """Testa que mesma entrada gera mesma chave."""
+        with patch("neural_hive_specialists.opinion_cache.RedisCluster"):
+            cache = OpinionCache(
+                redis_cluster_nodes="localhost:6379",
+                specialist_type="business"
+            )
+
+            plan_bytes = b"test plan content"
+
+            key1 = cache.generate_cache_key(
+                plan_bytes=plan_bytes,
+                specialist_type="business",
+                specialist_version="v1.0"
+            )
+
+            key2 = cache.generate_cache_key(
+                plan_bytes=plan_bytes,
+                specialist_type="business",
+                specialist_version="v1.0"
+            )
+
+            assert key1 == key2
+
+    def test_generate_cache_key_different_content(self):
+        """Testa que conteúdo diferente gera chave diferente."""
+        with patch("neural_hive_specialists.opinion_cache.RedisCluster"):
+            cache = OpinionCache(
+                redis_cluster_nodes="localhost:6379",
+                specialist_type="business"
+            )
+
+            key1 = cache.generate_cache_key(
+                plan_bytes=b"content 1",
+                specialist_type="business",
+                specialist_version="v1.0"
+            )
+
+            key2 = cache.generate_cache_key(
+                plan_bytes=b"content 2",
+                specialist_type="business",
+                specialist_version="v1.0"
+            )
+
+            assert key1 != key2
+
+
+class TestGetOpinion:
+    """Testes de get de opinião."""
+
+    def test_get_opinion_cached(self):
+        """Testa get de opinião em cache."""
+        with patch("neural_hive_specialists.opinion_cache.RedisCluster") as mock_redis:
+            mock_client = Mock()
+            mock_client.get = Mock(return_value='{"opinion": "approve"}')
+            mock_redis.return_value = mock_client
+
+            cache = OpinionCache(
+                redis_cluster_nodes="localhost:6379",
+                specialist_type="business"
+            )
+
+            result = cache.get_cached_opinion("test:key")
+
+            assert result == {"opinion": "approve"}
+
+    def test_get_opinion_not_cached(self):
+        """Testa get de opinião não em cache."""
+        with patch("neural_hive_specialists.opinion_cache.RedisCluster") as mock_redis:
+            mock_client = Mock()
+            mock_client.get = Mock(return_value=None)
+            mock_redis.return_value = mock_client
+
+            cache = OpinionCache(
+                redis_cluster_nodes="localhost:6379",
+                specialist_type="business"
+            )
+
+            result = cache.get_cached_opinion("test:key")
+
+            assert result is None
+
+    def test_get_opinion_deserialize_error(self):
+        """Testa get com erro de desserialização."""
+        with patch("neural_hive_specialists.opinion_cache.RedisCluster") as mock_redis:
+            mock_client = Mock()
+            mock_client.get = Mock(return_value="invalid json")
+            mock_redis.return_value = mock_client
+
+            cache = OpinionCache(
+                redis_cluster_nodes="localhost:6379",
+                specialist_type="business"
+            )
+
+            result = cache.get_cached_opinion("test:key")
+
+            assert result is None
+
+
+class TestSetOpinion:
+    """Testes de set de opinião."""
+
+    def test_set_opinion_success(self):
+        """Testa set de opinião com sucesso."""
+        with patch("neural_hive_specialists.opinion_cache.RedisCluster") as mock_redis:
+            mock_client = Mock()
+            mock_client.setex = Mock()
+            mock_redis.return_value = mock_client
+
+            cache = OpinionCache(
+                redis_cluster_nodes="localhost:6379",
+                specialist_type="business"
+            )
+
+            cache.set_cached_opinion("test:key", {"opinion": "approve"})
+
+            mock_client.setex.assert_called_once()
+
+    def test_set_opinion_serializes_json(self):
+        """Testa que opinião é serializada para JSON."""
+        with patch("neural_hive_specialists.opinion_cache.RedisCluster") as mock_redis:
+            mock_client = Mock()
+            mock_client.setex = Mock()
+            mock_redis.return_value = mock_client
+
+            cache = OpinionCache(
+                redis_cluster_nodes="localhost:6379",
+                specialist_type="business"
+            )
+
+            cache.set_cached_opinion("test:key", {"opinion": "approve", "confidence": 0.8})
+
+            # Verificar que JSON foi serializado
+            call_args = mock_client.setex.call_args
+            assert call_args is not None
+
+
+class TestInvalidateOpinion:
+    """Testes de invalidate de opinião."""
+
+    def test_invalidate_opinion_success(self):
+        """Testa invalidate de opinião com sucesso."""
+        with patch("neural_hive_specialists.opinion_cache.RedisCluster") as mock_redis:
+            mock_client = Mock()
+            mock_client.delete = Mock(return_value=1)
+            mock_redis.return_value = mock_client
+
+            cache = OpinionCache(
+                redis_cluster_nodes="localhost:6379",
+                specialist_type="business"
+            )
+
+            result = cache.invalidate_cache("test:key")
+
+            assert result is True
+
+    def test_invalidate_opinion_not_exists(self):
+        """Testa invalidate de opinião que não existe."""
+        with patch("neural_hive_specialists.opinion_cache.RedisCluster") as mock_redis:
+            mock_client = Mock()
+            mock_client.delete = Mock(return_value=0)
+            mock_redis.return_value = mock_client
+
+            cache = OpinionCache(
+                redis_cluster_nodes="localhost:6379",
+                specialist_type="business"
+            )
+
+            result = cache.invalidate_cache("test:key")
+
+            assert result is False

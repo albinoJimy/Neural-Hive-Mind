@@ -1,10 +1,12 @@
 """
 Configurações do Execution Ticket Service usando Pydantic Settings.
 """
-from typing import Optional
+from typing import Optional, List
 from functools import lru_cache
 from pydantic import Field, validator, model_validator
 from pydantic_settings import BaseSettings
+
+from neural_hive_security.cors import CORSConfig
 
 
 class TicketServiceSettings(BaseSettings):
@@ -15,6 +17,7 @@ class TicketServiceSettings(BaseSettings):
     service_version: str = Field(default='1.0.0', description='Versão do serviço')
     environment: str = Field(default='development', description='Ambiente de execução')
     log_level: str = Field(default='INFO', description='Nível de log')
+    is_public_api: bool = Field(default=True, description='API pública requer CORS')
 
     # PostgreSQL (Primary Store)
     postgres_host: str = Field(..., description='Host do PostgreSQL')
@@ -162,6 +165,16 @@ class TicketServiceSettings(BaseSettings):
             )
 
         return self
+
+    @property
+    def CORS_ORIGINS(self) -> List[str]:
+        """
+        CORS origins dinâmicas por ambiente usando neural_hive_security.
+        """
+        return CORSConfig.get_origins_for_environment(
+            self.environment,
+            is_public_api=self.is_public_api
+        )
 
     class Config:
         env_file = '.env'

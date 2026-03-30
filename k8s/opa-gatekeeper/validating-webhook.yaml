@@ -1,0 +1,423 @@
+# OPA Gatekeeper ValidatingWebhookConfiguration
+# Epic H - H002: ValidatingWebhookConfiguration
+#
+# Este arquivo configura o webhook de admission do Kubernetes
+# para interceptar e validar recursos antes da sua criação/atualização.
+#
+# Deploy:
+#   kubectl apply -f k8s/opa-gatekeeper/validating-webhook.yaml
+#
+# Pré-requisitos:
+#   - OPA Gatekeeper deve estar instalado no cluster
+#   - As políticas do config.yaml devem estar aplicadas
+
+---
+# ValidatingWebhookConfiguration para o Gatekeeper
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: gatekeeper-validating-webhook-configuration
+  annotations:
+    description: "Webhook de admission do Gatekeeper para validar políticas OPA"
+    neural-hive.io/epic: "Epic-H"
+    neural-hive.io/ticket: "H002"
+webhooks:
+  - name: validation.gatekeeper.sh
+    rules:
+      # Validar Pods
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["pods"]
+        scope: "Namespaced"
+
+      # Validar Deployments
+      - apiGroups: ["apps"]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["deployments"]
+        scope: "Namespaced"
+
+      # Validar StatefulSets
+      - apiGroups: ["apps"]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["statefulsets"]
+        scope: "Namespaced"
+
+      # Validar DaemonSets
+      - apiGroups: ["apps"]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["daemonsets"]
+        scope: "Namespaced"
+
+      # Validar ReplicaSets
+      - apiGroups: ["apps"]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["replicasets"]
+        scope: "Namespaced"
+
+      # Validar Services
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["services"]
+        scope: "Namespaced"
+
+      # Validar ConfigMaps
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["configmaps"]
+        scope: "Namespaced"
+
+      # Validar Secrets
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["secrets"]
+        scope: "Namespaced"
+
+      # Validar Namespaces
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["namespaces"]
+        scope: "Cluster"
+
+      # Validar Ingress
+      - apiGroups: ["networking.k8s.io"]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["ingresses"]
+        scope: "Namespaced"
+
+      # Validar NetworkPolicy
+      - apiGroups: ["networking.k8s.io"]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["networkpolicies"]
+        scope: "Namespaced"
+
+      # Validar PersistentVolumeClaims
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["persistentvolumeclaims"]
+        scope: "Namespaced"
+
+      # Validar RoleBindings
+      - apiGroups: ["rbac.authorization.k8s.io"]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["rolebindings"]
+        scope: "Namespaced"
+
+      # Validar ClusterRoleBindings
+      - apiGroups: ["rbac.authorization.k8s.io"]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["clusterrolebindings"]
+        scope: "Cluster"
+
+      # Validar Custom Resources do Neural Hive-Mind
+      - apiGroups: ["neuralhive.io"]
+        apiVersions: ["v1", "v1alpha1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["cognitiveplans", "executiontickets", "specialistdecisions"]
+        scope: "Namespaced"
+
+      # Validar Istio VirtualServices
+      - apiGroups: ["networking.istio.io"]
+        apiVersions: ["v1beta1", "v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["virtualservices"]
+        scope: "Namespaced"
+
+      # Validar Istio RequestAuthentication
+      - apiGroups: ["security.istio.io"]
+        apiVersions: ["v1beta1", "v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["requestauthentications"]
+        scope: "Namespaced"
+
+      # Validar Istio AuthorizationPolicy
+      - apiGroups: ["security.istio.io"]
+        apiVersions: ["v1beta1", "v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["authorizationpolicies"]
+        scope: "Namespaced"
+
+      # Validar ConstraintTemplates do Gatekeeper
+      - apiGroups: ["templates.gatekeeper.sh"]
+        apiVersions: ["v1", "v1beta1"]
+        operations: ["CREATE", "UPDATE", "DELETE"]
+        resources: ["constrainttemplates"]
+        scope: "Cluster"
+
+      # Validar Constraints do Gatekeeper
+      - apiGroups: ["constraints.gatekeeper.sh"]
+        apiVersions: ["v1beta1"]
+        operations: ["CREATE", "UPDATE", "DELETE"]
+        resources: ["*"]
+        scope: "*"
+
+    clientConfig:
+      # Service do Gatekeeper
+      service:
+        name: gatekeeper-webhook-service
+        namespace: gatekeeper-system
+        path: "/v1/admit"
+        port: 443
+
+      # CA Bundle para comunicação TLS
+      caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUMrekNDQWVPZ0F3SUJBZ0lKQUxNMElVME1LZXJ3TUEwR0NTcUdTSWIzRFFFQkN3VUFNQlF4RWpBUUJnTlYKQkFNTUNXeHZZMkZzYUc5emREQWVGdzB5TkRBeE1ERXdNREF3TURCYUZ3MHlOREF4TURFd01EQXlNREJhTUJReApFakFRQmdOVkJBTU1DV3h2WTJGc2FHOXpkRENDQVNJd0RRWUpLb1pJaHZjTkFRRUJCUUFEZ2dFUEFEQ0NBUW9DCmdnRUJBTHNLR0k3K3l5RmRtSkVkeWV5akxVbXEvTnNRRjZDNU54WVAvdWljbE93UURwS0lKbFZFSnZ3YnFVMHkKZVhiSXNuZXNLN0Q5bUFHZzVhZGhLVXVGYU5HN2N0ZitRTURyMkN0STlKQWJFQkN5anNwTjlXVGg4WDJ3bnVjbgpLMVhJSWd0c3pVMmYrNHpNcnVQaElKMVA1cXlqNEVJc2tUdWZtM3ZsZnBoZkRmNnI3cVY3dnNPWGFUSjJUTGh6CmRLYmlEbm9iSEhiaFJmSHcrQWllY29rRGw5cUtURXJ5NzVPaG1zSWNNVEs4Z01KaVFUcGFaa0tsNzNPYXprVzQKNU1NMU1iV1NIZXBsaUVHMFpkSmRnUFNkM0FFKzhKWXk1dGZoM1BaUnRZWUJTbmhUV3ZMa0ZsTVNNRXhUMGFlQQpwcnBKMEY3Q0F3RUFBYU5aTUZjd0RnWURWUjBQQVFIL0JBUURBZ0trTUE4R0ExVWRFd0VCL3dRRk1BTUJBZjh3CkFFZ0lLQXhnUUJxK2JxSGs4WjlwQXFGVGhHZWN4QXJCbmJXa0xNQVlHQTVWWE9MUU5Bb0RBN1FXN2RRVUhPUkIKR2c3cHlKdjFyQThZWnlsOHJZMGw4bHpzZEcxbEEvWjlhcXVDK1ViMkY5T2xHUT09Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K
+
+    # Timeout para avaliação da política (30 segundos)
+    timeoutSeconds: 30
+
+    # Política de falha: bloquear se o webhook não estiver disponível
+    failurePolicy: Fail
+
+    # Re-admitir recursos já existentes após webhook iniciar
+    sideEffects: None
+
+    # Não validar novamente se já aprovado (performance)
+    admissionReviewVersions: ["v1", "v1beta1"]
+
+    # Match policies para excluir recursos específicos
+    namespaceSelector:
+      matchExpressions:
+        # Excluir namespaces críticos do sistema (mas permitir validação em production/staging)
+        - key: kubernetes.io/metadata.name
+          operator: NotIn
+          values:
+            - kube-system
+            - kube-public
+            - gatekeeper-system
+
+    # Object selector para filtrar recursos específicos
+    objectSelector:
+      matchExpressions:
+        # Validar recursos com label de governança
+        - key: neural-hive.io/governed
+          operator: In
+          values:
+            - "true"
+            - "enforced"
+
+---
+# ValidatingWebhookConfiguration para auditoria (modo warn)
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: gatekeeper-audit-webhook-configuration
+  annotations:
+    description: "Webhook de auditoria do Gatekeeper (modo warn, não bloqueia)"
+webhooks:
+  - name: audit.gatekeeper.sh
+    rules:
+      # Mesmas regras, mas com modo warn
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["pods", "services", "configmaps", "secrets"]
+        scope: "Namespaced"
+
+      - apiGroups: ["apps"]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["deployments", "statefulsets", "daemonsets"]
+        scope: "Namespaced"
+
+      - apiGroups: ["networking.k8s.io"]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["ingresses", "networkpolicies"]
+        scope: "Namespaced"
+
+    clientConfig:
+      service:
+        name: gatekeeper-webhook-service
+        namespace: gatekeeper-system
+        path: "/v1/admit"
+        port: 443
+      caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUMrekNDQWVPZ0F3SUJBZ0lKQUxNMElVME1LZXJ3TUEwR0NTcUdTSWIzRFFFQkN3VUFNQlF4RWpBUUJnTlYKQkFNTUNXeHZZMkZzYUc5emREQWVGdzB5TkRBeE1ERXdNREF3TURCYUZ3MHlOREF4TURFd01EQXlNREJhTUJReApFakFRQmdOVkJBTU1DV3h2WTJGc2FHOXpkRENDQVNJd0RRWUpLb1pJaHZjTkFRRUJCUUFEZ2dFUEFEQ0NBUW9DCmdnRUJBTHNLR0k3K3l5RmRtSkVkeWV5akxVbXEvTnNRRjZDNU54WVAvdWljbE93UURwS0lKbFZFSnZ3YnFVMHkKZVhiSXNuZXNLN0Q5bUFHZzVhZGhLVXVGYU5HN2N0ZitRTURyMkN0STlKQWJFQkN5anNwTjlXVGg4WDJ3bnVjbgpLMVhJSWd0c3pVMmYrNHpNcnVQaElKMVA1cXlqNEVJc2tUdWZtM3ZsZnBoZkRmNnI3cVY3dnNPWGFUSjJUTGh6CmRLYmlEbm9iSEhiaFJmSHcrQWllY29rRGw5cUtURXJ5NzVPaG1zSWNNVEs4Z01KaVFUcGFaa0tsNzNPYXprVzQKNU1NMU1iV1NIZXBsaUVHMFpkSmRnUFNkM0FFKzhKWXk1dGZoM1BaUnRZWUJTbmhUV3ZMa0ZsTVNNRXhUMGFlQQpwcnBKMEY3Q0F3RUFBYU5aTUZjd0RnWURWUjBQQVFIL0JBUURBZ0trTUE4R0ExVWRFd0VCL3dRRk1BTUJBZjh3CkFFZ0lLQXhnUUJxK2JxSGs4WjlwQXFGVGhHZWN4QXJCbmJXa0xNQVlHQTVWWE9MUU5Bb0RBN1FXN2RRVUhPUkIKR2c3cHlKdjFyQThZWnlsOHJZMGw4bHpzZEcxbEEvWjlhcXVDK1ViMkY5T2xHUT09Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K
+
+    timeoutSeconds: 10
+
+    # Política de falha: não bloquear (modo auditoria)
+    failurePolicy: Ignore
+
+    sideEffects: None
+
+    admissionReviewVersions: ["v1", "v1beta1"]
+
+---
+# MutatingWebhookConfiguration para injecção de labels (opcional)
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: gatekeeper-mutating-webhook-configuration
+  annotations:
+    description: "Webhook de mutação do Gatekeeper para injecção automática de labels"
+webhooks:
+  - name: mutation.gatekeeper.sh
+    rules:
+      # Adicionar labels de governança automaticamente
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["pods", "services"]
+        scope: "Namespaced"
+
+    clientConfig:
+      service:
+        name: gatekeeper-webhook-service
+        namespace: gatekeeper-system
+        path: "/v1/mutate"
+        port: 443
+      caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUMrekNDQWVPZ0F3SUJBZ0lKQUxNMElVME1LZXJ3TUEwR0NTcUdTSWIzRFFFQkN3VUFNQlF4RWpBUUJnTlYKQkFNTUNXeHZZMkZzYUc5emREQWVGdzB5TkRBeE1ERXdNREF3TURCYUZ3MHlOREF4TURFd01EQXlNREJhTUJReApFakFRQmdOVkJBTU1DV3h2WTJGc2FHOXpkRENDQVNJd0RRWUpLb1pJaHZjTkFRRUJCUUFEZ2dFUEFEQ0NBUW9DCmdnRUJBTHNLR0k3K3l5RmRtSkVkeWV5akxVbXEvTnNRRjZDNU54WVAvdWljbE93UURwS0lKbFZFSnZ3YnFVMHkKZVhiSXNuZXNLN0Q5bUFHZzVhZGhLVXVGYU5HN2N0ZitRTURyMkN0STlKQWJFQkN5anNwTjlXVGg4WDJ3bnVjbgpLMVhJSWd0c3pVMmYrNHpNcnVQaElKMVA1cXlqNEVJc2tUdWZtM3ZsZnBoZkRmNnI3cVY3dnNPWGFUSjJUTGh6CmRLYmlEbm9iSEhiaFJmSHcrQWllY29rRGw5cUtURXJ5NzVPaG1zSWNNVEs4Z01KaVFUcGFaa0tsNzNPYXprVzQKNU1NMU1iV1NIZXBsaUVHMFpkSmRnUFNkM0FFKzhKWXk1dGZoM1BaUnRZWUJTbmhUV3ZMa0ZsTVNNRXhUMGFlQQpwcnBKMEY3Q0F3RUFBYU5aTUZjd0RnWURWUjBQQVFIL0JBUURBZ0trTUE4R0ExVWRFd0VCL3dRRk1BTUJBZjh3CkFFZ0lLQXhnUUJxK2JxSGs4WjlwQXFGVGhHZWN4QXJCbmJXa0xNQVlHQTVWWE9MUU5Bb0RBN1FXN2RRVUhPUkIKR2c3cHlKdjFyQThZWnlsOHJZMGw4bHpzZEcxbEEvWjlhcXVDK1ViMkY5T2xHUT09Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K
+
+    timeoutSeconds: 10
+
+    failurePolicy: Ignore
+
+    sideEffects: None
+
+    admissionReviewVersions: ["v1", "v1beta1"]
+
+---
+# ConfigMap para configuração adicional do Gatekeeper
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gatekeeper-config
+  namespace: gatekeeper-system
+  annotations:
+    neural-hive.io/epic: "Epic-H"
+data:
+  # Intervalo de sincronização de recursos (default: 60s)
+  sync-sync-period: "30s"
+
+  # Limite de concorrência para processamento de admission reviews
+  admission-controller-sync-period: "30s"
+
+  # Habilitar dump de logs para troubleshooting (desabilitar em produção)
+  enable-tracing: "false"
+
+  # Nível de log (DEBUG, INFO, WARNING, ERROR)
+  log-level: "INFO"
+
+  # Máximo de eventos a serem processados em paralelo
+  max-workers-threads: "10"
+
+  # Timeout para execução de políticas
+  constraint-violation-limit: "100"
+
+  # Configuração de audit
+  audit-match-kind-only: "false"
+  audit-chunk-size: "500"
+  constraint-violations-limit: "100"
+
+  # Lista de namespaces excluídos da validação (separados por vírgula)
+  excluded-namespaces: "kube-system,kube-public,kube-node-lease,gatekeeper-system"
+
+  # Label para identificar recursos gerenciados pelo Gatekeeper
+  managed-by-label: "gatekeeper.sh/managed"
+
+---
+# Secret para TLS do webhook (placeholder - gerar pelo cert-manager ou pelo próprio Gatekeeper)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: gatekeeper-webhook-server-cert
+  namespace: gatekeeper-system
+  annotations:
+    neural-hive.io/instruction: "Em produção, gerar certificado válido via cert-manager ou pelo Gatekeeper"
+type: kubernetes.io/tls
+data:
+  # Placeholder - gerar certificados reais em produção
+  tls.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUMrekNDQWVPZ0F3SUJBZ0lKQUxNMElVME1LZXJ3TUEwR0NTcUdTSWIzRFFFQkN3VUFNQlF4RWpBUUJnTlYKQkFNTUNXeHZZMkZzYUc5emREQWVGdzB5TkRBeE1ERXdNREF3TURCYUZ3MHlOREF4TURFd01EQXlNREJhTUJReApFakFRQmdOVkJBTU1DV3h2WTJGc2FHOXpkRENDQVNJd0RRWUpLb1pJaHZjTkFRRUJCUUFEZ2dFUEFEQ0NBUW9DCmdnRUJBTHNLR0k3K3l5RmRtSkVkeWV5akxVbXEvTnNRRjZDNU54WVAvdWljbE93UURwS0lKbFZFSnZ3YnFVMHkKZVhiSXNuZXNLN0Q5bUFHZzVhZGhLVXVGYU5HN2N0ZitRTURyMkN0STlKQWJFQkN5anNwTjlXVGg4WDJ3bnVjbgpLMVhJSWd0c3pVMmYrNHpNcnVQaElKMVA1cXlqNEVJc2tUdWZtM3ZsZnBoZkRmNnI3cVY3dnNPWGFUSjJUTGh6CmRLYmlEbm9iSEhiaFJmSHcrQWllY29rRGw5cUtURXJ5NzVPaG1zSWNNVEs4Z01KaVFUcGFaa0tsNzNPYXprVzQKNU1NMU1iV1NIZXBsaUVHMFpkSmRnUFNkM0FFKzhKWXk1dGZoM1BaUnRZWUJTbmhUV3ZMa0ZsTVNNRXhUMGFlQQpwcnBKMEY3Q0F3RUFBYU5aTUZjd0RnWURWUjBQQVFIL0JBUURBZ0trTUE4R0ExVWRFd0VCL3dRRk1BTUJBZjh3CkFFZ0lLQXhnUUJxK2JxSGs4WjlwQXFGVGhHZWN4QXJCbmJXa0xNQVlHQTVWWE9MUU5Bb0RBN1FXN2RRVUhPUkIKR2c3cHlKdjFyQThZWnlsOHJZMGw4bHpzZEcxbEEvWjlhcXVDK1ViMkY5T2xHUT09Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K
+  tls.key: LS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0tCk1JSUV2Z0lCQURBTkJna3Foa2lHOXcwQkFRRUZBQVNDQktnd2dnU2tBZ0VBQW9JQkFRQzdPNFBCa0VTY29uRDUKRmhJQk9YU3h3eURubmdHNmVha3N4VFRlOFpYTXNtQ0xLQ0gzVGNVWjNDRHArSGlMcE1xTXYzSW8xL29UZwpkTm16Mnp6UUNuUkNBT2hRZnF5TnVHcFlLZE5JY0FYUm1sVFBrMUNRbFBhWXVKVnBMT0VoZnhCZ25ycU5uUFErCjZuTXA5cTVPZ0dRRHc2dmprWWw0U3pSWkxxVmMxUGxFanpPUXIySzV6VHRvN0VxYzVwaUZ3c2gvTUVpK3VKQ2sKNktKTk9MdERFMEpKd2J1VlVHRHNKY3NZZ3VuMVpXZVNvNHJiSFRaWmJvOGJ2ZWt0SFRjRGQybWUyZytEc09ORgo1YU5aSHV4WUxRNzAzTUNiWHFBV3l5SmpBdlR4TmxQR2tNSDJxN3JuL2k4c29Rdk9WTGIrYlJzZDlVaTRaCjB5WGZ4L0FOQmdFQ2lHQUErVzRXeVZlSGdZbUV6NzRRQU9JQkFRQ3dEUVlKS29aSWh2Y05BUWtDQVdZWUwKQzB3ekJsMUNBUUdLQWZ6ekNDQWdXQWlFQTFMUzFqZzR4U3R1UEtBaE5DV3plRHByN0VKV1NHaHVpSWRKSQpxV0lrZm5uZndSZ2lQWlZLR2VuNHBEMW54aGNURXZCSHdhQXFCUXVOZVFFUUtCZ1FELzhDcTN4RStMTzgvVmJFCjNNSmlpbDNTU2RTVVRpZ2hOSFl2NFJ4bjJLRkxLanE4SGNRTHZVbllwNU9zTmV4V2ZMTnhnTjJYVDNZSW5ZdVAKK2NGdG53QlV4SGpVQ0lLbDRTUVNDZ1lEQVFsQ0FRWUJDS2dVUUEwSUdBUUVFUmdEcGhSb0tLOXI1NnBjWApjTkNNSmpBZ0dCaG94bmFJcmM1cW5ZcXpnT0ZaUElSWlJsQUtPUHVaZnRSQk5oWHBIYmtEU3JJRHl0c3I0ZGVDCnVLZUMvNFFlUk53M0lJY2tYUHlaUHRVQk05N3MwM1VGbHZsT2h5STViTzlUb1g1YlhBaVduSGdBNGdYR3NVcFIKWndLRzJKd3pGYVJDaW93S0JjUUF3RUFBYU1aTUZrd0V3WURWUjBQQVFIL0JnTXlEVGd3Q0FRRUZCUUVCQkFOQwpBUUVZRUxMRWZTS3lrZ3JMQWRVRG9vOWx0RktBWU9tU1FaN3FlWVd5VmZ2MEluWTdvTjJWRW5tVkZhRStFYXVCCmd2blR1d0piN0VIYlN4K0VOWnppY2tsVG90UUF6UmdpcnRQRTMxZDRlbjB4UlA5eWhZV0VWbFRMQXBZS2FtTFUKRlViWFFpRjBIaFBoY2trNExWUkJBTVBBeGRsYjBrN0V0NjBoVDNuMnV5UWhRS0JnUURJZ1krRVZqaXdaTgpjdElza1A1WENrYnBoSG1NTkNHM2FhN0ZjdVhPbVpMZ1JGRDR3L25wVFJ4cURtN0VpS1d1cnh3TnV6TjVwCjRjYjl3aDBySWp2Y3lGQjVVYUZFRGdkN2llZFlxT2VHTGZabVVSSURmU09TTG1CZ0VnQVNBUUJBQWdGQlFJCkFnRUVBN0lCQVFDSGFnUUtCSW5uOXJnb3FpMFJpdm5YYnJvQ0ZHNnUzQUpXYnpyNUFxYi9mdUFqaFdiOGVCc0UKQ3hwR2xvYnZoSUpaY05xLzZxdGVLZGowZWJWSmJzNEdSdzN1eE5VTUN3N1Y0bElJbFVXU1dBb3d5eDc5WgpYUDd3ZXkrUjlROGJHVWV2TXo2a1NVT3hXdTJMbU9zSWh3UUNBUVlPL1BkQXpHTUFvR0NDcUdTTTQ5QkFNQQpMd2djTXhDekFKQmdOVkJBWVRBa0ZWTVJNd0VRWURWUVFJREFwVGIyMXRjM1JsY2pFU01CUUdDQVNHQ0VRQ0JnCkdDQWdVQTBFQkFNQkFHQTRBUVdBTlZBR0NXQ0J6QUhNelZHSTFOREE0TUNBZ0V3MHhNVEF4TURBeU1UQTJXaDUKTWpBME1UTXdXaGNOTXpJRE1qQXdNREF3TVRBd1dqQXpNVGt4TkRjNE1qRTJXaGNOTXpJRE1qQXdNREF3TVRBCl1qY3pOVEF4TWpjNE1qSTJXaGNOTXpJRE1qQXdNREF3TVRBd1dqQXpNVGt4TkRjNE1qRTJXaGNOTXpJRE1qQXcKTURBd1NUUWdNQTBHQ1NxR1NJYjNEUUVCQ3dVQUE0SUJBUUJBT2cvTjdXbVROOEFBRFRNTGJreGVaaG52RgpEbmZ2QStoQVArN0VLcU80UnM0WmdyUEJhVHBUaTNxR3BsQkRiRWpIcDlLeFlTQk9CR1FpRzJ2MEU3V2NlCmx5NEV2OGJZSDdBZ25TMnpRNHRNaEFGMVVNN2xYdk0zQ0JKTFROZzhjd0pCVG4zTFpXZjJwTWpUTU02VGlXaGIKdExPZ1lGSzF1TE1RS0w3bmtRZz09Ci0tLS0tRU5EIFBSSVZBVEUgS0VZLS0tLS0K
+
+---
+# Service para o webhook do Gatekeeper
+apiVersion: v1
+kind: Service
+metadata:
+  name: gatekeeper-webhook-service
+  namespace: gatekeeper-system
+  annotations:
+    neural-hive.io/epic: "Epic-H"
+    neural-hive.io/ticket: "H002"
+  labels:
+    app: gatekeeper
+    gatekeeper.sh/system: "yes"
+spec:
+  type: ClusterIP
+  ports:
+    - name: https-webhook
+      port: 443
+      targetPort: 8443
+      protocol: TCP
+    - name: https-mutation
+      port: 443
+      targetPort: 8443
+      protocol: TCP
+  selector:
+    app: gatekeeper
+    gatekeeper.sh/system: "yes"
+    control-plane: controller-manager
+
+---
+# Role para ler ConfigMaps e Secrets (para validação)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: gatekeeper-manager-role
+  annotations:
+    neural-hive.io/epic: "Epic-H"
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps", "secrets"]
+    verbs: ["get", "list", "watch"]
+
+  - apiGroups: ["admissionregistration.k8s.io"]
+    resources: ["validatingwebhookconfigurations", "mutatingwebhookconfigurations"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+  - apiGroups: ["templates.gatekeeper.sh"]
+    resources: ["constrainttemplates"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+  - apiGroups: ["constraints.gatekeeper.sh"]
+    resources: ["*"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list", "watch"]
+
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets", "daemonsets"]
+    verbs: ["get", "list", "watch"]
+
+---
+# ClusterRoleBinding para o Gatekeeper
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: gatekeeper-manager-rolebinding
+  annotations:
+    neural-hive.io/epic: "Epic-H"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: gatekeeper-manager-role
+subjects:
+  - kind: ServiceAccount
+    name: gatekeeper-admin
+    namespace: gatekeeper-system

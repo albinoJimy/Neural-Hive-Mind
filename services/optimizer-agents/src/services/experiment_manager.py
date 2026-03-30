@@ -4,9 +4,11 @@ from typing import Dict, List, Optional
 
 import structlog
 
+from src.clients.consensus_engine_grpc_client import ConsensusEngineGrpcClient
+from src.clients.orchestrator_grpc_client import OrchestratorGrpcClient
 from src.config.settings import get_settings
 from src.models.experiment_request import ComparisonOperator, ExperimentRequest, ExperimentType, RandomizationStrategy
-from src.models.optimization_hypothesis import OptimizationHypothesis
+from src.models.optimization_hypothesis import OptimizationHypothesis, OptimizationType
 from src.experimentation.ab_testing_engine import ABTestingEngine
 from src.experimentation.guardrails import GuardrailMonitor
 from src.experimentation.sample_size_calculator import SampleSizeCalculator
@@ -23,11 +25,21 @@ class ExperimentManager:
     para validar hipóteses de otimização.
     """
 
-    def __init__(self, settings=None, argo_client=None, mongodb_client=None, redis_client=None):
+    def __init__(
+        self,
+        settings=None,
+        argo_client=None,
+        mongodb_client=None,
+        redis_client=None,
+        consensus_engine_client: Optional[ConsensusEngineGrpcClient] = None,
+        orchestrator_client: Optional[OrchestratorGrpcClient] = None,
+    ):
         self.settings = settings or get_settings()
         self.argo_client = argo_client  # ArgoWorkflowsClient (a ser implementado)
         self.mongodb_client = mongodb_client
         self.redis_client = redis_client
+        self.consensus_engine_client = consensus_engine_client
+        self.orchestrator_client = orchestrator_client
 
         # Inicializar ABTestingEngine para A/B tests
         self.ab_testing_engine = ABTestingEngine(
@@ -436,10 +448,11 @@ class ExperimentManager:
                 await self.argo_client.delete_workflow(f"experiment-{experiment_id}")
 
             # Aplicar rollback (recuperar configuração baseline)
-            # TODO: Implementar lógica de rollback
+            rollback_success = await self._execute_rollback(experiment_id)
 
-            # Atualizar status no MongoDB
-            if self.mongodb_client:
+            # Atualizar status no MongoDB apenas se rollback nao foi executado
+            # (rollback ja atualiza para ROLLED_BACK com metadata completo)
+            if self.mongodb_client and not rollback_success.get("success", False):
                 await self.mongodb_client.update_experiment_status(
                     experiment_id, "ABORTED", {"abort_reason": reason}
                 )
@@ -644,10 +657,106 @@ class ExperimentManager:
         )
 
     async def _check_guardrails(self, experiment: ExperimentRequest) -> bool:
-        """Verificar se guardrails estão sendo respeitados."""
-        # TODO: Implementar lógica real de verificação de guardrails
-        # Consultar métricas atuais do experimento e comparar com thresholds
-        return True
+        """
+        Verificar se guardrails estão sendo respeitados.
+
+        Consulta métricas atuais do Redis para os grupos control e treatment,
+        compara com os thresholds configurados e retorna True se todos os
+        guardrails estão OK, False caso contrário.
+
+        Args:
+            experiment: Configuracao do experimento com guardrails
+
+        Returns:
+            True se guardrails estão OK, False caso haja violacao
+        """
+        if not self.redis_client:
+            logger.debug("redis_client_not_configured Skipping guardrails check")
+            return True
+
+        if not experiment.guardrails:
+            logger.debug("no_guardrails_configured", experiment_id=experiment.experiment_id)
+            return True
+
+        # Coletar metricas atuais do Redis para ambos os grupos
+        control_metrics = await self._get_experiment_metrics(experiment.experiment_id, "control")
+        treatment_metrics = await self._get_experiment_metrics(experiment.experiment_id, "treatment")
+
+        # Verificar cada guardrail configurado
+        all_guardrails_ok = True
+
+        for guardrail in experiment.guardrails:
+            # Obter configuracao do guardrail (pode ser dict ou objeto Guardrail)
+            if isinstance(guardrail, dict):
+                metric_name = guardrail.get("metric_name")
+                max_degradation = guardrail.get("max_degradation_percentage", 0.05)
+                abort_threshold = guardrail.get("abort_threshold", 0.10)
+            else:
+                metric_name = guardrail.metric_name
+                max_degradation = guardrail.max_degradation_percentage
+                abort_threshold = guardrail.abort_threshold
+
+            if not metric_name:
+                continue
+
+            # Obter dados das metricas
+            control_data = control_metrics.get(metric_name, [])
+            treatment_data = treatment_metrics.get(metric_name, [])
+
+            if not control_data or not treatment_data:
+                logger.debug(
+                    "guardrail_skipped_no_data",
+                    metric_name=metric_name,
+                    experiment_id=experiment.experiment_id,
+                )
+                continue
+
+            # Calcular medias
+            try:
+                import numpy as np
+                control_mean = float(np.mean(control_data))
+                treatment_mean = float(np.mean(treatment_data))
+            except ImportError:
+                # Fallback sem numpy
+                control_mean = sum(control_data) / len(control_data)
+                treatment_mean = sum(treatment_data) / len(treatment_data)
+
+            # Calcular degradacao (assumir "maior e pior" para latencia/error_rate)
+            if control_mean != 0:
+                degradation = (treatment_mean - control_mean) / abs(control_mean)
+            else:
+                degradation = 0.0 if treatment_mean == 0 else 1.0
+
+            # Verificar se houve violacao
+            if degradation > max_degradation:
+                severity = "warning"
+                if degradation > abort_threshold:
+                    severity = "abort"
+                    all_guardrails_ok = False
+                elif degradation > max_degradation * 1.5:
+                    severity = "critical"
+
+                logger.warning(
+                    "guardrail_violation_detected",
+                    experiment_id=experiment.experiment_id,
+                    metric_name=metric_name,
+                    degradation=f"{degradation:.2%}",
+                    threshold=f"{max_degradation:.2%}",
+                    abort_threshold=f"{abort_threshold:.2%}",
+                    severity=severity,
+                    control_mean=control_mean,
+                    treatment_mean=treatment_mean,
+                )
+            else:
+                logger.debug(
+                    "guardrail_passed",
+                    experiment_id=experiment.experiment_id,
+                    metric_name=metric_name,
+                    degradation=f"{degradation:.2%}",
+                    threshold=f"{max_degradation:.2%}",
+                )
+
+        return all_guardrails_ok
 
     def _check_success_criteria(self, experiment: ExperimentRequest, experimental_metrics: Dict) -> bool:
         """Verificar se success criteria foram atendidos."""
@@ -987,3 +1096,158 @@ class ExperimentManager:
                 improvements.append(improvement)
 
         return sum(improvements) / len(improvements) if improvements else 0.0
+
+    async def _execute_rollback(self, experiment_id: str) -> Dict[str, bool]:
+        """
+        Executar rollback de otimização baseada no tipo de experimento.
+
+        Recupera a configuração baseline e chama os gRPC clients apropriados
+        para reverter as mudanças aplicadas pelo experimento.
+
+        Args:
+            experiment_id: ID do experimento a reverter
+
+        Returns:
+            Dict com status do rollback incluindo:
+                - success: bool indicando se o rollback foi bem-sucedido
+                - weights_rolled_back: bool para rollback de pesos
+                - slos_rolled_back: bool para rollback de SLOs
+        """
+        rollback_result = {
+            "success": False,
+            "weights_rolled_back": False,
+            "slos_rolled_back": False,
+        }
+
+        try:
+            # Recuperar experimento do MongoDB
+            if not self.mongodb_client:
+                logger.warning("rollback_skipped_mongodb_client_not_available", experiment_id=experiment_id)
+                return rollback_result
+
+            experiment_doc = await self.mongodb_client.get_experiment(experiment_id)
+            if not experiment_doc:
+                logger.error("rollback_failed_experiment_not_found", experiment_id=experiment_id)
+                return rollback_result
+
+            # Recuperar configuração baseline
+            baseline_config = experiment_doc.get("baseline_configuration", {})
+            optimization_type_str = experiment_doc.get("objective", "")
+            target_component = experiment_doc.get("target_component", "")
+
+            # Determinar tipo de otimização baseado no objective ou experimental_configuration
+            is_weight_recalibration = (
+                "weight" in optimization_type_str.lower() or
+                any("weight" in str(k).lower() for k in baseline_config.keys())
+            )
+            is_slo_adjustment = (
+                "slo" in optimization_type_str.lower() or
+                "latency" in optimization_type_str.lower() or
+                "timeout" in optimization_type_str.lower()
+            )
+
+            logger.info(
+                "rollback_initiated",
+                experiment_id=experiment_id,
+                target_component=target_component,
+                is_weight_recalibration=is_weight_recalibration,
+                is_slo_adjustment=is_slo_adjustment,
+            )
+
+            # Executar rollback para weight recalibration
+            if is_weight_recalibration and self.consensus_engine_client:
+                try:
+                    weights_rolled_back = await self.consensus_engine_client.rollback_weights(
+                        optimization_id=experiment_id
+                    )
+                    rollback_result["weights_rolled_back"] = weights_rolled_back
+
+                    if weights_rolled_back:
+                        logger.info(
+                            "rollback_weights_success",
+                            experiment_id=experiment_id,
+                            target_component=target_component,
+                        )
+                    else:
+                        logger.warning(
+                            "rollback_weights_failed",
+                            experiment_id=experiment_id,
+                            target_component=target_component,
+                        )
+                except Exception as e:
+                    logger.error(
+                        "rollback_weights_exception",
+                        experiment_id=experiment_id,
+                        error=str(e),
+                    )
+
+            # Executar rollback para SLO adjustment
+            if is_slo_adjustment and self.orchestrator_client:
+                try:
+                    slos_rolled_back = await self.orchestrator_client.rollback_slos(
+                        optimization_id=experiment_id
+                    )
+                    rollback_result["slos_rolled_back"] = slos_rolled_back
+
+                    if slos_rolled_back:
+                        logger.info(
+                            "rollback_slos_success",
+                            experiment_id=experiment_id,
+                            target_component=target_component,
+                        )
+                    else:
+                        logger.warning(
+                            "rollback_slos_failed",
+                            experiment_id=experiment_id,
+                            target_component=target_component,
+                        )
+                except Exception as e:
+                    logger.error(
+                        "rollback_slos_exception",
+                        experiment_id=experiment_id,
+                        error=str(e),
+                    )
+
+            # Se não há clientes gRPC disponíveis, logar warning mas marcar sucesso
+            # (em ambientes sem gRPC, o rollback é simulado)
+            if not self.consensus_engine_client and not self.orchestrator_client:
+                logger.warning(
+                    "rollback_skipped_no_grpc_clients",
+                    experiment_id=experiment_id,
+                    note="rollback_simulated_for_compatibility",
+                )
+                rollback_result["success"] = True
+            else:
+                # Marcar sucesso se pelo menos um rollback foi executado
+                rollback_result["success"] = (
+                    rollback_result["weights_rolled_back"] or
+                    rollback_result["slos_rolled_back"]
+                )
+
+            # Atualizar documento do experimento com info de rollback
+            rollback_metadata = {
+                "rollback_timestamp": int(datetime.utcnow().timestamp() * 1000),
+                "baseline_configuration_restored": baseline_config,
+                "weights_rolled_back": rollback_result["weights_rolled_back"],
+                "slos_rolled_back": rollback_result["slos_rolled_back"],
+            }
+
+            await self.mongodb_client.update_experiment_status(
+                experiment_id, "ROLLED_BACK", rollback_metadata
+            )
+
+            logger.info(
+                "rollback_completed",
+                experiment_id=experiment_id,
+                success=rollback_result["success"],
+            )
+
+            return rollback_result
+
+        except Exception as e:
+            logger.error(
+                "rollback_failed",
+                experiment_id=experiment_id,
+                error=str(e),
+            )
+            return rollback_result

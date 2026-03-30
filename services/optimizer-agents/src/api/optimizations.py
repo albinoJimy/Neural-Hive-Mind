@@ -6,7 +6,10 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
-from src.repositories.optimization_repository import OptimizationRepository, get_repository
+from src.repositories.optimization_repository import (
+    OptimizationRepository,
+    get_repository,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/optimizations", tags=["optimizations"])
@@ -27,6 +30,7 @@ async def get_optimization_repository() -> OptimizationRepository:
 # Models Request/Response
 class RecommendationListResponse(BaseModel):
     """Resposta da lista de recomendações."""
+
     total: int
     offset: int
     limit: int
@@ -35,6 +39,7 @@ class RecommendationListResponse(BaseModel):
 
 class RecommendationResponse(BaseModel):
     """Resposta detalhada de recomendação."""
+
     id: str
     ticket_id: str
     workflow_id: str
@@ -47,18 +52,21 @@ class RecommendationResponse(BaseModel):
 
 class ApproveRequest(BaseModel):
     """Request para aprovar recomendação."""
+
     recommendation_ids: List[str] = Field(..., min_items=1)
     approved_by: str
 
 
 class ApplyRequest(BaseModel):
     """Request para aplicar otimização."""
+
     recommendation_ids: List[str] = Field(..., min_items=1)
     validate: bool = True
 
 
 class MetricsResponse(BaseModel):
     """Resposta de métricas."""
+
     period: dict
     summary: dict
     performance: dict
@@ -67,6 +75,7 @@ class MetricsResponse(BaseModel):
 
 class DashboardResponse(BaseModel):
     """Resposta do dashboard."""
+
     total_recommendations: int
     pending_approval: int
     applied: int
@@ -96,7 +105,9 @@ async def list_recommendations(
     return RecommendationListResponse(**result)
 
 
-@router.get("/recommendations/{recommendation_id}", response_model=RecommendationResponse)
+@router.get(
+    "/recommendations/{recommendation_id}", response_model=RecommendationResponse
+)
 async def get_recommendation(
     recommendation_id: str,
     repo: OptimizationRepository = Depends(get_optimization_repository),
@@ -145,7 +156,9 @@ async def apply_recommendation(
         raise HTTPException(status_code=404, detail="Recommendation not found")
 
     if rec.get("status") != "approved":
-        raise HTTPException(status_code=400, detail="Recommendation must be approved first")
+        raise HTTPException(
+            status_code=400, detail="Recommendation must be approved first"
+        )
 
     # Aplicar
     success = await repo.update_status(recommendation_id, "applied")
@@ -171,6 +184,9 @@ async def get_metrics(
     """Obtém métricas agregadas de otimizações."""
     metrics = await repo.get_metrics(from_date=from_date, to_date=to_date)
 
+    # Obter top issues do dashboard data
+    dashboard_data = await repo.get_dashboard_data()
+
     return {
         "period": {
             "from": from_date.isoformat() if from_date else None,
@@ -185,10 +201,10 @@ async def get_metrics(
         },
         "performance": {
             "avg_improvement_pct": metrics["avg_improvement_pct"],
-            "total_time_saved_ms": 0,  # TODO: Calcular
-            "best_improvement_pct": 0,  # TODO: Calcular
+            "total_time_saved_ms": metrics.get("total_time_saved_ms", 0),
+            "best_improvement_pct": metrics.get("best_improvement_pct", 0),
         },
-        "top_issues": [],  # TODO: Implementar
+        "top_issues": dashboard_data.get("top_issue_types", []),
     }
 
 

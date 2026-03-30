@@ -1,0 +1,15 @@
+apiVersion: v2
+name: approval-service
+description: Approval Service - Servico de Aprovacao Humana para Cognitive Plans
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+maintainers:
+  - name: Neural Hive-Mind Team
+    email: team@neuralhive.io
+keywords:
+  - neural-hive-mind
+  - approval-service
+  - approval
+  - human-in-the-loop
+  - cognitive-plans

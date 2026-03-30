@@ -1,0 +1,62 @@
+# =============================================================================
+# Neural Hive-Mind - Kubernetes Context EU West 1
+# =============================================================================
+# Contexto para cluster terciário em eu-west-1 (compliance GDPR)
+# =============================================================================
+
+apiVersion: v1
+kind: Config
+clusters:
+  - name: neural-hive-eu
+    cluster:
+      # Substituir com valores reais após criar o cluster
+      server: https://ABCDEF123456.gr7.eu-west-1.eks.amazonaws.com
+      certificate-authority-data: LS0tLS1CRUdJTi...
+
+# -----------------------------------------------------------------------------
+# Users
+# -----------------------------------------------------------------------------
+users:
+  - name: neural-hive-admin-eu
+    user:
+      execProvider:
+        apiVersion: client.authentication.k8s.io/v1beta1
+        command: aws
+        args:
+          - eks
+          - get-token
+          - --cluster-name
+          - neural-hive-eu
+          - --region
+          - eu-west-1
+        env:
+          - name: AWS_PROFILE
+            value: nhm-prod
+
+# -----------------------------------------------------------------------------
+# Contexts
+# -----------------------------------------------------------------------------
+contexts:
+  - name: neural-hive-eu
+    context:
+      cluster: neural-hive-eu
+      user: neural-hive-admin-eu
+      namespace: neural-hive-mind
+
+# -----------------------------------------------------------------------------
+# Current Context
+# -----------------------------------------------------------------------------
+current-context: neural-hive-eu
+
+# -----------------------------------------------------------------------------
+# Namespace
+# -----------------------------------------------------------------------------
+# O namespace neural-hive-mind deve ser criado separadamente
+# kubectl create namespace neural-hive-mind --context=neural-hive-eu
+
+# -----------------------------------------------------------------------------
+# GDPR Compliance Labels
+# -----------------------------------------------------------------------------
+# Resources neste cluster devem ter labels:
+# - compliance: "gdpr"
+# - data-residency: "eu"

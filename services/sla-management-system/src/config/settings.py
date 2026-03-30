@@ -7,6 +7,8 @@ from typing import List, Dict, Any, Optional
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings
 
+from neural_hive_security.cors import CORSConfig
+
 
 class PrometheusSettings(BaseSettings):
     """Configurações do Prometheus."""
@@ -139,6 +141,7 @@ class Settings(BaseSettings):
     environment: str = Field(default="production")
     log_level: str = Field(default="INFO")
     debug: bool = Field(default=False)
+    is_public_api: bool = Field(default=True, description="API pública requer CORS")
     allow_insecure_http_endpoints: bool = Field(
         default=False,
         description="Allow insecure HTTP endpoints in production (for internal cluster communication)"
@@ -159,6 +162,16 @@ class Settings(BaseSettings):
         "env_nested_delimiter": "__",
         "case_sensitive": False
     }
+
+    @property
+    def CORS_ORIGINS(self) -> List[str]:
+        """
+        CORS origins dinâmicas por ambiente usando neural_hive_security.
+        """
+        return CORSConfig.get_origins_for_environment(
+            self.environment,
+            is_public_api=self.is_public_api
+        )
 
     @model_validator(mode='after')
     def validate_https_in_production(self) -> 'Settings':

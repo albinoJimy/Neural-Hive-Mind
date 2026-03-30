@@ -81,7 +81,7 @@ class SignalDetector:
                 source=SignalSource(
                     channel=channel,
                     device_id=event.metadata.get('device_id'),
-                    geolocation=None  # TODO: Extract from event if available
+                    geolocation=self._extract_geolocation(event)
                 ),
                 curiosity_score=curiosity_score,
                 confidence=confidence_score,
@@ -331,3 +331,106 @@ class SignalDetector:
             return True
 
         return False
+
+    def _extract_geolocation(self, event: RawEvent) -> Optional['Geolocation']:
+        """
+        Extract geolocation from event metadata or payload
+
+        Args:
+            event: Raw event to extract geolocation from
+
+        Returns:
+            Geolocation if valid coordinates found, None otherwise
+        """
+        from ..models.scout_signal import Geolocation
+
+        # Priority 1: Check metadata for geolocation
+        geo_data = event.metadata.get('geolocation') or event.metadata.get('location')
+
+        if geo_data:
+            geo = self._parse_geolocation_data(geo_data)
+            if geo:
+                return geo
+
+        # Priority 2: Check payload for common geolocation fields
+        geo_keys = ['latitude', 'lat', 'longitude', 'lon', 'lng', 'long']
+        payload = event.payload
+
+        lat = None
+        lon = None
+
+        # Find latitude
+        for key in ['latitude', 'lat']:
+            if key in payload:
+                try:
+                    lat = float(payload[key])
+                    break
+                except (ValueError, TypeError):
+                    continue
+
+        # Find longitude
+        for key in ['longitude', 'lon', 'lng', 'long']:
+            if key in payload:
+                try:
+                    lon = float(payload[key])
+                    break
+                except (ValueError, TypeError):
+                    continue
+
+        # Validate and return geolocation if both coordinates found
+        if lat is not None and lon is not None:
+            try:
+                return Geolocation(latitude=lat, longitude=lon)
+            except ValueError:
+                pass  # Invalid coordinates
+
+        # Priority 3: Check nested location objects in payload
+        for key in ['location', 'geo', 'position', 'coordinates']:
+            if key in payload and isinstance(payload[key], dict):
+                geo = self._parse_geolocation_data(payload[key])
+                if geo:
+                    return geo
+
+        return None
+
+    def _parse_geolocation_data(self, data: Any) -> Optional['Geolocation']:
+        """
+        Parse geolocation data from various formats
+
+        Args:
+            data: Geolocation data (dict, list, or string)
+
+        Returns:
+            Geolocation if valid, None otherwise
+        """
+        from ..models.scout_signal import Geolocation
+
+        if isinstance(data, dict):
+            lat = data.get('latitude') or data.get('lat')
+            lon = data.get('longitude') or data.get('lon') or data.get('lng') or data.get('long')
+
+            if lat is not None and lon is not None:
+                try:
+                    return Geolocation(latitude=float(lat), longitude=float(lon))
+                except (ValueError, TypeError):
+                    pass
+
+        elif isinstance(data, (list, tuple)) and len(data) >= 2:
+            # GeoJSON format: [longitude, latitude] or [latitude, longitude]
+            try:
+                lat, lon = float(data[0]), float(data[1])
+                return Geolocation(latitude=lat, longitude=lon)
+            except (ValueError, TypeError, IndexError):
+                pass
+
+        elif isinstance(data, str):
+            # Parse string formats like "lat,lon" or "lat lon"
+            parts = data.replace(',', ' ').split()
+            if len(parts) >= 2:
+                try:
+                    lat, lon = float(parts[0]), float(parts[1])
+                    return Geolocation(latitude=lat, longitude=lon)
+                except (ValueError, TypeError):
+                    pass
+
+        return None

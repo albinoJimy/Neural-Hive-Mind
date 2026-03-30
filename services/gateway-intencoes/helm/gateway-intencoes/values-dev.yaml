@@ -1,0 +1,23 @@
+replicaCount: 1
+
+image:
+  tag: "dev"
+
+service:
+  type: ClusterIP  # Interno em dev
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    cpu: 200m
+    memory: 256Mi
+
+autoscaling:
+  enabled: false
+
+env:
+  ENVIRONMENT: development
+  LOG_LEVEL: DEBUG
+  ENABLE_TRACING: "false"

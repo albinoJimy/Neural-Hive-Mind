@@ -253,13 +253,13 @@ def create_app() -> FastAPI:
         lifespan=lifespan
     )
 
-    # Middleware CORS
+    # Middleware CORS - usa configuração segura por ambiente via neural_hive_security
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=['*'],  # Configurar adequadamente em produção
+        allow_origins=settings.CORS_ORIGINS,
         allow_credentials=True,
-        allow_methods=['*'],
-        allow_headers=['*'],
+        allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+        allow_headers=["*"],
     )
 
     # Registrar routers

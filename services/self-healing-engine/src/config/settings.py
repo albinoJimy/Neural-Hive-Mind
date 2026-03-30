@@ -1,4 +1,5 @@
 from functools import lru_cache
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -69,11 +70,29 @@ class Settings(BaseSettings):
     opa_max_concurrent_evaluations: int = 20
 
     # Chaos Engineering Config
-    chaos_enabled: bool = False
+    # Activado para STAGING em 2026-03-30 (Epic G003 - GAP-02-05-06)
+    # Pre-requisitos: 5 injectores implementados, ChaosEngine completo, integracao main.py
+    # ROLLBACK: Mudar para False, redeloyar self-healing-engine, cancelar experimentos
+    chaos_enabled: bool = True
     chaos_max_concurrent_experiments: int = 3
     chaos_default_timeout_seconds: int = 600
     chaos_require_opa_approval: bool = True
     chaos_blast_radius_limit: int = 5
+
+    @model_validator(mode='after')
+    def validate_chaos_in_production(self) -> 'Settings':
+        """
+        Valida que Chaos Engineering NUNCA é activado em producao.
+        So permite em staging/development.
+        """
+        env = (self.environment or '').lower()
+        is_production = env in ('production', 'prod')
+
+        if is_production and self.chaos_enabled:
+            # Override para False em producao por seguranca
+            self.chaos_enabled = False
+
+        return self
 
 
 @lru_cache()

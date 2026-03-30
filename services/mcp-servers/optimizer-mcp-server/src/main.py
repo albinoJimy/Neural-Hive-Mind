@@ -17,12 +17,12 @@ app = FastAPI(
     version=settings.service_version,
 )
 
-# Configurar CORS
+# Configurar CORS - usa configuração segura por ambiente via neural_hive_security
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["*"],
 )
 

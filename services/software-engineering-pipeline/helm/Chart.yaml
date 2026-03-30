@@ -1,0 +1,8 @@
+apiVersion: v2
+name: software-engineering-pipeline
+description: Helm chart for Neural Hive Software Engineering Pipeline Service
+version: 1.0.0
+appVersion: "1.0"
+maintainers:
+  - name: Neural Hive-Mind Team
+    email: team@neural-hive-mind.org

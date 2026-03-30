@@ -286,26 +286,66 @@ class ExplorationEngine:
             'is_running': self._is_running
         }
 
-    async def handle_feedback(self, signal_id: str, validation_score: float):
+    async def handle_feedback(
+        self,
+        signal_id: str,
+        validation_score: float,
+        domain: Optional[UnifiedDomain] = None,
+        feature_mean: Optional[float] = None
+    ) -> None:
         """
         Handle feedback from Analyst Agents for adaptive learning
 
         Args:
             signal_id: Signal identifier
             validation_score: Validation score (0-1)
+            domain: Exploration domain (optional, will try to retrieve from memory)
+            feature_mean: Feature mean for likelihood update (optional)
         """
         try:
-            # Update Bayesian filter priors
-            # Note: This requires tracking signal-to-domain mapping
-            # For MVP, we'll use a simplified approach
-
             logger.info(
                 "feedback_received",
                 signal_id=signal_id,
                 validation_score=validation_score
             )
 
-            # TODO: Implement adaptive learning based on feedback
+            # Determine if signal was valid based on validation score
+            is_valid_signal = validation_score >= 0.5
+
+            # If domain not provided, try to retrieve from stored signal
+            if domain is None:
+                domain = await self._retrieve_signal_domain(signal_id)
+
+            if domain:
+                # Update Bayesian filter priors based on feedback
+                self.detector.bayesian_filter.update_prior(domain, is_valid_signal)
+
+                # Update likelihood if feature mean provided
+                if feature_mean is not None:
+                    self.detector.bayesian_filter.update_likelihood(
+                        domain,
+                        feature_mean,
+                        weight=0.1
+                    )
+
+                # Get updated posterior stats for monitoring
+                stats = self.detector.bayesian_filter.get_posterior_stats(domain)
+
+                logger.info(
+                    "adaptive_learning_applied",
+                    signal_id=signal_id,
+                    domain=domain.value,
+                    is_valid=is_valid_signal,
+                    validation_score=validation_score,
+                    posterior_mean=stats['mean'],
+                    samples_count=stats['samples']
+                )
+            else:
+                logger.warning(
+                    "feedback_domain_not_found",
+                    signal_id=signal_id,
+                    message="Domain not provided and could not be retrieved from memory"
+                )
 
         except Exception as e:
             logger.error(
@@ -313,6 +353,42 @@ class ExplorationEngine:
                 signal_id=signal_id,
                 error=str(e)
             )
+
+    async def _retrieve_signal_domain(self, signal_id: str) -> Optional[UnifiedDomain]:
+        """
+        Retrieve signal domain from memory layer
+
+        Args:
+            signal_id: Signal identifier
+
+        Returns:
+            UnifiedDomain if found, None otherwise
+        """
+        try:
+            # Try to retrieve signal from Redis memory
+            from ..models.scout_signal import ScoutSignal
+            import json
+
+            signal_data = await self.memory_client.get_signal_redis(signal_id)
+            if signal_data:
+                if isinstance(signal_data, str):
+                    signal_dict = json.loads(signal_data)
+                else:
+                    signal_dict = signal_data
+
+                domain_str = signal_dict.get('exploration_domain')
+                if domain_str:
+                    return UnifiedDomain(domain_str)
+
+            return None
+
+        except Exception as e:
+            logger.debug(
+                "signal_domain_retrieval_failed",
+                signal_id=signal_id,
+                error=str(e)
+            )
+            return None
 
     # ========================================================================
     # Codebase Exploration Methods

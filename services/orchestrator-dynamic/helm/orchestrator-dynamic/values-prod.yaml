@@ -1,0 +1,18 @@
+replicaCount: 2
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 512Mi
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 15
+
+env:
+  ENVIRONMENT: production
+  LOG_LEVEL: INFO

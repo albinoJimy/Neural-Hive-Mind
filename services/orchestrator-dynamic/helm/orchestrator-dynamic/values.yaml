@@ -1,0 +1,83 @@
+replicaCount: 2
+
+image:
+  repository: 37.60.241.150:30500/orchestrator-dynamic
+  tag: "1.0.0"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  ports:
+    http: 8003
+    metrics: 8003
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+env:
+  SERVICE_NAME: orchestrator-dynamic
+  SERVICE_VERSION: 1.0.0
+  ENVIRONMENT: production
+  LOG_LEVEL: INFO
+  KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+  MONGODB_URI: mongodb://mongodb:27017
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+  TEMPORAL_HOST: temporal
+  TEMPORAL_PORT: "7233"
+  TEMPORAL_NAMESPACE: default
+  TEMPORAL_TASK_QUEUE: orchestration-task-queue
+  POSTGRES_HOST: postgres
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: temporal
+  OPTIMIZER_GRPC_HOST: optimizer-agents
+  OPTIMIZER_GRPC_PORT: "50053"
+  SERVICE_REGISTRY_GRPC_HOST: service-registry
+  SERVICE_REGISTRY_GRPC_PORT: "50051"
+  EXECUTION_TICKET_SERVICE_HOST: execution-ticket-service
+  EXECUTION_TICKET_SERVICE_PORT: "8005"
+  OTEL_EXPORTER_ENDPOINT: http://otel-collector:4317
+  PROMETHEUS_PORT: "9090"
+
+secrets:
+  mongodb_uri: ""
+  redis_password: ""
+  postgres_password: ""
+  kafka_sasl_username: ""
+  kafka_sasl_password: ""
+
+serviceAccount:
+  create: true
+  name: orchestrator-dynamic
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - orchestrator-dynamic
+          topologyKey: kubernetes.io/hostname
+
+nodeSelector: {}
+tolerations: []

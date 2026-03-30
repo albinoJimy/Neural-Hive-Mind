@@ -98,8 +98,11 @@ class Settings(BaseSettings):
     )
 
     # Active Learning Configuration
+    # Activado em producao em 2026-03-30 (Epic G001 - GAP-02-05-06)
+    # Pre-requisitos implementados: feedback_consumer, online_learning_service, integracao main.py
+    # ROLLBACK: Mudar para False e redeloyar approval-service
     enable_active_learning: bool = Field(
-        default=False,
+        default=True,
         description='Habilitar active learning para coleta de feedbacks balanceados'
     )
     active_learning_queue_collection: str = Field(
@@ -113,6 +116,40 @@ class Settings(BaseSettings):
     active_learning_enqueue_rate: float = Field(
         default=0.2,
         description='Taxa de casos para enfileirar (0-1, 20% dos casos)'
+    )
+
+    # Online Learning Configuration
+    enable_online_learning: bool = Field(
+        default=False,
+        description='Habilitar online learning para aprendizado incremental'
+    )
+    online_learning_buffer_size: int = Field(
+        default=100,
+        description='Tamanho do buffer de feedbacks para partial_fit'
+    )
+    online_learning_retrain_interval_hours: int = Field(
+        default=24,
+        description='Intervalo em horas para retreino periodico'
+    )
+    kafka_specialist_feedback_topic: str = Field(
+        default='specialist-feedback',
+        description='Topico Kafka para feedback de especialistas'
+    )
+    online_learning_checkpoint_path: str = Field(
+        default='/data/online_learning/checkpoints',
+        description='Caminho para salvar checkpoints dos modelos online'
+    )
+    online_learning_algorithm: str = Field(
+        default='sgd',
+        description='Algoritmo incremental: sgd, passive_aggressive, perceptron'
+    )
+    online_learning_learning_rate: float = Field(
+        default=0.001,
+        description='Taxa de aprendizado para SGD'
+    )
+    online_learning_checkpoint_interval_updates: int = Field(
+        default=100,
+        description='Intervalo de updates para salvar checkpoint'
     )
 
     # Keycloak configuration

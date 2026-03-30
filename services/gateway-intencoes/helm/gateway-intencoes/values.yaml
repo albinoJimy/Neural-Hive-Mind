@@ -1,0 +1,70 @@
+replicaCount: 2
+
+image:
+  repository: 37.60.241.150:30500/gateway-intencoes
+  tag: "1.0.0"
+  pullPolicy: IfNotPresent
+
+service:
+  type: LoadBalancer  # Gateway público
+  ports:
+    http: 8000
+    metrics: 8000
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+env:
+  SERVICE_NAME: gateway-intencoes
+  SERVICE_VERSION: 1.0.0
+  ENVIRONMENT: production
+  LOG_LEVEL: INFO
+  KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+  MONGODB_URI: mongodb://mongodb:27017
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+  OTEL_EXPORTER_ENDPOINT: http://otel-collector:4317
+  ENABLE_TRACING: "true"
+  ENABLE_METRICS: "true"
+
+secrets:
+  mongodb_uri: ""
+  redis_password: ""
+  kafka_sasl_username: ""
+  kafka_sasl_password: ""
+
+serviceAccount:
+  create: true
+  name: gateway-intencoes
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - gateway-intencoes
+          topologyKey: kubernetes.io/hostname
+
+nodeSelector: {}
+tolerations: []

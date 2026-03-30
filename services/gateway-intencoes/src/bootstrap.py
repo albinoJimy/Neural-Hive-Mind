@@ -7,8 +7,9 @@ eliminando a complexidade de múltiplos try/except e stubs.
 
 import asyncio
 import json
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Callable
 from contextlib import AsyncExitStack
 
 import structlog
@@ -31,8 +32,13 @@ class ApplicationContext:
     errors: List[str] = field(default_factory=list)
 
 
-class InitializationPhase:
-    """Fase de inicialização com retry e fallback controlado."""
+class InitializationPhase(ABC):
+    """
+    Fase de inicialização com retry e fallback controlado.
+
+    Classe base abstrata para todas as fases de inicialização do gateway.
+    Implementa lógica genérica de retry e logging estruturado.
+    """
 
     def __init__(self, name: str, required: bool = True, max_retries: int = 3):
         self.name = name
@@ -42,8 +48,105 @@ class InitializationPhase:
         self.error: Optional[str] = None
 
     async def execute(self, context: ApplicationContext) -> bool:
-        """Executa a fase de inicialização."""
-        raise NotImplementedError
+        """
+        Executa a fase de inicialização com retry.
+
+        Args:
+            context: ApplicationContext com dependências já inicializadas
+
+        Returns:
+            True se a fase foi completada com sucesso
+
+        Raises:
+            Exception: Propaga exceção após esgotar retries em fase obrigatória
+        """
+        last_error: Optional[Exception] = None
+
+        for attempt in range(1, self.max_retries + 1):
+            try:
+                logger.debug(
+                    "phase_execute_attempt",
+                    phase=self.name,
+                    attempt=attempt,
+                    max_retries=self.max_retries,
+                )
+
+                success = await self._execute_phase(context)
+
+                if success:
+                    self.initialized = True
+                    logger.info(
+                        "phase_execute_success",
+                        phase=self.name,
+                        attempts=attempt,
+                    )
+                    return True
+                else:
+                    logger.warning(
+                        "phase_execute_failed_no_exception",
+                        phase=self.name,
+                        attempt=attempt,
+                    )
+                    return False
+
+            except Exception as e:
+                last_error = e
+                self.error = str(e)
+
+                logger.warning(
+                    "phase_execute_exception",
+                    phase=self.name,
+                    attempt=attempt,
+                    error_type=type(e).__name__,
+                    error=str(e),
+                )
+
+                if attempt < self.max_retries:
+                    # Exponential backoff: 2^attempt * 100ms
+                    backoff = (2 ** attempt) * 0.1
+                    logger.debug(
+                        "phase_execute_retry_backoff",
+                        phase=self.name,
+                        backoff_seconds=backoff,
+                    )
+                    await asyncio.sleep(backoff)
+                else:
+                    logger.error(
+                        "phase_execute_max_retries_exceeded",
+                        phase=self.name,
+                        max_retries=self.max_retries,
+                        error=str(e),
+                        exc_info=True,
+                    )
+
+        # Se chegou aqui, todos os retries falharam
+        context.errors.append(
+            f"{self.name} phase failed after {self.max_retries} attempts: {str(last_error)}"
+        )
+
+        # Para fases obrigatórias, marca como não inicializado
+        if self.required:
+            self.initialized = False
+
+        return not self.required
+
+    @abstractmethod
+    async def _execute_phase(self, context: ApplicationContext) -> bool:
+        """
+        Implementação concreta da fase de inicialização.
+
+        Deve ser sobrescrito por subclasses com a lógica específica.
+
+        Args:
+            context: ApplicationContext com dependências já inicializadas
+
+        Returns:
+            True se a fase foi completada com sucesso
+
+        Raises:
+            Exception: Em caso de erro na inicialização
+        """
+        pass
 
 
 class InfrastructurePhase(InitializationPhase):
@@ -53,7 +156,7 @@ class InfrastructurePhase(InitializationPhase):
         super().__init__("infrastructure", required=True)
         self.settings = settings
 
-    async def execute(self, context: ApplicationContext) -> bool:
+    async def _execute_phase(self, context: ApplicationContext) -> bool:
         from cache.redis_client import get_redis_client, close_redis_client
         from security.oauth2_validator import (
             get_oauth2_validator,
@@ -124,7 +227,7 @@ class SecurityValidationPhase(InitializationPhase):
         super().__init__("security_validation", required=True)
         self.settings = settings
 
-    async def execute(self, context: ApplicationContext) -> bool:
+    async def _execute_phase(self, context: ApplicationContext) -> bool:
         """Valida que variáveis de segurança obrigatórias estão definidas."""
         try:
             logger.info("phase_security_validation_start")
@@ -167,7 +270,7 @@ class ProcessingPhase(InitializationPhase):
         super().__init__("processing", required=True)
         self.settings = settings
 
-    async def execute(self, context: ApplicationContext) -> bool:
+    async def _execute_phase(self, context: ApplicationContext) -> bool:
         from pipelines.asr_pipeline import ASRPipeline
         from pipelines.nlu_pipeline import NLUPipeline
 
@@ -205,7 +308,7 @@ class ObservabilityPhase(InitializationPhase):
         super().__init__("observability", required=False)
         self.settings = settings
 
-    async def execute(self, context: ApplicationContext) -> bool:
+    async def _execute_phase(self, context: ApplicationContext) -> bool:
         if not self.settings.otel_enabled:
             logger.info("phase_observability_disabled")
             return True  # Não é erro, apenas desabilitado
@@ -252,7 +355,7 @@ class MessagingPhase(InitializationPhase):
         super().__init__("messaging", required=True)
         self.settings = settings
 
-    async def execute(self, context: ApplicationContext) -> bool:
+    async def _execute_phase(self, context: ApplicationContext) -> bool:
         from kafka.producer import KafkaIntentProducer
 
         try:
@@ -279,7 +382,7 @@ class HealthChecksPhase(InitializationPhase):
         super().__init__("health_checks", required=False)
         self.settings = settings
 
-    async def execute(self, context: ApplicationContext) -> bool:
+    async def _execute_phase(self, context: ApplicationContext) -> bool:
         try:
             logger.info("phase_health_checks_start")
 

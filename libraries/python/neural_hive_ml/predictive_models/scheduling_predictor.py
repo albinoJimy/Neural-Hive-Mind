@@ -1,5 +1,6 @@
 """Preditor de duração e recursos para scheduling de tickets."""
 
+import time
 from typing import Dict, Any, List, Optional
 import logging
 import numpy as np
@@ -85,6 +86,8 @@ class SchedulingPredictor(BasePredictor):
         Returns:
             Dict com predicted_duration_ms e confidence
         """
+        start_time = time.perf_counter()
+
         try:
             features_dict = extract_ticket_features(ticket, self.historical_stats)
             features = create_feature_vector(features_dict, self.feature_names)
@@ -102,10 +105,14 @@ class SchedulingPredictor(BasePredictor):
 
             confidence = self._calculate_confidence(prediction, features_dict)
 
+            # Mede latência em milissegundos
+            latency_ms = (time.perf_counter() - start_time) * 1000
+
             result = {
                 "predicted_duration_ms": max(float(prediction), 0),
                 "confidence": confidence,
-                "model_type": self.model_type
+                "model_type": self.model_type,
+                "latency_ms": round(latency_ms, 2)
             }
 
             # Registra métricas
@@ -114,7 +121,7 @@ class SchedulingPredictor(BasePredictor):
                     model_type="scheduling",
                     predicted_value=result["predicted_duration_ms"],
                     actual_value=None,  # Será atualizado após execução
-                    latency=0.0,  # TODO: medir latência
+                    latency=latency_ms / 1000.0,  # Converte ms para segundos
                     confidence=confidence
                 )
 

@@ -1,0 +1,90 @@
+replicaCount: 2
+
+image:
+  repository: 37.60.241.150:30500/worker-agents
+  tag: "1.0.0"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  ports:
+    http: 8080
+    metrics: 8080
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+env:
+  SERVICE_NAME: worker-agents
+  SERVICE_VERSION: 1.0.0
+  ENVIRONMENT: production
+  LOG_LEVEL: INFO
+  AGENT_ID: worker-agent-1
+  NAMESPACE: default
+  CLUSTER: production
+  KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+  KAFKA_TICKET_TOPIC: execution-tickets
+  KAFKA_RESULT_TOPIC: execution-results
+  KAFKA_DLQ_TOPIC: execution-dlq
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+  MONGODB_URI: mongodb://mongodb:27017
+  MONGODB_DATABASE: neural_hive
+  MONGODB_DLQ_COLLECTION: execution_dlq
+  SERVICE_REGISTRY_HOST: service-registry
+  SERVICE_REGISTRY_PORT: "50051"
+  OTEL_EXPORTER_ENDPOINT: http://otel-collector:4317
+  ENABLE_VAULT: "false"
+  ENABLE_SPIFFE: "false"
+  ENABLE_OPA: "false"
+  ENABLE_CODE_FORGE: "false"
+  ENABLE_ARGOCD: "false"
+  ENABLE_FLUX: "false"
+  ENABLE_DOCKER_RUNTIME: "false"
+  ENABLE_K8S_JOBS: "false"
+  ENABLE_LAMBDA: "false"
+
+secrets:
+  mongodb_uri: ""
+  redis_password: ""
+  kafka_sasl_username: ""
+  kafka_sasl_password: ""
+  vault_token: ""
+  spiffe_socket_path: ""
+
+serviceAccount:
+  create: true
+  name: worker-agents
+  annotations: {}
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - worker-agents
+          topologyKey: kubernetes.io/hostname
+
+nodeSelector: {}
+tolerations: []

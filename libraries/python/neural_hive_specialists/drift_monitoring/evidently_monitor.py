@@ -25,6 +25,8 @@ class EvidentlyMonitor:
             config: Configuração com reference_dataset_path, threshold_psi, etc.
         """
         self.config = config
+        self.enabled = config.get("evidently_enabled", True)
+        self.project_id = config.get("evidently_project_id", "default")
         self.reference_data: Optional[pd.DataFrame] = None
         self.current_data: List[Dict[str, Any]] = []
         self._load_reference_data()
@@ -206,3 +208,55 @@ class EvidentlyMonitor:
         """
         self.reference_data = new_reference
         logger.info("Reference data updated", shape=new_reference.shape)
+
+    def get_drift_score(
+        self, reference_data: List[float], current_data: List[float]
+    ) -> float:
+        """
+        Calcula PSI (Population Stability Index) entre duas distribuições.
+
+        Args:
+            reference_data: Dados de referência
+            current_data: Dados atuais
+
+        Returns:
+            Score de drift entre 0 e 1 (0 = sem drift, 1 = drift máximo)
+        """
+        if not reference_data or not current_data:
+            return 0.0
+
+        try:
+            # Converter para arrays numpy
+            ref = np.array(reference_data)
+            curr = np.array(current_data)
+
+            # Criar bins baseados nos dados de referência
+            # Usar Sturges rule para número de bins
+            n_bins = max(5, int(np.log2(len(ref)) + 1))
+
+            # Calcular histogramas
+            ref_hist, ref_edges = np.histogram(ref, bins=n_bins, density=True)
+            curr_hist, _ = np.histogram(curr, bins=ref_edges, density=True)
+
+            # Evitar divisão por zero
+            ref_hist = np.where(ref_hist == 0, 1e-10, ref_hist)
+            curr_hist = np.where(curr_hist == 0, 1e-10, curr_hist)
+
+            # Calcular PSI
+            psi = np.sum((ref_hist - curr_hist) * np.log(ref_hist / curr_hist))
+
+            # Normalizar para 0-1 (PSI > 1 é considerado drift severo)
+            drift_score = min(psi / 2.0, 1.0)
+
+            logger.debug(
+                "Drift score calculated",
+                psi=psi,
+                drift_score=drift_score,
+                n_bins=n_bins,
+            )
+
+            return drift_score
+
+        except Exception as e:
+            logger.error("Failed to calculate drift score", error=str(e))
+            return 0.0

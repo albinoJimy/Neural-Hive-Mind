@@ -344,10 +344,9 @@ app.add_middleware(
     max_age=600,
 )
 
-# Middleware de hosts confiáveis - desabilitado em dev/staging para permitir localhost
-# Em produção, usar uma lista de hosts específicos
-if settings.environment == "production":
-    app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.allowed_hosts)
+# Middleware de hosts confiáveis - usa propriedade que retorna hosts seguros por ambiente
+# A propriedade allowed_hosts_property garante defaults seguros sem wildcard em produção
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.allowed_hosts_property)
 
 # Middleware de autenticação OAuth2
 auth_middleware = create_auth_middleware(

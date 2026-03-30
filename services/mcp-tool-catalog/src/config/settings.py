@@ -1,9 +1,11 @@
 """Settings configuration using Pydantic BaseSettings."""
 from functools import lru_cache
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from neural_hive_security.cors import CORSConfig
 
 
 class Settings(BaseSettings):
@@ -22,6 +24,10 @@ class Settings(BaseSettings):
     HTTP_PORT: int = 8080
     GRPC_PORT: int = 9090
     METRICS_PORT: int = 9091
+
+    # Environment
+    ENVIRONMENT: str = "development"
+    IS_PUBLIC_API: bool = True
 
     # Kafka Configuration
     KAFKA_BOOTSTRAP_SERVERS: str = Field(
@@ -225,6 +231,14 @@ class Settings(BaseSettings):
         default="https://workflowexecutions.googleapis.com",
         description="Google Cloud Workflows endpoint"
     )
+
+    @property
+    def CORS_ORIGINS(self) -> List[str]:
+        """CORS origins dinâmicas por ambiente."""
+        return CORSConfig.get_origins_for_environment(
+            self.ENVIRONMENT.lower(),
+            is_public_api=self.IS_PUBLIC_API
+        )
 
 
 @lru_cache

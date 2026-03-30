@@ -464,3 +464,88 @@ class TestRateLimiterMetrics:
 
         assert result.allowed is False
         # Metricas de exceeded devem ser incrementadas
+
+    @pytest.mark.asyncio
+    async def test_sliding_window_resets_correctly(self, rate_limiter, mock_redis):
+        """Testar que janela deslizante reseta corretamente"""
+        # Primeira requisição
+        mock_redis.pipeline_operations.return_value = [0, 1, 50, True]
+
+        result1 = await rate_limiter.check_rate_limit(
+            user_id="user123",
+            tenant_id="tenant1"
+        )
+
+        assert result1.allowed is True
+        assert result1.remaining == 50
+
+        # Aguardar um momento
+        await asyncio.sleep(0.1)
+
+        # Segunda requisição com count aumentado
+        mock_redis.pipeline_operations.return_value = [0, 1, 51, True]
+
+        result2 = await rate_limiter.check_rate_limit(
+            user_id="user123",
+            tenant_id="tenant1"
+        )
+
+        assert result2.remaining == 49
+
+    @pytest.mark.asyncio
+    async def test_redis_error_fallback_to_fail_open(self, rate_limiter, mock_redis):
+        """Testar fallback fail-open quando Redis falha"""
+        # Simular erro de conexão Redis
+        mock_redis.pipeline_operations.side_effect = ConnectionError("Redis connection failed")
+
+        result = await rate_limiter.check_rate_limit(
+            user_id="user123",
+            tenant_id="tenant1"
+        )
+
+        # Com fail_open=True, deve permitir
+        assert result.allowed is True
+
+    @pytest.mark.asyncio
+    async def test_redis_error_with_fail_closed(self, mock_redis):
+        """Testar fail-closed quando Redis falha"""
+        from middleware.rate_limiter import RateLimiter
+
+        limiter = RateLimiter(
+            redis_client=mock_redis,
+            enabled=True,
+            default_limit=100,
+            burst_size=20,
+            fail_open=False  # Bloquear em caso de erro
+        )
+
+        mock_redis.pipeline_operations.side_effect = ConnectionError("Redis down")
+
+        result = await limiter.check_rate_limit(
+            user_id="user123",
+            tenant_id="tenant1"
+        )
+
+        # Com fail_open=False, deve bloquear
+        assert result.allowed is False
+        assert result.retry_after is not None
+
+    @pytest.mark.asyncio
+    async def test_endpoint_specific_rate_limiting(self, rate_limiter, mock_redis):
+        """Testar rate limiting específico por endpoint"""
+        # Endpoint custoso tem limite menor
+        rate_limiter.endpoint_limits = {
+            "/api/v1/intentions/process": 50,
+            "/api/v1/admin": 10
+        }
+
+        # Usar limite específico do endpoint
+        mock_redis.pipeline_operations.return_value = [0, 1, 5, True]
+
+        result = await rate_limiter.check_rate_limit(
+            user_id="user123",
+            tenant_id="tenant1",
+            endpoint="/api/v1/intentions/process"
+        )
+
+        assert result.allowed is True
