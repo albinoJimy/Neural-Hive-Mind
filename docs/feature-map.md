@@ -1,7 +1,7 @@
 # Feature Map — Neural-Hive-Mind
 
 **Projecto:** Neural-Hive-Mind
-**Última Actualização:** 2026-03-27
+**Última Actualização:** 2026-03-31
 **Completude Global:** ~100%
 
 ---
@@ -255,6 +255,66 @@
 - ✅ **Execution Tickets 100%** (2026-03-22) - API completa (retry, history), 18 testes, gRPC 4 RPCs, Kafka consumer, Webhook manager
 - ✅ **Service Registry 100%** (2026-03-22) - Health scoring, auto-deregistration, 84 testes, gRPC integration completo, correção import grpc.health.v1
 - ✅ **Evolution Hooks 100%** (2026-03-26) - Meta-learning para EvolutionSpecialist, FingerprintExtractor, PatternMatcher, WeightAdapter, PatternRegistry, EvolutionFeedbackConsumer, 121 testes
+- ✅ **Critical Risks Mitigation** (2026-03-31) - Epic CR-01 a CR-09 completado, 463+ novos testes, Vault integration, smoke tests E2E, CI/CD com 70% threshold
+
+---
+
+## Riscos Críticos Mitigados (2026-03-31)
+
+### Epic: Critical Risks Mitigation
+
+Todos os 9 tickets completados:
+
+| Ticket | Descrição | Status | Testes Novos |
+|--------|-----------|--------|--------------|
+| CR-01 | Remover JWT Secret Hardcoded | ✅ | 10 testes |
+| CR-02 | Scout Consumer Completo | ✅ | 18 testes |
+| CR-03 | Testes drift_monitoring | ✅ | 45 testes |
+| CR-04 | Testes observability | ✅ | 231 testes |
+| CR-05 | Testes compliance | ✅ | 77 testes |
+| CR-06 | Testes ledger | ✅ | 37 testes |
+| CR-07 | Smoke Tests E2E | ✅ | 58 testes |
+| CR-08 | Threshold Cobertura CI/CD | ✅ | - |
+| CR-09 | Documentação e Handoff | ✅ | - |
+| **TOTAL** | **9 tickets** | **✅** | **476 testes** |
+
+### Detalhes das Implementações
+
+**CR-01: Remover JWT Secret Hardcoded** (bab7c9c)
+- VaultClient para obtenção de secrets do HashiCorp Vault
+- Prioridade: Vault > jwt_secret_key > JWT_SECRET env var
+- Script scripts/vault-seed.sh para inicialização
+
+**CR-02: Scout Consumer Completo** (f34d2f2 + 532b40e)
+- DigitalEventsConsumer para tópico `digital.events`
+- Suporte a 6 canais (web, mobile, api, email, chat, social)
+- 18 testes de integração passando
+
+**CR-03: Testes drift_monitoring** (af95641 + 57d1a3b)
+- 45 testes para drift_detector.py
+- Cobertura para DriftDetector e CanaryDeployer
+- Cenários: sem drift, mudança de média, variância, timestamps
+
+**CR-04: Testes observability** (47416a7 + d0125ab)
+- 231 testes para tracing, logging, metrics, health, context
+- Correções aplicadas em test_logging.py e test_metrics.py
+
+**CR-05: Testes compliance** (d94d2ce)
+- 77 novos testes (56 PIIMasker + 21 PIIDetectorLite)
+- Total compliance: 199 testes
+
+**CR-06: Testes ledger** (dba3d8b)
+- 37 testes para MongoDBClient
+- Persistência, queries, integridade, índices
+
+**CR-07: Smoke Tests E2E** (b1064a8)
+- 58 smoke tests para validação rápida (<10min)
+- Script tests/e2e/smoke/run_smoke_tests.sh
+
+**CR-08: Threshold Cobertura CI/CD** (6c59c05)
+- Workflow .github/workflows/test-coverage.yml
+- Quality gate de 70% configurado
+- Script scripts/check_coverage.sh para verificação local
 
 ---
 
