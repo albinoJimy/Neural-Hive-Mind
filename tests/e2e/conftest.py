@@ -57,6 +57,7 @@ def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line("markers", "integration: Integration tests")
     config.addinivalue_line("markers", "flow_c: Flow C specific tests")
     config.addinivalue_line("markers", "phase2: Phase 2 specific tests")
+    config.addinivalue_line("markers", "smoke: Quick smoke tests (<10min) for core service validation")
 
 
 @pytest.fixture(scope="session")
