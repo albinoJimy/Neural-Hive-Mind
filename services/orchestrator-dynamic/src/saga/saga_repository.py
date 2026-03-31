@@ -5,12 +5,19 @@ Gerencia o estado de Sagas no MongoDB com operacoes CRUD
 e queries especializadas.
 """
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
+import asyncio
 
 import structlog
 from motor.motor_asyncio import AsyncIOMotorClient
 
-from .saga_state import SagaState, SagaStatus, SagaStep, StepStatus
+from .saga_state import (
+    SagaState,
+    SagaStatus,
+    SagaStep,
+    StepStatus,
+    SagaConcurrentModificationError
+)
 
 
 logger = structlog.get_logger()
@@ -90,17 +97,24 @@ class SagaRepository:
                     error=str(e)
                 )
 
-    async def save(self, saga: SagaState) -> bool:
+    async def save(self, saga: SagaState, timeout_ms: int = 5000) -> bool:
         """
-        Salva ou atualiza uma Saga.
+        Salva ou atualiza uma Saga com optimistic locking.
 
         Usa upsert para criar nova saga ou atualizar existente.
+        O optimistic locking garante que modificacoes concorrentes
+        sao detectadas e rejeitadas.
 
         Args:
             saga: Estado da Saga a salvar
+            timeout_ms: Timeout em milissegundos (default 5000ms)
 
         Returns:
             True se salvo com sucesso
+
+        Raises:
+            SagaConcurrentModificationError: Se a Saga foi modificada
+                por outro processo desde a leitura
         """
         if self._collection is None:
             logger.warning(
@@ -112,21 +126,78 @@ class SagaRepository:
         try:
             doc = saga.model_dump()
 
-            result = await self._collection.update_one(
-                {'saga_id': saga.saga_id},
-                {'$set': doc},
-                upsert=True
-            )
+            # Para upsert (nova saga), nao usamos version check
+            # Para update, usamos optimistic locking com version
+            if saga.version == 0:
+                # Nova saga - upsert sem version check
+                result = await asyncio.wait_for(
+                    self._collection.update_one(
+                        {'saga_id': saga.saga_id},
+                        {'$set': doc},
+                        upsert=True
+                    ),
+                    timeout=timeout_ms / 1000.0
+                )
 
-            logger.info(
-                'saga_saved',
+                logger.info(
+                    'saga_saved',
+                    saga_id=saga.saga_id,
+                    status=saga.status.value,
+                    upserted=result.upserted_id is not None
+                )
+
+                return True
+            else:
+                # Saga existente - optimistic locking com version
+                result = await asyncio.wait_for(
+                    self._collection.update_one(
+                        {
+                            'saga_id': saga.saga_id,
+                            'version': saga.version
+                        },
+                        {
+                            '$set': {**doc, 'version': saga.version + 1}
+                        }
+                    ),
+                    timeout=timeout_ms / 1000.0
+                )
+
+                if result.matched_count == 0:
+                    # Nenhum documento matched - versao nao coincide
+                    # ou saga nao existe mais
+                    logger.error(
+                        'saga_concurrent_modification',
+                        saga_id=saga.saga_id,
+                        expected_version=saga.version,
+                        error='Saga was modified by another process or does not exist'
+                    )
+                    raise SagaConcurrentModificationError(
+                        f"Saga {saga.saga_id} was modified by another process. "
+                        f"Expected version {saga.version}"
+                    )
+
+                logger.info(
+                    'saga_saved',
+                    saga_id=saga.saga_id,
+                    status=saga.status.value,
+                    version=saga.version + 1
+                )
+
+                # Atualizar a versao localmente para refletir o incremento
+                saga.version += 1
+
+                return True
+
+        except asyncio.TimeoutError:
+            logger.error(
+                'saga_save_timeout',
                 saga_id=saga.saga_id,
-                status=saga.status.value,
-                upserted=result.upserted_id is not None
+                timeout_ms=timeout_ms
             )
-
-            return True
-
+            return False
+        except SagaConcurrentModificationError:
+            # Re-raise para que o caller possa tratar
+            raise
         except Exception as e:
             logger.error(
                 'saga_save_failed',
@@ -251,7 +322,8 @@ class SagaRepository:
     async def find_pending_sagas(
         self,
         older_than_ms: Optional[int] = None,
-        limit: int = 100
+        limit: int = 100,
+        timeout_ms: int = 5000
     ) -> List[SagaState]:
         """
         Busca Sagas pendentes para reprocessamento.
@@ -259,6 +331,7 @@ class SagaRepository:
         Args:
             older_than_ms: Buscar sagas mais antigas que X millis
             limit: Numero maximo de resultados
+            timeout_ms: Timeout em milissegundos (default 5000ms)
 
         Returns:
             Lista de Sagas pendentes
@@ -271,12 +344,15 @@ class SagaRepository:
             query = {'status': SagaStatus.PENDING.value}
 
             if older_than_ms:
-                cutoff = int(datetime.utcnow().timestamp() * 1000) - older_than_ms
+                cutoff = int(datetime.now(timezone.utc).timestamp() * 1000) - older_than_ms
                 query['created_at'] = {'$lt': cutoff}
 
-            cursor = self._collection.find(query).sort('created_at', 1).limit(limit)
+            cursor = await asyncio.wait_for(
+                self._collection.find(query).sort('created_at', 1).limit(limit).to_list(length=limit),
+                timeout=timeout_ms / 1000.0
+            )
 
-            docs = await cursor.to_list(length=limit)
+            docs = cursor
 
             sagas = [
                 SagaState(**{k: v for k, v in doc.items() if k != '_id'})
@@ -290,6 +366,12 @@ class SagaRepository:
 
             return sagas
 
+        except asyncio.TimeoutError:
+            logger.error(
+                'pending_sagas_search_timeout',
+                timeout_ms=timeout_ms
+            )
+            return []
         except Exception as e:
             logger.error(
                 'pending_sagas_search_failed',
@@ -349,7 +431,8 @@ class SagaRepository:
     async def update_status(
         self,
         saga_id: str,
-        status: SagaStatus
+        status: SagaStatus,
+        timeout_ms: int = 5000
     ) -> bool:
         """
         Atualiza apenas o status de uma Saga.
@@ -357,6 +440,7 @@ class SagaRepository:
         Args:
             saga_id: ID da Saga
             status: Novo status
+            timeout_ms: Timeout em milissegundos (default 5000ms)
 
         Returns:
             True se atualizado com sucesso
@@ -368,7 +452,7 @@ class SagaRepository:
             update_data = {'status': status.value}
 
             # Adicionar timestamp baseado no status
-            now = int(datetime.utcnow().timestamp() * 1000)
+            now = int(datetime.now(timezone.utc).timestamp() * 1000)
             if status == SagaStatus.STARTED:
                 update_data['started_at'] = now
             elif status == SagaStatus.COMPLETED:
@@ -378,9 +462,12 @@ class SagaRepository:
             elif status == SagaStatus.FAILED:
                 update_data['failed_at'] = now
 
-            result = await self._collection.update_one(
-                {'saga_id': saga_id},
-                {'$set': update_data}
+            result = await asyncio.wait_for(
+                self._collection.update_one(
+                    {'saga_id': saga_id},
+                    {'$set': update_data}
+                ),
+                timeout=timeout_ms / 1000.0
             )
 
             if result.matched_count == 0:
@@ -398,6 +485,13 @@ class SagaRepository:
 
             return True
 
+        except asyncio.TimeoutError:
+            logger.error(
+                'saga_status_update_timeout',
+                saga_id=saga_id,
+                timeout_ms=timeout_ms
+            )
+            return False
         except Exception as e:
             logger.error(
                 'saga_status_update_failed',
