@@ -30,7 +30,7 @@ MAX_RETRIES = 3
 BASE_BACKOFF_SECONDS = 1.0
 
 
-class QueenAgentGRPCClient:
+class QueenAgentGrpcClient:
     """Cliente gRPC para comunicação com Queen Agent
 
     Suporta:

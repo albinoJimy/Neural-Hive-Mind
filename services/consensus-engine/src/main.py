@@ -14,7 +14,7 @@ from neural_hive_observability.health import HealthChecker, HealthStatus
 from neural_hive_observability.health_checks.otel import OTELPipelineHealthCheck
 from neural_hive_observability.config import ObservabilityConfig
 from src.config import get_settings
-from src.clients import SpecialistsGrpcClient, PheromoneClient, MongoDBClient, QueenAgentGRPCClient, AnalystAgentGRPCClient
+from src.clients import SpecialistsGrpcClient, PheromoneClient, MongoDBClient, QueenAgentGrpcClient, AnalystAgentGrpcClient
 from src.observability import ConsensusMetrics
 from src.consumers import PlanConsumer
 from src.producers import DecisionProducer
@@ -36,8 +36,8 @@ class AppState:
     specialists_client: SpecialistsGrpcClient = None
     mongodb_client: MongoDBClient = None
     pheromone_client: PheromoneClient = None
-    queen_agent_client: QueenAgentGRPCClient = None
-    analyst_agent_client: AnalystAgentGRPCClient = None
+    queen_agent_client: QueenAgentGrpcClient = None
+    analyst_agent_client: AnalystAgentGrpcClient = None
     redis_client = None
     plan_consumer: PlanConsumer = None
     decision_producer: DecisionProducer = None
@@ -110,13 +110,13 @@ async def startup_event():
         logger.info('Specialists gRPC client inicializado')
 
         # gRPC Queen Agent
-        state.queen_agent_client = QueenAgentGRPCClient(settings)
+        state.queen_agent_client = QueenAgentGrpcClient(settings)
         await state.queen_agent_client.initialize()
         logger.info('Queen Agent gRPC client inicializado')
 
         # gRPC Analyst Agent (OPTIONAL - don't fail startup if unavailable)
         try:
-            state.analyst_agent_client = AnalystAgentGRPCClient(settings)
+            state.analyst_agent_client = AnalystAgentGrpcClient(settings)
             await state.analyst_agent_client.initialize()
             logger.info('Analyst Agent gRPC client inicializado')
         except Exception as e:
