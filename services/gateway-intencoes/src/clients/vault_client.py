@@ -48,17 +48,21 @@ class VaultClient:
                 return fallback
             raise
 
-    def get_api_secret(self, key: str) -> str:
-        """Obter API secret do Vault."""
+    def get_api_secret(self, key: str) -> Optional[str]:
+        """Obter API secret do Vault.
+
+        Returns:
+            O secret solicitado, ou None se não encontrado ou em caso de erro.
+        """
         try:
             response = self.client.secrets.kv.v2.read_secret_version(
                 path="gateway/api",
                 mount_point=self._mount_point,
             )
-            return response["data"]["data"].get(key, "")
+            return response["data"]["data"].get(key, None)
         except Exception as e:
             logger.error("vault_api_secret_failed", key=key, error=str(e))
-            return ""
+            return None
 
     def close(self):
         """Fechar conexao Vault."""

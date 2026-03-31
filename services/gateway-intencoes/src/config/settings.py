@@ -1,4 +1,5 @@
 from typing import List, Optional
+import threading
 from pydantic import Field, validator, model_validator, PrivateAttr
 from pydantic_settings import BaseSettings
 
@@ -241,6 +242,7 @@ class Settings(BaseSettings):
     _vault_client: Optional["VaultClient"] = PrivateAttr(default=None)
     _jwt_secret_cached: Optional[str] = PrivateAttr(default=None)
     _secret_key_cached: Optional[str] = PrivateAttr(default=None)
+    _vault_lock: threading.Lock = PrivateAttr(default_factory=threading.Lock)
 
     # CORS e hosts (usa biblioteca neural_hive_security)
     allowed_hosts: List[str] = Field(
@@ -435,26 +437,31 @@ class Settings(BaseSettings):
         if not self.vault_enabled:
             return None
 
+        # Thread-safe initialization with double-checked locking
         if self._vault_client is None:
-            try:
-                from clients.vault_client import VaultClient
+            with self._vault_lock:
+                # Double-check after acquiring lock
+                if self._vault_client is None:
+                    try:
+                        # Import correto usando path relativo ao src
+                        from ..clients.vault_client import VaultClient
 
-                # Configurar environment para VaultClient
-                import os
-                if self.vault_addr:
-                    os.environ["VAULT_ADDR"] = self.vault_addr
-                if self.vault_token:
-                    os.environ["VAULT_TOKEN"] = self.vault_token
-                if self.vault_role:
-                    os.environ["VAULT_ROLE"] = self.vault_role
+                        # Configurar environment para VaultClient
+                        import os
+                        if self.vault_addr:
+                            os.environ["VAULT_ADDR"] = self.vault_addr
+                        if self.vault_token:
+                            os.environ["VAULT_TOKEN"] = self.vault_token
+                        if self.vault_role:
+                            os.environ["VAULT_ROLE"] = self.vault_role
 
-                self._vault_client = VaultClient()
-            except Exception as e:
-                # Vault não disponível, usar fallback
-                from structlog import get_logger
-                logger = get_logger()
-                logger.warning("vault_init_failed", error=str(e), fallback="using_env_or_config")
-                self._vault_client = False  # Marcador para não tentar novamente
+                        self._vault_client = VaultClient()
+                    except Exception as e:
+                        # Vault não disponível, usar fallback
+                        from structlog import get_logger
+                        logger = get_logger()
+                        logger.warning("vault_init_failed", error=str(e), fallback="using_env_or_config")
+                        self._vault_client = False  # Marcador para não tentar novamente
 
         return self._vault_client if self._vault_client is not False else None
 
@@ -469,13 +476,20 @@ class Settings(BaseSettings):
         Raises:
             ValueError: Se nenhum secret estiver disponível
         """
-        # Tentar obter do Vault primeiro
+        # Thread-safe cache access
+        if self._jwt_secret_cached:
+            return self._jwt_secret_cached
+
+        # Tentar obter do Vault primeiro (com lock para thread-safety)
         vault_client = self._ensure_vault_client()
         if vault_client and self._jwt_secret_cached is None:
-            try:
-                self._jwt_secret_cached = vault_client.get_jwt_secret()
-            except Exception:
-                pass  # Vault falhou, tentar outros métodos
+            with self._vault_lock:
+                # Double-check after acquiring lock
+                if self._jwt_secret_cached is None:
+                    try:
+                        self._jwt_secret_cached = vault_client.get_jwt_secret()
+                    except Exception:
+                        pass  # Vault falhou, tentar outros métodos
 
         # Usar cached secret do Vault
         if self._jwt_secret_cached:

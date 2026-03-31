@@ -140,24 +140,24 @@ class TestVaultClientGetApiSecret:
         )
 
     def test_get_api_secret_missing_key(self, vault_client):
-        """Testa obter secret que nao existe retorna string vazia."""
+        """Testa obter secret que nao existe retorna None."""
         vault_client.client.secrets.kv.v2.read_secret_version.return_value = {
             "data": {"data": {"other_key": "value"}}
         }
 
         secret = vault_client.get_api_secret("non_existent_key")
 
-        assert secret == ""
+        assert secret is None
 
     def test_get_api_secret_vault_error(self, vault_client):
-        """Testa obter API secret quando Vault falha retorna string vazia."""
+        """Testa obter API secret quando Vault falha retorna None."""
         vault_client.client.secrets.kv.v2.read_secret_version.side_effect = Exception(
             "Vault error"
         )
 
         secret = vault_client.get_api_secret("any_key")
 
-        assert secret == ""
+        assert secret is None
 
 
 class TestVaultClientClose:
