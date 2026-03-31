@@ -54,6 +54,7 @@ class OrchestratorSettings(BaseSettings):
 
     # Kafka Producer (execution.tickets)
     kafka_tickets_topic: str = Field(default='execution.tickets', description='Tópico de tickets de execução')
+    kafka_saga_events_topic: str = Field(default='saga.events', description='Tópico de eventos de Saga')
     kafka_enable_idempotence: bool = Field(default=True, description='Habilitar idempotência')
     kafka_transactional_id: Optional[str] = Field(default=None, description='ID transacional')
     kafka_schema_registry_url: str = Field(

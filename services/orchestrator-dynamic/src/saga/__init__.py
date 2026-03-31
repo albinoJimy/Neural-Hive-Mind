@@ -17,6 +17,8 @@ from .saga_repository import SagaRepository
 from .saga_event_store import SagaEventStore
 from .retry_config import SagaRetryConfig, NON_RETRYABLE_ERRORS
 from .retry_policy import RetryPolicy, RetryError, NoRetryPolicy, create_retry_policy
+from .saga_producer import SagaProducer, get_saga_producer
+from .saga_metrics import SagaMetrics, get_saga_metrics, timer
 
 __all__ = [
     'SagaStatus',
@@ -33,5 +35,10 @@ __all__ = [
     'RetryPolicy',
     'RetryError',
     'NoRetryPolicy',
-    'create_retry_policy'
+    'create_retry_policy',
+    'SagaProducer',
+    'get_saga_producer',
+    'SagaMetrics',
+    'get_saga_metrics',
+    'timer',
 ]

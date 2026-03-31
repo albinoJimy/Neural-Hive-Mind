@@ -37,6 +37,12 @@ with workflow.unsafe.imports_passed_through():
         publish_ticket_completed_event,
         publish_workflow_optimization_events,
     )
+    from src.activities.saga_events import (
+        publish_saga_created,
+        publish_saga_started,
+        publish_saga_completed,
+        publish_saga_failed,
+    )
     from src.config.settings import get_settings
     from neural_hive_observability import get_tracer, trace_plan
     from neural_hive_observability.context import get_baggage, set_baggage
