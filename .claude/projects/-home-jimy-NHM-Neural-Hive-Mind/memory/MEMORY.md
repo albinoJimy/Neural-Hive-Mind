@@ -6,6 +6,88 @@
 - **Test Plan:** docs/PLANO_TESTE_MANUAL_FLUXOS_A_C.md
 - **Test Results:** docs/TESTE_MANUAL_RESULTS_2026-02-08.md
 
+---
+
+## Critical Risks Mitigation Epic - COMPLETO (2026-03-31)
+
+**Status:** ✅ Epic Completo, 9 tickets implementados
+
+### Tickets Concluídos
+
+#### CR-01: Remover JWT Secret Hardcoded
+- **Commit:** bab7c9c
+- **Arquivos:** vault_client.py (NOVO), settings.py (MODIFICADO), auth.py (MODIFICADO), vault-seed.sh (NOVO)
+- **Testes:** 10 testes unitários para VaultClient
+- **Funcionalidade:** Integração com HashiCorp Vault para obter JWT secrets
+- **Prioridade secrets:** Vault > jwt_secret_key > JWT_SECRET env var
+
+#### CR-02: Implementar Scout Consumer Completo
+- **Commits:** f34d2f2 (feat) + 532b40e (fix)
+- **Arquivos:** digital_events_consumer.py (NOVO), digital_event.py (NOVO), main.py (MODIFICADO)
+- **Testes:** 18 testes de integração
+- **Funcionalidade:** Consumer Kafka para tópico `digital.events` com 6 canais suportados
+- **Correções:** fire-and-forget asyncio, datetime.utcnow() depreciado, type hints
+
+#### CR-03: Testes para drift_monitoring
+- **Commits:** af95641 (test) + 57d1a3b (fix)
+- **Arquivos:** test_drift_detector.py (NOVO - 1115 linhas)
+- **Testes:** 45 testes unitários
+- **Cobertura:** DriftDetector, CanaryDeployer, cenários de drift
+
+#### CR-04: Testes para observability
+- **Commits:** 47416a7 (test) + d0125ab (fix)
+- **Arquivos:** test_tracing.py, test_logging.py, test_metrics.py, test_health.py, test_context_extended.py (TODOS NOVOS)
+- **Testes:** 231 testes unitários (32+42+60+52+45)
+- **Cobertura:** tracing, logging, metrics, health checks, context propagation
+
+#### CR-05: Testes para compliance
+- **Commit:** d94d2ce
+- **Arquivos:** test_pii_masker.py (NOVO), test_pii_detector_lite.py (NOVO)
+- **Testes:** 77 novos testes (56 PIIMasker + 21 PIIDetectorLite)
+- **Total compliance:** 199 testes
+
+#### CR-06: Testes para ledger
+- **Commit:** dba3d8b
+- **Arquivos:** test_ledger.py (NOVO - 332 linhas)
+- **Testes:** 37 testes unitários
+- **Cobertura:** MongoDBClient (inicialização, conexão, índices, persistência, queries, integridade)
+
+#### CR-07: Smoke Tests E2E
+- **Commit:** b1064a8
+- **Arquivos:** conftest.py, test_smoke_*.py (7 ficheiros), run_smoke_tests.sh
+- **Testes:** 58 smoke tests assíncronos
+- **Execução:** <10min para validação rápida de todos os serviços core
+
+#### CR-08: Configurar Threshold de Cobertura
+- **Commit:** 6c59c05
+- **Arquivos:** coverage_config.ini, test-coverage.yml, check_coverage.sh
+- **Configuração:** 70% threshold no CI/CD com quality gate
+- **Features:** Relatórios HTML/XML/JSON, comentário automático em PRs, badge de cobertura
+
+#### CR-09: Documentação e Handoff
+- **Commit:** (pendente)
+- **Arquivos:** feature-map.md (MODIFICADO), MEMORY.md (MODIFICADO), RELATORIO_RISCOS_CRITICOS_2026-03-31.md (NOVO)
+
+### Métricas Finais do Epic
+
+| Módulo | Testes Antes | Testes Depois | Diferença |
+|--------|--------------|---------------|-----------|
+| drift_monitoring | 0 | 45 | +45 |
+| observability | 72 | 303 | +231 |
+| compliance | 128 | 199 | +77 |
+| ledger (consensus) | 240 | 277 | +37 |
+| scout-agents | 0 | 18 | +18 |
+| gateway (vault) | 0 | 10 | +10 |
+| smoke tests | 0 | 58 | +58 |
+| **TOTAL** | **480** | **910** | **+430** |
+
+### Relatório Completo
+docs/RELATORIO_RISCOS_CRITICOS_2026-03-31.md
+
+---
+
+## Test Execution Complete (2026-02-08)
+
 ## Test Execution Complete (2026-02-08)
 
 ### Status: ✅ ALL FLOWS OPERATIONAL - E2E VERIFIED
