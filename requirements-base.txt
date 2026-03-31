@@ -1,0 +1,80 @@
+# Dependências base consolidadas para Neural-Hive-Mind
+# Atualizado: 2026-03-31 (Fase 1 - Platform Standardization)
+#
+# Uso: Adicionar no topo de requirements.txt de cada serviço:
+#   -r ../../requirements-base.txt
+
+# Web Framework
+fastapi==0.115.10
+starlette==0.27.0
+uvicorn[standard]==0.34.0
+python-multipart==0.0.6
+
+# Data Validation
+pydantic==2.10.4
+pydantic-settings==2.6.1  # 2.7.x has _lenient_issubclass bug
+
+# Observability
+opentelemetry-api==1.29.0
+opentelemetry-sdk==1.29.0
+opentelemetry-instrumentation-fastapi==0.50b0
+opentelemetry-instrumentation-grpc==0.50b0
+opentelemetry-instrumentation-kafka-python==0.50b0
+opentelemetry-instrumentation-sqlalchemy==0.50b0
+opentelemetry-instrumentation-aiohttp-client==0.50b0
+opentelemetry-instrumentation==0.50b0
+opentelemetry-exporter-otlp==1.29.0
+opentelemetry-exporter-otlp-proto-grpc==1.29.0
+opentelemetry-propagator-b3==1.25.0
+opentelemetry-propagator-jaeger==1.25.0
+structlog==24.4.0
+prometheus-client==0.21.1
+
+# Async
+aiohttp==3.11.11
+aiofiles==23.2.1
+
+# Kafka
+aiokafka==0.12.0
+confluent-kafka==2.8.0
+avro-python3==1.10.2
+fastavro==1.9.7
+
+# Databases
+motor==3.7.1
+pymongo==4.10.1
+redis[hiredis]==5.2.1
+neo4j==5.15.0
+clickhouse-connect>=0.6.0
+sqlalchemy==2.0.36
+psycopg2-binary==2.9.9
+
+# gRPC
+grpcio==1.68.1
+grpcio-health-checking==1.68.1
+grpcio-tools==1.68.1
+protobuf==5.29.2
+
+# Security
+python-jose[cryptography]==4.0.0  # CVE-2022-24314 fix
+passlib[bcrypt]==1.7.4
+cryptography==41.0.7
+
+# Utilities
+tenacity==9.0.0
+python-dotenv==1.0.1
+python-json-logger==2.0.7
+click==8.1.7
+pyyaml==6.0.1
+httpx==0.28.1
+
+# Testing (base)
+pytest==8.3.0
+pytest-asyncio==0.24.0
+pytest-cov==6.0.0
+pytest-mock==3.14.0
+
+# Code Quality
+ruff==0.8.0
+black==24.10.0
+mypy==1.13.0
