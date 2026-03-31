@@ -15,13 +15,13 @@ Cobertura:
 
 import pytest
 import pytest_asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 import grpc
 from grpc.aio import AioRpcError
 
-from src.clients.optimizer_grpc_client import OptimizerGRPCClient
-from src.scheduler.ml_scheduler import MLScheduler
+from src.clients.optimizer_grpc_client import OptimizerGrpcClient
+from src.scheduler.intelligent_scheduler import IntelligentScheduler
 
 
 @pytest.fixture
@@ -57,7 +57,7 @@ def mock_grpc_stub():
     forecast_response.resource_demand_cpu = 0.65
     forecast_response.resource_demand_memory = 0.58
     forecast_response.bottleneck_probability = 0.15
-    forecast_response.timestamp = int(datetime.utcnow().timestamp())
+    forecast_response.timestamp = int(datetime.now(timezone.utc).timestamp())
 
     stub.GetLoadForecast = AsyncMock(return_value=forecast_response)
 
@@ -89,11 +89,11 @@ def mock_metrics():
 
 @pytest_asyncio.fixture
 async def optimizer_client(config, mock_grpc_channel, mock_grpc_stub, mock_metrics):
-    """Fixture do OptimizerGRPCClient."""
+    """Fixture do OptimizerGrpcClient."""
     with patch('grpc.aio.insecure_channel', return_value=mock_grpc_channel):
         with patch('src.clients.optimizer_grpc_client.OptimizerAgentStub',
                    return_value=mock_grpc_stub):
-            client = OptimizerGRPCClient(config=config, metrics=mock_metrics)
+            client = OptimizerGrpcClient(config=config, metrics=mock_metrics)
             await client.initialize()
             return client
 
@@ -111,7 +111,7 @@ async def test_client_initialization_success(optimizer_client):
 async def test_client_connection_failure_fallback(config, mock_metrics):
     """Testa fallback quando conexão gRPC falha."""
     with patch('grpc.aio.insecure_channel', side_effect=Exception("Connection refused")):
-        client = OptimizerGRPCClient(config=config, metrics=mock_metrics)
+        client = OptimizerGrpcClient(config=config, metrics=mock_metrics)
 
         # Deve inicializar mesmo com falha (fallback mode)
         await client.initialize()
@@ -245,7 +245,7 @@ async def test_scheduler_uses_predictions(config, mock_metrics):
         'bottleneck_probability': 0.42
     })
 
-    scheduler = MLScheduler(
+    scheduler = IntelligentScheduler(
         optimizer_client=mock_optimizer_client,
         config=config,
         metrics=mock_metrics
@@ -267,7 +267,7 @@ async def test_scheduler_fallback_on_optimizer_unavailable(config, mock_metrics)
     mock_optimizer_client = AsyncMock()
     mock_optimizer_client.get_load_forecast = AsyncMock(return_value=None)  # Indisponível
 
-    scheduler = MLScheduler(
+    scheduler = IntelligentScheduler(
         optimizer_client=mock_optimizer_client,
         config=config,
         metrics=mock_metrics
@@ -300,7 +300,7 @@ async def test_metadata_enrichment_with_optimizer_data(optimizer_client):
         'optimizer_predicted_load': forecast['predicted_volume'],
         'optimizer_confidence': forecast['confidence'],
         'optimizer_bottleneck_risk': forecast['bottleneck_probability'],
-        'optimizer_enriched_at': datetime.utcnow().isoformat()
+        'optimizer_enriched_at': datetime.now(timezone.utc).isoformat()
     }
 
     assert enriched_metadata['optimizer_predicted_load'] == 125
@@ -343,7 +343,7 @@ async def test_forecast_cache_expiration(optimizer_client, mock_grpc_stub):
     )
 
     # Simular passagem de tempo (TTL expirado)
-    with patch('time.time', return_value=datetime.utcnow().timestamp() + 400):
+    with patch('time.time', return_value=datetime.now(timezone.utc).timestamp() + 400):
         forecast2 = await optimizer_client.get_load_forecast(
             horizon_minutes=60,
             task_type='processing',

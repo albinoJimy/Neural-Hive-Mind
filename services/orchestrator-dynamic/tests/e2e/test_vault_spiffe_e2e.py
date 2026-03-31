@@ -1,5 +1,6 @@
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -11,7 +12,19 @@ from tests.e2e.fixtures.vault_spire_setup import (
     build_test_settings,
 )
 from src.clients.vault_integration import OrchestratorVaultClient
-from neural_hive_security import VaultClient
+
+# Import condicional para evitar erros quando neural_hive_security não tem VaultClient
+if TYPE_CHECKING:
+    try:
+        from neural_hive_security import VaultClient
+    except ImportError:
+        VaultClient = None  # type: ignore
+else:
+    # Em runtime, usar MagicMock se não disponível
+    try:
+        from neural_hive_security import VaultClient
+    except (ImportError, TypeError):
+        VaultClient = None  # type: ignore
 
 REAL_E2E = os.getenv("RUN_VAULT_SPIFFE_E2E", "").lower() == "true"
 pytestmark = pytest.mark.skipif(not REAL_E2E, reason="RUN_VAULT_SPIFFE_E2E not enabled")
@@ -23,7 +36,7 @@ async def test_vault_kubernetes_authentication(vault_client: VaultClient):
     require_real_env()
     assert vault_client.token is not None
     assert vault_client.token_expiry is not None
-    assert vault_client.token_expiry > datetime.utcnow()
+    assert vault_client.token_expiry > datetime.now(timezone.utc)
 
 
 @pytest.mark.asyncio
@@ -65,7 +78,7 @@ async def test_credential_rotation(orchestrator_vault_client: OrchestratorVaultC
     assert creds["username"]
 
     # Força threshold de renovação simulando expiração iminente
-    orchestrator_vault_client._postgres_credentials_expiry = datetime.utcnow() + timedelta(seconds=5)
+    orchestrator_vault_client._postgres_credentials_expiry = datetime.now(timezone.utc) + timedelta(seconds=5)
     await orchestrator_vault_client._renew_postgres_credentials_if_needed()
 
 
