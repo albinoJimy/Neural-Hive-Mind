@@ -5,7 +5,7 @@ import signal
 import sys
 import uuid
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 import structlog
 import uvicorn
 from neural_hive_observability import (
@@ -29,6 +29,9 @@ registry_client: ServiceRegistryClient = None
 digital_events_consumer: DigitalEventsConsumer = None
 shutdown_event = asyncio.Event()
 
+# Background tasks for monitoring
+_background_tasks: set[asyncio.Task] = set()
+
 
 def configure_logging():
     """Configure structured logging"""
@@ -51,6 +54,40 @@ def handle_signal(signum, frame):
     """Handle shutdown signals"""
     logger.info("shutdown_signal_received", signal=signum)
     shutdown_event.set()
+
+
+def create_background_task(coro):
+    """
+    Create a background task with error handling.
+
+    Tasks are tracked in _background_tasks set to prevent garbage collection
+    and allow for proper cleanup during shutdown.
+
+    Args:
+        coro: Coroutine to run as background task
+
+    Returns:
+        asyncio.Task: The created task
+    """
+    task = asyncio.create_task(coro)
+
+    def task_done(t: asyncio.Task):
+        """Remove task from tracking set when done and log any exceptions."""
+        _background_tasks.discard(t)
+        try:
+            if not t.cancelled():
+                t.result()  # This will raise if task raised an exception
+        except Exception as e:
+            logger.error(
+                "background_task_failed",
+                task_name=t.get_name(),
+                error=str(e),
+                exc_info=e.__traceback__
+            )
+
+    task.add_done_callback(task_done)
+    _background_tasks.add(task)
+    return task
 
 
 async def heartbeat_loop(agent_id: str):
@@ -128,8 +165,8 @@ async def start_digital_events_consumer():
 
         await digital_events_consumer.initialize()
 
-        # Start consumption in background task
-        asyncio.create_task(digital_events_consumer.start())
+        # Start consumption in background task with proper error handling
+        create_background_task(digital_events_consumer.start())
 
         logger.info("digital_events_consumer_started")
 
@@ -233,10 +270,10 @@ async def startup():
             logger.warning("service_registry_registration_failed", agent_id=agent_id)
             # Não registra métrica se falhou
 
-        # Start background tasks
-        asyncio.create_task(heartbeat_loop(agent_id))
-        asyncio.create_task(queue_processor_loop())
-        asyncio.create_task(start_digital_events_consumer())
+        # Start background tasks with proper error handling
+        create_background_task(heartbeat_loop(agent_id))
+        create_background_task(queue_processor_loop())
+        create_background_task(start_digital_events_consumer())
 
         logger.info("scout_agent_started", agent_id=agent_id)
 

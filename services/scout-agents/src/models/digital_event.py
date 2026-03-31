@@ -1,5 +1,5 @@
 """Modelo para eventos de canais digitais."""
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Dict, Any, Union
 from pydantic import BaseModel, Field, field_validator
 from enum import Enum
@@ -38,7 +38,7 @@ class DigitalEvent(BaseModel):
     channel: DigitalChannel = Field(..., description="Digital channel source")
     user_id: Optional[str] = Field(None, description="User identifier")
     session_id: Optional[str] = Field(None, description="Session identifier")
-    timestamp: Union[datetime, str] = Field(default_factory=lambda: datetime.utcnow(), description="Event timestamp")
+    timestamp: Union[datetime, str] = Field(default_factory=lambda: datetime.now(timezone.utc), description="Event timestamp")
     payload: Dict[str, Any] = Field(default_factory=dict, description="Event payload data")
     metadata: Dict[str, Any] = Field(default_factory=dict, description="Event metadata")
 
@@ -50,7 +50,7 @@ class DigitalEvent(BaseModel):
             try:
                 return datetime.fromisoformat(v.replace('Z', '+00:00'))
             except ValueError:
-                return datetime.utcnow()
+                return datetime.now(timezone.utc)
         return v
 
     @field_validator('event_type', mode='before')
