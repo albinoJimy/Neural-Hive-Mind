@@ -197,6 +197,8 @@ class TestCorrelationFormatter:
         try:
             raise ValueError("Test exception")
         except ValueError:
+            import sys
+            exc_info = sys.exc_info()
             record = logging.LogRecord(
                 name="test.logger",
                 level=logging.ERROR,
@@ -204,7 +206,7 @@ class TestCorrelationFormatter:
                 lineno=1,
                 msg="Error message",
                 args=(),
-                exc_info=True
+                exc_info=exc_info
             )
 
         output = formatter.format(record)
@@ -346,13 +348,16 @@ class TestNeuralHiveLoggerAdapter:
 
     def test_info_with_correlation(self):
         """Testa método info_with_correlation."""
-        logger = logging.getLogger("test.logger")
+        logger = logging.getLogger("test.logger.info_corr")
         adapter = NeuralHiveLoggerAdapter(logger)
 
-        # Criar handler mock para capturar logs
-        handler = Mock()
-        handler.handle = Mock()
+        # Criar handler real para capturar logs
+        import io
+        log_capture = io.StringIO()
+        handler = logging.StreamHandler(log_capture)
+        handler.setLevel(logging.INFO)
         logger.addHandler(handler)
+        logger.setLevel(logging.INFO)
 
         adapter.info_with_correlation(
             "Test message",
@@ -361,18 +366,21 @@ class TestNeuralHiveLoggerAdapter:
         )
 
         # Verificar que log foi criado
-        assert handler.handle.called
+        assert len(log_capture.getvalue()) > 0
 
         logger.removeHandler(handler)
 
     def test_error_with_correlation(self):
         """Testa método error_with_correlation."""
-        logger = logging.getLogger("test.logger")
+        logger = logging.getLogger("test.logger.error_corr")
         adapter = NeuralHiveLoggerAdapter(logger)
 
-        handler = Mock()
-        handler.handle = Mock()
+        import io
+        log_capture = io.StringIO()
+        handler = logging.StreamHandler(log_capture)
+        handler.setLevel(logging.ERROR)
         logger.addHandler(handler)
+        logger.setLevel(logging.ERROR)
 
         adapter.error_with_correlation(
             "Error message",
@@ -380,25 +388,28 @@ class TestNeuralHiveLoggerAdapter:
             plan_id="plan-456"
         )
 
-        assert handler.handle.called
+        assert len(log_capture.getvalue()) > 0
 
         logger.removeHandler(handler)
 
     def test_warning_with_correlation(self):
         """Testa método warning_with_correlation."""
-        logger = logging.getLogger("test.logger")
+        logger = logging.getLogger("test.logger.warning_corr")
         adapter = NeuralHiveLoggerAdapter(logger)
 
-        handler = Mock()
-        handler.handle = Mock()
+        import io
+        log_capture = io.StringIO()
+        handler = logging.StreamHandler(log_capture)
+        handler.setLevel(logging.WARNING)
         logger.addHandler(handler)
+        logger.setLevel(logging.WARNING)
 
         adapter.warning_with_correlation(
             "Warning message",
             intent_id="intent-123"
         )
 
-        assert handler.handle.called
+        assert len(log_capture.getvalue()) > 0
 
         logger.removeHandler(handler)
 
@@ -490,9 +501,12 @@ class TestLogIntentFunctions:
     def test_log_intent_start(self):
         """Testa log_intent_start."""
         logger = get_logger("test.intent.start")
-        handler = Mock()
-        handler.handle = Mock()
+        import io
+        log_capture = io.StringIO()
+        handler = logging.StreamHandler(log_capture)
+        handler.setLevel(logging.INFO)
         logger.logger.addHandler(handler)
+        logger.logger.setLevel(logging.INFO)
 
         log_intent_start(
             logger,
@@ -501,15 +515,18 @@ class TestLogIntentFunctions:
             channel="web"
         )
 
-        assert handler.handle.called
+        assert len(log_capture.getvalue()) > 0
         logger.logger.removeHandler(handler)
 
     def test_log_intent_completion(self):
         """Testa log_intent_completion."""
         logger = get_logger("test.intent.completion")
-        handler = Mock()
-        handler.handle = Mock()
+        import io
+        log_capture = io.StringIO()
+        handler = logging.StreamHandler(log_capture)
+        handler.setLevel(logging.INFO)
         logger.logger.addHandler(handler)
+        logger.logger.setLevel(logging.INFO)
 
         log_intent_completion(
             logger,
@@ -519,15 +536,18 @@ class TestLogIntentFunctions:
             channel="api"
         )
 
-        assert handler.handle.called
+        assert len(log_capture.getvalue()) > 0
         logger.logger.removeHandler(handler)
 
     def test_log_intent_start_with_empty_input(self):
         """Testa log_intent_start com input vazio."""
         logger = get_logger("test.intent.start.empty")
-        handler = Mock()
-        handler.handle = Mock()
+        import io
+        log_capture = io.StringIO()
+        handler = logging.StreamHandler(log_capture)
+        handler.setLevel(logging.INFO)
         logger.logger.addHandler(handler)
+        logger.logger.setLevel(logging.INFO)
 
         log_intent_start(
             logger,
@@ -536,7 +556,7 @@ class TestLogIntentFunctions:
             channel="mobile"
         )
 
-        assert handler.handle.called
+        assert len(log_capture.getvalue()) > 0
         logger.logger.removeHandler(handler)
 
 
@@ -546,9 +566,12 @@ class TestLogPlanFunctions:
     def test_log_plan_execution_start(self):
         """Testa log_plan_execution_start."""
         logger = get_logger("test.plan.start")
-        handler = Mock()
-        handler.handle = Mock()
+        import io
+        log_capture = io.StringIO()
+        handler = logging.StreamHandler(log_capture)
+        handler.setLevel(logging.INFO)
         logger.logger.addHandler(handler)
+        logger.logger.setLevel(logging.INFO)
 
         log_plan_execution_start(
             logger,
@@ -557,15 +580,18 @@ class TestLogPlanFunctions:
             plan_type="data_processing"
         )
 
-        assert handler.handle.called
+        assert len(log_capture.getvalue()) > 0
         logger.logger.removeHandler(handler)
 
     def test_log_plan_execution_completion_success(self):
         """Testa log_plan_execution_completion com sucesso."""
         logger = get_logger("test.plan.completion")
-        handler = Mock()
-        handler.handle = Mock()
+        import io
+        log_capture = io.StringIO()
+        handler = logging.StreamHandler(log_capture)
+        handler.setLevel(logging.INFO)
         logger.logger.addHandler(handler)
+        logger.logger.setLevel(logging.INFO)
 
         log_plan_execution_completion(
             logger,
@@ -576,15 +602,18 @@ class TestLogPlanFunctions:
             plan_type="data_processing"
         )
 
-        assert handler.handle.called
+        assert len(log_capture.getvalue()) > 0
         logger.logger.removeHandler(handler)
 
     def test_log_plan_execution_completion_failure(self):
         """Testa log_plan_execution_completion com falha."""
         logger = get_logger("test.plan.completion.fail")
-        handler = Mock()
-        handler.handle = Mock()
+        import io
+        log_capture = io.StringIO()
+        handler = logging.StreamHandler(log_capture)
+        handler.setLevel(logging.INFO)
         logger.logger.addHandler(handler)
+        logger.logger.setLevel(logging.INFO)
 
         log_plan_execution_completion(
             logger,
@@ -595,15 +624,18 @@ class TestLogPlanFunctions:
             plan_type="validation"
         )
 
-        assert handler.handle.called
+        assert len(log_capture.getvalue()) > 0
         logger.logger.removeHandler(handler)
 
     def test_log_plan_execution_start_without_intent(self):
         """Testa log_plan_execution_start sem intent_id."""
         logger = get_logger("test.plan.start.no_intent")
-        handler = Mock()
-        handler.handle = Mock()
+        import io
+        log_capture = io.StringIO()
+        handler = logging.StreamHandler(log_capture)
+        handler.setLevel(logging.INFO)
         logger.logger.addHandler(handler)
+        logger.logger.setLevel(logging.INFO)
 
         log_plan_execution_start(
             logger,
@@ -611,7 +643,7 @@ class TestLogPlanFunctions:
             plan_type="standalone"
         )
 
-        assert handler.handle.called
+        assert len(log_capture.getvalue()) > 0
         logger.logger.removeHandler(handler)
 
 
