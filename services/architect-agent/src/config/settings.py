@@ -1,6 +1,6 @@
 """Configuration settings for Architect Agent using Pydantic"""
 from functools import lru_cache
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from pydantic import BaseModel, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -85,7 +85,7 @@ class OPAConfig(BaseModel):
 class LLMConfig(BaseModel):
     """LLM configuration (optional)"""
     provider: str = Field(default="", description="LLM provider (openai/anthropic)")
-    api_key: str = Field(default="", description="LLM API key")
+    api_key: Optional[str] = Field(default=None, description="LLM API key (OBRIGATÓRIO se provider definido)")
     model: str = Field(default="gpt-4", description="LLM model name")
     timeout_seconds: int = Field(default=60, description="Request timeout in seconds")
     max_tokens: int = Field(default=2000, description="Maximum tokens for generation")
