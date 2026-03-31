@@ -257,3 +257,33 @@ class PriorityCalculator:
             urgency = 1.0
 
         return urgency
+
+    def apply_adaptive_adjustment(
+        self,
+        base_priority: float,
+        adaptive_adjustment: float
+    ) -> float:
+        """
+        Aplica ajuste adaptativo ao priority score base.
+
+        Args:
+            base_priority: Priority score base calculado
+            adaptive_adjustment: Ajuste adaptativo [-0.2, +0.2]
+
+        Returns:
+            Priority score ajustado [0.0, 1.0]
+        """
+        adjusted_score = base_priority + adaptive_adjustment
+
+        # Normalizar para [0.0, 1.0]
+        adjusted_score = min(max(adjusted_score, 0.0), 1.0)
+
+        if adaptive_adjustment != 0.0:
+            self.logger.debug(
+                'adaptive_priority_adjustment_applied',
+                base_priority=base_priority,
+                adaptive_adjustment=adaptive_adjustment,
+                adjusted_score=adjusted_score
+            )
+
+        return adjusted_score
