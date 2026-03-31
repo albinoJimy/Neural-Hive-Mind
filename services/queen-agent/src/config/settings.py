@@ -97,7 +97,7 @@ class Settings(BaseSettings):
     MAX_CONCURRENT_DECISIONS: int = 5
 
     # Observability
-    OTEL_EXPORTER_ENDPOINT: str = "http://jaeger-collector:4317"
+    OTEL_EXPORTER_ENDPOINT: str = "https://opentelemetry-collector.observability.svc.cluster.local:4317"
     METRICS_PORT: int = 9090
     CIRCUIT_BREAKER_ENABLED: bool = True
     CIRCUIT_BREAKER_FAIL_MAX: int = 5
