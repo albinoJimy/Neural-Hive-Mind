@@ -21,7 +21,7 @@ RUN grep -v "neural_hive_observability" requirements.txt > requirements-filtered
     pip install --no-cache-dir --user -r requirements-filtered.txt
 
 # Final stage
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 WORKDIR /app
 

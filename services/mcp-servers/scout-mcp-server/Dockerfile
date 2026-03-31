@@ -5,7 +5,7 @@
 # Build command: docker build -f scout-mcp-server/Dockerfile .
 
 # Stage 1: Builder
-FROM python:3.11-slim as builder
+FROM python:3.12-slim as builder
 
 WORKDIR /build
 
@@ -25,7 +25,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
 
 
 # Stage 2: Runtime
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 # Copiar virtualenv do builder
 COPY --from=builder /opt/venv /opt/venv
