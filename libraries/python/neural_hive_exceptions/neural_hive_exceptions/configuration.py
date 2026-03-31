@@ -41,7 +41,7 @@ class ConfigurationError(NeuralHiveError):
         message: str,
         config_key: Optional[str] = None,
         reason: Optional[str] = None,
-        code: str = None,
+        code: Optional[str] = None,
         details: Optional[Dict[str, Any]] = None
     ):
         code = code or ConfigErrorCode.MISSING_REQUIRED_CONFIG
