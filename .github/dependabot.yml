@@ -1,0 +1,270 @@
+# Dependabot configuration for Neural Hive-Mind
+# Mantém dependências atualizadas automaticamente com agrupamento inteligente
+
+version: 2
+updates:
+  # ============================================================================
+  # PYTHON - GROUPS ESPECÍFICOS
+  # ============================================================================
+
+  # OpenTelemetry - atualizações críticas para observabilidade
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    groups:
+      opentelemetry:
+        patterns:
+          - "opentelemetry-*"
+        exclude-patterns:
+          - "*-beta"
+          - "*-rc"
+        update-types:
+          - "minor"
+          - "patch"
+    commit-message:
+      prefix: "deps(otel)"
+      prefix-development: "deps(otel-dev)"
+      include: "scope"
+
+  # gRPC - comunicações entre serviços
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    groups:
+      grpc:
+        patterns:
+          - "grpcio*"
+        update-types:
+          - "minor"
+          - "patch"
+    commit-message:
+      prefix: "deps(grpc)"
+      include: "scope"
+
+  # FastAPI e dependências web
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    groups:
+      web:
+        patterns:
+          - "fastapi*"
+          - "uvicorn*"
+          - "pydantic*"
+        update-types:
+          - "minor"
+          - "patch"
+    commit-message:
+      prefix: "deps(web)"
+      include: "scope"
+
+  # ML e Data Science
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+    groups:
+      ml-core:
+        patterns:
+          - "scikit-learn*"
+          - "pandas*"
+          - "numpy*"
+          - "scipy*"
+        update-types:
+          - "minor"
+          - "patch"
+      ml-extras:
+        patterns:
+          - "transformers*"
+          - "torch*"
+          - "tensorflow*"
+        exclude-patterns:
+          - "*-nightly"
+        update-types:
+          - "minor"
+          - "patch"
+    commit-message:
+      prefix: "deps(ml)"
+      include: "scope"
+
+  # ============================================================================
+  # PYTHON - BIBLIOTECAS PYTHON
+  # ============================================================================
+
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "wednesday"
+    groups:
+      python-stdlib:
+        patterns:
+          - "aiohttp*"
+          - "requests*"
+          - "urllib3*"
+        update-types:
+          - "minor"
+          - "patch"
+      python-utils:
+        patterns:
+          - "click*"
+          - "python-dotenv*"
+          - "pyyaml*"
+        update-types:
+          - "minor"
+          - "patch"
+      python-testing:
+        patterns:
+          - "pytest*"
+          - "pytest-*"
+          - "coverage*"
+          - "black*"
+          - "ruff*"
+          - "mypy*"
+        update-types:
+          - "minor"
+          - "patch"
+    commit-message:
+      prefix: "deps(python)"
+      include: "scope"
+
+  # ============================================================================
+  # PYTHON - SERVIÇOS ESPECÍFICOS
+  # ============================================================================
+
+  # requirements-base.txt (bibliotecas Python consolidadas)
+  - package-ecosystem: "pip"
+    directory: "/"
+    target: "requirements-base.txt"
+    schedule:
+      interval: "weekly"
+      day: "thursday"
+    commit-message:
+      prefix: "deps(base)"
+      include: "scope"
+
+  # ============================================================================
+  # DOCKER
+  # ============================================================================
+
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "friday"
+    commit-message:
+      prefix: "deps(docker)"
+      include: "scope"
+
+  # ============================================================================
+  # GITHUB ACTIONS
+  # ============================================================================
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "friday"
+    groups:
+      actions:
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "*-preview"
+          - "*-beta"
+    commit-message:
+      prefix: "ci(actions)"
+      include: "scope"
+
+  # ============================================================================
+  # SERVIÇOS INDIVIDUAIS (apenas patch updates automáticas)
+  # ============================================================================
+
+  # Cada serviço tem seu próprio requirements.txt
+  - package-ecosystem: "pip"
+    directory: "/services/consensus-engine"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    versioning-strategy: increase
+    commit-message:
+      prefix: "deps(consensus-engine)"
+      include: "scope"
+
+  - package-ecosystem: "pip"
+    directory: "/services/orchestrator-dynamic"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    versioning-strategy: increase
+    commit-message:
+      prefix: "deps(orchestrator)"
+      include: "scope"
+
+  - package-ecosystem: "pip"
+    directory: "/services/gateway-intencoes"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    versioning-strategy: increase
+    commit-message:
+      prefix: "deps(gateway)"
+      include: "scope"
+
+  - package-ecosystem: "pip"
+    directory: "/services/analyst-agents"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    versioning-strategy: increase
+    commit-message:
+      prefix: "deps(analyst)"
+      include: "scope"
+
+  - package-ecosystem: "pip"
+    directory: "/services/queen-agent"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    versioning-strategy: increase
+    commit-message:
+      prefix: "deps(queen)"
+      include: "scope"
+
+# ============================================================================
+# CONFIGURAÇÕES GLOBAIS
+# ============================================================================
+
+# Ignorar versões específicas problemáticas
+ignore:
+  # Python 3.13 ainda não está testado
+  - dependency-name: "python"
+    versions: ["3.13.*"]
+
+  # OpenTelemetry breaking changes
+  - dependency-name: "opentelemetry-*"
+    versions: ["2.0.*"]
+
+  # Pydantic 2.7 tem bug com _lenient_issubclass
+  - dependency-name: "pydantic-settings"
+    versions: ["2.7.*"]
+
+# Labels automáticos
+labels:
+  - "dependencies"
+  - "automated"
+
+# Pull request settings
+pull-request-branch-name:
+  separator: "/"
+  prefix: "dep/"
+
+# Rebase strategy
+rebase-strategy: "auto"
