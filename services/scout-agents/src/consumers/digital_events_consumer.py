@@ -9,8 +9,14 @@ Created: 2026-03-31 (CR-02)
 """
 import json
 import asyncio
-from typing import Optional, Dict, Any
-from datetime import datetime
+from typing import Optional, Dict, Any, TYPE_CHECKING
+from datetime import datetime, timezone
+from types import TracebackType
+
+if TYPE_CHECKING:
+    from ..config.settings import Settings
+    from ..observability.metrics import ScoutMetrics
+    from ..engine.exploration_engine import ExplorationEngine
 
 import structlog
 from aiokafka import AIOKafkaConsumer
@@ -37,9 +43,9 @@ class DigitalEventsConsumer:
 
     def __init__(
         self,
-        settings,
-        exploration_engine=None,
-        metrics=None
+        settings: 'Settings',
+        exploration_engine: Optional['ExplorationEngine'] = None,
+        metrics: Optional['ScoutMetrics'] = None
     ):
         """
         Inicializa o consumer.
@@ -223,7 +229,7 @@ class DigitalEventsConsumer:
             ).inc()
 
         self.stats['events_processed'] += 1
-        self.stats['last_event_at'] = datetime.utcnow()
+        self.stats['last_event_at'] = datetime.now(timezone.utc)
 
         logger.debug('evento_digital_processado', event_id=event.event_id)
 
