@@ -9,7 +9,7 @@ from neural_hive_observability.health_checks.clickhouse import ClickHouseSchemaH
 from neural_hive_observability.config import ObservabilityConfig
 
 from .config import get_settings
-from .clients import MongoDBClient, RedisClient, Neo4jClient, ClickHouseClient, ElasticsearchClient, PrometheusClient, QueenAgentGRPCClient, ServiceRegistryClient
+from .clients import MongoDBClient, RedisClient, Neo4jClient, ClickHouseClient, ElasticsearchClient, PrometheusClient, QueenAgentGrpcClient, ServiceRegistryClient
 from .services import AnalyticsEngine, QueryEngine, InsightGenerator, CausalAnalyzer, EmbeddingService, TimeSeriesAnalyzer, MCPIntegration
 from .consumers import TelemetryConsumer, ConsensusConsumer, ExecutionConsumer, PheromoneConsumer
 from .producers import InsightProducer
@@ -152,7 +152,7 @@ async def lifespan(app: FastAPI):
         app_state.prometheus_client.initialize()
 
         # Queen Agent gRPC Client
-        app_state.queen_agent_client = QueenAgentGRPCClient(
+        app_state.queen_agent_client = QueenAgentGrpcClient(
             host=settings.QUEEN_AGENT_GRPC_HOST,
             port=settings.QUEEN_AGENT_GRPC_PORT
         )

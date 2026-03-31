@@ -91,7 +91,7 @@ def sample_list_decisions_response(sample_strategic_decision_response):
 
 @pytest.mark.unit
 @pytest.mark.asyncio
-class TestQueenAgentGRPCClientInitialization:
+class TestQueenAgentGrpcClientInitialization:
     """Testes de inicialização do cliente."""
 
     @patch('src.clients.queen_agent_grpc_client.grpc.aio.insecure_channel')
@@ -103,14 +103,14 @@ class TestQueenAgentGRPCClientInitialization:
         mock_queen_agent_config
     ):
         """Verifica inicialização com canal inseguro em desenvolvimento."""
-        from src.clients.queen_agent_grpc_client import QueenAgentGRPCClient
+        from src.clients.queen_agent_grpc_client import QueenAgentGrpcClient
 
         mock_channel = AsyncMock()
         mock_channel.channel_ready = AsyncMock()
         mock_insecure_channel.return_value = mock_channel
         mock_instrument.return_value = mock_channel
 
-        client = QueenAgentGRPCClient(mock_queen_agent_config)
+        client = QueenAgentGrpcClient(mock_queen_agent_config)
         await client.initialize()
 
         mock_insecure_channel.assert_called_once()
@@ -121,7 +121,7 @@ class TestQueenAgentGRPCClientInitialization:
 
     async def test_initialize_handles_timeout(self, mock_queen_agent_config):
         """Verifica tratamento de timeout na inicialização."""
-        from src.clients.queen_agent_grpc_client import QueenAgentGRPCClient
+        from src.clients.queen_agent_grpc_client import QueenAgentGrpcClient
         import asyncio
 
         with patch('src.clients.queen_agent_grpc_client.grpc.aio.insecure_channel') as mock_channel:
@@ -130,7 +130,7 @@ class TestQueenAgentGRPCClientInitialization:
             mock_channel.return_value = channel
 
             with patch('src.clients.queen_agent_grpc_client.instrument_grpc_channel', return_value=channel):
-                client = QueenAgentGRPCClient(mock_queen_agent_config)
+                client = QueenAgentGrpcClient(mock_queen_agent_config)
                 # Não deve lançar exceção, apenas log warning
                 await client.initialize()
                 await client.close()
@@ -138,7 +138,7 @@ class TestQueenAgentGRPCClientInitialization:
 
 @pytest.mark.unit
 @pytest.mark.asyncio
-class TestQueenAgentGRPCClientGetDecision:
+class TestQueenAgentGrpcClientGetDecision:
     """Testes de busca de decisão estratégica."""
 
     async def test_get_strategic_decision_success(
@@ -147,7 +147,7 @@ class TestQueenAgentGRPCClientGetDecision:
         sample_strategic_decision_response
     ):
         """Verifica busca de decisão com sucesso."""
-        from src.clients.queen_agent_grpc_client import QueenAgentGRPCClient
+        from src.clients.queen_agent_grpc_client import QueenAgentGrpcClient
 
         with patch('src.clients.queen_agent_grpc_client.grpc.aio.insecure_channel') as mock_channel_cls:
             channel = AsyncMock()
@@ -162,7 +162,7 @@ class TestQueenAgentGRPCClientGetDecision:
                     )
                     mock_stub_cls.return_value = mock_stub
 
-                    client = QueenAgentGRPCClient(mock_queen_agent_config)
+                    client = QueenAgentGrpcClient(mock_queen_agent_config)
                     await client.initialize()
 
                     result = await client.get_strategic_decision('dec-123')
@@ -176,9 +176,9 @@ class TestQueenAgentGRPCClientGetDecision:
 
     async def test_get_strategic_decision_not_initialized(self, mock_queen_agent_config):
         """Verifica retorno None quando stub não inicializado."""
-        from src.clients.queen_agent_grpc_client import QueenAgentGRPCClient
+        from src.clients.queen_agent_grpc_client import QueenAgentGrpcClient
 
-        client = QueenAgentGRPCClient(mock_queen_agent_config)
+        client = QueenAgentGrpcClient(mock_queen_agent_config)
         # Não inicializar
 
         result = await client.get_strategic_decision('dec-123')
@@ -191,7 +191,7 @@ class TestQueenAgentGRPCClientGetDecision:
         sample_strategic_decision_response
     ):
         """Verifica retry quando serviço está indisponível."""
-        from src.clients.queen_agent_grpc_client import QueenAgentGRPCClient
+        from src.clients.queen_agent_grpc_client import QueenAgentGrpcClient
 
         with patch('src.clients.queen_agent_grpc_client.grpc.aio.insecure_channel') as mock_channel_cls:
             channel = AsyncMock()
@@ -215,7 +215,7 @@ class TestQueenAgentGRPCClientGetDecision:
                     )
                     mock_stub_cls.return_value = mock_stub
 
-                    client = QueenAgentGRPCClient(mock_queen_agent_config)
+                    client = QueenAgentGrpcClient(mock_queen_agent_config)
                     await client.initialize()
 
                     with patch('asyncio.sleep', new_callable=AsyncMock):
@@ -229,7 +229,7 @@ class TestQueenAgentGRPCClientGetDecision:
 
 @pytest.mark.unit
 @pytest.mark.asyncio
-class TestQueenAgentGRPCClientMakeDecision:
+class TestQueenAgentGrpcClientMakeDecision:
     """Testes de criação de decisão estratégica."""
 
     async def test_make_strategic_decision_success(
@@ -238,7 +238,7 @@ class TestQueenAgentGRPCClientMakeDecision:
         sample_make_decision_response
     ):
         """Verifica criação de decisão com sucesso."""
-        from src.clients.queen_agent_grpc_client import QueenAgentGRPCClient
+        from src.clients.queen_agent_grpc_client import QueenAgentGrpcClient
 
         with patch('src.clients.queen_agent_grpc_client.grpc.aio.insecure_channel') as mock_channel_cls:
             channel = AsyncMock()
@@ -253,7 +253,7 @@ class TestQueenAgentGRPCClientMakeDecision:
                     )
                     mock_stub_cls.return_value = mock_stub
 
-                    client = QueenAgentGRPCClient(mock_queen_agent_config)
+                    client = QueenAgentGrpcClient(mock_queen_agent_config)
                     await client.initialize()
 
                     result = await client.make_strategic_decision(
@@ -270,7 +270,7 @@ class TestQueenAgentGRPCClientMakeDecision:
 
     async def test_make_strategic_decision_failure(self, mock_queen_agent_config):
         """Verifica tratamento de falha na criação."""
-        from src.clients.queen_agent_grpc_client import QueenAgentGRPCClient
+        from src.clients.queen_agent_grpc_client import QueenAgentGrpcClient
 
         with patch('src.clients.queen_agent_grpc_client.grpc.aio.insecure_channel') as mock_channel_cls:
             channel = AsyncMock()
@@ -286,7 +286,7 @@ class TestQueenAgentGRPCClientMakeDecision:
                     mock_stub.MakeStrategicDecision = AsyncMock(return_value=failed_response)
                     mock_stub_cls.return_value = mock_stub
 
-                    client = QueenAgentGRPCClient(mock_queen_agent_config)
+                    client = QueenAgentGrpcClient(mock_queen_agent_config)
                     await client.initialize()
 
                     result = await client.make_strategic_decision(
@@ -303,7 +303,7 @@ class TestQueenAgentGRPCClientMakeDecision:
 
 @pytest.mark.unit
 @pytest.mark.asyncio
-class TestQueenAgentGRPCClientSystemStatus:
+class TestQueenAgentGrpcClientSystemStatus:
     """Testes de status do sistema."""
 
     async def test_get_system_status_success(
@@ -312,7 +312,7 @@ class TestQueenAgentGRPCClientSystemStatus:
         sample_system_status_response
     ):
         """Verifica busca de status com sucesso."""
-        from src.clients.queen_agent_grpc_client import QueenAgentGRPCClient
+        from src.clients.queen_agent_grpc_client import QueenAgentGrpcClient
 
         with patch('src.clients.queen_agent_grpc_client.grpc.aio.insecure_channel') as mock_channel_cls:
             channel = AsyncMock()
@@ -327,7 +327,7 @@ class TestQueenAgentGRPCClientSystemStatus:
                     )
                     mock_stub_cls.return_value = mock_stub
 
-                    client = QueenAgentGRPCClient(mock_queen_agent_config)
+                    client = QueenAgentGrpcClient(mock_queen_agent_config)
                     await client.initialize()
 
                     result = await client.get_system_status()
@@ -342,7 +342,7 @@ class TestQueenAgentGRPCClientSystemStatus:
 
 @pytest.mark.unit
 @pytest.mark.asyncio
-class TestQueenAgentGRPCClientListDecisions:
+class TestQueenAgentGrpcClientListDecisions:
     """Testes de listagem de decisões."""
 
     async def test_list_strategic_decisions_success(
@@ -351,7 +351,7 @@ class TestQueenAgentGRPCClientListDecisions:
         sample_list_decisions_response
     ):
         """Verifica listagem de decisões com sucesso."""
-        from src.clients.queen_agent_grpc_client import QueenAgentGRPCClient
+        from src.clients.queen_agent_grpc_client import QueenAgentGrpcClient
 
         with patch('src.clients.queen_agent_grpc_client.grpc.aio.insecure_channel') as mock_channel_cls:
             channel = AsyncMock()
@@ -366,7 +366,7 @@ class TestQueenAgentGRPCClientListDecisions:
                     )
                     mock_stub_cls.return_value = mock_stub
 
-                    client = QueenAgentGRPCClient(mock_queen_agent_config)
+                    client = QueenAgentGrpcClient(mock_queen_agent_config)
                     await client.initialize()
 
                     result = await client.list_strategic_decisions(
@@ -383,7 +383,7 @@ class TestQueenAgentGRPCClientListDecisions:
 
 @pytest.mark.unit
 @pytest.mark.asyncio
-class TestQueenAgentGRPCClientHealthCheck:
+class TestQueenAgentGrpcClientHealthCheck:
     """Testes de health check."""
 
     async def test_health_check_healthy(
@@ -392,7 +392,7 @@ class TestQueenAgentGRPCClientHealthCheck:
         sample_system_status_response
     ):
         """Verifica health check quando serviço está saudável."""
-        from src.clients.queen_agent_grpc_client import QueenAgentGRPCClient
+        from src.clients.queen_agent_grpc_client import QueenAgentGrpcClient
 
         with patch('src.clients.queen_agent_grpc_client.grpc.aio.insecure_channel') as mock_channel_cls:
             channel = AsyncMock()
@@ -407,7 +407,7 @@ class TestQueenAgentGRPCClientHealthCheck:
                     )
                     mock_stub_cls.return_value = mock_stub
 
-                    client = QueenAgentGRPCClient(mock_queen_agent_config)
+                    client = QueenAgentGrpcClient(mock_queen_agent_config)
                     await client.initialize()
 
                     result = await client.health_check()
@@ -419,7 +419,7 @@ class TestQueenAgentGRPCClientHealthCheck:
 
     async def test_health_check_unhealthy(self, mock_queen_agent_config):
         """Verifica health check quando serviço está indisponível."""
-        from src.clients.queen_agent_grpc_client import QueenAgentGRPCClient
+        from src.clients.queen_agent_grpc_client import QueenAgentGrpcClient
 
         with patch('src.clients.queen_agent_grpc_client.grpc.aio.insecure_channel') as mock_channel_cls:
             channel = AsyncMock()
@@ -434,7 +434,7 @@ class TestQueenAgentGRPCClientHealthCheck:
                     )
                     mock_stub_cls.return_value = mock_stub
 
-                    client = QueenAgentGRPCClient(mock_queen_agent_config)
+                    client = QueenAgentGrpcClient(mock_queen_agent_config)
                     await client.initialize()
 
                     result = await client.health_check()

@@ -30,7 +30,7 @@ RUN pip install --no-cache-dir --user /tmp/neural_hive_domain && \
     echo "spaCy models downloaded"
 
 # Stage 2: Runtime
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 # Labels for metadata
 LABEL maintainer="Neural Hive-Mind Team <team@neural-hive-mind.org>"

@@ -98,7 +98,7 @@ class Settings(BaseSettings):
     SERVICE_REGISTRY_GRPC_PORT: int = 50051
 
     # OpenTelemetry
-    OTEL_EXPORTER_OTLP_ENDPOINT: str = 'http://localhost:4317'
+    OTEL_EXPORTER_OTLP_ENDPOINT: str = 'https://opentelemetry-collector.observability.svc.cluster.local:4317'
     OTEL_SERVICE_NAME: str = 'analyst-agents'
 
     # Analytics

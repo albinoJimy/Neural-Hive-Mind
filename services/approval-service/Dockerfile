@@ -1,6 +1,6 @@
 # Multi-stage build for Approval Service
 # Stage 1: Builder
-FROM python:3.11-slim AS builder
+FROM python:3.12-slim AS builder
 
 WORKDIR /build
 
@@ -27,7 +27,7 @@ RUN pip install --no-cache-dir --user /tmp/neural_hive_domain && \
     echo "✓ uvicorn runtime verification passed"
 
 # Stage 2: Runtime
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 # Labels for metadata
 LABEL maintainer="Neural Hive-Mind Team <team@neural-hive-mind.org>"

@@ -50,7 +50,7 @@ class Settings(BaseSettings):
 
     # Redis
     redis_cluster_nodes: str = Field(default="redis-cluster.redis.svc.cluster.local:6379")
-    redis_password: str = Field(default="")
+    redis_password: Optional[str] = Field(default=None, description="Redis password (OBRIGATÓRIO em produção)")
     redis_ssl_enabled: bool = Field(default=False)
     redis_cache_ttl: int = Field(default=300, description="Cache TTL in seconds")
 
@@ -95,7 +95,7 @@ class Settings(BaseSettings):
     clickhouse_host: str = Field(default="clickhouse.clickhouse.svc.cluster.local", description="ClickHouse host")
     clickhouse_port: int = Field(default=9000, description="ClickHouse port")
     clickhouse_user: str = Field(default="default", description="ClickHouse user")
-    clickhouse_password: str = Field(default="", description="ClickHouse password")
+    clickhouse_password: Optional[str] = Field(default=None, description="ClickHouse password (OBRIGATÓRIO em produção)")
     clickhouse_database: str = Field(default="neural_hive", description="ClickHouse database")
 
     ml_load_forecast_horizons: List[int] = Field(default=[60, 360, 1440], description="Forecast horizons in minutes (1h, 6h, 24h)")

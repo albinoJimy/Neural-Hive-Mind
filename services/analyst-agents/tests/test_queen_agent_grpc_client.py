@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import grpc
 
 # Import direto sem passar por __init__.py
-from src.clients.queen_agent_grpc_client import QueenAgentGRPCClient
+from src.clients.queen_agent_grpc_client import QueenAgentGrpcClient
 from src.models.insight import (
     AnalystInsight, InsightType, Priority, Recommendation,
     RelatedEntity, TimeWindow
@@ -95,7 +95,7 @@ async def test_initialize_success(mock_channel, mock_stub):
     with patch('grpc.aio.insecure_channel', return_value=mock_channel):
         with patch('src.clients.queen_agent_grpc_client.instrument_grpc_channel', return_value=mock_channel):
             with patch('src.clients.queen_agent_grpc_client.queen_agent_pb2_grpc.QueenAgentStub', return_value=mock_stub):
-                client = QueenAgentGRPCClient(host='localhost', port=50051)
+                client = QueenAgentGrpcClient(host='localhost', port=50051)
                 await client.initialize()
 
                 assert client.channel is not None
@@ -118,7 +118,7 @@ async def test_send_strategic_insight_success(sample_insight, mock_channel, mock
     with patch('grpc.aio.insecure_channel', return_value=mock_channel):
         with patch('src.clients.queen_agent_grpc_client.instrument_grpc_channel', return_value=mock_channel):
             with patch('src.clients.queen_agent_grpc_client.queen_agent_pb2_grpc.QueenAgentStub', return_value=mock_stub):
-                client = QueenAgentGRPCClient(host='localhost', port=50051)
+                client = QueenAgentGrpcClient(host='localhost', port=50051)
                 await client.initialize()
 
                 # Enviar insight
@@ -154,7 +154,7 @@ async def test_send_strategic_insight_rejected(sample_insight, mock_channel, moc
     with patch('grpc.aio.insecure_channel', return_value=mock_channel):
         with patch('src.clients.queen_agent_grpc_client.instrument_grpc_channel', return_value=mock_channel):
             with patch('src.clients.queen_agent_grpc_client.queen_agent_pb2_grpc.QueenAgentStub', return_value=mock_stub):
-                client = QueenAgentGRPCClient(host='localhost', port=50051)
+                client = QueenAgentGrpcClient(host='localhost', port=50051)
                 await client.initialize()
 
                 result = await client.send_strategic_insight(sample_insight)
@@ -181,7 +181,7 @@ async def test_send_strategic_insight_with_retry(sample_insight, mock_channel, m
     with patch('grpc.aio.insecure_channel', return_value=mock_channel):
         with patch('src.clients.queen_agent_grpc_client.instrument_grpc_channel', return_value=mock_channel):
             with patch('src.clients.queen_agent_grpc_client.queen_agent_pb2_grpc.QueenAgentStub', return_value=mock_stub):
-                client = QueenAgentGRPCClient(host='localhost', port=50051)
+                client = QueenAgentGrpcClient(host='localhost', port=50051)
                 await client.initialize()
 
                 result = await client.send_strategic_insight(sample_insight)
@@ -202,7 +202,7 @@ async def test_send_strategic_insight_max_retries_exceeded(sample_insight, mock_
     with patch('grpc.aio.insecure_channel', return_value=mock_channel):
         with patch('src.clients.queen_agent_grpc_client.instrument_grpc_channel', return_value=mock_channel):
             with patch('src.clients.queen_agent_grpc_client.queen_agent_pb2_grpc.QueenAgentStub', return_value=mock_stub):
-                client = QueenAgentGRPCClient(host='localhost', port=50051)
+                client = QueenAgentGrpcClient(host='localhost', port=50051)
                 await client.initialize()
 
                 result = await client.send_strategic_insight(sample_insight)
@@ -228,7 +228,7 @@ async def test_send_operational_insight(sample_insight, mock_channel, mock_stub)
     with patch('grpc.aio.insecure_channel', return_value=mock_channel):
         with patch('src.clients.queen_agent_grpc_client.instrument_grpc_channel', return_value=mock_channel):
             with patch('src.clients.queen_agent_grpc_client.queen_agent_pb2_grpc.QueenAgentStub', return_value=mock_stub):
-                client = QueenAgentGRPCClient(host='localhost', port=50051)
+                client = QueenAgentGrpcClient(host='localhost', port=50051)
                 await client.initialize()
 
                 result = await client.send_operational_insight(sample_insight)
@@ -245,7 +245,7 @@ async def test_close_connection(mock_channel, mock_stub):
     with patch('grpc.aio.insecure_channel', return_value=mock_channel):
         with patch('src.clients.queen_agent_grpc_client.instrument_grpc_channel', return_value=mock_channel):
             with patch('src.clients.queen_agent_grpc_client.queen_agent_pb2_grpc.QueenAgentStub', return_value=mock_stub):
-                client = QueenAgentGRPCClient(host='localhost', port=50051)
+                client = QueenAgentGrpcClient(host='localhost', port=50051)
                 await client.initialize()
                 await client.close()
 
@@ -256,7 +256,7 @@ async def test_close_connection(mock_channel, mock_stub):
 @pytest.mark.asyncio
 async def test_send_without_initialization(sample_insight):
     """Testar que envio sem inicialização retorna False"""
-    client = QueenAgentGRPCClient(host='localhost', port=50051)
+    client = QueenAgentGrpcClient(host='localhost', port=50051)
     result = await client.send_strategic_insight(sample_insight)
 
     assert result is False
