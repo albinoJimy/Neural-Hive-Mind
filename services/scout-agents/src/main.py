@@ -5,6 +5,7 @@ import signal
 import sys
 import uuid
 from contextlib import asynccontextmanager
+from datetime import datetime
 import structlog
 import uvicorn
 from neural_hive_observability import (
@@ -18,12 +19,14 @@ from .engine.exploration_engine import ExplorationEngine
 from .api.http_server import app, init_app
 from .observability.metrics import ScoutMetrics
 from .clients.service_registry_client import ServiceRegistryClient
+from .consumers.digital_events_consumer import DigitalEventsConsumer
 
 logger = structlog.get_logger()
 
 # Global state
 engine: ExplorationEngine = None
 registry_client: ServiceRegistryClient = None
+digital_events_consumer: DigitalEventsConsumer = None
 shutdown_event = asyncio.Event()
 
 
@@ -105,6 +108,83 @@ async def queue_processor_loop():
             logger.error("queue_processing_failed", error=str(e))
 
 
+async def start_digital_events_consumer():
+    """Start the digital events consumer"""
+    global digital_events_consumer
+
+    settings = get_settings()
+
+    # Verificar se o tópico está configurado
+    if not hasattr(settings.kafka, 'topics_digital_events'):
+        logger.info("digital_events_consumer_disabled", reason="topic_not_configured")
+        return
+
+    try:
+        digital_events_consumer = DigitalEventsConsumer(
+            settings=settings,
+            exploration_engine=engine,
+            metrics=ScoutMetrics
+        )
+
+        await digital_events_consumer.initialize()
+
+        # Start consumption in background task
+        asyncio.create_task(digital_events_consumer.start())
+
+        logger.info("digital_events_consumer_started")
+
+    except Exception as e:
+        logger.error("digital_events_consumer_start_failed", error=str(e))
+
+
+async def _process_digital_event(event):
+    """
+    Callback para processar eventos digitais recebidos via Kafka.
+
+    Args:
+        event: DigitalEvent recebido
+    """
+    from .models.digital_event import DigitalEvent
+    from .models.raw_event import RawEvent
+    from neural_hive_domain import UnifiedDomain
+
+    try:
+        if not isinstance(event, DigitalEvent):
+            logger.warning("invalid_digital_event_type", type=type(event))
+            return
+
+        # Converter para RawEvent
+        raw_event_data = event.to_raw_event()
+
+        raw_event = RawEvent(
+            event_id=raw_event_data['event_id'],
+            event_type=raw_event_data['event_type'],
+            source=raw_event_data['source'],
+            timestamp=datetime.fromisoformat(raw_event_data['timestamp']),
+            payload=raw_event_data['payload'],
+            metadata=raw_event_data['metadata']
+        )
+
+        # Processar através da engine
+        await engine.process_event(
+            event=raw_event,
+            domain=UnifiedDomain.BEHAVIOR
+        )
+
+        logger.debug(
+            "digital_event_processed",
+            event_id=event.event_id,
+            type=event.event_type.value
+        )
+
+    except Exception as e:
+        logger.error(
+            "digital_event_processing_failed",
+            event_id=getattr(event, 'event_id', 'unknown'),
+            error=str(e)
+        )
+
+
 async def startup():
     """Application startup"""
     global engine, registry_client
@@ -156,6 +236,7 @@ async def startup():
         # Start background tasks
         asyncio.create_task(heartbeat_loop(agent_id))
         asyncio.create_task(queue_processor_loop())
+        asyncio.create_task(start_digital_events_consumer())
 
         logger.info("scout_agent_started", agent_id=agent_id)
 
@@ -169,6 +250,12 @@ async def shutdown():
     logger.info("scout_agent_shutting_down")
 
     try:
+        # Stop digital events consumer
+        global digital_events_consumer
+        if digital_events_consumer:
+            await digital_events_consumer.stop()
+            logger.info("digital_events_consumer_stopped")
+
         if engine:
             await engine.stop()
 
