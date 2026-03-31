@@ -410,7 +410,7 @@ class PIIDetectorLite:
         Returns:
             Lista de dicionários com keys: entity_type, start, end, score, value
         """
-        if not self.enabled or not text:
+        if not self.enabled or not self.masker or not text:
             return []
 
         result = self.masker.mask(text)
@@ -439,6 +439,9 @@ class PIIDetectorLite:
         Returns:
             Tuple de (texto_mascarado, metadata)
         """
+        if not self.enabled or not self.masker:
+            return text, []
+
         result = self.masker.mask(text)
 
         metadata = [
