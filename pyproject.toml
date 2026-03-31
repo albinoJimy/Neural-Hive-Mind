@@ -1,0 +1,56 @@
+[tool.mypy]
+# Configuração mypy para Neural Hive-Mind
+# Executar: mypy services/ libraries/python/
+
+# Python version
+python_version = "3.12"
+
+# Warn about various issues
+warn_return_any = true
+warn_unused_configs = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unreachable = true
+strict_equality = true
+
+# Disallow incremental typing
+disallow_any_generics = true
+disallow_untyped_defs = true
+disallow_untyped_calls = false  # Gradualmente habilitar
+disallow_incomplete_defs = true
+check_untyped_defs = true
+
+# Plugins
+plugins = [
+    "pydantic.mypy"
+]
+
+# Follow imports
+follow_imports = "normal"
+follow_imports_for_stubs = true
+
+# Error reporting
+show_error_codes = true
+show_column_numbers = true
+pretty = true
+
+# Misc
+no_implicit_optional = true
+warn_no_return = true
+
+# Ignore missing imports de bibliotecas sem stubs
+[[tool.mypy.overrides]]
+module = [
+    "grpc.*",
+    "kafka.*",
+    "aiokafka.*",
+    "motor.*",
+    "redis.*",
+    "celery.*",
+]
+ignore_missing_imports = true
+
+# Ignorar código de terceiros
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
