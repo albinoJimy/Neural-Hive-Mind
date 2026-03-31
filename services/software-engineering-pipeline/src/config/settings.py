@@ -41,7 +41,7 @@ class Settings(BaseSettings):
     # Jenkins
     jenkins_url: str = ""
     jenkins_username: str = ""
-    jenkins_password: str = ""
+    # jenkins_password: str = ""  # OBRIGATÓRIO: Definir via External Secrets
 
     # ArgoCD
     argocd_url: str = ""
@@ -55,7 +55,7 @@ class Settings(BaseSettings):
     # Docker Registry
     docker_registry: str = "ghcr.io"
     docker_registry_username: str = ""
-    docker_registry_password: str = ""
+    # docker_registry_password: str = ""  # OBRIGATÓRIO: Definir via External Secrets
 
     # Intelligence
     anomaly_detection_enabled: bool = True

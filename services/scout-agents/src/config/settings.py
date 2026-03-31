@@ -1,6 +1,6 @@
 """Configuration settings for Scout Agents using Pydantic"""
 from functools import lru_cache
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -22,8 +22,8 @@ class KafkaConfig(BaseModel):
     topics_digital_events: str = Field(default="digital.events", description="Digital events topic")
     enable_sasl: bool = Field(default=False, description="Enable SASL authentication")
     sasl_mechanism: str = Field(default="PLAIN", description="SASL mechanism")
-    sasl_username: str = Field(default="", description="SASL username")
-    sasl_password: str = Field(default="", description="SASL password")
+    sasl_username: Optional[str] = Field(default=None, description="SASL username")
+    sasl_password: Optional[str] = Field(default=None, description="SASL password (OBRIGATÓRIO se SASL habilitado)")
     enable_ssl: bool = Field(default=False, description="Enable SSL")
 
 

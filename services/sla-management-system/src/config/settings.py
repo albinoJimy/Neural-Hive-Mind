@@ -28,7 +28,7 @@ class PostgreSQLSettings(BaseSettings):
     port: int = Field(default=5432)
     database: str = Field(default="sla_management")
     user: str = Field(default="sla_user")
-    password: str = Field(default="", description="Senha do PostgreSQL")
+    password: str = Field(description="Senha do PostgreSQL (OBRIGATÓRIO)")
     pool_min_size: int = Field(default=2)
     pool_max_size: int = Field(default=10)
     connection_timeout: int = Field(default=10)
@@ -40,7 +40,7 @@ class RedisSettings(BaseSettings):
         default="redis-cluster.redis-cluster.svc.cluster.local:6379",
         description="Nodes do Redis separados por vírgula"
     )
-    password: str = Field(default="")
+    password: Optional[str] = Field(default=None, description="Senha do Redis (OBRIGATÓRIO em produção)")
     ssl: bool = Field(default=False)
     decode_responses: bool = Field(default=True)
     cache_ttl_seconds: int = Field(default=60, description="TTL para budgets")
