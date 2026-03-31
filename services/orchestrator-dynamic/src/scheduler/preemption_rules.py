@@ -171,11 +171,11 @@ class PreemptionRules:
         Returns:
             Progresso [0.0, 1.0] ou 0.0 se não disponível
         """
-        # Tentar obter de campo direto
-        execution_progress = ticket.get('execution_progress', 0.0)
-
-        if isinstance(execution_progress, (int, float)):
-            return min(max(execution_progress, 0.0), 1.0)
+        # Tentar obter de campo direto (se existir explicitamente)
+        if 'execution_progress' in ticket:
+            execution_progress = ticket['execution_progress']
+            if isinstance(execution_progress, (int, float)):
+                return min(max(execution_progress, 0.0), 1.0)
 
         # Tentar calcular baseado em timestamps
         started_at = ticket.get('started_at')
