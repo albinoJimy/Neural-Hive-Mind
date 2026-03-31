@@ -64,6 +64,8 @@ class OrchestrationWorkflow:
         self._rejected_tickets = []
         self._workflow_result = {}
         self._sla_warnings = []
+        self._saga_id = None
+        self._compensation_order = []
 
     @workflow.run
     async def run(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -494,3 +496,52 @@ class OrchestrationWorkflow:
             Lista de tickets gerados
         """
         return self._tickets_generated
+
+    @workflow.query
+    def get_saga_state(self) -> Dict[str, Any]:
+        """
+        Query para consultar estado da Saga.
+
+        Retorna informações sobre o estado da Saga associada ao workflow,
+        incluindo status, steps e ordem de compensação.
+
+        Returns:
+            Dict com estado da Saga contendo:
+                - saga_id: ID da Saga associada
+                - status: Status atual do workflow
+                - steps: Lista de steps (tickets) gerados
+                - compensation_order: Ordem de compensação
+                - completed_steps: Steps completados com sucesso
+                - pending_steps: Steps pendentes
+                - rejected_tickets: Tickets rejeitados pelo scheduler
+        """
+        # Identificar steps completados vs pendentes
+        completed_steps = [
+            ticket for ticket in self._tickets_generated
+            if ticket.get('status') == 'COMPLETED'
+        ]
+        pending_steps = [
+            ticket for ticket in self._tickets_generated
+            if ticket.get('status') in ['PENDING', 'IN_PROGRESS']
+        ]
+
+        # Construir ordem de compensação (ordem reversa dos completados)
+        if not self._compensation_order and completed_steps:
+            self._compensation_order = [
+                ticket.get('ticket_id')
+                for ticket in reversed(completed_steps)
+            ]
+
+        return {
+            'saga_id': self._saga_id,
+            'status': self._status,
+            'steps': self._tickets_generated,
+            'compensation_order': self._compensation_order,
+            'completed_steps': completed_steps,
+            'pending_steps': pending_steps,
+            'rejected_tickets': self._rejected_tickets,
+            'total_steps': len(self._tickets_generated),
+            'completed_count': len(completed_steps),
+            'pending_count': len(pending_steps),
+            'rejected_count': len(self._rejected_tickets)
+        }
