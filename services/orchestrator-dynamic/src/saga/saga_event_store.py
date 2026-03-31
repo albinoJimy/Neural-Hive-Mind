@@ -6,6 +6,7 @@ do historico de transaccoes.
 """
 from typing import List, Optional, Dict, Any
 from uuid import uuid4
+import asyncio
 
 import structlog
 from motor.motor_asyncio import AsyncIOMotorClientSession
@@ -93,13 +94,15 @@ class SagaEventStore:
 
     async def record_event(
         self,
-        event: SagaEvent
+        event: SagaEvent,
+        timeout_ms: int = 5000
     ) -> bool:
         """
         Grava um evento de Saga.
 
         Args:
             event: Evento a gravar
+            timeout_ms: Timeout em milissegundos (default 5000ms)
 
         Returns:
             True se gravado com sucesso
@@ -114,7 +117,10 @@ class SagaEventStore:
         try:
             doc = event.model_dump()
 
-            await self._collection.insert_one(doc)
+            await asyncio.wait_for(
+                self._collection.insert_one(doc),
+                timeout=timeout_ms / 1000.0
+            )
 
             # Log baseado no tipo de evento
             log_method = logger.warning if event.event_type in self.WARNING_EVENT_TYPES else logger.info
@@ -128,6 +134,14 @@ class SagaEventStore:
 
             return True
 
+        except asyncio.TimeoutError:
+            logger.error(
+                'saga_event_record_timeout',
+                event_id=event.event_id,
+                saga_id=event.saga_id,
+                timeout_ms=timeout_ms
+            )
+            return False
         except Exception as e:
             logger.error(
                 'saga_event_record_failed',
@@ -164,7 +178,8 @@ class SagaEventStore:
     async def get_saga_events(
         self,
         saga_id: str,
-        limit: Optional[int] = None
+        limit: Optional[int] = None,
+        timeout_ms: int = 5000
     ) -> List[SagaEvent]:
         """
         Recupera todos os eventos de uma Saga.
@@ -172,6 +187,7 @@ class SagaEventStore:
         Args:
             saga_id: ID da Saga
             limit: Numero maximo de eventos (mais recentes)
+            timeout_ms: Timeout em milissegundos (default 5000ms)
 
         Returns:
             Lista de eventos em ordem cronologica
@@ -187,7 +203,10 @@ class SagaEventStore:
             if limit:
                 cursor = cursor.limit(limit)
 
-            docs = await cursor.to_list(length=limit or 1000)
+            docs = await asyncio.wait_for(
+                cursor.to_list(length=limit or 1000),
+                timeout=timeout_ms / 1000.0
+            )
 
             events = [
                 SagaEvent(**doc) for doc in docs
@@ -201,6 +220,13 @@ class SagaEventStore:
 
             return events
 
+        except asyncio.TimeoutError:
+            logger.error(
+                'saga_events_retrieval_timeout',
+                saga_id=saga_id,
+                timeout_ms=timeout_ms
+            )
+            return []
         except Exception as e:
             logger.error(
                 'saga_events_retrieval_failed',

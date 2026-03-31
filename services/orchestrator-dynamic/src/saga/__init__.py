@@ -9,7 +9,8 @@ from .saga_state import (
     SagaStep,
     SagaState,
     SagaEvent,
-    SagaEventType
+    SagaEventType,
+    SagaConcurrentModificationError
 )
 from .saga_orchestrator import SagaOrchestrator
 from .saga_repository import SagaRepository
@@ -21,6 +22,7 @@ __all__ = [
     'SagaState',
     'SagaEvent',
     'SagaEventType',
+    'SagaConcurrentModificationError',
     'SagaOrchestrator',
     'SagaRepository',
     'SagaEventStore'

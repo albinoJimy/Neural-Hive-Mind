@@ -4,12 +4,17 @@ Modelos de estado para coordenacao de Saga.
 Define os modelos Pydantic para representar o estado de uma transacao
 Saga distribuida com compensacao automatica.
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional, Dict, List, Any
 from uuid import uuid4
 
 from pydantic import BaseModel, Field, ConfigDict
+
+
+class SagaConcurrentModificationError(Exception):
+    """Excecao lancada quando uma Saga e modificada concorrentemente."""
+    pass
 
 
 class SagaStatus(str, Enum):
@@ -115,12 +120,12 @@ class SagaStep(BaseModel):
     def mark_started(self) -> None:
         """Marca step como iniciado."""
         self.status = StepStatus.IN_PROGRESS
-        self.started_at = int(datetime.utcnow().timestamp() * 1000)
+        self.started_at = int(datetime.now(timezone.utc).timestamp() * 1000)
 
     def mark_completed(self, result: Optional[Dict[str, Any]] = None) -> None:
         """Marca step como completado com sucesso."""
         self.status = StepStatus.COMPLETED
-        self.completed_at = int(datetime.utcnow().timestamp() * 1000)
+        self.completed_at = int(datetime.now(timezone.utc).timestamp() * 1000)
         if result is not None:
             self.result = result
 
@@ -128,7 +133,7 @@ class SagaStep(BaseModel):
         """Marca step como falhado."""
         self.status = StepStatus.FAILED
         self.error = error
-        self.completed_at = int(datetime.utcnow().timestamp() * 1000)
+        self.completed_at = int(datetime.now(timezone.utc).timestamp() * 1000)
 
     def mark_compensating(self) -> None:
         """Marca step como em compensacao."""
@@ -140,7 +145,7 @@ class SagaStep(BaseModel):
     ) -> None:
         """Marca step como compensado."""
         self.status = StepStatus.COMPENSATED
-        self.compensated_at = int(datetime.utcnow().timestamp() * 1000)
+        self.compensated_at = int(datetime.now(timezone.utc).timestamp() * 1000)
         if compensation_result is not None:
             self.compensation_result = compensation_result
 
@@ -168,6 +173,10 @@ class SagaState(BaseModel):
     )
     plan_id: str = Field(..., description='ID do Cognitive Plan')
     intent_id: str = Field(..., description='ID da intencao original')
+    version: int = Field(
+        default=0,
+        description='Versao para optimistic locking (evita race conditions)'
+    )
     status: SagaStatus = Field(
         default=SagaStatus.PENDING,
         description='Status atual da Saga'
@@ -321,6 +330,6 @@ class SagaEvent(BaseModel):
             event_id=str(uuid4()),
             saga_id=saga_id,
             event_type=event_type,
-            timestamp=int(datetime.utcnow().timestamp() * 1000),
+            timestamp=int(datetime.now(timezone.utc).timestamp() * 1000),
             data=data or {}
         )

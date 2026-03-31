@@ -6,7 +6,7 @@ de steps e compensacao automatica em caso de falha.
 """
 from typing import List, Optional, Dict, Any
 from uuid import uuid4
-from datetime import datetime
+from datetime import datetime, timezone
 
 import structlog
 
@@ -14,7 +14,8 @@ from .saga_state import (
     SagaState,
     SagaStatus,
     SagaStep,
-    StepStatus
+    StepStatus,
+    SagaConcurrentModificationError
 )
 from .saga_repository import SagaRepository
 from .saga_event_store import SagaEventStore, SagaEventType
@@ -68,7 +69,7 @@ class SagaOrchestrator:
             Nova instancia de SagaState criada
         """
         saga_id = str(uuid4())
-        now = int(datetime.utcnow().timestamp() * 1000)
+        now = int(datetime.now(timezone.utc).timestamp() * 1000)
 
         # Converter definicoes de steps para objetos SagaStep
         saga_steps = []
@@ -156,7 +157,7 @@ class SagaOrchestrator:
 
         # Atualizar status
         saga.status = SagaStatus.STARTED
-        saga.started_at = int(datetime.utcnow().timestamp() * 1000)
+        saga.started_at = int(datetime.now(timezone.utc).timestamp() * 1000)
 
         await self._repository.save(saga)
 
@@ -246,7 +247,7 @@ class SagaOrchestrator:
         else:
             # Todos os steps foram completados
             saga.status = SagaStatus.COMPLETED
-            saga.completed_at = int(datetime.utcnow().timestamp() * 1000)
+            saga.completed_at = int(datetime.now(timezone.utc).timestamp() * 1000)
 
             await self._event_store.record_event_raw(
                 saga_id=saga_id,
@@ -351,7 +352,7 @@ class SagaOrchestrator:
             else:
                 # Sem steps para compensar - falha direta
                 saga.status = SagaStatus.FAILED
-                saga.failed_at = int(datetime.utcnow().timestamp() * 1000)
+                saga.failed_at = int(datetime.now(timezone.utc).timestamp() * 1000)
                 saga.error = error
 
                 await self._event_store.record_event_raw(
@@ -444,7 +445,7 @@ class SagaOrchestrator:
         if not pending_compensation:
             # Todos os steps foram compensados
             saga.status = SagaStatus.COMPENSATED
-            saga.compensated_at = int(datetime.utcnow().timestamp() * 1000)
+            saga.compensated_at = int(datetime.now(timezone.utc).timestamp() * 1000)
 
             await self._event_store.record_event_raw(
                 saga_id=saga_id,
@@ -515,6 +516,10 @@ class SagaOrchestrator:
 
         Returns:
             Estado resetado da Saga ou None
+
+        Raises:
+            SagaConcurrentModificationError: Se a Saga foi modificada
+                por outro processo desde a leitura
         """
         saga = await self._repository.find_by_id(saga_id)
         if not saga:
@@ -537,7 +542,15 @@ class SagaOrchestrator:
         saga.increment_retry()
         saga.reset_for_retry()
 
-        await self._repository.save(saga)
+        try:
+            await self._repository.save(saga)
+        except SagaConcurrentModificationError:
+            logger.warning(
+                'saga_retry_failed_concurrent_modification',
+                saga_id=saga_id,
+                retry_count=saga.retry_count
+            )
+            raise
 
         logger.info(
             'saga_reset_for_retry',
