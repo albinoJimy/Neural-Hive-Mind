@@ -7,6 +7,11 @@ from .scout_signal import (
     ScoutSignal
 )
 from .raw_event import RawEvent
+from .digital_event import (
+    DigitalEvent,
+    DigitalEventType,
+    DigitalChannel
+)
 from neural_hive_domain import UnifiedDomain
 
 __all__ = [
@@ -16,5 +21,8 @@ __all__ = [
     'Geolocation',
     'SignalSource',
     'ScoutSignal',
-    'RawEvent'
+    'RawEvent',
+    'DigitalEvent',
+    'DigitalEventType',
+    'DigitalChannel'
 ]

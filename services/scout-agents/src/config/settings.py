@@ -19,6 +19,7 @@ class KafkaConfig(BaseModel):
     consumer_group_id: str = Field(default="scout-agents-dev", description="Consumer group ID")
     topics_signals: str = Field(default="exploration-signals", description="Signals topic")
     topics_opportunities: str = Field(default="exploration-opportunities", description="Opportunities topic")
+    topics_digital_events: str = Field(default="digital.events", description="Digital events topic")
     enable_sasl: bool = Field(default=False, description="Enable SASL authentication")
     sasl_mechanism: str = Field(default="PLAIN", description="SASL mechanism")
     sasl_username: str = Field(default="", description="SASL username")

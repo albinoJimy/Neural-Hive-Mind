@@ -139,6 +139,25 @@ rate_limit_exceeded_total = Counter(
     'Total times rate limit was exceeded'
 )
 
+# Digital events metrics
+digital_events_consumed_total = Counter(
+    'scout_agent_digital_events_consumed_total',
+    'Total digital events consumed',
+    ['type', 'channel']
+)
+
+digital_events_processed_total = Counter(
+    'scout_agent_digital_events_processed_total',
+    'Total digital events successfully processed',
+    ['type']
+)
+
+digital_events_failed_total = Counter(
+    'scout_agent_digital_events_failed_total',
+    'Total digital events that failed processing',
+    ['error_type']
+)
+
 
 class ScoutMetrics:
     """Wrapper class for Scout Agent metrics"""
@@ -275,3 +294,21 @@ class ScoutMetrics:
     def record_rate_limit_exceeded():
         """Record rate limit exceeded"""
         rate_limit_exceeded_total.inc()
+
+    @staticmethod
+    def record_digital_event_consumed(event_type: str, channel: str):
+        """Record digital event consumption"""
+        digital_events_consumed_total.labels(
+            type=event_type,
+            channel=channel
+        ).inc()
+
+    @staticmethod
+    def record_digital_event_processed(event_type: str):
+        """Record digital event successful processing"""
+        digital_events_processed_total.labels(type=event_type).inc()
+
+    @staticmethod
+    def record_digital_event_failed(error_type: str):
+        """Record digital event processing failure"""
+        digital_events_failed_total.labels(error_type=error_type).inc()
