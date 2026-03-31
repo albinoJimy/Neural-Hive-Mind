@@ -1,0 +1,523 @@
+# =============================================================================
+# Neural Hive-Mind - Test Coverage Threshold CI/CD
+# =============================================================================
+# Workflow dedicado à verificação de cobertura de testes.
+# Threshold mínimo: 70% (GAP-04, CR-08)
+#
+# Disparado por:
+#   - Push para main/develop
+#   - Pull requests
+#   - Dispatch manual
+#   - Schedule diário (2h UTC)
+#
+# CR-08: Configurar threshold de cobertura no CI/CD
+# =============================================================================
+
+name: Test Coverage Threshold
+
+on:
+  workflow_dispatch:
+    inputs:
+      threshold:
+        description: 'Coverage threshold percentage'
+        required: false
+        default: '70'
+        type: number
+      generate_reports:
+        description: 'Generate HTML reports'
+        required: false
+        default: true
+        type: boolean
+  push:
+    branches: [main, develop, 'feat/*', 'fix/*']
+  pull_request:
+    types: [opened, synchronize, reopened]
+  schedule:
+    - cron: "0 2 * * *"  # 2h UTC diariamente
+
+# Evita múltiplos runs para o mesmo commit
+concurrency:
+  group: coverage-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  PYTHONDONTWRITEBYTECODE: "1"
+  PYTHONUNBUFFERED: "1"
+  REQUIRED_COVERAGE: ${{ github.event.inputs.threshold || 70 }}
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Job: Unit Tests com Cobertura
+  # ---------------------------------------------------------------------------
+  unit-coverage:
+    name: Unit Coverage (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history para better coverage
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-asyncio pytest-cov pytest-xdist
+          pip install -r libraries/python/neural_hive_specialists/requirements-dev.txt
+          pip install -r tests/requirements-test.txt
+
+      - name: Run unit tests with coverage
+        run: |
+          ./tests/run-tests.sh --type unit --coverage
+        env:
+          COVERAGE_FILE: .coverage.unit.${{ matrix.python-version }}
+
+      - name: Generate coverage reports
+        if: github.event.inputs.generate_reports != 'false'
+        run: |
+          coverage combine .coverage.unit.${{ matrix.python-version }} || true
+          coverage xml -o tests/results/coverage/coverage-unit-py${{ matrix.python-version }}.xml
+          coverage html -d tests/results/coverage/html-unit-py${{ matrix.python-version }}
+          coverage json -o tests/results/coverage/coverage-unit-py${{ matrix.python-version }}.json
+
+      - name: Upload coverage artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-unit-py${{ matrix.python-version }}
+          path: |
+            .coverage.unit.${{ matrix.python-version }}
+            tests/results/coverage/
+          retention-days: 7
+
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./tests/results/coverage/coverage-unit-py${{ matrix.python-version }}.xml
+          flags: unit-py${{ matrix.python-version }}
+          name: unit-py${{ matrix.python-version }}
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+  # ---------------------------------------------------------------------------
+  # Job: Integration Tests com Cobertura
+  # ---------------------------------------------------------------------------
+  integration-coverage:
+    name: Integration Coverage (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: unit-coverage
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    services:
+      mongo:
+        image: mongo:7.0
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongo --eval 'db.runCommand({ ping: 1 })'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      neo4j:
+        image: neo4j:5.15
+        env:
+          NEO4J_AUTH: none
+        ports:
+          - 7474:7474
+          - 7687:7687
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-asyncio pytest-cov pytest-xdist
+          pip install -r libraries/python/neural_hive_specialists/requirements-dev.txt
+          pip install -r tests/requirements-test.txt
+
+      - name: Run integration tests with coverage
+        env:
+          MONGODB_URI: mongodb://localhost:27017
+          REDIS_URI: redis://localhost:6379
+          NEO4J_URI: bolt://localhost:7687
+        run: |
+          ./tests/run-tests.sh --type integration --coverage
+        env:
+          COVERAGE_FILE: .coverage.integration.${{ matrix.python-version }}
+
+      - name: Generate coverage reports
+        if: github.event.inputs.generate_reports != 'false'
+        run: |
+          coverage combine .coverage.integration.${{ matrix.python-version }} || true
+          coverage xml -o tests/results/coverage/coverage-integration-py${{ matrix.python-version }}.xml
+          coverage html -d tests/results/coverage/html-integration-py${{ matrix.python-version }}
+
+      - name: Upload coverage artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-integration-py${{ matrix.python-version }}
+          path: |
+            .coverage.integration.${{ matrix.python-version }}
+            tests/results/coverage/
+          retention-days: 7
+
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./tests/results/coverage/coverage-integration-py${{ matrix.python-version }}.xml
+          flags: integration-py${{ matrix.python-version }}
+          name: integration-py${{ matrix.python-version }}
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+  # ---------------------------------------------------------------------------
+  # Job: Service Tests com Cobertura
+  # ---------------------------------------------------------------------------
+  services-coverage:
+    name: Services Coverage (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: integration-coverage
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12"]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-asyncio pytest-cov pytest-xdist
+          pip install -r libraries/python/neural_hive_specialists/requirements-dev.txt
+          pip install -r tests/requirements-test.txt
+
+      - name: Run service tests with coverage
+        run: |
+          ./tests/run-tests.sh --component services --coverage
+        env:
+          COVERAGE_FILE: .coverage.services.${{ matrix.python-version }}
+
+      - name: Generate coverage reports
+        if: github.event.inputs.generate_reports != 'false'
+        run: |
+          coverage combine .coverage.services.${{ matrix.python-version }} || true
+          coverage xml -o tests/results/coverage/coverage-services-py${{ matrix.python-version }}.xml
+          coverage html -d tests/results/coverage/html-services-py${{ matrix.python-version }}
+
+      - name: Upload coverage artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-services-py${{ matrix.python-version }}
+          path: |
+            .coverage.services.${{ matrix.python-version }}
+            tests/results/coverage/
+          retention-days: 7
+
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./tests/results/coverage/coverage-services-py${{ matrix.python-version }}.xml
+          flags: services-py${{ matrix.python-version }}
+          name: services-py${{ matrix.python-version }}
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+  # ---------------------------------------------------------------------------
+  # Job: Quality Gate - Verifica Threshold de 70%
+  # ---------------------------------------------------------------------------
+  quality-gate:
+    name: Coverage Quality Gate (70%)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [unit-coverage, integration-coverage, services-coverage]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install coverage tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install coverage[toml]
+
+      - name: Download all coverage artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: coverage-*
+          merge-multiple: true
+          path: .
+
+      - name: Combine coverage data
+        run: |
+          # Lista todos os arquivos .coverage
+          shopt -s nullglob
+          cov_files=(.coverage.*)
+
+          if [[ ${#cov_files[@]} -eq 0 ]]; then
+            echo "::warning::No coverage files found"
+            exit 1
+          fi
+
+          echo "Found ${#cov_files[@]} coverage files:"
+          printf '  - %s\n' "${cov_files[@]}"
+
+          # Combina todos os arquivos de cobertura
+          coverage combine "${cov_files[@]}" || {
+            echo "::warning::Failed to combine some coverage files"
+            # Tenta combinar mesmo assim
+          }
+
+      - name: Generate combined reports
+        run: |
+          mkdir -p tests/results/coverage
+
+          # XML report
+          coverage xml -o tests/results/coverage/coverage.xml
+
+          # HTML report
+          coverage html -d tests/results/coverage/html
+
+          # Terminal report
+          coverage report --show-missing
+
+          # JSON report
+          coverage json -o tests/results/coverage/coverage.json
+
+      - name: Extract coverage percentage
+        id: coverage
+        run: |
+          # Extrai cobertura do XML
+          coverage_percent=$(python3 << 'EOF'
+import xml.etree.ElementTree as ET
+import sys
+
+try:
+    tree = ET.parse('tests/results/coverage/coverage.xml')
+    root = tree.getroot()
+    line_rate = float(root.attrib.get('line-rate', 0))
+    coverage = line_rate * 100
+    print(f"{coverage:.2f}")
+    sys.exit(0)
+except Exception as e:
+    print(f"Error: {e}", file=sys.stderr)
+    print("0.00", file=sys.stderr)
+    sys.exit(1)
+EOF
+          )
+
+          if [[ -z "$coverage_percent" || "$coverage_percent" == "0.00" ]]; then
+            echo "::error::Failed to extract coverage percentage"
+            exit 1
+          fi
+
+          echo "percent=$coverage_percent" >> $GITHUB_OUTPUT
+          echo "coverage=$coverage_percent" >> $GITHUB_ENV
+
+          # Output com formatação
+          echo ""
+          echo "============================================================================"
+          echo "                        COVERAGE SUMMARY"
+          echo "============================================================================"
+          echo ""
+          echo "  Current Coverage:  ${coverage_percent}%"
+          echo "  Required Coverage: 70%"
+          echo ""
+
+      - name: Check coverage threshold
+        run: |
+          required_threshold=70
+          current_coverage="${{ steps.coverage.outputs.percent }}"
+
+          echo "Checking threshold: ${current_coverage}% >= ${required_threshold}%"
+
+          # Compara usando bc (para decimais)
+          if (( $(echo "$current_coverage >= $required_threshold" | bc -l) )); then
+            echo "::notice::Coverage check PASSED: ${current_coverage}% >= ${required_threshold}%"
+            echo ""
+            echo -e "  Status: \033[0;32mPASS\033[0m"
+
+            difference=$(echo "$current_coverage - $required_threshold" | bc -l)
+            margin=$(printf "%.2f" "$difference")
+            echo "  Margin: +${margin}%"
+            echo ""
+            echo "============================================================================"
+            exit 0
+          else
+            echo "::error::Coverage check FAILED: ${current_coverage}% < ${required_threshold}%"
+            echo ""
+            echo -e "  Status: \033[0;31mFAIL\033[0m"
+
+            gap=$(echo "$required_threshold - $current_coverage" | bc -l)
+            gap_formatted=$(printf "%.2f" "$gap")
+            echo "  Gap: -${gap_formatted}%"
+            echo ""
+            echo "::error::Coverage is ${gap_formatted}% below threshold"
+            echo "::error::Please add tests to increase coverage to at least ${required_threshold}%"
+            echo ""
+            echo "============================================================================"
+            exit 1
+          fi
+
+      - name: Upload combined coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-combined-report
+          path: |
+            tests/results/coverage/
+          retention-days: 30
+
+      - name: Upload to Codecov (combined)
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./tests/results/coverage/coverage.xml
+          flags: combined
+          name: combined-coverage
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Coverage comment (PR only)
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const coverage = '${{ steps.coverage.outputs.percent }}';
+            const required = 70;
+            const diff = (parseFloat(coverage) - required).toFixed(2);
+
+            let status, emoji;
+            if (parseFloat(coverage) >= required) {
+              status = 'PASSING';
+              emoji = '✅';
+            } else {
+              status = 'FAILING';
+              emoji = '❌';
+            }
+
+            const body = `## Coverage Report ${emoji}
+            | Metric | Value |
+            |--------|-------|
+            | **Coverage** | ${coverage}% |
+            | **Threshold** | ${required}% |
+            | **Status** | ${status} |
+            | **Gap** | ${diff > 0 ? '+' : ''}${diff}% |
+
+            ${parseFloat(coverage) < required ? '**⚠️ Coverage below threshold! Please add more tests.**' : ''}
+
+            ---
+            *Generated by [test-coverage.yml](.github/workflows/test-coverage.yml)*
+            `;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
+
+  # ---------------------------------------------------------------------------
+  # Job: Coverage Summary Badge
+  # ---------------------------------------------------------------------------
+  coverage-badge:
+    name: Generate Coverage Badge
+    runs-on: ubuntu-latest
+    needs: quality-gate
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download combined coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-combined-report
+          path: tests/results/coverage/
+
+      - name: Generate badge
+        run: |
+          coverage="${{ needs.quality-gate.outputs.coverage || '0.00' }}"
+
+          # Determina cor baseada no valor
+          if (( $(echo "$coverage >= 80" | bc -l) )); then
+            color=brightgreen
+          elif (( $(echo "$coverage >= 70" | bc -l) )); then
+            color=yellow
+          elif (( $(echo "$coverage >= 50" | bc -l) )); then
+            color=orange
+          else
+            color=red
+          fi
+
+          # Gera SVG
+          cat > coverage-badge.svg << EOF
+          <svg xmlns="http://www.w3.org/2000/svg" width="120" height="20">
+            <linearGradient id="b" x2="0" y2="100%">
+              <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
+              <stop offset="1" stop-opacity=".1"/>
+            </linearGradient>
+            <mask id="a">
+              <rect width="120" height="20" rx="3" fill="#fff"/>
+            </mask>
+            <g mask="url(#a)">
+              <path fill="#555" d="M0 0h70v20H0z"/>
+              <path fill="${color}" d="M70 0h50v20H70z"/>
+              <path fill="url(#b)" d="M0 0h120v20H0z"/>
+            </g>
+            <g fill="#fff" text-anchor="middle" font-family="DejaVu Sans,Verdana,Geneva,sans-serif" font-size="11">
+              <text x="35" y="15" fill="#010101" fill-opacity=".3">coverage</text>
+              <text x="35" y="14">coverage</text>
+              <text x="95" y="15" fill="#010101" fill-opacity=".3">${coverage}%</text>
+              <text x="95" y="14">${coverage}%</text>
+            </g>
+          </svg>
+          EOF
+
+      - name: Upload badge to repo
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add coverage-badge.svg || true
+          git commit -m "chore: update coverage badge [skip ci]" || true
+          git push || true
