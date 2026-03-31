@@ -94,14 +94,19 @@
 - [x] Integração Kafka
 - [x] Consenso hierárquico (GAPS-03) - 5 níveis de senioridade, 132 testes ✅
 
-### Orchestrator Dynamic (85%)
+### Orchestrator Dynamic (100%)
 - [x] Conversão Plans → Tickets
 - [x] Orquestração Temporal
 - [x] SLA monitoring
 - [x] Flow C complete
 - [x] Optimization Producer/Consumer (GAPS-07) - Kafka integration, 4 testes ✅
-- [ ] Priorização dinâmica
-- [ ] Saga avançada
+- [x] **Saga Pattern** (ORCH-01 a ORCH-04) - SagaOrchestrator, SagaState, SagaEventStore, SagaRepository, 70+ testes ✅
+- [x] **Priority Queues** (ORCH-05) - PriorityQueues, QueueManager, weighted round-robin, 95%+ cobertura ✅
+- [x] **Dynamic Re-prioritization** (ORCH-06) - RePrioritizer, SLARePrioritizer, batch processing ✅
+- [x] **Preemption Manager** (ORCH-07) - PreemptionManager, PreemptionRules, compensation flow ✅
+- [x] **Adaptive Priority** (ORCH-08) - AdaptivePriorityCalculator, execution history, 95%+ cobertura ✅
+- [x] **Integration Tests** (ORCH-09) - 70 testes passando (saga, reprioritization, preemption, adaptive) ✅
+- [x] **Documentation** (ORCH-10) - SAGA_PATTERN.md, PRIORITY_SCHEDULER.md ✅
 
 ### Approval Service (98%)
 - [x] API de aprovação

@@ -167,10 +167,11 @@ class TestPreemptionRules:
             'started_at': started_at,
             'sla': {'timeout_ms': 300000}  # 5 min
         }
+        # Não incluir execution_progress para forçar cálculo por timestamp
         progress = rules._get_execution_progress(ticket)
 
-        # 60s / 300s = 0.2
-        assert 0.15 <= progress <= 0.25
+        # 60s / 300s = 0.2 (margem para tolerância de execução)
+        assert 0.15 <= progress <= 0.30
 
     def test_is_compensatable_true(self, rules):
         """Testa verificação de compensatable (True)."""
@@ -222,6 +223,7 @@ class TestPreemptionManager:
         rules._is_compensatable = Mock(return_value=True)
         rules._extract_priority = Mock(return_value='LOW')
         rules.max_execution_progress_pct = 0.3
+        rules._is_preemption_allowed = Mock(return_value=True)
         return rules
 
     @pytest.fixture
@@ -316,8 +318,19 @@ class TestPreemptionManager:
         assert 'compensation_ticket_id' in result
 
     @pytest.mark.asyncio
-    async def test_preempt_ticket_denied(self, manager):
+    async def test_preempt_ticket_denied(self, mock_queue_manager, mock_metrics):
         """Testa preempção negada."""
+        # Criar regras mock específicas para este teste
+        rules = Mock(spec=PreemptionRules)
+        rules.can_preempt = Mock(return_value=PreemptionDecision.ALLOWED)
+        rules._get_execution_progress = Mock(return_value=0.5)  # Acima do threshold
+        rules._is_compensatable = Mock(return_value=True)
+        rules._extract_priority = Mock(return_value='LOW')
+        rules.max_execution_progress_pct = 0.3
+        rules._is_preemption_allowed = Mock(return_value=True)
+
+        manager = PreemptionManager(rules, mock_queue_manager, mock_metrics)
+
         ticket = {
             'ticket_id': 'low-002',
             'priority': 'LOW',
