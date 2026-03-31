@@ -236,7 +236,7 @@ class VaultSettings(BaseSettings):
 
     @field_validator('vault_fail_open')
     @classmethod
-    def validate_vault_fail_open(cls, v: bool, info) -> bool:
+    def validate_vault_fail_open(cls, v: bool, info: Any) -> bool:
         """Valida que fail_open só é True em desenvolvimento."""
         if not v:
             return v
@@ -554,7 +554,7 @@ class BaseInfrastructureSettings(BaseSettings):
 
     @field_validator('vault_fail_open')
     @classmethod
-    def validate_vault_fail_open(cls, v: bool, info) -> bool:
+    def validate_vault_fail_open(cls, v: bool, info: Any) -> bool:
         """Valida que fail_open só é True em desenvolvimento."""
         if not v:
             return v

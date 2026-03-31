@@ -45,7 +45,7 @@ class ValidationError(NeuralHiveError):
         field: Optional[str] = None,
         value: Optional[Any] = None,
         reason: Optional[str] = None,
-        code: str = None,
+        code: Optional[str] = None,
         details: Optional[Dict[str, Any]] = None
     ):
         code = code or ValidationErrorCode.INVALID_INPUT
