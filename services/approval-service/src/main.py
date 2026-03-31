@@ -21,7 +21,7 @@ from src.clients.feature_store_client import FeatureStoreClient
 from src.services.approval_service import ApprovalService
 from src.services.ml_predictor_service import get_ml_predictor_service
 from src.observability.metrics import NeuralHiveMetrics, register_metrics
-from src.api.routers import approvals, health, active_learning
+from src.api.routers import approvals, health, active_learning, dashboard
 from src.adapters.feedback_config_adapter import create_feedback_collector_config
 
 # Import opcional - pode nao estar disponivel em todos os ambientes
@@ -389,6 +389,7 @@ register_metrics()
 app.include_router(health.router)
 app.include_router(approvals.router)
 app.include_router(active_learning.router)
+app.include_router(dashboard.router)
 
 
 if __name__ == "__main__":
