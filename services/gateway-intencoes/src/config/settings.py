@@ -1,5 +1,5 @@
 from typing import List, Optional
-from pydantic import Field, validator, model_validator
+from pydantic import Field, validator, model_validator, PrivateAttr
 from pydantic_settings import BaseSettings
 
 from neural_hive_security.cors import CORSConfig
@@ -207,11 +207,40 @@ class Settings(BaseSettings):
     )
 
     # Segurança (OBRIGATÓRIO em production)
-    jwt_secret_key: str = Field(
-        ...,
-        description="JWT secret key (OBRIGATÓRIO - usar valor forte em produção)"
+    # Nota: jwt_secret_key agora é opcional pois pode vir do Vault
+    # Em produção, use Vault ou defina JWT_SECRET environment variable
+    jwt_secret_key: Optional[str] = Field(
+        default=None,
+        description="JWT secret key (Opcional - usa Vault se disponível, senão este valor)"
     )
     jwt_algorithm: str = Field(default="HS256")
+
+    # Vault integration
+    vault_enabled: bool = Field(
+        default=False,
+        description="Habilitar integração com HashiCorp Vault para secrets"
+    )
+    vault_addr: Optional[str] = Field(
+        default=None,
+        description="Endereço do servidor Vault"
+    )
+    vault_token: Optional[str] = Field(
+        default=None,
+        description="Token para autenticação no Vault (opcional, usa Kubernetes auth se não fornecido)"
+    )
+    vault_role: str = Field(
+        default="neural-hive-gateway",
+        description="Role para autenticação Kubernetes no Vault"
+    )
+    vault_mount_point: str = Field(
+        default="neural-hive",
+        description="Mount point KV v2 no Vault"
+    )
+
+    # Private attributes for Vault client and cached secrets
+    _vault_client: Optional["VaultClient"] = PrivateAttr(default=None)
+    _jwt_secret_cached: Optional[str] = PrivateAttr(default=None)
+    _secret_key_cached: Optional[str] = PrivateAttr(default=None)
 
     # CORS e hosts (usa biblioteca neural_hive_security)
     allowed_hosts: List[str] = Field(
@@ -400,6 +429,80 @@ class Settings(BaseSettings):
             )
 
         return self
+
+    def _ensure_vault_client(self):
+        """Inicializa o Vault client se necessário e se Vault estiver habilitado."""
+        if not self.vault_enabled:
+            return None
+
+        if self._vault_client is None:
+            try:
+                from clients.vault_client import VaultClient
+
+                # Configurar environment para VaultClient
+                import os
+                if self.vault_addr:
+                    os.environ["VAULT_ADDR"] = self.vault_addr
+                if self.vault_token:
+                    os.environ["VAULT_TOKEN"] = self.vault_token
+                if self.vault_role:
+                    os.environ["VAULT_ROLE"] = self.vault_role
+
+                self._vault_client = VaultClient()
+            except Exception as e:
+                # Vault não disponível, usar fallback
+                from structlog import get_logger
+                logger = get_logger()
+                logger.warning("vault_init_failed", error=str(e), fallback="using_env_or_config")
+                self._vault_client = False  # Marcador para não tentar novamente
+
+        return self._vault_client if self._vault_client is not False else None
+
+    @property
+    def JWT_SECRET(self) -> str:
+        """
+        Retorna JWT secret da seguinte ordem de prioridade:
+        1. Vault (se habilitado e disponível)
+        2. jwt_secret_key (config)
+        3. JWT_SECRET environment variable
+
+        Raises:
+            ValueError: Se nenhum secret estiver disponível
+        """
+        # Tentar obter do Vault primeiro
+        vault_client = self._ensure_vault_client()
+        if vault_client and self._jwt_secret_cached is None:
+            try:
+                self._jwt_secret_cached = vault_client.get_jwt_secret()
+            except Exception:
+                pass  # Vault falhou, tentar outros métodos
+
+        # Usar cached secret do Vault
+        if self._jwt_secret_cached:
+            return self._jwt_secret_cached
+
+        # Fallback para config
+        if self.jwt_secret_key:
+            return self.jwt_secret_key
+
+        # Fallback para environment variable
+        import os
+        env_secret = os.getenv("JWT_SECRET")
+        if env_secret:
+            return env_secret
+
+        raise ValueError(
+            "JWT_SECRET não encontrado. Configure via Vault, jwt_secret_key, ou JWT_SECRET environment variable."
+        )
+
+    @property
+    def SECRET_KEY(self) -> str:
+        """
+        Retorna SECRET_KEY (para compatibilidade, usa JWT_SECRET).
+
+        Em produção, recomenda-se usar Vault para secrets.
+        """
+        return self.JWT_SECRET
 
     class Config:
         env_file = ".env"

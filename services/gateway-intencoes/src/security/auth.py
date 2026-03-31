@@ -7,11 +7,19 @@ from config.settings import get_settings
 
 
 async def verify_token(token: str) -> Dict[str, Any]:
-    """Verificar e decodificar token JWT"""
+    """Verificar e decodificar token JWT.
+
+    Usa JWT_SECRET da Settings que tem prioridade:
+    1. Vault (se habilitado e disponível)
+    2. jwt_secret_key (config)
+    3. JWT_SECRET environment variable
+    """
     try:
         settings = get_settings()
+        # Usar a propriedade JWT_SECRET que busca do Vault se disponível
+        secret = settings.JWT_SECRET
         payload = jwt.decode(
-            token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm]
+            token, secret, algorithms=[settings.jwt_algorithm]
         )
         return payload
     except jwt.InvalidTokenError:
