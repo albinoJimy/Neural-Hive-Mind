@@ -14,6 +14,8 @@ import structlog
 
 from src.config.settings import get_settings
 from src.clients.kafka_producer import KafkaProducerClient
+from src.saga.retry_policy import RetryPolicy, RetryError
+from src.saga.retry_config import SagaRetryConfig
 
 logger = structlog.get_logger()
 
@@ -21,13 +23,15 @@ _config = None
 _kafka_producer: Optional[KafkaProducerClient] = None
 _mongodb_client = None
 _metrics = None
+_retry_policy: Optional[RetryPolicy] = None
 
 
 def set_compensation_dependencies(
     config=None,
     kafka_producer: KafkaProducerClient = None,
     mongodb_client=None,
-    metrics=None
+    metrics=None,
+    retry_policy: Optional[RetryPolicy] = None
 ) -> None:
     """
     Injeta dependencias globais para activities de compensacao.
@@ -37,12 +41,28 @@ def set_compensation_dependencies(
         kafka_producer: KafkaProducerClient para publicacao de tickets
         mongodb_client: MongoDBClient para persistencia
         metrics: OrchestratorMetrics para metricas
+        retry_policy: RetryPolicy para retries de compensacao
     """
-    global _config, _kafka_producer, _mongodb_client, _metrics
+    global _config, _kafka_producer, _mongodb_client, _metrics, _retry_policy
     _config = config
     _kafka_producer = kafka_producer
     _mongodb_client = mongodb_client
     _metrics = metrics
+    _retry_policy = retry_policy or RetryPolicy()
+
+
+def _get_retry_policy() -> RetryPolicy:
+    """Retorna a politica de retry ou cria uma default."""
+    global _retry_policy
+    if _retry_policy is None:
+        config = _config or get_settings()
+        retry_config = SagaRetryConfig(
+            max_attempts=getattr(config, 'saga_retry_max_attempts', 3),
+            initial_delay_ms=getattr(config, 'saga_retry_initial_delay_ms', 1000),
+            max_delay_ms=getattr(config, 'saga_retry_max_delay_ms', 30000)
+        )
+        _retry_policy = RetryPolicy(config=retry_config)
+    return _retry_policy
 
 
 def _get_compensation_action(task_type: str, original_params: Dict[str, Any]) -> Dict[str, Any]:
@@ -112,14 +132,18 @@ def _get_compensation_action(task_type: str, original_params: Dict[str, Any]) ->
 @activity.defn
 async def compensate_ticket(
     ticket: Dict[str, Any],
-    reason: str
+    reason: str,
+    retry_config: Optional[Dict[str, Any]] = None
 ) -> str:
     """
     Cria e publica ticket de compensacao para reverter operacao falhada.
 
+    Usa RetryPolicy para operacoes de Kafka e MongoDB com backoff exponencial.
+
     Args:
         ticket: Ticket original que falhou
         reason: Motivo da compensacao (ex: 'task_failed', 'workflow_inconsistent')
+        retry_config: Configuracao opcional de retry (max_attempts, initial_delay_ms, etc)
 
     Returns:
         ID do ticket de compensacao criado
@@ -134,6 +158,13 @@ async def compensate_ticket(
     logger.info(
         f'compensation.creating_ticket ticket_id={ticket_id} task_type={task_type} reason={reason}'
     )
+
+    # Configurar retry policy
+    retry_policy = _get_retry_policy()
+    if retry_config:
+        from src.saga.retry_config import SagaRetryConfig
+        custom_config = SagaRetryConfig(**retry_config)
+        retry_policy = RetryPolicy(config=custom_config)
 
     try:
         # Determinar acao de compensacao
@@ -169,7 +200,7 @@ async def compensate_ticket(
             }
         }
 
-        # Registrar metrica
+        # Registrar metrica (sem retry)
         if _metrics:
             try:
                 _metrics.record_compensation(reason=reason)
@@ -178,33 +209,45 @@ async def compensate_ticket(
                     f'compensation.metric_failed error={metric_err}'
                 )
 
-        # Persistir no MongoDB (fail-open)
+        # Persistir no MongoDB com retry
         if _mongodb_client:
-            try:
+            async def persist_ticket() -> bool:
                 await _mongodb_client.save_ticket(compensation_ticket)
                 logger.info(
                     f'compensation.ticket_persisted ticket_id={compensation_ticket_id}'
                 )
-            except Exception as mongo_err:
-                logger.warning(
-                    f'compensation.mongodb_persist_failed ticket_id={compensation_ticket_id} error={mongo_err}'
-                )
+                return True
 
-        # Publicar no Kafka
-        if _kafka_producer:
             try:
+                await retry_policy.execute(
+                    persist_ticket,
+                    operation_name='compensation_mongodb_persist'
+                )
+            except RetryError as mongo_err:
+                logger.warning(
+                    f'compensation.mongodb_persist_failed_after_retries ticket_id={compensation_ticket_id} error={mongo_err}'
+                )
+                # Fail-open: continuar mesmo se MongoDB falhar
+
+        # Publicar no Kafka com retry
+        if _kafka_producer:
+            async def publish_to_kafka() -> bool:
                 publish_result = await _kafka_producer.publish_ticket(compensation_ticket)
-                if publish_result:
-                    logger.info(
-                        f'compensation.ticket_published ticket_id={compensation_ticket_id}'
-                    )
-                else:
-                    logger.warning(
-                        f'compensation.kafka_publish_failed ticket_id={compensation_ticket_id}'
-                    )
-            except Exception as kafka_err:
+                if not publish_result:
+                    raise ValueError('kafka_publish_returned_false')
+                logger.info(
+                    f'compensation.ticket_published ticket_id={compensation_ticket_id}'
+                )
+                return publish_result
+
+            try:
+                await retry_policy.execute(
+                    publish_to_kafka,
+                    operation_name='compensation_kafka_publish'
+                )
+            except RetryError as kafka_err:
                 logger.error(
-                    f'compensation.kafka_error ticket_id={compensation_ticket_id} error={kafka_err}'
+                    f'compensation.kafka_failed_after_retries ticket_id={compensation_ticket_id} error={kafka_err}'
                 )
                 # Fail-open: ticket foi persistido no MongoDB
         else:
