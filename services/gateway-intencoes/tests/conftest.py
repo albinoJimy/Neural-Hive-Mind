@@ -17,6 +17,7 @@ class MockUnifiedDomain(str, Enum):
 sys.modules['whisper'] = MagicMock()
 sys.modules['spacy'] = MagicMock()
 sys.modules['thinc'] = MagicMock()
+sys.modules['hvac'] = MagicMock()  # Mock hvac for VaultClient tests
 sys.modules['neural_hive_domain'] = MagicMock()
 sys.modules['neural_hive_domain'].UnifiedDomain = MockUnifiedDomain
 sys.modules['neural_hive_observability'] = MagicMock()
@@ -38,6 +39,14 @@ class MockCORSConfig:
         elif environment in ["prod", "production"]:
             return cls.PROD_ORIGINS
         return cls.DEV_ORIGINS
+
+    @classmethod
+    def validate_no_wildcard(cls, origins, environment):
+        """Valida que não tem wildcard nas origens."""
+        for origin in origins:
+            if '*' in origin and 'localhost' not in origin:
+                raise ValueError(f"Wildcard not allowed in {environment}")
+        return True
 
 # Mock neural_hive_security properly - need to mock both module and submodule
 mock_security_module = MagicMock()

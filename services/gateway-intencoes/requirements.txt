@@ -45,6 +45,7 @@ structlog==24.4.0
 python-jose[cryptography]==4.0.0  # CVE-2022-24314 fix - GAP-03
 passlib[bcrypt]==1.7.4
 cryptography==41.0.7
+hvac>=2.0.0  # HashiCorp Vault client for secret management
 
 # Utilitários
 httpx==0.28.1

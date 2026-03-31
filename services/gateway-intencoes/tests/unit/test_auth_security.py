@@ -5,16 +5,17 @@ O teste servirá como contrato para a implementação na Task 2, onde auth.py
 será modificado para importar e usar settings.get_settings().
 """
 import pytest
-from unittest.mock import patch, Mock
+from unittest.mock import patch, Mock, PropertyMock
 from src.security.auth import verify_token, get_current_user
 
 
 @pytest.mark.asyncio
 async def test_verify_token_uses_secret_from_settings():
-    """Test that verify_token uses JWT_SECRET from settings"""
+    """Test that verify_token uses JWT_SECRET from settings (with Vault support)"""
     # Mock settings with the expected secret
     mock_settings = Mock()
-    mock_settings.jwt_secret_key = "test-secret-from-env"
+    # Simular a propriedade JWT_SECRET que busca do Vault
+    type(mock_settings).JWT_SECRET = PropertyMock(return_value="test-secret-from-env")
     mock_settings.jwt_algorithm = "HS256"
 
     # Patch onde settings sera importado em auth.py (apos implementacao na Task 2)
@@ -37,8 +38,14 @@ async def test_verify_token_raises_for_invalid_token():
     """Test that verify_token raises HTTPException for invalid tokens"""
     from fastapi import HTTPException
 
-    with pytest.raises(HTTPException) as exc_info:
-        await verify_token("invalid-token")
+    # Mock settings com JWT_SECRET válido para não falhar na validação
+    mock_settings = Mock()
+    type(mock_settings).JWT_SECRET = PropertyMock(return_value="valid-test-secret")
+    mock_settings.jwt_algorithm = "HS256"
 
-    assert exc_info.value.status_code == 401
-    assert "Token inválido" in exc_info.value.detail
+    with patch('src.security.auth.get_settings', return_value=mock_settings):
+        with pytest.raises(HTTPException) as exc_info:
+            await verify_token("invalid-token")
+
+        assert exc_info.value.status_code == 401
+        assert "Token inválido" in exc_info.value.detail
