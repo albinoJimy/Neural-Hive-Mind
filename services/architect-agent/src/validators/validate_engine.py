@@ -1,17 +1,23 @@
 """Motor principal de validação de arquitetura."""
 
 import uuid
-from typing import Dict, Any
 from datetime import datetime, timezone
+from typing import Any, Dict
+
 import structlog
 
 from src.models.validation import (
-    ValidationReport, Violation, Suggestion, ViolationType, Severity, Trend
+    Severity,
+    Suggestion,
+    Trend,
+    ValidationReport,
+    Violation,
+    ViolationType,
 )
 from src.validators.base import BaseValidator
-from src.validators.scout_client import ScoutAgentsClient
 from src.validators.opa_client import OPAClient
 from src.validators.rules import ArchitecturalRules
+from src.validators.scout_client import ScoutAgentsClient
 
 logger = structlog.get_logger(__name__)
 
@@ -79,31 +85,21 @@ class ValidateEngine(BaseValidator):
                 "class_count": len([p for p in patterns if p.get("type") == "class"]),
                 "interface_count": len([p for p in patterns if p.get("type") == "interface"]),
             },
-            created_at=datetime.now(timezone.utc)
+            created_at=datetime.now(timezone.utc),
         )
 
     async def _get_patterns_safe(self, repo_url: str, branch: str) -> list:
         try:
             return await self.scout_client.get_patterns(repo_url, branch)
         except Exception as e:
-            logger.warning(
-                "scout_patterns_error",
-                repo_url=repo_url,
-                branch=branch,
-                error=str(e)
-            )
+            logger.warning("scout_patterns_error", repo_url=repo_url, branch=branch, error=str(e))
             return []
 
     async def _get_insights_safe(self, repo_url: str, branch: str) -> dict:
         try:
             return await self.scout_client.get_insights(repo_url, branch)
         except Exception as e:
-            logger.warning(
-                "scout_insights_error",
-                repo_url=repo_url,
-                branch=branch,
-                error=str(e)
-            )
+            logger.warning("scout_insights_error", repo_url=repo_url, branch=branch, error=str(e))
             return {}
 
     async def _check_duplication_safe(self, repo_url: str, branch: str) -> dict:
@@ -111,10 +107,7 @@ class ValidateEngine(BaseValidator):
             return await self.scout_client.check_duplication(repo_url, branch)
         except Exception as e:
             logger.warning(
-                "scout_duplication_error",
-                repo_url=repo_url,
-                branch=branch,
-                error=str(e)
+                "scout_duplication_error", repo_url=repo_url, branch=branch, error=str(e)
             )
             return {"percentage": 0}
 
@@ -122,24 +115,22 @@ class ValidateEngine(BaseValidator):
         try:
             return await self.opa_client.check_architecture_rules(patterns, insights)
         except Exception as e:
-            logger.warning(
-                "opa_evaluation_error",
-                patterns_count=len(patterns),
-                error=str(e)
-            )
+            logger.warning("opa_evaluation_error", patterns_count=len(patterns), error=str(e))
             return []
 
     def _check_duplication_violations(self, duplication: dict) -> list:
         violations: list = []
         if duplication.get("percentage", 0) > 10:
             severity = "high" if duplication["percentage"] > 20 else "medium"
-            violations.append({
-                "type": ViolationType.DUPLICATION.value,
-                "severity": severity,
-                "location": "multiple",
-                "description": f"{duplication['percentage']:.1f}% de código duplicado",
-                "suggestion": "Extrair código duplicado para funções/módulos reutilizáveis"
-            })
+            violations.append(
+                {
+                    "type": ViolationType.DUPLICATION.value,
+                    "severity": severity,
+                    "location": "multiple",
+                    "description": f"{duplication['percentage']:.1f}% de código duplicado",
+                    "suggestion": "Extrair código duplicado para funções/módulos reutilizáveis",
+                }
+            )
         return violations
 
     def _to_violation(self, v: dict) -> Violation:
@@ -163,7 +154,7 @@ class ValidateEngine(BaseValidator):
             severity=severity,
             location=v.get("location", "unknown"),
             description=v.get("description", ""),
-            suggestion=v.get("suggestion")
+            suggestion=v.get("suggestion"),
         )
 
     def _generate_suggestions(
@@ -178,31 +169,37 @@ class ValidateEngine(BaseValidator):
 
         # Sugestões baseadas em violações críticas
         for v in critical_violations[:3]:
-            suggestions.append(Suggestion(
-                priority=1,
-                description=v.get("suggestion") or v.get("description", ""),
-                effort="M",
-                affected_files=[v.get("location", "unknown")]
-            ))
+            suggestions.append(
+                Suggestion(
+                    priority=1,
+                    description=v.get("suggestion") or v.get("description", ""),
+                    effort="M",
+                    affected_files=[v.get("location", "unknown")],
+                )
+            )
 
         # Sugestões para violações high
         for v in high_violations[:5]:
-            suggestions.append(Suggestion(
-                priority=2,
-                description=v.get("suggestion") or v.get("description", ""),
-                effort="L",
-                affected_files=[v.get("location", "unknown")]
-            ))
+            suggestions.append(
+                Suggestion(
+                    priority=2,
+                    description=v.get("suggestion") or v.get("description", ""),
+                    effort="L",
+                    affected_files=[v.get("location", "unknown")],
+                )
+            )
 
         # Sugestão de cobertura de testes se baixa
         test_coverage = insights.get("test_coverage", 100)
         if test_coverage < 70:
-            suggestions.append(Suggestion(
-                priority=3,
-                description=f"Aumentar cobertura de testes de {test_coverage:.1f}% para 80%+",
-                effort="XL",
-                affected_files=[]
-            ))
+            suggestions.append(
+                Suggestion(
+                    priority=3,
+                    description=f"Aumentar cobertura de testes de {test_coverage:.1f}% para 80%+",
+                    effort="XL",
+                    affected_files=[],
+                )
+            )
 
         return suggestions
 
@@ -215,7 +212,7 @@ class ValidateEngine(BaseValidator):
             Severity.CRITICAL: 25,
             Severity.HIGH: 15,
             Severity.MEDIUM: 8,
-            Severity.LOW: 3
+            Severity.LOW: 3,
         }
         for v in violations:
             # v é um objeto Violation, acessar atributo diretamente

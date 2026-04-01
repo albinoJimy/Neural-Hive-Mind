@@ -1,12 +1,13 @@
 """Repositório para planos arquiteturais."""
 
-from typing import List, Optional
 from datetime import datetime, timezone
+from typing import List, Optional
+
 from pymongo.errors import DuplicateKeyError
 
+from src.config.settings import get_settings
 from src.models.architecture import ArchitecturePlan, ArchitectureType
 from src.repositories.base import BaseRepository
-from src.config.settings import get_settings
 
 
 class ArchitectureRepository(BaseRepository[ArchitecturePlan]):
@@ -44,9 +45,7 @@ class ArchitectureRepository(BaseRepository[ArchitecturePlan]):
             return self._doc_to_model(doc)
         return None
 
-    async def get_by_cognitive_plan_id(
-        self, cognitive_plan_id: str
-    ) -> List[ArchitecturePlan]:
+    async def get_by_cognitive_plan_id(self, cognitive_plan_id: str) -> List[ArchitecturePlan]:
         """Busca planos por cognitive_plan_id."""
         cursor = self.collection.find({"cognitive_plan_id": cognitive_plan_id})
         docs = await cursor.to_list(length=100)
@@ -56,9 +55,7 @@ class ArchitectureRepository(BaseRepository[ArchitecturePlan]):
         self, arch_type: ArchitectureType, limit: int = 50
     ) -> List[ArchitecturePlan]:
         """Lista planos por tipo de arquitetura."""
-        cursor = self.collection.find({"architecture_type": arch_type.value}).limit(
-            limit
-        )
+        cursor = self.collection.find({"architecture_type": arch_type.value}).limit(limit)
         docs = await cursor.to_list(length=limit)
         return [self._doc_to_model(doc) for doc in docs]
 

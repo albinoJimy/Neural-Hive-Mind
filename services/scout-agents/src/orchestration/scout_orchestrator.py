@@ -10,11 +10,10 @@ Responsável por:
 
 import asyncio
 import uuid
-from datetime import datetime
-from typing import Dict, List, Optional, Any
-import structlog
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
 
-from neural_hive_observability import get_tracer
+import structlog
 
 logger = structlog.get_logger()
 
@@ -27,7 +26,7 @@ class ScoutOrchestrator:
         scout_agent_id: str,
         kafka_producer: Any = None,
         mongo_client: Any = None,
-        default_timeout_ms: int = 30000
+        default_timeout_ms: int = 30000,
     ):
         """
         Inicializa o ScoutOrchestrator.
@@ -52,10 +51,10 @@ class ScoutOrchestrator:
 
         # Stats
         self.stats = {
-            'explorations_started': 0,
-            'explorations_completed': 0,
-            'explorations_failed': 0,
-            'explorations_timeout': 0
+            "explorations_started": 0,
+            "explorations_completed": 0,
+            "explorations_failed": 0,
+            "explorations_timeout": 0,
         }
 
     async def coordinate_exploration(
@@ -64,7 +63,7 @@ class ScoutOrchestrator:
         intent_text: str,
         scouts: Optional[List[str]] = None,
         timeout_ms: Optional[int] = None,
-        exploration_type: str = "codebase"
+        exploration_type: str = "codebase",
     ) -> Dict[str, Any]:
         """
         Coordena exploração paralela com múltiplos scouts.
@@ -87,7 +86,7 @@ class ScoutOrchestrator:
             exploration_id=exploration_id,
             event_type="started",
             plan_id=plan_id,
-            exploration_type=exploration_type
+            exploration_type=exploration_type,
         )
 
         # Determinar scouts para deploy
@@ -95,42 +94,37 @@ class ScoutOrchestrator:
 
         # Registrar exploração ativa
         self.active_explorations[exploration_id] = {
-            'exploration_id': exploration_id,
-            'plan_id': plan_id,
-            'intent_text': intent_text,
-            'exploration_type': exploration_type,
-            'scouts_deployed': scouts_to_deploy,
-            'status': 'running',
-            'started_at': datetime.utcnow(),
-            'timeout_ms': timeout
+            "exploration_id": exploration_id,
+            "plan_id": plan_id,
+            "intent_text": intent_text,
+            "exploration_type": exploration_type,
+            "scouts_deployed": scouts_to_deploy,
+            "status": "running",
+            "started_at": datetime.now(timezone.utc),
+            "timeout_ms": timeout,
         }
 
         # Iniciar exploração em background
         asyncio.create_task(
             self._run_exploration(
-                exploration_id,
-                scouts_to_deploy,
-                timeout,
-                plan_id,
-                intent_text,
-                exploration_type
+                exploration_id, scouts_to_deploy, timeout, plan_id, intent_text, exploration_type
             )
         )
 
-        self.stats['explorations_started'] += 1
+        self.stats["explorations_started"] += 1
 
         logger.info(
             "exploration_started",
             exploration_id=exploration_id,
             plan_id=plan_id,
-            scouts=scouts_to_deploy
+            scouts=scouts_to_deploy,
         )
 
         return {
-            'exploration_id': exploration_id,
-            'status': 'running',
-            'estimated_completion_ms': timeout,
-            'scouts_deployed': scouts_to_deploy
+            "exploration_id": exploration_id,
+            "status": "running",
+            "estimated_completion_ms": timeout,
+            "scouts_deployed": scouts_to_deploy,
         }
 
     async def _run_exploration(
@@ -140,7 +134,7 @@ class ScoutOrchestrator:
         timeout_ms: int,
         plan_id: str,
         intent_text: str,
-        exploration_type: str
+        exploration_type: str,
     ):
         """
         Executa exploração com múltiplos scouts em paralelo.
@@ -159,7 +153,7 @@ class ScoutOrchestrator:
         # Criar tasks para cada scout
         for scout_name in scouts:
             scout = self.available_scouts.get(scout_name)
-            if scout and hasattr(scout, 'explore'):
+            if scout and hasattr(scout, "explore"):
                 task = asyncio.create_task(
                     self._run_scout_with_timeout(
                         scout, scout_name, plan_id, intent_text, timeout_sec
@@ -170,32 +164,29 @@ class ScoutOrchestrator:
         # Aguardar todos os scouts ou timeout
         try:
             results = await asyncio.wait_for(
-                self._gather_scout_results(scout_tasks),
-                timeout=timeout_sec
+                self._gather_scout_results(scout_tasks), timeout=timeout_sec
             )
 
             # Agregar resultados
             aggregated = self.aggregate_results(results)
 
             # Marcar como completada
-            await self._mark_exploration_completed(
-                exploration_id, aggregated
-            )
+            await self._mark_exploration_completed(exploration_id, aggregated)
 
             # Publicar evento completed
             await self.publish_kafka_events(
                 exploration_id=exploration_id,
                 event_type="completed",
                 plan_id=plan_id,
-                results=aggregated
+                results=aggregated,
             )
 
-            self.stats['explorations_completed'] += 1
+            self.stats["explorations_completed"] += 1
 
             logger.info(
                 "exploration_completed",
                 exploration_id=exploration_id,
-                results_count=len(aggregated)
+                results_count=len(aggregated),
             )
 
         except asyncio.TimeoutError:
@@ -208,48 +199,33 @@ class ScoutOrchestrator:
                 exploration_id=exploration_id,
                 event_type="timeout",
                 plan_id=plan_id,
-                partial_results=partial
+                partial_results=partial,
             )
 
-            self.stats['explorations_timeout'] += 1
+            self.stats["explorations_timeout"] += 1
 
             logger.warning(
-                "exploration_timeout",
-                exploration_id=exploration_id,
-                timeout_ms=timeout_ms
+                "exploration_timeout", exploration_id=exploration_id, timeout_ms=timeout_ms
             )
 
         except Exception as e:
-            logger.error(
-                "exploration_failed",
-                exploration_id=exploration_id,
-                error=str(e)
-            )
+            logger.error("exploration_failed", exploration_id=exploration_id, error=str(e))
 
             await self._mark_exploration_failed(exploration_id, str(e))
 
             await self.publish_kafka_events(
-                exploration_id=exploration_id,
-                event_type="failed",
-                plan_id=plan_id,
-                error=str(e)
+                exploration_id=exploration_id, event_type="failed", plan_id=plan_id, error=str(e)
             )
 
-            self.stats['explorations_failed'] += 1
+            self.stats["explorations_failed"] += 1
 
     async def _run_scout_with_timeout(
-        self,
-        scout: Any,
-        scout_name: str,
-        plan_id: str,
-        intent_text: str,
-        timeout_sec: float
+        self, scout: Any, scout_name: str, plan_id: str, intent_text: str, timeout_sec: float
     ) -> tuple:
         """Executa um scout individual com timeout."""
         try:
             result = await asyncio.wait_for(
-                scout.explore(plan_id, intent_text),
-                timeout=timeout_sec
+                scout.explore(plan_id, intent_text), timeout=timeout_sec
             )
             return (scout_name, result, None)
         except asyncio.TimeoutError:
@@ -257,10 +233,7 @@ class ScoutOrchestrator:
         except Exception as e:
             return (scout_name, None, str(e))
 
-    async def _gather_scout_results(
-        self,
-        scout_tasks: List[tuple]
-    ) -> Dict[str, Any]:
+    async def _gather_scout_results(self, scout_tasks: List[tuple]) -> Dict[str, Any]:
         """Coleta resultados de todos os scouts."""
         results = {}
 
@@ -268,18 +241,15 @@ class ScoutOrchestrator:
             try:
                 _, result, error = await task
                 if error:
-                    results[scout_name] = {'error': error}
+                    results[scout_name] = {"error": error}
                 else:
                     results[scout_name] = result
             except Exception as e:
-                results[scout_name] = {'error': str(e)}
+                results[scout_name] = {"error": str(e)}
 
         return results
 
-    async def _collect_partial_results(
-        self,
-        scout_tasks: List[tuple]
-    ) -> Dict[str, Any]:
+    async def _collect_partial_results(self, scout_tasks: List[tuple]) -> Dict[str, Any]:
         """Coleta resultados parciais de scouts que completaram."""
         partial = {}
 
@@ -305,78 +275,66 @@ class ScoutOrchestrator:
             Dict agregado com todos os findings
         """
         aggregated = {
-            'solutions_found': [],
-            'patterns_discovered': [],
-            'dependencies': {'internal': [], 'external': [], 'circular': []},
-            'aggregate_confidence': 0.0,
-            'scouts_reported': len(scout_results)
+            "solutions_found": [],
+            "patterns_discovered": [],
+            "dependencies": {"internal": [], "external": [], "circular": []},
+            "aggregate_confidence": 0.0,
+            "scouts_reported": len(scout_results),
         }
 
         # Aggregate solutions
         for scout_name, result in scout_results.items():
-            if 'solutions' in result:
-                for sol in result['solutions']:
+            if "solutions" in result:
+                for sol in result["solutions"]:
                     # Deduplicação por approach
                     if not any(
-                        s.get('approach') == sol.get('approach')
-                        for s in aggregated['solutions_found']
+                        s.get("approach") == sol.get("approach")
+                        for s in aggregated["solutions_found"]
                     ):
-                        aggregated['solutions_found'].append(sol)
+                        aggregated["solutions_found"].append(sol)
 
             # Aggregate patterns
-            if 'patterns' in result:
-                for pattern in result['patterns']:
+            if "patterns" in result:
+                for pattern in result["patterns"]:
                     existing = next(
-                        (p for p in aggregated['patterns_discovered']
-                         if p.get('name') == pattern.get('name')),
-                        None
+                        (
+                            p
+                            for p in aggregated["patterns_discovered"]
+                            if p.get("name") == pattern.get("name")
+                        ),
+                        None,
                     )
                     if existing:
-                        existing['occurrences'] += pattern.get('occurrences', 0)
-                        existing['locations'].extend(pattern.get('locations', []))
+                        existing["occurrences"] += pattern.get("occurrences", 0)
+                        existing["locations"].extend(pattern.get("locations", []))
                     else:
-                        aggregated['patterns_discovered'].append({
-                            **pattern,
-                            'locations': pattern.get('locations', [])
-                        })
+                        aggregated["patterns_discovered"].append(
+                            {**pattern, "locations": pattern.get("locations", [])}
+                        )
 
             # Aggregate dependencies
-            if 'dependencies' in result:
-                deps = result['dependencies']
-                aggregated['dependencies']['internal'].extend(
-                    deps.get('internal', [])
-                )
-                aggregated['dependencies']['external'].extend(
-                    deps.get('external', [])
-                )
-                aggregated['dependencies']['circular'].extend(
-                    deps.get('circular', [])
-                )
+            if "dependencies" in result:
+                deps = result["dependencies"]
+                aggregated["dependencies"]["internal"].extend(deps.get("internal", []))
+                aggregated["dependencies"]["external"].extend(deps.get("external", []))
+                aggregated["dependencies"]["circular"].extend(deps.get("circular", []))
 
             # Aggregate confidence
-            if 'confidence' in result:
-                aggregated['aggregate_confidence'] += result['confidence']
+            if "confidence" in result:
+                aggregated["aggregate_confidence"] += result["confidence"]
 
         # Calculate average confidence
-        if aggregated['scouts_reported'] > 0:
-            aggregated['aggregate_confidence'] /= aggregated['scouts_reported']
+        if aggregated["scouts_reported"] > 0:
+            aggregated["aggregate_confidence"] /= aggregated["scouts_reported"]
 
         # Deduplicate lists
-        aggregated['dependencies']['internal'] = list(set(
-            aggregated['dependencies']['internal']
-        ))
-        aggregated['dependencies']['external'] = list(set(
-            aggregated['dependencies']['external']
-        ))
+        aggregated["dependencies"]["internal"] = list(set(aggregated["dependencies"]["internal"]))
+        aggregated["dependencies"]["external"] = list(set(aggregated["dependencies"]["external"]))
 
         return aggregated
 
     async def publish_kafka_events(
-        self,
-        exploration_id: str,
-        event_type: str,
-        plan_id: str,
-        **kwargs
+        self, exploration_id: str, event_type: str, plan_id: str, **kwargs
     ):
         """
         Publica eventos Kafka sobre a exploração.
@@ -391,20 +349,17 @@ class ScoutOrchestrator:
             return
 
         event = {
-            'event_type': f'scout.exploration.{event_type}',
-            'exploration_id': exploration_id,
-            'plan_id': plan_id,
-            'scout_agent_id': self.scout_agent_id,
-            'timestamp': datetime.utcnow().isoformat(),
-            **kwargs
+            "event_type": f"scout.exploration.{event_type}",
+            "exploration_id": exploration_id,
+            "plan_id": plan_id,
+            "scout_agent_id": self.scout_agent_id,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            **kwargs,
         }
 
         try:
-            if hasattr(self.kafka_producer, 'publish'):
-                await self.kafka_producer.publish(
-                    'scout.exploration.events',
-                    event
-                )
+            if hasattr(self.kafka_producer, "publish"):
+                await self.kafka_producer.publish("scout.exploration.events", event)
             else:
                 logger.warning("kafka_producer_missing_publish_method")
         except Exception as e:
@@ -412,13 +367,10 @@ class ScoutOrchestrator:
                 "kafka_publish_failed",
                 exploration_id=exploration_id,
                 event_type=event_type,
-                error=str(e)
+                error=str(e),
             )
 
-    async def get_exploration_status(
-        self,
-        exploration_id: str
-    ) -> Optional[Dict[str, Any]]:
+    async def get_exploration_status(self, exploration_id: str) -> Optional[Dict[str, Any]]:
         """
         Consulta status de uma exploração.
 
@@ -443,54 +395,38 @@ class ScoutOrchestrator:
                 if result:
                     return result
             except Exception as e:
-                logger.error(
-                    "mongo_find_failed",
-                    exploration_id=exploration_id,
-                    error=str(e)
-                )
+                logger.error("mongo_find_failed", exploration_id=exploration_id, error=str(e))
 
         return None
 
-    async def _mark_exploration_completed(
-        self,
-        exploration_id: str,
-        results: Dict[str, Any]
-    ):
+    async def _mark_exploration_completed(self, exploration_id: str, results: Dict[str, Any]):
         """Marca exploração como completada."""
         if exploration_id in self.active_explorations:
             exploration = self.active_explorations.pop(exploration_id)
-            exploration['status'] = 'completed'
-            exploration['completed_at'] = datetime.utcnow()
-            exploration['duration_ms'] = int(
-                (exploration['completed_at'] - exploration['started_at']).total_seconds() * 1000
+            exploration["status"] = "completed"
+            exploration["completed_at"] = datetime.now(timezone.utc)
+            exploration["duration_ms"] = int(
+                (exploration["completed_at"] - exploration["started_at"]).total_seconds() * 1000
             )
-            exploration['results'] = results
+            exploration["results"] = results
             self.completed_explorations[exploration_id] = exploration
 
-    async def _mark_exploration_timeout(
-        self,
-        exploration_id: str,
-        partial_results: Dict[str, Any]
-    ):
+    async def _mark_exploration_timeout(self, exploration_id: str, partial_results: Dict[str, Any]):
         """Marca exploração como timeout."""
         if exploration_id in self.active_explorations:
             exploration = self.active_explorations.pop(exploration_id)
-            exploration['status'] = 'timeout'
-            exploration['completed_at'] = datetime.utcnow()
-            exploration['partial_results'] = partial_results
+            exploration["status"] = "timeout"
+            exploration["completed_at"] = datetime.now(timezone.utc)
+            exploration["partial_results"] = partial_results
             self.completed_explorations[exploration_id] = exploration
 
-    async def _mark_exploration_failed(
-        self,
-        exploration_id: str,
-        error: str
-    ):
+    async def _mark_exploration_failed(self, exploration_id: str, error: str):
         """Marca exploração como falha."""
         if exploration_id in self.active_explorations:
             exploration = self.active_explorations.pop(exploration_id)
-            exploration['status'] = 'failed'
-            exploration['completed_at'] = datetime.utcnow()
-            exploration['error'] = error
+            exploration["status"] = "failed"
+            exploration["completed_at"] = datetime.now(timezone.utc)
+            exploration["error"] = error
             self.completed_explorations[exploration_id] = exploration
 
     def register_scout(self, name: str, scout_instance: Any):
@@ -514,7 +450,7 @@ class ScoutOrchestrator:
         """Retorna estatísticas do orchestrator."""
         return {
             **self.stats,
-            'active_explorations': len(self.active_explorations),
-            'completed_explorations': len(self.completed_explorations),
-            'available_scouts': list(self.available_scouts.keys())
+            "active_explorations": len(self.active_explorations),
+            "completed_explorations": len(self.completed_explorations),
+            "available_scouts": list(self.available_scouts.keys()),
         }

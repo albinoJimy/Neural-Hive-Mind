@@ -1,9 +1,9 @@
 """Pydantic model for Tool Combination used in genetic algorithm."""
 import random
-from typing import Dict, List, Optional
+from typing import Dict, List
 from uuid import uuid4
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from .tool_descriptor import ToolDescriptor
 from .tool_selection import SelectionConstraints
@@ -58,7 +58,9 @@ class ToolCombination(BaseModel):
         self.fitness_score = max(0.0, min(fitness, 1.0))
         return self.fitness_score
 
-    def mutate(self, mutation_rate: float, available_tools: List[ToolDescriptor]) -> "ToolCombination":
+    def mutate(
+        self, mutation_rate: float, available_tools: List[ToolDescriptor]
+    ) -> "ToolCombination":
         """Apply mutation by randomly replacing a tool."""
         if random.random() > mutation_rate or not self.tools:
             return self
@@ -68,7 +70,11 @@ class ToolCombination(BaseModel):
         old_tool = self.tools[idx]
 
         # Find alternative tools in same category
-        alternatives = [t for t in available_tools if t.category == old_tool.category and t.tool_id != old_tool.tool_id]
+        alternatives = [
+            t
+            for t in available_tools
+            if t.category == old_tool.category and t.tool_id != old_tool.tool_id
+        ]
 
         if alternatives:
             self.tools[idx] = random.choice(alternatives)
@@ -138,7 +144,4 @@ class ToolCombination(BaseModel):
             "crossover_applied": self.crossover_applied,
         }
 
-    class Config:
-        """Pydantic configuration."""
-
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)

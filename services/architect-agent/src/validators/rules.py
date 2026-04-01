@@ -1,8 +1,7 @@
 """Regras de validação de arquitetura (SOLID)."""
 
-from typing import Dict, Any
 from enum import Enum
-from src.models.validation import ViolationType
+from typing import Any, Dict
 
 
 class SOLIDPrinciple(str, Enum):
@@ -28,7 +27,7 @@ class ArchitecturalRules:
                 "severity": "high",
                 "location": class_info.get("file", "unknown"),
                 "description": f"Classe {class_info.get('name')} com {len(methods)} métodos",
-                "suggestion": "Considerar dividir em classes menores"
+                "suggestion": "Considerar dividir em classes menores",
             }
         return None
 
@@ -43,7 +42,7 @@ class ArchitecturalRules:
                 "severity": "medium",
                 "location": class_info.get("file", "unknown"),
                 "description": f"Alto acoplamento com condicionais ({if_statements} ifs, {switch_statements} switches)",
-                "suggestion": "Usar polimorfismo/strategy pattern"
+                "suggestion": "Usar polimorfismo/strategy pattern",
             }
         return None
 
@@ -53,13 +52,15 @@ class ArchitecturalRules:
         violations: list[Dict[str, Any]] = []
         for inheritance in insights.get("inheritance", []):
             if inheritance.get("overrides_method_without_calling_super"):
-                violations.append({
-                    "type": SOLIDPrinciple.LSP.value,
-                    "severity": "medium",
-                    "location": inheritance.get("file", "unknown"),
-                    "description": f"Override sem chamar super() em {inheritance.get('method')}",
-                    "suggestion": "Garantir compatibilidade com classe base"
-                })
+                violations.append(
+                    {
+                        "type": SOLIDPrinciple.LSP.value,
+                        "severity": "medium",
+                        "location": inheritance.get("file", "unknown"),
+                        "description": f"Override sem chamar super() em {inheritance.get('method')}",
+                        "suggestion": "Garantir compatibilidade com classe base",
+                    }
+                )
         return violations
 
     @staticmethod
@@ -68,13 +69,15 @@ class ArchitecturalRules:
         violations: list[Dict[str, Any]] = []
         for interface in insights.get("interfaces", []):
             if interface.get("method_count", 0) > 10:
-                violations.append({
-                    "type": SOLIDPrinciple.ISP.value,
-                    "severity": "medium",
-                    "location": interface.get("file", "unknown"),
-                    "description": f"Interface {interface.get('name')} com {interface.get('method_count')} métodos",
-                    "suggestion": "Dividir em interfaces específicas"
-                })
+                violations.append(
+                    {
+                        "type": SOLIDPrinciple.ISP.value,
+                        "severity": "medium",
+                        "location": interface.get("file", "unknown"),
+                        "description": f"Interface {interface.get('name')} com {interface.get('method_count')} métodos",
+                        "suggestion": "Dividir em interfaces específicas",
+                    }
+                )
         return violations
 
     @staticmethod
@@ -83,13 +86,15 @@ class ArchitecturalRules:
         violations: list[Dict[str, Any]] = []
         for dependency in insights.get("dependencies", []):
             if dependency.get("is_concrete") and not dependency.get("is_interface"):
-                violations.append({
-                    "type": SOLIDPrinciple.DIP.value,
-                    "severity": "low",
-                    "location": dependency.get("file", "unknown"),
-                    "description": f"Dependência direta de classe concreta {dependency.get('name')}",
-                    "suggestion": "Usar injeção de dependência com interfaces"
-                })
+                violations.append(
+                    {
+                        "type": SOLIDPrinciple.DIP.value,
+                        "severity": "low",
+                        "location": dependency.get("file", "unknown"),
+                        "description": f"Dependência direta de classe concreta {dependency.get('name')}",
+                        "suggestion": "Usar injeção de dependência com interfaces",
+                    }
+                )
         return violations
 
     @classmethod

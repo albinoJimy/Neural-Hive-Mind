@@ -9,17 +9,17 @@ Computa 26 features a partir de Cognitive Plans:
 """
 
 import asyncio
-import structlog
-from typing import Dict, Any, Optional, List
-from datetime import datetime
 from collections import defaultdict
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
 
+import structlog
 from src.models.feature import (
+    EmbeddingFeatures,
+    FeatureVector,
+    GraphFeatures,
     MetadataFeatures,
     OntologyFeatures,
-    GraphFeatures,
-    EmbeddingFeatures,
-    FeatureVector
 )
 
 logger = structlog.get_logger()
@@ -31,11 +31,7 @@ class FeatureComputationPipeline:
     def __init__(self, timeout_seconds: int = 30):
         self.timeout_seconds = timeout_seconds
 
-    async def compute_all(
-        self,
-        plan_id: str,
-        cognitive_plan: Dict[str, Any]
-    ) -> FeatureVector:
+    async def compute_all(self, plan_id: str, cognitive_plan: Dict[str, Any]) -> FeatureVector:
         """
         Computa todas as features para um plano
 
@@ -46,21 +42,16 @@ class FeatureComputationPipeline:
         Returns:
             FeatureVector com todas as features computadas
         """
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc)
 
         try:
             # Executa computação com timeout
             result = await asyncio.wait_for(
-                self._compute_features_async(plan_id, cognitive_plan),
-                timeout=self.timeout_seconds
+                self._compute_features_async(plan_id, cognitive_plan), timeout=self.timeout_seconds
             )
 
-            elapsed_ms = (datetime.utcnow() - start_time).total_seconds() * 1000
-            logger.info(
-                "Features computadas com sucesso",
-                plan_id=plan_id,
-                elapsed_ms=elapsed_ms
-            )
+            elapsed_ms = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
+            logger.info("Features computadas com sucesso", plan_id=plan_id, elapsed_ms=elapsed_ms)
 
             return result
 
@@ -72,9 +63,7 @@ class FeatureComputationPipeline:
             raise
 
     async def _compute_features_async(
-        self,
-        plan_id: str,
-        cognitive_plan: Dict[str, Any]
+        self, plan_id: str, cognitive_plan: Dict[str, Any]
     ) -> FeatureVector:
         """Executa computação de features de forma assíncrona"""
 
@@ -96,7 +85,7 @@ class FeatureComputationPipeline:
             compute_ontology(),
             compute_graph(),
             compute_embedding(),
-            return_exceptions=True
+            return_exceptions=True,
         )
 
         # Trata exceções
@@ -118,7 +107,7 @@ class FeatureComputationPipeline:
             metadata=metadata or self._default_metadata(),
             ontology=ontology,
             graph=graph,
-            embedding=embedding
+            embedding=embedding,
         )
 
     def compute_metadata_features(self, cognitive_plan: Dict[str, Any]) -> MetadataFeatures:
@@ -131,45 +120,42 @@ class FeatureComputationPipeline:
         Returns:
             MetadataFeatures
         """
-        tasks = cognitive_plan.get('tasks', [])
+        tasks = cognitive_plan.get("tasks", [])
 
         # num_tasks: Número de tarefas
         num_tasks = len(tasks)
 
         # priority_score: Score de prioridade normalizado (0-1)
-        priority_map = {'low': 0.25, 'medium': 0.5, 'high': 0.75, 'critical': 1.0}
-        raw_priority = cognitive_plan.get('priority', 'medium').lower()
+        priority_map = {"low": 0.25, "medium": 0.5, "high": 0.75, "critical": 1.0}
+        raw_priority = cognitive_plan.get("priority", "medium").lower()
         priority_score = priority_map.get(raw_priority, 0.5)
 
         # total_duration_ms: Soma das durações estimadas
         total_duration_ms = 0.0
         for task in tasks:
-            duration = task.get('estimated_duration_ms', 0) or task.get('duration_ms', 0)
+            duration = task.get("estimated_duration_ms", 0) or task.get("duration_ms", 0)
             if duration:
                 total_duration_ms += duration
 
         # avg_duration_ms: Duração média por tarefa
         avg_duration_ms = (
-            total_duration_ms / num_tasks
-            if num_tasks > 0
-            else 0.0
-        ) if total_duration_ms > 0 else None
+            (total_duration_ms / num_tasks if num_tasks > 0 else 0.0)
+            if total_duration_ms > 0
+            else None
+        )
 
         # risk_score: Score de risco do plano
-        risk_score = cognitive_plan.get('risk_score')
+        risk_score = cognitive_plan.get("risk_score")
         if risk_score is None:
             # Calcula a partir das tarefas destrutivas
-            destructive_count = sum(
-                1 for t in tasks
-                if t.get('is_destructive', False)
-            )
+            destructive_count = sum(1 for t in tasks if t.get("is_destructive", False))
             risk_score = min(1.0, destructive_count / max(num_tasks, 1))
 
         # complexity_score: Baseado em tipos de tarefas
-        complexity_score = cognitive_plan.get('complexity_score')
+        complexity_score = cognitive_plan.get("complexity_score")
         if complexity_score is None:
             # Calcula baseado na diversidade de tipos
-            task_types = set(t.get('type', 'unknown') for t in tasks)
+            task_types = set(t.get("type", "unknown") for t in tasks)
             complexity_score = min(1.0, len(task_types) / 10)
 
         return MetadataFeatures(
@@ -178,10 +164,12 @@ class FeatureComputationPipeline:
             total_duration_ms=total_duration_ms or None,
             avg_duration_ms=avg_duration_ms,
             risk_score=risk_score,
-            complexity_score=complexity_score
+            complexity_score=complexity_score,
         )
 
-    def compute_ontology_features(self, cognitive_plan: Dict[str, Any]) -> Optional[OntologyFeatures]:
+    def compute_ontology_features(
+        self, cognitive_plan: Dict[str, Any]
+    ) -> Optional[OntologyFeatures]:
         """
         Computa features de ontologia (6 features)
 
@@ -191,43 +179,38 @@ class FeatureComputationPipeline:
         Returns:
             OntologyFeatures ou None se dados insuficientes
         """
-        ontology_data = cognitive_plan.get('ontology', {})
+        ontology_data = cognitive_plan.get("ontology", {})
 
         # domain_risk_weight: Peso de risco do domínio
-        domain_risk_weight = ontology_data.get('domain_risk_weight')
+        domain_risk_weight = ontology_data.get("domain_risk_weight")
 
         # avg_task_complexity_factor: Fator médio de complexidade
-        tasks = cognitive_plan.get('tasks', [])
+        tasks = cognitive_plan.get("tasks", [])
         avg_task_complexity_factor = None
         if tasks:
-            complexity_factors = [
-                t.get('complexity_factor', 0.5) or 0.5
-                for t in tasks
-            ]
+            complexity_factors = [t.get("complexity_factor", 0.5) or 0.5 for t in tasks]
             avg_task_complexity_factor = sum(complexity_factors) / len(complexity_factors)
         else:
-            avg_task_complexity_factor = ontology_data.get('avg_task_complexity_factor')
+            avg_task_complexity_factor = ontology_data.get("avg_task_complexity_factor")
 
         # num_patterns_detected: Padrões arquiteturais
-        patterns = ontology_data.get('patterns', [])
+        patterns = ontology_data.get("patterns", [])
         num_patterns_detected = len(patterns) if patterns else None
 
         # num_anti_patterns_detected: Anti-padrões
-        anti_patterns = ontology_data.get('anti_patterns', [])
+        anti_patterns = ontology_data.get("anti_patterns", [])
         num_anti_patterns_detected = len(anti_patterns) if anti_patterns else None
 
         # avg_pattern_quality: Qualidade média dos padrões
         if patterns:
-            qualities = [p.get('quality', 0.5) for p in patterns if 'quality' in p]
+            qualities = [p.get("quality", 0.5) for p in patterns if "quality" in p]
             avg_pattern_quality = sum(qualities) / len(qualities) if qualities else None
         else:
             avg_pattern_quality = None
 
         # total_anti_pattern_penalty: Penalidade total
         if anti_patterns:
-            total_anti_pattern_penalty = sum(
-                ap.get('penalty', 0.1) for ap in anti_patterns
-            )
+            total_anti_pattern_penalty = sum(ap.get("penalty", 0.1) for ap in anti_patterns)
         else:
             total_anti_pattern_penalty = None
 
@@ -241,29 +224,27 @@ class FeatureComputationPipeline:
             num_patterns_detected=num_patterns_detected,
             num_anti_patterns_detected=num_anti_patterns_detected,
             avg_pattern_quality=avg_pattern_quality,
-            total_anti_pattern_penalty=total_anti_pattern_penalty
+            total_anti_pattern_penalty=total_anti_pattern_penalty,
         )
 
         # num_patterns_detected: Padrões arquiteturais
-        patterns = ontology_data.get('patterns', [])
+        patterns = ontology_data.get("patterns", [])
         num_patterns_detected = len(patterns) if patterns else None
 
         # num_anti_patterns_detected: Anti-padrões
-        anti_patterns = ontology_data.get('anti_patterns', [])
+        anti_patterns = ontology_data.get("anti_patterns", [])
         num_anti_patterns_detected = len(anti_patterns) if anti_patterns else None
 
         # avg_pattern_quality: Qualidade média dos padrões
         if patterns:
-            qualities = [p.get('quality', 0.5) for p in patterns if 'quality' in p]
+            qualities = [p.get("quality", 0.5) for p in patterns if "quality" in p]
             avg_pattern_quality = sum(qualities) / len(qualities) if qualities else None
         else:
             avg_pattern_quality = None
 
         # total_anti_pattern_penalty: Penalidade total
         if anti_patterns:
-            total_anti_pattern_penalty = sum(
-                ap.get('penalty', 0.1) for ap in anti_patterns
-            )
+            total_anti_pattern_penalty = sum(ap.get("penalty", 0.1) for ap in anti_patterns)
         else:
             total_anti_pattern_penalty = None
 
@@ -273,7 +254,7 @@ class FeatureComputationPipeline:
             num_patterns_detected=num_patterns_detected,
             num_anti_patterns_detected=num_anti_patterns_detected,
             avg_pattern_quality=avg_pattern_quality,
-            total_anti_pattern_penalty=total_anti_pattern_penalty
+            total_anti_pattern_penalty=total_anti_pattern_penalty,
         )
 
     def compute_graph_features(self, cognitive_plan: Dict[str, Any]) -> Optional[GraphFeatures]:
@@ -286,8 +267,8 @@ class FeatureComputationPipeline:
         Returns:
             GraphFeatures ou None se dados insuficientes
         """
-        graph_data = cognitive_plan.get('dependency_graph', {})
-        tasks = cognitive_plan.get('tasks', [])
+        graph_data = cognitive_plan.get("dependency_graph", {})
+        tasks = cognitive_plan.get("tasks", [])
 
         if not graph_data and not tasks:
             return None
@@ -296,7 +277,7 @@ class FeatureComputationPipeline:
         num_nodes = len(tasks)
 
         # num_edges: Número de arestas (dependências)
-        edges = graph_data.get('edges', [])
+        edges = graph_data.get("edges", [])
         num_edges = len(edges) if edges else None
 
         # density: Densidade do grafo
@@ -308,7 +289,7 @@ class FeatureComputationPipeline:
         # Graus (in_degree)
         in_degrees = defaultdict(int)
         for edge in edges:
-            target = edge.get('target')
+            target = edge.get("target")
             if target:
                 in_degrees[target] += 1
 
@@ -321,20 +302,17 @@ class FeatureComputationPipeline:
         max_in_degree = max(in_degrees.values()) if in_degrees else None
 
         # critical_path_length: Caminho crítico
-        critical_path_length = graph_data.get('critical_path_length')
+        critical_path_length = graph_data.get("critical_path_length")
 
         # max_parallelism: Paralelismo máximo
-        max_parallelism = graph_data.get('max_parallelism')
+        max_parallelism = graph_data.get("max_parallelism")
         if max_parallelism is None and tasks:
             # Estima baseado em tarefas sem dependências
-            no_deps = sum(
-                1 for t in tasks
-                if not t.get('depends_on')
-            )
+            no_deps = sum(1 for t in tasks if not t.get("depends_on"))
             max_parallelism = no_deps if no_deps > 0 else None
 
         # num_levels: Níveis do DAG
-        num_levels = graph_data.get('num_levels')
+        num_levels = graph_data.get("num_levels")
         if num_levels is None and tasks:
             # Calcula baseado em profundidade de dependências
             levels = self._calculate_dag_levels(tasks)
@@ -350,8 +328,7 @@ class FeatureComputationPipeline:
         if in_degrees:
             bottleneck_threshold = max(in_degrees.values()) * 0.7 if in_degrees else 0
             num_bottlenecks = sum(
-                1 for degree in in_degrees.values()
-                if degree >= bottleneck_threshold
+                1 for degree in in_degrees.values() if degree >= bottleneck_threshold
             )
 
         # graph_complexity_score: Score de complexidade
@@ -374,10 +351,12 @@ class FeatureComputationPipeline:
             num_levels=num_levels,
             avg_coupling=avg_coupling,
             num_bottlenecks=num_bottlenecks,
-            graph_complexity_score=graph_complexity_score
+            graph_complexity_score=graph_complexity_score,
         )
 
-    def compute_embedding_features(self, cognitive_plan: Dict[str, Any]) -> Optional[EmbeddingFeatures]:
+    def compute_embedding_features(
+        self, cognitive_plan: Dict[str, Any]
+    ) -> Optional[EmbeddingFeatures]:
         """
         Computa features de embeddings (3 features)
 
@@ -387,8 +366,8 @@ class FeatureComputationPipeline:
         Returns:
             EmbeddingFeatures ou None se dados insuficientes
         """
-        embeddings_data = cognitive_plan.get('embeddings', {})
-        task_embeddings = embeddings_data.get('tasks', [])
+        embeddings_data = cognitive_plan.get("embeddings", {})
+        task_embeddings = embeddings_data.get("tasks", [])
 
         if not task_embeddings:
             return None
@@ -397,7 +376,7 @@ class FeatureComputationPipeline:
         norms = []
         for emb in task_embeddings:
             if isinstance(emb, list) and len(emb) > 0:
-                norm = sum(x ** 2 for x in emb) ** 0.5
+                norm = sum(x**2 for x in emb) ** 0.5
                 norms.append(norm)
 
         if not norms:
@@ -410,7 +389,7 @@ class FeatureComputationPipeline:
         if len(norms) > 1:
             mean = mean_norm
             variance = sum((n - mean) ** 2 for n in norms) / len(norms)
-            std_norm = variance ** 0.5
+            std_norm = variance**0.5
         else:
             std_norm = 0.0
 
@@ -418,14 +397,12 @@ class FeatureComputationPipeline:
         avg_diversity = self._calculate_diversity(task_embeddings)
 
         return EmbeddingFeatures(
-            mean_norm=mean_norm,
-            std_norm=std_norm,
-            avg_diversity=avg_diversity
+            mean_norm=mean_norm, std_norm=std_norm, avg_diversity=avg_diversity
         )
 
     def _calculate_dag_levels(self, tasks: List[Dict[str, Any]]) -> List[List[str]]:
         """Calcula níveis do DAG baseado em dependências"""
-        task_ids = {t.get('task_id') or t.get('id') for t in tasks}
+        task_ids = {t.get("task_id") or t.get("id") for t in tasks}
         levels = []
 
         remaining = set(task_ids)
@@ -434,7 +411,8 @@ class FeatureComputationPipeline:
         while remaining:
             # Tarefas sem dependências pendentes
             current_level = [
-                tid for tid in remaining
+                tid
+                for tid in remaining
                 if all(
                     dep not in remaining or dep in processed
                     for dep in self._get_task_deps(tid, tasks)
@@ -453,9 +431,9 @@ class FeatureComputationPipeline:
     def _get_task_deps(self, task_id: str, tasks: List[Dict[str, Any]]) -> List[str]:
         """Obtém dependências de uma tarefa"""
         for task in tasks:
-            tid = task.get('task_id') or task.get('id')
+            tid = task.get("task_id") or task.get("id")
             if tid == task_id:
-                return task.get('depends_on', []) or []
+                return task.get("depends_on", []) or []
         return []
 
     def _calculate_diversity(self, embeddings: List[List[float]]) -> Optional[float]:
@@ -465,11 +443,11 @@ class FeatureComputationPipeline:
 
         diversities = []
         for i, emb1 in enumerate(embeddings):
-            for emb2 in embeddings[i + 1:]:
+            for emb2 in embeddings[i + 1 :]:
                 # Similaridade cosseno
                 dot = sum(a * b for a, b in zip(emb1, emb2))
-                norm1 = sum(a ** 2 for a in emb1) ** 0.5
-                norm2 = sum(b ** 2 for b in emb2) ** 0.5
+                norm1 = sum(a**2 for a in emb1) ** 0.5
+                norm2 = sum(b**2 for b in emb2) ** 0.5
 
                 if norm1 > 0 and norm2 > 0:
                     similarity = dot / (norm1 * norm2)
@@ -485,7 +463,7 @@ class FeatureComputationPipeline:
             total_duration_ms=None,
             avg_duration_ms=None,
             risk_score=None,
-            complexity_score=None
+            complexity_score=None,
         )
 
 

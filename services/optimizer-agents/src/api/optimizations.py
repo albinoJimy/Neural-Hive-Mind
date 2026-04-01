@@ -1,9 +1,8 @@
 """Optimizations API endpoints."""
 import logging
-from typing import List, Optional
-from datetime import datetime
+from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from src.repositories.optimization_repository import (
@@ -19,8 +18,9 @@ router = APIRouter(prefix="/api/v1/optimizations", tags=["optimizations"])
 async def get_optimization_repository() -> OptimizationRepository:
     """Retorna instância do repository."""
     # TODO: Obter cliente MongoDB do contexto da aplicação
-    from src.config.settings import get_settings
     from motor.motor_asyncio import AsyncIOMotorClient
+
+    from src.config.settings import get_settings
 
     settings = get_settings()
     client = AsyncIOMotorClient(settings.mongodb_url)
@@ -34,7 +34,7 @@ class RecommendationListResponse(BaseModel):
     total: int
     offset: int
     limit: int
-    items: List[dict]
+    items: list[dict]
 
 
 class RecommendationResponse(BaseModel):
@@ -47,20 +47,20 @@ class RecommendationResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     performance_analysis: dict
-    recommendations: List[dict]
+    recommendations: list[dict]
 
 
 class ApproveRequest(BaseModel):
     """Request para aprovar recomendação."""
 
-    recommendation_ids: List[str] = Field(..., min_items=1)
+    recommendation_ids: list[str] = Field(..., min_items=1)
     approved_by: str
 
 
 class ApplyRequest(BaseModel):
     """Request para aplicar otimização."""
 
-    recommendation_ids: List[str] = Field(..., min_items=1)
+    recommendation_ids: list[str] = Field(..., min_items=1)
     validate: bool = True
 
 
@@ -70,7 +70,7 @@ class MetricsResponse(BaseModel):
     period: dict
     summary: dict
     performance: dict
-    top_issues: List[dict]
+    top_issues: list[dict]
 
 
 class DashboardResponse(BaseModel):
@@ -80,15 +80,15 @@ class DashboardResponse(BaseModel):
     pending_approval: int
     applied: int
     avg_improvement_pct: float
-    top_issue_types: List[dict]
-    recent_recommendations: List[dict]
+    top_issue_types: list[dict]
+    recent_recommendations: list[dict]
 
 
 @router.get("/recommendations", response_model=RecommendationListResponse)
 async def list_recommendations(
-    status: Optional[str] = Query(None),
-    workflow_id: Optional[str] = Query(None),
-    target_type: Optional[str] = Query(None),
+    status: str | None = Query(None),
+    workflow_id: str | None = Query(None),
+    target_type: str | None = Query(None),
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
     repo: OptimizationRepository = Depends(get_optimization_repository),
@@ -105,9 +105,7 @@ async def list_recommendations(
     return RecommendationListResponse(**result)
 
 
-@router.get(
-    "/recommendations/{recommendation_id}", response_model=RecommendationResponse
-)
+@router.get("/recommendations/{recommendation_id}", response_model=RecommendationResponse)
 async def get_recommendation(
     recommendation_id: str,
     repo: OptimizationRepository = Depends(get_optimization_repository),
@@ -139,7 +137,7 @@ async def approve_recommendation(
         "id": recommendation_id,
         "status": "approved",
         "approved_recommendations": body.recommendation_ids,
-        "approved_at": datetime.utcnow().isoformat(),
+        "approved_at": datetime.now(UTC).isoformat(),
     }
 
 
@@ -156,9 +154,7 @@ async def apply_recommendation(
         raise HTTPException(status_code=404, detail="Recommendation not found")
 
     if rec.get("status") != "approved":
-        raise HTTPException(
-            status_code=400, detail="Recommendation must be approved first"
-        )
+        raise HTTPException(status_code=400, detail="Recommendation must be approved first")
 
     # Aplicar
     success = await repo.update_status(recommendation_id, "applied")
@@ -170,15 +166,15 @@ async def apply_recommendation(
         "id": recommendation_id,
         "status": "applied",
         "applied_recommendations": body.recommendation_ids,
-        "applied_at": datetime.utcnow().isoformat(),
+        "applied_at": datetime.now(UTC).isoformat(),
         "files_modified": [],
     }
 
 
 @router.get("/metrics")
 async def get_metrics(
-    from_date: Optional[datetime] = Query(None),
-    to_date: Optional[datetime] = Query(None),
+    from_date: datetime | None = Query(None),
+    to_date: datetime | None = Query(None),
     repo: OptimizationRepository = Depends(get_optimization_repository),
 ):
     """Obtém métricas agregadas de otimizações."""

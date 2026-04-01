@@ -1,11 +1,11 @@
 from fastapi import APIRouter
 
 from src.api.routers import (
-    health_router,
-    pipeline_runs_router,
-    manifests_router,
     anomalies_router,
+    health_router,
     insights_router,
+    manifests_router,
+    pipeline_runs_router,
 )
 
 api_router = APIRouter()

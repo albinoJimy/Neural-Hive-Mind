@@ -6,7 +6,7 @@ Valida transições de estado, buffer flush, e fallback com cache expirado.
 import pytest
 import time
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import patch, MagicMock
 from pymongo.errors import ServerSelectionTimeoutError, ConnectionFailure
 
@@ -49,7 +49,7 @@ def test_ledger_circuit_breaker_opens_on_failures(mongodb_uri):
         "suggested_mitigations": [],
         "explainability_token": "token-123",
         "processing_time_ms": 100.0,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "metadata": {},
     }
 
@@ -106,7 +106,7 @@ def test_ledger_circuit_breaker_recovery_and_buffer_flush(mongodb_uri):
                 "suggested_mitigations": [],
                 "explainability_token": f"token-{i}",
                 "processing_time_ms": 100.0,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "metadata": {},
             }
             ledger.save_opinion_with_fallback(opinion)
@@ -134,7 +134,7 @@ def test_ledger_circuit_breaker_recovery_and_buffer_flush(mongodb_uri):
         "suggested_mitigations": [],
         "explainability_token": "token-recovery",
         "processing_time_ms": 100.0,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "metadata": {},
     }
 
@@ -236,7 +236,7 @@ def test_circuit_breaker_half_open_transition(mongodb_uri):
                 "suggested_mitigations": [],
                 "explainability_token": f"token-{i}",
                 "processing_time_ms": 100.0,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "metadata": {},
             }
             ledger.save_opinion_with_fallback(opinion)
@@ -262,7 +262,7 @@ def test_circuit_breaker_half_open_transition(mongodb_uri):
         "suggested_mitigations": [],
         "explainability_token": "token-test",
         "processing_time_ms": 100.0,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "metadata": {},
     }
 
@@ -310,7 +310,7 @@ def test_ledger_buffer_overflow_handling(mongodb_uri):
             "suggested_mitigations": [],
             "explainability_token": f"token-{i}",
             "processing_time_ms": 100.0,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "metadata": {},
         }
         ledger.save_opinion_with_fallback(opinion)
@@ -358,7 +358,7 @@ def test_circuit_breaker_metrics_tracking(mongodb_uri, mocker):
             "suggested_mitigations": [],
             "explainability_token": f"token-{i}",
             "processing_time_ms": 100.0,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "metadata": {},
         }
         ledger.save_opinion_with_fallback(opinion)

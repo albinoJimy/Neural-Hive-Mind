@@ -1,10 +1,10 @@
-from typing import Generic, TypeVar, Any
+from typing import Generic, TypeVar
+
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel
 from structlog import get_logger
 
 from src.config.settings import settings
-
 
 T = TypeVar("T", bound=BaseModel)
 

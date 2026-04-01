@@ -1,4 +1,5 @@
 from functools import lru_cache
+
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -29,8 +30,7 @@ class Settings(BaseSettings):
     def CORS_ORIGINS(self) -> list[str]:
         """CORS origins dinâmicas por ambiente."""
         return CORSConfig.get_origins_for_environment(
-            self.ENVIRONMENT,
-            is_public_api=self.IS_PUBLIC_API
+            self.ENVIRONMENT, is_public_api=self.IS_PUBLIC_API
         )
 
     # gRPC
@@ -97,7 +97,9 @@ class Settings(BaseSettings):
     MAX_CONCURRENT_DECISIONS: int = 5
 
     # Observability
-    OTEL_EXPORTER_ENDPOINT: str = "https://opentelemetry-collector.observability.svc.cluster.local:4317"
+    OTEL_EXPORTER_ENDPOINT: str = (
+        "https://opentelemetry-collector.observability.svc.cluster.local:4317"
+    )
     METRICS_PORT: int = 9090
     CIRCUIT_BREAKER_ENABLED: bool = True
     CIRCUIT_BREAKER_FAIL_MAX: int = 5
@@ -124,7 +126,9 @@ class Settings(BaseSettings):
     ELECTION_NODE_ID: str = "queen-agent-1"  # Override via env var
 
     # Load Balancing
-    LOAD_BALANCER_STRATEGY: str = "round_robin"  # round_robin, least_loaded, weighted, consistent_hash
+    LOAD_BALANCER_STRATEGY: str = (
+        "round_robin"  # round_robin, least_loaded, weighted, consistent_hash
+    )
     WORKER_HEARTBEAT_TIMEOUT_SECONDS: int = 30
     METRICS_TTL_SECONDS: int = 300
 
@@ -162,9 +166,7 @@ class Settings(BaseSettings):
         if self.PROMETHEUS_URL.startswith("http://"):
             http_endpoints.append(("PROMETHEUS_URL", self.PROMETHEUS_URL))
         if self.OTEL_EXPORTER_ENDPOINT.startswith("http://"):
-            http_endpoints.append(
-                ("OTEL_EXPORTER_ENDPOINT", self.OTEL_EXPORTER_ENDPOINT)
-            )
+            http_endpoints.append(("OTEL_EXPORTER_ENDPOINT", self.OTEL_EXPORTER_ENDPOINT))
         if self.OPA_URL.startswith("http://"):
             http_endpoints.append(("OPA_URL", self.OPA_URL))
 
@@ -178,7 +180,7 @@ class Settings(BaseSettings):
         return self
 
 
-@lru_cache()
+@lru_cache
 def get_settings() -> Settings:
     """Retorna singleton de configurações"""
     return Settings()

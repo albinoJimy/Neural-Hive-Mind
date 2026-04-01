@@ -1,8 +1,10 @@
 """Gerenciamento de ciclo de vida dos consumidores Kafka."""
 
 import asyncio
-from src.consumers.base import BaseKafkaConsumer
+
 import structlog
+
+from src.consumers.base import BaseKafkaConsumer
 
 logger = structlog.get_logger(__name__)
 

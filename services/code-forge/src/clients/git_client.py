@@ -1,7 +1,7 @@
 import os
 import urllib.parse
 from pathlib import Path
-from typing import Optional, Dict, Any, List
+from typing import Any, Dict, List, Optional
 
 import git
 import httpx
@@ -22,16 +22,18 @@ class GitClient:
         gitlab_url: Optional[str] = None,
         gitlab_token: Optional[str] = None,
         github_token: Optional[str] = None,
-        timeout: int = 30
+        timeout: int = 30,
     ):
         self.templates_repo = templates_repo
         self.templates_branch = templates_branch
         self.local_path = Path(local_path)
         self.repo: Optional[git.Repo] = None
 
-        self.gitlab_url = (gitlab_url or os.environ.get('GITLAB_URL', 'https://gitlab.com')).rstrip('/')
-        self.gitlab_token = gitlab_token or os.environ.get('GITLAB_TOKEN')
-        self.github_token = github_token or os.environ.get('GITHUB_TOKEN')
+        self.gitlab_url = (gitlab_url or os.environ.get("GITLAB_URL", "https://gitlab.com")).rstrip(
+            "/"
+        )
+        self.gitlab_token = gitlab_token or os.environ.get("GITLAB_TOKEN")
+        self.github_token = github_token or os.environ.get("GITHUB_TOKEN")
         self.timeout = timeout
 
         self._gitlab_client: Optional[httpx.AsyncClient] = None
@@ -43,9 +45,9 @@ class GitClient:
         """Inicializa cliente GitLab de forma lazy"""
         if self._gitlab_client is None:
             self._gitlab_client = httpx.AsyncClient(
-                base_url=f'{self.gitlab_url}/api/v4',
-                headers={'PRIVATE-TOKEN': self.gitlab_token},
-                timeout=self.timeout
+                base_url=f"{self.gitlab_url}/api/v4",
+                headers={"PRIVATE-TOKEN": self.gitlab_token},
+                timeout=self.timeout,
             )
         return self._gitlab_client
 
@@ -53,13 +55,13 @@ class GitClient:
         """Inicializa cliente GitHub de forma lazy"""
         if self._github_client is None:
             self._github_client = httpx.AsyncClient(
-                base_url='https://api.github.com',
+                base_url="https://api.github.com",
                 headers={
-                    'Authorization': f'Bearer {self.github_token}',
-                    'Accept': 'application/vnd.github+json',
-                    'X-GitHub-Api-Version': '2022-11-28'
+                    "Authorization": f"Bearer {self.github_token}",
+                    "Accept": "application/vnd.github+json",
+                    "X-GitHub-Api-Version": "2022-11-28",
                 },
-                timeout=self.timeout
+                timeout=self.timeout,
             )
         return self._github_client
 
@@ -73,22 +75,22 @@ class GitClient:
         Returns:
             Tuple (provider, owner, repo_name)
         """
-        if 'gitlab' in repo_url.lower():
-            provider = 'gitlab'
-        elif 'github' in repo_url.lower():
-            provider = 'github'
+        if "gitlab" in repo_url.lower():
+            provider = "gitlab"
+        elif "github" in repo_url.lower():
+            provider = "github"
         else:
-            provider = 'gitlab'
+            provider = "gitlab"
 
         parsed = urllib.parse.urlparse(repo_url)
-        path_parts = parsed.path.strip('/').replace('.git', '').split('/')
+        path_parts = parsed.path.strip("/").replace(".git", "").split("/")
 
         if len(path_parts) >= 2:
-            owner = '/'.join(path_parts[:-1])
+            owner = "/".join(path_parts[:-1])
             repo_name = path_parts[-1]
         else:
-            owner = path_parts[0] if path_parts else ''
-            repo_name = ''
+            owner = path_parts[0] if path_parts else ""
+            repo_name = ""
 
         return provider, owner, repo_name
 
@@ -96,34 +98,32 @@ class GitClient:
         """Clona repositório de templates localmente"""
         try:
             if self.local_path.exists():
-                logger.info('templates_repo_already_exists', path=str(self.local_path))
+                logger.info("templates_repo_already_exists", path=str(self.local_path))
                 self.repo = git.Repo(self.local_path)
                 await self.pull_latest()
             else:
-                logger.info('cloning_templates_repo', repo=self.templates_repo)
+                logger.info("cloning_templates_repo", repo=self.templates_repo)
                 self.repo = git.Repo.clone_from(
-                    self.templates_repo,
-                    self.local_path,
-                    branch=self.templates_branch
+                    self.templates_repo, self.local_path, branch=self.templates_branch
                 )
-                logger.info('templates_repo_cloned', path=str(self.local_path))
+                logger.info("templates_repo_cloned", path=str(self.local_path))
 
         except Exception as e:
-            logger.error('clone_templates_repo_failed', error=str(e))
+            logger.error("clone_templates_repo_failed", error=str(e))
             raise
 
     async def pull_latest(self):
         """Atualiza templates com git pull"""
         if not self.repo:
-            raise RuntimeError('Repositório não foi clonado')
+            raise RuntimeError("Repositório não foi clonado")
 
         try:
             origin = self.repo.remotes.origin
             origin.pull(self.templates_branch)
-            logger.info('templates_updated', branch=self.templates_branch)
+            logger.info("templates_updated", branch=self.templates_branch)
 
         except Exception as e:
-            logger.error('pull_latest_failed', error=str(e))
+            logger.error("pull_latest_failed", error=str(e))
             raise
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
@@ -139,64 +139,62 @@ class GitClient:
             Nome da branch criada
         """
         provider, owner, repo_name = self._extract_project_info(repo_url)
-        logger.info('creating_branch', provider=provider, branch=branch_name, repo=repo_url)
+        logger.info("creating_branch", provider=provider, branch=branch_name, repo=repo_url)
 
         try:
-            if provider == 'gitlab':
+            if provider == "gitlab":
                 return await self._create_gitlab_branch(owner, repo_name, branch_name)
             else:
                 return await self._create_github_branch(owner, repo_name, branch_name)
 
         except Exception as e:
-            logger.error('create_branch_failed', branch=branch_name, error=str(e))
+            logger.error("create_branch_failed", branch=branch_name, error=str(e))
             raise
 
-    async def _create_gitlab_branch(self, project_path: str, repo_name: str, branch_name: str) -> str:
+    async def _create_gitlab_branch(
+        self, project_path: str, repo_name: str, branch_name: str
+    ) -> str:
         """Cria branch no GitLab"""
         client = await self._ensure_gitlab_client()
-        project_id = urllib.parse.quote(f'{project_path}/{repo_name}', safe='')
+        project_id = urllib.parse.quote(f"{project_path}/{repo_name}", safe="")
 
         response = await client.post(
-            f'/projects/{project_id}/repository/branches',
-            json={'branch': branch_name, 'ref': 'main'}
+            f"/projects/{project_id}/repository/branches",
+            json={"branch": branch_name, "ref": "main"},
         )
 
-        if response.status_code == 400 and 'already exists' in response.text.lower():
-            logger.info('branch_already_exists', branch=branch_name)
+        if response.status_code == 400 and "already exists" in response.text.lower():
+            logger.info("branch_already_exists", branch=branch_name)
             return branch_name
 
         response.raise_for_status()
-        logger.info('gitlab_branch_created', branch=branch_name)
+        logger.info("gitlab_branch_created", branch=branch_name)
         return branch_name
 
     async def _create_github_branch(self, owner: str, repo_name: str, branch_name: str) -> str:
         """Cria branch no GitHub"""
         client = await self._ensure_github_client()
 
-        ref_response = await client.get(f'/repos/{owner}/{repo_name}/git/ref/heads/main')
+        ref_response = await client.get(f"/repos/{owner}/{repo_name}/git/ref/heads/main")
         ref_response.raise_for_status()
-        sha = ref_response.json().get('object', {}).get('sha')
+        sha = ref_response.json().get("object", {}).get("sha")
 
         response = await client.post(
-            f'/repos/{owner}/{repo_name}/git/refs',
-            json={'ref': f'refs/heads/{branch_name}', 'sha': sha}
+            f"/repos/{owner}/{repo_name}/git/refs",
+            json={"ref": f"refs/heads/{branch_name}", "sha": sha},
         )
 
-        if response.status_code == 422 and 'Reference already exists' in response.text:
-            logger.info('branch_already_exists', branch=branch_name)
+        if response.status_code == 422 and "Reference already exists" in response.text:
+            logger.info("branch_already_exists", branch=branch_name)
             return branch_name
 
         response.raise_for_status()
-        logger.info('github_branch_created', branch=branch_name)
+        logger.info("github_branch_created", branch=branch_name)
         return branch_name
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
     async def commit_artifacts(
-        self,
-        repo_url: str,
-        branch: str,
-        artifacts: List[Dict[str, Any]],
-        message: str
+        self, repo_url: str, branch: str, artifacts: List[Dict[str, Any]], message: str
     ) -> str:
         """
         Commit de artefatos gerados
@@ -211,24 +209,24 @@ class GitClient:
             SHA do commit
         """
         provider, owner, repo_name = self._extract_project_info(repo_url)
-        logger.info('committing_artifacts', provider=provider, branch=branch, count=len(artifacts))
+        logger.info("committing_artifacts", provider=provider, branch=branch, count=len(artifacts))
 
         try:
-            if provider == 'gitlab':
-                return await self._commit_gitlab_artifacts(owner, repo_name, branch, artifacts, message)
+            if provider == "gitlab":
+                return await self._commit_gitlab_artifacts(
+                    owner, repo_name, branch, artifacts, message
+                )
             else:
-                return await self._commit_github_artifacts(owner, repo_name, branch, artifacts, message)
+                return await self._commit_github_artifacts(
+                    owner, repo_name, branch, artifacts, message
+                )
 
         except Exception as e:
-            logger.error('commit_artifacts_failed', error=str(e))
+            logger.error("commit_artifacts_failed", error=str(e))
             raise
 
     async def _check_gitlab_file_exists(
-        self,
-        client: httpx.AsyncClient,
-        project_id: str,
-        file_path: str,
-        branch: str
+        self, client: httpx.AsyncClient, project_id: str, file_path: str, branch: str
     ) -> bool:
         """
         Verifica se arquivo existe no GitLab.
@@ -242,11 +240,10 @@ class GitClient:
         Returns:
             True se o arquivo existe, False caso contrário
         """
-        encoded_path = urllib.parse.quote(file_path, safe='')
+        encoded_path = urllib.parse.quote(file_path, safe="")
         try:
             response = await client.get(
-                f'/projects/{project_id}/repository/files/{encoded_path}',
-                params={'ref': branch}
+                f"/projects/{project_id}/repository/files/{encoded_path}", params={"ref": branch}
             )
             return response.status_code == 200
         except Exception:
@@ -258,103 +255,85 @@ class GitClient:
         repo_name: str,
         branch: str,
         artifacts: List[Dict[str, Any]],
-        message: str
+        message: str,
     ) -> str:
         """Commit artefatos no GitLab"""
         client = await self._ensure_gitlab_client()
-        project_id = urllib.parse.quote(f'{project_path}/{repo_name}', safe='')
+        project_id = urllib.parse.quote(f"{project_path}/{repo_name}", safe="")
 
         # Determinar ação (create ou update) para cada arquivo
         actions = []
         for artifact in artifacts:
-            file_path = artifact.get('path')
+            file_path = artifact.get("path")
             file_exists = await self._check_gitlab_file_exists(
                 client, project_id, file_path, branch
             )
-            action = 'update' if file_exists else 'create'
-            actions.append({
-                'action': action,
-                'file_path': file_path,
-                'content': artifact.get('content')
-            })
+            action = "update" if file_exists else "create"
+            actions.append(
+                {"action": action, "file_path": file_path, "content": artifact.get("content")}
+            )
 
         response = await client.post(
-            f'/projects/{project_id}/repository/commits',
-            json={
-                'branch': branch,
-                'commit_message': message,
-                'actions': actions
-            }
+            f"/projects/{project_id}/repository/commits",
+            json={"branch": branch, "commit_message": message, "actions": actions},
         )
         response.raise_for_status()
 
-        commit_sha = response.json().get('id', '')
-        logger.info('gitlab_commit_created', branch=branch, sha=commit_sha[:8])
+        commit_sha = response.json().get("id", "")
+        logger.info("gitlab_commit_created", branch=branch, sha=commit_sha[:8])
         return commit_sha
 
     async def _commit_github_artifacts(
-        self,
-        owner: str,
-        repo_name: str,
-        branch: str,
-        artifacts: List[Dict[str, Any]],
-        message: str
+        self, owner: str, repo_name: str, branch: str, artifacts: List[Dict[str, Any]], message: str
     ) -> str:
         """Commit artefatos no GitHub usando Git Data API"""
         import base64
+
         client = await self._ensure_github_client()
 
-        ref_response = await client.get(f'/repos/{owner}/{repo_name}/git/ref/heads/{branch}')
+        ref_response = await client.get(f"/repos/{owner}/{repo_name}/git/ref/heads/{branch}")
         ref_response.raise_for_status()
-        base_sha = ref_response.json().get('object', {}).get('sha')
+        base_sha = ref_response.json().get("object", {}).get("sha")
 
-        commit_response = await client.get(f'/repos/{owner}/{repo_name}/git/commits/{base_sha}')
+        commit_response = await client.get(f"/repos/{owner}/{repo_name}/git/commits/{base_sha}")
         commit_response.raise_for_status()
-        base_tree_sha = commit_response.json().get('tree', {}).get('sha')
+        base_tree_sha = commit_response.json().get("tree", {}).get("sha")
 
         tree_items = []
         for artifact in artifacts:
             blob_response = await client.post(
-                f'/repos/{owner}/{repo_name}/git/blobs',
+                f"/repos/{owner}/{repo_name}/git/blobs",
                 json={
-                    'content': base64.b64encode(artifact.get('content', '').encode()).decode(),
-                    'encoding': 'base64'
-                }
+                    "content": base64.b64encode(artifact.get("content", "").encode()).decode(),
+                    "encoding": "base64",
+                },
             )
             blob_response.raise_for_status()
-            blob_sha = blob_response.json().get('sha')
+            blob_sha = blob_response.json().get("sha")
 
-            tree_items.append({
-                'path': artifact.get('path'),
-                'mode': '100644',
-                'type': 'blob',
-                'sha': blob_sha
-            })
+            tree_items.append(
+                {"path": artifact.get("path"), "mode": "100644", "type": "blob", "sha": blob_sha}
+            )
 
         tree_response = await client.post(
-            f'/repos/{owner}/{repo_name}/git/trees',
-            json={'base_tree': base_tree_sha, 'tree': tree_items}
+            f"/repos/{owner}/{repo_name}/git/trees",
+            json={"base_tree": base_tree_sha, "tree": tree_items},
         )
         tree_response.raise_for_status()
-        new_tree_sha = tree_response.json().get('sha')
+        new_tree_sha = tree_response.json().get("sha")
 
         commit_resp = await client.post(
-            f'/repos/{owner}/{repo_name}/git/commits',
-            json={
-                'message': message,
-                'tree': new_tree_sha,
-                'parents': [base_sha]
-            }
+            f"/repos/{owner}/{repo_name}/git/commits",
+            json={"message": message, "tree": new_tree_sha, "parents": [base_sha]},
         )
         commit_resp.raise_for_status()
-        new_commit_sha = commit_resp.json().get('sha')
+        new_commit_sha = commit_resp.json().get("sha")
 
         await client.patch(
-            f'/repos/{owner}/{repo_name}/git/refs/heads/{branch}',
-            json={'sha': new_commit_sha}
+            f"/repos/{owner}/{repo_name}/git/refs/heads/{branch}", json={"sha": new_commit_sha}
         )
 
-        logger.info('github_commit_created', branch=branch, sha=new_commit_sha[:8])
+        logger.info("github_commit_created", branch=branch, sha=new_commit_sha[:8])
         return new_commit_sha
 
     async def push_branch(self, repo_url: str, branch: str):
@@ -369,16 +348,11 @@ class GitClient:
             branch: Nome da branch
         """
         provider, _, _ = self._extract_project_info(repo_url)
-        logger.info('branch_pushed', provider=provider, branch=branch)
+        logger.info("branch_pushed", provider=provider, branch=branch)
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
     async def create_merge_request(
-        self,
-        repo_url: str,
-        branch: str,
-        title: str,
-        description: str,
-        target_branch: str = 'main'
+        self, repo_url: str, branch: str, title: str, description: str, target_branch: str = "main"
     ) -> str:
         """
         Cria Merge Request no GitLab ou Pull Request no GitHub
@@ -394,16 +368,20 @@ class GitClient:
             URL do Merge Request/Pull Request criado
         """
         provider, owner, repo_name = self._extract_project_info(repo_url)
-        logger.info('creating_merge_request', provider=provider, branch=branch)
+        logger.info("creating_merge_request", provider=provider, branch=branch)
 
         try:
-            if provider == 'gitlab':
-                return await self._create_gitlab_mr(owner, repo_name, branch, title, description, target_branch)
+            if provider == "gitlab":
+                return await self._create_gitlab_mr(
+                    owner, repo_name, branch, title, description, target_branch
+                )
             else:
-                return await self._create_github_pr(owner, repo_name, branch, title, description, target_branch)
+                return await self._create_github_pr(
+                    owner, repo_name, branch, title, description, target_branch
+                )
 
         except Exception as e:
-            logger.error('create_merge_request_failed', error=str(e))
+            logger.error("create_merge_request_failed", error=str(e))
             raise
 
     async def _create_gitlab_mr(
@@ -413,25 +391,25 @@ class GitClient:
         branch: str,
         title: str,
         description: str,
-        target_branch: str
+        target_branch: str,
     ) -> str:
         """Cria Merge Request no GitLab"""
         client = await self._ensure_gitlab_client()
-        project_id = urllib.parse.quote(f'{project_path}/{repo_name}', safe='')
+        project_id = urllib.parse.quote(f"{project_path}/{repo_name}", safe="")
 
         response = await client.post(
-            f'/projects/{project_id}/merge_requests',
+            f"/projects/{project_id}/merge_requests",
             json={
-                'source_branch': branch,
-                'target_branch': target_branch,
-                'title': title,
-                'description': description
-            }
+                "source_branch": branch,
+                "target_branch": target_branch,
+                "title": title,
+                "description": description,
+            },
         )
         response.raise_for_status()
 
-        mr_url = response.json().get('web_url', '')
-        logger.info('gitlab_mr_created', branch=branch, url=mr_url)
+        mr_url = response.json().get("web_url", "")
+        logger.info("gitlab_mr_created", branch=branch, url=mr_url)
         return mr_url
 
     async def _create_github_pr(
@@ -441,24 +419,19 @@ class GitClient:
         branch: str,
         title: str,
         description: str,
-        target_branch: str
+        target_branch: str,
     ) -> str:
         """Cria Pull Request no GitHub"""
         client = await self._ensure_github_client()
 
         response = await client.post(
-            f'/repos/{owner}/{repo_name}/pulls',
-            json={
-                'head': branch,
-                'base': target_branch,
-                'title': title,
-                'body': description
-            }
+            f"/repos/{owner}/{repo_name}/pulls",
+            json={"head": branch, "base": target_branch, "title": title, "body": description},
         )
         response.raise_for_status()
 
-        pr_url = response.json().get('html_url', '')
-        logger.info('github_pr_created', branch=branch, url=pr_url)
+        pr_url = response.json().get("html_url", "")
+        logger.info("github_pr_created", branch=branch, url=pr_url)
         return pr_url
 
     async def list_tags(self) -> List[Dict[str, str]]:
@@ -469,30 +442,29 @@ class GitClient:
             Lista de tags [{'name': 'v1.0.0', 'commit': 'sha123'}, ...]
         """
         if not self.repo:
-            raise RuntimeError('Repositório não foi clonado. Chame clone_templates_repo() primeiro.')
+            raise RuntimeError(
+                "Repositório não foi clonado. Chame clone_templates_repo() primeiro."
+            )
 
         try:
             # Fetch tags do remote
             origin = self.repo.remotes.origin
-            origin.fetch('tags --prune-tags')
+            origin.fetch("tags --prune-tags")
 
             # Listar tags localmente
             tags = []
             for tag in self.repo.tags:
                 tag_commit = tag.commit.hexsha
-                tags.append({
-                    'name': tag.name,
-                    'commit': tag_commit
-                })
+                tags.append({"name": tag.name, "commit": tag_commit})
 
             # Ordenar por nome (versão) descendente
-            tags.sort(key=lambda x: x['name'], reverse=True)
+            tags.sort(key=lambda x: x["name"], reverse=True)
 
-            logger.info('tags_listed', count=len(tags), tags=[t['name'] for t in tags[:5]])
+            logger.info("tags_listed", count=len(tags), tags=[t["name"] for t in tags[:5]])
             return tags
 
         except Exception as e:
-            logger.error('list_tags_failed', error=str(e))
+            logger.error("list_tags_failed", error=str(e))
             raise
 
     async def checkout_tag(self, tag_name: str) -> bool:
@@ -506,24 +478,26 @@ class GitClient:
             True se checkout foi bem-sucedido, False caso contrário
         """
         if not self.repo:
-            raise RuntimeError('Repositório não foi clonado. Chame clone_templates_repo() primeiro.')
+            raise RuntimeError(
+                "Repositório não foi clonado. Chame clone_templates_repo() primeiro."
+            )
 
         try:
             # Verificar se tag existe
             tags = {tag.name: tag for tag in self.repo.tags}
             if tag_name not in tags:
-                logger.warning('tag_not_found', tag=tag_name, available=list(tags.keys()))
+                logger.warning("tag_not_found", tag=tag_name, available=list(tags.keys()))
                 return False
 
             # Fazer checkout da tag
             git_cmd = self.repo.git
             git_cmd.checkout(tag_name)
 
-            logger.info('tag_checked_out', tag=tag_name, commit=tags[tag_name].commit.hexsha[:8])
+            logger.info("tag_checked_out", tag=tag_name, commit=tags[tag_name].commit.hexsha[:8])
             return True
 
         except Exception as e:
-            logger.error('checkout_tag_failed', tag=tag_name, error=str(e))
+            logger.error("checkout_tag_failed", tag=tag_name, error=str(e))
             return False
 
     async def get_current_tag(self) -> Optional[str]:
@@ -534,7 +508,9 @@ class GitClient:
             Nome da tag atual ou None se não estiver em uma tag
         """
         if not self.repo:
-            raise RuntimeError('Repositório não foi clonado. Chame clone_templates_repo() primeiro.')
+            raise RuntimeError(
+                "Repositório não foi clonado. Chame clone_templates_repo() primeiro."
+            )
 
         try:
             # Verificar se HEAD está em uma tag
@@ -547,7 +523,7 @@ class GitClient:
             return None
 
         except Exception as e:
-            logger.error('get_current_tag_failed', error=str(e))
+            logger.error("get_current_tag_failed", error=str(e))
             return None
 
     async def close(self):

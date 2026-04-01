@@ -4,52 +4,54 @@ Modelos de estado para coordenacao de Saga.
 Define os modelos Pydantic para representar o estado de uma transacao
 Saga distribuida com compensacao automatica.
 """
-from datetime import datetime, timezone
-from enum import Enum
-from typing import Optional, Dict, List, Any
+from datetime import UTC, datetime
+from enum import StrEnum
+from typing import Any
 from uuid import uuid4
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class SagaConcurrentModificationError(Exception):
     """Excecao lancada quando uma Saga e modificada concorrentemente."""
-    pass
 
 
-class SagaStatus(str, Enum):
+class SagaStatus(StrEnum):
     """Status de uma Saga."""
-    PENDING = 'PENDING'           # Criada, nao iniciada
-    STARTED = 'STARTED'           # Iniciada, primeiro step executando
-    IN_PROGRESS = 'IN_PROGRESS'   # Executando steps
-    COMPLETED = 'COMPLETED'       # Todos steps completados com sucesso
-    COMPENSATING = 'COMPENSATING' # Compensando steps executados
-    COMPENSATED = 'COMPENSATED'   # Compensacao concluida
-    FAILED = 'FAILED'             # Falha sem compensacao possivel
+
+    PENDING = "PENDING"  # Criada, nao iniciada
+    STARTED = "STARTED"  # Iniciada, primeiro step executando
+    IN_PROGRESS = "IN_PROGRESS"  # Executando steps
+    COMPLETED = "COMPLETED"  # Todos steps completados com sucesso
+    COMPENSATING = "COMPENSATING"  # Compensando steps executados
+    COMPENSATED = "COMPENSATED"  # Compensacao concluida
+    FAILED = "FAILED"  # Falha sem compensacao possivel
 
 
-class SagaEventType(str, Enum):
+class SagaEventType(StrEnum):
     """Tipos de eventos de Saga."""
-    saga_created = 'saga_created'
-    saga_started = 'saga_started'
-    saga_step_completed = 'saga_step_completed'
-    saga_step_failed = 'saga_step_failed'
-    saga_compensating = 'saga_compensating'
-    saga_step_compensated = 'saga_step_compensated'
-    saga_compensated = 'saga_compensated'
-    saga_completed = 'saga_completed'
-    saga_failed = 'saga_failed'
+
+    saga_created = "saga_created"
+    saga_started = "saga_started"
+    saga_step_completed = "saga_step_completed"
+    saga_step_failed = "saga_step_failed"
+    saga_compensating = "saga_compensating"
+    saga_step_compensated = "saga_step_compensated"
+    saga_compensated = "saga_compensated"
+    saga_completed = "saga_completed"
+    saga_failed = "saga_failed"
 
 
-class StepStatus(str, Enum):
+class StepStatus(StrEnum):
     """Status de um step individual de Saga."""
-    PENDING = 'PENDING'
-    IN_PROGRESS = 'IN_PROGRESS'
-    COMPLETED = 'COMPLETED'
-    FAILED = 'FAILED'
-    COMPENSATING = 'COMPENSATING'
-    COMPENSATED = 'COMPENSATED'
-    SKIPPED = 'SKIPPED'
+
+    PENDING = "PENDING"
+    IN_PROGRESS = "IN_PROGRESS"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+    COMPENSATING = "COMPENSATING"
+    COMPENSATED = "COMPENSATED"
+    SKIPPED = "SKIPPED"
 
 
 class SagaStep(BaseModel):
@@ -59,73 +61,45 @@ class SagaStep(BaseModel):
     Cada step tem uma acao principal e uma acao de compensacao
     que deve ser executada em caso de falha.
     """
-    step_id: str = Field(..., description='ID unico do step (UUID)')
-    name: str = Field(..., description='Nome descritivo do step')
-    action: str = Field(..., description='Acao principal a executar')
-    compensation_action: str = Field(
-        ...,
-        description='Acao de compensacao para reverter este step'
+
+    step_id: str = Field(..., description="ID unico do step (UUID)")
+    name: str = Field(..., description="Nome descritivo do step")
+    action: str = Field(..., description="Acao principal a executar")
+    compensation_action: str = Field(..., description="Acao de compensacao para reverter este step")
+    status: StepStatus = Field(default=StepStatus.PENDING, description="Status atual do step")
+    parameters: dict[str, Any] = Field(
+        default_factory=dict, description="Parametros para a acao principal"
     )
-    status: StepStatus = Field(
-        default=StepStatus.PENDING,
-        description='Status atual do step'
+    compensation_parameters: dict[str, Any] = Field(
+        default_factory=dict, description="Parametros para a acao de compensacao"
     )
-    parameters: Dict[str, Any] = Field(
-        default_factory=dict,
-        description='Parametros para a acao principal'
+    result: dict[str, Any] | None = Field(
+        default=None, description="Resultado da execucao da acao principal"
     )
-    compensation_parameters: Dict[str, Any] = Field(
-        default_factory=dict,
-        description='Parametros para a acao de compensacao'
+    compensation_result: dict[str, Any] | None = Field(
+        default=None, description="Resultado da execucao da compensacao"
     )
-    result: Optional[Dict[str, Any]] = Field(
-        default=None,
-        description='Resultado da execucao da acao principal'
+    error: str | None = Field(default=None, description="Mensagem de erro se falhou")
+    created_at: int = Field(..., description="Timestamp de criacao (millis)")
+    started_at: int | None = Field(default=None, description="Timestamp de inicio (millis)")
+    completed_at: int | None = Field(default=None, description="Timestamp de conclusao (millis)")
+    compensated_at: int | None = Field(
+        default=None, description="Timestamp de compensacao (millis)"
     )
-    compensation_result: Optional[Dict[str, Any]] = Field(
-        default=None,
-        description='Resultado da execucao da compensacao'
-    )
-    error: Optional[str] = Field(
-        default=None,
-        description='Mensagem de erro se falhou'
-    )
-    created_at: int = Field(
-        ...,
-        description='Timestamp de criacao (millis)'
-    )
-    started_at: Optional[int] = Field(
-        default=None,
-        description='Timestamp de inicio (millis)'
-    )
-    completed_at: Optional[int] = Field(
-        default=None,
-        description='Timestamp de conclusao (millis)'
-    )
-    compensated_at: Optional[int] = Field(
-        default=None,
-        description='Timestamp de compensacao (millis)'
-    )
-    retry_count: int = Field(
-        default=0,
-        description='Numero de tentativas de execucao'
-    )
-    max_retries: int = Field(
-        default=3,
-        description='Numero maximo de tentativas'
-    )
+    retry_count: int = Field(default=0, description="Numero de tentativas de execucao")
+    max_retries: int = Field(default=3, description="Numero maximo de tentativas")
 
     model_config = ConfigDict(use_enum_values=True)
 
     def mark_started(self) -> None:
         """Marca step como iniciado."""
         self.status = StepStatus.IN_PROGRESS
-        self.started_at = int(datetime.now(timezone.utc).timestamp() * 1000)
+        self.started_at = int(datetime.now(UTC).timestamp() * 1000)
 
-    def mark_completed(self, result: Optional[Dict[str, Any]] = None) -> None:
+    def mark_completed(self, result: dict[str, Any] | None = None) -> None:
         """Marca step como completado com sucesso."""
         self.status = StepStatus.COMPLETED
-        self.completed_at = int(datetime.now(timezone.utc).timestamp() * 1000)
+        self.completed_at = int(datetime.now(UTC).timestamp() * 1000)
         if result is not None:
             self.result = result
 
@@ -133,19 +107,16 @@ class SagaStep(BaseModel):
         """Marca step como falhado."""
         self.status = StepStatus.FAILED
         self.error = error
-        self.completed_at = int(datetime.now(timezone.utc).timestamp() * 1000)
+        self.completed_at = int(datetime.now(UTC).timestamp() * 1000)
 
     def mark_compensating(self) -> None:
         """Marca step como em compensacao."""
         self.status = StepStatus.COMPENSATING
 
-    def mark_compensated(
-        self,
-        compensation_result: Optional[Dict[str, Any]] = None
-    ) -> None:
+    def mark_compensated(self, compensation_result: dict[str, Any] | None = None) -> None:
         """Marca step como compensado."""
         self.status = StepStatus.COMPENSATED
-        self.compensated_at = int(datetime.now(timezone.utc).timestamp() * 1000)
+        self.compensated_at = int(datetime.now(UTC).timestamp() * 1000)
         if compensation_result is not None:
             self.compensation_result = compensation_result
 
@@ -166,93 +137,53 @@ class SagaState(BaseModel):
     sequencialmente. Se algum step falhar, os steps anteriores sao
     compensados em ordem reversa.
     """
-    saga_id: str = Field(..., description='ID unico da Saga (UUID)')
-    workflow_id: str = Field(
-        ...,
-        description='ID do workflow Temporal associado'
-    )
-    plan_id: str = Field(..., description='ID do Cognitive Plan')
-    intent_id: str = Field(..., description='ID da intencao original')
+
+    saga_id: str = Field(..., description="ID unico da Saga (UUID)")
+    workflow_id: str = Field(..., description="ID do workflow Temporal associado")
+    plan_id: str = Field(..., description="ID do Cognitive Plan")
+    intent_id: str = Field(..., description="ID da intencao original")
     version: int = Field(
-        default=0,
-        description='Versao para optimistic locking (evita race conditions)'
+        default=0, description="Versao para optimistic locking (evita race conditions)"
     )
-    status: SagaStatus = Field(
-        default=SagaStatus.PENDING,
-        description='Status atual da Saga'
+    status: SagaStatus = Field(default=SagaStatus.PENDING, description="Status atual da Saga")
+    steps: list[SagaStep] = Field(
+        default_factory=list, description="Steps da Saga em ordem de execucao"
     )
-    steps: List[SagaStep] = Field(
-        default_factory=list,
-        description='Steps da Saga em ordem de execucao'
+    compensation_order: list[str] = Field(
+        default_factory=list, description="Ordem de compensacao (step IDs em ordem reversa)"
     )
-    compensation_order: List[str] = Field(
-        default_factory=list,
-        description='Ordem de compensacao (step IDs em ordem reversa)'
+    created_at: int = Field(..., description="Timestamp de criacao (millis)")
+    started_at: int | None = Field(default=None, description="Timestamp de inicio (millis)")
+    completed_at: int | None = Field(default=None, description="Timestamp de conclusao (millis)")
+    compensated_at: int | None = Field(
+        default=None, description="Timestamp de compensacao concluida (millis)"
     )
-    created_at: int = Field(
-        ...,
-        description='Timestamp de criacao (millis)'
-    )
-    started_at: Optional[int] = Field(
-        default=None,
-        description='Timestamp de inicio (millis)'
-    )
-    completed_at: Optional[int] = Field(
-        default=None,
-        description='Timestamp de conclusao (millis)'
-    )
-    compensated_at: Optional[int] = Field(
-        default=None,
-        description='Timestamp de compensacao concluida (millis)'
-    )
-    failed_at: Optional[int] = Field(
-        default=None,
-        description='Timestamp de falha (millis)'
-    )
+    failed_at: int | None = Field(default=None, description="Timestamp de falha (millis)")
     current_step_index: int = Field(
-        default=0,
-        description='Indice do step atualmente sendo executado'
+        default=0, description="Indice do step atualmente sendo executado"
     )
-    retry_count: int = Field(
-        default=0,
-        description='Numero de retentativas da Saga inteira'
-    )
-    max_retries: int = Field(
-        default=1,
-        description='Numero maximo de retentativas da Saga'
-    )
-    error: Optional[str] = Field(
-        default=None,
-        description='Mensagem de erro se falhou'
-    )
-    metadata: Dict[str, Any] = Field(
-        default_factory=dict,
-        description='Metadados adicionais'
-    )
+    retry_count: int = Field(default=0, description="Numero de retentativas da Saga inteira")
+    max_retries: int = Field(default=1, description="Numero maximo de retentativas da Saga")
+    error: str | None = Field(default=None, description="Mensagem de erro se falhou")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Metadados adicionais")
 
     model_config = ConfigDict(use_enum_values=True)
 
-    def get_current_step(self) -> Optional[SagaStep]:
+    def get_current_step(self) -> SagaStep | None:
         """Retorna o step atual sendo executado."""
         if 0 <= self.current_step_index < len(self.steps):
             return self.steps[self.current_step_index]
         return None
 
-    def get_completed_steps(self) -> List[SagaStep]:
+    def get_completed_steps(self) -> list[SagaStep]:
         """Retorna todos os steps completados."""
-        return [
-            step for step in self.steps
-            if step.status == StepStatus.COMPLETED
-        ]
+        return [step for step in self.steps if step.status == StepStatus.COMPLETED]
 
-    def get_pending_steps(self) -> List[SagaStep]:
+    def get_pending_steps(self) -> list[SagaStep]:
         """Retorna todos os steps pendentes."""
-        return [
-            step for step in self.steps
-            if step.status == StepStatus.PENDING
-        ]
+        return [step for step in self.steps if step.status == StepStatus.PENDING]
 
-    def get_compensation_order(self) -> List[SagaStep]:
+    def get_compensation_order(self) -> list[SagaStep]:
         """
         Retorna steps na ordem de compensacao.
 
@@ -291,30 +222,19 @@ class SagaEvent(BaseModel):
     Eventos sao gravados no MongoDB para permitir reconstrucao
     do historico da Saga.
     """
-    event_id: str = Field(..., description='ID unico do evento (UUID)')
-    saga_id: str = Field(..., description='ID da Saga associada')
-    event_type: SagaEventType = Field(
-        ...,
-        description='Tipo do evento'
-    )
-    timestamp: int = Field(
-        ...,
-        description='Timestamp do evento (millis)'
-    )
-    data: Dict[str, Any] = Field(
-        default_factory=dict,
-        description='Dados adicionais do evento'
-    )
+
+    event_id: str = Field(..., description="ID unico do evento (UUID)")
+    saga_id: str = Field(..., description="ID da Saga associada")
+    event_type: SagaEventType = Field(..., description="Tipo do evento")
+    timestamp: int = Field(..., description="Timestamp do evento (millis)")
+    data: dict[str, Any] = Field(default_factory=dict, description="Dados adicionais do evento")
 
     model_config = ConfigDict(use_enum_values=True)
 
     @classmethod
     def create(
-        cls,
-        saga_id: str,
-        event_type: SagaEventType,
-        data: Optional[Dict[str, Any]] = None
-    ) -> 'SagaEvent':
+        cls, saga_id: str, event_type: SagaEventType, data: dict[str, Any] | None = None
+    ) -> "SagaEvent":
         """
         Cria um novo evento de Saga.
 
@@ -330,6 +250,6 @@ class SagaEvent(BaseModel):
             event_id=str(uuid4()),
             saga_id=saga_id,
             event_type=event_type,
-            timestamp=int(datetime.now(timezone.utc).timestamp() * 1000),
-            data=data or {}
+            timestamp=int(datetime.now(UTC).timestamp() * 1000),
+            data=data or {},
         )

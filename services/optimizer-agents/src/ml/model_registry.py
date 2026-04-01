@@ -4,12 +4,11 @@ Model Registry para gerenciamento de modelos ML no MLflow.
 Gerencia lifecycle de modelos Prophet/ARIMA (LoadPredictor) e políticas RL (SchedulingOptimizer).
 """
 
-import asyncio
 import logging
 import pickle
 import tempfile
-from datetime import datetime
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 import mlflow
 from mlflow.tracking import MlflowClient as MLflowTrackingClient
@@ -26,7 +25,7 @@ class ModelRegistry:
     - Q-tables de políticas de agendamento RL
     """
 
-    def __init__(self, mlflow_client, config: Dict):
+    def __init__(self, mlflow_client, config: dict):
         """
         Args:
             mlflow_client: Cliente MLflow existente
@@ -36,11 +35,11 @@ class ModelRegistry:
         self.config = config
 
         # Experiment name específico para scheduling
-        self.experiment_name = 'optimizer-agents-predictive-scheduling'
+        self.experiment_name = "optimizer-agents-predictive-scheduling"
 
         # Cache em memória de modelos (TTL 1 hora)
-        self._model_cache: Dict[str, Dict] = {}
-        self._cache_ttl = config.get('ml_model_cache_ttl_seconds', 3600)
+        self._model_cache: dict[str, dict] = {}
+        self._cache_ttl = config.get("ml_model_cache_ttl_seconds", 3600)
 
         self._initialized = False
 
@@ -53,7 +52,9 @@ class ModelRegistry:
 
         try:
             # MLflow tracking URI
-            tracking_uri = self.config.get('mlflow_tracking_uri', 'http://mlflow.mlflow.svc.cluster.local:5000')
+            tracking_uri = self.config.get(
+                "mlflow_tracking_uri", "http://mlflow.mlflow.svc.cluster.local:5000"
+            )
             mlflow.set_tracking_uri(tracking_uri)
 
             # Criar ou obter experiment
@@ -74,11 +75,7 @@ class ModelRegistry:
             raise
 
     async def save_load_model(
-        self,
-        model: Any,
-        model_name: str,
-        metrics: Dict[str, float],
-        params: Dict[str, Any]
+        self, model: Any, model_name: str, metrics: dict[str, float], params: dict[str, Any]
     ) -> str:
         """
         Salva modelo de previsão de carga (Prophet/ARIMA) no MLflow.
@@ -107,50 +104,52 @@ class ModelRegistry:
 
                 # Salvar modelo
                 # Prophet tem suporte nativo no MLflow
-                if hasattr(model, 'predict') and hasattr(model, 'history'):
+                if hasattr(model, "predict") and hasattr(model, "history"):
                     # Modelo Prophet
                     mlflow.pyfunc.log_model(
-                        artifact_path='model',
+                        artifact_path="model",
                         python_model=ProphetModelWrapper(model),
                         conda_env={
-                            'dependencies': [
-                                'python=3.11',
-                                'prophet==1.1.5',
-                                'pandas',
-                                'numpy',
+                            "dependencies": [
+                                "python=3.11",
+                                "prophet==1.1.5",
+                                "pandas",
+                                "numpy",
                             ]
-                        }
+                        },
                     )
                 else:
                     # Modelo ARIMA ou outro
-                    with tempfile.NamedTemporaryFile(mode='wb', suffix='.pkl', delete=False) as f:
+                    with tempfile.NamedTemporaryFile(mode="wb", suffix=".pkl", delete=False) as f:
                         pickle.dump(model, f)
-                        mlflow.log_artifact(f.name, artifact_path='model')
+                        mlflow.log_artifact(f.name, artifact_path="model")
 
                 # Tags para facilitar busca
-                mlflow.set_tags({
-                    'model_type': 'load_predictor',
-                    'framework': 'prophet' if hasattr(model, 'history') else 'arima',
-                    'timestamp': datetime.utcnow().isoformat(),
-                })
+                mlflow.set_tags(
+                    {
+                        "model_type": "load_predictor",
+                        "framework": "prophet" if hasattr(model, "history") else "arima",
+                        "timestamp": datetime.now(UTC).isoformat(),
+                    }
+                )
 
                 # Auto-promoção se MAPE < 20%
-                if metrics.get('mape', 100) < 20.0:
-                    await self.promote_model(model_name, run_id, stage='Production')
-                    logger.info(f"Modelo {model_name} promovido automaticamente (MAPE={metrics['mape']:.2f}%)")
+                if metrics.get("mape", 100) < 20.0:
+                    await self.promote_model(model_name, run_id, stage="Production")
+                    logger.info(
+                        f"Modelo {model_name} promovido automaticamente (MAPE={metrics['mape']:.2f}%)"
+                    )
 
-                logger.info(f"Modelo {model_name} salvo: run_id={run_id}, MAPE={metrics.get('mape', 0):.2f}%")
+                logger.info(
+                    f"Modelo {model_name} salvo: run_id={run_id}, MAPE={metrics.get('mape', 0):.2f}%"
+                )
                 return run_id
 
         except Exception as e:
             logger.error(f"Erro ao salvar modelo {model_name}: {e}")
             raise
 
-    async def load_load_model(
-        self,
-        model_name: str,
-        stage: str = 'Production'
-    ) -> Optional[Dict]:
+    async def load_load_model(self, model_name: str, stage: str = "Production") -> dict | None:
         """
         Carrega modelo de previsão de carga do MLflow.
 
@@ -176,8 +175,8 @@ class ModelRegistry:
             runs = client.search_runs(
                 experiment_ids=[self.experiment_id],
                 filter_string=f"tags.model_type = 'load_predictor' and run_name = '{model_name}'",
-                order_by=['start_time DESC'],
-                max_results=1
+                order_by=["start_time DESC"],
+                max_results=1,
             )
 
             if not runs:
@@ -194,15 +193,17 @@ class ModelRegistry:
                 # Tentar carregar como pyfunc (Prophet)
                 pyfunc_model = mlflow.pyfunc.load_model(artifact_uri)
                 # Extrair modelo Prophet nativo do wrapper
-                if hasattr(pyfunc_model, '_model_impl') and hasattr(pyfunc_model._model_impl, 'python_model'):
+                if hasattr(pyfunc_model, "_model_impl") and hasattr(
+                    pyfunc_model._model_impl, "python_model"
+                ):
                     model = pyfunc_model._model_impl.python_model.model
                 else:
                     # Se não conseguir extrair, usar o pyfunc diretamente
                     model = pyfunc_model
             except Exception:
                 # Fallback: carregar pickle
-                artifact_path = client.download_artifacts(run_id, 'model')
-                with open(artifact_path, 'rb') as f:
+                artifact_path = client.download_artifacts(run_id, "model")
+                with open(artifact_path, "rb") as f:
                     model = pickle.load(f)
 
             # Recuperar métricas e params
@@ -210,10 +211,10 @@ class ModelRegistry:
             params = {key: value for key, value in run.data.params.items()}
 
             result = {
-                'model': model,
-                'metrics': metrics,
-                'params': params,
-                'run_id': run_id,
+                "model": model,
+                "metrics": metrics,
+                "params": params,
+                "run_id": run_id,
             }
 
             # Cachear
@@ -226,11 +227,7 @@ class ModelRegistry:
             logger.error(f"Erro ao carregar modelo {model_name}: {e}")
             return None
 
-    async def save_scheduling_policy(
-        self,
-        q_table: Dict,
-        metrics: Dict[str, float]
-    ) -> str:
+    async def save_scheduling_policy(self, q_table: dict, metrics: dict[str, float]) -> str:
         """
         Salva Q-table de política de agendamento no MLflow.
 
@@ -244,33 +241,39 @@ class ModelRegistry:
         logger.info("Salvando política de agendamento no MLflow")
 
         try:
-            with mlflow.start_run(experiment_id=self.experiment_id, run_name='scheduling_policy') as run:
+            with mlflow.start_run(
+                experiment_id=self.experiment_id, run_name="scheduling_policy"
+            ) as run:
                 run_id = run.info.run_id
 
                 # Logar métricas
                 mlflow.log_metrics(metrics)
 
                 # Logar parâmetros
-                mlflow.log_params({
-                    'states_explored': len(q_table),
-                    'updates_count': metrics.get('updates_count', 0),
-                })
+                mlflow.log_params(
+                    {
+                        "states_explored": len(q_table),
+                        "updates_count": metrics.get("updates_count", 0),
+                    }
+                )
 
                 # Serializar Q-table como pickle
-                with tempfile.NamedTemporaryFile(mode='wb', suffix='.pkl', delete=False) as f:
+                with tempfile.NamedTemporaryFile(mode="wb", suffix=".pkl", delete=False) as f:
                     pickle.dump(q_table, f)
-                    mlflow.log_artifact(f.name, artifact_path='q_table')
+                    mlflow.log_artifact(f.name, artifact_path="q_table")
 
                 # Tags
-                mlflow.set_tags({
-                    'model_type': 'scheduling_policy',
-                    'framework': 'q_learning',
-                    'timestamp': datetime.utcnow().isoformat(),
-                })
+                mlflow.set_tags(
+                    {
+                        "model_type": "scheduling_policy",
+                        "framework": "q_learning",
+                        "timestamp": datetime.now(UTC).isoformat(),
+                    }
+                )
 
                 # Auto-promoção se reward > 0.5
-                if metrics.get('average_reward', 0) > 0.5:
-                    await self.promote_model('scheduling_policy', run_id, stage='Production')
+                if metrics.get("average_reward", 0) > 0.5:
+                    await self.promote_model("scheduling_policy", run_id, stage="Production")
                     logger.info(f"Política promovida (reward={metrics['average_reward']:.3f})")
 
                 logger.info(f"Política salva: run_id={run_id}, states={len(q_table)}")
@@ -280,7 +283,7 @@ class ModelRegistry:
             logger.error(f"Erro ao salvar política: {e}")
             raise
 
-    async def load_scheduling_policy(self) -> Optional[Dict]:
+    async def load_scheduling_policy(self) -> dict | None:
         """
         Carrega Q-table de política de agendamento do MLflow.
 
@@ -301,8 +304,8 @@ class ModelRegistry:
             runs = client.search_runs(
                 experiment_ids=[self.experiment_id],
                 filter_string="tags.model_type = 'scheduling_policy'",
-                order_by=['start_time DESC'],
-                max_results=1
+                order_by=["start_time DESC"],
+                max_results=1,
             )
 
             if not runs:
@@ -313,18 +316,18 @@ class ModelRegistry:
             run_id = run.info.run_id
 
             # Baixar artefato
-            artifact_path = client.download_artifacts(run_id, 'q_table')
+            artifact_path = client.download_artifacts(run_id, "q_table")
 
             # Deserializar Q-table
-            with open(artifact_path, 'rb') as f:
+            with open(artifact_path, "rb") as f:
                 q_table = pickle.load(f)
 
             metrics = {key: value for key, value in run.data.metrics.items()}
 
             result = {
-                'q_table': q_table,
-                'metrics': metrics,
-                'run_id': run_id,
+                "q_table": q_table,
+                "metrics": metrics,
+                "run_id": run_id,
             }
 
             # Cachear
@@ -337,12 +340,7 @@ class ModelRegistry:
             logger.error(f"Erro ao carregar política: {e}")
             return None
 
-    async def promote_model(
-        self,
-        model_name: str,
-        run_id: str,
-        stage: str = 'Production'
-    ) -> bool:
+    async def promote_model(self, model_name: str, run_id: str, stage: str = "Production") -> bool:
         """
         Promove modelo para stage especificado.
 
@@ -358,7 +356,7 @@ class ModelRegistry:
             # MLflow Model Registry requer registered model
             # Para simplificar, usamos tags
             client = MLflowTrackingClient()
-            client.set_tag(run_id, f'stage', stage)
+            client.set_tag(run_id, "stage", stage)
 
             logger.info(f"Modelo {model_name} promovido para {stage}: run_id={run_id}")
             return True
@@ -367,7 +365,7 @@ class ModelRegistry:
             logger.error(f"Erro ao promover modelo {model_name}: {e}")
             return False
 
-    async def get_model_metadata(self, model_name: str) -> Optional[Dict]:
+    async def get_model_metadata(self, model_name: str) -> dict | None:
         """
         Obtém metadados do modelo.
 
@@ -382,8 +380,8 @@ class ModelRegistry:
             runs = client.search_runs(
                 experiment_ids=[self.experiment_id],
                 filter_string=f"run_name = '{model_name}'",
-                order_by=['start_time DESC'],
-                max_results=1
+                order_by=["start_time DESC"],
+                max_results=1,
             )
 
             if not runs:
@@ -392,19 +390,19 @@ class ModelRegistry:
             run = runs[0]
 
             return {
-                'run_id': run.info.run_id,
-                'metrics': {k: v for k, v in run.data.metrics.items()},
-                'params': {k: v for k, v in run.data.params.items()},
-                'tags': {k: v for k, v in run.data.tags.items()},
-                'start_time': run.info.start_time,
-                'end_time': run.info.end_time,
+                "run_id": run.info.run_id,
+                "metrics": {k: v for k, v in run.data.metrics.items()},
+                "params": {k: v for k, v in run.data.params.items()},
+                "tags": {k: v for k, v in run.data.tags.items()},
+                "start_time": run.info.start_time,
+                "end_time": run.info.end_time,
             }
 
         except Exception as e:
             logger.error(f"Erro ao obter metadata de {model_name}: {e}")
             return None
 
-    async def list_models(self, model_type: Optional[str] = None) -> List[Dict]:
+    async def list_models(self, model_type: str | None = None) -> list[dict]:
         """
         Lista modelos registrados.
 
@@ -422,20 +420,24 @@ class ModelRegistry:
             runs = client.search_runs(
                 experiment_ids=[self.experiment_id],
                 filter_string=filter_str,
-                order_by=['start_time DESC'],
-                max_results=100
+                order_by=["start_time DESC"],
+                max_results=100,
             )
 
             models = []
             for run in runs:
-                models.append({
-                    'run_id': run.info.run_id,
-                    'run_name': run.data.tags.get('mlflow.runName', 'unknown'),
-                    'model_type': run.data.tags.get('model_type', 'unknown'),
-                    'framework': run.data.tags.get('framework', 'unknown'),
-                    'metrics': {k: v for k, v in run.data.metrics.items()},
-                    'start_time': datetime.fromtimestamp(run.info.start_time / 1000).isoformat(),
-                })
+                models.append(
+                    {
+                        "run_id": run.info.run_id,
+                        "run_name": run.data.tags.get("mlflow.runName", "unknown"),
+                        "model_type": run.data.tags.get("model_type", "unknown"),
+                        "framework": run.data.tags.get("framework", "unknown"),
+                        "metrics": {k: v for k, v in run.data.metrics.items()},
+                        "start_time": datetime.fromtimestamp(
+                            run.info.start_time / 1000
+                        ).isoformat(),
+                    }
+                )
 
             logger.info(f"Listados {len(models)} modelos (type={model_type})")
             return models
@@ -444,24 +446,24 @@ class ModelRegistry:
             logger.error(f"Erro ao listar modelos: {e}")
             return []
 
-    def _get_from_cache(self, cache_key: str) -> Optional[Dict]:
+    def _get_from_cache(self, cache_key: str) -> dict | None:
         """Recupera modelo do cache em memória."""
         if cache_key in self._model_cache:
             cached = self._model_cache[cache_key]
             # Verificar TTL
-            age = (datetime.utcnow() - cached['cached_at']).total_seconds()
+            age = (datetime.now(UTC) - cached["cached_at"]).total_seconds()
             if age < self._cache_ttl:
-                return cached['data']
+                return cached["data"]
             else:
                 # Expirado
                 del self._model_cache[cache_key]
         return None
 
-    def _add_to_cache(self, cache_key: str, data: Dict) -> None:
+    def _add_to_cache(self, cache_key: str, data: dict) -> None:
         """Adiciona modelo ao cache."""
         self._model_cache[cache_key] = {
-            'data': data,
-            'cached_at': datetime.utcnow(),
+            "data": data,
+            "cached_at": datetime.now(UTC),
         }
 
 

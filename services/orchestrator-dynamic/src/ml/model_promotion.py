@@ -10,22 +10,25 @@ Implementa promoção segura de modelos ML com:
 """
 
 import asyncio
-from datetime import datetime, timedelta
-from typing import Dict, Any, Optional, List, TYPE_CHECKING
-from enum import Enum
+import contextlib
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
+from enum import StrEnum
+from typing import TYPE_CHECKING, Any, Optional
+
 import structlog
 
 if TYPE_CHECKING:
+    from .model_audit_logger import ModelAuditLogger
+    from .model_comparator import ModelComparator
     from .shadow_mode import ShadowModeRunner
-    from .model_comparator import ModelComparator, ComparisonResult
-    from .model_audit_logger import ModelAuditLogger, AuditEventContext
 
 logger = structlog.get_logger(__name__)
 
 
-class PromotionStage(str, Enum):
+class PromotionStage(StrEnum):
     """Estágios de promoção."""
+
     PENDING = "pending"
     VALIDATING = "validating"
     SHADOW_MODE = "shadow_mode"
@@ -36,8 +39,9 @@ class PromotionStage(str, Enum):
     ROLLED_BACK = "rolled_back"
 
 
-class PromotionResult(str, Enum):
+class PromotionResult(StrEnum):
     """Resultados possíveis de promoção."""
+
     SUCCESS = "success"
     FAILED_VALIDATION = "failed_validation"
     FAILED_CANARY = "failed_canary"
@@ -48,6 +52,7 @@ class PromotionResult(str, Enum):
 @dataclass
 class PromotionConfig:
     """Configuração de promoção."""
+
     # Shadow Mode Configuration
     shadow_mode_enabled: bool = True
     shadow_mode_duration_minutes: int = 10080  # 7 dias
@@ -63,7 +68,7 @@ class PromotionConfig:
     rollback_mae_increase_pct: float = 20.0
     # Gradual Rollout Configuration
     gradual_rollout_enabled: bool = True
-    rollout_stages: List[float] = field(default_factory=lambda: [0.25, 0.50, 0.75, 1.0])
+    rollout_stages: list[float] = field(default_factory=lambda: [0.25, 0.50, 0.75, 1.0])
     checkpoint_duration_minutes: int = 30
     checkpoint_mae_threshold_pct: float = 20.0
     checkpoint_error_rate_threshold: float = 0.001  # 0.1%
@@ -75,6 +80,7 @@ class PromotionConfig:
 @dataclass
 class PromotionRequest:
     """Representa uma solicitação de promoção."""
+
     request_id: str
     model_name: str
     source_version: str
@@ -83,22 +89,22 @@ class PromotionRequest:
     config: PromotionConfig = field(default_factory=PromotionConfig)
     created_at: datetime = field(default_factory=datetime.utcnow)
     stage: PromotionStage = PromotionStage.PENDING
-    result: Optional[PromotionResult] = None
-    error_message: Optional[str] = None
-    metrics: Dict[str, Any] = field(default_factory=dict)
+    result: PromotionResult | None = None
+    error_message: str | None = None
+    metrics: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
-            'request_id': self.request_id,
-            'model_name': self.model_name,
-            'source_version': self.source_version,
-            'target_stage': self.target_stage,
-            'initiated_by': self.initiated_by,
-            'created_at': self.created_at.isoformat(),
-            'stage': self.stage.value,
-            'result': self.result.value if self.result else None,
-            'error_message': self.error_message,
-            'metrics': self.metrics
+            "request_id": self.request_id,
+            "model_name": self.model_name,
+            "source_version": self.source_version,
+            "target_stage": self.target_stage,
+            "initiated_by": self.initiated_by,
+            "created_at": self.created_at.isoformat(),
+            "stage": self.stage.value,
+            "result": self.result.value if self.result else None,
+            "error_message": self.error_message,
+            "metrics": self.metrics,
         }
 
 
@@ -123,7 +129,7 @@ class ModelPromotionManager:
         continuous_validator=None,
         mongodb_client=None,
         metrics=None,
-        audit_logger: 'ModelAuditLogger' = None
+        audit_logger: "ModelAuditLogger" = None,
     ):
         """
         Args:
@@ -148,44 +154,48 @@ class ModelPromotionManager:
         # Configuração de promoção
         self.default_config = PromotionConfig(
             # Shadow Mode
-            shadow_mode_enabled=getattr(config, 'ml_shadow_mode_enabled', True),
-            shadow_mode_duration_minutes=getattr(config, 'ml_shadow_mode_duration_minutes', 10080),
-            shadow_mode_min_predictions=getattr(config, 'ml_shadow_mode_min_predictions', 1000),
-            shadow_mode_agreement_threshold=getattr(config, 'ml_shadow_mode_agreement_threshold', 0.90),
+            shadow_mode_enabled=getattr(config, "ml_shadow_mode_enabled", True),
+            shadow_mode_duration_minutes=getattr(config, "ml_shadow_mode_duration_minutes", 10080),
+            shadow_mode_min_predictions=getattr(config, "ml_shadow_mode_min_predictions", 1000),
+            shadow_mode_agreement_threshold=getattr(
+                config, "ml_shadow_mode_agreement_threshold", 0.90
+            ),
             # Canary
-            canary_enabled=getattr(config, 'ml_canary_enabled', True),
-            canary_traffic_pct=getattr(config, 'ml_canary_traffic_percentage', 10.0),
-            canary_duration_minutes=getattr(config, 'ml_canary_duration_minutes', 30),
-            mae_threshold_pct=getattr(config, 'ml_validation_mae_threshold', 0.15) * 100,
-            precision_threshold=getattr(config, 'ml_validation_precision_threshold', 0.75),
-            auto_rollback_enabled=getattr(config, 'ml_auto_rollback_enabled', True),
-            rollback_mae_increase_pct=getattr(config, 'ml_rollback_mae_increase_pct', 20.0),
+            canary_enabled=getattr(config, "ml_canary_enabled", True),
+            canary_traffic_pct=getattr(config, "ml_canary_traffic_percentage", 10.0),
+            canary_duration_minutes=getattr(config, "ml_canary_duration_minutes", 30),
+            mae_threshold_pct=getattr(config, "ml_validation_mae_threshold", 0.15) * 100,
+            precision_threshold=getattr(config, "ml_validation_precision_threshold", 0.75),
+            auto_rollback_enabled=getattr(config, "ml_auto_rollback_enabled", True),
+            rollback_mae_increase_pct=getattr(config, "ml_rollback_mae_increase_pct", 20.0),
             # Gradual Rollout
-            gradual_rollout_enabled=getattr(config, 'ml_gradual_rollout_enabled', True),
-            rollout_stages=getattr(config, 'ml_rollout_stages', [0.25, 0.50, 0.75, 1.0]),
-            checkpoint_duration_minutes=getattr(config, 'ml_checkpoint_duration_minutes', 30),
-            checkpoint_mae_threshold_pct=getattr(config, 'ml_checkpoint_mae_threshold_pct', 20.0),
-            checkpoint_error_rate_threshold=getattr(config, 'ml_checkpoint_error_rate_threshold', 0.001)
+            gradual_rollout_enabled=getattr(config, "ml_gradual_rollout_enabled", True),
+            rollout_stages=getattr(config, "ml_rollout_stages", [0.25, 0.50, 0.75, 1.0]),
+            checkpoint_duration_minutes=getattr(config, "ml_checkpoint_duration_minutes", 30),
+            checkpoint_mae_threshold_pct=getattr(config, "ml_checkpoint_mae_threshold_pct", 20.0),
+            checkpoint_error_rate_threshold=getattr(
+                config, "ml_checkpoint_error_rate_threshold", 0.001
+            ),
         )
 
         # Promoções ativas
-        self._active_promotions: Dict[str, PromotionRequest] = {}
+        self._active_promotions: dict[str, PromotionRequest] = {}
 
         # Histórico de promoções
-        self._promotion_history: List[PromotionRequest] = []
+        self._promotion_history: list[PromotionRequest] = []
 
         # Shadow mode runners ativos
-        self._shadow_mode_runners: Dict[str, 'ShadowModeRunner'] = {}
+        self._shadow_mode_runners: dict[str, ShadowModeRunner] = {}
 
         # Canary state
-        self._canary_traffic_split: Dict[str, float] = {}
+        self._canary_traffic_split: dict[str, float] = {}
 
         # Gradual rollout state
-        self._rollout_current_stage: Dict[str, int] = {}  # model_name -> stage_index
-        self._rollout_baseline_metrics: Dict[str, Dict[str, float]] = {}  # model_name -> metrics
+        self._rollout_current_stage: dict[str, int] = {}  # model_name -> stage_index
+        self._rollout_baseline_metrics: dict[str, dict[str, float]] = {}  # model_name -> metrics
 
         # Model comparator para análise detalhada
-        self._model_comparator: Optional['ModelComparator'] = None
+        self._model_comparator: ModelComparator | None = None
 
     async def initialize(self) -> None:
         """
@@ -201,19 +211,17 @@ class ModelPromotionManager:
         # Inicializar ModelComparator para comparação detalhada
         try:
             from .model_comparator import ModelComparator
+
             self._model_comparator = ModelComparator(
                 config=self.config,
                 model_registry=self.model_registry,
                 mongodb_client=self.mongodb_client,
                 metrics=self.metrics,
-                logger=self.logger
+                logger=self.logger,
             )
             self.logger.info("model_comparator_initialized")
         except Exception as e:
-            self.logger.warning(
-                "model_comparator_initialization_failed",
-                error=str(e)
-            )
+            self.logger.warning("model_comparator_initialization_failed", error=str(e))
             self._model_comparator = None
 
         self._initialized = True
@@ -228,7 +236,7 @@ class ModelPromotionManager:
         self.logger.info(
             "model_promotion_manager_closing",
             active_promotions=len(self._active_promotions),
-            active_shadow_runners=len(self._shadow_mode_runners)
+            active_shadow_runners=len(self._shadow_mode_runners),
         )
 
         # Cancelar promoções ativas
@@ -237,9 +245,7 @@ class ModelPromotionManager:
                 await self.cancel_promotion(request_id)
             except Exception as e:
                 self.logger.warning(
-                    "cancel_promotion_on_close_failed",
-                    request_id=request_id,
-                    error=str(e)
+                    "cancel_promotion_on_close_failed", request_id=request_id, error=str(e)
                 )
 
         # Fechar shadow mode runners ativos
@@ -248,9 +254,7 @@ class ModelPromotionManager:
                 await runner.close()
             except Exception as e:
                 self.logger.warning(
-                    "close_shadow_runner_failed",
-                    model_name=model_name,
-                    error=str(e)
+                    "close_shadow_runner_failed", model_name=model_name, error=str(e)
                 )
 
         self._shadow_mode_runners.clear()
@@ -266,7 +270,7 @@ class ModelPromotionManager:
         target_stage: str = "Production",
         initiated_by: str = "system",
         skip_canary: bool = False,
-        config_overrides: Optional[Dict[str, Any]] = None
+        config_overrides: dict[str, Any] | None = None,
     ) -> PromotionRequest:
         """
         Inicia processo de promoção de modelo.
@@ -283,7 +287,7 @@ class ModelPromotionManager:
             PromotionRequest com status
         """
         # Criar request
-        request_id = f"promo_{model_name}_{version}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
+        request_id = f"promo_{model_name}_{version}_{datetime.now(UTC).strftime('%Y%m%d%H%M%S')}"
 
         config = self.default_config
         if config_overrides:
@@ -300,7 +304,7 @@ class ModelPromotionManager:
             source_version=version,
             target_stage=target_stage,
             initiated_by=initiated_by,
-            config=config
+            config=config,
         )
 
         self._active_promotions[request_id] = request
@@ -310,33 +314,34 @@ class ModelPromotionManager:
             request_id=request_id,
             model_name=model_name,
             version=version,
-            target_stage=target_stage
+            target_stage=target_stage,
         )
 
         # Audit logging - promoção iniciada
         if self.audit_logger:
             try:
                 from .model_audit_logger import AuditEventContext
+
                 context = AuditEventContext(
                     user_id=initiated_by,
-                    reason=f'Promoção para {target_stage}',
-                    environment=getattr(self.config, 'environment', 'production'),
-                    triggered_by='manual' if initiated_by != 'system' else 'automatic',
-                    metadata={'request_id': request_id, 'skip_canary': skip_canary}
+                    reason=f"Promoção para {target_stage}",
+                    environment=getattr(self.config, "environment", "production"),
+                    triggered_by="manual" if initiated_by != "system" else "automatic",
+                    metadata={"request_id": request_id, "skip_canary": skip_canary},
                 )
                 await self.audit_logger.log_promotion_initiated(
                     model_name=model_name,
                     model_version=version,
                     context=context,
                     promotion_config={
-                        'target_stage': target_stage,
-                        'shadow_mode_enabled': config.shadow_mode_enabled,
-                        'canary_enabled': config.canary_enabled,
-                        'gradual_rollout_enabled': config.gradual_rollout_enabled
-                    }
+                        "target_stage": target_stage,
+                        "shadow_mode_enabled": config.shadow_mode_enabled,
+                        "canary_enabled": config.canary_enabled,
+                        "gradual_rollout_enabled": config.gradual_rollout_enabled,
+                    },
                 )
             except Exception as audit_error:
-                self.logger.warning('audit_logging_failed', error=str(audit_error))
+                self.logger.warning("audit_logging_failed", error=str(audit_error))
 
         # Executar promoção em background
         asyncio.create_task(self._execute_promotion(request))
@@ -393,8 +398,7 @@ class ModelPromotionManager:
             else:
                 # Fallback para rollout direto (comportamento legado)
                 self.logger.info(
-                    "gradual_rollout_disabled_using_direct_promotion",
-                    request_id=request.request_id
+                    "gradual_rollout_disabled_using_direct_promotion", request_id=request.request_id
                 )
                 await self._execute_full_rollout(request)
 
@@ -405,30 +409,19 @@ class ModelPromotionManager:
             await self._finalize_promotion(request)
 
         except Exception as e:
-            self.logger.error(
-                "promotion_failed",
-                request_id=request.request_id,
-                error=str(e)
-            )
+            self.logger.exception("promotion_failed", request_id=request.request_id, error=str(e))
             request.stage = PromotionStage.FAILED
             request.error_message = str(e)
             await self._finalize_promotion(request)
 
-    async def _run_pre_promotion_validation(
-        self,
-        request: PromotionRequest
-    ) -> bool:
+    async def _run_pre_promotion_validation(self, request: PromotionRequest) -> bool:
         """Executa validação pré-promoção."""
-        self.logger.info(
-            "running_pre_promotion_validation",
-            request_id=request.request_id
-        )
+        self.logger.info("running_pre_promotion_validation", request_id=request.request_id)
 
         try:
             # Carregar modelo candidato
             model = await self.model_registry.load_model(
-                model_name=request.model_name,
-                version=request.source_version
+                model_name=request.model_name, version=request.source_version
             )
 
             if model is None:
@@ -438,34 +431,35 @@ class ModelPromotionManager:
                 if self.audit_logger:
                     try:
                         from .model_audit_logger import AuditEventContext
+
                         context = AuditEventContext(
                             user_id=request.initiated_by,
-                            reason='Modelo não encontrado',
-                            environment=getattr(self.config, 'environment', 'production'),
-                            triggered_by='automatic',
-                            metadata={'request_id': request.request_id}
+                            reason="Modelo não encontrado",
+                            environment=getattr(self.config, "environment", "production"),
+                            triggered_by="automatic",
+                            metadata={"request_id": request.request_id},
                         )
                         await self.audit_logger.log_validation_failed(
                             model_name=request.model_name,
                             model_version=request.source_version,
                             context=context,
-                            validation_results={'validation_type': 'pre_promotion'},
-                            failure_reasons=['model_not_found']
+                            validation_results={"validation_type": "pre_promotion"},
+                            failure_reasons=["model_not_found"],
                         )
                     except Exception as audit_error:
-                        self.logger.warning('audit_logging_validation_failed_error', error=str(audit_error))
+                        self.logger.warning(
+                            "audit_logging_validation_failed_error", error=str(audit_error)
+                        )
 
                 return False
 
             # Buscar metadados
-            metadata = await self.model_registry.get_model_metadata(
-                request.model_name
-            )
-            metrics = metadata.get('metrics', {})
+            metadata = await self.model_registry.get_model_metadata(request.model_name)
+            metrics = metadata.get("metrics", {})
 
             # Validar baseado no tipo de modelo
-            if 'duration' in request.model_name.lower():
-                mae_pct = metrics.get('mae_percentage', 100.0)
+            if "duration" in request.model_name.lower():
+                mae_pct = metrics.get("mae_percentage", 100.0)
                 if mae_pct > request.config.mae_threshold_pct:
                     request.error_message = (
                         f"MAE ({mae_pct:.2f}%) excede threshold "
@@ -476,27 +470,33 @@ class ModelPromotionManager:
                     if self.audit_logger:
                         try:
                             from .model_audit_logger import AuditEventContext
+
                             context = AuditEventContext(
                                 user_id=request.initiated_by,
                                 reason=request.error_message,
-                                environment=getattr(self.config, 'environment', 'production'),
-                                triggered_by='automatic',
-                                metadata={'request_id': request.request_id, 'mae_pct': mae_pct}
+                                environment=getattr(self.config, "environment", "production"),
+                                triggered_by="automatic",
+                                metadata={"request_id": request.request_id, "mae_pct": mae_pct},
                             )
                             await self.audit_logger.log_validation_failed(
                                 model_name=request.model_name,
                                 model_version=request.source_version,
                                 context=context,
-                                validation_results={'metrics': metrics, 'validation_type': 'pre_promotion'},
-                                failure_reasons=['mae_threshold_exceeded']
+                                validation_results={
+                                    "metrics": metrics,
+                                    "validation_type": "pre_promotion",
+                                },
+                                failure_reasons=["mae_threshold_exceeded"],
                             )
                         except Exception as audit_error:
-                            self.logger.warning('audit_logging_validation_failed_error', error=str(audit_error))
+                            self.logger.warning(
+                                "audit_logging_validation_failed_error", error=str(audit_error)
+                            )
 
                     return False
 
-            elif 'anomaly' in request.model_name.lower():
-                precision = metrics.get('precision', 0.0)
+            elif "anomaly" in request.model_name.lower():
+                precision = metrics.get("precision", 0.0)
                 if precision < request.config.precision_threshold:
                     request.error_message = (
                         f"Precision ({precision:.2f}) abaixo do threshold "
@@ -507,55 +507,59 @@ class ModelPromotionManager:
                     if self.audit_logger:
                         try:
                             from .model_audit_logger import AuditEventContext
+
                             context = AuditEventContext(
                                 user_id=request.initiated_by,
                                 reason=request.error_message,
-                                environment=getattr(self.config, 'environment', 'production'),
-                                triggered_by='automatic',
-                                metadata={'request_id': request.request_id, 'precision': precision}
+                                environment=getattr(self.config, "environment", "production"),
+                                triggered_by="automatic",
+                                metadata={"request_id": request.request_id, "precision": precision},
                             )
                             await self.audit_logger.log_validation_failed(
                                 model_name=request.model_name,
                                 model_version=request.source_version,
                                 context=context,
-                                validation_results={'metrics': metrics, 'validation_type': 'pre_promotion'},
-                                failure_reasons=['precision_below_threshold']
+                                validation_results={
+                                    "metrics": metrics,
+                                    "validation_type": "pre_promotion",
+                                },
+                                failure_reasons=["precision_below_threshold"],
                             )
                         except Exception as audit_error:
-                            self.logger.warning('audit_logging_validation_failed_error', error=str(audit_error))
+                            self.logger.warning(
+                                "audit_logging_validation_failed_error", error=str(audit_error)
+                            )
 
                     return False
 
-            request.metrics['pre_validation'] = metrics
+            request.metrics["pre_validation"] = metrics
 
             self.logger.info(
-                "pre_promotion_validation_passed",
-                request_id=request.request_id,
-                metrics=metrics
+                "pre_promotion_validation_passed", request_id=request.request_id, metrics=metrics
             )
 
             # Audit log: validation_passed
             if self.audit_logger:
                 try:
                     from .model_audit_logger import AuditEventContext
+
                     context = AuditEventContext(
                         user_id=request.initiated_by,
-                        reason='Validação pré-promoção passou',
-                        environment=getattr(self.config, 'environment', 'production'),
-                        triggered_by='automatic',
-                        metadata={'request_id': request.request_id}
+                        reason="Validação pré-promoção passou",
+                        environment=getattr(self.config, "environment", "production"),
+                        triggered_by="automatic",
+                        metadata={"request_id": request.request_id},
                     )
                     await self.audit_logger.log_validation_passed(
                         model_name=request.model_name,
                         model_version=request.source_version,
                         context=context,
-                        validation_results={
-                            'metrics': metrics,
-                            'validation_type': 'pre_promotion'
-                        }
+                        validation_results={"metrics": metrics, "validation_type": "pre_promotion"},
                     )
                 except Exception as audit_error:
-                    self.logger.warning('audit_logging_validation_passed_failed', error=str(audit_error))
+                    self.logger.warning(
+                        "audit_logging_validation_passed_failed", error=str(audit_error)
+                    )
 
             # Comparação detalhada com modelo atual (se habilitada)
             if request.config.enable_detailed_comparison and self._model_comparator:
@@ -566,13 +570,11 @@ class ModelPromotionManager:
             return True
 
         except Exception as e:
-            request.error_message = f"Erro na validação: {str(e)}"
+            request.error_message = f"Erro na validação: {e!s}"
             return False
 
     async def _run_detailed_comparison(
-        self,
-        request: PromotionRequest,
-        metadata: Dict[str, Any]
+        self, request: PromotionRequest, metadata: dict[str, Any]
     ) -> bool:
         """
         Executa comparação detalhada entre modelo candidato e atual.
@@ -584,10 +586,7 @@ class ModelPromotionManager:
         Returns:
             True se aprovado, False se rejeitado
         """
-        self.logger.info(
-            "running_detailed_model_comparison",
-            request_id=request.request_id
-        )
+        self.logger.info("running_detailed_model_comparison", request_id=request.request_id)
 
         try:
             # Buscar versão atual em produção
@@ -595,8 +594,7 @@ class ModelPromotionManager:
 
             if not current_version:
                 self.logger.info(
-                    "no_production_version_for_comparison",
-                    request_id=request.request_id
+                    "no_production_version_for_comparison", request_id=request.request_id
                 )
                 # Sem modelo em produção, prosseguir com promoção
                 return True
@@ -608,7 +606,7 @@ class ModelPromotionManager:
                 self.logger.warning(
                     "test_dataset_not_found",
                     request_id=request.request_id,
-                    model_name=request.model_name
+                    model_name=request.model_name,
                 )
                 # Sem dataset de teste, prosseguir sem comparação
                 return True
@@ -619,22 +617,22 @@ class ModelPromotionManager:
                 current_version=current_version,
                 candidate_version=request.source_version,
                 test_data=test_data,
-                confidence_threshold=request.config.comparison_confidence_threshold
+                confidence_threshold=request.config.comparison_confidence_threshold,
             )
 
             # Salvar resultado no request
-            request.metrics['detailed_comparison'] = comparison_result.to_dict()
+            request.metrics["detailed_comparison"] = comparison_result.to_dict()
 
             # Gerar e salvar relatório HTML
             html_report = self._model_comparator._generate_html_report(comparison_result)
             await self._model_comparator.save_report_to_mlflow(
                 html_report=html_report,
                 model_name=request.model_name,
-                run_id=metadata.get('run_id')
+                run_id=metadata.get("run_id"),
             )
 
             # Verificar recomendação
-            if comparison_result.recommendation == 'reject':
+            if comparison_result.recommendation == "reject":
                 request.error_message = (
                     f"Comparação detalhada recomenda rejeição: "
                     f"{comparison_result.recommendation_reason}"
@@ -642,7 +640,7 @@ class ModelPromotionManager:
                 self.logger.warning(
                     "detailed_comparison_rejected",
                     request_id=request.request_id,
-                    reason=comparison_result.recommendation_reason
+                    reason=comparison_result.recommendation_reason,
                 )
                 return False
 
@@ -650,22 +648,20 @@ class ModelPromotionManager:
                 "detailed_comparison_completed",
                 request_id=request.request_id,
                 recommendation=comparison_result.recommendation,
-                confidence=comparison_result.confidence_score
+                confidence=comparison_result.confidence_score,
             )
 
             return True
 
         except Exception as e:
-            self.logger.error(
-                "detailed_comparison_failed",
-                request_id=request.request_id,
-                error=str(e)
+            self.logger.exception(
+                "detailed_comparison_failed", request_id=request.request_id, error=str(e)
             )
             # Não falha a validação se comparação falhar
             # Apenas loga o erro e continua
             return True
 
-    async def _get_production_version(self, model_name: str) -> Optional[str]:
+    async def _get_production_version(self, model_name: str) -> str | None:
         """
         Busca versão atual em produção.
 
@@ -677,21 +673,20 @@ class ModelPromotionManager:
         """
         try:
             versions = await asyncio.to_thread(
-                self.model_registry.client.search_model_versions,
-                f"name='{model_name}'"
+                self.model_registry.client.search_model_versions, f"name='{model_name}'"
             )
 
             for v in versions:
-                if v.current_stage == 'Production':
+                if v.current_stage == "Production":
                     return v.version
 
             return None
 
         except Exception as e:
-            self.logger.error("get_production_version_failed", error=str(e))
+            self.logger.exception("get_production_version_failed", error=str(e))
             return None
 
-    async def _load_test_dataset(self, model_name: str) -> Optional[Dict[str, Any]]:
+    async def _load_test_dataset(self, model_name: str) -> dict[str, Any] | None:
         """
         Carrega test dataset do MongoDB.
 
@@ -713,27 +708,24 @@ class ModelPromotionManager:
             return None
 
         try:
-            dataset = await self.mongodb_client.db['model_test_datasets'].find_one({
-                'model_name': model_name
-            })
+            dataset = await self.mongodb_client.db["model_test_datasets"].find_one(
+                {"model_name": model_name}
+            )
 
             if not dataset:
                 return None
 
             return {
-                'X_test': dataset['X_test'],
-                'y_test': dataset['y_test'],
-                'metadata': dataset.get('metadata', {})
+                "X_test": dataset["X_test"],
+                "y_test": dataset["y_test"],
+                "metadata": dataset.get("metadata", {}),
             }
 
         except Exception as e:
-            self.logger.error("load_test_dataset_failed", error=str(e))
+            self.logger.exception("load_test_dataset_failed", error=str(e))
             return None
 
-    async def _run_shadow_mode(
-        self,
-        request: PromotionRequest
-    ) -> bool:
+    async def _run_shadow_mode(self, request: PromotionRequest) -> bool:
         """
         Executa shadow mode deployment.
 
@@ -752,14 +744,13 @@ class ModelPromotionManager:
             "starting_shadow_mode",
             request_id=request.request_id,
             duration_minutes=request.config.shadow_mode_duration_minutes,
-            min_predictions=request.config.shadow_mode_min_predictions
+            min_predictions=request.config.shadow_mode_min_predictions,
         )
 
         try:
             # Carregar modelo de produção
             prod_model = await self.model_registry.load_model(
-                model_name=request.model_name,
-                stage='Production'
+                model_name=request.model_name, stage="Production"
             )
 
             if not prod_model:
@@ -769,14 +760,13 @@ class ModelPromotionManager:
             # Determinar versão shadow a usar:
             # 1. Usar ml_shadow_model_version da config se configurada
             # 2. Senão, usar source_version do request
-            shadow_version = getattr(self.config, 'ml_shadow_model_version', None)
+            shadow_version = getattr(self.config, "ml_shadow_model_version", None)
             if not shadow_version:
                 shadow_version = request.source_version
 
             # Carregar modelo shadow (candidato)
             shadow_model = await self.model_registry.load_model(
-                model_name=request.model_name,
-                version=shadow_version
+                model_name=request.model_name, version=shadow_version
             )
 
             if not shadow_model:
@@ -793,7 +783,7 @@ class ModelPromotionManager:
                 metrics=self.metrics,
                 model_name=request.model_name,
                 shadow_version=shadow_version,
-                audit_logger=self.audit_logger
+                audit_logger=self.audit_logger,
             )
 
             # Registrar runner ativo
@@ -804,15 +794,15 @@ class ModelPromotionManager:
 
             # Coletar estatísticas
             stats = shadow_runner.get_agreement_stats()
-            request.metrics['shadow_mode'] = stats
+            request.metrics["shadow_mode"] = stats
 
             # Validar critérios
-            if stats['prediction_count'] < request.config.shadow_mode_min_predictions:
+            if stats["prediction_count"] < request.config.shadow_mode_min_predictions:
                 self.logger.warning(
                     "shadow_mode_insufficient_predictions",
                     request_id=request.request_id,
-                    predictions=stats['prediction_count'],
-                    required=request.config.shadow_mode_min_predictions
+                    predictions=stats["prediction_count"],
+                    required=request.config.shadow_mode_min_predictions,
                 )
                 request.error_message = (
                     f"Predições insuficientes: {stats['prediction_count']} < "
@@ -822,12 +812,12 @@ class ModelPromotionManager:
                 self._shadow_mode_runners.pop(request.model_name, None)
                 return False
 
-            if stats['agreement_rate'] < request.config.shadow_mode_agreement_threshold:
+            if stats["agreement_rate"] < request.config.shadow_mode_agreement_threshold:
                 self.logger.warning(
                     "shadow_mode_low_agreement",
                     request_id=request.request_id,
-                    agreement_rate=stats['agreement_rate'],
-                    threshold=request.config.shadow_mode_agreement_threshold
+                    agreement_rate=stats["agreement_rate"],
+                    threshold=request.config.shadow_mode_agreement_threshold,
                 )
                 request.error_message = (
                     f"Agreement rate baixo: {stats['agreement_rate']:.2%} < "
@@ -844,62 +834,54 @@ class ModelPromotionManager:
             self.logger.info(
                 "shadow_mode_passed",
                 request_id=request.request_id,
-                agreement_rate=stats['agreement_rate'],
-                predictions=stats['prediction_count']
+                agreement_rate=stats["agreement_rate"],
+                predictions=stats["prediction_count"],
             )
 
             return True
 
         except Exception as e:
-            self.logger.error(
-                "shadow_mode_error",
-                request_id=request.request_id,
-                error=str(e)
-            )
+            self.logger.exception("shadow_mode_error", request_id=request.request_id, error=str(e))
             # Limpar runner em caso de erro
             if request.model_name in self._shadow_mode_runners:
-                try:
+                with contextlib.suppress(Exception):
                     await self._shadow_mode_runners[request.model_name].close()
-                except Exception:
-                    pass
                 self._shadow_mode_runners.pop(request.model_name, None)
             return False
 
-    async def _run_canary_deployment(
-        self,
-        request: PromotionRequest
-    ) -> bool:
+    async def _run_canary_deployment(self, request: PromotionRequest) -> bool:
         """Executa canary deployment."""
         self.logger.info(
             "starting_canary_deployment",
             request_id=request.request_id,
             traffic_pct=request.config.canary_traffic_pct,
-            duration_minutes=request.config.canary_duration_minutes
+            duration_minutes=request.config.canary_duration_minutes,
         )
 
         # Audit log: canary_deployed
         if self.audit_logger:
             try:
                 from .model_audit_logger import AuditEventContext
+
                 context = AuditEventContext(
                     user_id=request.initiated_by,
-                    reason='Canary deployment iniciado',
-                    environment=getattr(self.config, 'environment', 'production'),
-                    triggered_by='automatic',
-                    metadata={'request_id': request.request_id}
+                    reason="Canary deployment iniciado",
+                    environment=getattr(self.config, "environment", "production"),
+                    triggered_by="automatic",
+                    metadata={"request_id": request.request_id},
                 )
                 await self.audit_logger.log_canary_deployed(
                     model_name=request.model_name,
                     model_version=request.source_version,
                     context=context,
                     canary_config={
-                        'traffic_percentage': request.config.canary_traffic_pct,
-                        'duration_minutes': request.config.canary_duration_minutes,
-                        'auto_rollback_enabled': request.config.auto_rollback_enabled
-                    }
+                        "traffic_percentage": request.config.canary_traffic_pct,
+                        "duration_minutes": request.config.canary_duration_minutes,
+                        "auto_rollback_enabled": request.config.auto_rollback_enabled,
+                    },
                 )
             except Exception as audit_error:
-                self.logger.warning('audit_logging_canary_deployed_failed', error=str(audit_error))
+                self.logger.warning("audit_logging_canary_deployed_failed", error=str(audit_error))
 
         try:
             # Configurar split de tráfego
@@ -908,24 +890,20 @@ class ModelPromotionManager:
             )
 
             # Coletar baseline de métricas
-            baseline_metrics = await self._collect_current_metrics(
-                request.model_name
-            )
-            request.metrics['canary_baseline'] = baseline_metrics
+            baseline_metrics = await self._collect_current_metrics(request.model_name)
+            request.metrics["canary_baseline"] = baseline_metrics
 
             # Aguardar período canary
             await asyncio.sleep(request.config.canary_duration_minutes * 60)
 
             # Coletar métricas pós-canary
-            canary_metrics = await self._collect_current_metrics(
-                request.model_name
-            )
-            request.metrics['canary_result'] = canary_metrics
+            canary_metrics = await self._collect_current_metrics(request.model_name)
+            request.metrics["canary_result"] = canary_metrics
 
             # Verificar degradação
             if baseline_metrics and canary_metrics:
-                baseline_mae = baseline_metrics.get('mae_pct', 0)
-                canary_mae = canary_metrics.get('mae_pct', 0)
+                baseline_mae = baseline_metrics.get("mae_pct", 0)
+                canary_mae = canary_metrics.get("mae_pct", 0)
 
                 if baseline_mae > 0:
                     mae_increase = ((canary_mae - baseline_mae) / baseline_mae) * 100
@@ -936,7 +914,7 @@ class ModelPromotionManager:
                             request_id=request.request_id,
                             baseline_mae=baseline_mae,
                             canary_mae=canary_mae,
-                            increase_pct=mae_increase
+                            increase_pct=mae_increase,
                         )
 
                         # Rollback automático
@@ -948,26 +926,18 @@ class ModelPromotionManager:
             # Limpar split de tráfego
             self._canary_traffic_split.pop(request.model_name, None)
 
-            self.logger.info(
-                "canary_deployment_passed",
-                request_id=request.request_id
-            )
+            self.logger.info("canary_deployment_passed", request_id=request.request_id)
 
             return True
 
         except Exception as e:
-            self.logger.error(
-                "canary_deployment_error",
-                request_id=request.request_id,
-                error=str(e)
+            self.logger.exception(
+                "canary_deployment_error", request_id=request.request_id, error=str(e)
             )
             self._canary_traffic_split.pop(request.model_name, None)
             return False
 
-    async def _run_gradual_rollout(
-        self,
-        request: PromotionRequest
-    ) -> bool:
+    async def _run_gradual_rollout(self, request: PromotionRequest) -> bool:
         """
         Executa rollout gradual com checkpoints de validação.
 
@@ -993,20 +963,20 @@ class ModelPromotionManager:
             "starting_gradual_rollout",
             request_id=request.request_id,
             stages=request.config.rollout_stages,
-            checkpoint_duration_minutes=request.config.checkpoint_duration_minutes
+            checkpoint_duration_minutes=request.config.checkpoint_duration_minutes,
         )
 
         try:
             # Coletar métricas baseline (antes do rollout)
             baseline_metrics = await self._collect_current_metrics(request.model_name)
             self._rollout_baseline_metrics[request.model_name] = baseline_metrics
-            request.metrics['rollout_baseline'] = baseline_metrics
+            request.metrics["rollout_baseline"] = baseline_metrics
 
             self.logger.info(
                 "rollout_baseline_collected",
                 request_id=request.request_id,
-                baseline_mae=baseline_metrics.get('mae_pct', 'N/A'),
-                baseline_samples=baseline_metrics.get('sample_count', 0)
+                baseline_mae=baseline_metrics.get("mae_pct", "N/A"),
+                baseline_samples=baseline_metrics.get("sample_count", 0),
             )
 
             # Iterar pelos estágios de rollout
@@ -1018,7 +988,7 @@ class ModelPromotionManager:
                     request_id=request.request_id,
                     stage=stage_name,
                     traffic_pct=traffic_pct * 100,
-                    duration_minutes=request.config.checkpoint_duration_minutes
+                    duration_minutes=request.config.checkpoint_duration_minutes,
                 )
 
                 # Atualizar estado de rollout
@@ -1030,20 +1000,15 @@ class ModelPromotionManager:
                 # Emitir métricas Prometheus
                 if self.metrics:
                     self.metrics.set_rollout_stage(
-                        model_name=request.model_name,
-                        stage=stage_index + 1
+                        model_name=request.model_name, stage=stage_index + 1
                     )
                     self.metrics.set_rollout_traffic_pct(
-                        model_name=request.model_name,
-                        traffic_pct=traffic_pct * 100
+                        model_name=request.model_name, traffic_pct=traffic_pct * 100
                     )
 
                 # Se for o último estágio (100%), executar promoção completa
                 if traffic_pct >= 1.0:
-                    self.logger.info(
-                        "rollout_final_stage_reached",
-                        request_id=request.request_id
-                    )
+                    self.logger.info("rollout_final_stage_reached", request_id=request.request_id)
                     await self._execute_full_rollout(request)
                     break
 
@@ -1052,14 +1017,14 @@ class ModelPromotionManager:
 
                 # Coletar métricas do checkpoint
                 checkpoint_metrics = await self._collect_current_metrics(request.model_name)
-                request.metrics[f'rollout_{stage_name}'] = checkpoint_metrics
+                request.metrics[f"rollout_{stage_name}"] = checkpoint_metrics
 
                 self.logger.info(
                     "rollout_checkpoint_metrics_collected",
                     request_id=request.request_id,
                     stage=stage_name,
-                    checkpoint_mae=checkpoint_metrics.get('mae_pct', 'N/A'),
-                    checkpoint_samples=checkpoint_metrics.get('sample_count', 0)
+                    checkpoint_mae=checkpoint_metrics.get("mae_pct", "N/A"),
+                    checkpoint_samples=checkpoint_metrics.get("sample_count", 0),
                 )
 
                 # Verificar degradação
@@ -1067,26 +1032,22 @@ class ModelPromotionManager:
                     request=request,
                     baseline_metrics=baseline_metrics,
                     checkpoint_metrics=checkpoint_metrics,
-                    stage_name=stage_name
+                    stage_name=stage_name,
                 )
 
                 # Emitir métrica de checkpoint
                 if self.metrics:
-                    checkpoint_status = 'success' if not degradation_detected else 'degraded'
+                    checkpoint_status = "success" if not degradation_detected else "degraded"
                     self.metrics.record_rollout_checkpoint(
-                        model_name=request.model_name,
-                        stage=stage_name,
-                        status=checkpoint_status
+                        model_name=request.model_name, stage=stage_name, status=checkpoint_status
                     )
 
                     if degradation_detected:
-                        checkpoint_mae = checkpoint_metrics.get('mae_pct', 0)
-                        baseline_mae = baseline_metrics.get('mae_pct', 0)
-                        reason = 'mae_increase' if checkpoint_mae > baseline_mae else 'error_rate'
+                        checkpoint_mae = checkpoint_metrics.get("mae_pct", 0)
+                        baseline_mae = baseline_metrics.get("mae_pct", 0)
+                        reason = "mae_increase" if checkpoint_mae > baseline_mae else "error_rate"
                         self.metrics.record_rollout_degradation(
-                            model_name=request.model_name,
-                            stage=stage_name,
-                            reason=reason
+                            model_name=request.model_name, stage=stage_name, reason=reason
                         )
 
                 if degradation_detected:
@@ -1094,7 +1055,7 @@ class ModelPromotionManager:
                         "rollout_degradation_detected",
                         request_id=request.request_id,
                         stage=stage_name,
-                        traffic_pct=traffic_pct * 100
+                        traffic_pct=traffic_pct * 100,
                     )
 
                     # Executar rollback automático
@@ -1106,61 +1067,58 @@ class ModelPromotionManager:
                         self._rollout_baseline_metrics.pop(request.model_name, None)
                         self._canary_traffic_split.pop(request.model_name, None)
                         return False
-                    else:
-                        self.logger.warning(
-                            "rollout_degradation_auto_rollback_disabled",
-                            request_id=request.request_id
-                        )
-                        # Continuar mesmo com degradação (não recomendado)
+                    self.logger.warning(
+                        "rollout_degradation_auto_rollback_disabled",
+                        request_id=request.request_id,
+                    )
+                    # Continuar mesmo com degradação (não recomendado)
 
                 self.logger.info(
                     "rollout_stage_completed",
                     request_id=request.request_id,
                     stage=stage_name,
-                    traffic_pct=traffic_pct * 100
+                    traffic_pct=traffic_pct * 100,
                 )
 
                 # Audit log: rollout_stage_completed
                 if self.audit_logger:
                     try:
                         from .model_audit_logger import AuditEventContext
+
                         context = AuditEventContext(
                             user_id=request.initiated_by,
-                            reason=f'Estágio de rollout {stage_name} concluído',
-                            environment=getattr(self.config, 'environment', 'production'),
-                            triggered_by='automatic',
-                            metadata={'request_id': request.request_id}
+                            reason=f"Estágio de rollout {stage_name} concluído",
+                            environment=getattr(self.config, "environment", "production"),
+                            triggered_by="automatic",
+                            metadata={"request_id": request.request_id},
                         )
                         await self.audit_logger.log_rollout_stage_completed(
                             model_name=request.model_name,
                             model_version=request.source_version,
                             context=context,
                             stage_info={
-                                'stage': stage_name,
-                                'traffic_percentage': traffic_pct * 100,
-                                'metrics': checkpoint_metrics
-                            }
+                                "stage": stage_name,
+                                "traffic_percentage": traffic_pct * 100,
+                                "metrics": checkpoint_metrics,
+                            },
                         )
                     except Exception as audit_error:
-                        self.logger.warning('audit_logging_rollout_stage_failed', error=str(audit_error))
+                        self.logger.warning(
+                            "audit_logging_rollout_stage_failed", error=str(audit_error)
+                        )
 
             # Limpar estado de rollout
             self._rollout_current_stage.pop(request.model_name, None)
             self._rollout_baseline_metrics.pop(request.model_name, None)
             self._canary_traffic_split.pop(request.model_name, None)
 
-            self.logger.info(
-                "gradual_rollout_completed",
-                request_id=request.request_id
-            )
+            self.logger.info("gradual_rollout_completed", request_id=request.request_id)
 
             return True
 
         except Exception as e:
-            self.logger.error(
-                "gradual_rollout_error",
-                request_id=request.request_id,
-                error=str(e)
+            self.logger.exception(
+                "gradual_rollout_error", request_id=request.request_id, error=str(e)
             )
 
             # Limpar estado
@@ -1173,9 +1131,9 @@ class ModelPromotionManager:
     async def _check_rollout_degradation(
         self,
         request: PromotionRequest,
-        baseline_metrics: Dict[str, float],
-        checkpoint_metrics: Dict[str, float],
-        stage_name: str
+        baseline_metrics: dict[str, float],
+        checkpoint_metrics: dict[str, float],
+        stage_name: str,
     ) -> bool:
         """
         Verifica se houve degradação de métricas no checkpoint.
@@ -1197,26 +1155,24 @@ class ModelPromotionManager:
         # Se não há métricas, não pode validar (assumir OK)
         if not baseline_metrics or not checkpoint_metrics:
             self.logger.warning(
-                "rollout_checkpoint_no_metrics",
-                request_id=request.request_id,
-                stage=stage_name
+                "rollout_checkpoint_no_metrics", request_id=request.request_id, stage=stage_name
             )
             return False
 
         # Verificar sample count mínimo
-        checkpoint_samples = checkpoint_metrics.get('sample_count', 0)
+        checkpoint_samples = checkpoint_metrics.get("sample_count", 0)
         if checkpoint_samples < 10:
             self.logger.warning(
                 "rollout_checkpoint_insufficient_samples",
                 request_id=request.request_id,
                 stage=stage_name,
-                samples=checkpoint_samples
+                samples=checkpoint_samples,
             )
             return False
 
         # Verificar degradação de MAE
-        baseline_mae = baseline_metrics.get('mae_pct', 0)
-        checkpoint_mae = checkpoint_metrics.get('mae_pct', 0)
+        baseline_mae = baseline_metrics.get("mae_pct", 0)
+        checkpoint_mae = checkpoint_metrics.get("mae_pct", 0)
         mae_increase_pct = 0.0
 
         if baseline_mae > 0:
@@ -1230,19 +1186,19 @@ class ModelPromotionManager:
                     baseline_mae=baseline_mae,
                     checkpoint_mae=checkpoint_mae,
                     increase_pct=mae_increase_pct,
-                    threshold_pct=request.config.checkpoint_mae_threshold_pct
+                    threshold_pct=request.config.checkpoint_mae_threshold_pct,
                 )
                 return True
 
         # Verificar error rate (se disponível)
-        checkpoint_error_rate = checkpoint_metrics.get('error_rate', 0)
+        checkpoint_error_rate = checkpoint_metrics.get("error_rate", 0)
         if checkpoint_error_rate > request.config.checkpoint_error_rate_threshold:
             self.logger.warning(
                 "rollout_error_rate_exceeded",
                 request_id=request.request_id,
                 stage=stage_name,
                 error_rate=checkpoint_error_rate,
-                threshold=request.config.checkpoint_error_rate_threshold
+                threshold=request.config.checkpoint_error_rate_threshold,
             )
             return True
 
@@ -1251,15 +1207,12 @@ class ModelPromotionManager:
             "rollout_checkpoint_validation_passed",
             request_id=request.request_id,
             stage=stage_name,
-            mae_increase_pct=mae_increase_pct if baseline_mae > 0 else 'N/A'
+            mae_increase_pct=mae_increase_pct if baseline_mae > 0 else "N/A",
         )
 
         return False
 
-    async def _collect_current_metrics(
-        self,
-        model_name: str
-    ) -> Dict[str, float]:
+    async def _collect_current_metrics(self, model_name: str) -> dict[str, float]:
         """Coleta métricas atuais do validador contínuo."""
         if not self.continuous_validator:
             return {}
@@ -1268,44 +1221,37 @@ class ModelPromotionManager:
             current_metrics = await self.continuous_validator.get_current_metrics()
 
             # Métricas de predição (janela 24h)
-            prediction_metrics = current_metrics.get('prediction_metrics', {})
-            window_24h = prediction_metrics.get('24h', {})
+            prediction_metrics = current_metrics.get("prediction_metrics", {})
+            window_24h = prediction_metrics.get("24h", {})
 
             # Métricas de latência (janela 24h)
-            latency_metrics = current_metrics.get('latency_metrics', {})
-            latency_24h = latency_metrics.get('24h', {})
+            latency_metrics = current_metrics.get("latency_metrics", {})
+            latency_24h = latency_metrics.get("24h", {})
 
             return {
-                'mae': window_24h.get('mae'),
-                'mae_pct': window_24h.get('mae_pct'),
-                'r2': window_24h.get('r2'),
-                'sample_count': window_24h.get('sample_count', 0),
-                'latency_p50': latency_24h.get('p50'),
-                'latency_p95': latency_24h.get('p95'),
-                'latency_p99': latency_24h.get('p99'),
-                'error_rate': latency_24h.get('error_rate')
+                "mae": window_24h.get("mae"),
+                "mae_pct": window_24h.get("mae_pct"),
+                "r2": window_24h.get("r2"),
+                "sample_count": window_24h.get("sample_count", 0),
+                "latency_p50": latency_24h.get("p50"),
+                "latency_p95": latency_24h.get("p95"),
+                "latency_p99": latency_24h.get("p99"),
+                "error_rate": latency_24h.get("error_rate"),
             }
 
         except Exception as e:
-            self.logger.warning(
-                "collect_metrics_failed",
-                model_name=model_name,
-                error=str(e)
-            )
+            self.logger.warning("collect_metrics_failed", model_name=model_name, error=str(e))
             return {}
 
     async def _execute_full_rollout(self, request: PromotionRequest) -> None:
         """Executa promoção completa do modelo."""
-        self.logger.info(
-            "executing_full_rollout",
-            request_id=request.request_id
-        )
+        self.logger.info("executing_full_rollout", request_id=request.request_id)
 
         # Promover no MLflow
         await self.model_registry.promote_model(
             model_name=request.model_name,
             version=request.source_version,
-            stage=request.target_stage
+            stage=request.target_stage,
         )
 
         # Enriquecer metadados com informações de promoção
@@ -1313,61 +1259,56 @@ class ModelPromotionManager:
             model_name=request.model_name,
             version=request.source_version,
             metadata={
-                'promotion_id': request.request_id,
-                'promoted_at': datetime.utcnow().isoformat(),
-                'promoted_by': request.initiated_by,
-                'canary_enabled': request.config.canary_enabled
-            }
+                "promotion_id": request.request_id,
+                "promoted_at": datetime.now(UTC).isoformat(),
+                "promoted_by": request.initiated_by,
+                "canary_enabled": request.config.canary_enabled,
+            },
         )
 
-        self.logger.info(
-            "full_rollout_completed",
-            request_id=request.request_id
-        )
+        self.logger.info("full_rollout_completed", request_id=request.request_id)
 
     async def _execute_rollback(self, request: PromotionRequest) -> None:
         """Executa rollback de promoção."""
-        self.logger.warning(
-            "executing_promotion_rollback",
-            request_id=request.request_id
-        )
+        self.logger.warning("executing_promotion_rollback", request_id=request.request_id)
 
         try:
             result = await self.model_registry.rollback_model(
                 model_name=request.model_name,
-                reason=f"canary_failed_promotion_{request.request_id}"
+                reason=f"canary_failed_promotion_{request.request_id}",
             )
 
-            request.metrics['rollback_result'] = result
+            request.metrics["rollback_result"] = result
 
             # Audit logging - rollback executado
             if self.audit_logger:
                 try:
                     from .model_audit_logger import AuditEventContext
+
                     context = AuditEventContext(
-                        user_id='system',
-                        reason=request.error_message or 'Degradação de métricas durante promoção',
-                        environment=getattr(self.config, 'environment', 'production'),
-                        triggered_by='automatic',
-                        metadata={'request_id': request.request_id}
+                        user_id="system",
+                        reason=request.error_message or "Degradação de métricas durante promoção",
+                        environment=getattr(self.config, "environment", "production"),
+                        triggered_by="automatic",
+                        metadata={"request_id": request.request_id},
                     )
-                    previous_version = result.get('rolled_back_to', 'unknown') if isinstance(result, dict) else 'unknown'
+                    previous_version = (
+                        result.get("rolled_back_to", "unknown")
+                        if isinstance(result, dict)
+                        else "unknown"
+                    )
                     await self.audit_logger.log_rollback_executed(
                         model_name=request.model_name,
                         model_version=request.source_version,
                         context=context,
-                        rollback_reason=request.error_message or 'Canary failed',
-                        previous_version=previous_version
+                        rollback_reason=request.error_message or "Canary failed",
+                        previous_version=previous_version,
                     )
                 except Exception as audit_error:
-                    self.logger.warning('audit_logging_rollback_failed', error=str(audit_error))
+                    self.logger.warning("audit_logging_rollback_failed", error=str(audit_error))
 
         except Exception as e:
-            self.logger.error(
-                "rollback_failed",
-                request_id=request.request_id,
-                error=str(e)
-            )
+            self.logger.exception("rollback_failed", request_id=request.request_id, error=str(e))
 
     async def _finalize_promotion(self, request: PromotionRequest) -> None:
         """Finaliza processo de promoção."""
@@ -1381,58 +1322,57 @@ class ModelPromotionManager:
         # Armazenar no MongoDB
         if self.mongodb_client:
             try:
-                await self.mongodb_client.db['ml_promotions'].insert_one(
-                    request.to_dict()
-                )
+                await self.mongodb_client.db["ml_promotions"].insert_one(request.to_dict())
             except Exception as e:
                 self.logger.warning("store_promotion_failed", error=str(e))
 
         # Registrar métricas
         if self.metrics:
-            try:
+            with contextlib.suppress(Exception):
                 self.metrics.record_promotion(
                     model_name=request.model_name,
-                    result=request.result.value if request.result else 'unknown'
+                    result=request.result.value if request.result else "unknown",
                 )
-            except Exception:
-                pass
 
         # Audit logging - promoção finalizada
         if self.audit_logger and request.result == PromotionResult.SUCCESS:
             try:
                 from .model_audit_logger import AuditEventContext
-                duration = (datetime.utcnow() - request.created_at).total_seconds()
+
+                duration = (datetime.now(UTC) - request.created_at).total_seconds()
                 context = AuditEventContext(
                     user_id=request.initiated_by,
-                    reason=f'Promoção concluída com sucesso para {request.target_stage}',
+                    reason=f"Promoção concluída com sucesso para {request.target_stage}",
                     duration_seconds=duration,
-                    environment=getattr(self.config, 'environment', 'production'),
-                    triggered_by='manual' if request.initiated_by != 'system' else 'automatic',
-                    metadata={'request_id': request.request_id}
+                    environment=getattr(self.config, "environment", "production"),
+                    triggered_by="manual" if request.initiated_by != "system" else "automatic",
+                    metadata={"request_id": request.request_id},
                 )
                 await self.audit_logger.log_model_promoted(
                     model_name=request.model_name,
                     model_version=request.source_version,
                     context=context,
                     promotion_summary={
-                        'target_stage': request.target_stage,
-                        'total_duration_seconds': duration,
-                        'metrics': request.metrics,
-                        'config': {
-                            'shadow_mode_enabled': request.config.shadow_mode_enabled,
-                            'canary_enabled': request.config.canary_enabled,
-                            'gradual_rollout_enabled': request.config.gradual_rollout_enabled
-                        }
-                    }
+                        "target_stage": request.target_stage,
+                        "total_duration_seconds": duration,
+                        "metrics": request.metrics,
+                        "config": {
+                            "shadow_mode_enabled": request.config.shadow_mode_enabled,
+                            "canary_enabled": request.config.canary_enabled,
+                            "gradual_rollout_enabled": request.config.gradual_rollout_enabled,
+                        },
+                    },
                 )
             except Exception as audit_error:
-                self.logger.warning('audit_logging_promotion_finalized_failed', error=str(audit_error))
+                self.logger.warning(
+                    "audit_logging_promotion_finalized_failed", error=str(audit_error)
+                )
 
         self.logger.info(
             "promotion_finalized",
             request_id=request.request_id,
             stage=request.stage.value,
-            result=request.result.value if request.result else None
+            result=request.result.value if request.result else None,
         )
 
     def get_canary_traffic_split(self, model_name: str) -> float:
@@ -1451,7 +1391,7 @@ class ModelPromotionManager:
         """Verifica se há canary ativo para o modelo."""
         return model_name in self._canary_traffic_split
 
-    def get_promotion_status(self, request_id: str) -> Optional[Dict[str, Any]]:
+    def get_promotion_status(self, request_id: str) -> dict[str, Any] | None:
         """Retorna status de uma promoção."""
         # Verificar ativos
         if request_id in self._active_promotions:
@@ -1465,10 +1405,8 @@ class ModelPromotionManager:
         return None
 
     async def get_promotion_history(
-        self,
-        model_name: Optional[str] = None,
-        limit: int = 50
-    ) -> List[Dict[str, Any]]:
+        self, model_name: str | None = None, limit: int = 50
+    ) -> list[dict[str, Any]]:
         """
         Recupera histórico de promoções.
 
@@ -1484,19 +1422,18 @@ class ModelPromotionManager:
             try:
                 query = {}
                 if model_name:
-                    query['model_name'] = model_name
+                    query["model_name"] = model_name
 
-                results = await self.mongodb_client.db['ml_promotions'].find(
-                    query
-                ).sort('created_at', -1).limit(limit).to_list(limit)
-
-                return results
+                return (
+                    await self.mongodb_client.db["ml_promotions"]
+                    .find(query)
+                    .sort("created_at", -1)
+                    .limit(limit)
+                    .to_list(limit)
+                )
 
             except Exception as e:
-                self.logger.warning(
-                    "get_promotion_history_failed",
-                    error=str(e)
-                )
+                self.logger.warning("get_promotion_history_failed", error=str(e))
 
         # Do cache local
         history = self._promotion_history
@@ -1529,14 +1466,11 @@ class ModelPromotionManager:
 
         await self._finalize_promotion(request)
 
-        self.logger.info(
-            "promotion_cancelled",
-            request_id=request_id
-        )
+        self.logger.info("promotion_cancelled", request_id=request_id)
 
         return True
 
-    def get_shadow_runner(self, model_name: str) -> Optional['ShadowModeRunner']:
+    def get_shadow_runner(self, model_name: str) -> Optional["ShadowModeRunner"]:
         """
         Retorna shadow runner ativo para o modelo.
 

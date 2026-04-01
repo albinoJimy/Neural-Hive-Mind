@@ -7,8 +7,9 @@ para workflows Temporal, permitindo que workflows continuem sem aguardar timeout
 Fluxo:
   Worker Agent → execution.results → Consumer → signal(ticket_completed) → Workflow Temporal
 """
+import contextlib
 import json
-from typing import Optional, Dict, Any
+from typing import Any
 
 import structlog
 from aiokafka import AIOKafkaConsumer
@@ -23,13 +24,7 @@ class ExecutionResultConsumer:
     WORKFLOW_CACHE_PREFIX = "workflow:by:ticket:"
     WORKFLOW_CACHE_TTL = 86400  # 24h
 
-    def __init__(
-        self,
-        config,
-        temporal_client,
-        redis_client,
-        metrics=None
-    ):
+    def __init__(self, config, temporal_client, redis_client, metrics=None):
         """
         Inicializa o consumer.
 
@@ -43,43 +38,49 @@ class ExecutionResultConsumer:
         self.temporal_client = temporal_client
         self.redis_client = redis_client
         self.metrics = metrics
-        self.consumer: Optional[AIOKafkaConsumer] = None
+        self.consumer: AIOKafkaConsumer | None = None
         self.running = False
 
     async def initialize(self):
         """Inicializa consumer Kafka."""
         logger.info(
-            'execution_result_consumer_initializing',
+            "execution_result_consumer_initializing",
             topic=self.TOPIC,
-            group_id=getattr(self.config, 'execution_result_consumer_group', 'orchestrator-execution-results')
+            group_id=getattr(
+                self.config, "execution_result_consumer_group", "orchestrator-execution-results"
+            ),
         )
 
         consumer_config = {
-            'bootstrap_servers': self.config.kafka_bootstrap_servers,
-            'group_id': getattr(self.config, 'execution_result_consumer_group', 'orchestrator-execution-results'),
-            'auto_offset_reset': 'latest',
-            'enable_auto_commit': False
+            "bootstrap_servers": self.config.kafka_bootstrap_servers,
+            "group_id": getattr(
+                self.config, "execution_result_consumer_group", "orchestrator-execution-results"
+            ),
+            "auto_offset_reset": "latest",
+            "enable_auto_commit": False,
         }
 
         # Configurar segurança se necessário
-        security_protocol = getattr(self.config, 'kafka_security_protocol', 'PLAINTEXT')
-        if security_protocol != 'PLAINTEXT':
-            consumer_config['security_protocol'] = security_protocol
-            consumer_config['sasl_mechanism'] = getattr(self.config, 'kafka_sasl_mechanism', 'PLAIN')
-            consumer_config['sasl_plain_username'] = self.config.kafka_sasl_username
-            consumer_config['sasl_plain_password'] = self.config.kafka_sasl_password
+        security_protocol = getattr(self.config, "kafka_security_protocol", "PLAINTEXT")
+        if security_protocol != "PLAINTEXT":
+            consumer_config["security_protocol"] = security_protocol
+            consumer_config["sasl_mechanism"] = getattr(
+                self.config, "kafka_sasl_mechanism", "PLAIN"
+            )
+            consumer_config["sasl_plain_username"] = self.config.kafka_sasl_username
+            consumer_config["sasl_plain_password"] = self.config.kafka_sasl_password
 
         self.consumer = AIOKafkaConsumer(self.TOPIC, **consumer_config)
         await self.consumer.start()
 
-        logger.info('execution_result_consumer_initialized')
+        logger.info("execution_result_consumer_initialized")
 
     async def start(self):
         """Loop de consumo de mensagens."""
         if not self.consumer:
-            raise RuntimeError('Consumer não foi inicializado. Chame initialize() primeiro.')
+            raise RuntimeError("Consumer não foi inicializado. Chame initialize() primeiro.")
 
-        logger.info('execution_result_consumer_starting', topic=self.TOPIC)
+        logger.info("execution_result_consumer_starting", topic=self.TOPIC)
         self.running = True
 
         try:
@@ -90,19 +91,19 @@ class ExecutionResultConsumer:
                 try:
                     await self._process_result(message)
                 except Exception as e:
-                    logger.error(
-                        'execution_result_processing_error',
+                    logger.exception(
+                        "execution_result_processing_error",
                         topic=message.topic,
                         partition=message.partition,
                         offset=message.offset,
                         error=str(e),
-                        exc_info=False
+                        exc_info=False,
                     )
                     # Commit mesmo assim para não bloquear tópico
                     await self.consumer.commit()
 
         except Exception as e:
-            logger.error('execution_result_consumer_loop_error', error=str(e), exc_info=True)
+            logger.error("execution_result_consumer_loop_error", error=str(e), exc_info=True)
             raise
         finally:
             await self.stop()
@@ -121,46 +122,44 @@ class ExecutionResultConsumer:
             # Deserializar mensagem
             result_data = self._deserialize(message)
 
-            ticket_id = result_data.get('ticket_id')
-            plan_id = result_data.get('plan_id')
-            status = result_data.get('status')
+            ticket_id = result_data.get("ticket_id")
+            plan_id = result_data.get("plan_id")
+            status = result_data.get("status")
 
             if not ticket_id:
-                logger.warning('execution_result_missing_ticket_id', message_offset=message.offset)
+                logger.warning("execution_result_missing_ticket_id", message_offset=message.offset)
                 await self.consumer.commit()
                 return
 
             # Recuperar workflow_id (da mensagem ou cache)
-            workflow_id = result_data.get('workflow_id')
+            workflow_id = result_data.get("workflow_id")
             if not workflow_id:
                 workflow_id = await self._get_workflow_for_ticket(ticket_id, plan_id)
 
             if not workflow_id:
                 logger.warning(
-                    'workflow_id_not_found_for_result',
+                    "workflow_id_not_found_for_result",
                     ticket_id=ticket_id,
                     plan_id=plan_id,
-                    action='result_processed_but_no_signal_sent'
+                    action="result_processed_but_no_signal_sent",
                 )
                 await self.consumer.commit()
                 return
 
             # Enviar signal para Temporal
             await self._send_workflow_signal(
-                workflow_id=workflow_id,
-                ticket_id=ticket_id,
-                result=result_data
+                workflow_id=workflow_id, ticket_id=ticket_id, result=result_data
             )
 
             # Commit offset após processamento bem-sucedido
             await self.consumer.commit()
 
             logger.info(
-                'execution_result_processed',
+                "execution_result_processed",
                 ticket_id=ticket_id,
                 workflow_id=workflow_id,
                 status=status,
-                offset=message.offset
+                offset=message.offset,
             )
 
             # Métricas
@@ -169,23 +168,17 @@ class ExecutionResultConsumer:
 
         except Exception as e:
             logger.error(
-                'execution_result_process_exception',
-                ticket_id=result_data.get('ticket_id') if 'result_data' in locals() else 'unknown',
+                "execution_result_process_exception",
+                ticket_id=result_data.get("ticket_id") if "result_data" in locals() else "unknown",
                 error=str(e),
-                exc_info=True
+                exc_info=True,
             )
             # Commit mesmo assim para não bloquear tópico
-            try:
+            with contextlib.suppress(Exception):
                 await self.consumer.commit()
-            except Exception:
-                pass
             raise
 
-    async def _get_workflow_for_ticket(
-        self,
-        ticket_id: str,
-        plan_id: str
-    ) -> Optional[str]:
+    async def _get_workflow_for_ticket(self, ticket_id: str, plan_id: str) -> str | None:
         """
         Recupera workflow_id do cache Redis.
 
@@ -198,9 +191,7 @@ class ExecutionResultConsumer:
         """
         if not self.redis_client:
             logger.warning(
-                'redis_client_unavailable_for_workflow_lookup',
-                ticket_id=ticket_id,
-                plan_id=plan_id
+                "redis_client_unavailable_for_workflow_lookup", ticket_id=ticket_id, plan_id=plan_id
             )
             return None
 
@@ -210,33 +201,18 @@ class ExecutionResultConsumer:
 
             if workflow_id:
                 logger.debug(
-                    'workflow_id_found_in_cache',
-                    ticket_id=ticket_id,
-                    workflow_id=workflow_id
+                    "workflow_id_found_in_cache", ticket_id=ticket_id, workflow_id=workflow_id
                 )
                 return workflow_id
 
-            logger.debug(
-                'workflow_id_not_in_cache',
-                ticket_id=ticket_id,
-                plan_id=plan_id
-            )
+            logger.debug("workflow_id_not_in_cache", ticket_id=ticket_id, plan_id=plan_id)
             return None
 
         except Exception as e:
-            logger.error(
-                'workflow_cache_lookup_error',
-                ticket_id=ticket_id,
-                error=str(e)
-            )
+            logger.exception("workflow_cache_lookup_error", ticket_id=ticket_id, error=str(e))
             return None
 
-    async def _send_workflow_signal(
-        self,
-        workflow_id: str,
-        ticket_id: str,
-        result: Dict[str, Any]
-    ):
+    async def _send_workflow_signal(self, workflow_id: str, ticket_id: str, result: dict[str, Any]):
         """
         Envia signal ticket_completed para workflow Temporal.
 
@@ -250,13 +226,13 @@ class ExecutionResultConsumer:
             await handle.signal(
                 "ticket_completed",  # Nome do signal definido no workflow
                 ticket_id=ticket_id,
-                result=result
+                result=result,
             )
             logger.info(
-                'workflow_signal_sent',
+                "workflow_signal_sent",
                 workflow_id=workflow_id,
                 ticket_id=ticket_id,
-                status=result.get('status')
+                status=result.get("status"),
             )
 
             if self.metrics:
@@ -264,15 +240,15 @@ class ExecutionResultConsumer:
 
         except Exception as e:
             logger.error(
-                'workflow_signal_failed',
+                "workflow_signal_failed",
                 workflow_id=workflow_id,
                 ticket_id=ticket_id,
                 error=str(e),
-                exc_info=True
+                exc_info=True,
             )
             raise
 
-    def _deserialize(self, message) -> Dict[str, Any]:
+    def _deserialize(self, message) -> dict[str, Any]:
         """
         Deserializa mensagem Kafka (JSON com fallback).
 
@@ -285,22 +261,24 @@ class ExecutionResultConsumer:
         raw_value = message.value
         if isinstance(raw_value, bytes):
             try:
-                return json.loads(raw_value.decode('utf-8'))
+                return json.loads(raw_value.decode("utf-8"))
             except (json.JSONDecodeError, UnicodeDecodeError) as e:
-                logger.error(
-                    'execution_result_deserialization_failed',
+                logger.exception(
+                    "execution_result_deserialization_failed",
                     error=str(e),
-                    raw_bytes_preview=raw_value[:100].hex() if len(raw_value) >= 100 else raw_value.hex()
+                    raw_bytes_preview=raw_value[:100].hex()
+                    if len(raw_value) >= 100
+                    else raw_value.hex(),
                 )
-                raise ValueError(f'Failed to deserialize execution result: {e}') from e
+                raise ValueError(f"Failed to deserialize execution result: {e}") from e
         return raw_value
 
     async def stop(self):
         """Para o consumer gracefulmente."""
-        logger.info('execution_result_consumer_stopping')
+        logger.info("execution_result_consumer_stopping")
         self.running = False
 
         if self.consumer:
             await self.consumer.stop()
 
-        logger.info('execution_result_consumer_stopped')
+        logger.info("execution_result_consumer_stopped")

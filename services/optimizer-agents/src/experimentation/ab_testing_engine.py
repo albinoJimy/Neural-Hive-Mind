@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Engine Principal de A/B Testing.
 
@@ -10,28 +9,25 @@ Coordena toda a logica de testes A/B, incluindo:
 - Verificacao de parada antecipada
 """
 
-import json
 import uuid
-from dataclasses import dataclass, asdict
-from datetime import datetime
-from typing import Any, Dict, List, Optional
+from dataclasses import asdict, dataclass
+from datetime import UTC, datetime
+from typing import Any
 
 import structlog
 
+from src.experimentation.guardrails import GuardrailMonitor
 from src.experimentation.randomization import (
     BaseRandomizer,
     Group,
     RandomizationStrategyType,
     get_randomizer,
 )
-from src.experimentation.statistical_analysis import (
-    StatisticalAnalyzer,
-    ContinuousMetricResult,
-    BinaryMetricResult,
-    BayesianResult,
-)
-from src.experimentation.guardrails import GuardrailMonitor
 from src.experimentation.sample_size_calculator import SampleSizeCalculator
+from src.experimentation.statistical_analysis import (
+    BinaryMetricResult,
+    StatisticalAnalyzer,
+)
 
 logger = structlog.get_logger()
 
@@ -39,14 +35,15 @@ logger = structlog.get_logger()
 @dataclass
 class ABTestConfig:
     """Configuracao de um teste A/B."""
+
     experiment_id: str
     name: str
     hypothesis: str
     traffic_split: float  # Proporcao para treatment (0.0 a 1.0)
     randomization_strategy: RandomizationStrategyType
-    primary_metrics: List[str]
-    secondary_metrics: List[str]
-    guardrails: List[Dict]
+    primary_metrics: list[str]
+    secondary_metrics: list[str]
+    guardrails: list[dict]
     minimum_sample_size: int
     maximum_duration_seconds: int
     early_stopping_enabled: bool
@@ -54,24 +51,25 @@ class ABTestConfig:
     created_at: datetime
     created_by: str
     status: str  # "running", "completed", "aborted"
-    metadata: Dict[str, Any]
+    metadata: dict[str, Any]
 
 
 @dataclass
 class ABTestResults:
     """Resultados completos de um teste A/B."""
+
     experiment_id: str
     status: str
     control_size: int
     treatment_size: int
-    primary_metrics_analysis: List[Dict]
-    secondary_metrics_analysis: List[Dict]
-    bayesian_analysis: Optional[List[Dict]]
-    guardrails_status: Dict
+    primary_metrics_analysis: list[dict]
+    secondary_metrics_analysis: list[dict]
+    bayesian_analysis: list[dict] | None
+    guardrails_status: dict
     statistical_recommendation: str  # "APPLY", "REJECT", "INCONCLUSIVE"
     confidence_level: float
     early_stopped: bool
-    early_stop_reason: Optional[str]
+    early_stop_reason: str | None
     analysis_timestamp: datetime
 
 
@@ -117,7 +115,7 @@ class ABTestingEngine:
         self.sample_calculator = SampleSizeCalculator()
 
         # Cache de randomizadores por experimento
-        self._randomizers: Dict[str, BaseRandomizer] = {}
+        self._randomizers: dict[str, BaseRandomizer] = {}
 
         logger.info("ab_testing_engine_initialized")
 
@@ -125,17 +123,17 @@ class ABTestingEngine:
         self,
         name: str,
         hypothesis: str,
-        primary_metrics: List[str],
+        primary_metrics: list[str],
         traffic_split: float = 0.5,
         randomization_strategy: RandomizationStrategyType = RandomizationStrategyType.RANDOM,
-        secondary_metrics: Optional[List[str]] = None,
-        guardrails: Optional[List[Dict]] = None,
+        secondary_metrics: list[str] | None = None,
+        guardrails: list[dict] | None = None,
         minimum_sample_size: int = 100,
         maximum_duration_seconds: int = 604800,  # 7 dias
         early_stopping_enabled: bool = True,
         bayesian_analysis_enabled: bool = True,
         created_by: str = "ab_testing_engine",
-        metadata: Optional[Dict] = None,
+        metadata: dict | None = None,
     ) -> ABTestConfig:
         """
         Criar novo teste A/B.
@@ -159,7 +157,7 @@ class ABTestingEngine:
             Configuracao do teste criado
         """
         experiment_id = str(uuid.uuid4())
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
 
         config = ABTestConfig(
             experiment_id=experiment_id,
@@ -214,7 +212,7 @@ class ABTestingEngine:
         self,
         entity_id: str,
         experiment_id: str,
-        strata_key: Optional[str] = None,
+        strata_key: str | None = None,
         block_size: int = 10,
     ) -> str:
         """
@@ -275,8 +273,8 @@ class ABTestingEngine:
         self,
         experiment_id: str,
         group: str,
-        metrics: Dict[str, float],
-        entity_id: Optional[str] = None,
+        metrics: dict[str, float],
+        entity_id: str | None = None,
     ) -> None:
         """
         Coletar metricas para um grupo do experimento.
@@ -443,12 +441,18 @@ class ABTestingEngine:
                 self.metrics.set_gauge(
                     "ab_test_statistical_significance",
                     analysis.get("p_value", 1.0),
-                    {"experiment_id": experiment_id, "metric_name": analysis.get("metric_name", "")},
+                    {
+                        "experiment_id": experiment_id,
+                        "metric_name": analysis.get("metric_name", ""),
+                    },
                 )
                 self.metrics.set_gauge(
                     "ab_test_effect_size",
                     analysis.get("effect_size", 0.0),
-                    {"experiment_id": experiment_id, "metric_name": analysis.get("metric_name", "")},
+                    {
+                        "experiment_id": experiment_id,
+                        "metric_name": analysis.get("metric_name", ""),
+                    },
                 )
 
             self.metrics.set_gauge(
@@ -479,8 +483,43 @@ class ABTestingEngine:
             confidence_level=confidence,
             early_stopped=early_stopped,
             early_stop_reason=early_stop_reason,
-            analysis_timestamp=datetime.utcnow(),
+            analysis_timestamp=datetime.now(UTC),
         )
+
+        # Persistir resultados no MongoDB
+        persisted_id = None
+        if self.mongodb_client:
+            try:
+                # Preparar dicionário com dados do experimento
+                results_dict = {
+                    "experiment_id": results.experiment_id,
+                    "experiment_name": config.name,
+                    "status": results.status,
+                    "control_size": results.control_size,
+                    "treatment_size": results.treatment_size,
+                    "primary_metrics_analysis": results.primary_metrics_analysis,
+                    "secondary_metrics_analysis": results.secondary_metrics_analysis,
+                    "bayesian_analysis": results.bayesian_analysis,
+                    "guardrails_status": results.guardrails_status,
+                    "statistical_recommendation": results.statistical_recommendation,
+                    "confidence_level": results.confidence_level,
+                    "early_stopped": results.early_stopped,
+                    "early_stop_reason": results.early_stop_reason,
+                    "analysis_timestamp": results.analysis_timestamp,
+                    "metadata": config.metadata or {},
+                }
+                persisted_id = await self.mongodb_client.save_ab_test_results(results_dict)
+                logger.info(
+                    "ab_test_results_persisted",
+                    experiment_id=experiment_id,
+                    persisted_id=persisted_id,
+                )
+            except Exception as e:
+                logger.error(
+                    "failed_to_persist_ab_test_results",
+                    experiment_id=experiment_id,
+                    error=str(e),
+                )
 
         logger.info(
             "ab_test_results_analyzed",
@@ -489,6 +528,7 @@ class ABTestingEngine:
             treatment_size=treatment_size,
             recommendation=recommendation,
             confidence=confidence,
+            persisted_id=persisted_id,
         )
 
         return results
@@ -496,7 +536,7 @@ class ABTestingEngine:
     async def should_stop_early(
         self,
         experiment_id: str,
-    ) -> Dict:
+    ) -> dict:
         """
         Verificar se experimento pode parar antecipadamente.
 
@@ -557,7 +597,7 @@ class ABTestingEngine:
     async def _validate_sample_size(
         self,
         experiment_id: str,
-    ) -> Dict:
+    ) -> dict:
         """Validar se tamanho de amostra e suficiente."""
         config = await self._get_experiment_config(experiment_id)
         if not config:
@@ -573,9 +613,7 @@ class ABTestingEngine:
             "control_size": control_size,
             "treatment_size": treatment_size,
             "minimum_required": min_size,
-            "percentage_complete": min(
-                (control_size + treatment_size) / (min_size * 2) * 100, 100
-            ),
+            "percentage_complete": min((control_size + treatment_size) / (min_size * 2) * 100, 100),
         }
 
     # Metodos auxiliares
@@ -630,7 +668,7 @@ class ABTestingEngine:
         except Exception as e:
             logger.warning("failed_to_save_experiment_config", error=str(e))
 
-    async def _get_experiment_config(self, experiment_id: str) -> Optional[ABTestConfig]:
+    async def _get_experiment_config(self, experiment_id: str) -> ABTestConfig | None:
         """Recuperar configuracao do experimento."""
         if not self.mongodb_client:
             return None
@@ -655,7 +693,7 @@ class ABTestingEngine:
                 maximum_duration_seconds=doc.get("maximum_duration_seconds", 604800),
                 early_stopping_enabled=doc.get("early_stopping_enabled", True),
                 bayesian_analysis_enabled=doc.get("bayesian_analysis_enabled", True),
-                created_at=doc.get("created_at", datetime.utcnow()),
+                created_at=doc.get("created_at", datetime.now(UTC)),
                 created_by=doc.get("created_by", ""),
                 status=doc.get("status", "running"),
                 metadata=doc.get("metadata", {}),
@@ -691,7 +729,7 @@ class ABTestingEngine:
         self,
         experiment_id: str,
         group: str,
-    ) -> Dict[str, List[float]]:
+    ) -> dict[str, list[float]]:
         """Obter metricas coletadas para um grupo."""
         if not self.redis_client:
             return {}
@@ -720,9 +758,9 @@ class ABTestingEngine:
 
     def _generate_recommendation(
         self,
-        primary_analysis: List[Dict],
+        primary_analysis: list[dict],
         guardrails_result,
-        bayesian_analysis: Optional[List[Dict]] = None,
+        bayesian_analysis: list[dict] | None = None,
     ) -> tuple:
         """Gerar recomendacao baseada nas analises."""
         # Se guardrails violados, rejeitar
@@ -755,7 +793,7 @@ class ABTestingEngine:
                 else:
                     significant_degradations += 1
 
-            total_confidence += (1 - analysis.get("p_value", 1.0))
+            total_confidence += 1 - analysis.get("p_value", 1.0)
 
         avg_confidence = total_confidence / len(primary_analysis) if primary_analysis else 0.0
 
@@ -777,7 +815,7 @@ class ABTestingEngine:
         else:
             return "INCONCLUSIVE", avg_confidence
 
-    def _is_binary_metric(self, metric_name: str, data: List[float]) -> bool:
+    def _is_binary_metric(self, metric_name: str, data: list[float]) -> bool:
         """
         Determinar se metrica e binaria baseado no nome ou nos dados.
 
@@ -794,8 +832,8 @@ class ABTestingEngine:
             True se metrica for binaria, False caso contrario
         """
         # Sufixos que indicam metricas binarias
-        binary_suffixes = ['_rate', '_ratio', '_percentage', '_pct', '_conversion']
-        binary_prefixes = ['error_', 'success_', 'failure_', 'conversion_', 'click_']
+        binary_suffixes = ["_rate", "_ratio", "_percentage", "_pct", "_conversion"]
+        binary_prefixes = ["error_", "success_", "failure_", "conversion_", "click_"]
 
         metric_lower = metric_name.lower()
 
@@ -818,8 +856,8 @@ class ABTestingEngine:
 
     def _analyze_binary_from_data(
         self,
-        control_data: List[float],
-        treatment_data: List[float],
+        control_data: list[float],
+        treatment_data: list[float],
         metric_name: str,
     ) -> BinaryMetricResult:
         """
@@ -843,8 +881,12 @@ class ABTestingEngine:
         treatment_total = len(treatment_data)
 
         # Verificar se dados sao binarios (0/1) ou taxas
-        control_is_binary = all(v == 0.0 or v == 1.0 for v in control_data) if control_data else False
-        treatment_is_binary = all(v == 0.0 or v == 1.0 for v in treatment_data) if treatment_data else False
+        control_is_binary = (
+            all(v == 0.0 or v == 1.0 for v in control_data) if control_data else False
+        )
+        treatment_is_binary = (
+            all(v == 0.0 or v == 1.0 for v in treatment_data) if treatment_data else False
+        )
 
         if control_is_binary and treatment_is_binary:
             # Dados binarios puros: contar sucessos

@@ -2,18 +2,19 @@
 Time-Series Analysis Service.
 Implementa detecção de anomalias, tendências e sazonalidade.
 """
-from datetime import datetime, timedelta
-from typing import List, Dict, Any, Tuple, Optional
+from datetime import datetime
+from typing import Any, Dict, List, Optional, Tuple
+
 import numpy as np
+import structlog
 from scipy import stats
 from scipy.signal import find_peaks
-import structlog
 
 from ..models.insight_extended import (
-    TimeSeriesResponse,
-    AnomalyPoint,
-    AnomalyDetectionResponse,
     AnomalyDetectionQuery,
+    AnomalyDetectionResponse,
+    AnomalyPoint,
+    TimeSeriesResponse,
 )
 
 logger = structlog.get_logger()
@@ -60,7 +61,7 @@ class TimeSeriesAnalyzer:
             "trend": trend,
             "slope": float(slope),
             "intercept": float(intercept),
-            "r_squared": float(r_value ** 2),
+            "r_squared": float(r_value**2),
             "p_value": float(p_value),
             "confidence": float(abs(r_value)),
         }
@@ -133,7 +134,7 @@ class TimeSeriesAnalyzer:
         if len(data) < self.min_data_points:
             return []
 
-        timestamps = [t for t, _ in data]
+        [t for t, _ in data]
         values = np.array([v for _, v in data])
 
         q1 = np.percentile(values, 25)
@@ -225,7 +226,9 @@ class TimeSeriesAnalyzer:
 
         return anomalies
 
-    def detect_seasonality(self, data: List[Tuple[datetime, float]], period: Optional[int] = None) -> Dict[str, Any]:
+    def detect_seasonality(
+        self, data: List[Tuple[datetime, float]], period: Optional[int] = None
+    ) -> Dict[str, Any]:
         """
         Detectar sazonalidade na série temporal.
 
@@ -243,7 +246,9 @@ class TimeSeriesAnalyzer:
 
         # Simple autocorrelation for seasonality detection
         max_lag = min(len(values) // 2, 50)
-        autocorr = np.array([1.0] + [np.corrcoef(values[:-i], values[i:])[0, 1] for i in range(1, max_lag)])
+        autocorr = np.array(
+            [1.0] + [np.corrcoef(values[:-i], values[i:])[0, 1] for i in range(1, max_lag)]
+        )
 
         # Find peaks in autocorrelation
         peaks, properties = find_peaks(autocorr, height=0.2)

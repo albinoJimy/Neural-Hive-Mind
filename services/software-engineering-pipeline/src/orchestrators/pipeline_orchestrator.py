@@ -1,20 +1,19 @@
 import asyncio
 from datetime import datetime, timezone
-from typing import Any
+
 from structlog import get_logger
 
 from src.models.pipeline import PipelineRun, RollbackRequest
-from src.models.schemas import PipelineStatus, PipelineStage
+from src.models.schemas import PipelineStage, PipelineStatus
 from src.orchestrators.stages import (
+    ApprovalStage,
     BaseStage,
-    PreFlightStage,
     BuildStage,
-    TestStage,
+    PreFlightStage,
+    ProductionStage,
     SecurityStage,
     StagingStage,
-    ApprovalStage,
-    ProductionStage,
-    StageResult,
+    TestStage,
 )
 
 
@@ -61,9 +60,7 @@ class PipelineOrchestrator:
 
         try:
             # Define stage sequence based on environment
-            stage_sequence = self._get_stage_sequence(
-                context.get("environment", "staging")
-            )
+            stage_sequence = self._get_stage_sequence(context.get("environment", "staging"))
 
             for stage in stage_sequence:
                 if not await self._execute_stage(run, stage, context):
@@ -76,9 +73,7 @@ class PipelineOrchestrator:
             # All stages completed successfully
             run.status = PipelineStatus.SUCCESS
             run.finished_at = datetime.now(timezone.utc)
-            run.duration_seconds = int(
-                (run.finished_at - run.started_at).total_seconds()
-            )
+            run.duration_seconds = int((run.finished_at - run.started_at).total_seconds())
 
             self.logger.info("pipeline_completed_successfully", run_id=run.run_id)
             return run
@@ -89,9 +84,7 @@ class PipelineOrchestrator:
             run.finished_at = datetime.now(timezone.utc)
             return run
 
-    async def _execute_stage(
-        self, run: PipelineRun, stage: PipelineStage, context: dict
-    ) -> bool:
+    async def _execute_stage(self, run: PipelineRun, stage: PipelineStage, context: dict) -> bool:
         """Executa um único estágio com lógica de retry."""
         run.current_stage = stage
 
@@ -173,9 +166,7 @@ class PipelineOrchestrator:
 
     async def rollback(self, request: RollbackRequest, context: dict) -> PipelineRun:
         """Executa um rollback para um deploy falhado."""
-        self.logger.info(
-            "rollback_initiated", run_id=request.run_id, reason=request.reason
-        )
+        self.logger.info("rollback_initiated", run_id=request.run_id, reason=request.reason)
 
         run = context.get("run")
         if not run:

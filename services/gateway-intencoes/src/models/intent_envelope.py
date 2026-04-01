@@ -2,17 +2,17 @@
 Modelos Pydantic para Intent Envelope baseados no schema JSON-LD
 """
 
-from datetime import datetime
-from typing import Dict, List, Optional, Any, Union
-from enum import Enum
 import uuid
+from datetime import UTC, datetime
+from enum import Enum, StrEnum
+from typing import Any
 
-from pydantic import BaseModel, Field, validator, root_validator
-from pydantic.types import UUID4
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
 from neural_hive_domain import UnifiedDomain
 
 
-class ActorType(str, Enum):
+class ActorType(StrEnum):
     """Tipos de ator que podem originar intenções"""
 
     HUMAN = "human"
@@ -21,7 +21,7 @@ class ActorType(str, Enum):
     BOT = "bot"
 
 
-class Channel(str, Enum):
+class Channel(StrEnum):
     """Canais de origem da intenção"""
 
     WEB = "web"
@@ -31,7 +31,7 @@ class Channel(str, Enum):
     CHAT = "chat"
 
 
-class Priority(str, Enum):
+class Priority(StrEnum):
     """Níveis de prioridade"""
 
     LOW = "low"
@@ -40,7 +40,7 @@ class Priority(str, Enum):
     CRITICAL = "critical"
 
 
-class SecurityLevel(str, Enum):
+class SecurityLevel(StrEnum):
     """Níveis de segurança"""
 
     PUBLIC = "public"
@@ -49,7 +49,7 @@ class SecurityLevel(str, Enum):
     RESTRICTED = "restricted"
 
 
-class DeliveryMode(str, Enum):
+class DeliveryMode(StrEnum):
     """Modos de entrega"""
 
     AT_MOST_ONCE = "at-most-once"
@@ -57,14 +57,14 @@ class DeliveryMode(str, Enum):
     EXACTLY_ONCE = "exactly-once"
 
 
-class Durability(str, Enum):
+class Durability(StrEnum):
     """Durabilidade da mensagem"""
 
     TRANSIENT = "transient"
     PERSISTENT = "persistent"
 
 
-class Consistency(str, Enum):
+class Consistency(StrEnum):
     """Níveis de consistência"""
 
     EVENTUAL = "eventual"
@@ -77,17 +77,17 @@ class Entity(BaseModel):
     type: str = Field(..., description="Tipo da entidade")
     value: str = Field(..., description="Valor da entidade")
     confidence: float = Field(..., ge=0.0, le=1.0, description="Confiança da extração")
-    start: Optional[int] = Field(None, description="Posição inicial no texto")
-    end: Optional[int] = Field(None, description="Posição final no texto")
+    start: int | None = Field(None, description="Posição inicial no texto")
+    end: int | None = Field(None, description="Posição final no texto")
 
 
 class Geolocation(BaseModel):
     """Localização geográfica"""
 
-    country: Optional[str] = Field(None, description="Código do país")
-    region: Optional[str] = Field(None, description="Estado/região")
-    city: Optional[str] = Field(None, description="Cidade")
-    timezone: Optional[str] = Field(None, description="Fuso horário")
+    country: str | None = Field(None, description="Código do país")
+    region: str | None = Field(None, description="Estado/região")
+    city: str | None = Field(None, description="Cidade")
+    timezone: str | None = Field(None, description="Fuso horário")
 
 
 class Actor(BaseModel):
@@ -95,27 +95,22 @@ class Actor(BaseModel):
 
     id: str = Field(..., description="Identificador único do ator")
     actor_type: ActorType = Field(..., description="Tipo do ator")
-    name: Optional[str] = Field(None, description="Nome do ator")
+    name: str | None = Field(None, description="Nome do ator")
 
 
 class Intent(BaseModel):
     """Detalhes da intenção"""
 
-    text: str = Field(
-        ..., min_length=1, max_length=10000, description="Texto da intenção"
-    )
+    text: str = Field(..., min_length=1, max_length=10000, description="Texto da intenção")
     domain: UnifiedDomain = Field(..., description="Domínio da intenção")
-    classification: Optional[str] = Field(None, description="Classificação específica")
-    original_language: Optional[str] = Field(
-        None, description="Idioma original (ISO 639-1)"
-    )
-    processed_text: Optional[str] = Field(None, description="Texto processado")
-    entities: List[Entity] = Field(
-        default_factory=list, description="Entidades extraídas"
-    )
-    keywords: List[str] = Field(default_factory=list, description="Palavras-chave")
+    classification: str | None = Field(None, description="Classificação específica")
+    original_language: str | None = Field(None, description="Idioma original (ISO 639-1)")
+    processed_text: str | None = Field(None, description="Texto processado")
+    entities: list[Entity] = Field(default_factory=list, description="Entidades extraídas")
+    keywords: list[str] = Field(default_factory=list, description="Palavras-chave")
 
-    @validator("domain", pre=True)
+    @field_validator("domain", mode="before")
+    @classmethod
     def coerce_domain_to_unified(cls, v):
         """Coerce incoming strings to UnifiedDomain"""
         if isinstance(v, UnifiedDomain):
@@ -133,25 +128,23 @@ class Intent(BaseModel):
 class Context(BaseModel):
     """Contexto da intenção"""
 
-    session_id: Optional[str] = Field(None, description="ID da sessão")
-    user_id: Optional[str] = Field(None, description="ID do usuário")
-    tenant_id: Optional[str] = Field(None, description="ID do tenant")
-    channel: Optional[Channel] = Field(None, description="Canal de origem")
-    user_agent: Optional[str] = Field(None, description="User-Agent")
-    client_ip: Optional[str] = Field(None, description="IP do cliente (anonimizado)")
-    geolocation: Optional[Geolocation] = Field(None, description="Localização")
+    session_id: str | None = Field(None, description="ID da sessão")
+    user_id: str | None = Field(None, description="ID do usuário")
+    tenant_id: str | None = Field(None, description="ID do tenant")
+    channel: Channel | None = Field(None, description="Canal de origem")
+    user_agent: str | None = Field(None, description="User-Agent")
+    client_ip: str | None = Field(None, description="IP do cliente (anonimizado)")
+    geolocation: Geolocation | None = Field(None, description="Localização")
 
 
 class Constraint(BaseModel):
     """Restrições e requisitos"""
 
     priority: Priority = Field(default=Priority.NORMAL, description="Prioridade")
-    deadline: Optional[datetime] = Field(None, description="Prazo limite")
+    deadline: datetime | None = Field(None, description="Prazo limite")
     max_retries: int = Field(default=3, ge=0, le=10, description="Máximo de tentativas")
-    timeout_ms: Optional[int] = Field(
-        None, gt=0, description="Timeout em millisegundos"
-    )
-    required_capabilities: List[str] = Field(
+    timeout_ms: int | None = Field(None, gt=0, description="Timeout em millisegundos")
+    required_capabilities: list[str] = Field(
         default_factory=list, description="Capacidades necessárias"
     )
     security_level: SecurityLevel = Field(
@@ -165,44 +158,39 @@ class QualityOfService(BaseModel):
     delivery_mode: DeliveryMode = Field(
         default=DeliveryMode.EXACTLY_ONCE, description="Modo de entrega"
     )
-    durability: Durability = Field(
-        default=Durability.PERSISTENT, description="Durabilidade"
-    )
-    consistency: Consistency = Field(
-        default=Consistency.STRONG, description="Consistência"
-    )
+    durability: Durability = Field(default=Durability.PERSISTENT, description="Durabilidade")
+    consistency: Consistency = Field(default=Consistency.STRONG, description="Consistência")
 
 
 class IntentEnvelope(BaseModel):
     """Envelope principal para intenções"""
 
-    id: str = Field(
-        default_factory=lambda: str(uuid.uuid4()), description="ID único da intenção"
-    )
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()), description="ID único da intenção")
     version: str = Field(default="1.0.0", description="Versão do schema")
-    correlation_id: Optional[str] = Field(
+    correlation_id: str | None = Field(
         default_factory=lambda: str(uuid.uuid4()),
-        description="ID de correlação - gerado automaticamente se não fornecido"
+        description="ID de correlação - gerado automaticamente se não fornecido",
     )
-    trace_id: Optional[str] = Field(None, description="ID de trace OpenTelemetry")
-    span_id: Optional[str] = Field(None, description="ID de span OpenTelemetry")
+    trace_id: str | None = Field(None, description="ID de trace OpenTelemetry")
+    span_id: str | None = Field(None, description="ID de span OpenTelemetry")
 
     actor: Actor = Field(..., description="Ator que originou a intenção")
     intent: Intent = Field(..., description="Detalhes da intenção")
     confidence: float = Field(..., ge=0.0, le=1.0, description="Score de confiança")
-    confidence_status: Optional[str] = Field(
+    confidence_status: str | None = Field(
         None, description="Status de confiança: high, medium, ou low"
     )
 
-    context: Optional[Context] = Field(None, description="Contexto da intenção")
-    constraints: Optional[Constraint] = Field(None, description="Restrições")
-    qos: Optional[QualityOfService] = Field(None, description="QoS")
+    context: Context | None = Field(None, description="Contexto da intenção")
+    constraints: Constraint | None = Field(None, description="Restrições")
+    qos: QualityOfService | None = Field(None, description="QoS")
 
     timestamp: datetime = Field(
-        default_factory=datetime.utcnow, description="Timestamp de criação"
+        default_factory=lambda: datetime.now(UTC), description="Timestamp de criação"
     )
 
-    @validator("id")
+    @field_validator("id")
+    @classmethod
     def validate_uuid(cls, v):
         """Validar formato UUID"""
         try:
@@ -211,34 +199,33 @@ class IntentEnvelope(BaseModel):
             raise ValueError("ID deve ser um UUID válido")
         return v
 
-    @validator("confidence")
+    @field_validator("confidence")
+    @classmethod
     def validate_confidence(cls, v):
         """Validar score de confiança"""
         if not 0.0 <= v <= 1.0:
             raise ValueError("Confidence deve estar entre 0.0 e 1.0")
         return v
 
-    @root_validator(skip_on_failure=True)
-    def validate_constraints_consistency(cls, values):
+    @model_validator(mode="after")
+    def validate_constraints_consistency(self) -> "IntentEnvelope":
         """Validar consistência entre constraints e QoS"""
-        constraints = values.get("constraints")
-        qos = values.get("qos")
+        constraints = self.constraints
+        qos = self.qos
 
         if constraints and constraints.security_level == SecurityLevel.RESTRICTED:
             if not qos or qos.consistency != Consistency.STRONG:
-                raise ValueError(
-                    "Nível de segurança RESTRICTED requer consistência STRONG"
-                )
+                raise ValueError("Nível de segurança RESTRICTED requer consistência STRONG")
 
-        return values
+        return self
 
-    def to_avro_dict(self) -> Dict[str, Any]:
+    def to_avro_dict(self) -> dict[str, Any]:
         """Converter para formato compatível com Avro"""
 
         def convert_enum(value):
             return value.value.upper() if isinstance(value, Enum) else value
 
-        avro_data = {
+        return {
             "id": self.id,
             "version": self.version,
             "correlationId": self.correlation_id,
@@ -312,8 +299,6 @@ class IntentEnvelope(BaseModel):
             "metadata": {},
         }
 
-        return avro_data
-
     def get_partition_key(self) -> str:
         """Gerar chave de partição baseada no domínio"""
         return self.intent.domain.value
@@ -322,7 +307,7 @@ class IntentEnvelope(BaseModel):
         """Gerar chave de idempotência para exactly-once"""
         return f"{self.actor.id}:{self.correlation_id or self.id}:{int(self.timestamp.timestamp())}"
 
-    def to_cache_dict(self) -> Dict[str, Any]:
+    def to_cache_dict(self) -> dict[str, Any]:
         """Converter para formato de cache Redis (versão compacta)"""
         return {
             "id": self.id,
@@ -343,80 +328,224 @@ class IntentEnvelope(BaseModel):
             "confidence": self.confidence,
             "confidence_status": self.confidence_status,
             "timestamp": self.timestamp.isoformat(),
-            "cached_at": datetime.utcnow().isoformat(),
+            "cached_at": datetime.now(UTC).isoformat(),
         }
 
-    class Config:
-        use_enum_values = True
-        validate_assignment = True
+    model_config = ConfigDict(use_enum_values=True, validate_assignment=True)
 
 
 # Modelos para requests da API
 
 
 class IntentRequest(BaseModel):
-    """Request para processar intenção de texto"""
+    """Request para processar intenção de texto.
 
-    text: str = Field(
-        ..., min_length=1, max_length=10000, description="Texto da intenção"
-    )
-    language: str = Field(default="pt-BR", description="Idioma do texto")
-    correlation_id: Optional[str] = Field(None, description="ID de correlação")
-    constraints: Optional[Constraint] = Field(
-        None, description="Restrições de processamento"
-    )
-    qos: Optional[QualityOfService] = Field(None, description="Requisitos de QoS")
+    Attributes:
+        text: Texto da intenção (1-10000 caracteres, sanitizado contra injeção)
+        language: Idioma do texto (ISO 639-1, ex: pt-BR, en-US)
+        correlation_id: ID de correlação opcional para rastreamento distribuído
+        constraints: Restrições de processamento (prioridade, timeout, etc)
+        qos: Requisitos de Quality of Service
+
+    Raises:
+        ValueError: Se text estiver vazio, contiver padrões de injeção,
+                    language for inválido, ou correlation_id não for UUID válido
+    """
+
+    text: str = Field(..., min_length=1, max_length=10000, description="Texto da intenção")
+    language: str = Field(default="pt-BR", description="Idioma do texto (ISO 639-1)")
+    correlation_id: str | None = Field(None, description="ID de correlação (UUID válido)")
+    constraints: Constraint | None = Field(None, description="Restrições de processamento")
+    qos: QualityOfService | None = Field(None, description="Requisitos de QoS")
+
+    @field_validator("text")
+    @classmethod
+    def sanitize_text_input(cls, v: str) -> str:
+        """Sanitiza input de texto contra injeção maliciosa."""
+        if not v or not v.strip():
+            raise ValueError("Texto da intenção não pode ser vazio ou apenas whitespace")
+
+        # Remover null bytes e caracteres de controle perigosos
+        dangerous_chars = ["\x00", "\r", "\x1b"]
+        for char in dangerous_chars:
+            if char in v:
+                v = v.replace(char, "")
+
+        # Verificar por padrões de injeção comuns
+        v_lower = v.lower()
+        injection_patterns = [
+            "<script",
+            "javascript:",
+            "onerror=",
+            "onload=",
+            "eval(",
+            "exec(",
+            "system(",
+            "__import__",
+            "${",
+            "#{",
+            "@{",  # Template injection patterns
+        ]
+        for pattern in injection_patterns:
+            if pattern in v_lower:
+                raise ValueError(f"Texto contém padrão potencialmente perigoso: {pattern}")
+
+        return v.strip()
+
+    @field_validator("language")
+    @classmethod
+    def validate_language_code(cls, v: str) -> str:
+        """Valida código de idioma no formato ISO 639-1."""
+        valid_languages = {
+            "pt-BR",
+            "pt-PT",
+            "pt",
+            "en-US",
+            "en-GB",
+            "en",
+            "es-ES",
+            "es",
+            "fr-FR",
+            "fr",
+            "de-DE",
+            "de",
+            "it-IT",
+            "it",
+            "nl-NL",
+            "nl",
+            "pl-PL",
+            "pl",
+        }
+        if v not in valid_languages:
+            raise ValueError(
+                f"Idioma '{v}' não é suportado. Use formato ISO 639-1 (ex: pt-BR, en-US)"
+            )
+        return v
+
+    @field_validator("correlation_id")
+    @classmethod
+    def validate_correlation_id(cls, v: str | None) -> str | None:
+        """Valida que correlation_id é um UUID válido quando fornecido."""
+        if v is None:
+            return None
+        try:
+            uuid.UUID(v)
+            return v
+        except ValueError:
+            raise ValueError(f"correlation_id deve ser um UUID válido, recebido: {v[:20]}...")
 
 
 class VoiceIntentRequest(BaseModel):
-    """Request para processar intenção de voz"""
+    """Request para processar intenção de voz.
 
-    language: str = Field(default="pt-BR", description="Idioma esperado no áudio")
-    correlation_id: Optional[str] = Field(None, description="ID de correlação")
-    constraints: Optional[Constraint] = Field(
-        None, description="Restrições de processamento"
-    )
-    qos: Optional[QualityOfService] = Field(None, description="Requisitos de QoS")
+    Attributes:
+        language: Idioma esperado no áudio (ISO 639-1, ex: pt-BR, en-US)
+        correlation_id: ID de correlação opcional para rastreamento distribuído
+        constraints: Restrições de processamento (prioridade, timeout, etc)
+        qos: Requisitos de Quality of Service
+
+    Raises:
+        ValueError: Se language for inválido ou correlation_id não for UUID válido
+    """
+
+    language: str = Field(default="pt-BR", description="Idioma esperado no áudio (ISO 639-1)")
+    correlation_id: str | None = Field(None, description="ID de correlação (UUID válido)")
+    constraints: Constraint | None = Field(None, description="Restrições de processamento")
+    qos: QualityOfService | None = Field(None, description="Requisitos de QoS")
+
+    @field_validator("language")
+    @classmethod
+    def validate_language_code(cls, v: str) -> str:
+        """Valida código de idioma no formato ISO 639-1."""
+        valid_languages = {
+            "pt-BR",
+            "pt-PT",
+            "pt",
+            "en-US",
+            "en-GB",
+            "en",
+            "es-ES",
+            "es",
+            "fr-FR",
+            "fr",
+            "de-DE",
+            "de",
+            "it-IT",
+            "it",
+            "nl-NL",
+            "nl",
+            "pl-PL",
+            "pl",
+        }
+        if v not in valid_languages:
+            raise ValueError(
+                f"Idioma '{v}' não é suportado. Use formato ISO 639-1 (ex: pt-BR, en-US)"
+            )
+        return v
+
+    @field_validator("correlation_id")
+    @classmethod
+    def validate_correlation_id(cls, v: str | None) -> str | None:
+        """Valida que correlation_id é um UUID válido quando fornecido."""
+        if v is None:
+            return None
+        try:
+            uuid.UUID(v)
+            return v
+        except ValueError:
+            raise ValueError(f"correlation_id deve ser um UUID válido, recebido: {v[:20]}...")
 
 
 # Modelos para resultados de pipeline
 
 
 class ASRResult(BaseModel):
-    """Resultado do pipeline ASR"""
+    """Resultado do pipeline ASR (Automatic Speech Recognition).
+
+    Attributes:
+        text: Texto transcrito do áudio
+        confidence: Confiança da transcrição (0.0 a 1.0)
+        language: Idioma detectado no áudio
+        duration: Duração do áudio em segundos
+    """
 
     text: str = Field(..., description="Texto transcrito")
-    confidence: float = Field(
-        ..., ge=0.0, le=1.0, description="Confiança da transcrição"
-    )
+    confidence: float = Field(..., ge=0.0, le=1.0, description="Confiança da transcrição")
     language: str = Field(..., description="Idioma detectado")
     duration: float = Field(..., description="Duração do áudio em segundos")
 
 
 class NLUResult(BaseModel):
-    """Resultado do pipeline NLU"""
+    """Resultado do pipeline NLU (Natural Language Understanding).
+
+    Attributes:
+        processed_text: Texto processado e normalizado
+        domain: Domínio classificado da intenção
+        classification: Classificação específica dentro do domínio
+        confidence: Confiança da classificação (0.0 a 1.0)
+        entities: Lista de entidades extraídas do texto
+        keywords: Lista de palavras-chave extraídas
+        requires_manual_validation: Indica se requer validação humana
+        confidence_status: Status de confiança (high, medium, low)
+        adaptive_threshold: Threshold adaptativo calculado pelo NLU
+    """
 
     processed_text: str = Field(..., description="Texto processado")
     domain: UnifiedDomain = Field(..., description="Domínio classificado")
     classification: str = Field(..., description="Classificação específica")
-    confidence: float = Field(
-        ..., ge=0.0, le=1.0, description="Confiança da classificação"
-    )
-    entities: List[Entity] = Field(
-        default_factory=list, description="Entidades extraídas"
-    )
-    keywords: List[str] = Field(default_factory=list, description="Palavras-chave")
-    requires_manual_validation: bool = Field(
-        default=False, description="Requer validação manual"
-    )
+    confidence: float = Field(..., ge=0.0, le=1.0, description="Confiança da classificação")
+    entities: list[Entity] = Field(default_factory=list, description="Entidades extraídas")
+    keywords: list[str] = Field(default_factory=list, description="Palavras-chave")
+    requires_manual_validation: bool = Field(default=False, description="Requer validação manual")
     confidence_status: str = Field(
         default="medium", description="Status de confiança: high, medium, ou low"
     )
-    adaptive_threshold: Optional[float] = Field(
+    adaptive_threshold: float | None = Field(
         None, description="Threshold adaptativo calculado pelo NLU"
     )
 
-    @validator("domain", pre=True)
+    @field_validator("domain", mode="before")
+    @classmethod
     def coerce_domain_to_unified(cls, v):
         """Coerce incoming strings to UnifiedDomain"""
         if isinstance(v, UnifiedDomain):

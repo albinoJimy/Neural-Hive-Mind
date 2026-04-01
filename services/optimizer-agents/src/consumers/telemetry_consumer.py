@@ -1,6 +1,5 @@
 import asyncio
 import json
-from typing import Optional
 
 import structlog
 from confluent_kafka import Consumer, KafkaError, KafkaException
@@ -21,7 +20,7 @@ class TelemetryConsumer:
         self.settings = settings or get_settings()
         self.optimization_engine = optimization_engine
         self.metrics = metrics
-        self.consumer: Optional[Consumer] = None
+        self.consumer: Consumer | None = None
         self.running = False
 
     def start(self):
@@ -110,7 +109,9 @@ class TelemetryConsumer:
                         "correlation_id": telemetry.get("correlation_id", ""),
                     }
 
-                    hypotheses = await self.optimization_engine.analyze_opportunity(synthetic_insight)
+                    hypotheses = await self.optimization_engine.analyze_opportunity(
+                        synthetic_insight
+                    )
 
                     if hypotheses:
                         logger.info(
@@ -140,43 +141,51 @@ class TelemetryConsumer:
         # SLO compliance < 99%
         slo_compliance = metrics.get("slo_compliance", 1.0)
         if slo_compliance < 0.99:
-            degradations.append({
-                "type": "slo_violation",
-                "metric": "slo_compliance",
-                "value": slo_compliance,
-                "threshold": 0.99,
-            })
+            degradations.append(
+                {
+                    "type": "slo_violation",
+                    "metric": "slo_compliance",
+                    "value": slo_compliance,
+                    "threshold": 0.99,
+                }
+            )
 
         # Latência P95 > threshold (assumir 1000ms como baseline)
         latency_p95 = metrics.get("latency_p95", 0)
         if latency_p95 > 1000:
-            degradations.append({
-                "type": "high_latency",
-                "metric": "latency_p95",
-                "value": latency_p95,
-                "threshold": 1000,
-            })
+            degradations.append(
+                {
+                    "type": "high_latency",
+                    "metric": "latency_p95",
+                    "value": latency_p95,
+                    "threshold": 1000,
+                }
+            )
 
         # Error rate > 1%
         error_rate = metrics.get("error_rate", 0.0)
         if error_rate > 0.01:
-            degradations.append({
-                "type": "high_error_rate",
-                "metric": "error_rate",
-                "value": error_rate,
-                "threshold": 0.01,
-            })
+            degradations.append(
+                {
+                    "type": "high_error_rate",
+                    "metric": "error_rate",
+                    "value": error_rate,
+                    "threshold": 0.01,
+                }
+            )
 
         # Divergência de consenso > 5% (para consensus-engine)
         if component == "consensus-engine":
             divergence = metrics.get("divergence", 0.0)
             if divergence > 0.05:
-                degradations.append({
-                    "type": "high_divergence",
-                    "metric": "divergence",
-                    "value": divergence,
-                    "threshold": 0.05,
-                })
+                degradations.append(
+                    {
+                        "type": "high_divergence",
+                        "metric": "divergence",
+                        "value": divergence,
+                        "threshold": 0.05,
+                    }
+                )
 
         return degradations
 

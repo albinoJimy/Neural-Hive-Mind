@@ -11,8 +11,8 @@ Novos nomes:
 - CodeLanguage: linguagens unificadas (python, javascript, typescript, etc)
 """
 
-from enum import Enum
 from dataclasses import dataclass
+from enum import Enum
 from typing import Optional
 
 
@@ -21,14 +21,15 @@ class ArtifactCategory(str, Enum):
 
     Usado em models/artifact.py para classificar artefatos principais.
     """
-    CODE = 'CODE'
-    IAC = 'IAC'
-    TEST = 'TEST'
-    POLICY = 'POLICY'
-    DOCUMENTATION = 'DOCUMENTATION'
-    CONTAINER = 'CONTAINER'
-    CHART = 'CHART'
-    FUNCTION = 'FUNCTION'
+
+    CODE = "CODE"
+    IAC = "IAC"
+    TEST = "TEST"
+    POLICY = "POLICY"
+    DOCUMENTATION = "DOCUMENTATION"
+    CONTAINER = "CONTAINER"
+    CHART = "CHART"
+    FUNCTION = "FUNCTION"
 
 
 class ArtifactSubtype(str, Enum):
@@ -37,11 +38,12 @@ class ArtifactSubtype(str, Enum):
     Usado em services/dockerfile_generator.py e services/pipeline_engine.py
     para distinguir entre diferentes tipos de artefatos de código.
     """
-    MICROSERVICE = 'microservice'
-    LAMBDA_FUNCTION = 'lambda_function'
-    CLI_TOOL = 'cli_tool'
-    LIBRARY = 'library'
-    SCRIPT = 'script'
+
+    MICROSERVICE = "microservice"
+    LAMBDA_FUNCTION = "lambda_function"
+    CLI_TOOL = "cli_tool"
+    LIBRARY = "library"
+    SCRIPT = "script"
 
 
 class CodeLanguage(str, Enum):
@@ -49,36 +51,37 @@ class CodeLanguage(str, Enum):
 
     Valores em lowercase para consistência com parâmetros do Kafka.
     """
-    PYTHON = 'python'
-    JAVASCRIPT = 'javascript'
-    TYPESCRIPT = 'typescript'
-    GO = 'go'
-    JAVA = 'java'
-    RUST = 'rust'
-    CSHARP = 'csharp'
-    BASH = 'bash'
-    HCL = 'hcl'
-    YAML = 'yaml'
-    REGO = 'rego'
-    NODEJS = 'nodejs'  # Alias para javascript
-    GOLANG = 'golang'  # Alias para go
+
+    PYTHON = "python"
+    JAVASCRIPT = "javascript"
+    TYPESCRIPT = "typescript"
+    GO = "go"
+    JAVA = "java"
+    RUST = "rust"
+    CSHARP = "csharp"
+    BASH = "bash"
+    HCL = "hcl"
+    YAML = "yaml"
+    REGO = "rego"
+    NODEJS = "nodejs"  # Alias para javascript
+    GOLANG = "golang"  # Alias para go
 
 
 __all__ = [
-    'ArtifactCategory',
-    'ArtifactSubtype',
-    'CodeLanguage',
-    'ValidationType',
-    'ValidationStatus',
-    'ValidationResult',
+    "ArtifactCategory",
+    "ArtifactSubtype",
+    "CodeLanguage",
+    "ValidationType",
+    "ValidationStatus",
+    "ValidationResult",
 ]
 
 
 # ===== COMPATIBILIDADE (Aliases para código legado) =====
 # Manter compatibilidade com código existente que usa os nomes antigos
-ArtifactType = ArtifactCategory           # legacy alias
-TemplateLanguage = CodeLanguage           # legacy alias
-SupportedLanguage = CodeLanguage          # legacy alias
+ArtifactType = ArtifactCategory  # legacy alias
+TemplateLanguage = CodeLanguage  # legacy alias
+SupportedLanguage = CodeLanguage  # legacy alias
 
 
 # ===== VALIDATION TYPES =====
@@ -87,25 +90,28 @@ SupportedLanguage = CodeLanguage          # legacy alias
 
 class ValidationType(str, Enum):
     """Tipos de validação suportados."""
-    SAST = 'SAST'
-    SCA = 'SCA'
-    LICENSE_CHECK = 'LICENSE_CHECK'
-    CONTAINER_SCAN = 'CONTAINER_SCAN'
-    IAC_SCAN = 'IAC_SCAN'
-    DEPENDENCY_CHECK = 'DEPENDENCY_CHECK'
+
+    SAST = "SAST"
+    SCA = "SCA"
+    LICENSE_CHECK = "LICENSE_CHECK"
+    CONTAINER_SCAN = "CONTAINER_SCAN"
+    IAC_SCAN = "IAC_SCAN"
+    DEPENDENCY_CHECK = "DEPENDENCY_CHECK"
 
 
 class ValidationStatus(str, Enum):
     """Status de validação."""
-    PASSED = 'PASSED'
-    FAILED = 'FAILED'
-    SKIPPED = 'SKIPPED'
-    PENDING = 'PENDING'
+
+    PASSED = "PASSED"
+    FAILED = "FAILED"
+    SKIPPED = "SKIPPED"
+    PENDING = "PENDING"
 
 
 @dataclass
 class ValidationResult:
     """Resultado de uma validação."""
+
     validation_type: ValidationType
     tool_name: str
     tool_version: str

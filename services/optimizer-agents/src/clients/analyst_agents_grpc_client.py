@@ -2,24 +2,28 @@
 
 import json
 import time
-from typing import Dict, List, Optional, Tuple
 
 import grpc
 import structlog
 from google.protobuf.json_format import MessageToDict
-
 from neural_hive_observability import instrument_grpc_channel
+
 from src.config.settings import get_settings
-from ..proto import analyst_agent_pb2, analyst_agent_pb2_grpc, optimizer_agent_pb2, optimizer_agent_pb2_grpc
+
+from ..proto import (
+    analyst_agent_pb2,
+    analyst_agent_pb2_grpc,
+)
 
 # Importar SPIFFE/mTLS se disponível
 try:
     from neural_hive_security import (
-        SPIFFEManager,
         SPIFFEConfig,
+        SPIFFEManager,
         create_secure_grpc_channel,
         get_grpc_metadata_with_jwt,
     )
+
     SECURITY_LIB_AVAILABLE = True
 except ImportError:
     SECURITY_LIB_AVAILABLE = False
@@ -38,9 +42,9 @@ class AnalystAgentsGrpcClient:
 
     def __init__(self, settings=None):
         self.settings = settings or get_settings()
-        self.channel: Optional[grpc.aio.Channel] = None
+        self.channel: grpc.aio.Channel | None = None
         self.stub = None
-        self.spiffe_manager: Optional[SPIFFEManager] = None
+        self.spiffe_manager: SPIFFEManager | None = None
 
     async def connect(self):
         """Estabelecer canal gRPC com Analyst Agents com suporte a mTLS."""
@@ -49,8 +53,8 @@ class AnalystAgentsGrpcClient:
 
             # Verificar se mTLS via SPIFFE está habilitado
             spiffe_x509_enabled = (
-                getattr(self.settings, 'spiffe_enabled', False)
-                and getattr(self.settings, 'spiffe_enable_x509', False)
+                getattr(self.settings, "spiffe_enabled", False)
+                and getattr(self.settings, "spiffe_enable_x509", False)
                 and SECURITY_LIB_AVAILABLE
             )
 
@@ -62,7 +66,7 @@ class AnalystAgentsGrpcClient:
                     jwt_audience=self.settings.spiffe_jwt_audience,
                     jwt_ttl_seconds=self.settings.spiffe_jwt_ttl_seconds,
                     enable_x509=True,
-                    environment=self.settings.environment
+                    environment=self.settings.environment,
                 )
 
                 # Criar SPIFFE manager
@@ -71,32 +75,30 @@ class AnalystAgentsGrpcClient:
 
                 # Criar canal seguro com mTLS
                 # Permitir fallback inseguro apenas em ambientes de desenvolvimento
-                is_dev_env = self.settings.environment.lower() in ('dev', 'development')
+                is_dev_env = self.settings.environment.lower() in ("dev", "development")
                 self.channel = await create_secure_grpc_channel(
                     target=target,
                     spiffe_config=spiffe_config,
                     spiffe_manager=self.spiffe_manager,
-                    fallback_insecure=is_dev_env
+                    fallback_insecure=is_dev_env,
                 )
 
                 logger.info(
-                    'mtls_channel_configured',
-                    target=target,
-                    environment=self.settings.environment
+                    "mtls_channel_configured", target=target, environment=self.settings.environment
                 )
             else:
                 # Fallback para canal inseguro (apenas desenvolvimento)
-                if self.settings.environment in ['production', 'staging', 'prod']:
+                if self.settings.environment in ["production", "staging", "prod"]:
                     raise RuntimeError(
                         f"mTLS is required in {self.settings.environment} but SPIFFE X.509 is disabled. "
                         "Set spiffe_enabled=True and spiffe_enable_x509=True."
                     )
 
                 logger.warning(
-                    'using_insecure_channel',
+                    "using_insecure_channel",
                     target=target,
                     environment=self.settings.environment,
-                    warning='mTLS disabled - not for production use'
+                    warning="mTLS disabled - not for production use",
                 )
                 self.channel = grpc.aio.insecure_channel(
                     target,
@@ -107,13 +109,14 @@ class AnalystAgentsGrpcClient:
                     ],
                 )
 
-            self.channel = instrument_grpc_channel(self.channel, service_name='analyst-agents')
+            self.channel = instrument_grpc_channel(self.channel, service_name="analyst-agents")
 
             # Criar stub real
             self.stub = analyst_agent_pb2_grpc.AnalystAgentServiceStub(self.channel)
 
             # Testar conexão com timeout - não bloquear se falhar
             import asyncio
+
             try:
                 ready_task = asyncio.create_task(self.channel.channel_ready())
                 done, pending = await asyncio.wait({ready_task}, timeout=5.0)
@@ -127,14 +130,18 @@ class AnalystAgentsGrpcClient:
                         pass
                     logger.warning("analyst_agents_grpc_connection_timeout", endpoint=target)
             except Exception as conn_error:
-                logger.warning("analyst_agents_grpc_connection_check_failed", endpoint=target, error=str(conn_error))
+                logger.warning(
+                    "analyst_agents_grpc_connection_check_failed",
+                    endpoint=target,
+                    error=str(conn_error),
+                )
         except Exception as e:
             logger.error("analyst_agents_grpc_connection_failed", error=str(e))
             raise
 
-    async def _get_grpc_metadata(self) -> List[Tuple[str, str]]:
+    async def _get_grpc_metadata(self) -> list[tuple[str, str]]:
         """Obter metadata gRPC com JWT-SVID para autenticação."""
-        if not getattr(self.settings, 'spiffe_enabled', False) or not self.spiffe_manager:
+        if not getattr(self.settings, "spiffe_enabled", False) or not self.spiffe_manager:
             return []
 
         try:
@@ -142,11 +149,11 @@ class AnalystAgentsGrpcClient:
             return await get_grpc_metadata_with_jwt(
                 spiffe_manager=self.spiffe_manager,
                 audience=audience,
-                environment=self.settings.environment
+                environment=self.settings.environment,
             )
         except Exception as e:
-            logger.warning('jwt_svid_fetch_failed', error=str(e))
-            if self.settings.environment in ['production', 'staging', 'prod']:
+            logger.warning("jwt_svid_fetch_failed", error=str(e))
+            if self.settings.environment in ["production", "staging", "prod"]:
                 raise
             return []
 
@@ -159,8 +166,8 @@ class AnalystAgentsGrpcClient:
             logger.info("analyst_agents_grpc_disconnected")
 
     async def request_causal_analysis(
-        self, target_component: str, degradation_metrics: Dict, context: Dict
-    ) -> Optional[Dict]:
+        self, target_component: str, degradation_metrics: dict, context: dict
+    ) -> dict | None:
         """
         Solicitar análise causal de degradação.
 
@@ -190,7 +197,9 @@ class AnalystAgentsGrpcClient:
                     degradation_metrics=degradation_metrics,
                     context=context,
                 )
-                response = await self.stub.RequestCausalAnalysis(request, timeout=self.settings.grpc_timeout, metadata=metadata)
+                response = await self.stub.RequestCausalAnalysis(
+                    request, timeout=self.settings.grpc_timeout, metadata=metadata
+                )
             else:
                 # Fallback para RPC existente ExecuteAnalysis
                 request = analyst_agent_pb2.ExecuteAnalysisRequest(
@@ -201,7 +210,9 @@ class AnalystAgentsGrpcClient:
                         "context": json.dumps(context),
                     },
                 )
-                response = await self.stub.ExecuteAnalysis(request, timeout=self.settings.grpc_timeout, metadata=metadata)
+                response = await self.stub.ExecuteAnalysis(
+                    request, timeout=self.settings.grpc_timeout, metadata=metadata
+                )
 
             response_dict = MessageToDict(response, preserving_proto_field_name=True)
             logger.info("causal_analysis_retrieved", target_component=target_component)
@@ -214,7 +225,9 @@ class AnalystAgentsGrpcClient:
             logger.error("request_causal_analysis_failed", error=str(e))
             return None
 
-    async def get_historical_insights(self, target_component: str, time_range: str = "24h") -> Optional[Dict]:
+    async def get_historical_insights(
+        self, target_component: str, time_range: str = "24h"
+    ) -> dict | None:
         """
         Obter insights históricos para um componente.
 
@@ -236,11 +249,15 @@ class AnalystAgentsGrpcClient:
             # Obter metadata com JWT-SVID
             metadata = await self._get_grpc_metadata()
 
-            if hasattr(analyst_agent_pb2, "GetHistoricalInsightsRequest") and hasattr(self.stub, "GetHistoricalInsights"):
+            if hasattr(analyst_agent_pb2, "GetHistoricalInsightsRequest") and hasattr(
+                self.stub, "GetHistoricalInsights"
+            ):
                 request = analyst_agent_pb2.GetHistoricalInsightsRequest(
                     target_component=target_component, time_range=time_range
                 )
-                response = await self.stub.GetHistoricalInsights(request, timeout=self.settings.grpc_timeout, metadata=metadata)
+                response = await self.stub.GetHistoricalInsights(
+                    request, timeout=self.settings.grpc_timeout, metadata=metadata
+                )
             else:
                 now_ms = int(time.time() * 1000)
                 start_ms = now_ms
@@ -262,7 +279,9 @@ class AnalystAgentsGrpcClient:
                     limit=50,
                     offset=0,
                 )
-                response = await self.stub.QueryInsights(request, timeout=self.settings.grpc_timeout, metadata=metadata)
+                response = await self.stub.QueryInsights(
+                    request, timeout=self.settings.grpc_timeout, metadata=metadata
+                )
 
             insights = MessageToDict(response, preserving_proto_field_name=True)
             logger.info(
@@ -279,7 +298,7 @@ class AnalystAgentsGrpcClient:
             logger.error("get_historical_insights_failed", error=str(e))
             return None
 
-    async def validate_optimization_hypothesis(self, hypothesis: Dict) -> Optional[Dict]:
+    async def validate_optimization_hypothesis(self, hypothesis: dict) -> dict | None:
         """
         Validar hipótese de otimização com análise causal.
 
@@ -299,14 +318,20 @@ class AnalystAgentsGrpcClient:
             if hasattr(analyst_agent_pb2, "ValidateOptimizationHypothesisRequest") and hasattr(
                 self.stub, "ValidateOptimizationHypothesis"
             ):
-                request = analyst_agent_pb2.ValidateOptimizationHypothesisRequest(hypothesis=hypothesis)
-                response = await self.stub.ValidateOptimizationHypothesis(request, timeout=self.settings.grpc_timeout, metadata=metadata)
+                request = analyst_agent_pb2.ValidateOptimizationHypothesisRequest(
+                    hypothesis=hypothesis
+                )
+                response = await self.stub.ValidateOptimizationHypothesis(
+                    request, timeout=self.settings.grpc_timeout, metadata=metadata
+                )
             else:
                 request = analyst_agent_pb2.ExecuteAnalysisRequest(
                     analysis_type="validate_optimization_hypothesis",
                     parameters={"hypothesis": json.dumps(hypothesis)},
                 )
-                response = await self.stub.ExecuteAnalysis(request, timeout=self.settings.grpc_timeout, metadata=metadata)
+                response = await self.stub.ExecuteAnalysis(
+                    request, timeout=self.settings.grpc_timeout, metadata=metadata
+                )
 
             validation = MessageToDict(response, preserving_proto_field_name=True)
             logger.info(

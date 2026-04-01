@@ -1,14 +1,16 @@
 """Incident classification service for severity assessment (Fluxo E2)"""
-from typing import Dict, Any, Optional, List
-import structlog
-from enum import Enum
 from datetime import datetime, timezone
+from enum import Enum
+from typing import Any, Dict, List, Optional
+
+import structlog
 
 logger = structlog.get_logger()
 
 
 class IncidentSeverity(str, Enum):
     """Níveis de severidade de incidentes"""
+
     CRITICAL = "critical"
     HIGH = "high"
     MEDIUM = "medium"
@@ -18,6 +20,7 @@ class IncidentSeverity(str, Enum):
 
 class IncidentImpact(str, Enum):
     """Tipos de impacto de incidentes"""
+
     SECURITY = "security"
     AVAILABILITY = "availability"
     PERFORMANCE = "performance"
@@ -100,7 +103,7 @@ class IncidentClassifier:
                 "incident_classifier.classifying",
                 threat_type=threat_type,
                 base_severity=base_severity,
-                confidence=confidence
+                confidence=confidence,
             )
 
             # E2: Classificação mapeada a runbooks
@@ -134,17 +137,13 @@ class IncidentClassifier:
                 "incident_classifier.classified",
                 incident_id=classification["incident_id"],
                 severity=severity,
-                runbook_id=runbook_id
+                runbook_id=runbook_id,
             )
 
             return classification
 
         except Exception as e:
-            logger.error(
-                "incident_classifier.classification_failed",
-                error=str(e),
-                anomaly=anomaly
-            )
+            logger.error("incident_classifier.classification_failed", error=str(e), anomaly=anomaly)
             # E2: Severidade desconhecida → acionar duty engineer
             return self._create_fallback_classification(anomaly, str(e))
 
@@ -191,7 +190,7 @@ class IncidentClassifier:
             "data_exfiltration": [
                 IncidentImpact.SECURITY,
                 IncidentImpact.DATA_INTEGRITY,
-                IncidentImpact.COMPLIANCE
+                IncidentImpact.COMPLIANCE,
             ],
             "malicious_payload": [IncidentImpact.SECURITY, IncidentImpact.DATA_INTEGRITY],
             "dos_attack": [IncidentImpact.AVAILABILITY, IncidentImpact.PERFORMANCE],
@@ -229,9 +228,7 @@ class IncidentClassifier:
 
         return final_priority
 
-    async def _map_to_runbook(
-        self, threat_type: str, severity: IncidentSeverity
-    ) -> str:
+    async def _map_to_runbook(self, threat_type: str, severity: IncidentSeverity) -> str:
         """Mapeia incidente para runbook específico (E2: mapeado a runbooks)"""
         runbook_mapping = {
             ("unauthorized_access", IncidentSeverity.CRITICAL): "RB-SEC-001-CRITICAL",
@@ -243,10 +240,7 @@ class IncidentClassifier:
             ("policy_violation", IncidentSeverity.MEDIUM): "RB-COMP-001-MEDIUM",
         }
 
-        runbook_id = runbook_mapping.get(
-            (threat_type, severity),
-            f"RB-GENERIC-{severity.upper()}"
-        )
+        runbook_id = runbook_mapping.get((threat_type, severity), f"RB-GENERIC-{severity.upper()}")
 
         return runbook_id
 
@@ -284,9 +278,7 @@ class IncidentClassifier:
         else:
             return "LOW - Minimal business impact"
 
-    def _assess_sla_risk(
-        self, severity: IncidentSeverity, impact: List[IncidentImpact]
-    ) -> bool:
+    def _assess_sla_risk(self, severity: IncidentSeverity, impact: List[IncidentImpact]) -> bool:
         """Avalia risco de quebra de SLA"""
         if severity in [IncidentSeverity.CRITICAL, IncidentSeverity.HIGH]:
             return True
@@ -294,9 +286,7 @@ class IncidentClassifier:
             return True
         return False
 
-    def _requires_human_review(
-        self, confidence: float, severity: IncidentSeverity
-    ) -> bool:
+    def _requires_human_review(self, confidence: float, severity: IncidentSeverity) -> bool:
         """Determina se requer revisão humana"""
         # E2: Divergência > threshold → roteamento para validação manual
         if confidence < self.classification_rules["confidence_threshold"]:

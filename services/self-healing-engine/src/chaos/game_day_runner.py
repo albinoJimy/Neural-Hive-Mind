@@ -15,29 +15,22 @@ import argparse
 import asyncio
 import json
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 import structlog
 
 from .chaos_engine import (
-    ChaosEngine,
-    GAME_DAY_SCENARIOS_TOTAL,
-    GAME_DAY_SCENARIOS_FAILED,
     GAME_DAY_DURATION,
     GAME_DAY_INFO,
+    GAME_DAY_SCENARIOS_FAILED,
+    GAME_DAY_SCENARIOS_TOTAL,
+    ChaosEngine,
 )
 from .chaos_models import (
-    ChaosExperimentRequest,
     ChaosExperimentStatus,
     ExperimentReport,
-    FaultInjection,
-    FaultParameters,
-    FaultType,
-    RollbackStrategy,
     ScenarioConfig,
-    TargetSelector,
-    ValidationCriteria,
 )
 from .scenarios.scenario_library import ScenarioLibrary
 
@@ -113,10 +106,7 @@ class GameDayRunner:
         for name in self.scenario_library.list_scenarios():
             info = self.scenario_library.get_scenario_info(name)
             if info:
-                scenarios.append({
-                    "name": name,
-                    **info
-                })
+                scenarios.append({"name": name, **info})
         return scenarios
 
     async def run_scenario(
@@ -158,13 +148,11 @@ class GameDayRunner:
             "game_day_runner.running_scenario",
             scenario=scenario_name,
             target=target_service,
-            namespace=target_namespace
+            namespace=target_namespace,
         )
 
         report = await self.chaos_engine.execute_scenario(
-            scenario_name,
-            config,
-            executed_by=executed_by or "game-day-runner"
+            scenario_name, config, executed_by=executed_by or "game-day-runner"
         )
 
         self.reports.append(report)
@@ -185,7 +173,7 @@ class GameDayRunner:
         Returns:
             Relatório consolidado do Game Day
         """
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc)
         results = []
         success_count = 0
         failure_count = 0
@@ -193,7 +181,7 @@ class GameDayRunner:
         logger.info(
             "game_day_runner.starting_game_day",
             scenario_count=len(scenarios),
-            executed_by=executed_by
+            executed_by=executed_by,
         )
 
         for scenario_config in scenarios:
@@ -233,30 +221,34 @@ class GameDayRunner:
                     if not v.success:
                         issues.extend(v.observations)
 
-                results.append({
-                    "scenario": scenario_config["scenario_name"],
-                    "target": scenario_config["target_service"],
-                    "success": is_success,
-                    "duration_seconds": report.duration_seconds,
-                    "recovery_time_seconds": recovery_time,
-                    "issues": issues,
-                })
+                results.append(
+                    {
+                        "scenario": scenario_config["scenario_name"],
+                        "target": scenario_config["target_service"],
+                        "success": is_success,
+                        "duration_seconds": report.duration_seconds,
+                        "recovery_time_seconds": recovery_time,
+                        "issues": issues,
+                    }
+                )
 
             except Exception as e:
                 failure_count += 1
-                results.append({
-                    "scenario": scenario_config["scenario_name"],
-                    "target": scenario_config["target_service"],
-                    "success": False,
-                    "error": str(e),
-                })
+                results.append(
+                    {
+                        "scenario": scenario_config["scenario_name"],
+                        "target": scenario_config["target_service"],
+                        "success": False,
+                        "error": str(e),
+                    }
+                )
                 logger.error(
                     "game_day_runner.scenario_failed",
                     scenario=scenario_config["scenario_name"],
-                    error=str(e)
+                    error=str(e),
                 )
 
-        end_time = datetime.utcnow()
+        end_time = datetime.now(timezone.utc)
         total_duration = (end_time - start_time).total_seconds()
 
         game_day_id = f"gd-{start_time.strftime('%Y%m%d-%H%M%S')}"
@@ -287,7 +279,7 @@ class GameDayRunner:
             scenarios_total=str(len(scenarios)),
             scenarios_passed=str(success_count),
             scenarios_failed=str(failure_count),
-            success_rate=f"{success_rate / 100:.2f}"
+            success_rate=f"{success_rate / 100:.2f}",
         ).set(1)
 
         logger.info(
@@ -295,7 +287,7 @@ class GameDayRunner:
             game_day_id=game_day_id,
             success_count=success_count,
             failure_count=failure_count,
-            duration=total_duration
+            duration=total_duration,
         )
 
         return game_day_report
@@ -341,139 +333,55 @@ def parse_args() -> argparse.Namespace:
     subparsers = parser.add_subparsers(dest="command", help="Comandos disponíveis")
 
     # Comando: list-scenarios
-    subparsers.add_parser(
-        "list-scenarios",
-        help="Lista cenários disponíveis"
-    )
+    subparsers.add_parser("list-scenarios", help="Lista cenários disponíveis")
 
     # Comando: run
-    run_parser = subparsers.add_parser(
-        "run",
-        help="Executa um cenário de chaos"
-    )
+    run_parser = subparsers.add_parser("run", help="Executa um cenário de chaos")
+    run_parser.add_argument("--scenario", "-s", required=True, help="Nome do cenário a executar")
+    run_parser.add_argument("--target", "-t", required=True, help="Serviço alvo")
     run_parser.add_argument(
-        "--scenario", "-s",
-        required=True,
-        help="Nome do cenário a executar"
+        "--namespace", "-n", default="default", help="Namespace do serviço (default: default)"
     )
+    run_parser.add_argument("--playbook", "-p", help="Playbook a validar")
     run_parser.add_argument(
-        "--target", "-t",
-        required=True,
-        help="Serviço alvo"
+        "--environment", "-e", default="staging", help="Ambiente de execução (default: staging)"
     )
+    run_parser.add_argument("--executed-by", default="cli", help="Identificador do executor")
     run_parser.add_argument(
-        "--namespace", "-n",
-        default="default",
-        help="Namespace do serviço (default: default)"
-    )
-    run_parser.add_argument(
-        "--playbook", "-p",
-        help="Playbook a validar"
-    )
-    run_parser.add_argument(
-        "--environment", "-e",
-        default="staging",
-        help="Ambiente de execução (default: staging)"
-    )
-    run_parser.add_argument(
-        "--executed-by",
-        default="cli",
-        help="Identificador do executor"
-    )
-    run_parser.add_argument(
-        "--params",
-        type=json.loads,
-        default={},
-        help="Parâmetros customizados em JSON"
+        "--params", type=json.loads, default={}, help="Parâmetros customizados em JSON"
     )
 
     # Comando: game-day
-    gd_parser = subparsers.add_parser(
-        "game-day",
-        help="Executa um Game Day com múltiplos cenários"
-    )
+    gd_parser = subparsers.add_parser("game-day", help="Executa um Game Day com múltiplos cenários")
     gd_parser.add_argument(
-        "--config", "-c",
-        required=True,
-        help="Arquivo JSON com configuração do Game Day"
+        "--config", "-c", required=True, help="Arquivo JSON com configuração do Game Day"
     )
-    gd_parser.add_argument(
-        "--environment", "-e",
-        default="staging",
-        help="Ambiente de execução"
-    )
-    gd_parser.add_argument(
-        "--executed-by",
-        default="cli",
-        help="Identificador do executor"
-    )
-    gd_parser.add_argument(
-        "--output", "-o",
-        help="Arquivo para salvar relatório"
-    )
+    gd_parser.add_argument("--environment", "-e", default="staging", help="Ambiente de execução")
+    gd_parser.add_argument("--executed-by", default="cli", help="Identificador do executor")
+    gd_parser.add_argument("--output", "-o", help="Arquivo para salvar relatório")
 
     # Comando: validate-playbook
-    vp_parser = subparsers.add_parser(
-        "validate-playbook",
-        help="Valida eficácia de um playbook"
-    )
+    vp_parser = subparsers.add_parser("validate-playbook", help="Valida eficácia de um playbook")
+    vp_parser.add_argument("--playbook", "-p", required=True, help="Nome do playbook a validar")
+    vp_parser.add_argument("--target", "-t", required=True, help="Serviço alvo")
+    vp_parser.add_argument("--namespace", "-n", default="default", help="Namespace do serviço")
     vp_parser.add_argument(
-        "--playbook", "-p",
-        required=True,
-        help="Nome do playbook a validar"
-    )
-    vp_parser.add_argument(
-        "--target", "-t",
-        required=True,
-        help="Serviço alvo"
-    )
-    vp_parser.add_argument(
-        "--namespace", "-n",
-        default="default",
-        help="Namespace do serviço"
-    )
-    vp_parser.add_argument(
-        "--scenario", "-s",
-        default="pod_failure",
-        help="Cenário a usar (default: pod_failure)"
+        "--scenario", "-s", default="pod_failure", help="Cenário a usar (default: pod_failure)"
     )
 
     # Opções globais
     parser.add_argument(
-        "--in-cluster",
-        action="store_true",
-        default=False,
-        help="Executar dentro do cluster K8s"
+        "--in-cluster", action="store_true", default=False, help="Executar dentro do cluster K8s"
     )
     parser.add_argument(
-        "--no-opa",
-        action="store_true",
-        default=False,
-        help="Desabilitar validação OPA"
+        "--no-opa", action="store_true", default=False, help="Desabilitar validação OPA"
     )
     parser.add_argument(
-        "--max-concurrent",
-        type=int,
-        default=1,
-        help="Máximo de experimentos concorrentes"
+        "--max-concurrent", type=int, default=1, help="Máximo de experimentos concorrentes"
     )
-    parser.add_argument(
-        "--timeout",
-        type=int,
-        default=600,
-        help="Timeout padrão em segundos"
-    )
-    parser.add_argument(
-        "--blast-radius-limit",
-        type=int,
-        default=5,
-        help="Limite de blast radius"
-    )
-    parser.add_argument(
-        "--json",
-        action="store_true",
-        help="Output em formato JSON"
-    )
+    parser.add_argument("--timeout", type=int, default=600, help="Timeout padrão em segundos")
+    parser.add_argument("--blast-radius-limit", type=int, default=5, help="Limite de blast radius")
+    parser.add_argument("--json", action="store_true", help="Output em formato JSON")
 
     return parser.parse_args()
 

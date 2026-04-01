@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Sistema de Guardrails Automaticos para testes A/B.
 
@@ -8,8 +7,7 @@ e aborta experimentos automaticamente quando limites sao violados.
 
 import math
 from dataclasses import dataclass
-from datetime import datetime
-from typing import Dict, List, Optional
+from datetime import UTC, datetime
 
 import numpy as np
 import structlog
@@ -22,6 +20,7 @@ logger = structlog.get_logger()
 @dataclass
 class GuardrailViolation:
     """Representacao de violacao de guardrail."""
+
     metric_name: str
     current_value: float
     baseline_value: float
@@ -35,17 +34,19 @@ class GuardrailViolation:
 @dataclass
 class GuardrailCheckResult:
     """Resultado da verificacao de guardrails."""
+
     violated: bool
-    violations: List[GuardrailViolation]
+    violations: list[GuardrailViolation]
     should_abort: bool
-    abort_reason: Optional[str]
-    all_metrics_checked: List[str]
-    passed_metrics: List[str]
+    abort_reason: str | None
+    all_metrics_checked: list[str]
+    passed_metrics: list[str]
 
 
 @dataclass
 class SequentialTestResult:
     """Resultado do teste sequencial (SPRT)."""
+
     can_stop_early: bool
     decision: str  # "continue", "reject_null", "accept_null"
     likelihood_ratio: float
@@ -67,7 +68,7 @@ class GuardrailMonitor:
         self,
         mongodb_client=None,
         redis_client=None,
-        statistical_analyzer: Optional[StatisticalAnalyzer] = None,
+        statistical_analyzer: StatisticalAnalyzer | None = None,
         min_sample_size: int = 100,
     ):
         """
@@ -87,9 +88,9 @@ class GuardrailMonitor:
     async def check_guardrails(
         self,
         experiment_id: str,
-        guardrails_config: List[Dict],
-        control_metrics: Dict[str, List[float]],
-        treatment_metrics: Dict[str, List[float]],
+        guardrails_config: list[dict],
+        control_metrics: dict[str, list[float]],
+        treatment_metrics: dict[str, list[float]],
     ) -> GuardrailCheckResult:
         """
         Verificar todos os guardrails configurados.
@@ -157,7 +158,7 @@ class GuardrailMonitor:
                     threshold_percentage=max_degradation,
                     abort_threshold_percentage=abort_threshold,
                     severity=severity,
-                    timestamp=datetime.utcnow(),
+                    timestamp=datetime.now(UTC),
                 )
                 violations.append(violation)
 
@@ -183,11 +184,11 @@ class GuardrailMonitor:
     async def should_abort(
         self,
         experiment_id: str,
-        guardrails_config: List[Dict],
-        control_metrics: Dict[str, List[float]],
-        treatment_metrics: Dict[str, List[float]],
+        guardrails_config: list[dict],
+        control_metrics: dict[str, list[float]],
+        treatment_metrics: dict[str, list[float]],
         current_sample_size: int,
-    ) -> Dict:
+    ) -> dict:
         """
         Verificar se experimento deve ser abortado.
 
@@ -238,8 +239,8 @@ class GuardrailMonitor:
     async def apply_sequential_testing(
         self,
         experiment_id: str,
-        control_data: List[float],
-        treatment_data: List[float],
+        control_data: list[float],
+        treatment_data: list[float],
         minimum_detectable_effect: float = 0.05,
         alpha: float = 0.05,
         beta: float = 0.20,
@@ -299,7 +300,7 @@ class GuardrailMonitor:
         effect = (treatment_mean - control_mean) / pooled_std
 
         # Log likelihood ratio para teste unilateral
-        llr = n * (effect * minimum_detectable_effect - (minimum_detectable_effect ** 2) / 2)
+        llr = n * (effect * minimum_detectable_effect - (minimum_detectable_effect**2) / 2)
 
         # Decisao
         decision = "continue"
@@ -337,7 +338,7 @@ class GuardrailMonitor:
     async def get_guardrail_status(
         self,
         experiment_id: str,
-    ) -> Optional[Dict]:
+    ) -> dict | None:
         """
         Obter status atual dos guardrails de um experimento.
 
@@ -395,7 +396,7 @@ class GuardrailMonitor:
                     }
                     for v in status.violations
                 ],
-                "checked_at": datetime.utcnow().isoformat(),
+                "checked_at": datetime.now(UTC).isoformat(),
             }
 
             await self.redis_client.setex(key, 300, json.dumps(data))  # 5 min TTL

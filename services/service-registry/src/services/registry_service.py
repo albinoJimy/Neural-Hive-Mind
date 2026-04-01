@@ -1,12 +1,12 @@
 import json
-import structlog
-from uuid import UUID, uuid4
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
-from src.models import AgentInfo, AgentType, AgentStatus, AgentTelemetry
-from src.clients import EtcdClient
-from prometheus_client import Counter, Histogram, REGISTRY
+from uuid import UUID, uuid4
 
+import structlog
+from prometheus_client import REGISTRY, Counter, Histogram
+from src.clients import EtcdClient
+from src.models import AgentInfo, AgentStatus, AgentTelemetry, AgentType
 
 logger = structlog.get_logger()
 
@@ -31,32 +31,23 @@ def _get_or_create_histogram(name: str, description: str):
 
 # Métricas Prometheus
 agents_registered_total = _get_or_create_counter(
-    'agents_registered_total',
-    'Total de agentes registrados',
-    ['agent_type']
+    "agents_registered_total", "Total de agentes registrados", ["agent_type"]
 )
 
 agents_deregistered_total = _get_or_create_counter(
-    'agents_deregistered_total',
-    'Total de agentes desregistrados',
-    ['agent_type']
+    "agents_deregistered_total", "Total de agentes desregistrados", ["agent_type"]
 )
 
 heartbeats_received_total = _get_or_create_counter(
-    'heartbeats_received_total',
-    'Total de heartbeats recebidos',
-    ['agent_type', 'status']
+    "heartbeats_received_total", "Total de heartbeats recebidos", ["agent_type", "status"]
 )
 
 heartbeat_latency_seconds = _get_or_create_histogram(
-    'heartbeat_latency_seconds',
-    'Latência de processamento de heartbeat'
+    "heartbeat_latency_seconds", "Latência de processamento de heartbeat"
 )
 
 registry_operations_total = _get_or_create_counter(
-    'registry_operations_total',
-    'Total de operações do registry',
-    ['operation', 'status']
+    "registry_operations_total", "Total de operações do registry", ["operation", "status"]
 )
 
 
@@ -73,7 +64,7 @@ class RegistryService:
         metadata: Dict[str, str],
         namespace: str = "default",
         cluster: str = "local",
-        version: str = "1.0.0"
+        version: str = "1.0.0",
     ) -> tuple[UUID, str]:
         """
         Registra um novo agente no registry.
@@ -100,7 +91,7 @@ class RegistryService:
                 version=version,
                 status=AgentStatus.HEALTHY,
                 registered_at=int(datetime.now(timezone.utc).timestamp()),
-                last_seen=int(datetime.now(timezone.utc).timestamp())
+                last_seen=int(datetime.now(timezone.utc).timestamp()),
             )
 
             # Salvar no etcd
@@ -118,7 +109,7 @@ class RegistryService:
                 agent_id=str(agent_info.agent_id),
                 agent_type=agent_type.value,
                 capabilities=capabilities,
-                namespace=namespace
+                namespace=namespace,
             )
 
             return agent_info.agent_id, registration_token
@@ -130,9 +121,7 @@ class RegistryService:
 
     @heartbeat_latency_seconds.time()
     async def update_heartbeat(
-        self,
-        agent_id: UUID,
-        telemetry: Optional[AgentTelemetry] = None
+        self, agent_id: UUID, telemetry: Optional[AgentTelemetry] = None
     ) -> AgentStatus:
         """
         Atualiza heartbeat do agente e recalcula health status.
@@ -170,20 +159,19 @@ class RegistryService:
             # Publicar evento de atualização
             await self.etcd_client.client.publish(
                 f"{self.etcd_client.prefix}:events",
-                json.dumps({"event": "updated", "agent_id": str(agent_id)})
+                json.dumps({"event": "updated", "agent_id": str(agent_id)}),
             )
 
             # Se status mudou, publicar evento adicional
             if old_status != agent_info.status:
                 await self.etcd_client.client.publish(
                     f"{self.etcd_client.prefix}:events",
-                    json.dumps({"event": "status_changed", "agent_id": str(agent_id)})
+                    json.dumps({"event": "status_changed", "agent_id": str(agent_id)}),
                 )
 
             # Métricas
             heartbeats_received_total.labels(
-                agent_type=agent_info.agent_type.value,
-                status=agent_info.status.value
+                agent_type=agent_info.agent_type.value, status=agent_info.status.value
             ).inc()
             registry_operations_total.labels(operation="heartbeat", status="success").inc()
 
@@ -191,7 +179,7 @@ class RegistryService:
                 "heartbeat_updated",
                 agent_id=str(agent_id),
                 status=agent_info.status.value,
-                success_rate=agent_info.telemetry.success_rate
+                success_rate=agent_info.telemetry.success_rate,
             )
 
             return agent_info.status
@@ -216,7 +204,9 @@ class RegistryService:
 
             return True
         except Exception as e:
-            logger.error("put_agent_without_event_failed", agent_id=str(agent_info.agent_id), error=str(e))
+            logger.error(
+                "put_agent_without_event_failed", agent_id=str(agent_info.agent_id), error=str(e)
+            )
             raise
 
     async def deregister_agent(self, agent_id: UUID) -> bool:
@@ -235,15 +225,13 @@ class RegistryService:
 
             if deleted and agent_info:
                 # Métricas
-                agents_deregistered_total.labels(
-                    agent_type=agent_info.agent_type.value
-                ).inc()
+                agents_deregistered_total.labels(agent_type=agent_info.agent_type.value).inc()
                 registry_operations_total.labels(operation="deregister", status="success").inc()
 
                 logger.info(
                     "agent_deregistered",
                     agent_id=str(agent_id),
-                    agent_type=agent_info.agent_type.value
+                    agent_type=agent_info.agent_type.value,
                 )
 
             return deleted
@@ -266,9 +254,7 @@ class RegistryService:
             raise
 
     async def list_agents(
-        self,
-        agent_type: Optional[AgentType] = None,
-        filters: Optional[Dict[str, str]] = None
+        self, agent_type: Optional[AgentType] = None, filters: Optional[Dict[str, str]] = None
     ) -> List[AgentInfo]:
         """Lista agentes com filtros opcionais"""
         try:
@@ -278,7 +264,7 @@ class RegistryService:
             logger.info(
                 "agents_listed",
                 count=len(agents),
-                agent_type=agent_type.value if agent_type else "all"
+                agent_type=agent_type.value if agent_type else "all",
             )
 
             return agents

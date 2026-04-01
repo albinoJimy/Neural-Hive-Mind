@@ -10,10 +10,11 @@ Responsável por:
 GAPS-04 Task 6
 """
 
-from typing import Optional
-import structlog
-import json
 import asyncio
+import json
+from typing import Optional
+
+import structlog
 from aiokafka import AIOKafkaConsumer
 from aiokafka.errors import KafkaError
 
@@ -34,8 +35,8 @@ class ConsensusDecisionConsumer:
         group_id: str,
         explainability_service,
         explanation_producer,
-        input_topic: str = 'consensus.decision.created',
-        output_topic: str = 'consensus.explanations'
+        input_topic: str = "consensus.decision.created",
+        output_topic: str = "consensus.explanations",
     ):
         """
         Inicializa o ConsensusDecisionConsumer.
@@ -73,7 +74,7 @@ class ConsensusDecisionConsumer:
                 auto_offset_reset="earliest",
                 enable_auto_commit=False,  # Commit manual
                 max_poll_records=10,
-                value_deserializer=lambda m: json.loads(m.decode('utf-8'))
+                value_deserializer=lambda m: json.loads(m.decode("utf-8")),
             )
 
             await self.consumer.start()
@@ -82,14 +83,11 @@ class ConsensusDecisionConsumer:
                 "consensus_decision_consumer.connected",
                 bootstrap_servers=self.bootstrap_servers,
                 group_id=self.group_id,
-                input_topic=self.input_topic
+                input_topic=self.input_topic,
             )
 
         except Exception as e:
-            logger.error(
-                "consensus_decision_consumer.connection_failed",
-                error=str(e)
-            )
+            logger.error("consensus_decision_consumer.connection_failed", error=str(e))
             raise
 
     async def start_consuming(self) -> None:
@@ -134,8 +132,7 @@ class ConsensusDecisionConsumer:
                 try:
                     # Buscar mensagens (timeout 1s)
                     messages = await asyncio.wait_for(
-                        self.consumer.getmany(timeout_ms=1000),
-                        timeout=2.0
+                        self.consumer.getmany(timeout_ms=1000), timeout=2.0
                     )
 
                     # Processar mensagens
@@ -152,7 +149,7 @@ class ConsensusDecisionConsumer:
                                     "consensus_decision_consumer.message_processing_failed",
                                     error=str(e),
                                     partition=tp.partition,
-                                    offset=message.offset
+                                    offset=message.offset,
                                 )
                                 # Não commitar offset em caso de erro
                                 # Mensagem será reprocessada
@@ -162,10 +159,7 @@ class ConsensusDecisionConsumer:
                     continue
 
                 except KafkaError as e:
-                    logger.error(
-                        "consensus_decision_consumer.kafka_error",
-                        error=str(e)
-                    )
+                    logger.error("consensus_decision_consumer.kafka_error", error=str(e))
                     await asyncio.sleep(5)  # Backoff
 
         except asyncio.CancelledError:
@@ -173,10 +167,7 @@ class ConsensusDecisionConsumer:
             raise
 
         except Exception as e:
-            logger.error(
-                "consensus_decision_consumer.consume_loop_error",
-                error=str(e)
-            )
+            logger.error("consensus_decision_consumer.consume_loop_error", error=str(e))
             self._consuming = False
 
     async def handle_decision(self, decision: dict) -> None:
@@ -191,39 +182,43 @@ class ConsensusDecisionConsumer:
         logger.info(
             "consensus_decision_consumer.handling_decision",
             decision_id=decision_id,
-            final_decision=decision.get("final_decision")
+            final_decision=decision.get("final_decision"),
         )
 
         try:
             # 1. Verificar se explicação já existe
-            existing = await self.explainability_service.get_explainability_by_decision_id(decision_id)
+            existing = await self.explainability_service.get_explainability_by_decision_id(
+                decision_id
+            )
 
             if existing:
                 logger.info(
                     "consensus_decision_consumer.existing_explanation_found",
                     decision_id=decision_id,
-                    explainability_token=existing.get("explainability_token")
+                    explainability_token=existing.get("explainability_token"),
                 )
                 explanation = existing
             else:
                 # 2. Gerar nova explicação
                 logger.info(
                     "consensus_decision_consumer.generating_new_explanation",
-                    decision_id=decision_id
+                    decision_id=decision_id,
                 )
 
                 generation_request = {
-                    'decision_id': decision_id,
-                    'format': 'json',
-                    'include_shap': True,
-                    'include_reasoning_extraction': True,
-                    'include_quality_score': True,
-                    'specialist_votes': decision.get('specialist_opinions', []),
-                    'final_decision': decision.get('final_decision'),
-                    'reasoning_text': decision.get('reasoning_summary', '')
+                    "decision_id": decision_id,
+                    "format": "json",
+                    "include_shap": True,
+                    "include_reasoning_extraction": True,
+                    "include_quality_score": True,
+                    "specialist_votes": decision.get("specialist_opinions", []),
+                    "final_decision": decision.get("final_decision"),
+                    "reasoning_text": decision.get("reasoning_summary", ""),
                 }
 
-                explanation = await self.explainability_service.generate_explanation(generation_request)
+                explanation = await self.explainability_service.generate_explanation(
+                    generation_request
+                )
 
             # 3. Publicar explicação
             await self.explanation_producer.publish_explanation(explanation)
@@ -231,13 +226,13 @@ class ConsensusDecisionConsumer:
             logger.info(
                 "consensus_decision_consumer.explanation_published",
                 decision_id=decision_id,
-                explainability_token=explanation.get("explainability_token")
+                explainability_token=explanation.get("explainability_token"),
             )
 
         except Exception as e:
             logger.error(
                 "consensus_decision_consumer.handle_decision_failed",
                 decision_id=decision_id,
-                error=str(e)
+                error=str(e),
             )
             raise

@@ -1,13 +1,14 @@
 import hashlib
 import json
 from datetime import datetime
-from enum import Enum
-from typing import Any, Dict, List, Optional
-from pydantic import BaseModel, Field
+from enum import StrEnum
+from typing import Any
 from uuid import uuid4
 
+from pydantic import BaseModel, Field
 
-class DecisionType(str, Enum):
+
+class DecisionType(StrEnum):
     """Tipos de decisões estratégicas"""
 
     PRIORITIZATION = "PRIORITIZATION"
@@ -29,47 +30,35 @@ class TriggeredBy(BaseModel):
 class DecisionContext(BaseModel):
     """Contexto estratégico no momento da decisão"""
 
-    active_plans: List[str] = Field(
-        default_factory=list, description="IDs dos planos ativos"
-    )
-    critical_incidents: List[str] = Field(
+    active_plans: list[str] = Field(default_factory=list, description="IDs dos planos ativos")
+    critical_incidents: list[str] = Field(
         default_factory=list, description="IDs de incidentes críticos"
     )
-    sla_violations: List[str] = Field(
-        default_factory=list, description="IDs de violações de SLA"
-    )
-    resource_saturation: float = Field(
-        0.0, description="Percentual de saturação de recursos"
-    )
+    sla_violations: list[str] = Field(default_factory=list, description="IDs de violações de SLA")
+    resource_saturation: float = Field(0.0, description="Percentual de saturação de recursos")
 
 
 class DecisionAnalysis(BaseModel):
     """Análise realizada para a decisão"""
 
-    neo4j_query_results: Dict[str, Any] = Field(
+    neo4j_query_results: dict[str, Any] = Field(
         default_factory=dict, description="Resultados de queries Neo4j"
     )
-    pheromone_signals: Dict[str, float] = Field(
+    pheromone_signals: dict[str, float] = Field(
         default_factory=dict, description="Sinais de feromônios"
     )
-    metrics_snapshot: Dict[str, float] = Field(
+    metrics_snapshot: dict[str, float] = Field(
         default_factory=dict, description="Snapshot de métricas"
     )
-    conflict_domains: List[str] = Field(
-        default_factory=list, description="Domínios em conflito"
-    )
+    conflict_domains: list[str] = Field(default_factory=list, description="Domínios em conflito")
 
 
 class DecisionAction(BaseModel):
     """Decisão tomada e ação recomendada"""
 
     action: str = Field(..., description="Ação a ser tomada")
-    target_entities: List[str] = Field(
-        default_factory=list, description="IDs das entidades alvo"
-    )
-    parameters: Dict[str, Any] = Field(
-        default_factory=dict, description="Parâmetros da ação"
-    )
+    target_entities: list[str] = Field(default_factory=list, description="IDs das entidades alvo")
+    parameters: dict[str, Any] = Field(default_factory=dict, description="Parâmetros da ação")
     rationale: str = Field(..., description="Justificativa da decisão")
 
 
@@ -77,12 +66,8 @@ class RiskAssessment(BaseModel):
     """Avaliação de risco da decisão"""
 
     risk_score: float = Field(..., ge=0.0, le=1.0, description="Score de risco")
-    risk_factors: List[str] = Field(
-        default_factory=list, description="Fatores de risco"
-    )
-    mitigations: List[str] = Field(
-        default_factory=list, description="Mitigações recomendadas"
-    )
+    risk_factors: list[str] = Field(default_factory=list, description="Fatores de risco")
+    mitigations: list[str] = Field(default_factory=list, description="Mitigações recomendadas")
 
 
 class ActionTaken(BaseModel):
@@ -116,17 +101,13 @@ class StrategicDecision(BaseModel):
     )
     decision: DecisionAction = Field(..., description="Decisão tomada")
 
-    confidence_score: float = Field(
-        ..., ge=0.0, le=1.0, description="Confiança na decisão"
-    )
+    confidence_score: float = Field(..., ge=0.0, le=1.0, description="Confiança na decisão")
     risk_assessment: RiskAssessment = Field(..., description="Avaliação de risco")
 
-    guardrails_validated: List[str] = Field(
+    guardrails_validated: list[str] = Field(
         default_factory=list, description="Guardrails validados"
     )
-    actions_taken: List[ActionTaken] = Field(
-        default_factory=list, description="Ações executadas"
-    )
+    actions_taken: list[ActionTaken] = Field(default_factory=list, description="Ações executadas")
 
     explainability_token: str = Field(
         default_factory=lambda: str(uuid4()), description="Token de explicabilidade"
@@ -142,7 +123,7 @@ class StrategicDecision(BaseModel):
     hash: str = Field(default_factory=str, description="Hash SHA-256 para integridade")
     schema_version: int = Field(default=1, description="Versão do schema")
 
-    def to_avro_dict(self) -> Dict[str, Any]:
+    def to_avro_dict(self) -> dict[str, Any]:
         """Serializar para dict compatível com Avro"""
         data = self.model_dump()
 
@@ -163,9 +144,7 @@ class StrategicDecision(BaseModel):
         data["decision"] = {
             "action": self.decision.action,
             "target_entities": self.decision.target_entities,
-            "parameters": {
-                k: json.dumps(v) for k, v in self.decision.parameters.items()
-            },
+            "parameters": {k: json.dumps(v) for k, v in self.decision.parameters.items()},
             "rationale": self.decision.rationale,
         }
         data["risk_assessment"] = self.risk_assessment.model_dump()
@@ -174,14 +153,13 @@ class StrategicDecision(BaseModel):
         return data
 
     @classmethod
-    def from_avro_dict(cls, data: Dict[str, Any]) -> "StrategicDecision":
+    def from_avro_dict(cls, data: dict[str, Any]) -> "StrategicDecision":
         """Deserializar de dict Avro"""
         # Converter análise
         if "analysis" in data:
             data["analysis"] = {
                 "neo4j_query_results": {
-                    k: json.loads(v)
-                    for k, v in data["analysis"]["neo4j_query_results"].items()
+                    k: json.loads(v) for k, v in data["analysis"]["neo4j_query_results"].items()
                 },
                 "pheromone_signals": data["analysis"]["pheromone_signals"],
                 "metrics_snapshot": data["analysis"]["metrics_snapshot"],

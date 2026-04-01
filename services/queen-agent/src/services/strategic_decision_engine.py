@@ -1,30 +1,26 @@
-import structlog
-from typing import Dict, Any, List, Optional, TYPE_CHECKING
-from datetime import datetime, timedelta
 import statistics
+from datetime import datetime, timedelta
+from typing import TYPE_CHECKING, Any, Optional
+
+import structlog
 
 from neural_hive_resilience.circuit_breaker import CircuitBreakerError
-from ..config import Settings
-from ..models import (
-    StrategicDecision,
-    DecisionType,
-    DecisionContext,
-    DecisionAnalysis,
+from src.clients import MongoDBClient, Neo4jClient, PheromoneClient, PrometheusClient, RedisClient
+from src.config import Settings
+from src.models import (
     DecisionAction,
+    DecisionAnalysis,
+    DecisionContext,
+    DecisionType,
     RiskAssessment,
+    StrategicDecision,
     TriggeredBy,
-)
-from ..clients import (
-    MongoDBClient,
-    RedisClient,
-    Neo4jClient,
-    PrometheusClient,
-    PheromoneClient,
 )
 
 if TYPE_CHECKING:
+    from src.clients import OPAClient, OrchestratorClient
+
     from .replanning_coordinator import ReplanningCoordinator
-    from ..clients import OPAClient, OrchestratorClient
 
 
 logger = structlog.get_logger()
@@ -63,8 +59,8 @@ class StrategicDecisionEngine:
         self.settings = settings
 
     async def process_consolidated_decision(
-        self, decision_data: Dict[str, Any]
-    ) -> Optional[StrategicDecision]:
+        self, decision_data: dict[str, Any]
+    ) -> StrategicDecision | None:
         """
         Processar decisão consolidada do Consensus Engine
         Determina se requer ação estratégica
@@ -87,9 +83,7 @@ class StrategicDecisionEngine:
             )
 
             if not needs_action:
-                logger.debug(
-                    "consolidated_decision_no_action_needed", decision_id=decision_id
-                )
+                logger.debug("consolidated_decision_no_action_needed", decision_id=decision_id)
                 return None
 
             # Acionar decisão estratégica
@@ -109,12 +103,10 @@ class StrategicDecisionEngine:
             return await self.make_strategic_decision(trigger)
 
         except Exception as e:
-            logger.error("process_consolidated_decision_failed", error=str(e))
+            logger.exception("process_consolidated_decision_failed", error=str(e))
             return None
 
-    async def process_telemetry_event(
-        self, event: Dict[str, Any]
-    ) -> Optional[StrategicDecision]:
+    async def process_telemetry_event(self, event: dict[str, Any]) -> StrategicDecision | None:
         """Processar evento de telemetria agregada"""
         try:
             metric_type = event.get("metric_type")
@@ -130,7 +122,7 @@ class StrategicDecisionEngine:
                 }
                 return await self.make_strategic_decision(trigger)
 
-            elif metric_type == "resource_saturation" and value > 0.8:
+            if metric_type == "resource_saturation" and value > 0.8:
                 trigger = {
                     "event_type": "resource_saturation",
                     "source_id": source,
@@ -141,12 +133,12 @@ class StrategicDecisionEngine:
             return None
 
         except Exception as e:
-            logger.error("process_telemetry_event_failed", error=str(e))
+            logger.exception("process_telemetry_event_failed", error=str(e))
             return None
 
     async def process_critical_incident(
-        self, incident: Dict[str, Any]
-    ) -> Optional[StrategicDecision]:
+        self, incident: dict[str, Any]
+    ) -> StrategicDecision | None:
         """Processar incidente crítico dos Guards"""
         try:
             incident_id = incident.get("incident_id")
@@ -164,12 +156,10 @@ class StrategicDecisionEngine:
             return await self.make_strategic_decision(trigger)
 
         except Exception as e:
-            logger.error("process_critical_incident_failed", error=str(e))
+            logger.exception("process_critical_incident_failed", error=str(e))
             return None
 
-    async def make_strategic_decision(
-        self, trigger: Dict[str, Any]
-    ) -> Optional[StrategicDecision]:
+    async def make_strategic_decision(self, trigger: dict[str, Any]) -> StrategicDecision | None:
         """
         Método principal de decisão estratégica
 
@@ -187,9 +177,7 @@ class StrategicDecisionEngine:
             event_type = trigger.get("event_type")
             source_id = trigger.get("source_id")
 
-            logger.info(
-                "making_strategic_decision", event_type=event_type, source_id=source_id
-            )
+            logger.info("making_strategic_decision", event_type=event_type, source_id=source_id)
 
             # 1. Agregar contexto
             context = await self._aggregate_context(trigger)
@@ -198,9 +186,7 @@ class StrategicDecisionEngine:
             analysis = await self._perform_analysis(context, trigger)
 
             # 3. Determinar tipo de decisão e ação
-            decision_type, action = await self._determine_action(
-                trigger, context, analysis
-            )
+            decision_type, action = await self._determine_action(trigger, context, analysis)
 
             # 4. Calcular confidence e risk
             confidence_score = await self._calculate_confidence(context, analysis)
@@ -248,9 +234,7 @@ class StrategicDecisionEngine:
                 risk_assessment=risk_assessment,
                 guardrails_validated=guardrails_validated,
                 reasoning_summary=reasoning_summary,
-                expires_at=int(
-                    (datetime.now() + timedelta(hours=24)).timestamp() * 1000
-                ),
+                expires_at=int((datetime.now() + timedelta(hours=24)).timestamp() * 1000),
             )
 
             # Calcular hash
@@ -290,10 +274,10 @@ class StrategicDecisionEngine:
             return decision
 
         except Exception as e:
-            logger.error("make_strategic_decision_failed", error=str(e))
+            logger.exception("make_strategic_decision_failed", error=str(e))
             return None
 
-    async def _aggregate_context(self, trigger: Dict[str, Any]) -> DecisionContext:
+    async def _aggregate_context(self, trigger: dict[str, Any]) -> DecisionContext:
         """Agregar contexto de múltiplas fontes"""
         try:
             # Buscar planos ativos do Neo4j
@@ -317,10 +301,10 @@ class StrategicDecisionEngine:
             )
 
         except Exception as e:
-            logger.error("aggregate_context_failed", error=str(e))
+            logger.exception("aggregate_context_failed", error=str(e))
             return DecisionContext()
 
-    async def _get_active_plans(self, trigger: Dict[str, Any]) -> List[str]:
+    async def _get_active_plans(self, trigger: dict[str, Any]) -> list[str]:
         """
         Buscar planos ativos do Neo4j ou trigger
 
@@ -352,18 +336,16 @@ class StrategicDecisionEngine:
                 result = await session.run(query)
                 records = await result.data()
 
-                active_plans = [
-                    record["plan_id"] for record in records if "plan_id" in record
-                ]
+                active_plans = [record["plan_id"] for record in records if "plan_id" in record]
 
                 logger.debug("active_plans_from_neo4j", count=len(active_plans))
                 return active_plans
 
         except Exception as e:
-            logger.error("get_active_plans_failed", error=str(e))
+            logger.exception("get_active_plans_failed", error=str(e))
             return []
 
-    async def _get_critical_incidents(self) -> List[str]:
+    async def _get_critical_incidents(self) -> list[str]:
         """
         Buscar incidentes críticos do MongoDB
 
@@ -382,10 +364,10 @@ class StrategicDecisionEngine:
             return incident_ids
 
         except Exception as e:
-            logger.error("get_critical_incidents_failed", error=str(e))
+            logger.exception("get_critical_incidents_failed", error=str(e))
             return []
 
-    async def _get_sla_violations(self) -> List[str]:
+    async def _get_sla_violations(self) -> list[str]:
         """
         Buscar violações de SLA do Prometheus
 
@@ -404,9 +386,7 @@ class StrategicDecisionEngine:
             result = await self.prometheus_client.query(query)
 
             violations = []
-            if result.get("status") == "success" and result.get("data", {}).get(
-                "result"
-            ):
+            if result.get("status") == "success" and result.get("data", {}).get("result"):
                 for item in result["data"]["result"]:
                     service = item.get("metric", {}).get("service")
                     if service:
@@ -416,11 +396,11 @@ class StrategicDecisionEngine:
             return violations
 
         except Exception as e:
-            logger.error("get_sla_violations_failed", error=str(e))
+            logger.exception("get_sla_violations_failed", error=str(e))
             return []
 
     async def _perform_analysis(
-        self, context: DecisionContext, trigger: Dict[str, Any]
+        self, context: DecisionContext, trigger: dict[str, Any]
     ) -> DecisionAnalysis:
         """Realizar análise do contexto"""
         try:
@@ -457,12 +437,12 @@ class StrategicDecisionEngine:
             )
 
         except Exception as e:
-            logger.error("perform_analysis_failed", error=str(e))
+            logger.exception("perform_analysis_failed", error=str(e))
             return DecisionAnalysis()
 
     async def _determine_action(
         self,
-        trigger: Dict[str, Any],
+        trigger: dict[str, Any],
         context: DecisionContext,
         analysis: DecisionAnalysis,
     ) -> tuple[DecisionType, DecisionAction]:
@@ -481,7 +461,7 @@ class StrategicDecisionEngine:
                 ),
             )
 
-        elif event_type == "resource_saturation":
+        if event_type == "resource_saturation":
             return (
                 DecisionType.RESOURCE_REALLOCATION,
                 DecisionAction(
@@ -492,7 +472,7 @@ class StrategicDecisionEngine:
                 ),
             )
 
-        elif event_type == "critical_incident":
+        if event_type == "critical_incident":
             incident_type = trigger.get("incident_data", {}).get("incident_type")
             if incident_type == "security_threat":
                 return (
@@ -554,9 +534,7 @@ class StrategicDecisionEngine:
             # Pheromone strength (média dos sinais)
             pheromone_values = list(analysis.pheromone_signals.values())
             pheromone_strength = (
-                sum(pheromone_values) / len(pheromone_values)
-                if pheromone_values
-                else 0.5
+                sum(pheromone_values) / len(pheromone_values) if pheromone_values else 0.5
             )
             pheromone_strength = max(
                 0.0, min(1.0, (pheromone_strength + 1.0) / 2.0)
@@ -574,7 +552,7 @@ class StrategicDecisionEngine:
             return min(1.0, max(0.0, confidence))
 
         except Exception as e:
-            logger.error("calculate_confidence_failed", error=str(e))
+            logger.exception("calculate_confidence_failed", error=str(e))
             return 0.5
 
     async def _get_historical_success_rate(self) -> float:
@@ -588,9 +566,7 @@ class StrategicDecisionEngine:
         """
         try:
             # Calcular timestamp de 7 dias atrás
-            cutoff_timestamp = int(
-                (datetime.now() - timedelta(days=7)).timestamp() * 1000
-            )
+            cutoff_timestamp = int((datetime.now() - timedelta(days=7)).timestamp() * 1000)
 
             # Query MongoDB para decisões recentes
             pipeline = [
@@ -600,9 +576,7 @@ class StrategicDecisionEngine:
                         "_id": None,
                         "total": {"$sum": 1},
                         "successful": {
-                            "$sum": {
-                                "$cond": [{"$gte": ["$confidence_score", 0.7]}, 1, 0]
-                            }
+                            "$sum": {"$cond": [{"$gte": ["$confidence_score", 0.7]}, 1, 0]}
                         },
                     }
                 },
@@ -631,10 +605,10 @@ class StrategicDecisionEngine:
             return 0.75
 
         except Exception as e:
-            logger.error("get_historical_success_rate_failed", error=str(e))
+            logger.exception("get_historical_success_rate_failed", error=str(e))
             return 0.75
 
-    async def _get_success_rate_from_neo4j(self) -> Optional[float]:
+    async def _get_success_rate_from_neo4j(self) -> float | None:
         """
         Buscar taxa de sucesso do Neo4j como fallback
 
@@ -669,7 +643,7 @@ class StrategicDecisionEngine:
 
     async def _assess_risk(
         self,
-        trigger: Dict[str, Any],
+        trigger: dict[str, Any],
         context: DecisionContext,
         analysis: DecisionAnalysis,
     ) -> RiskAssessment:
@@ -694,9 +668,7 @@ class StrategicDecisionEngine:
                 risk_score += 0.15 * len(context.sla_violations)
 
             # Fator 4: Feromônios negativos
-            negative_pheromones = sum(
-                1 for v in analysis.pheromone_signals.values() if v < -0.5
-            )
+            negative_pheromones = sum(1 for v in analysis.pheromone_signals.values() if v < -0.5)
             if negative_pheromones > 0:
                 risk_factors.append("negative_pheromone_trails")
                 risk_score += 0.1 * negative_pheromones
@@ -719,7 +691,7 @@ class StrategicDecisionEngine:
             )
 
         except Exception as e:
-            logger.error("assess_risk_failed", error=str(e))
+            logger.exception("assess_risk_failed", error=str(e))
             return RiskAssessment(risk_score=0.5, risk_factors=[], mitigations=[])
 
     async def _validate_guardrails(
@@ -731,7 +703,7 @@ class StrategicDecisionEngine:
         context: DecisionContext,
         analysis: DecisionAnalysis,
         reasoning_summary: str,
-    ) -> List[str]:
+    ) -> list[str]:
         """
         Validar decisão contra guardrails éticos via OPA policies
 
@@ -747,20 +719,17 @@ class StrategicDecisionEngine:
         Returns:
             Lista de guardrails validados
         """
-        from ..observability.metrics import QueenAgentMetrics
+        from src.observability.metrics import QueenAgentMetrics
 
         # Se OPA não estiver disponível, verificar configuração fail-closed
         if not self.opa_client or not self.opa_client.is_connected():
             if self.settings.OPA_FAIL_OPEN:
                 # Fail-open: usar validação básica como fallback
-                logger.warning(
-                    "opa_client_not_available_fail_open_using_basic_validation"
-                )
+                logger.warning("opa_client_not_available_fail_open_using_basic_validation")
                 return self._basic_guardrail_validation(decision_type, risk_assessment)
-            else:
-                # Fail-closed: rejeitar decisão retornando lista vazia
-                logger.error("opa_client_not_available_fail_closed_rejecting_decision")
-                return []
+            # Fail-closed: rejeitar decisão retornando lista vazia
+            logger.error("opa_client_not_available_fail_closed_rejecting_decision")
+            return []
 
         try:
             # Preparar input para OPA
@@ -841,9 +810,7 @@ class StrategicDecisionEngine:
 
             # Se não permitido, retornar lista vazia (falha na validação)
             if not allowed:
-                logger.error(
-                    "decision_rejected_by_opa_guardrails", violations=violations
-                )
+                logger.error("decision_rejected_by_opa_guardrails", violations=violations)
                 QueenAgentMetrics.opa_evaluations_total.labels(
                     policy="ethical_guardrails", result="denied"
                 ).inc()
@@ -862,19 +829,18 @@ class StrategicDecisionEngine:
             return guardrails_validated
 
         except Exception as e:
-            logger.error("opa_guardrail_validation_failed", error=str(e))
+            logger.exception("opa_guardrail_validation_failed", error=str(e))
 
             # Fail open ou fail closed baseado em configuração
             if self.settings.OPA_FAIL_OPEN:
                 logger.warning("opa_validation_failed_fail_open")
                 return self._basic_guardrail_validation(decision_type, risk_assessment)
-            else:
-                logger.error("opa_validation_failed_fail_closed")
-                return []
+            logger.exception("opa_validation_failed_fail_closed")
+            return []
 
     def _basic_guardrail_validation(
         self, decision_type: DecisionType, risk_assessment: RiskAssessment
-    ) -> List[str]:
+    ) -> list[str]:
         """
         Validação básica de guardrails (fallback quando OPA não disponível)
 
@@ -906,16 +872,16 @@ class StrategicDecisionEngine:
         analysis: DecisionAnalysis,
     ) -> str:
         """Gerar resumo em linguagem natural da lógica de decisão"""
-        summary = f"Decisão estratégica do tipo {decision_type.value} acionada por evento {event_type}. "
+        summary = (
+            f"Decisão estratégica do tipo {decision_type.value} acionada por evento {event_type}. "
+        )
         summary += f"Confiança: {confidence:.2%}. Risco: {risk.risk_score:.2%}. "
 
         if risk.risk_factors:
             summary += f"Fatores de risco: {', '.join(risk.risk_factors[:3])}. "
 
         if analysis.conflict_domains:
-            summary += (
-                f"Conflitos detectados em: {', '.join(analysis.conflict_domains)}. "
-            )
+            summary += f"Conflitos detectados em: {', '.join(analysis.conflict_domains)}. "
 
         pheromone_avg = (
             statistics.mean(analysis.pheromone_signals.values())
@@ -929,9 +895,7 @@ class StrategicDecisionEngine:
 
         return summary
 
-    async def _update_pheromones(
-        self, decision: StrategicDecision, success: bool
-    ) -> None:
+    async def _update_pheromones(self, decision: StrategicDecision, success: bool) -> None:
         """Atualizar feromônios baseado no resultado da decisão"""
         try:
             pheromone_type = "SUCCESS" if success else "FAILURE"
@@ -953,7 +917,7 @@ class StrategicDecisionEngine:
                 self.pheromone_client.invalidate_success_trails_cache()
 
         except Exception as e:
-            logger.error("update_pheromones_failed", error=str(e))
+            logger.exception("update_pheromones_failed", error=str(e))
 
     async def execute_decision_action(self, decision: StrategicDecision) -> bool:
         """
@@ -984,17 +948,13 @@ class StrategicDecisionEngine:
 
                 if self.orchestrator_client:
                     for entity_id in target_entities:
-                        replanning_id = (
-                            await self.orchestrator_client.trigger_replanning(
-                                plan_id=entity_id,
-                                reason=f"{reason} - Decision: {decision.decision_id}",
-                                trigger_type=trigger_type,
-                                context={"decision_id": decision.decision_id},
-                                preserve_progress=parameters.get(
-                                    "preserve_progress", True
-                                ),
-                                priority=parameters.get("priority", 5),
-                            )
+                        replanning_id = await self.orchestrator_client.trigger_replanning(
+                            plan_id=entity_id,
+                            reason=f"{reason} - Decision: {decision.decision_id}",
+                            trigger_type=trigger_type,
+                            context={"decision_id": decision.decision_id},
+                            preserve_progress=parameters.get("preserve_progress", True),
+                            priority=parameters.get("priority", 5),
                         )
                         entity_success = replanning_id is not None
                         success = success or entity_success
@@ -1007,30 +967,24 @@ class StrategicDecisionEngine:
                 else:
                     # Fallback para ReplanningCoordinator
                     for entity_id in target_entities:
-                        entity_success = (
-                            await self.replanning_coordinator.trigger_replanning(
-                                plan_id=entity_id,
-                                reason=reason,
-                                decision_id=decision.decision_id,
-                            )
+                        entity_success = await self.replanning_coordinator.trigger_replanning(
+                            plan_id=entity_id,
+                            reason=reason,
+                            decision_id=decision.decision_id,
                         )
                         success = success or entity_success
 
-            elif action == "adjust_qos" or action == "adjust_priorities":
+            elif action in {"adjust_qos", "adjust_priorities"}:
                 # Ajustar prioridades via Orchestrator gRPC
-                new_priority = parameters.get(
-                    "priority", parameters.get("new_priority", 7)
-                )
+                new_priority = parameters.get("priority", parameters.get("new_priority", 7))
 
                 if self.orchestrator_client:
                     for entity_id in target_entities:
-                        entity_success = (
-                            await self.orchestrator_client.adjust_priorities(
-                                workflow_id=entity_id,
-                                plan_id=parameters.get("plan_id", ""),
-                                new_priority=new_priority,
-                                reason=f"Strategic decision: {decision.decision_id}",
-                            )
+                        entity_success = await self.orchestrator_client.adjust_priorities(
+                            workflow_id=entity_id,
+                            plan_id=parameters.get("plan_id", ""),
+                            new_priority=new_priority,
+                            reason=f"Strategic decision: {decision.decision_id}",
                         )
                         success = success or entity_success
 
@@ -1041,7 +995,7 @@ class StrategicDecisionEngine:
                         )
                 else:
                     # Fallback para ReplanningCoordinator
-                    from ..models import QoSAdjustment, AdjustmentType
+                    from src.models import AdjustmentType, QoSAdjustment
 
                     for entity_id in target_entities:
                         adjustment = QoSAdjustment(
@@ -1050,9 +1004,7 @@ class StrategicDecisionEngine:
                             parameters=parameters,
                             reason=f"Strategic decision: {decision.decision_id}",
                         )
-                        entity_success = await self.replanning_coordinator.adjust_qos(
-                            adjustment
-                        )
+                        entity_success = await self.replanning_coordinator.adjust_qos(adjustment)
                         success = success or entity_success
 
             elif action == "pause_execution":
@@ -1072,10 +1024,8 @@ class StrategicDecisionEngine:
                         logger.info("workflow_paused_via_grpc", workflow_id=entity_id)
                 else:
                     for entity_id in target_entities:
-                        entity_success = (
-                            await self.replanning_coordinator.pause_execution(
-                                workflow_id=entity_id, reason=reason
-                            )
+                        entity_success = await self.replanning_coordinator.pause_execution(
+                            workflow_id=entity_id, reason=reason
                         )
                         success = success or entity_success
 
@@ -1092,10 +1042,8 @@ class StrategicDecisionEngine:
                         logger.info("workflow_resumed_via_grpc", workflow_id=entity_id)
                 else:
                     for entity_id in target_entities:
-                        entity_success = (
-                            await self.replanning_coordinator.resume_execution(
-                                workflow_id=entity_id
-                            )
+                        entity_success = await self.replanning_coordinator.resume_execution(
+                            workflow_id=entity_id
                         )
                         success = success or entity_success
 
@@ -1107,12 +1055,8 @@ class StrategicDecisionEngine:
                         target_allocation[entity_id] = {
                             "cpu_millicores": parameters.get("cpu_millicores", 2000),
                             "memory_mb": parameters.get("memory_mb", 4096),
-                            "max_parallel_tickets": parameters.get(
-                                "max_parallel_tickets", 20
-                            ),
-                            "scheduling_priority": parameters.get(
-                                "scheduling_priority", 8
-                            ),
+                            "max_parallel_tickets": parameters.get("max_parallel_tickets", 20),
+                            "scheduling_priority": parameters.get("scheduling_priority", 8),
                         }
 
                     result = await self.orchestrator_client.rebalance_resources(
@@ -1130,7 +1074,7 @@ class StrategicDecisionEngine:
                     )
                 else:
                     # Fallback para ReplanningCoordinator
-                    from ..models import QoSAdjustment, AdjustmentType
+                    from src.models import AdjustmentType, QoSAdjustment
 
                     for entity_id in target_entities:
                         adjustment = QoSAdjustment(
@@ -1139,9 +1083,7 @@ class StrategicDecisionEngine:
                             parameters=parameters,
                             reason=f"Strategic decision: {decision.decision_id}",
                         )
-                        entity_success = await self.replanning_coordinator.adjust_qos(
-                            adjustment
-                        )
+                        entity_success = await self.replanning_coordinator.adjust_qos(adjustment)
                         success = success or entity_success
 
             elif action == "resolve_conflict":
@@ -1152,9 +1094,7 @@ class StrategicDecisionEngine:
                         entity_success = await self.orchestrator_client.adjust_priorities(
                             workflow_id=entity_id,
                             plan_id="",
-                            new_priority=parameters.get(
-                                "conflict_resolution_priority", 9
-                            ),
+                            new_priority=parameters.get("conflict_resolution_priority", 9),
                             reason=f"Conflict resolution - Decision: {decision.decision_id}",
                         )
                         success = success or entity_success
@@ -1175,7 +1115,7 @@ class StrategicDecisionEngine:
                 success = False
 
             # Emitir métricas
-            from ..observability.metrics import QueenAgentMetrics
+            from src.observability.metrics import QueenAgentMetrics
 
             QueenAgentMetrics.decision_actions_total.labels(
                 action=action, success=str(success)
@@ -1197,7 +1137,7 @@ class StrategicDecisionEngine:
             return success
 
         except Exception as e:
-            logger.error(
+            logger.exception(
                 "execute_decision_action_failed",
                 decision_id=decision.decision_id,
                 action=decision.decision.action,

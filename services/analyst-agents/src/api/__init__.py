@@ -1,3 +1,3 @@
-from . import health, insights, analytics, status, semantics
+from . import analytics, health, insights, semantics, status
 
-__all__ = ['health', 'insights', 'analytics', 'status', 'semantics']
+__all__ = ["health", "insights", "analytics", "status", "semantics"]

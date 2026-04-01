@@ -3,12 +3,11 @@ Rate Limiter usando Sliding Window Algorithm com Redis
 Implementa rate limiting por usuario/tenant com suporte a burst capacity
 """
 
-import asyncio
 import time
-from typing import Optional, Dict
 from dataclasses import dataclass
+
 import structlog
-from prometheus_client import Counter, Histogram, Gauge
+from prometheus_client import Counter, Gauge, Histogram
 
 logger = structlog.get_logger(__name__)
 
@@ -21,7 +20,7 @@ class RateLimitResult:
     limit: int
     remaining: int
     reset_at: int  # Unix timestamp
-    retry_after: Optional[int] = None  # Seconds to wait
+    retry_after: int | None = None  # Seconds to wait
 
 
 class RateLimiter:
@@ -53,8 +52,8 @@ class RateLimiter:
         self.fail_open = fail_open
 
         # Configuracoes por tenant (pode ser carregado de config/database)
-        self.tenant_limits: Dict[str, int] = {}
-        self.user_limits: Dict[str, int] = {}
+        self.tenant_limits: dict[str, int] = {}
+        self.user_limits: dict[str, int] = {}
 
         # Metricas Prometheus - incluem user_id para visibilidade por usuario
         self.rate_limit_exceeded_counter = Counter(
@@ -92,8 +91,8 @@ class RateLimiter:
     async def check_rate_limit(
         self,
         user_id: str,
-        tenant_id: Optional[str] = None,
-        endpoint: Optional[str] = None,
+        tenant_id: str | None = None,
+        endpoint: str | None = None,
     ) -> RateLimitResult:
         """
         Verificar se requisicao esta dentro do rate limit usando sliding window
@@ -161,9 +160,9 @@ class RateLimiter:
             self.rate_limit_check_duration.observe(duration)
 
             # Atualizar gauge de uso atual com user_id
-            self.rate_limit_current_usage.labels(
-                tenant_id=tenant_label, user_id=user_label
-            ).set(count)
+            self.rate_limit_current_usage.labels(tenant_id=tenant_label, user_id=user_label).set(
+                count
+            )
 
             # Registrar requisicao total
             self.rate_limit_requests_total.labels(
@@ -212,9 +211,7 @@ class RateLimiter:
             return RateLimitResult(
                 allowed=True,
                 limit=base_limit,  # Reporta limite base (sem burst) para o usuario
-                remaining=max(
-                    0, base_limit - count
-                ),  # Remaining baseado no limite base
+                remaining=max(0, base_limit - count),  # Remaining baseado no limite base
                 reset_at=reset_at,
             )
 
@@ -223,7 +220,7 @@ class RateLimiter:
             self.rate_limit_check_duration.observe(duration)
 
             # Fail-open: permitir requisicao se Redis falhar
-            logger.error(
+            logger.exception(
                 "rate_limit_check_failed",
                 error=str(e),
                 user_id=user_id,
@@ -237,15 +234,14 @@ class RateLimiter:
                     remaining=self.default_limit,
                     reset_at=int(time.time()) + self.WINDOW_SIZE_SECONDS,
                 )
-            else:
-                # Fail-closed: bloquear se Redis falhar
-                return RateLimitResult(
-                    allowed=False,
-                    limit=self.default_limit,
-                    remaining=0,
-                    reset_at=int(time.time()) + self.WINDOW_SIZE_SECONDS,
-                    retry_after=self.WINDOW_SIZE_SECONDS,
-                )
+            # Fail-closed: bloquear se Redis falhar
+            return RateLimitResult(
+                allowed=False,
+                limit=self.default_limit,
+                remaining=0,
+                reset_at=int(time.time()) + self.WINDOW_SIZE_SECONDS,
+                retry_after=self.WINDOW_SIZE_SECONDS,
+            )
 
     async def _sliding_window_check(
         self, key: str, now_ms: int, window_start_ms: int, ttl: int
@@ -280,10 +276,10 @@ class RateLimiter:
             return 1  # Fallback: assumir que esta e a primeira requisicao
 
         except Exception as e:
-            logger.error("redis_sliding_window_failed", error=str(e), key=key)
+            logger.exception("redis_sliding_window_failed", error=str(e), key=key)
             raise
 
-    def _get_applicable_limit(self, user_id: str, tenant_id: Optional[str]) -> int:
+    def _get_applicable_limit(self, user_id: str, tenant_id: str | None) -> int:
         """Determinar limite aplicavel baseado em hierarquia"""
 
         # 1. Limite especifico do usuario
@@ -319,7 +315,7 @@ class RateLimiter:
             del self.tenant_limits[tenant_id]
             logger.info("tenant_limit_removed", tenant_id=tenant_id)
 
-    def get_current_limits(self) -> Dict:
+    def get_current_limits(self) -> dict:
         """Obter configuracao atual de limites"""
         return {
             "default_limit": self.default_limit,
@@ -332,10 +328,10 @@ class RateLimiter:
 
 
 # Singleton global para o rate limiter
-_rate_limiter: Optional[RateLimiter] = None
+_rate_limiter: RateLimiter | None = None
 
 
-def get_rate_limiter() -> Optional[RateLimiter]:
+def get_rate_limiter() -> RateLimiter | None:
     """Obter instancia global do rate limiter"""
     return _rate_limiter
 

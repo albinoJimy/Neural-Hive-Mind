@@ -5,20 +5,19 @@ Otimiza políticas de agendamento através de ações como escalonamento de work
 ajuste de prioridades e balanceamento de carga.
 """
 
-import asyncio
 import logging
 import pickle
-from datetime import datetime
-from typing import Dict, List, Optional, Tuple
-from enum import Enum
+from datetime import UTC, datetime
+from enum import StrEnum
 
 import numpy as np
 
 logger = logging.getLogger(__name__)
 
 
-class SchedulingAction(str, Enum):
+class SchedulingAction(StrEnum):
     """Ações de otimização de agendamento disponíveis."""
+
     INCREASE_WORKER_POOL = "INCREASE_WORKER_POOL"
     DECREASE_WORKER_POOL = "DECREASE_WORKER_POOL"
     ADJUST_PRIORITY_WEIGHTS = "ADJUST_PRIORITY_WEIGHTS"
@@ -44,7 +43,7 @@ class SchedulingOptimizer:
         redis_client,
         model_registry,
         metrics,
-        config: Dict
+        config: dict,
     ):
         """
         Args:
@@ -67,17 +66,17 @@ class SchedulingOptimizer:
         self.config = config
 
         # Q-table: state_hash -> {action -> Q-value}
-        self.q_table: Dict[str, Dict[SchedulingAction, float]] = {}
+        self.q_table: dict[str, dict[SchedulingAction, float]] = {}
 
         # Hiperparâmetros RL
-        self.epsilon = config.get('ml_scheduling_epsilon', 0.1)  # Exploração
-        self.learning_rate = config.get('ml_scheduling_learning_rate', 0.01)
-        self.discount_factor = config.get('ml_scheduling_discount_factor', 0.95)
+        self.epsilon = config.get("ml_scheduling_epsilon", 0.1)  # Exploração
+        self.learning_rate = config.get("ml_scheduling_learning_rate", 0.01)
+        self.discount_factor = config.get("ml_scheduling_discount_factor", 0.95)
 
         # Histórico recente para análise
-        self.recent_states: List[Dict] = []
-        self.recent_actions: List[SchedulingAction] = []
-        self.recent_rewards: List[float] = []
+        self.recent_states: list[dict] = []
+        self.recent_actions: list[SchedulingAction] = []
+        self.recent_rewards: list[float] = []
 
         # Contador de atualizações para snapshot periódico
         self.update_counter = 0
@@ -97,7 +96,7 @@ class SchedulingOptimizer:
             policy_data = await self.model_registry.load_scheduling_policy()
 
             if policy_data:
-                self.q_table = policy_data['q_table']
+                self.q_table = policy_data["q_table"]
                 logger.info(f"Q-table carregada com {len(self.q_table)} estados")
             else:
                 logger.info("Nenhuma política existente, iniciando Q-table vazia")
@@ -110,10 +109,8 @@ class SchedulingOptimizer:
             raise
 
     async def optimize_scheduling(
-        self,
-        current_state: Dict,
-        load_forecast: Optional[Dict] = None
-    ) -> Dict:
+        self, current_state: dict, load_forecast: dict | None = None
+    ) -> dict:
         """
         Gera recomendação de otimização de agendamento.
 
@@ -129,7 +126,7 @@ class SchedulingOptimizer:
                 - risk_score: Risco da ação (0-1)
                 - confidence: Confiança na recomendação (0-1)
         """
-        start_time = datetime.utcnow()
+        start_time = datetime.now(UTC)
 
         try:
             # Enriquecer estado com previsão de carga
@@ -154,30 +151,30 @@ class SchedulingOptimizer:
             justification = self._generate_justification(enriched_state, action, load_forecast)
 
             result = {
-                'action': action.value,
-                'justification': justification,
-                'expected_improvement': expected_improvement,
-                'risk_score': risk_score,
-                'confidence': confidence,
-                'state_hash': state_hash,
-                'timestamp': datetime.utcnow().isoformat()
+                "action": action.value,
+                "justification": justification,
+                "expected_improvement": expected_improvement,
+                "risk_score": risk_score,
+                "confidence": confidence,
+                "state_hash": state_hash,
+                "timestamp": datetime.now(UTC).isoformat(),
             }
 
-            duration = (datetime.utcnow() - start_time).total_seconds()
-            self.metrics.record_scheduling_optimization(action.value, duration, expected_improvement)
+            duration = (datetime.now(UTC) - start_time).total_seconds()
+            self.metrics.record_scheduling_optimization(
+                action.value, duration, expected_improvement
+            )
 
-            logger.info(f"Recomendação: {action.value} (confiança={confidence:.2f}, risco={risk_score:.2f})")
+            logger.info(
+                f"Recomendação: {action.value} (confiança={confidence:.2f}, risco={risk_score:.2f})"
+            )
             return result
 
         except Exception as e:
             logger.error(f"Erro ao otimizar agendamento: {e}")
             raise
 
-    async def generate_scheduling_hypothesis(
-        self,
-        state: Dict,
-        action: SchedulingAction
-    ) -> Dict:
+    async def generate_scheduling_hypothesis(self, state: dict, action: SchedulingAction) -> dict:
         """
         Gera hipótese de otimização para teste A/B.
 
@@ -189,29 +186,25 @@ class SchedulingOptimizer:
             Dict com hipótese formatada para ExperimentManager
         """
         hypothesis = {
-            'optimization_type': 'scheduling',
-            'action': action.value,
-            'state_snapshot': state,
-            'predicted_metrics': {
-                'sla_improvement': self._estimate_improvement(state, action),
-                'resource_efficiency_delta': self._estimate_resource_delta(action),
-                'throughput_change': self._estimate_throughput_change(action),
+            "optimization_type": "scheduling",
+            "action": action.value,
+            "state_snapshot": state,
+            "predicted_metrics": {
+                "sla_improvement": self._estimate_improvement(state, action),
+                "resource_efficiency_delta": self._estimate_resource_delta(action),
+                "throughput_change": self._estimate_throughput_change(action),
             },
-            'implementation_details': self._get_implementation_details(action),
-            'rollback_criteria': {
-                'sla_degradation_threshold': 0.05,  # 5% piora
-                'duration_increase_threshold': 0.10,  # 10% aumento
-                'error_rate_threshold': 0.02,  # 2% erros
-            }
+            "implementation_details": self._get_implementation_details(action),
+            "rollback_criteria": {
+                "sla_degradation_threshold": 0.05,  # 5% piora
+                "duration_increase_threshold": 0.10,  # 10% aumento
+                "error_rate_threshold": 0.02,  # 2% erros
+            },
         }
 
         return hypothesis
 
-    async def evaluate_scheduling_policy(
-        self,
-        policy_id: str,
-        duration_seconds: int
-    ) -> Dict:
+    async def evaluate_scheduling_policy(self, policy_id: str, duration_seconds: int) -> dict:
         """
         Avalia política de agendamento via experimento A/B.
 
@@ -229,25 +222,25 @@ class SchedulingOptimizer:
             experiment_result = await self.experiment_manager.run_experiment(
                 experiment_name=f"scheduling_policy_{policy_id}",
                 duration_seconds=duration_seconds,
-                metrics_to_track=['sla_compliance', 'avg_duration', 'throughput']
+                metrics_to_track=["sla_compliance", "avg_duration", "throughput"],
             )
 
             # Analisar resultados
             evaluation = {
-                'policy_id': policy_id,
-                'duration': duration_seconds,
-                'metrics': experiment_result.get('metrics', {}),
-                'success': experiment_result.get('success', False),
-                'recommendation': 'promote' if experiment_result.get('success') else 'rollback'
+                "policy_id": policy_id,
+                "duration": duration_seconds,
+                "metrics": experiment_result.get("metrics", {}),
+                "success": experiment_result.get("success", False),
+                "recommendation": "promote" if experiment_result.get("success") else "rollback",
             }
 
             return evaluation
 
         except Exception as e:
             logger.error(f"Erro ao avaliar política: {e}")
-            return {'success': False, 'error': str(e)}
+            return {"success": False, "error": str(e)}
 
-    async def update_policy(self, reward: float, next_state: Dict) -> None:
+    async def update_policy(self, reward: float, next_state: dict) -> None:
         """
         Atualiza Q-table com base em recompensa recebida.
 
@@ -299,7 +292,9 @@ class SchedulingOptimizer:
             if self.update_counter % self.snapshot_interval == 0:
                 await self._save_q_table_snapshot()
 
-            logger.debug(f"Q-table atualizada: state={state_hash[:8]}, action={prev_action.value}, Q={new_q:.4f}")
+            logger.debug(
+                f"Q-table atualizada: state={state_hash[:8]}, action={prev_action.value}, Q={new_q:.4f}"
+            )
 
         except Exception as e:
             logger.error(f"Erro ao atualizar política: {e}")
@@ -329,71 +324,65 @@ class SchedulingOptimizer:
         # Estado nunca visto: ação padrão
         return SchedulingAction.NO_ACTION
 
-    def _hash_state(self, state: Dict) -> str:
+    def _hash_state(self, state: dict) -> str:
         """
         Cria hash do estado para indexação na Q-table.
 
         Discretiza valores contínuos em bins para reduzir espaço de estados.
         """
         # Discretizar carga (bins: baixa, média, alta, crítica)
-        load = state.get('current_load', 0)
-        load_bin = 'low' if load < 50 else 'medium' if load < 100 else 'high' if load < 200 else 'critical'
+        load = state.get("current_load", 0)
+        load_bin = (
+            "low" if load < 50 else "medium" if load < 100 else "high" if load < 200 else "critical"
+        )
 
         # Discretizar utilização
-        utilization = state.get('worker_utilization', 0)
-        util_bin = 'low' if utilization < 0.5 else 'medium' if utilization < 0.8 else 'high'
+        utilization = state.get("worker_utilization", 0)
+        util_bin = "low" if utilization < 0.5 else "medium" if utilization < 0.8 else "high"
 
         # Discretizar depth de fila
-        queue = state.get('queue_depth', 0)
-        queue_bin = 'low' if queue < 10 else 'medium' if queue < 50 else 'high'
+        queue = state.get("queue_depth", 0)
+        queue_bin = "low" if queue < 10 else "medium" if queue < 50 else "high"
 
         # Discretizar SLA compliance
-        sla = state.get('sla_compliance', 1.0)
-        sla_bin = 'critical' if sla < 0.8 else 'warning' if sla < 0.95 else 'good'
+        sla = state.get("sla_compliance", 1.0)
+        sla_bin = "critical" if sla < 0.8 else "warning" if sla < 0.95 else "good"
 
         # Tendência de carga (se forecast disponível)
-        trend = state.get('load_trend', 'stable')
+        trend = state.get("load_trend", "stable")
 
         # Concatenar
         state_str = f"{load_bin}_{util_bin}_{queue_bin}_{sla_bin}_{trend}"
 
         return state_str
 
-    def _enrich_state_with_forecast(
-        self,
-        current_state: Dict,
-        load_forecast: Optional[Dict]
-    ) -> Dict:
+    def _enrich_state_with_forecast(self, current_state: dict, load_forecast: dict | None) -> dict:
         """Enriquece estado atual com previsão de carga."""
         enriched = current_state.copy()
 
-        if load_forecast and 'forecast' in load_forecast:
+        if load_forecast and "forecast" in load_forecast:
             # Calcular tendência de carga (próxima hora vs atual)
-            current_load = current_state.get('current_load', 0)
-            future_points = load_forecast['forecast'][:60]  # Próxima hora
+            current_load = current_state.get("current_load", 0)
+            future_points = load_forecast["forecast"][:60]  # Próxima hora
 
             if future_points:
-                avg_future_load = np.mean([p['ticket_count'] for p in future_points])
+                avg_future_load = np.mean([p["ticket_count"] for p in future_points])
                 if avg_future_load > current_load * 1.2:
-                    enriched['load_trend'] = 'increasing'
+                    enriched["load_trend"] = "increasing"
                 elif avg_future_load < current_load * 0.8:
-                    enriched['load_trend'] = 'decreasing'
+                    enriched["load_trend"] = "decreasing"
                 else:
-                    enriched['load_trend'] = 'stable'
+                    enriched["load_trend"] = "stable"
 
-                enriched['predicted_peak'] = max(p['ticket_count'] for p in future_points)
+                enriched["predicted_peak"] = max(p["ticket_count"] for p in future_points)
             else:
-                enriched['load_trend'] = 'stable'
+                enriched["load_trend"] = "stable"
         else:
-            enriched['load_trend'] = 'stable'
+            enriched["load_trend"] = "stable"
 
         return enriched
 
-    def _calculate_scheduling_reward(
-        self,
-        metrics_before: Dict,
-        metrics_after: Dict
-    ) -> float:
+    def _calculate_scheduling_reward(self, metrics_before: dict, metrics_after: dict) -> float:
         """
         Calcula recompensa baseado em métricas antes/depois.
 
@@ -403,19 +392,27 @@ class SchedulingOptimizer:
         - Throughput increase (peso 0.2)
         """
         # SLA compliance delta
-        sla_before = metrics_before.get('sla_compliance', 0)
-        sla_after = metrics_after.get('sla_compliance', 0)
+        sla_before = metrics_before.get("sla_compliance", 0)
+        sla_after = metrics_after.get("sla_compliance", 0)
         sla_reward = (sla_after - sla_before) * 0.5
 
         # Eficiência de recursos (throughput / utilização)
-        efficiency_before = metrics_before.get('throughput', 0) / max(metrics_before.get('utilization', 1), 0.01)
-        efficiency_after = metrics_after.get('throughput', 0) / max(metrics_after.get('utilization', 1), 0.01)
-        efficiency_reward = ((efficiency_after - efficiency_before) / max(efficiency_before, 1)) * 0.3
+        efficiency_before = metrics_before.get("throughput", 0) / max(
+            metrics_before.get("utilization", 1), 0.01
+        )
+        efficiency_after = metrics_after.get("throughput", 0) / max(
+            metrics_after.get("utilization", 1), 0.01
+        )
+        efficiency_reward = (
+            (efficiency_after - efficiency_before) / max(efficiency_before, 1)
+        ) * 0.3
 
         # Throughput delta
-        throughput_before = metrics_before.get('throughput', 0)
-        throughput_after = metrics_after.get('throughput', 0)
-        throughput_reward = ((throughput_after - throughput_before) / max(throughput_before, 1)) * 0.2
+        throughput_before = metrics_before.get("throughput", 0)
+        throughput_after = metrics_after.get("throughput", 0)
+        throughput_reward = (
+            (throughput_after - throughput_before) / max(throughput_before, 1)
+        ) * 0.2
 
         total_reward = sla_reward + efficiency_reward + throughput_reward
 
@@ -424,7 +421,7 @@ class SchedulingOptimizer:
 
         return total_reward
 
-    def _estimate_improvement(self, state: Dict, action: SchedulingAction) -> float:
+    def _estimate_improvement(self, state: dict, action: SchedulingAction) -> float:
         """
         Estima melhoria esperada em SLA compliance.
 
@@ -450,7 +447,7 @@ class SchedulingOptimizer:
 
         return improvement
 
-    def _calculate_action_risk(self, state: Dict, action: SchedulingAction) -> float:
+    def _calculate_action_risk(self, state: dict, action: SchedulingAction) -> float:
         """
         Calcula risco da ação (0=seguro, 1=perigoso).
 
@@ -466,7 +463,7 @@ class SchedulingOptimizer:
         }.get(action, 0.5)
 
         # Aumentar risco se SLA já crítico
-        if state.get('sla_compliance', 1.0) < 0.8:
+        if state.get("sla_compliance", 1.0) < 0.8:
             base_risk *= 1.5
 
         return min(1.0, base_risk)
@@ -490,10 +487,7 @@ class SchedulingOptimizer:
         return max(0.1, confidence)
 
     def _generate_justification(
-        self,
-        state: Dict,
-        action: SchedulingAction,
-        load_forecast: Optional[Dict]
+        self, state: dict, action: SchedulingAction, load_forecast: dict | None
     ) -> str:
         """Gera justificativa textual para a ação recomendada."""
         justifications = {
@@ -514,8 +508,8 @@ class SchedulingOptimizer:
                 f"Rebalancear prioridades pode melhorar atendimento."
             ),
             SchedulingAction.LOAD_BALANCING_RECONFIG: (
-                f"Distribuição de carga desbalanceada detectada. "
-                f"Reconfigurar balanceamento otimizará uso de recursos."
+                "Distribuição de carga desbalanceada detectada. "
+                "Reconfigurar balanceamento otimizará uso de recursos."
             ),
             SchedulingAction.NO_ACTION: (
                 f"Sistema operando dentro dos parâmetros ótimos "
@@ -547,30 +541,30 @@ class SchedulingOptimizer:
             SchedulingAction.NO_ACTION: 0.0,
         }.get(action, 0.0)
 
-    def _get_implementation_details(self, action: SchedulingAction) -> Dict:
+    def _get_implementation_details(self, action: SchedulingAction) -> dict:
         """Retorna detalhes de implementação para cada ação."""
         return {
             SchedulingAction.INCREASE_WORKER_POOL: {
-                'target_workers': '+20%',
-                'ramp_up_time': '2m',
-                'health_check_delay': '30s'
+                "target_workers": "+20%",
+                "ramp_up_time": "2m",
+                "health_check_delay": "30s",
             },
             SchedulingAction.DECREASE_WORKER_POOL: {
-                'target_workers': '-15%',
-                'graceful_shutdown': True,
-                'drain_timeout': '5m'
+                "target_workers": "-15%",
+                "graceful_shutdown": True,
+                "drain_timeout": "5m",
             },
             SchedulingAction.ADJUST_PRIORITY_WEIGHTS: {
-                'high_priority_boost': 1.3,
-                'low_priority_reduction': 0.7,
+                "high_priority_boost": 1.3,
+                "low_priority_reduction": 0.7,
             },
             SchedulingAction.PREEMPTIVE_SCALING: {
-                'trigger_lead_time': '10m',
-                'scale_factor': 1.5,
+                "trigger_lead_time": "10m",
+                "scale_factor": 1.5,
             },
             SchedulingAction.LOAD_BALANCING_RECONFIG: {
-                'algorithm': 'weighted_round_robin',
-                'rebalance_interval': '1m',
+                "algorithm": "weighted_round_robin",
+                "rebalance_interval": "1m",
             },
             SchedulingAction.NO_ACTION: {},
         }.get(action, {})
@@ -581,31 +575,32 @@ class SchedulingOptimizer:
             # Calcular métricas da política
             avg_reward = np.mean(self.recent_rewards) if self.recent_rewards else 0.0
             policy_metrics = {
-                'average_reward': avg_reward,
-                'states_explored': len(self.q_table),
-                'updates_count': self.update_counter,
+                "average_reward": avg_reward,
+                "states_explored": len(self.q_table),
+                "updates_count": self.update_counter,
             }
 
             # Salvar no MLflow
             await self.model_registry.save_scheduling_policy(
-                q_table=self.q_table,
-                metrics=policy_metrics
+                q_table=self.q_table, metrics=policy_metrics
             )
 
             # Também salvar no MongoDB para redundância
             await self.mongodb.db.scheduling_policies.update_one(
-                {'policy_id': 'current'},
+                {"policy_id": "current"},
                 {
-                    '$set': {
-                        'q_table_snapshot': pickle.dumps(self.q_table).hex(),
-                        'metrics': policy_metrics,
-                        'updated_at': datetime.utcnow(),
+                    "$set": {
+                        "q_table_snapshot": pickle.dumps(self.q_table).hex(),
+                        "metrics": policy_metrics,
+                        "updated_at": datetime.now(UTC),
                     }
                 },
-                upsert=True
+                upsert=True,
             )
 
-            logger.info(f"Q-table snapshot salvo (estados={len(self.q_table)}, avg_reward={avg_reward:.3f})")
+            logger.info(
+                f"Q-table snapshot salvo (estados={len(self.q_table)}, avg_reward={avg_reward:.3f})"
+            )
 
         except Exception as e:
             logger.error(f"Erro ao salvar snapshot: {e}")

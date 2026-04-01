@@ -3,7 +3,7 @@ Cliente Redis compartilhado para deduplicação de tickets no Worker Agent.
 Inclui circuit breaker para resiliência em caso de falhas de conexão.
 """
 import time
-from typing import Optional
+
 import redis.asyncio as redis
 import structlog
 
@@ -29,7 +29,7 @@ class CircuitBreaker:
         self.failure_threshold = failure_threshold
         self.recovery_timeout = recovery_timeout
         self.failure_count = 0
-        self.last_failure_time: Optional[float] = None
+        self.last_failure_time: float | None = None
         self.state = "CLOSED"
 
     def record_failure(self) -> None:
@@ -42,7 +42,7 @@ class CircuitBreaker:
             logger.warning(
                 "redis_circuit_breaker_opened",
                 failure_count=self.failure_count,
-                threshold=self.failure_threshold
+                threshold=self.failure_threshold,
             )
 
     def reset(self) -> None:
@@ -52,10 +52,7 @@ class CircuitBreaker:
         self.last_failure_time = None
         self.state = "CLOSED"
         if previous_state != "CLOSED":
-            logger.info(
-                "redis_circuit_breaker_reset",
-                previous_state=previous_state
-            )
+            logger.info("redis_circuit_breaker_reset", previous_state=previous_state)
 
     def should_allow_request(self) -> bool:
         """
@@ -68,7 +65,10 @@ class CircuitBreaker:
             return True
 
         if self.state == "OPEN":
-            if self.last_failure_time and (time.time() - self.last_failure_time) > self.recovery_timeout:
+            if (
+                self.last_failure_time
+                and (time.time() - self.last_failure_time) > self.recovery_timeout
+            ):
                 self.state = "HALF_OPEN"
                 logger.info("redis_circuit_breaker_half_open")
                 return True
@@ -82,11 +82,11 @@ class CircuitBreaker:
             self.reset()
 
 
-_redis_client_instance: Optional[redis.Redis] = None
+_redis_client_instance: redis.Redis | None = None
 _circuit_breaker: CircuitBreaker = CircuitBreaker(failure_threshold=5, recovery_timeout=60)
 
 
-async def get_redis_client(config) -> Optional[redis.Redis]:
+async def get_redis_client(config) -> redis.Redis | None:
     """
     Retorna instância singleton do cliente Redis.
 
@@ -107,23 +107,20 @@ async def get_redis_client(config) -> Optional[redis.Redis]:
         logger.warning(
             "redis_circuit_breaker_open",
             state=_circuit_breaker.state,
-            recovery_timeout=_circuit_breaker.recovery_timeout
+            recovery_timeout=_circuit_breaker.recovery_timeout,
         )
         return None
 
     try:
-        redis_url = getattr(config, 'redis_url', None)
-        redis_host = getattr(config, 'redis_host', 'localhost')
-        redis_port = getattr(config, 'redis_port', 6379)
-        redis_password = getattr(config, 'redis_password', None)
-        redis_ssl = getattr(config, 'redis_ssl_enabled', False)
+        redis_url = getattr(config, "redis_url", None)
+        redis_host = getattr(config, "redis_host", "localhost")
+        redis_port = getattr(config, "redis_port", 6379)
+        redis_password = getattr(config, "redis_password", None)
+        redis_ssl = getattr(config, "redis_ssl_enabled", False)
 
         if redis_url:
             _redis_client_instance = redis.from_url(
-                redis_url,
-                decode_responses=True,
-                socket_timeout=5,
-                socket_connect_timeout=2
+                redis_url, decode_responses=True, socket_timeout=5, socket_connect_timeout=2
             )
         else:
             _redis_client_instance = redis.Redis(
@@ -133,7 +130,7 @@ async def get_redis_client(config) -> Optional[redis.Redis]:
                 ssl=redis_ssl,
                 decode_responses=True,
                 socket_timeout=5,
-                socket_connect_timeout=2
+                socket_connect_timeout=2,
             )
 
         await _redis_client_instance.ping()
@@ -144,7 +141,7 @@ async def get_redis_client(config) -> Optional[redis.Redis]:
             host=redis_host,
             port=redis_port,
             ssl=redis_ssl,
-            circuit_breaker_state=_circuit_breaker.state
+            circuit_breaker_state=_circuit_breaker.state,
         )
 
         return _redis_client_instance
@@ -155,7 +152,7 @@ async def get_redis_client(config) -> Optional[redis.Redis]:
             "redis_client_initialization_failed",
             error=str(e),
             circuit_breaker_state=_circuit_breaker.state,
-            failure_count=_circuit_breaker.failure_count
+            failure_count=_circuit_breaker.failure_count,
         )
         _redis_client_instance = None
         return None
@@ -188,5 +185,5 @@ def get_circuit_breaker_state() -> dict:
         "failure_count": _circuit_breaker.failure_count,
         "failure_threshold": _circuit_breaker.failure_threshold,
         "recovery_timeout": _circuit_breaker.recovery_timeout,
-        "last_failure_time": _circuit_breaker.last_failure_time
+        "last_failure_time": _circuit_breaker.last_failure_time,
     }

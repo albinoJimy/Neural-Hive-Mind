@@ -5,7 +5,7 @@ Valida persistência, indexação e integridade para LedgerClient e Explainabili
 
 import pytest
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from neural_hive_specialists.config import SpecialistConfig
 from neural_hive_specialists.ledger_client import LedgerClient
@@ -77,7 +77,7 @@ def test_ledger_get_opinions_by_plan(mongodb_uri):
             "suggested_mitigations": [],
             "explainability_token": f"token-{i}",
             "processing_time_ms": 100.0,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "metadata": {},
         }
         ledger.save_opinion_with_fallback(opinion)
@@ -119,7 +119,7 @@ def test_ledger_verify_integrity(mongodb_uri):
         "suggested_mitigations": [],
         "explainability_token": "token-123",
         "processing_time_ms": 100.0,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "metadata": {},
     }
 
@@ -245,7 +245,7 @@ def test_ledger_buffer_flush_on_reconnect(mongodb_uri):
             "suggested_mitigations": [],
             "explainability_token": f"token-{i}",
             "processing_time_ms": 100.0,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "metadata": {},
         }
         opinions.append(opinion)
@@ -297,7 +297,7 @@ def test_ledger_get_opinions_by_intent(mongodb_uri):
             "suggested_mitigations": [],
             "explainability_token": f"token-{i}",
             "processing_time_ms": 100.0,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "metadata": {},
         }
         ledger.save_opinion_with_fallback(opinion)

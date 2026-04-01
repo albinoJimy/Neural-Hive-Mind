@@ -8,20 +8,22 @@ Integra com ClickHouse para estatísticas históricas (mais rápido),
 com fallback para MongoDB quando ClickHouse indisponível.
 """
 
-from typing import Dict, Any, Optional, Tuple, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from .model_promotion import ModelPromotionManager
+from datetime import UTC
+
 import numpy as np
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 import structlog
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.model_selection import train_test_split
 
 from .feature_engineering import (
+    compute_historical_stats,
     extract_ticket_features,
     normalize_features,
-    compute_historical_stats
 )
 
 logger = structlog.get_logger(__name__)
@@ -43,14 +45,7 @@ class DurationPredictor:
     com fallback para MongoDB quando ClickHouse indisponível.
     """
 
-    def __init__(
-        self,
-        config,
-        mongodb_client,
-        model_registry,
-        metrics,
-        clickhouse_client=None
-    ):
+    def __init__(self, config, mongodb_client, model_registry, metrics, clickhouse_client=None):
         """
         Inicializa DurationPredictor.
 
@@ -69,20 +64,20 @@ class DurationPredictor:
         self.logger = logger.bind(component="duration_predictor")
 
         # Flag para usar ClickHouse (configuração)
-        self.use_clickhouse = getattr(config, 'ml_use_clickhouse_for_features', True)
+        self.use_clickhouse = getattr(config, "ml_use_clickhouse_for_features", True)
 
         # Modelo em memória (carregado do registry)
-        self.model: Optional[RandomForestRegressor] = None
+        self.model: RandomForestRegressor | None = None
 
         # Cache de estatísticas históricas
-        self.historical_stats: Dict = {}
-        self.stats_cache_timestamp: Optional[float] = None
+        self.historical_stats: dict = {}
+        self.stats_cache_timestamp: float | None = None
 
         # Nome do modelo no registry
-        self.model_name = 'ticket-duration-predictor'
+        self.model_name = "ticket-duration-predictor"
 
         # Referência ao promotion manager (injetada externamente para shadow mode)
-        self.promotion_manager: Optional['ModelPromotionManager'] = None
+        self.promotion_manager: ModelPromotionManager | None = None
 
     async def initialize(self):
         """
@@ -105,19 +100,19 @@ class DurationPredictor:
                 self.logger.warning(
                     "predictor_initialized_without_trained_model",
                     fallback="heuristic",
-                    model_name=self.model_name
+                    model_name=self.model_name,
                 )
 
             self.logger.info(
                 "duration_predictor_initialized",
                 model_loaded=self.model is not None,
                 model_trained=model_ready,
-                has_estimators=hasattr(self.model, 'estimators_') if self.model else False,
-                stats_groups=len(self.historical_stats)
+                has_estimators=hasattr(self.model, "estimators_") if self.model else False,
+                stats_groups=len(self.historical_stats),
             )
 
         except Exception as e:
-            self.logger.error("duration_predictor_init_failed", error=str(e))
+            self.logger.exception("duration_predictor_init_failed", error=str(e))
             # Não inicializa modelo default - mantém None para usar heurística
             self.model = None
 
@@ -134,10 +129,10 @@ class DurationPredictor:
             min_samples_split=5,
             min_samples_leaf=2,
             random_state=42,
-            n_jobs=-1
+            n_jobs=-1,
         )
 
-    async def _load_model(self) -> Optional[RandomForestRegressor]:
+    async def _load_model(self) -> RandomForestRegressor | None:
         """
         Carrega modelo do ModelRegistry.
 
@@ -149,48 +144,43 @@ class DurationPredictor:
         """
         try:
             model = await self.model_registry.load_model(
-                model_name=self.model_name,
-                stage='Production'
+                model_name=self.model_name, stage="Production"
             )
 
             if model:
                 # Validar se modelo está treinado (tem estimators_)
-                if not hasattr(model, 'estimators_'):
+                if not hasattr(model, "estimators_"):
                     self.logger.warning(
                         "model_loaded_but_not_trained",
                         model_name=self.model_name,
-                        reason="missing_estimators"
+                        reason="missing_estimators",
                     )
                     # Registrar status de modelo não treinado
                     self.metrics.record_ml_model_init_training_status(
-                        model_name=self.model_name,
-                        status='untrained'
+                        model_name=self.model_name, status="untrained"
                     )
                     return None
 
                 self.logger.info(
                     "duration_model_loaded",
                     model_name=self.model_name,
-                    n_estimators=len(model.estimators_)
+                    n_estimators=len(model.estimators_),
                 )
                 # Registrar status de modelo treinado
                 self.metrics.record_ml_model_init_training_status(
-                    model_name=self.model_name,
-                    status='trained'
+                    model_name=self.model_name, status="trained"
                 )
                 return model
-            else:
-                self.logger.warning("duration_model_not_found", model_name=self.model_name)
-                # Registrar status de modelo não treinado
-                self.metrics.record_ml_model_init_training_status(
-                    model_name=self.model_name,
-                    status='untrained'
-                )
-                return None
+            self.logger.warning("duration_model_not_found", model_name=self.model_name)
+            # Registrar status de modelo não treinado
+            self.metrics.record_ml_model_init_training_status(
+                model_name=self.model_name, status="untrained"
+            )
+            return None
 
         except Exception as e:
-            self.logger.error("duration_model_load_failed", error=str(e))
-            self.metrics.record_ml_error('model_load')
+            self.logger.exception("duration_model_load_failed", error=str(e))
+            self.metrics.record_ml_error("model_load")
             return None
 
     async def _check_training_data_availability(self) -> tuple:
@@ -203,14 +193,14 @@ class DurationPredictor:
         from datetime import datetime, timedelta
 
         try:
-            cutoff_date = datetime.utcnow() - timedelta(
-                days=self.config.ml_training_window_days
-            )
+            cutoff_date = datetime.now(UTC) - timedelta(days=self.config.ml_training_window_days)
 
-            count = await self.mongodb_client.db['execution_tickets'].count_documents({
-                'completed_at': {'$gte': cutoff_date},
-                'actual_duration_ms': {'$exists': True, '$ne': None, '$gt': 0}
-            })
+            count = await self.mongodb_client.db["execution_tickets"].count_documents(
+                {
+                    "completed_at": {"$gte": cutoff_date},
+                    "actual_duration_ms": {"$exists": True, "$ne": None, "$gt": 0},
+                }
+            )
 
             has_sufficient = count >= self.config.ml_min_training_samples
 
@@ -218,13 +208,13 @@ class DurationPredictor:
                 "training_data_availability_checked",
                 sample_count=count,
                 required=self.config.ml_min_training_samples,
-                sufficient=has_sufficient
+                sufficient=has_sufficient,
             )
 
             return has_sufficient, count
 
         except Exception as e:
-            self.logger.error("data_availability_check_failed", error=str(e))
+            self.logger.exception("data_availability_check_failed", error=str(e))
             return False, 0
 
     async def _ensure_model_trained(self) -> bool:
@@ -241,11 +231,11 @@ class DurationPredictor:
         """
         try:
             # Verificar modelo atual
-            if self.model and hasattr(self.model, 'estimators_'):
+            if self.model and hasattr(self.model, "estimators_"):
                 self.logger.info(
                     "model_already_trained",
                     model_name=self.model_name,
-                    n_estimators=len(self.model.estimators_)
+                    n_estimators=len(self.model.estimators_),
                 )
                 return True
 
@@ -257,51 +247,40 @@ class DurationPredictor:
                     "insufficient_data_for_training",
                     sample_count=count,
                     required=self.config.ml_min_training_samples,
-                    model_name=self.model_name
+                    model_name=self.model_name,
                 )
                 # Registrar status de falha
                 self.metrics.record_ml_model_training_status(
-                    model_name=self.model_name,
-                    is_trained=False,
-                    has_estimators=False
+                    model_name=self.model_name, is_trained=False, has_estimators=False
                 )
                 return False
 
             # Executar treinamento
             self.logger.info(
-                "auto_training_triggered",
-                model_name=self.model_name,
-                sample_count=count
+                "auto_training_triggered", model_name=self.model_name, sample_count=count
             )
 
             metrics = await self.train_model()
 
-            if metrics.get('promoted'):
+            if metrics.get("promoted"):
                 self.logger.info(
                     "auto_training_succeeded",
                     model_name=self.model_name,
-                    mae_percentage=metrics.get('mae_percentage')
+                    mae_percentage=metrics.get("mae_percentage"),
                 )
                 return True
-            else:
-                self.logger.warning(
-                    "auto_training_not_promoted",
-                    model_name=self.model_name,
-                    reason="quality_below_threshold"
-                )
-                return False
+            self.logger.warning(
+                "auto_training_not_promoted",
+                model_name=self.model_name,
+                reason="quality_below_threshold",
+            )
+            return False
 
         except Exception as e:
-            self.logger.error(
-                "auto_training_failed",
-                error=str(e),
-                model_name=self.model_name
-            )
+            self.logger.exception("auto_training_failed", error=str(e), model_name=self.model_name)
             # Registrar status de falha
             self.metrics.record_ml_model_training_status(
-                model_name=self.model_name,
-                is_trained=False,
-                has_estimators=False
+                model_name=self.model_name, is_trained=False, has_estimators=False
             )
             return False
 
@@ -321,8 +300,7 @@ class DurationPredictor:
             cache_ttl = self.config.ml_feature_cache_ttl_seconds
 
             # Verifica se cache ainda válido
-            if (self.stats_cache_timestamp and
-                current_time - self.stats_cache_timestamp < cache_ttl):
+            if self.stats_cache_timestamp and current_time - self.stats_cache_timestamp < cache_ttl:
                 return
 
             # Determina fonte de dados (ClickHouse preferido se disponível)
@@ -335,15 +313,14 @@ class DurationPredictor:
                         self.logger.debug("using_clickhouse_for_stats")
                 except Exception as e:
                     self.logger.warning(
-                        "clickhouse_health_check_failed_using_mongodb",
-                        error=str(e)
+                        "clickhouse_health_check_failed_using_mongodb", error=str(e)
                     )
 
             # Computa novas estatísticas (com ClickHouse ou MongoDB)
             self.historical_stats = await compute_historical_stats(
                 mongodb_client=self.mongodb_client,
                 window_days=self.config.ml_training_window_days,
-                clickhouse_client=clickhouse_client_to_use
+                clickhouse_client=clickhouse_client_to_use,
             )
 
             self.stats_cache_timestamp = current_time
@@ -352,14 +329,14 @@ class DurationPredictor:
                 "historical_stats_refreshed",
                 stats_groups=len(self.historical_stats),
                 ttl_seconds=cache_ttl,
-                source="clickhouse" if clickhouse_client_to_use else "mongodb"
+                source="clickhouse" if clickhouse_client_to_use else "mongodb",
             )
 
         except Exception as e:
-            self.logger.error("stats_refresh_failed", error=str(e))
+            self.logger.exception("stats_refresh_failed", error=str(e))
             # Mantém stats antigos em caso de erro
 
-    async def predict_duration(self, ticket: Dict[str, Any]) -> Dict[str, float]:
+    async def predict_duration(self, ticket: dict[str, Any]) -> dict[str, float]:
         """
         Prediz duração do ticket com confidence score.
 
@@ -381,8 +358,7 @@ class DurationPredictor:
 
             # Extrai features
             features_dict = extract_ticket_features(
-                ticket=ticket,
-                historical_stats=self.historical_stats
+                ticket=ticket, historical_stats=self.historical_stats
             )
 
             # Normaliza features para array
@@ -396,28 +372,25 @@ class DurationPredictor:
             # Se shadow mode ativo, usa shadow runner
             if shadow_runner:
                 context = {
-                    'ticket_id': ticket.get('ticket_id'),
-                    'task_type': ticket.get('task_type'),
-                    'risk_band': ticket.get('risk_band')
+                    "ticket_id": ticket.get("ticket_id"),
+                    "task_type": ticket.get("task_type"),
+                    "risk_band": ticket.get("risk_band"),
                 }
                 result = await shadow_runner.predict_with_shadow(
-                    features=features_dict,
-                    context=context
+                    features=features_dict, context=context
                 )
 
                 # Métricas
                 duration_seconds = time.time() - start_time
                 self.metrics.record_ml_prediction(
-                    model_type='duration',
-                    status='success',
-                    duration=duration_seconds
+                    model_type="duration", status="success", duration=duration_seconds
                 )
 
                 return result
 
             # Predição normal (sem shadow mode)
             # Verifica se modelo está treinado (tem estimators_)
-            if self.model and hasattr(self.model, 'estimators_') and hasattr(self.model, 'predict'):
+            if self.model and hasattr(self.model, "estimators_") and hasattr(self.model, "predict"):
                 try:
                     predicted_duration = float(self.model.predict(features)[0])
 
@@ -436,8 +409,8 @@ class DurationPredictor:
                 # Modelo não treinado, usa heurística
                 self.logger.debug(
                     "model_not_trained_using_heuristic",
-                    ticket_id=ticket.get('ticket_id'),
-                    reason="missing_estimators"
+                    ticket_id=ticket.get("ticket_id"),
+                    reason="missing_estimators",
                 )
                 predicted_duration = self._heuristic_prediction(features_dict)
                 confidence = 0.3  # Confidence baixo pois modelo não está treinado
@@ -445,36 +418,30 @@ class DurationPredictor:
             # Métricas
             duration_seconds = time.time() - start_time
             self.metrics.record_ml_prediction(
-                model_type='duration',
-                status='success',
-                duration=duration_seconds
+                model_type="duration", status="success", duration=duration_seconds
             )
 
             self.logger.debug(
                 "duration_predicted",
-                ticket_id=ticket.get('ticket_id'),
+                ticket_id=ticket.get("ticket_id"),
                 predicted_ms=predicted_duration,
                 confidence=confidence,
-                latency_ms=duration_seconds * 1000
+                latency_ms=duration_seconds * 1000,
             )
 
-            return {
-                'duration_ms': predicted_duration,
-                'confidence': confidence
-            }
+            return {"duration_ms": predicted_duration, "confidence": confidence}
 
         except Exception as e:
-            self.logger.error("predict_duration_failed", error=str(e), ticket_id=ticket.get('ticket_id'))
-            self.metrics.record_ml_error('prediction')
+            self.logger.exception(
+                "predict_duration_failed", error=str(e), ticket_id=ticket.get("ticket_id")
+            )
+            self.metrics.record_ml_error("prediction")
 
             # Fallback para estimativa do ticket
-            estimated = ticket.get('estimated_duration_ms', 60000.0)
-            return {
-                'duration_ms': float(estimated),
-                'confidence': 0.3
-            }
+            estimated = ticket.get("estimated_duration_ms", 60000.0)
+            return {"duration_ms": float(estimated), "confidence": 0.3}
 
-    def _heuristic_prediction(self, features: Dict[str, float]) -> float:
+    def _heuristic_prediction(self, features: dict[str, float]) -> float:
         """
         Predição heurística quando modelo não disponível.
 
@@ -489,25 +456,21 @@ class DurationPredictor:
         self.logger.debug(
             "using_heuristic_prediction",
             reason="model_not_trained",
-            base_duration=features.get('avg_duration_by_task'),
-            risk_weight=features.get('risk_weight')
+            base_duration=features.get("avg_duration_by_task"),
+            risk_weight=features.get("risk_weight"),
         )
 
-        base_duration = features.get('avg_duration_by_task', 60000.0)
-        risk_weight = features.get('risk_weight', 0.5)
-        capabilities_count = features.get('capabilities_count', 1.0)
+        base_duration = features.get("avg_duration_by_task", 60000.0)
+        risk_weight = features.get("risk_weight", 0.5)
+        capabilities_count = features.get("capabilities_count", 1.0)
 
         # Ajusta por risco e complexidade
         adjusted_duration = base_duration * (0.7 + risk_weight * 0.6)
-        adjusted_duration *= (1.0 + capabilities_count * 0.1)
+        adjusted_duration *= 1.0 + capabilities_count * 0.1
 
         return float(adjusted_duration)
 
-    def _calculate_confidence(
-        self,
-        features: Dict[str, float],
-        prediction: float
-    ) -> float:
+    def _calculate_confidence(self, features: dict[str, float], prediction: float) -> float:
         """
         Calcula confidence score da predição.
 
@@ -525,14 +488,11 @@ class DurationPredictor:
         """
         try:
             # Base confidence: 0.7 para modelo treinado, 0.5 para heurística
-            if self.model and hasattr(self.model, 'predict'):
-                base_confidence = 0.7
-            else:
-                base_confidence = 0.5
+            base_confidence = 0.7 if self.model and hasattr(self.model, "predict") else 0.5
 
             # Ajusta por consistência com histórico
-            avg_duration = features.get('avg_duration_by_task', 60000.0)
-            std_duration = features.get('std_duration_by_task', 15000.0)
+            avg_duration = features.get("avg_duration_by_task", 60000.0)
+            std_duration = features.get("std_duration_by_task", 15000.0)
 
             if std_duration > 0:
                 # Z-score simplificado
@@ -551,7 +511,7 @@ class DurationPredictor:
             self.logger.warning("confidence_calculation_failed", error=str(e))
             return 0.5
 
-    async def train_model(self, training_window_days: Optional[int] = None) -> Dict[str, Any]:
+    async def train_model(self, training_window_days: int | None = None) -> dict[str, Any]:
         """
         Treina modelo com dados históricos.
 
@@ -571,7 +531,7 @@ class DurationPredictor:
 
         try:
             window_days = training_window_days or self.config.ml_training_window_days
-            cutoff_date = datetime.utcnow() - timedelta(days=window_days)
+            cutoff_date = datetime.now(UTC) - timedelta(days=window_days)
 
             # Tenta carregar dados de treino via ClickHouse se habilitado
             tickets = []
@@ -580,43 +540,50 @@ class DurationPredictor:
             if self.use_clickhouse and self.clickhouse_client is not None:
                 try:
                     if await self.clickhouse_client.health_check():
-                        self.logger.info("loading_training_data_from_clickhouse", window_days=window_days)
-                        clickhouse_data = await self.clickhouse_client.query_ticket_metrics_for_training(
-                            window_days=window_days,
-                            limit=100000
+                        self.logger.info(
+                            "loading_training_data_from_clickhouse", window_days=window_days
+                        )
+                        clickhouse_data = (
+                            await self.clickhouse_client.query_ticket_metrics_for_training(
+                                window_days=window_days, limit=100000
+                            )
                         )
                         if clickhouse_data:
                             tickets = clickhouse_data
                             data_source = "clickhouse"
                             self.logger.info(
-                                "training_data_loaded_from_clickhouse",
-                                records=len(tickets)
+                                "training_data_loaded_from_clickhouse", records=len(tickets)
                             )
                 except Exception as e:
                     self.logger.warning(
-                        "clickhouse_training_data_failed_using_mongodb",
-                        error=str(e)
+                        "clickhouse_training_data_failed_using_mongodb", error=str(e)
                     )
 
             # Fallback para MongoDB se ClickHouse falhou ou não está habilitado
             if not tickets:
-                tickets = await self.mongodb_client.db['execution_tickets'].find({
-                    'completed_at': {'$gte': cutoff_date},
-                    'actual_duration_ms': {'$exists': True, '$ne': None, '$gt': 0}
-                }).to_list(None)
+                tickets = (
+                    await self.mongodb_client.db["execution_tickets"]
+                    .find(
+                        {
+                            "completed_at": {"$gte": cutoff_date},
+                            "actual_duration_ms": {"$exists": True, "$ne": None, "$gt": 0},
+                        }
+                    )
+                    .to_list(None)
+                )
                 data_source = "mongodb"
 
             if len(tickets) < self.config.ml_min_training_samples:
                 self.logger.warning(
                     "insufficient_training_data",
                     samples=len(tickets),
-                    required=self.config.ml_min_training_samples
+                    required=self.config.ml_min_training_samples,
                 )
                 return {
-                    'promoted': False,
-                    'version': None,
-                    'train_samples': len(tickets),
-                    'test_samples': 0
+                    "promoted": False,
+                    "version": None,
+                    "train_samples": len(tickets),
+                    "test_samples": 0,
                 }
 
             # Atualiza stats antes de extrair features
@@ -629,12 +596,11 @@ class DurationPredictor:
             for ticket in tickets:
                 try:
                     features_dict = extract_ticket_features(
-                        ticket=ticket,
-                        historical_stats=self.historical_stats
+                        ticket=ticket, historical_stats=self.historical_stats
                     )
                     features = normalize_features(features_dict)
 
-                    actual_duration = float(ticket['actual_duration_ms'])
+                    actual_duration = float(ticket["actual_duration_ms"])
 
                     X_list.append(features[0])
                     y_list.append(actual_duration)
@@ -667,39 +633,35 @@ class DurationPredictor:
             mae_pct = (mae / mean_duration * 100) if mean_duration > 0 else 100.0
 
             metrics = {
-                'mae': float(mae),
-                'rmse': float(rmse),
-                'r2': float(r2),
-                'mae_percentage': float(mae_pct),
-                'train_samples': len(X_train),
-                'test_samples': len(X_test)
+                "mae": float(mae),
+                "rmse": float(rmse),
+                "r2": float(r2),
+                "mae_percentage": float(mae_pct),
+                "train_samples": len(X_train),
+                "test_samples": len(X_test),
             }
 
             # Salva modelo no registry
             params = {
-                'n_estimators': 100,
-                'max_depth': 10,
-                'training_window_days': window_days,
-                'feature_count': X.shape[1]
+                "n_estimators": 100,
+                "max_depth": 10,
+                "training_window_days": window_days,
+                "feature_count": X.shape[1],
             }
 
             tags = {
-                'model_type': 'duration_predictor',
-                'timestamp': datetime.utcnow().isoformat()
+                "model_type": "duration_predictor",
+                "timestamp": datetime.now(UTC).isoformat(),
             }
 
             run_id = await self.model_registry.save_model(
-                model=model,
-                model_name=self.model_name,
-                metrics=metrics,
-                params=params,
-                tags=tags
+                model=model, model_name=self.model_name, metrics=metrics, params=params, tags=tags
             )
 
             # Atualiza modelo em memória se melhor que threshold
             promoted = False
             latest_version = await self._get_latest_version()
-            metrics['version'] = latest_version
+            metrics["version"] = latest_version
 
             if mae_pct < self.config.ml_duration_error_threshold * 100:
                 self.model = model
@@ -709,35 +671,31 @@ class DurationPredictor:
                 # Promove modelo se passar critérios
                 if latest_version:
                     await self.model_registry.promote_model(
-                        model_name=self.model_name,
-                        version=latest_version,
-                        stage='Production'
+                        model_name=self.model_name, version=latest_version, stage="Production"
                     )
 
-            metrics['promoted'] = promoted
+            metrics["promoted"] = promoted
 
             # Métricas
             training_duration = time.time() - start_time
             self.metrics.record_ml_training(
-                model_type='duration',
-                duration=training_duration,
-                metrics=metrics
+                model_type="duration", duration=training_duration, metrics=metrics
             )
 
             # Registrar métricas de qualidade
             self.metrics.record_ml_model_quality(
                 model_name=self.model_name,
-                mae=metrics.get('mae'),
-                rmse=metrics.get('rmse'),
-                r2=metrics.get('r2'),
-                mae_percentage=metrics.get('mae_percentage')
+                mae=metrics.get("mae"),
+                rmse=metrics.get("rmse"),
+                r2=metrics.get("r2"),
+                mae_percentage=metrics.get("mae_percentage"),
             )
 
             # Registrar status de treinamento
             self.metrics.record_ml_model_training_status(
                 model_name=self.model_name,
                 is_trained=True,
-                has_estimators=hasattr(model, 'estimators_')
+                has_estimators=hasattr(model, "estimators_"),
             )
 
             self.logger.info(
@@ -745,28 +703,21 @@ class DurationPredictor:
                 metrics=metrics,
                 run_id=run_id,
                 duration_seconds=training_duration,
-                data_source=data_source
+                data_source=data_source,
             )
 
             return metrics
 
         except Exception as e:
-            self.logger.error("training_failed", error=str(e))
-            self.metrics.record_ml_error('training')
+            self.logger.exception("training_failed", error=str(e))
+            self.metrics.record_ml_error("training")
             # Registrar status de falha
             self.metrics.record_ml_model_training_status(
-                model_name=self.model_name,
-                is_trained=False,
-                has_estimators=False
+                model_name=self.model_name, is_trained=False, has_estimators=False
             )
-            return {
-                'promoted': False,
-                'version': None,
-                'train_samples': 0,
-                'test_samples': 0
-            }
+            return {"promoted": False, "version": None, "train_samples": 0, "test_samples": 0}
 
-    async def _get_latest_version(self) -> Optional[str]:
+    async def _get_latest_version(self) -> str | None:
         """
         Obtém última versão do modelo no registry.
 
@@ -775,6 +726,6 @@ class DurationPredictor:
         """
         try:
             metadata = await self.model_registry.get_model_metadata(self.model_name)
-            return metadata.get('version')
+            return metadata.get("version")
         except:
             return None

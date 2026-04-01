@@ -7,9 +7,10 @@ nas decisões multi-agente do Neural-Hive-Mind.
 GAPS-04 Task 2
 """
 
-import numpy as np
-from typing import List, Dict, Any, Optional
 from collections import defaultdict
+from typing import Any, Dict, List, Optional
+
+import numpy as np
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -33,11 +34,7 @@ class ShapCalculator:
         """
         self.n_background_samples = n_background_samples
 
-    def calculate_shap(
-        self,
-        decision_data: Dict[str, Any],
-        features: List[str]
-    ) -> Dict[str, Any]:
+    def calculate_shap(self, decision_data: Dict[str, Any], features: List[str]) -> Dict[str, Any]:
         """
         Calcula valores SHAP para uma decisão de consenso.
 
@@ -48,13 +45,13 @@ class ShapCalculator:
         Returns:
             Dicionário com feature_attribution e metadados
         """
-        specialist_votes = decision_data.get('specialist_votes', [])
+        specialist_votes = decision_data.get("specialist_votes", [])
 
         if not specialist_votes:
             return {
-                'feature_attribution': {f: 0.0 for f in features},
-                'method': 'kernel_shap',
-                'num_votes': 0
+                "feature_attribution": {f: 0.0 for f in features},
+                "method": "kernel_shap",
+                "num_votes": 0,
             }
 
         # Extrair valores das features dos votos
@@ -64,24 +61,18 @@ class ShapCalculator:
         base_value = self._calculate_base_value(feature_values, decision_data)
 
         # Calcular valores SHAP usando Kernel SHAP simplificado
-        shap_values = self._calculate_kernel_shap(
-            feature_values,
-            base_value,
-            decision_data
-        )
+        shap_values = self._calculate_kernel_shap(feature_values, base_value, decision_data)
 
         return {
-            'feature_attribution': shap_values,
-            'base_value': base_value,
-            'method': 'kernel_shap',
-            'num_votes': len(specialist_votes),
-            'features_used': features
+            "feature_attribution": shap_values,
+            "base_value": base_value,
+            "method": "kernel_shap",
+            "num_votes": len(specialist_votes),
+            "features_used": features,
         }
 
     def _extract_feature_values(
-        self,
-        specialist_votes: List[Dict[str, Any]],
-        features: List[str]
+        self, specialist_votes: List[Dict[str, Any]], features: List[str]
     ) -> Dict[str, List[float]]:
         """Extrai valores das features dos votos dos especialistas."""
         feature_values = defaultdict(list)
@@ -103,9 +94,9 @@ class ShapCalculator:
         """Extrai valor de uma feature de um voto."""
         # Mapeamento de features para campos no voto
         feature_mapping = {
-            'confidence': 'confidence_score',
-            'risk': 'risk_score',
-            'seniority_multiplier': 'seniority_multiplier'
+            "confidence": "confidence_score",
+            "risk": "risk_score",
+            "seniority_multiplier": "seniority_multiplier",
         }
 
         field_name = feature_mapping.get(feature, feature)
@@ -115,15 +106,13 @@ class ShapCalculator:
             return float(vote[field_name])
 
         # Tentar obter do opinion se existir
-        if 'opinion' in vote and field_name in vote['opinion']:
-            return float(vote['opinion'][field_name])
+        if "opinion" in vote and field_name in vote["opinion"]:
+            return float(vote["opinion"][field_name])
 
         return None
 
     def _calculate_base_value(
-        self,
-        feature_values: Dict[str, List[float]],
-        decision_data: Dict[str, Any]
+        self, feature_values: Dict[str, List[float]], decision_data: Dict[str, Any]
     ) -> float:
         """
         Calcula valor base (média esperada sem conhecimento de features).
@@ -133,9 +122,9 @@ class ShapCalculator:
         """
         # Valor base aproximado como média de aprovação esperada
         # Baseado em confiança agregada se disponível
-        if 'aggregated_confidence' in decision_data:
-            conf = decision_data['aggregated_confidence']
-            risk = decision_data.get('aggregated_risk', 0.5)
+        if "aggregated_confidence" in decision_data:
+            conf = decision_data["aggregated_confidence"]
+            risk = decision_data.get("aggregated_risk", 0.5)
             # Aprovação esperada = (conf - risk) normalizado para [-1, 1]
             return (conf - risk) * 2 - 1
 
@@ -145,7 +134,7 @@ class ShapCalculator:
         self,
         feature_values: Dict[str, List[float]],
         base_value: float,
-        decision_data: Dict[str, Any]
+        decision_data: Dict[str, Any],
     ) -> Dict[str, float]:
         """
         Calcula valores SHAP usando Kernel SHAP simplificado.
@@ -156,7 +145,9 @@ class ShapCalculator:
         shap_values = {}
 
         # Obter decisão final como valor numérico (-1 a 1)
-        final_decision_num = self._decision_to_numeric(decision_data.get('final_decision', 'approve'))
+        final_decision_num = self._decision_to_numeric(
+            decision_data.get("final_decision", "approve")
+        )
 
         # Para cada feature, calcular contribuição marginal
         for feature, values in feature_values.items():
@@ -165,13 +156,13 @@ class ShapCalculator:
             # Contribuição baseada em quanto a feature desvia da média esperada
             # e como isso afeta a decisão
 
-            if feature == 'confidence':
+            if feature == "confidence":
                 # Alta confiança aumenta probabilidade de aprovação
                 contribution = (avg_value - 0.5) * 1.5  # Confiança tem peso maior
-            elif feature == 'risk':
+            elif feature == "risk":
                 # Alto risco diminui probabilidade de aprovação (contribuição negativa)
                 contribution = -(avg_value - 0.5) * 1.3
-            elif feature == 'seniority_multiplier':
+            elif feature == "seniority_multiplier":
                 # Senioridade aumenta peso da opinião
                 contribution = (avg_value - 1.0) * 0.3  # Contribuição menor
             else:
@@ -205,20 +196,18 @@ class ShapCalculator:
         reject -> -1.0
         """
         decision_map = {
-            'approve': 1.0,
-            'approved': 1.0,
-            'conditional': 0.5,
-            'review_required': 0.0,
-            'reject': -1.0,
-            'rejected': -1.0,
-            'needs_revision': -0.5
+            "approve": 1.0,
+            "approved": 1.0,
+            "conditional": 0.5,
+            "review_required": 0.0,
+            "reject": -1.0,
+            "rejected": -1.0,
+            "needs_revision": -0.5,
         }
         return decision_map.get(decision.lower(), 0.0)
 
     def batch_calculate_shap(
-        self,
-        decisions: List[Dict[str, Any]],
-        features: List[str]
+        self, decisions: List[Dict[str, Any]], features: List[str]
     ) -> List[Dict[str, Any]]:
         """
         Calcula valores SHAP para um lote de decisões.
@@ -233,20 +222,16 @@ class ShapCalculator:
         results = []
 
         for decision in decisions:
-            decision_id = decision.get('decision_id', 'unknown')
+            decision_id = decision.get("decision_id", "unknown")
 
             shap_result = self.calculate_shap(decision, features)
-            shap_result['decision_id'] = decision_id
+            shap_result["decision_id"] = decision_id
 
             results.append(shap_result)
 
         return results
 
-    def format_explanation(
-        self,
-        attribution: Dict[str, float],
-        language: str = 'pt'
-    ) -> str:
+    def format_explanation(self, attribution: Dict[str, float], language: str = "pt") -> str:
         """
         Formata atribuição SHAP como texto legível para humanos.
 
@@ -258,13 +243,9 @@ class ShapCalculator:
             Texto explicativo formatado
         """
         # Ordenar features por valor absoluto (maior contribuição primeiro)
-        sorted_features = sorted(
-            attribution.items(),
-            key=lambda x: abs(x[1]),
-            reverse=True
-        )
+        sorted_features = sorted(attribution.items(), key=lambda x: abs(x[1]), reverse=True)
 
-        if language == 'pt':
+        if language == "pt":
             explanation = "Principais fatores que influenciaram a decisão:\n"
 
             for feature, value in sorted_features[:5]:  # Top 5
@@ -307,9 +288,9 @@ class ShapCalculator:
     def _translate_feature_pt(self, feature: str) -> str:
         """Traduz nome de feature para português."""
         translations = {
-            'confidence': 'Confiança',
-            'risk': 'Risco',
-            'seniority_multiplier': 'Senioridade',
-            'base_value': 'Valor Base'
+            "confidence": "Confiança",
+            "risk": "Risco",
+            "seniority_multiplier": "Senioridade",
+            "base_value": "Valor Base",
         }
         return translations.get(feature, feature)

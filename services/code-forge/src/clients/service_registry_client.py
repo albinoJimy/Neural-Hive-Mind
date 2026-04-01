@@ -1,6 +1,7 @@
 """Service Registry gRPC client for Code Forge com suporte a mTLS via SPIFFE."""
 import time
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+
 import grpc
 import structlog
 
@@ -9,11 +10,12 @@ from neural_hive_integration.proto_stubs import service_registry_pb2, service_re
 # Importar SPIFFE/mTLS se disponível
 try:
     from neural_hive_security import (
-        SPIFFEManager,
         SPIFFEConfig,
+        SPIFFEManager,
         create_secure_grpc_channel,
         get_grpc_metadata_with_jwt,
     )
+
     SECURITY_LIB_AVAILABLE = True
 except ImportError:
     SECURITY_LIB_AVAILABLE = False
@@ -54,7 +56,7 @@ class ServiceRegistryClient:
             spiffe_x509_enabled = (
                 self.spiffe_enabled
                 and self.spiffe_config
-                and getattr(self.spiffe_config, 'enable_x509', False)
+                and getattr(self.spiffe_config, "enable_x509", False)
                 and SECURITY_LIB_AVAILABLE
             )
 
@@ -65,23 +67,25 @@ class ServiceRegistryClient:
 
                 # Criar canal seguro com mTLS
                 # Permitir fallback inseguro apenas em ambientes de desenvolvimento
-                is_dev_env = self.environment.lower() in ('dev', 'development')
+                is_dev_env = self.environment.lower() in ("dev", "development")
                 self.channel = await create_secure_grpc_channel(
                     target=target,
                     spiffe_config=self.spiffe_config,
                     spiffe_manager=self.spiffe_manager,
-                    fallback_insecure=is_dev_env
+                    fallback_insecure=is_dev_env,
                 )
 
-                logger.info('mtls_channel_configured', target=target, environment=self.environment)
+                logger.info("mtls_channel_configured", target=target, environment=self.environment)
             else:
                 # Fallback para canal inseguro (apenas desenvolvimento)
-                if self.environment in ['production', 'staging', 'prod']:
+                if self.environment in ["production", "staging", "prod"]:
                     raise RuntimeError(
                         f"mTLS is required in {self.environment} but SPIFFE X.509 is disabled."
                     )
 
-                logger.warning('using_insecure_channel', target=target, environment=self.environment)
+                logger.warning(
+                    "using_insecure_channel", target=target, environment=self.environment
+                )
                 self.channel = grpc.aio.insecure_channel(target)
 
             self.stub = service_registry_pb2_grpc.ServiceRegistryStub(self.channel)
@@ -96,16 +100,16 @@ class ServiceRegistryClient:
             return []
 
         try:
-            trust_domain = self.spiffe_config.trust_domain if self.spiffe_config else "neural-hive.local"
+            trust_domain = (
+                self.spiffe_config.trust_domain if self.spiffe_config else "neural-hive.local"
+            )
             audience = f"service-registry.{trust_domain}"
             return await get_grpc_metadata_with_jwt(
-                spiffe_manager=self.spiffe_manager,
-                audience=audience,
-                environment=self.environment
+                spiffe_manager=self.spiffe_manager, audience=audience, environment=self.environment
             )
         except Exception as e:
-            logger.warning('jwt_svid_fetch_failed', error=str(e))
-            if self.environment in ['production', 'staging', 'prod']:
+            logger.warning("jwt_svid_fetch_failed", error=str(e))
+            if self.environment in ["production", "staging", "prod"]:
                 raise
             return []
 
@@ -124,7 +128,9 @@ class ServiceRegistryClient:
 
         logger.info("service_registry_client_closed")
 
-    async def register(self, service_name: str, capabilities: List[str], metadata: Dict[str, Any]) -> Optional[str]:
+    async def register(
+        self, service_name: str, capabilities: List[str], metadata: Dict[str, Any]
+    ) -> Optional[str]:
         """
         Registra Code Forge no Service Registry
 
@@ -142,9 +148,9 @@ class ServiceRegistryClient:
                 agent_type=service_registry_pb2.WORKER,
                 capabilities=capabilities,
                 metadata={k: str(v) for k, v in metadata.items()},
-                namespace=metadata.get('namespace', 'default'),
-                cluster=metadata.get('cluster', 'neural-hive'),
-                version=metadata.get('version', '1.0.0')
+                namespace=metadata.get("namespace", "default"),
+                cluster=metadata.get("cluster", "neural-hive"),
+                version=metadata.get("version", "1.0.0"),
             )
 
             # Obter metadata com JWT-SVID
@@ -155,19 +161,19 @@ class ServiceRegistryClient:
             self._registered = True
 
             logger.info(
-                'service_registered',
+                "service_registered",
                 service_name=service_name,
                 agent_id=self.agent_id,
-                capabilities=capabilities
+                capabilities=capabilities,
             )
             return self.agent_id
 
         except grpc.RpcError as e:
-            logger.error('service_registration_failed', error=str(e), code=e.code())
+            logger.error("service_registration_failed", error=str(e), code=e.code())
             self._registered = False
             return None
         except Exception as e:
-            logger.error('service_registration_failed', error=str(e))
+            logger.error("service_registration_failed", error=str(e))
             self._registered = False
             return None
 
@@ -179,35 +185,34 @@ class ServiceRegistryClient:
             metrics: Metricas atualizadas (active_pipelines, queue_size, success_rate)
         """
         if not self._registered or not self.stub:
-            logger.warning('heartbeat_skipped_not_registered')
+            logger.warning("heartbeat_skipped_not_registered")
             return False
 
         try:
             telemetry = service_registry_pb2.AgentTelemetry(
-                success_rate=metrics.get('success_rate', 1.0),
-                avg_duration_ms=int(metrics.get('avg_duration_ms', 0)),
-                total_executions=int(metrics.get('total_executions', 0)),
-                failed_executions=int(metrics.get('failed_executions', 0)),
-                last_execution_at=int(time.time() * 1000)
+                success_rate=metrics.get("success_rate", 1.0),
+                avg_duration_ms=int(metrics.get("avg_duration_ms", 0)),
+                total_executions=int(metrics.get("total_executions", 0)),
+                failed_executions=int(metrics.get("failed_executions", 0)),
+                last_execution_at=int(time.time() * 1000),
             )
 
             request = service_registry_pb2.HeartbeatRequest(
-                agent_id=self.agent_id,
-                telemetry=telemetry
+                agent_id=self.agent_id, telemetry=telemetry
             )
 
             # Obter metadata com JWT-SVID
             grpc_metadata = await self._get_grpc_metadata()
 
             response = await self.stub.Heartbeat(request, metadata=grpc_metadata)
-            logger.debug('heartbeat_sent', agent_id=self.agent_id, status=response.status)
+            logger.debug("heartbeat_sent", agent_id=self.agent_id, status=response.status)
             return True
 
         except grpc.RpcError as e:
-            logger.error('heartbeat_failed', error=str(e), code=e.code())
+            logger.error("heartbeat_failed", error=str(e), code=e.code())
             return False
         except Exception as e:
-            logger.error('heartbeat_failed', error=str(e))
+            logger.error("heartbeat_failed", error=str(e))
             return False
 
     async def deregister(self) -> bool:
@@ -224,17 +229,19 @@ class ServiceRegistryClient:
             response = await self.stub.Deregister(request, metadata=grpc_metadata)
             self._registered = False
 
-            logger.info('service_deregistered', agent_id=self.agent_id, success=response.success)
+            logger.info("service_deregistered", agent_id=self.agent_id, success=response.success)
             return response.success
 
         except grpc.RpcError as e:
-            logger.error('service_deregister_failed', error=str(e), code=e.code())
+            logger.error("service_deregister_failed", error=str(e), code=e.code())
             return False
         except Exception as e:
-            logger.error('service_deregister_failed', error=str(e))
+            logger.error("service_deregister_failed", error=str(e))
             return False
 
-    async def update_capabilities(self, capabilities: List[str], metadata: Optional[Dict[str, Any]] = None) -> bool:
+    async def update_capabilities(
+        self, capabilities: List[str], metadata: Optional[Dict[str, Any]] = None
+    ) -> bool:
         """
         Atualiza capabilities do serviço via deregister + register.
 
@@ -246,13 +253,13 @@ class ServiceRegistryClient:
             True se atualizado com sucesso, False caso contrário
         """
         if not self._registered:
-            logger.warning('update_capabilities_skipped_not_registered')
+            logger.warning("update_capabilities_skipped_not_registered")
             return False
 
         try:
             # Para atualizar capabilities, deregister e register novamente
             # O proto atual não tem um método UpdateCapabilities
-            logger.info('updating_capabilities', capabilities=capabilities)
+            logger.info("updating_capabilities", capabilities=capabilities)
 
             # Salvar agent_id atual
             old_agent_id = self.agent_id
@@ -262,23 +269,25 @@ class ServiceRegistryClient:
 
             # Registrar novamente com novas capabilities
             new_agent_id = await self.register(
-                service_name=metadata.get('service_name', 'code-forge') if metadata else 'code-forge',
+                service_name=metadata.get("service_name", "code-forge")
+                if metadata
+                else "code-forge",
                 capabilities=capabilities,
-                metadata=metadata or {}
+                metadata=metadata or {},
             )
 
             if new_agent_id:
                 logger.info(
-                    'capabilities_updated_successfully',
+                    "capabilities_updated_successfully",
                     old_agent_id=old_agent_id,
                     new_agent_id=new_agent_id,
-                    capabilities=capabilities
+                    capabilities=capabilities,
                 )
                 return True
             else:
-                logger.error('reregister_failed_after_update_capabilities')
+                logger.error("reregister_failed_after_update_capabilities")
                 return False
 
         except Exception as e:
-            logger.error('update_capabilities_failed', error=str(e))
+            logger.error("update_capabilities_failed", error=str(e))
             return False

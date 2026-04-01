@@ -8,10 +8,12 @@ Implementa:
 - Integração com approval gate
 """
 
-from typing import Optional, Dict, Any, List
 from enum import Enum
-import structlog
+from typing import Any, Dict, List, Optional
+
 import httpx
+import structlog
+
 from ..types.artifact_types import ValidationResult, ValidationStatus
 
 logger = structlog.get_logger()
@@ -19,6 +21,7 @@ logger = structlog.get_logger()
 
 class GitProvider(str, Enum):
     """Providers Git suportados."""
+
     GITHUB = "github"
     GITLAB = "gitlab"
     BITBUCKET = "bitbucket"
@@ -27,6 +30,7 @@ class GitProvider(str, Enum):
 
 class ReviewStatus(str, Enum):
     """Status do review."""
+
     PENDING = "pending"
     APPROVED = "approved"
     CHANGES_REQUESTED = "changes_requested"
@@ -40,29 +44,23 @@ class CodeReviewClient:
     Suporta criação de PRs/MRs e comentários automáticos.
     """
 
-    def __init__(
-        self,
-        provider: GitProvider,
-        base_url: str,
-        token: str,
-        timeout: int = 30
-    ):
+    def __init__(self, provider: GitProvider, base_url: str, token: str, timeout: int = 30):
         self.provider = provider
-        self.base_url = base_url.rstrip('/')
+        self.base_url = base_url.rstrip("/")
         self.token = token
         self.timeout = timeout
 
         # Configurar HTTP client
         self._client = httpx.AsyncClient(
-            base_url=base_url,
-            headers=self._get_headers(),
-            timeout=timeout
+            base_url=base_url, headers=self._get_headers(), timeout=timeout
         )
 
     def _get_headers(self) -> Dict[str, str]:
         """Retorna headers HTTP para autenticação."""
         headers = {
-            "Accept": "application/vnd.github.v3+json" if self.provider == GitProvider.GITHUB else "application/json",
+            "Accept": "application/vnd.github.v3+json"
+            if self.provider == GitProvider.GITHUB
+            else "application/json",
         }
 
         if self.provider == GitProvider.GITHUB:
@@ -87,7 +85,7 @@ class CodeReviewClient:
         target_branch: str = "main",
         draft: bool = False,
         labels: Optional[List[str]] = None,
-        reviewers: Optional[List[str]] = None
+        reviewers: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
         """
         Cria Pull Request no GitHub.
@@ -116,7 +114,7 @@ class CodeReviewClient:
             "head": source_branch,
             "base": target_branch,
             "draft": draft,
-            "maintainer_can_modify": True
+            "maintainer_can_modify": True,
         }
 
         if labels:
@@ -127,34 +125,30 @@ class CodeReviewClient:
         pr_data = response.json()
 
         logger.info(
-            'github_pr_created',
-            pr_number=pr_data.get('number'),
+            "github_pr_created",
+            pr_number=pr_data.get("number"),
             repo=f"{repo_owner}/{repo_name}",
-            draft=draft
+            draft=draft,
         )
 
         # Solicitar reviewers se fornecido
         if reviewers:
             await self._request_github_reviewers(
-                repo_owner, repo_name, pr_data.get('number'), reviewers
+                repo_owner, repo_name, pr_data.get("number"), reviewers
             )
 
         return {
             "provider": "github",
-            "pr_number": pr_data.get('number'),
-            "pr_id": pr_data.get('id'),
-            "url": pr_data.get('html_url'),
-            "state": pr_data.get('state'),
-            "draft": pr_data.get('draft'),
-            "created_at": pr_data.get('created_at')
+            "pr_number": pr_data.get("number"),
+            "pr_id": pr_data.get("id"),
+            "url": pr_data.get("html_url"),
+            "state": pr_data.get("state"),
+            "draft": pr_data.get("draft"),
+            "created_at": pr_data.get("created_at"),
         }
 
     async def _request_github_reviewers(
-        self,
-        repo_owner: str,
-        repo_name: str,
-        pr_number: int,
-        reviewers: List[str]
+        self, repo_owner: str, repo_name: str, pr_number: int, reviewers: List[str]
     ):
         """Solicita reviewers no GitHub."""
         endpoint = f"/repos/{repo_owner}/{repo_name}/pulls/{pr_number}/requested_reviewers"
@@ -165,12 +159,12 @@ class CodeReviewClient:
                 response = await self._client.post(endpoint, json=payload)
                 if response.status_code not in (200, 201, 404):
                     logger.warning(
-                        'github_reviewer_request_failed',
+                        "github_reviewer_request_failed",
                         reviewer=reviewer,
-                        status=response.status_code
+                        status=response.status_code,
                     )
             except Exception as e:
-                logger.warning('github_reviewer_request_error', reviewer=reviewer, error=str(e))
+                logger.warning("github_reviewer_request_error", reviewer=reviewer, error=str(e))
 
     async def create_merge_request(
         self,
@@ -182,7 +176,7 @@ class CodeReviewClient:
         draft: bool = False,
         labels: Optional[List[str]] = None,
         assignees: Optional[List[str]] = None,
-        remove_source_branch: bool = False
+        remove_source_branch: bool = False,
     ) -> Dict[str, Any]:
         """
         Cria Merge Request no GitLab.
@@ -209,7 +203,7 @@ class CodeReviewClient:
             "source_branch": source_branch,
             "target_branch": target_branch,
             "draft": draft,
-            "remove_source_branch": remove_source_branch
+            "remove_source_branch": remove_source_branch,
         }
 
         if title:
@@ -226,20 +220,17 @@ class CodeReviewClient:
         mr_data = response.json()
 
         logger.info(
-            'gitlab_mr_created',
-            mr_iid=mr_data.get('iid'),
-            project_id=project_id,
-            draft=draft
+            "gitlab_mr_created", mr_iid=mr_data.get("iid"), project_id=project_id, draft=draft
         )
 
         return {
             "provider": "gitlab",
-            "mr_number": mr_data.get('iid'),
-            "mr_id": mr_data.get('id'),
-            "web_url": mr_data.get('web_url'),
-            "state": mr_data.get('state'),
-            "draft": mr_data.get('draft'),
-            "created_at": mr_data.get('created_at')
+            "mr_number": mr_data.get("iid"),
+            "mr_id": mr_data.get("id"),
+            "web_url": mr_data.get("web_url"),
+            "state": mr_data.get("state"),
+            "draft": mr_data.get("draft"),
+            "created_at": mr_data.get("created_at"),
         }
 
     async def add_validation_comment(
@@ -248,7 +239,7 @@ class CodeReviewClient:
         repo_name: str,
         pr_number: int,
         validation_results: List[ValidationResult],
-        overall_status: str
+        overall_status: str,
     ) -> Dict[str, Any]:
         """
         Adiciona comentário com resultados de validação no PR.
@@ -266,17 +257,11 @@ class CodeReviewClient:
         comment_body = self._format_validation_comment(validation_results, overall_status)
 
         if self.provider == GitProvider.GITHUB:
-            return await self._add_github_comment(
-                repo_owner, repo_name, pr_number, comment_body
-            )
+            return await self._add_github_comment(repo_owner, repo_name, pr_number, comment_body)
         elif self.provider == GitProvider.GITLAB:
-            return await self._add_gitlab_comment(
-                repo_owner, repo_name, pr_number, comment_body
-            )
+            return await self._add_gitlab_comment(repo_owner, repo_name, pr_number, comment_body)
         elif self.provider == GitProvider.BITBUCKET:
-            return await self._add_bitbucket_comment(
-                repo_owner, repo_name, pr_number, comment_body
-            )
+            return await self._add_bitbucket_comment(repo_owner, repo_name, pr_number, comment_body)
         elif self.provider == GitProvider.AZURE_DEVOPS:
             return await self._add_azure_devops_comment(
                 repo_owner, repo_name, pr_number, comment_body
@@ -285,11 +270,7 @@ class CodeReviewClient:
             raise NotImplementedError(f"Comments not supported for {self.provider}")
 
     async def _add_github_comment(
-        self,
-        repo_owner: str,
-        repo_name: str,
-        pr_number: int,
-        body: str
+        self, repo_owner: str, repo_name: str, pr_number: int, body: str
     ) -> Dict[str, Any]:
         """Adiciona comentário no PR do GitHub."""
         endpoint = f"/repos/{repo_owner}/{repo_name}/pulls/{pr_number}/comments"
@@ -299,17 +280,10 @@ class CodeReviewClient:
         response.raise_for_status()
         comment_data = response.json()
 
-        return {
-            "comment_id": comment_data.get('id'),
-            "url": comment_data.get('html_url')
-        }
+        return {"comment_id": comment_data.get("id"), "url": comment_data.get("html_url")}
 
     async def _add_gitlab_comment(
-        self,
-        repo_owner: str,
-        repo_name: str,
-        mr_number: int,
-        body: str
+        self, repo_owner: str, repo_name: str, mr_number: int, body: str
     ) -> Dict[str, Any]:
         """Adiciona comentário no MR do GitLab."""
         # Para GitLab, precisamos do project_id
@@ -325,10 +299,7 @@ class CodeReviewClient:
         response.raise_for_status()
         comment_data = response.json()
 
-        return {
-            "comment_id": comment_data.get('id'),
-            "url": comment_data.get('web_url')
-        }
+        return {"comment_id": comment_data.get("id"), "url": comment_data.get("web_url")}
 
     async def _get_gitlab_project_id(self, repo_owner: str, repo_name: str) -> Optional[int]:
         """Busca project_id no GitLab pelo nome."""
@@ -336,15 +307,15 @@ class CodeReviewClient:
             endpoint = f"/projects/{repo_owner}%2F{repo_name}"
             response = await self._client.get(endpoint)
             if response.status_code == 200:
-                return response.json().get('id')
+                return response.json().get("id")
         except Exception as e:
-            logger.warning('gitlab_project_lookup_failed', repo=f"{repo_owner}/{repo_name}", error=str(e))
+            logger.warning(
+                "gitlab_project_lookup_failed", repo=f"{repo_owner}/{repo_name}", error=str(e)
+            )
         return None
 
     def _format_validation_comment(
-        self,
-        validation_results: List[ValidationResult],
-        overall_status: str
+        self, validation_results: List[ValidationResult], overall_status: str
     ) -> str:
         """Formata comentário de validação."""
         lines = [
@@ -353,7 +324,7 @@ class CodeReviewClient:
             f"**Status:** {overall_status.upper()}",
             "",
             "### Validation Results",
-            ""
+            "",
         ]
 
         # Se não houver validações, adicionar mensagem
@@ -369,7 +340,7 @@ class CodeReviewClient:
                 by_type[vtype].append(result)
 
             # Ordenar por criticidade
-            for vtype in ['SAST', 'DAST', 'SCA', 'LICENSE_CHECK']:
+            for vtype in ["SAST", "DAST", "SCA", "LICENSE_CHECK"]:
                 if vtype not in by_type:
                     continue
 
@@ -401,24 +372,25 @@ class CodeReviewClient:
 
         # Adicionar recomendações
         if overall_status == "changes_requested":
-            lines.extend([
-                "### 🔧 Recommendations",
-                "",
-                "Please review the issues above and make necessary changes before proceeding.",
-                ""
-            ])
+            lines.extend(
+                [
+                    "### 🔧 Recommendations",
+                    "",
+                    "Please review the issues above and make necessary changes before proceeding.",
+                    "",
+                ]
+            )
         elif overall_status == "approved":
-            lines.extend([
-                "### ✅ Approved",
-                "",
-                "All validations passed! This artifact is ready for merge.",
-                ""
-            ])
+            lines.extend(
+                [
+                    "### ✅ Approved",
+                    "",
+                    "All validations passed! This artifact is ready for merge.",
+                    "",
+                ]
+            )
 
-        lines.extend([
-            "---",
-            "*Generated by Neural Code Forge*"
-        ])
+        lines.extend(["---", "*Generated by Neural Code Forge*"])
 
         return "\n".join(lines)
 
@@ -428,7 +400,7 @@ class CodeReviewClient:
         repo_name: str,
         pr_number: int,
         status: ReviewStatus,
-        comment: Optional[str] = None
+        comment: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Define status de review (aprova/rejeita).
@@ -468,19 +440,17 @@ class CodeReviewClient:
         repo_name: str,
         pr_number: int,
         status: ReviewStatus,
-        comment: Optional[str] = None
+        comment: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Define status de review no GitHub."""
         event_map = {
             ReviewStatus.APPROVED: "APPROVE",
             ReviewStatus.CHANGES_REQUESTED: "REQUEST_CHANGES",
-            ReviewStatus.COMMENTED: "COMMENT"
+            ReviewStatus.COMMENTED: "COMMENT",
         }
 
         endpoint = f"/repos/{repo_owner}/{repo_name}/pulls/{pr_number}/reviews"
-        payload = {
-            "event": event_map.get(status, "COMMENT")
-        }
+        payload = {"event": event_map.get(status, "COMMENT")}
 
         if comment:
             payload["body"] = comment
@@ -490,10 +460,10 @@ class CodeReviewClient:
         review_data = response.json()
 
         return {
-            "review_id": review_data.get('id'),
-            "user": review_data.get('user', {}).get('login'),
-            "state": review_data.get('state'),
-            "submitted_at": review_data.get('submitted_at')
+            "review_id": review_data.get("id"),
+            "user": review_data.get("user", {}).get("login"),
+            "state": review_data.get("state"),
+            "submitted_at": review_data.get("submitted_at"),
         }
 
     async def _set_gitlab_review_status(
@@ -502,7 +472,7 @@ class CodeReviewClient:
         repo_name: str,
         mr_number: int,
         status: ReviewStatus,
-        comment: Optional[str] = None
+        comment: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Define status de review no GitLab."""
         project_id = await self._get_gitlab_project_id(repo_owner, repo_name)
@@ -512,7 +482,7 @@ class CodeReviewClient:
         # GitLab usa emoji de aprovação
         approval_map = {
             ReviewStatus.APPROVED: "thumbsup",
-            ReviewStatus.CHANGES_REQUESTED: "thumbsdown"
+            ReviewStatus.CHANGES_REQUESTED: "thumbsdown",
         }
 
         endpoint = f"/projects/{project_id}/merge_requests/{mr_number}/approval"
@@ -525,18 +495,10 @@ class CodeReviewClient:
         response = await self._client.post(endpoint, json=payload)
         response.raise_for_status()
 
-        return {
-            "status": status.value,
-            "project_id": project_id,
-            "mr_number": mr_number
-        }
+        return {"status": status.value, "project_id": project_id, "mr_number": mr_number}
 
     async def _add_bitbucket_comment(
-        self,
-        repo_owner: str,
-        repo_name: str,
-        pr_number: int,
-        body: str
+        self, repo_owner: str, repo_name: str, pr_number: int, body: str
     ) -> Dict[str, Any]:
         """
         Adiciona comentário no Pull Request do Bitbucket.
@@ -545,7 +507,7 @@ class CodeReviewClient:
         """
         # Formatar o workspace e repo slug
         workspace = repo_owner
-        repo_slug = repo_name.lower().replace(' ', '-')
+        repo_slug = repo_name.lower().replace(" ", "-")
 
         endpoint = f"/repositories/{workspace}/{repo_slug}/pullrequests/{pr_number}/comments"
         payload = {"content": {"raw": body}}
@@ -555,23 +517,19 @@ class CodeReviewClient:
         comment_data = response.json()
 
         logger.info(
-            'bitbucket_comment_added',
+            "bitbucket_comment_added",
             pr_number=pr_number,
-            comment_id=comment_data.get('id'),
-            repo=f"{workspace}/{repo_slug}"
+            comment_id=comment_data.get("id"),
+            repo=f"{workspace}/{repo_slug}",
         )
 
         return {
-            "comment_id": comment_data.get('id'),
-            "url": comment_data.get('links', {}).get('html', {}).get('href')
+            "comment_id": comment_data.get("id"),
+            "url": comment_data.get("links", {}).get("html", {}).get("href"),
         }
 
     async def _add_azure_devops_comment(
-        self,
-        repo_owner: str,
-        repo_name: str,
-        pr_number: int,
-        body: str
+        self, repo_owner: str, repo_name: str, pr_number: int, body: str
     ) -> Dict[str, Any]:
         """
         Adiciona comentário no Pull Request do Azure DevOps.
@@ -584,38 +542,30 @@ class CodeReviewClient:
         project = repo_owner  # Azure DevOps usa project como owner
         repository = repo_name
 
-        endpoint = f"/{project}/_apis/git/repositories/{repository}/pullrequests/{pr_number}/threads"
-        payload = {
-            "comments": [
-                {
-                    "parentCommentId": 0,
-                    "content": body,
-                    "commentType": "text"
-                }
-            ]
-        }
+        endpoint = (
+            f"/{project}/_apis/git/repositories/{repository}/pullrequests/{pr_number}/threads"
+        )
+        payload = {"comments": [{"parentCommentId": 0, "content": body, "commentType": "text"}]}
 
         # Adicionar api-version para Azure DevOps
         headers = self._get_headers()
         response = await self._client.post(
-            f"{endpoint}?api-version=7.0",
-            json=payload,
-            headers=headers
+            f"{endpoint}?api-version=7.0", json=payload, headers=headers
         )
         response.raise_for_status()
         comment_data = response.json()
 
         logger.info(
-            'azure_devops_comment_added',
+            "azure_devops_comment_added",
             pr_number=pr_number,
-            thread_id=comment_data.get('id'),
+            thread_id=comment_data.get("id"),
             project=project,
-            repository=repository
+            repository=repository,
         )
 
         return {
-            "thread_id": comment_data.get('id'),
-            "comment_count": len(comment_data.get('comments', []))
+            "thread_id": comment_data.get("id"),
+            "comment_count": len(comment_data.get("comments", [])),
         }
 
     async def _set_bitbucket_review_status(
@@ -624,7 +574,7 @@ class CodeReviewClient:
         repo_name: str,
         pr_number: int,
         status: ReviewStatus,
-        comment: Optional[str] = None
+        comment: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Define status de aprovação no Bitbucket.
@@ -632,16 +582,16 @@ class CodeReviewClient:
         Bitbucket usa approving/rejecting individual users.
         """
         workspace = repo_owner
-        repo_slug = repo_name.lower().replace(' ', '-')
+        repo_slug = repo_name.lower().replace(" ", "-")
 
         # Mapear status para ação Bitbucket
         action_map = {
             ReviewStatus.APPROVED: "approve",
             ReviewStatus.CHANGES_REQUESTED: "request_changes",
-            ReviewStatus.COMMENTED: "comment"
+            ReviewStatus.COMMENTED: "comment",
         }
 
-        action = action_map.get(status, "comment")
+        action_map.get(status, "comment")
 
         # Bitbucket API para aprovação
         if status == ReviewStatus.APPROVED:
@@ -650,22 +600,22 @@ class CodeReviewClient:
             response.raise_for_status()
 
             logger.info(
-                'bitbucket_pr_approved',
-                pr_number=pr_number,
-                repo=f"{workspace}/{repo_slug}"
+                "bitbucket_pr_approved", pr_number=pr_number, repo=f"{workspace}/{repo_slug}"
             )
 
             result = {"status": "approved", "pr_number": pr_number}
 
         elif status == ReviewStatus.CHANGES_REQUESTED:
-            endpoint = f"/repositories/{workspace}/{repo_slug}/pullrequests/{pr_number}/request-changes"
+            endpoint = (
+                f"/repositories/{workspace}/{repo_slug}/pullrequests/{pr_number}/request-changes"
+            )
             response = await self._client.post(endpoint)
             response.raise_for_status()
 
             logger.info(
-                'bitbucket_pr_changes_requested',
+                "bitbucket_pr_changes_requested",
                 pr_number=pr_number,
-                repo=f"{workspace}/{repo_slug}"
+                repo=f"{workspace}/{repo_slug}",
             )
 
             result = {"status": "changes_requested", "pr_number": pr_number}
@@ -689,7 +639,7 @@ class CodeReviewClient:
         repo_name: str,
         pr_number: int,
         status: ReviewStatus,
-        comment: Optional[str] = None
+        comment: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Define status de aprovação no Azure DevOps.
@@ -703,41 +653,34 @@ class CodeReviewClient:
         status_map = {
             ReviewStatus.APPROVED: "approved",
             ReviewStatus.CHANGES_REQUESTED: "changes_requested",
-            ReviewStatus.COMMENTED: "needs_review"
+            ReviewStatus.COMMENTED: "needs_review",
         }
 
         # Azure DevOps API para atualizar reviewer status
-        endpoint = f"/{project}/_apis/git/repositories/{repository}/pullrequests/{pr_number}/reviewers"
         headers = self._get_headers()
 
         # Obter identidade do usuário atual (token owner)
         # Para simplificar, usamos um placeholder - em prod obter do profile
         identity_response = await self._client.get(
-            "/_apis/connectedAccounts?api-version=7.0-preview.1",
-            headers=headers
+            "/_apis/connectedAccounts?api-version=7.0-preview.1", headers=headers
         )
 
         user_id = None
         if identity_response.status_code == 200:
             accounts = identity_response.json()
             if accounts and len(accounts) > 0:
-                user_id = accounts[0].get('id')
+                user_id = accounts[0].get("id")
 
         if not user_id:
             # Fallback: tentar obter do endpoint de profile
             profile_response = await self._client.get(
-                "/_apis/profile/profiles/me?api-version=7.0-preview.3",
-                headers=headers
+                "/_apis/profile/profiles/me?api-version=7.0-preview.3", headers=headers
             )
             if profile_response.status_code == 200:
-                user_id = profile_response.json().get('id')
+                user_id = profile_response.json().get("id")
 
         if not user_id:
-            logger.warning(
-                'azure_devops_user_id_not_found',
-                pr_number=pr_number,
-                project=project
-            )
+            logger.warning("azure_devops_user_id_not_found", pr_number=pr_number, project=project)
             # Se não conseguir obter user_id, apenas adiciona comentário
             if comment:
                 return await self._add_azure_devops_comment(
@@ -751,26 +694,20 @@ class CodeReviewClient:
             f"/pullrequests/{pr_number}/reviewers/{user_id}?api-version=7.0"
         )
 
-        payload = {
-            "vote": self._map_azure_devops_vote(status)
-        }
+        payload = {"vote": self._map_azure_devops_vote(status)}
 
         response = await self._client.put(reviewer_endpoint, json=payload, headers=headers)
         response.raise_for_status()
 
         logger.info(
-            'azure_devops_review_status_set',
+            "azure_devops_review_status_set",
             pr_number=pr_number,
             status=status_map.get(status),
             project=project,
-            repository=repository
+            repository=repository,
         )
 
-        result = {
-            "status": status_map.get(status),
-            "pr_number": pr_number,
-            "user_id": user_id
-        }
+        result = {"status": status_map.get(status), "pr_number": pr_number, "user_id": user_id}
 
         # Adicionar comentário se fornecido
         if comment:
@@ -796,7 +733,7 @@ class CodeReviewClient:
             ReviewStatus.APPROVED: 10,
             ReviewStatus.CHANGES_REQUESTED: -10,
             ReviewStatus.COMMENTED: 5,
-            ReviewStatus.PENDING: 0
+            ReviewStatus.PENDING: 0,
         }
         return vote_map.get(status, 0)
 
@@ -816,7 +753,7 @@ class CodeReviewIntegration:
         self,
         github_client: Optional[CodeReviewClient] = None,
         gitlab_client: Optional[CodeReviewClient] = None,
-        default_provider: GitProvider = GitProvider.GITHUB
+        default_provider: GitProvider = GitProvider.GITHUB,
     ):
         self.github_client = github_client
         self.gitlab_client = gitlab_client
@@ -831,7 +768,7 @@ class CodeReviewIntegration:
         repo_name: str,
         source_branch: str,
         target_branch: str = "main",
-        provider: Optional[GitProvider] = None
+        provider: Optional[GitProvider] = None,
     ) -> Dict[str, Any]:
         """
         Cria PR/MR para um artefato com comentários de validação.
@@ -865,7 +802,7 @@ class CodeReviewIntegration:
                 description=description,
                 source_branch=source_branch,
                 target_branch=target_branch,
-                draft=True  # Criar como draft até validações passarem
+                draft=True,  # Criar como draft até validações passarem
             )
         elif provider == GitProvider.GITLAB:
             # Para GitLab precisamos do project_id
@@ -880,17 +817,17 @@ class CodeReviewIntegration:
                 target_branch=target_branch,
                 title=title,
                 description=description,
-                draft=True
+                draft=True,
             )
 
         # Adicionar comentário de validação
-        pr_number = pr_or_mr.get('pr_number') or pr_or_mr.get('mr_number')
+        pr_number = pr_or_mr.get("pr_number") or pr_or_mr.get("mr_number")
         await client.add_validation_comment(
             repo_owner=repo_owner,
             repo_name=repo_name,
             pr_number=pr_number,
             validation_results=validation_results,
-            overall_status=self._calculate_overall_status(validation_results)
+            overall_status=self._calculate_overall_status(validation_results),
         )
 
         # Se tudo passou, converter de draft para normal
@@ -898,10 +835,10 @@ class CodeReviewIntegration:
             await self._convert_from_draft(client, repo_owner, repo_name, pr_or_mr)
 
         logger.info(
-            'code_review_created',
+            "code_review_created",
             artifact_id=artifact_id,
             provider=provider,
-            pr_or_mr_id=pr_or_mr.get('pr_number') or pr_or_mr.get('mr_number')
+            pr_or_mr_id=pr_or_mr.get("pr_number") or pr_or_mr.get("mr_number"),
         )
 
         return pr_or_mr
@@ -920,9 +857,7 @@ class CodeReviewIntegration:
             raise ValueError(f"Unsupported provider: {provider}")
 
     def _generate_pr_description(
-        self,
-        artifact_id: str,
-        validation_results: List[ValidationResult]
+        self, artifact_id: str, validation_results: List[ValidationResult]
     ) -> str:
         """Gera descrição do PR/MR."""
         # Obter timestamp formatado ou N/A
@@ -930,7 +865,7 @@ class CodeReviewIntegration:
         if validation_results and validation_results[0].executed_at:
             timestamp = validation_results[0].executed_at.isoformat()
 
-        return f'''## 📦 Generated Artifact
+        return f"""## 📦 Generated Artifact
 
 This pull request contains code generated by Neural Code Forge.
 
@@ -960,7 +895,7 @@ The following validations were performed:
 ---
 
 *This is an automated pull request. Please review the generated code carefully before merging.*
-'''
+"""
 
     def _format_validation_summary(self, validation_results: List[ValidationResult]) -> str:
         """Formata resumo de validações."""
@@ -1002,11 +937,7 @@ The following validations were performed:
         )
 
     async def _convert_from_draft(
-        self,
-        client: CodeReviewClient,
-        repo_owner: str,
-        repo_name: str,
-        pr_or_mr: Dict[str, Any]
+        self, client: CodeReviewClient, repo_owner: str, repo_name: str, pr_or_mr: Dict[str, Any]
     ):
         """Converte PR/MR de draft para normal."""
         # Implementação dependeria do provider

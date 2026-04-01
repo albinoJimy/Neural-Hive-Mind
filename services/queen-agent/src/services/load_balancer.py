@@ -9,16 +9,16 @@ Implementa distribuição de tarefas usando múltiplas estratégias:
 """
 import asyncio
 import hashlib
-import structlog
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Callable, Optional, Dict, List
+from datetime import UTC, datetime
 from enum import Enum
-from collections import defaultdict
+from typing import TYPE_CHECKING, Any, Optional
+
+import structlog
 
 if TYPE_CHECKING:
-    from ..clients import RedisClient, ServiceRegistryClient
-    from ..config import Settings
+    from src.clients import RedisClient, ServiceRegistryClient
+    from src.config import Settings
 
 
 logger = structlog.get_logger()
@@ -26,6 +26,7 @@ logger = structlog.get_logger()
 
 class BalancingStrategy(Enum):
     """Estratégias de balanceamento"""
+
     ROUND_ROBIN = "round_robin"
     LEAST_LOADED = "least_loaded"
     WEIGHTED = "weighted"
@@ -35,12 +36,13 @@ class BalancingStrategy(Enum):
 @dataclass
 class WorkerMetrics:
     """Métricas de um worker"""
+
     worker_id: str
     active_tasks: int = 0
     completed_tasks: int = 0
     failed_tasks: int = 0
     avg_processing_time_ms: float = 0.0
-    last_heartbeat: Optional[datetime] = None
+    last_heartbeat: datetime | None = None
     capacity: float = 1.0  # Capacidade relativa (1.0 = baseline)
     is_healthy: bool = True
 
@@ -48,6 +50,7 @@ class WorkerMetrics:
 @dataclass
 class TaskAssignment:
     """Resultado da atribuição de tarefa"""
+
     worker_id: str
     strategy: BalancingStrategy
     assigned_at: datetime = field(default_factory=datetime.utcnow)
@@ -79,19 +82,17 @@ class LoadBalancer:
         self.strategy = BalancingStrategy(
             getattr(settings, "LOAD_BALANCER_STRATEGY", "round_robin")
         )
-        self.heartbeat_timeout_seconds = getattr(
-            settings, "WORKER_HEARTBEAT_TIMEOUT_SECONDS", 30
-        )
+        self.heartbeat_timeout_seconds = getattr(settings, "WORKER_HEARTBEAT_TIMEOUT_SECONDS", 30)
         self.metrics_ttl_seconds = getattr(settings, "METRICS_TTL_SECONDS", 300)
 
         # Estado local
         self._round_robin_index = 0
-        self._local_cache: Dict[str, WorkerMetrics] = {}
+        self._local_cache: dict[str, WorkerMetrics] = {}
         self._cache_lock = asyncio.Lock()
 
         # Background tasks
         self.is_running = False
-        self._sync_task: Optional[asyncio.Task] = None
+        self._sync_task: asyncio.Task | None = None
 
         logger.info(
             "load_balancer_initialized",
@@ -121,7 +122,7 @@ class LoadBalancer:
         self,
         worker_id: str,
         capacity: float = 1.0,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> bool:
         """
         Registrar um worker no balanceador.
@@ -140,7 +141,7 @@ class LoadBalancer:
                 metrics = WorkerMetrics(
                     worker_id=worker_id,
                     capacity=capacity,
-                    last_heartbeat=datetime.utcnow(),
+                    last_heartbeat=datetime.now(UTC),
                     is_healthy=True,
                 )
                 self._local_cache[worker_id] = metrics
@@ -149,7 +150,7 @@ class LoadBalancer:
             worker_data = {
                 "worker_id": worker_id,
                 "capacity": str(capacity),
-                "registered_at": datetime.utcnow().isoformat(),
+                "registered_at": datetime.now(UTC).isoformat(),
                 "metadata": str(metadata or {}),
             }
             await self.redis_client.client.hset(self.WORKERS_KEY, worker_id, str(worker_data))
@@ -163,7 +164,7 @@ class LoadBalancer:
             return True
 
         except Exception as e:
-            logger.error("register_worker_failed", error=str(e), worker_id=worker_id)
+            logger.exception("register_worker_failed", error=str(e), worker_id=worker_id)
             return False
 
     async def unregister_worker(self, worker_id: str) -> bool:
@@ -188,16 +189,16 @@ class LoadBalancer:
             return True
 
         except Exception as e:
-            logger.error("unregister_worker_failed", error=str(e), worker_id=worker_id)
+            logger.exception("unregister_worker_failed", error=str(e), worker_id=worker_id)
             return False
 
     async def update_worker_metrics(
         self,
         worker_id: str,
-        active_tasks: Optional[int] = None,
-        completed_tasks: Optional[int] = None,
-        failed_tasks: Optional[int] = None,
-        avg_processing_time_ms: Optional[float] = None,
+        active_tasks: int | None = None,
+        completed_tasks: int | None = None,
+        failed_tasks: int | None = None,
+        avg_processing_time_ms: float | None = None,
     ) -> bool:
         """
         Atualizar métricas de um worker.
@@ -229,7 +230,7 @@ class LoadBalancer:
                 if avg_processing_time_ms is not None:
                     metrics.avg_processing_time_ms = avg_processing_time_ms
 
-                metrics.last_heartbeat = datetime.utcnow()
+                metrics.last_heartbeat = datetime.now(UTC)
                 metrics.is_healthy = True
 
             # Persistir no Redis
@@ -249,15 +250,15 @@ class LoadBalancer:
             return True
 
         except Exception as e:
-            logger.error("update_worker_metrics_failed", error=str(e), worker_id=worker_id)
+            logger.exception("update_worker_metrics_failed", error=str(e), worker_id=worker_id)
             return False
 
     async def assign_task(
         self,
         task_id: str,
-        task_data: Optional[Dict[str, Any]] = None,
-        strategy: Optional[BalancingStrategy] = None,
-    ) -> Optional[TaskAssignment]:
+        task_data: dict[str, Any] | None = None,
+        strategy: BalancingStrategy | None = None,
+    ) -> TaskAssignment | None:
         """
         Atribuir tarefa a um worker usando estratégia configurada.
 
@@ -315,7 +316,7 @@ class LoadBalancer:
             return assignment
 
         except Exception as e:
-            logger.error("assign_task_failed", error=str(e), task_id=task_id)
+            logger.exception("assign_task_failed", error=str(e), task_id=task_id)
             return None
 
     async def complete_task(
@@ -323,7 +324,7 @@ class LoadBalancer:
         worker_id: str,
         task_id: str,
         success: bool = True,
-        processing_time_ms: Optional[float] = None,
+        processing_time_ms: float | None = None,
     ) -> bool:
         """
         Marcar tarefa como completa e atualizar métricas.
@@ -359,8 +360,8 @@ class LoadBalancer:
                     current_avg = metrics.avg_processing_time_ms
                     completed = metrics.completed_tasks + metrics.failed_tasks
                     metrics.avg_processing_time_ms = (
-                        (current_avg * (completed - 1) + processing_time_ms) / completed
-                    )
+                        current_avg * (completed - 1) + processing_time_ms
+                    ) / completed
 
             logger.debug(
                 "task_completed",
@@ -371,13 +372,13 @@ class LoadBalancer:
             return True
 
         except Exception as e:
-            logger.error("complete_task_failed", error=str(e), worker_id=worker_id)
+            logger.exception("complete_task_failed", error=str(e), worker_id=worker_id)
             return False
 
-    async def _get_healthy_workers(self) -> List[str]:
+    async def _get_healthy_workers(self) -> list[str]:
         """Obter lista de workers saudáveis"""
         async with self._cache_lock:
-            now = datetime.utcnow()
+            now = datetime.now(UTC)
             healthy_workers = []
 
             for worker_id, metrics in self._local_cache.items():
@@ -398,7 +399,7 @@ class LoadBalancer:
 
             return healthy_workers
 
-    async def _select_round_robin(self, workers: List[str]) -> Optional[str]:
+    async def _select_round_robin(self, workers: list[str]) -> str | None:
         """Selecionar worker usando round robin"""
         if not workers:
             return None
@@ -407,7 +408,7 @@ class LoadBalancer:
         self._round_robin_index += 1
         return worker_id
 
-    async def _select_least_loaded(self, workers: List[str]) -> Optional[str]:
+    async def _select_least_loaded(self, workers: list[str]) -> str | None:
         """Selecionar worker com menos carga"""
         if not workers:
             return None
@@ -416,13 +417,11 @@ class LoadBalancer:
             # Ordenar por tarefas ativas (menos primeiro)
             sorted_workers = sorted(
                 workers,
-                key=lambda w: (
-                    self._local_cache.get(w, WorkerMetrics(worker_id=w)).active_tasks
-                ),
+                key=lambda w: (self._local_cache.get(w, WorkerMetrics(worker_id=w)).active_tasks),
             )
             return sorted_workers[0] if sorted_workers else None
 
-    async def _select_weighted(self, workers: List[str]) -> Optional[str]:
+    async def _select_weighted(self, workers: list[str]) -> str | None:
         """Selecionar worker ponderado por capacidade"""
         if not workers:
             return None
@@ -442,10 +441,11 @@ class LoadBalancer:
                 return workers[0]
 
             import random
+
             rand = random.uniform(0, total_weight)
             cumulative = 0
 
-            for worker_id, weight in zip(workers, weights):
+            for worker_id, weight in zip(workers, weights, strict=False):
                 cumulative += weight
                 if rand <= cumulative:
                     return worker_id
@@ -454,16 +454,16 @@ class LoadBalancer:
 
     async def _select_consistent_hash(
         self,
-        workers: List[str],
+        workers: list[str],
         task_id: str,
-        task_data: Optional[Dict[str, Any]] = None,
-    ) -> Optional[str]:
+        task_data: dict[str, Any] | None = None,
+    ) -> str | None:
         """Selecionar worker usando consistent hashing"""
         if not workers:
             return None
 
         # Usar task_id como chave de hash
-        key = f"{task_id}:{str(task_data or {})}"
+        key = f"{task_id}:{task_data or {}!s}"
 
         # Calcular hash
         hash_value = int(hashlib.sha256(key.encode()).hexdigest(), 16)
@@ -481,14 +481,10 @@ class LoadBalancer:
                 "strategy": assignment.strategy.value,
                 "assigned_at": assignment.assigned_at.isoformat(),
             }
-            await self.redis_client.client.hset(
-                self.ASSIGNMENTS_KEY, task_id, str(assignment_data)
-            )
-            await self.redis_client.client.expire(
-                self.ASSIGNMENTS_KEY, self.metrics_ttl_seconds
-            )
+            await self.redis_client.client.hset(self.ASSIGNMENTS_KEY, task_id, str(assignment_data))
+            await self.redis_client.client.expire(self.ASSIGNMENTS_KEY, self.metrics_ttl_seconds)
         except Exception as e:
-            logger.error("record_assignment_failed", error=str(e), task_id=task_id)
+            logger.exception("record_assignment_failed", error=str(e), task_id=task_id)
 
     async def _sync_loop(self) -> None:
         """Loop de sincronização com Redis"""
@@ -499,9 +495,9 @@ class LoadBalancer:
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                logger.error("sync_loop_error", error=str(e))
+                logger.exception("sync_loop_error", error=str(e))
 
-    async def get_workers_status(self) -> Dict[str, Dict[str, Any]]:
+    async def get_workers_status(self) -> dict[str, dict[str, Any]]:
         """
         Obter status de todos os workers.
 
@@ -524,7 +520,7 @@ class LoadBalancer:
                 }
             return status
 
-    async def get_statistics(self) -> Dict[str, Any]:
+    async def get_statistics(self) -> dict[str, Any]:
         """
         Obter estatísticas do balanceador.
 

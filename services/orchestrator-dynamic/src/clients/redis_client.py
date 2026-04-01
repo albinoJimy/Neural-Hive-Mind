@@ -3,22 +3,22 @@ Cliente Redis compartilhado para cache de SLA budgets e deduplicação de alerta
 Inclui circuit breaker para resiliência em caso de falhas de conexão.
 """
 import time
-from typing import Optional
+
 import redis.asyncio as redis
 import structlog
 
+from neural_hive_resilience.circuit_breaker import CircuitBreakerError, MonitoredCircuitBreaker
 from src.config.settings import OrchestratorSettings
-from neural_hive_resilience.circuit_breaker import MonitoredCircuitBreaker, CircuitBreakerError
 
 logger = structlog.get_logger(__name__)
 
 
-_redis_client_instance: Optional[redis.Redis] = None
-_circuit_breaker: Optional[MonitoredCircuitBreaker] = None
+_redis_client_instance: redis.Redis | None = None
+_circuit_breaker: MonitoredCircuitBreaker | None = None
 _circuit_breaker_enabled: bool = True
 
 
-async def get_redis_client(config: Optional[OrchestratorSettings] = None) -> Optional[redis.Redis]:
+async def get_redis_client(config: OrchestratorSettings | None = None) -> redis.Redis | None:
     """
     Retorna instância singleton do cliente Redis.
 
@@ -38,44 +38,45 @@ async def get_redis_client(config: Optional[OrchestratorSettings] = None) -> Opt
 
     if config is None:
         from src.config.settings import get_settings
+
         config = get_settings()
 
     # Verificar se circuit breaker está habilitado
-    _circuit_breaker_enabled = getattr(config, 'REDIS_CIRCUIT_BREAKER_ENABLED', True)
+    _circuit_breaker_enabled = getattr(config, "REDIS_CIRCUIT_BREAKER_ENABLED", True)
 
     # Inicializar circuit breaker apenas se habilitado
     if _circuit_breaker_enabled and _circuit_breaker is None:
         _circuit_breaker = MonitoredCircuitBreaker(
             service_name=config.service_name,
-            circuit_name='redis_client',
-            fail_max=getattr(config, 'REDIS_CIRCUIT_BREAKER_FAIL_MAX', 5),
-            timeout_duration=getattr(config, 'REDIS_CIRCUIT_BREAKER_TIMEOUT', 60),
-            recovery_timeout=getattr(config, 'REDIS_CIRCUIT_BREAKER_RECOVERY_TIMEOUT', 60)
+            circuit_name="redis_client",
+            fail_max=getattr(config, "REDIS_CIRCUIT_BREAKER_FAIL_MAX", 5),
+            timeout_duration=getattr(config, "REDIS_CIRCUIT_BREAKER_TIMEOUT", 60),
+            recovery_timeout=getattr(config, "REDIS_CIRCUIT_BREAKER_RECOVERY_TIMEOUT", 60),
         )
         logger.info(
-            'Redis circuit breaker inicializado',
+            "Redis circuit breaker inicializado",
             fail_max=_circuit_breaker.fail_max,
-            timeout=_circuit_breaker.recovery_timeout
+            timeout=_circuit_breaker.recovery_timeout,
         )
     elif not _circuit_breaker_enabled:
-        logger.info('Redis circuit breaker desabilitado via configuração')
+        logger.info("Redis circuit breaker desabilitado via configuração")
 
     try:
         # Parsear nodes do cluster Redis
         cluster_nodes = config.redis_cluster_nodes
         if not cluster_nodes:
-            logger.warning('redis_cluster_nodes_not_configured')
+            logger.warning("redis_cluster_nodes_not_configured")
             return None
 
         # Formato esperado: "host1:port1,host2:port2" ou "host:port"
-        nodes = cluster_nodes.split(',')
+        nodes = cluster_nodes.split(",")
         if not nodes:
-            logger.warning('redis_cluster_nodes_empty')
+            logger.warning("redis_cluster_nodes_empty")
             return None
 
         # Usar primeiro node para conexão standalone
         first_node = nodes[0].strip()
-        host, port = first_node.split(':')
+        host, port = first_node.split(":")
 
         # Criar cliente Redis
         async def _create_and_ping():
@@ -86,7 +87,7 @@ async def get_redis_client(config: Optional[OrchestratorSettings] = None) -> Opt
                 ssl=config.redis_ssl_enabled,
                 decode_responses=True,
                 socket_timeout=5,
-                socket_connect_timeout=2
+                socket_connect_timeout=2,
             )
             await client.ping()
             return client
@@ -98,28 +99,25 @@ async def get_redis_client(config: Optional[OrchestratorSettings] = None) -> Opt
             _redis_client_instance = await _create_and_ping()
 
         logger.info(
-            'redis_client_initialized',
+            "redis_client_initialized",
             host=host,
             port=port,
             ssl=config.redis_ssl_enabled,
-            circuit_breaker_enabled=_circuit_breaker_enabled
+            circuit_breaker_enabled=_circuit_breaker_enabled,
         )
 
         return _redis_client_instance
 
     except CircuitBreakerError:
         logger.warning(
-            'redis_client_circuit_breaker_open',
-            recovery_timeout=_circuit_breaker.recovery_timeout if _circuit_breaker else 0
+            "redis_client_circuit_breaker_open",
+            recovery_timeout=_circuit_breaker.recovery_timeout if _circuit_breaker else 0,
         )
         _redis_client_instance = None
         return None
 
     except Exception as e:
-        logger.warning(
-            'redis_client_initialization_failed',
-            error=str(e)
-        )
+        logger.warning("redis_client_initialization_failed", error=str(e))
         # Fail-open: retornar None e permitir operação sem Redis
         _redis_client_instance = None
         return None
@@ -150,41 +148,38 @@ def get_circuit_breaker_state() -> dict:
 
     if not _circuit_breaker_enabled:
         return {
-            'state': 'DISABLED',
-            'failure_count': 0,
-            'failure_threshold': 0,
-            'recovery_timeout': 0,
-            'enabled': False
+            "state": "DISABLED",
+            "failure_count": 0,
+            "failure_threshold": 0,
+            "recovery_timeout": 0,
+            "enabled": False,
         }
 
     if _circuit_breaker is None:
         return {
-            'state': 'not_initialized',
-            'failure_count': 0,
-            'failure_threshold': 0,
-            'recovery_timeout': 0,
-            'enabled': _circuit_breaker_enabled
+            "state": "not_initialized",
+            "failure_count": 0,
+            "failure_threshold": 0,
+            "recovery_timeout": 0,
+            "enabled": _circuit_breaker_enabled,
         }
 
     # MonitoredCircuitBreaker usa pybreaker internamente
-    state_map = {
-        'closed': 'CLOSED',
-        'open': 'OPEN',
-        'half-open': 'HALF_OPEN'
-    }
+    state_map = {"closed": "CLOSED", "open": "OPEN", "half-open": "HALF_OPEN"}
 
     return {
-        'state': state_map.get(str(_circuit_breaker.current_state).lower(), 'UNKNOWN'),
-        'failure_count': _circuit_breaker.fail_counter,
-        'failure_threshold': _circuit_breaker.fail_max,
-        'recovery_timeout': _circuit_breaker.recovery_timeout,
-        'enabled': True
+        "state": state_map.get(str(_circuit_breaker.current_state).lower(), "UNKNOWN"),
+        "failure_count": _circuit_breaker.fail_counter,
+        "failure_threshold": _circuit_breaker.fail_max,
+        "recovery_timeout": _circuit_breaker.recovery_timeout,
+        "enabled": True,
     }
 
 
 # =============================================================================
 # Métricas de Cache
 # =============================================================================
+
 
 class CacheMetrics:
     """
@@ -215,7 +210,7 @@ class CacheMetrics:
             self.recent_latencies.append(latency_ms)
             # Manter apenas as últimas N amostras
             if len(self.recent_latencies) > self._max_latency_samples:
-                self.recent_latencies = self.recent_latencies[-self._max_latency_samples:]
+                self.recent_latencies = self.recent_latencies[-self._max_latency_samples :]
 
     @property
     def hit_ratio(self) -> float:
@@ -237,7 +232,7 @@ class CacheMetrics:
             "total_misses": self.total_misses,
             "hit_ratio": round(self.hit_ratio, 4),
             "avg_latency_ms": round(self.avg_latency_ms, 2),
-            "total_operations": self.total_hits + self.total_misses
+            "total_operations": self.total_hits + self.total_misses,
         }
 
 
@@ -259,7 +254,8 @@ def get_cache_metrics() -> dict:
 # Wrapper Methods com Circuit Breaker
 # =============================================================================
 
-async def redis_get_safe(key: str) -> Optional[str]:
+
+async def redis_get_safe(key: str) -> str | None:
     """
     Wrapper seguro para operação GET do Redis com circuit breaker opcional.
 
@@ -281,6 +277,7 @@ async def redis_get_safe(key: str) -> Optional[str]:
     start_time = time.time()
 
     try:
+
         async def _do_get():
             return await _redis_client_instance.get(key)
 
@@ -303,21 +300,14 @@ async def redis_get_safe(key: str) -> Optional[str]:
         latency_ms = (time.time() - start_time) * 1000
         _cache_metrics.record_miss(latency_ms)
 
-        logger.debug(
-            'redis_get_blocked_circuit_open',
-            key=key
-        )
+        logger.debug("redis_get_blocked_circuit_open", key=key)
         return None
 
     except Exception as e:
         latency_ms = (time.time() - start_time) * 1000
         _cache_metrics.record_miss(latency_ms)
 
-        logger.warning(
-            'redis_get_safe_error',
-            key=key,
-            error=str(e)
-        )
+        logger.warning("redis_get_safe_error", key=key, error=str(e))
         return None
 
 
@@ -341,6 +331,7 @@ async def redis_setex_safe(key: str, ttl_seconds: int, value: str) -> bool:
         return False
 
     try:
+
         async def _do_setex():
             return await _redis_client_instance.setex(key, ttl_seconds, value)
 
@@ -352,18 +343,11 @@ async def redis_setex_safe(key: str, ttl_seconds: int, value: str) -> bool:
         return True
 
     except CircuitBreakerError:
-        logger.debug(
-            'redis_setex_blocked_circuit_open',
-            key=key
-        )
+        logger.debug("redis_setex_blocked_circuit_open", key=key)
         return False
 
     except Exception as e:
-        logger.warning(
-            'redis_setex_safe_error',
-            key=key,
-            error=str(e)
-        )
+        logger.warning("redis_setex_safe_error", key=key, error=str(e))
         return False
 
 
@@ -382,6 +366,7 @@ async def redis_ping_safe() -> bool:
         return False
 
     try:
+
         async def _do_ping():
             return await _redis_client_instance.ping()
 
@@ -393,12 +378,9 @@ async def redis_ping_safe() -> bool:
         return True
 
     except CircuitBreakerError:
-        logger.debug('redis_ping_blocked_circuit_open')
+        logger.debug("redis_ping_blocked_circuit_open")
         return False
 
     except Exception as e:
-        logger.warning(
-            'redis_ping_safe_error',
-            error=str(e)
-        )
+        logger.warning("redis_ping_safe_error", error=str(e))
         return False

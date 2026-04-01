@@ -7,7 +7,7 @@ Cobertura para compliance/audit_logger.py
 import pytest
 from unittest.mock import Mock, MagicMock, patch
 from typing import Dict, Any
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class TestAuditLogger:
@@ -387,7 +387,7 @@ class TestAuditLogger:
 
         from datetime import datetime, timedelta
 
-        start_date = datetime.utcnow() - timedelta(days=7)
+        start_date = datetime.now(timezone.utc) - timedelta(days=7)
         results = logger.query_audit_logs(
             filters={"start_date": start_date},
             limit=10,
@@ -429,7 +429,7 @@ class TestAuditLogger:
 
         logger = AuditLogger(config, specialist_type="test_specialist")
 
-        end_date = datetime.utcnow()
+        end_date = datetime.now(timezone.utc)
         start_date = end_date - timedelta(days=7)
         summary = logger.get_audit_summary(start_date, end_date)
 
@@ -447,7 +447,7 @@ class TestAuditLogger:
 
         logger = AuditLogger(config, specialist_type="test_specialist")
 
-        end_date = datetime.utcnow()
+        end_date = datetime.now(timezone.utc)
         start_date = end_date - timedelta(days=7)
         summary = logger.get_audit_summary(start_date, end_date)
 

@@ -6,21 +6,21 @@ from src.clients.clickhouse_client import ClickHouseClient
 from src.clients.consensus_engine_grpc_client import ConsensusEngineGrpcClient
 from src.clients.mlflow_client import MLflowClient
 from src.clients.mongodb_client import MongoDBClient
+from src.clients.optimizer_mcp_client import (
+    DirectoryAnalysisResult,
+    FileAnalysisResult,
+    FileMetrics,
+    OptimizationIssue,
+    OptimizationRecommendation,
+    OptimizerMCPClient,
+    OptimizerMCPClientError,
+    RecommendationsResult,
+    SyncOptimizerMCPClient,
+)
 from src.clients.orchestrator_grpc_client import OrchestratorGrpcClient
 from src.clients.queen_agent_grpc_client import QueenAgentGrpcClient
 from src.clients.redis_client import RedisClient
 from src.clients.service_registry_client import ServiceRegistryClient
-from src.clients.optimizer_mcp_client import (
-    OptimizerMCPClient,
-    SyncOptimizerMCPClient,
-    OptimizerMCPClientError,
-    FileAnalysisResult,
-    DirectoryAnalysisResult,
-    RecommendationsResult,
-    OptimizationIssue,
-    OptimizationRecommendation,
-    FileMetrics,
-)
 
 __all__ = [
     "AnalystAgentsGrpcClient",

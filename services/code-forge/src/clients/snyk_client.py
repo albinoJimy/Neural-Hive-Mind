@@ -3,11 +3,11 @@ import os
 import subprocess
 import time
 from datetime import datetime
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 import structlog
 
-from ..models.artifact import ValidationResult, ValidationType, ValidationStatus
+from ..models.artifact import ValidationResult, ValidationStatus, ValidationType
 
 if TYPE_CHECKING:
     from ..observability.metrics import CodeForgeMetrics
@@ -23,7 +23,7 @@ class SnykClient:
         token: str,
         enabled: bool = True,
         timeout: int = 300,
-        metrics: Optional['CodeForgeMetrics'] = None
+        metrics: Optional["CodeForgeMetrics"] = None,
     ):
         self.token = token
         self.enabled = enabled
@@ -42,39 +42,29 @@ class SnykClient:
             Dict com resultado do scan
         """
         env = os.environ.copy()
-        env['SNYK_TOKEN'] = self.token
+        env["SNYK_TOKEN"] = self.token
 
-        cmd = [
-            'snyk', 'test',
-            '--json',
-            '--severity-threshold=low',
-            project_path
-        ]
+        cmd = ["snyk", "test", "--json", "--severity-threshold=low", project_path]
 
-        if language == 'python':
-            cmd.extend(['--file=requirements.txt'])
-        elif language == 'javascript':
-            cmd.extend(['--file=package.json'])
-        elif language == 'go':
-            cmd.extend(['--file=go.mod'])
+        if language == "python":
+            cmd.extend(["--file=requirements.txt"])
+        elif language == "javascript":
+            cmd.extend(["--file=package.json"])
+        elif language == "go":
+            cmd.extend(["--file=go.mod"])
 
         result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=self.timeout,
-            env=env,
-            cwd=project_path
+            cmd, capture_output=True, text=True, timeout=self.timeout, env=env, cwd=project_path
         )
 
         if result.stdout:
             try:
                 return json.loads(result.stdout)
             except json.JSONDecodeError:
-                logger.warning('snyk_json_parse_failed', stdout=result.stdout[:500])
-                return {'error': 'JSON parse failed', 'stdout': result.stdout}
+                logger.warning("snyk_json_parse_failed", stdout=result.stdout[:500])
+                return {"error": "JSON parse failed", "stdout": result.stdout}
 
-        return {'error': result.stderr or 'No output', 'returncode': result.returncode}
+        return {"error": result.stderr or "No output", "returncode": result.returncode}
 
     def _parse_vulnerabilities(self, snyk_output: dict) -> dict:
         """
@@ -86,16 +76,11 @@ class SnykClient:
         Returns:
             Dict com contagem por severidade
         """
-        counts = {
-            'critical': 0,
-            'high': 0,
-            'medium': 0,
-            'low': 0
-        }
+        counts = {"critical": 0, "high": 0, "medium": 0, "low": 0}
 
-        vulnerabilities = snyk_output.get('vulnerabilities', [])
+        vulnerabilities = snyk_output.get("vulnerabilities", [])
         for vuln in vulnerabilities:
-            severity = vuln.get('severity', 'low').lower()
+            severity = vuln.get("severity", "low").lower()
             if severity in counts:
                 counts[severity] += 1
 
@@ -115,8 +100,8 @@ class SnykClient:
         if not self.enabled:
             return ValidationResult(
                 validation_type=ValidationType.SECURITY_SCAN,
-                tool_name='Snyk',
-                tool_version='latest',
+                tool_name="Snyk",
+                tool_version="latest",
                 status=ValidationStatus.SKIPPED,
                 score=None,
                 issues_count=0,
@@ -125,26 +110,24 @@ class SnykClient:
                 medium_issues=0,
                 low_issues=0,
                 executed_at=datetime.now(),
-                duration_ms=0
+                duration_ms=0,
             )
 
         start_time = time.monotonic()
-        logger.info('snyk_scan_started', language=language, path=project_path)
+        logger.info("snyk_scan_started", language=language, path=project_path)
 
         try:
             snyk_output = self._run_snyk_cli(project_path, language)
             duration_ms = int((time.monotonic() - start_time) * 1000)
 
-            if 'error' in snyk_output and 'vulnerabilities' not in snyk_output:
+            if "error" in snyk_output and "vulnerabilities" not in snyk_output:
                 logger.error(
-                    'snyk_scan_failed',
-                    error=snyk_output.get('error'),
-                    duration_ms=duration_ms
+                    "snyk_scan_failed", error=snyk_output.get("error"), duration_ms=duration_ms
                 )
                 return ValidationResult(
                     validation_type=ValidationType.SECURITY_SCAN,
-                    tool_name='Snyk',
-                    tool_version='latest',
+                    tool_name="Snyk",
+                    tool_version="latest",
                     status=ValidationStatus.FAILED,
                     score=0.0,
                     issues_count=0,
@@ -153,22 +136,22 @@ class SnykClient:
                     medium_issues=0,
                     low_issues=0,
                     executed_at=datetime.now(),
-                    duration_ms=duration_ms
+                    duration_ms=duration_ms,
                 )
 
             counts = self._parse_vulnerabilities(snyk_output)
             total_issues = sum(counts.values())
 
-            if counts['critical'] > 0:
+            if counts["critical"] > 0:
                 status = ValidationStatus.FAILED
                 score = 0.3
-            elif counts['high'] > 0:
+            elif counts["high"] > 0:
                 status = ValidationStatus.WARNING
                 score = 0.6
-            elif counts['medium'] > 0:
+            elif counts["medium"] > 0:
                 status = ValidationStatus.WARNING
                 score = 0.8
-            elif counts['low'] > 0:
+            elif counts["low"] > 0:
                 status = ValidationStatus.PASSED
                 score = 0.9
             else:
@@ -181,28 +164,28 @@ class SnykClient:
                 self.metrics.snyk_scan_duration_seconds.observe(duration_seconds)
 
             logger.info(
-                'snyk_scan_completed',
+                "snyk_scan_completed",
                 issues=total_issues,
-                critical=counts['critical'],
-                high=counts['high'],
-                medium=counts['medium'],
-                low=counts['low'],
-                duration_ms=duration_ms
+                critical=counts["critical"],
+                high=counts["high"],
+                medium=counts["medium"],
+                low=counts["low"],
+                duration_ms=duration_ms,
             )
 
             return ValidationResult(
                 validation_type=ValidationType.SECURITY_SCAN,
-                tool_name='Snyk',
-                tool_version='latest',
+                tool_name="Snyk",
+                tool_version="latest",
                 status=status,
                 score=score,
                 issues_count=total_issues,
-                critical_issues=counts['critical'],
-                high_issues=counts['high'],
-                medium_issues=counts['medium'],
-                low_issues=counts['low'],
+                critical_issues=counts["critical"],
+                high_issues=counts["high"],
+                medium_issues=counts["medium"],
+                low_issues=counts["low"],
                 executed_at=datetime.now(),
-                duration_ms=duration_ms
+                duration_ms=duration_ms,
             )
 
         except subprocess.TimeoutExpired:
@@ -211,13 +194,13 @@ class SnykClient:
             if self.metrics:
                 self.metrics.snyk_scan_duration_seconds.observe(duration_seconds)
                 self.metrics.external_tool_errors_total.labels(
-                    tool='snyk', error_type='timeout'
+                    tool="snyk", error_type="timeout"
                 ).inc()
-            logger.error('snyk_scan_timeout', timeout=self.timeout, duration_ms=duration_ms)
+            logger.error("snyk_scan_timeout", timeout=self.timeout, duration_ms=duration_ms)
             return ValidationResult(
                 validation_type=ValidationType.SECURITY_SCAN,
-                tool_name='Snyk',
-                tool_version='latest',
+                tool_name="Snyk",
+                tool_version="latest",
                 status=ValidationStatus.FAILED,
                 score=0.0,
                 issues_count=0,
@@ -226,7 +209,7 @@ class SnykClient:
                 medium_issues=0,
                 low_issues=0,
                 executed_at=datetime.now(),
-                duration_ms=duration_ms
+                duration_ms=duration_ms,
             )
 
         except Exception as e:
@@ -235,13 +218,13 @@ class SnykClient:
             if self.metrics:
                 self.metrics.snyk_scan_duration_seconds.observe(duration_seconds)
                 self.metrics.external_tool_errors_total.labels(
-                    tool='snyk', error_type='cli_error'
+                    tool="snyk", error_type="cli_error"
                 ).inc()
-            logger.error('snyk_scan_failed', error=str(e), duration_ms=duration_ms)
+            logger.error("snyk_scan_failed", error=str(e), duration_ms=duration_ms)
             return ValidationResult(
                 validation_type=ValidationType.SECURITY_SCAN,
-                tool_name='Snyk',
-                tool_version='latest',
+                tool_name="Snyk",
+                tool_version="latest",
                 status=ValidationStatus.FAILED,
                 score=0.0,
                 issues_count=0,
@@ -250,5 +233,5 @@ class SnykClient:
                 medium_issues=0,
                 low_issues=0,
                 executed_at=datetime.now(),
-                duration_ms=duration_ms
+                duration_ms=duration_ms,
             )

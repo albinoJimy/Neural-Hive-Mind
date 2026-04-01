@@ -1,7 +1,8 @@
 # MCP API Router
 
-from fastapi import APIRouter, Depends, HTTPException
 from typing import Any
+
+from fastapi import APIRouter, Depends, HTTPException
 
 from neural_hive_observability import get_logger
 
@@ -18,9 +19,7 @@ def get_orchestrator():
         app_state = request.app.state.app_state
         orchestrator = app_state.mcp_orchestrator
         if orchestrator is None:
-            raise HTTPException(
-                status_code=503, detail="MCP Orchestrator not available"
-            )
+            raise HTTPException(status_code=503, detail="MCP Orchestrator not available")
         return orchestrator
 
     return _get_orchestrator
@@ -42,7 +41,7 @@ async def list_tools(orchestrator=Depends(get_orchestrator())):
             "total_tools": sum(len(t) for t in tools.values()),
         }
     except Exception as e:
-        logger.error("list_tools_failed", error=str(e))
+        logger.exception("list_tools_failed", error=str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -82,7 +81,7 @@ async def execute_tools(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error("execute_tools_failed", error=str(e))
+        logger.exception("execute_tools_failed", error=str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -123,7 +122,7 @@ async def execute_server_tool(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("execute_server_tool_failed", server=server, error=str(e))
+        logger.exception("execute_server_tool_failed", server=server, error=str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -146,5 +145,5 @@ async def get_mcp_status(orchestrator=Depends(get_orchestrator())):
             "total_servers": len(tools),
         }
     except Exception as e:
-        logger.error("get_mcp_status_failed", error=str(e))
+        logger.exception("get_mcp_status_failed", error=str(e))
         raise HTTPException(status_code=500, detail=str(e))

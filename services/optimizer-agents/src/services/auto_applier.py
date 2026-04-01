@@ -1,11 +1,11 @@
 """Serviço para auto-aplicação de otimizações seguras."""
+import hashlib
 import logging
 import os
 import re
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
 from datetime import datetime
-import hashlib
+from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +31,10 @@ RECOMMENDED_EXTENSIONS = {
     # Python
     ".py",
     # JavaScript/TypeScript
-    ".js", ".ts", ".jsx", ".tsx",
+    ".js",
+    ".ts",
+    ".jsx",
+    ".tsx",
     # Go
     ".go",
     # Java
@@ -41,19 +44,27 @@ RECOMMENDED_EXTENSIONS = {
     # SQL
     ".sql",
     # C/C++
-    ".c", ".cpp", ".cc", ".h", ".hpp",
+    ".c",
+    ".cpp",
+    ".cc",
+    ".h",
+    ".hpp",
     # Rust
     ".rs",
     # Shell scripts
-    ".sh", ".bash",
+    ".sh",
+    ".bash",
     # YAML/K8s
-    ".yaml", ".yml",
+    ".yaml",
+    ".yml",
     # JSON
     ".json",
     # Protocol Buffers
     ".proto",
     # HTML/Templates
-    ".html", ".htm", ".xml",
+    ".html",
+    ".htm",
+    ".xml",
 }
 
 
@@ -73,9 +84,9 @@ class OptimizationApplier:
 
     async def apply_recommendation(
         self,
-        recommendation: Dict[str, Any],
+        recommendation: dict[str, Any],
         project_root: str = "/home/jimy/NHM/Neural-Hive-Mind",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Aplica uma recomendação de otimização.
 
@@ -121,7 +132,7 @@ class OptimizationApplier:
                 "reason": f"Unsupported target type: {target_type}",
             }
 
-    def _check_safety(self, recommendation: Dict[str, Any]) -> Dict[str, Any]:
+    def _check_safety(self, recommendation: dict[str, Any]) -> dict[str, Any]:
         """
         Verifica se é seguro aplicar a recomendação automaticamente.
 
@@ -161,9 +172,9 @@ class OptimizationApplier:
 
     async def _apply_code_optimization(
         self,
-        recommendation: Dict[str, Any],
+        recommendation: dict[str, Any],
         project_root: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Aplica otimização de código.
 
@@ -205,7 +216,7 @@ class OptimizationApplier:
             "file_path": file_path,
         }
 
-    def _parse_unified_diff(self, patch: str) -> List[Dict[str, Any]]:
+    def _parse_unified_diff(self, patch: str) -> list[dict[str, Any]]:
         """
         Parse unified diff format em estruturas aplicáveis.
 
@@ -271,9 +282,9 @@ class OptimizationApplier:
 
     def _apply_hunk_to_lines(
         self,
-        lines: List[str],
-        hunk: Dict[str, Any],
-    ) -> Tuple[List[str], bool]:
+        lines: list[str],
+        hunk: dict[str, Any],
+    ) -> tuple[list[str], bool]:
         """
         Aplica um hunk a uma lista de linhas.
 
@@ -330,8 +341,8 @@ class OptimizationApplier:
         self,
         file_path: str,
         patch: str,
-        recommendation: Dict[str, Any],
-    ) -> Dict[str, Any]:
+        recommendation: dict[str, Any],
+    ) -> dict[str, Any]:
         """
         Aplica patch ao arquivo usando unified diff format.
 
@@ -360,7 +371,7 @@ class OptimizationApplier:
 
         try:
             # Ler arquivo original
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(file_path, encoding="utf-8") as f:
                 original_lines = f.readlines()
 
             # Salvar hash do conteúdo original para verificação
@@ -464,9 +475,9 @@ class OptimizationApplier:
 
     async def _apply_database_optimization(
         self,
-        recommendation: Dict[str, Any],
+        recommendation: dict[str, Any],
         project_root: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Registra otimização de banco para aplicação manual.
 
@@ -493,9 +504,9 @@ class OptimizationApplier:
 
     async def validate_application(
         self,
-        before_metrics: Dict[str, Any],
-        after_metrics: Dict[str, Any],
-    ) -> Dict[str, Any]:
+        before_metrics: dict[str, Any],
+        after_metrics: dict[str, Any],
+    ) -> dict[str, Any]:
         """
         Valida se a otimização trouxe melhoria.
 
@@ -525,7 +536,7 @@ class OptimizationApplier:
             "successful": improvement_pct > 0,
         }
 
-    def get_stats(self) -> Dict[str, int]:
+    def get_stats(self) -> dict[str, int]:
         """Retorna estatísticas de aplicações."""
         return {
             "applied": self._applied_count,

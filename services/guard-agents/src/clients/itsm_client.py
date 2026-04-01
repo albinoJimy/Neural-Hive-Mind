@@ -1,30 +1,32 @@
 """ITSM client for ticketing system integration"""
-from typing import Dict, Any, Optional, List
-import httpx
-import structlog
 from datetime import datetime, timezone
 from enum import Enum
+from typing import Any, Dict, List, Optional
+
+import httpx
+import structlog
 from prometheus_client import Counter, Histogram
 
 logger = structlog.get_logger()
 
 # Prometheus metrics
 itsm_operations_total = Counter(
-    'guard_agents_itsm_operations_total',
-    'Total de operacoes ITSM',
-    ['operation', 'itsm_type', 'status']
+    "guard_agents_itsm_operations_total",
+    "Total de operacoes ITSM",
+    ["operation", "itsm_type", "status"],
 )
 
 itsm_operation_duration = Histogram(
-    'guard_agents_itsm_operation_duration_seconds',
-    'Duracao das operacoes ITSM',
-    ['operation'],
-    buckets=(0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0)
+    "guard_agents_itsm_operation_duration_seconds",
+    "Duracao das operacoes ITSM",
+    ["operation"],
+    buckets=(0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0),
 )
 
 
 class ITSMType(str, Enum):
     """Tipos de sistemas ITSM suportados"""
+
     SERVICENOW = "servicenow"
     JIRA = "jira"
     PAGERDUTY = "pagerduty"
@@ -34,6 +36,7 @@ class ITSMType(str, Enum):
 
 class IncidentPriority(str, Enum):
     """Prioridades de incidentes"""
+
     CRITICAL = "critical"
     HIGH = "high"
     MEDIUM = "medium"
@@ -62,7 +65,7 @@ class ITSMClient:
         username: Optional[str] = None,
         password: Optional[str] = None,
         enabled: bool = True,
-        timeout_seconds: int = 30
+        timeout_seconds: int = 30,
     ):
         self.itsm_type = ITSMType(itsm_type.lower()) if itsm_type else ITSMType.WEBHOOK
         self.base_url = base_url
@@ -91,23 +94,15 @@ class ITSMClient:
                 auth = httpx.BasicAuth(self.username, self.password)
 
             self._client = httpx.AsyncClient(
-                base_url=self.base_url,
-                headers=headers,
-                auth=auth,
-                timeout=self.timeout
+                base_url=self.base_url, headers=headers, auth=auth, timeout=self.timeout
             )
 
             logger.info(
-                "itsm_client.connected",
-                itsm_type=self.itsm_type.value,
-                base_url=self.base_url
+                "itsm_client.connected", itsm_type=self.itsm_type.value, base_url=self.base_url
             )
 
         except Exception as e:
-            logger.error(
-                "itsm_client.connection_failed",
-                error=str(e)
-            )
+            logger.error("itsm_client.connection_failed", error=str(e))
 
     async def close(self):
         """Fecha cliente HTTP"""
@@ -121,10 +116,7 @@ class ITSMClient:
 
     def _build_headers(self) -> Dict[str, str]:
         """Constrói headers baseado no tipo de ITSM"""
-        headers = {
-            "Content-Type": "application/json",
-            "Accept": "application/json"
-        }
+        headers = {"Content-Type": "application/json", "Accept": "application/json"}
 
         if self.api_key:
             if self.itsm_type == ITSMType.SERVICENOW:
@@ -148,7 +140,7 @@ class ITSMClient:
         category: str = "sla_breach",
         original_incident_id: Optional[str] = None,
         issues: Optional[List[str]] = None,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Cria incidente no sistema ITSM.
@@ -166,15 +158,8 @@ class ITSMClient:
             Dict com resultado da criação incluindo ticket_id
         """
         if not self.is_healthy():
-            logger.warning(
-                "itsm_client.not_available",
-                action="create_incident"
-            )
-            return {
-                "success": False,
-                "error": "ITSM client not available",
-                "simulated": True
-            }
+            logger.warning("itsm_client.not_available", action="create_incident")
+            return {"success": False, "error": "ITSM client not available", "simulated": True}
 
         with itsm_operation_duration.labels(operation="create_incident").time():
             try:
@@ -186,7 +171,7 @@ class ITSMClient:
                     category=category,
                     original_incident_id=original_incident_id,
                     issues=issues,
-                    metadata=metadata
+                    metadata=metadata,
                 )
 
                 # Determinar endpoint
@@ -202,14 +187,14 @@ class ITSMClient:
                     itsm_operations_total.labels(
                         operation="create_incident",
                         itsm_type=self.itsm_type.value,
-                        status="success"
+                        status="success",
                     ).inc()
 
                     logger.info(
                         "itsm_client.incident_created",
                         ticket_id=ticket_id,
                         itsm_type=self.itsm_type.value,
-                        priority=priority
+                        priority=priority,
                     )
 
                     return {
@@ -217,54 +202,39 @@ class ITSMClient:
                         "ticket_id": ticket_id,
                         "itsm_type": self.itsm_type.value,
                         "priority": priority,
-                        "response": result
+                        "response": result,
                     }
                 else:
                     itsm_operations_total.labels(
-                        operation="create_incident",
-                        itsm_type=self.itsm_type.value,
-                        status="error"
+                        operation="create_incident", itsm_type=self.itsm_type.value, status="error"
                     ).inc()
 
                     logger.error(
                         "itsm_client.create_failed",
                         status_code=response.status_code,
-                        response=response.text
+                        response=response.text,
                     )
 
                     return {
                         "success": False,
-                        "error": f"HTTP {response.status_code}: {response.text}"
+                        "error": f"HTTP {response.status_code}: {response.text}",
                     }
 
             except httpx.TimeoutException:
                 itsm_operations_total.labels(
-                    operation="create_incident",
-                    itsm_type=self.itsm_type.value,
-                    status="timeout"
+                    operation="create_incident", itsm_type=self.itsm_type.value, status="timeout"
                 ).inc()
 
                 logger.error("itsm_client.timeout")
-                return {
-                    "success": False,
-                    "error": "Request timeout"
-                }
+                return {"success": False, "error": "Request timeout"}
 
             except Exception as e:
                 itsm_operations_total.labels(
-                    operation="create_incident",
-                    itsm_type=self.itsm_type.value,
-                    status="error"
+                    operation="create_incident", itsm_type=self.itsm_type.value, status="error"
                 ).inc()
 
-                logger.error(
-                    "itsm_client.create_error",
-                    error=str(e)
-                )
-                return {
-                    "success": False,
-                    "error": str(e)
-                }
+                logger.error("itsm_client.create_error", error=str(e))
+                return {"success": False, "error": str(e)}
 
     def _build_incident_payload(
         self,
@@ -274,14 +244,16 @@ class ITSMClient:
         category: str,
         original_incident_id: Optional[str],
         issues: Optional[List[str]],
-        metadata: Optional[Dict[str, Any]]
+        metadata: Optional[Dict[str, Any]],
     ) -> Dict[str, Any]:
         """Constrói payload baseado no tipo de ITSM"""
 
         # Descrição completa
         full_description = description
         if issues:
-            full_description += "\n\nIssues detected:\n" + "\n".join(f"- {issue}" for issue in issues)
+            full_description += "\n\nIssues detected:\n" + "\n".join(
+                f"- {issue}" for issue in issues
+            )
         if original_incident_id:
             full_description += f"\n\nOriginal Incident ID: {original_incident_id}"
 
@@ -295,7 +267,7 @@ class ITSMClient:
                 "impact": self._map_priority_servicenow(priority),
                 "category": category,
                 "u_source": "guard-agents",
-                "u_correlation_id": original_incident_id
+                "u_correlation_id": original_incident_id,
             }
 
         elif self.itsm_type == ITSMType.JIRA:
@@ -306,7 +278,7 @@ class ITSMClient:
                     "description": full_description,
                     "issuetype": {"name": "Incident"},
                     "priority": {"name": self._map_priority_jira(priority)},
-                    "labels": ["guard-agents", "sla-breach", category]
+                    "labels": ["guard-agents", "sla-breach", category],
                 }
             }
 
@@ -323,9 +295,9 @@ class ITSMClient:
                         "description": full_description,
                         "category": category,
                         "issues": issues or [],
-                        "original_incident_id": original_incident_id
-                    }
-                }
+                        "original_incident_id": original_incident_id,
+                    },
+                },
             }
 
         elif self.itsm_type == ITSMType.OPSGENIE:
@@ -339,8 +311,8 @@ class ITSMClient:
                 "details": {
                     "original_incident_id": original_incident_id,
                     "category": category,
-                    "issues": ", ".join(issues) if issues else ""
-                }
+                    "issues": ", ".join(issues) if issues else "",
+                },
             }
 
         else:
@@ -354,7 +326,7 @@ class ITSMClient:
                 "original_incident_id": original_incident_id,
                 "issues": issues or [],
                 "metadata": metadata or {},
-                "timestamp": timestamp
+                "timestamp": timestamp,
             }
 
     def _get_incident_endpoint(self) -> str:
@@ -364,7 +336,7 @@ class ITSMClient:
             ITSMType.JIRA: "/rest/api/3/issue",
             ITSMType.PAGERDUTY: "/v2/enqueue",
             ITSMType.OPSGENIE: "/v2/alerts",
-            ITSMType.WEBHOOK: "/incidents"
+            ITSMType.WEBHOOK: "/incidents",
         }
         return endpoints.get(self.itsm_type, "/incidents")
 
@@ -383,42 +355,22 @@ class ITSMClient:
 
     def _map_priority_servicenow(self, priority: str) -> str:
         """Mapeia prioridade para ServiceNow (1-5)"""
-        mapping = {
-            "critical": "1",
-            "high": "2",
-            "medium": "3",
-            "low": "4"
-        }
+        mapping = {"critical": "1", "high": "2", "medium": "3", "low": "4"}
         return mapping.get(priority.lower(), "2")
 
     def _map_priority_jira(self, priority: str) -> str:
         """Mapeia prioridade para Jira"""
-        mapping = {
-            "critical": "Highest",
-            "high": "High",
-            "medium": "Medium",
-            "low": "Low"
-        }
+        mapping = {"critical": "Highest", "high": "High", "medium": "Medium", "low": "Low"}
         return mapping.get(priority.lower(), "High")
 
     def _map_priority_pagerduty(self, priority: str) -> str:
         """Mapeia prioridade para PagerDuty"""
-        mapping = {
-            "critical": "critical",
-            "high": "error",
-            "medium": "warning",
-            "low": "info"
-        }
+        mapping = {"critical": "critical", "high": "error", "medium": "warning", "low": "info"}
         return mapping.get(priority.lower(), "error")
 
     def _map_priority_opsgenie(self, priority: str) -> str:
         """Mapeia prioridade para OpsGenie"""
-        mapping = {
-            "critical": "P1",
-            "high": "P2",
-            "medium": "P3",
-            "low": "P4"
-        }
+        mapping = {"critical": "P1", "high": "P2", "medium": "P3", "low": "P4"}
         return mapping.get(priority.lower(), "P2")
 
     async def update_incident(
@@ -426,7 +378,7 @@ class ITSMClient:
         ticket_id: str,
         status: Optional[str] = None,
         notes: Optional[str] = None,
-        resolution: Optional[str] = None
+        resolution: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Atualiza status de um incidente.
@@ -441,10 +393,7 @@ class ITSMClient:
             Dict com resultado da atualização
         """
         if not self.is_healthy():
-            return {
-                "success": False,
-                "error": "ITSM client not available"
-            }
+            return {"success": False, "error": "ITSM client not available"}
 
         with itsm_operation_duration.labels(operation="update_incident").time():
             try:
@@ -472,11 +421,7 @@ class ITSMClient:
 
                 else:
                     # Generic update
-                    payload = {
-                        "status": status,
-                        "notes": notes,
-                        "resolution": resolution
-                    }
+                    payload = {"status": status, "notes": notes, "resolution": resolution}
                     endpoint = f"/incidents/{ticket_id}"
                     response = await self._client.patch(endpoint, json=payload)
 
@@ -484,35 +429,21 @@ class ITSMClient:
                     itsm_operations_total.labels(
                         operation="update_incident",
                         itsm_type=self.itsm_type.value,
-                        status="success"
+                        status="success",
                     ).inc()
 
-                    return {
-                        "success": True,
-                        "ticket_id": ticket_id
-                    }
+                    return {"success": True, "ticket_id": ticket_id}
                 else:
-                    return {
-                        "success": False,
-                        "error": f"HTTP {response.status_code}"
-                    }
+                    return {"success": False, "error": f"HTTP {response.status_code}"}
 
             except Exception as e:
                 itsm_operations_total.labels(
-                    operation="update_incident",
-                    itsm_type=self.itsm_type.value,
-                    status="error"
+                    operation="update_incident", itsm_type=self.itsm_type.value, status="error"
                 ).inc()
 
-                return {
-                    "success": False,
-                    "error": str(e)
-                }
+                return {"success": False, "error": str(e)}
 
-    async def get_incident_status(
-        self,
-        ticket_id: str
-    ) -> Dict[str, Any]:
+    async def get_incident_status(self, ticket_id: str) -> Dict[str, Any]:
         """
         Obtém status de um incidente.
 
@@ -523,10 +454,7 @@ class ITSMClient:
             Dict com status do incidente
         """
         if not self.is_healthy():
-            return {
-                "success": False,
-                "error": "ITSM client not available"
-            }
+            return {"success": False, "error": "ITSM client not available"}
 
         try:
             if self.itsm_type == ITSMType.SERVICENOW:
@@ -539,19 +467,9 @@ class ITSMClient:
             response = await self._client.get(endpoint)
 
             if response.status_code == 200:
-                return {
-                    "success": True,
-                    "ticket_id": ticket_id,
-                    "data": response.json()
-                }
+                return {"success": True, "ticket_id": ticket_id, "data": response.json()}
             else:
-                return {
-                    "success": False,
-                    "error": f"HTTP {response.status_code}"
-                }
+                return {"success": False, "error": f"HTTP {response.status_code}"}
 
         except Exception as e:
-            return {
-                "success": False,
-                "error": str(e)
-            }
+            return {"success": False, "error": str(e)}

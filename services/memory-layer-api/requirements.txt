@@ -1,38 +1,6 @@
-# FastAPI and ASGI server
-fastapi==0.115.10
-uvicorn[standard]==0.34.0
+# Dependências base consolidadas para Neural-Hive-Mind
+-r ../../requirements-base.txt
 
-# Data validation
-pydantic>=2.5.0,<3.0.0
-pydantic-settings>=2.0.0,<2.7.0
-
-# Database drivers
-pymongo==4.10.1
-motor==3.7.1
-redis[hiredis]==5.2.1
+# Service-specific dependencies
 neo4j>=5.15.0
 clickhouse-connect>=0.6.0
-
-# Kafka (real-time sync)
-aiokafka>=0.10.0
-fastavro>=1.9.0
-
-# Logging and observability
-structlog==24.4.0
-opentelemetry-api==1.29.0
-opentelemetry-sdk==1.29.0
-opentelemetry-instrumentation-fastapi==0.50b0
-prometheus-client==0.21.1
-opentelemetry-instrumentation==0.50b0
-opentelemetry-exporter-otlp==1.29.0
-
-# Utilities
-tenacity==9.0.0
-httpx==0.28.1
-python-json-logger>=2.0.7
-
-# Testing
-pytest>=8.0.0
-pytest-asyncio>=0.23.0
-
-# Internal libraries (installed via Dockerfile)

@@ -5,15 +5,16 @@ Implementa eleição distribuída usando Redis para alta disponibilidade.
 Usa o padrão "Leader Election with Redis" baseado em locks distribuídos.
 """
 import asyncio
-import structlog
 from dataclasses import dataclass
-from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Optional
+from datetime import UTC, datetime
 from enum import Enum
+from typing import TYPE_CHECKING
+
+import structlog
 
 if TYPE_CHECKING:
-    from ..clients import RedisClient
-    from ..config import Settings
+    from src.clients import RedisClient
+    from src.config import Settings
 
 
 logger = structlog.get_logger()
@@ -21,6 +22,7 @@ logger = structlog.get_logger()
 
 class NodeRole(Enum):
     """Papel de um nó no cluster"""
+
     LEADER = "leader"
     FOLLOWER = "follower"
     CANDIDATE = "candidate"
@@ -29,11 +31,12 @@ class NodeRole(Enum):
 @dataclass
 class ElectionState:
     """Estado da eleição"""
+
     role: NodeRole = NodeRole.FOLLOWER
-    leader_id: Optional[str] = None
+    leader_id: str | None = None
     term: int = 0
-    last_heartbeat: Optional[datetime] = None
-    voted_for: Optional[str] = None
+    last_heartbeat: datetime | None = None
+    voted_for: str | None = None
 
 
 class LeaderElection:
@@ -66,20 +69,18 @@ class LeaderElection:
         self.heartbeat_interval_seconds = getattr(
             settings, "ELECTION_HEARTBEAT_INTERVAL_SECONDS", 2
         )
-        self.election_timeout_seconds = getattr(
-            settings, "ELECTION_TIMEOUT_SECONDS", 5
-        )
+        self.election_timeout_seconds = getattr(settings, "ELECTION_TIMEOUT_SECONDS", 5)
 
         # Estado local
         self.state = ElectionState()
         self.is_running = False
-        self.election_task: Optional[asyncio.Task] = None
-        self.heartbeat_task: Optional[asyncio.Task] = None
+        self.election_task: asyncio.Task | None = None
+        self.heartbeat_task: asyncio.Task | None = None
 
         # Callbacks
-        self.on_become_leader: Optional[callable] = None
-        self.on_become_follower: Optional[callable] = None
-        self.on_leader_change: Optional[callable] = None
+        self.on_become_leader: callable | None = None
+        self.on_become_follower: callable | None = None
+        self.on_leader_change: callable | None = None
 
         logger.info(
             "leader_election_initialized",
@@ -146,22 +147,21 @@ class LeaderElection:
                     else:
                         self.state.role = NodeRole.FOLLOWER
 
-                else:
-                    # Outro nó é líder
-                    if self.state.role != NodeRole.FOLLOWER:
-                        self.state.role = NodeRole.FOLLOWER
-                        logger.info(
-                            "became_follower",
-                            node_id=self.node_id,
-                            leader=current_leader,
-                        )
-                        if self.on_become_follower:
-                            await self.on_become_follower()
+                # Outro nó é líder
+                elif self.state.role != NodeRole.FOLLOWER:
+                    self.state.role = NodeRole.FOLLOWER
+                    logger.info(
+                        "became_follower",
+                        node_id=self.node_id,
+                        leader=current_leader,
+                    )
+                    if self.on_become_follower:
+                        await self.on_become_follower()
 
                 self.state.leader_id = current_leader
 
             except Exception as e:
-                logger.error("election_loop_error", error=str(e))
+                logger.exception("election_loop_error", error=str(e))
 
             # Aguardar próxima iteração
             await asyncio.sleep(self.election_timeout_seconds)
@@ -177,7 +177,7 @@ class LeaderElection:
                 if self.state.role == NodeRole.LEADER:
                     await self._send_heartbeat()
             except Exception as e:
-                logger.error("heartbeat_loop_error", error=str(e))
+                logger.exception("heartbeat_loop_error", error=str(e))
 
             await asyncio.sleep(self.heartbeat_interval_seconds)
 
@@ -202,15 +202,11 @@ class LeaderElection:
                 meta = {
                     "node_id": self.node_id,
                     "term": self.state.term + 1,
-                    "acquired_at": datetime.utcnow().isoformat(),
+                    "acquired_at": datetime.now(UTC).isoformat(),
                     "ttl": self.lease_ttl_seconds,
                 }
-                await self.redis_client.client.hset(
-                    self.LEADER_META_KEY, mapping=meta
-                )
-                await self.redis_client.client.expire(
-                    self.LEADER_META_KEY, self.lease_ttl_seconds
-                )
+                await self.redis_client.client.hset(self.LEADER_META_KEY, mapping=meta)
+                await self.redis_client.client.expire(self.LEADER_META_KEY, self.lease_ttl_seconds)
                 self.state.term = meta["term"]
                 self.state.role = NodeRole.LEADER
 
@@ -224,7 +220,7 @@ class LeaderElection:
             return False
 
         except Exception as e:
-            logger.error("acquire_leadership_failed", error=str(e))
+            logger.exception("acquire_leadership_failed", error=str(e))
             return False
 
     async def _renew_leadership(self) -> bool:
@@ -252,18 +248,14 @@ class LeaderElection:
                 return False
 
             # Renovar lease
-            await self.redis_client.client.expire(
-                self.LEADER_LOCK_KEY, self.lease_ttl_seconds
-            )
-            await self.redis_client.client.expire(
-                self.LEADER_META_KEY, self.lease_ttl_seconds
-            )
+            await self.redis_client.client.expire(self.LEADER_LOCK_KEY, self.lease_ttl_seconds)
+            await self.redis_client.client.expire(self.LEADER_META_KEY, self.lease_ttl_seconds)
 
             logger.debug("leadership_renewed", node_id=self.node_id)
             return True
 
         except Exception as e:
-            logger.error("renew_leadership_failed", error=str(e))
+            logger.exception("renew_leadership_failed", error=str(e))
             return False
 
     async def _resign_leadership(self) -> None:
@@ -275,25 +267,21 @@ class LeaderElection:
 
             logger.info("leadership_resigned", node_id=self.node_id)
         except Exception as e:
-            logger.error("resign_leadership_failed", error=str(e))
+            logger.exception("resign_leadership_failed", error=str(e))
 
     async def _send_heartbeat(self) -> None:
         """Enviar heartbeat para indicar líder ativo"""
         try:
             heartbeat = {
                 "node_id": self.node_id,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             }
-            await self.redis_client.client.hset(
-                self.LEADER_HEARTBEAT_KEY, mapping=heartbeat
-            )
-            await self.redis_client.client.expire(
-                self.LEADER_HEARTBEAT_KEY, self.lease_ttl_seconds
-            )
+            await self.redis_client.client.hset(self.LEADER_HEARTBEAT_KEY, mapping=heartbeat)
+            await self.redis_client.client.expire(self.LEADER_HEARTBEAT_KEY, self.lease_ttl_seconds)
         except Exception as e:
-            logger.error("send_heartbeat_failed", error=str(e))
+            logger.exception("send_heartbeat_failed", error=str(e))
 
-    async def _get_current_leader(self) -> Optional[str]:
+    async def _get_current_leader(self) -> str | None:
         """
         Obter o ID do líder atual.
 
@@ -304,7 +292,7 @@ class LeaderElection:
             leader_id = await self.redis_client.client.get(self.LEADER_LOCK_KEY)
             return leader_id.decode() if leader_id else None
         except Exception as e:
-            logger.error("get_current_leader_failed", error=str(e))
+            logger.exception("get_current_leader_failed", error=str(e))
             return None
 
     async def get_leader_metadata(self) -> dict:
@@ -318,7 +306,7 @@ class LeaderElection:
             meta = await self.redis_client.client.hgetall(self.LEADER_META_KEY)
             return {k.decode(): v.decode() for k, v in meta.items()} if meta else {}
         except Exception as e:
-            logger.error("get_leader_metadata_failed", error=str(e))
+            logger.exception("get_leader_metadata_failed", error=str(e))
             return {}
 
     async def get_leader_heartbeat(self) -> dict:
@@ -329,16 +317,10 @@ class LeaderElection:
             Dicionário com heartbeat ou dict vazio se não houver
         """
         try:
-            heartbeat = await self.redis_client.client.hgetall(
-                self.LEADER_HEARTBEAT_KEY
-            )
-            return (
-                {k.decode(): v.decode() for k, v in heartbeat.items()}
-                if heartbeat
-                else {}
-            )
+            heartbeat = await self.redis_client.client.hgetall(self.LEADER_HEARTBEAT_KEY)
+            return {k.decode(): v.decode() for k, v in heartbeat.items()} if heartbeat else {}
         except Exception as e:
-            logger.error("get_leader_heartbeat_failed", error=str(e))
+            logger.exception("get_leader_heartbeat_failed", error=str(e))
             return {}
 
     def is_leader(self) -> bool:

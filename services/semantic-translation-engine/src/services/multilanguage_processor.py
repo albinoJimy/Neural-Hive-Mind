@@ -4,29 +4,31 @@ Multi-Language Support for Semantic Translation Engine
 Provides language detection and translation for user intents.
 Supports Portuguese, English, Spanish, French, German, Italian.
 """
-import structlog
-from typing import Optional, Dict, Any
-from enum import Enum
 from dataclasses import dataclass
+from enum import Enum
+from typing import Any
 
+import structlog
 
 logger = structlog.get_logger()
 
 
 class LanguageCode(Enum):
     """Códigos de idioma suportados"""
-    PT_BR = "pt-BR"   # Português Brasil
-    EN_US = "en-US"   # English (US)
-    ES = "es-ES"      # Spanish
-    FR = "fr-FR"      # French
-    DE = "de-DE"      # German
-    IT = "it-IT"      # Italian
+
+    PT_BR = "pt-BR"  # Português Brasil
+    EN_US = "en-US"  # English (US)
+    ES = "es-ES"  # Spanish
+    FR = "fr-FR"  # French
+    DE = "de-DE"  # German
+    IT = "it-IT"  # Italian
     UNKNOWN = "unknown"
 
 
 @dataclass
 class DetectedLanguage:
     """Resultado da detecção de idioma"""
+
     language: LanguageCode
     confidence: float
     original_text: str
@@ -43,41 +45,134 @@ class LanguageDetector:
     # Palavras-chave por idioma para detecção rápida
     KEYWORDS = {
         LanguageCode.PT_BR: [
-            'criar', 'fazer', 'construir', 'deploy', 'executar',
-            'análise', 'relatório', 'consultar', 'buscar', 'listar',
-            'para', 'por favor', 'obrigado', 'ajuda', 'ajudar',
-            'como', 'qual', 'onde', 'quando', 'quanto', 'tabela'
+            "criar",
+            "fazer",
+            "construir",
+            "deploy",
+            "executar",
+            "análise",
+            "relatório",
+            "consultar",
+            "buscar",
+            "listar",
+            "para",
+            "por favor",
+            "obrigado",
+            "ajuda",
+            "ajudar",
+            "como",
+            "qual",
+            "onde",
+            "quando",
+            "quanto",
+            "tabela",
         ],
         LanguageCode.EN_US: [
-            'create', 'make', 'build', 'deploy', 'execute',
-            'analyze', 'report', 'query', 'search', 'list',
-            'please', 'thanks', 'help', 'how', 'what', 'where',
-            'when', 'how much', 'table', 'database'
+            "create",
+            "make",
+            "build",
+            "deploy",
+            "execute",
+            "analyze",
+            "report",
+            "query",
+            "search",
+            "list",
+            "please",
+            "thanks",
+            "help",
+            "how",
+            "what",
+            "where",
+            "when",
+            "how much",
+            "table",
+            "database",
         ],
         LanguageCode.ES: [
-            'crear', 'hacer', 'construir', 'desplegar', 'ejecutar',
-            'análisis', 'informe', 'consulta', 'buscar', 'listar',
-            'por favor', 'gracias', 'ayuda', 'cómo', 'qué', 'dónde',
-            'cuándo', 'cuánto', 'tabla'
+            "crear",
+            "hacer",
+            "construir",
+            "desplegar",
+            "ejecutar",
+            "análisis",
+            "informe",
+            "consulta",
+            "buscar",
+            "listar",
+            "por favor",
+            "gracias",
+            "ayuda",
+            "cómo",
+            "qué",
+            "dónde",
+            "cuándo",
+            "cuánto",
+            "tabla",
         ],
         LanguageCode.FR: [
-            'créer', 'faire', 'construire', 'déployer', 'exécuter',
-            'analyser', 'rapport', 'requête', 'chercher', 'lister',
-            's\'il vous plaît', 'merci', 'aide', 'comment', 'quoi',
-            'où', 'quand', 'combien', 'table'
+            "créer",
+            "faire",
+            "construire",
+            "déployer",
+            "exécuter",
+            "analyser",
+            "rapport",
+            "requête",
+            "chercher",
+            "lister",
+            "s'il vous plaît",
+            "merci",
+            "aide",
+            "comment",
+            "quoi",
+            "où",
+            "quand",
+            "combien",
+            "table",
         ],
         LanguageCode.DE: [
-            'erstellen', 'machen', 'bauen', 'deployen', 'ausführen',
-            'analyse', 'bericht', 'abfrage', 'suchen', 'auflisten',
-            'bitte', 'danke', 'hilfe', 'wie', 'was', 'wo',
-            'wann', 'wie viel', 'tabelle'
+            "erstellen",
+            "machen",
+            "bauen",
+            "deployen",
+            "ausführen",
+            "analyse",
+            "bericht",
+            "abfrage",
+            "suchen",
+            "auflisten",
+            "bitte",
+            "danke",
+            "hilfe",
+            "wie",
+            "was",
+            "wo",
+            "wann",
+            "wie viel",
+            "tabelle",
         ],
         LanguageCode.IT: [
-            'creare', 'fare', 'costruire', 'deploy', 'eseguire',
-            'analisi', 'rapporto', 'query', 'cercare', 'elencare',
-            'per favore', 'grazie', 'aiuto', 'come', 'cosa',
-            'dove', 'quando', 'quanto', 'tabella'
-        ]
+            "creare",
+            "fare",
+            "costruire",
+            "deploy",
+            "eseguire",
+            "analisi",
+            "rapporto",
+            "query",
+            "cercare",
+            "elencare",
+            "per favore",
+            "grazie",
+            "aiuto",
+            "come",
+            "cosa",
+            "dove",
+            "quando",
+            "quanto",
+            "tabella",
+        ],
     }
 
     def __init__(self, config=None):
@@ -88,7 +183,7 @@ class LanguageDetector:
             config: Configurações opcionais
         """
         self.config = config
-        self.logger = logger.bind(component='language_detector')
+        self.logger = logger.bind(component="language_detector")
 
         # Idioma padrão
         self.default_language = LanguageCode.PT_BR
@@ -105,9 +200,7 @@ class LanguageDetector:
         """
         if not text or not text.strip():
             return DetectedLanguage(
-                language=LanguageCode.UNKNOWN,
-                confidence=0.0,
-                original_text=text
+                language=LanguageCode.UNKNOWN, confidence=0.0, original_text=text
             )
 
         text_lower = text.lower()
@@ -122,9 +215,7 @@ class LanguageDetector:
         if not scores or max(scores.values()) == 0:
             # Nenhum match detectado - usar padrão
             return DetectedLanguage(
-                language=self.default_language,
-                confidence=0.0,
-                original_text=text
+                language=self.default_language, confidence=0.0, original_text=text
             )
 
         best_lang = max(scores, key=scores.get)
@@ -134,17 +225,13 @@ class LanguageDetector:
         confidence = min(best_score / 3.0, 1.0)  # Max 3 palavras = 100% confiança
 
         self.logger.debug(
-            'language_detected',
+            "language_detected",
             language=best_lang.value,
             confidence=confidence,
-            text_length=len(text)
+            text_length=len(text),
         )
 
-        return DetectedLanguage(
-            language=best_lang,
-            confidence=confidence,
-            original_text=text
-        )
+        return DetectedLanguage(language=best_lang, confidence=confidence, original_text=text)
 
 
 class TranslationService:
@@ -157,88 +244,88 @@ class TranslationService:
     # Dicionário de tradução de comandos comuns
     COMMAND_TRANSLATIONS = {
         LanguageCode.PT_BR: {
-            'criar': 'create',
-            'fazer': 'make',
-            'construir': 'build',
-            'deploy': 'deploy',
-            'executar': 'execute',
-            'análise': 'analyze',
-            'analise': 'analyze',
-            'relatório': 'report',
-            'relatorio': 'report',
-            'consultar': 'query',
-            'buscar': 'search',
-            'listar': 'list',
-            'mostrar': 'show',
-            'tabela': 'table',
-            'banco de dados': 'database',
-            'usuário': 'user',
-            'ajuda': 'help'
+            "criar": "create",
+            "fazer": "make",
+            "construir": "build",
+            "deploy": "deploy",
+            "executar": "execute",
+            "análise": "analyze",
+            "analise": "analyze",
+            "relatório": "report",
+            "relatorio": "report",
+            "consultar": "query",
+            "buscar": "search",
+            "listar": "list",
+            "mostrar": "show",
+            "tabela": "table",
+            "banco de dados": "database",
+            "usuário": "user",
+            "ajuda": "help",
         },
         LanguageCode.ES: {
-            'crear': 'create',
-            'hacer': 'make',
-            'construir': 'build',
-            'desplegar': 'deploy',
-            'ejecutar': 'execute',
-            'análisis': 'analyze',
-            'informe': 'report',
-            'consulta': 'query',
-            'buscar': 'search',
-            'listar': 'list',
-            'tabla': 'table',
-            'base de datos': 'database',
-            'usuario': 'user',
-            'ayuda': 'help'
+            "crear": "create",
+            "hacer": "make",
+            "construir": "build",
+            "desplegar": "deploy",
+            "ejecutar": "execute",
+            "análisis": "analyze",
+            "informe": "report",
+            "consulta": "query",
+            "buscar": "search",
+            "listar": "list",
+            "tabla": "table",
+            "base de datos": "database",
+            "usuario": "user",
+            "ayuda": "help",
         },
         LanguageCode.FR: {
-            'créer': 'create',
-            'faire': 'make',
-            'construire': 'build',
-            'déployer': 'deploy',
-            'exécuter': 'execute',
-            'analyser': 'analyze',
-            'rapport': 'report',
-            'requête': 'query',
-            'chercher': 'search',
-            'lister': 'list',
-            'table': 'table',
-            'base de données': 'database',
-            'utilisateur': 'user',
-            'aide': 'help'
+            "créer": "create",
+            "faire": "make",
+            "construire": "build",
+            "déployer": "deploy",
+            "exécuter": "execute",
+            "analyser": "analyze",
+            "rapport": "report",
+            "requête": "query",
+            "chercher": "search",
+            "lister": "list",
+            "table": "table",
+            "base de données": "database",
+            "utilisateur": "user",
+            "aide": "help",
         },
         LanguageCode.DE: {
-            'erstellen': 'create',
-            'machen': 'make',
-            'bauen': 'build',
-            'deployen': 'deploy',
-            'ausführen': 'execute',
-            'analyse': 'analyze',
-            'bericht': 'report',
-            'abfrage': 'query',
-            'suchen': 'search',
-            'auflisten': 'list',
-            'tabelle': 'table',
-            'datenbank': 'database',
-            'benutzer': 'user',
-            'hilfe': 'help'
+            "erstellen": "create",
+            "machen": "make",
+            "bauen": "build",
+            "deployen": "deploy",
+            "ausführen": "execute",
+            "analyse": "analyze",
+            "bericht": "report",
+            "abfrage": "query",
+            "suchen": "search",
+            "auflisten": "list",
+            "tabelle": "table",
+            "datenbank": "database",
+            "benutzer": "user",
+            "hilfe": "help",
         },
         LanguageCode.IT: {
-            'creare': 'create',
-            'fare': 'make',
-            'costruire': 'build',
-            'deploy': 'deploy',
-            'eseguire': 'execute',
-            'analisi': 'analyze',
-            'rapporto': 'report',
-            'query': 'query',
-            'cercare': 'search',
-            'elencare': 'list',
-            'tabella': 'table',
-            'database': 'database',
-            'utente': 'user',
-            'aiuto': 'help'
-        }
+            "creare": "create",
+            "fare": "make",
+            "costruire": "build",
+            "deploy": "deploy",
+            "eseguire": "execute",
+            "analisi": "analyze",
+            "rapporto": "report",
+            "query": "query",
+            "cercare": "search",
+            "elencare": "list",
+            "tabella": "table",
+            "database": "database",
+            "utente": "user",
+            "aiuto": "help",
+        },
     }
 
     def __init__(self, config=None):
@@ -249,13 +336,9 @@ class TranslationService:
             config: Configurações opcionais
         """
         self.config = config
-        self.logger = logger.bind(component='translation_service')
+        self.logger = logger.bind(component="translation_service")
 
-    def translate_to_english(
-        self,
-        text: str,
-        source_language: LanguageCode
-    ) -> str:
+    def translate_to_english(self, text: str, source_language: LanguageCode) -> str:
         """
         Traduz texto para inglês.
 
@@ -272,10 +355,7 @@ class TranslationService:
 
         # Se não temos tradução, retornar original
         if source_language not in self.COMMAND_TRANSLATIONS:
-            self.logger.warning(
-                'no_translation_available',
-                language=source_language.value
-            )
+            self.logger.warning("no_translation_available", language=source_language.value)
             return text
 
         translations = self.COMMAND_TRANSLATIONS[source_language]
@@ -286,19 +366,15 @@ class TranslationService:
             result = result.replace(original, translated)
 
         self.logger.debug(
-            'text_translated',
+            "text_translated",
             source_language=source_language.value,
             original_length=len(text),
-            translated_length=len(result)
+            translated_length=len(result),
         )
 
         return result
 
-    def normalize_intent(
-        self,
-        text: str,
-        detected_language: DetectedLanguage
-    ) -> Dict[str, Any]:
+    def normalize_intent(self, text: str, detected_language: DetectedLanguage) -> dict[str, Any]:
         """
         Normaliza a intenção para o formato interno do STE.
 
@@ -310,17 +386,14 @@ class TranslationService:
             Dict com texto normalizado e metadados
         """
         # Traduzir para inglês se necessário
-        normalized_text = self.translate_to_english(
-            text,
-            detected_language.language
-        )
+        normalized_text = self.translate_to_english(text, detected_language.language)
 
         return {
-            'original_text': text,
-            'normalized_text': normalized_text,
-            'detected_language': detected_language.language.value,
-            'language_confidence': detected_language.confidence,
-            'translation_applied': detected_language.language != LanguageCode.EN_US
+            "original_text": text,
+            "normalized_text": normalized_text,
+            "detected_language": detected_language.language.value,
+            "language_confidence": detected_language.confidence,
+            "translation_applied": detected_language.language != LanguageCode.EN_US,
         }
 
 
@@ -339,12 +412,12 @@ class MultiLanguageProcessor:
             config: Configurações opcionais
         """
         self.config = config
-        self.logger = logger.bind(component='multilanguage_processor')
+        self.logger = logger.bind(component="multilanguage_processor")
 
         self.detector = LanguageDetector(config)
         self.translator = TranslationService(config)
 
-    def process(self, intent_data: Dict[str, Any]) -> Dict[str, Any]:
+    def process(self, intent_data: dict[str, Any]) -> dict[str, Any]:
         """
         Processa intenção com suporte multi-idioma.
 
@@ -354,13 +427,11 @@ class MultiLanguageProcessor:
         Returns:
             Dict com intenção normalizada e metadados de idioma
         """
-        text = intent_data.get('text', '')
-        intent_id = intent_data.get('intent_id', 'unknown')
+        text = intent_data.get("text", "")
+        intent_id = intent_data.get("intent_id", "unknown")
 
         self.logger.info(
-            'processing_multilanguage_intent',
-            intent_id=intent_id,
-            text_length=len(text)
+            "processing_multilanguage_intent", intent_id=intent_id, text_length=len(text)
         )
 
         # Detectar idioma
@@ -372,18 +443,18 @@ class MultiLanguageProcessor:
         # Adicionar metadados ao resultado
         result = {
             **intent_data,
-            'original_text': text,
-            'normalized_text': normalized['normalized_text'],
-            'detected_language': normalized['detected_language'],
-            'language_confidence': normalized['language_confidence'],
-            'translation_applied': normalized['translation_applied']
+            "original_text": text,
+            "normalized_text": normalized["normalized_text"],
+            "detected_language": normalized["detected_language"],
+            "language_confidence": normalized["language_confidence"],
+            "translation_applied": normalized["translation_applied"],
         }
 
         self.logger.info(
-            'multilanguage_intent_processed',
+            "multilanguage_intent_processed",
             intent_id=intent_id,
-            detected_language=normalized['detected_language'],
-            translation_applied=normalized['translation_applied']
+            detected_language=normalized["detected_language"],
+            translation_applied=normalized["translation_applied"],
         )
 
         return result

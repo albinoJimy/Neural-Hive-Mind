@@ -1,14 +1,12 @@
 """Producer Kafka para eventos de otimização."""
 import json
-import logging
-from datetime import datetime
-from typing import Optional
+from datetime import UTC, datetime
 
 from aiokafka import AIOKafkaProducer
 from aiokafka.errors import KafkaConnectionError
 from structlog import get_logger
 
-from ..config.settings import get_settings
+from src.config.settings import get_settings
 
 logger = get_logger(__name__)
 
@@ -16,10 +14,10 @@ logger = get_logger(__name__)
 class OptimizationProducer:
     """Producer para enviar eventos ticket.completed."""
 
-    def __init__(self, settings: Optional[get_settings] = None):
+    def __init__(self, settings: get_settings | None = None):
         """Inicializa producer."""
         self.settings = settings or get_settings()
-        self._producer: Optional[AIOKafkaProducer] = None
+        self._producer: AIOKafkaProducer | None = None
 
     async def initialize(self) -> None:
         """Inicializa producer Kafka."""
@@ -35,7 +33,7 @@ class OptimizationProducer:
                 bootstrap_servers=self.settings.kafka_bootstrap_servers,
             )
         except KafkaConnectionError as e:
-            logger.error("kafka_producer_connection_failed", error=str(e))
+            logger.exception("kafka_producer_connection_failed", error=str(e))
             raise
 
     async def publish_ticket_completed(
@@ -68,7 +66,7 @@ class OptimizationProducer:
             "peak_memory_mb": peak_memory_mb,
             "task_count": task_count,
             "tasks": tasks,
-            "created_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
         }
 
         topic = "ticket.completed"

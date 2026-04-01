@@ -4,16 +4,12 @@ Processa eventos de SLA e dispara workflows.
 Responsável por monitorar eventos de SLO violations e budget changes,
 acionando workflows de remediação e avaliação de políticas.
 """
+from typing import Any, Dict, Optional
+
 import structlog
-from typing import Dict, Any, Optional
 
-from src.models.schedule import (
-    ScheduleType, ScheduleTrigger, SchedulePriority
-)
+from src.models.schedule import SchedulePriority, ScheduleTrigger, ScheduleType
 from src.services.scheduler import ScheduleManager
-from src.models.error_budget import ErrorBudgetStatus
-from src.models.slo_definition import SLOViolation
-
 
 logger = structlog.get_logger(__name__)
 
@@ -33,11 +29,7 @@ class SLAEventHandler:
         self.logger = logger
 
     async def on_budget_updated(
-        self,
-        slo_id: str,
-        service_name: str,
-        budget_status: str,
-        remaining_budget: float
+        self, slo_id: str, service_name: str, budget_status: str, remaining_budget: float
     ) -> Optional[str]:
         """
         Handler para evento de budget atualizado.
@@ -58,7 +50,7 @@ class SLAEventHandler:
             slo_id=slo_id,
             service_name=service_name,
             budget_status=budget_status,
-            remaining_budget=remaining_budget
+            remaining_budget=remaining_budget,
         )
 
         # Verificar se precisa acionar policy evaluation
@@ -69,10 +61,7 @@ class SLAEventHandler:
 
         return None
 
-    async def on_slo_violation(
-        self,
-        violation: Dict[str, Any]
-    ) -> Optional[str]:
+    async def on_slo_violation(self, violation: Dict[str, Any]) -> Optional[str]:
         """
         Handler para evento de violação de SLO.
 
@@ -89,21 +78,13 @@ class SLAEventHandler:
         severity = violation.get("severity", "MEDIUM")
 
         self.logger.warning(
-            "slo_violation_detected",
-            slo_id=slo_id,
-            service_name=service_name,
-            severity=severity
+            "slo_violation_detected", slo_id=slo_id, service_name=service_name, severity=severity
         )
 
         # Acionar workflow de remediação
         return await self._trigger_remediation_workflow(violation)
 
-    async def on_freeze_trigger(
-        self,
-        slo_id: str,
-        service_name: str,
-        reason: str
-    ) -> Optional[str]:
+    async def on_freeze_trigger(self, slo_id: str, service_name: str, reason: str) -> Optional[str]:
         """
         Handler para trigger de congelação.
 
@@ -118,10 +99,7 @@ class SLAEventHandler:
             ID do schedule criado ou None
         """
         self.logger.error(
-            "freeze_triggered",
-            slo_id=slo_id,
-            service_name=service_name,
-            reason=reason
+            "freeze_triggered", slo_id=slo_id, service_name=service_name, reason=reason
         )
 
         try:
@@ -131,35 +109,20 @@ class SLAEventHandler:
                 trigger=ScheduleTrigger(
                     event_type="sla.freeze",
                     event_filter={"slo_id": slo_id},
-                    parameters={
-                        "slo_id": slo_id,
-                        "service_name": service_name,
-                        "reason": reason
-                    }
+                    parameters={"slo_id": slo_id, "service_name": service_name, "reason": reason},
                 ),
                 priority=SchedulePriority.CRITICAL,
-                metadata={
-                    "trigger_reason": reason,
-                    "slo_id": slo_id
-                }
+                metadata={"trigger_reason": reason, "slo_id": slo_id},
             )
 
             return schedule_id
 
         except Exception as e:
-            self.logger.error(
-                "freeze_schedule_failed",
-                slo_id=slo_id,
-                error=str(e)
-            )
+            self.logger.error("freeze_schedule_failed", slo_id=slo_id, error=str(e))
             return None
 
     async def _trigger_policy_evaluation(
-        self,
-        slo_id: str,
-        service_name: str,
-        budget_status: str,
-        remaining_budget: float
+        self, slo_id: str, service_name: str, budget_status: str, remaining_budget: float
     ) -> Optional[str]:
         """
         Dispara workflow de avaliação de políticas.
@@ -179,45 +142,32 @@ class SLAEventHandler:
                 schedule_type=ScheduleType.EVENT,
                 trigger=ScheduleTrigger(
                     event_type="sla.budgets",
-                    event_filter={
-                        "slo_id": slo_id,
-                        "status": budget_status
-                    },
+                    event_filter={"slo_id": slo_id, "status": budget_status},
                     parameters={
                         "slo_id": slo_id,
                         "service_name": service_name,
                         "budget_status": budget_status,
-                        "remaining_budget": remaining_budget
-                    }
+                        "remaining_budget": remaining_budget,
+                    },
                 ),
                 priority=SchedulePriority.HIGH,
-                metadata={
-                    "trigger": "budget_critical",
-                    "slo_id": slo_id
-                }
+                metadata={"trigger": "budget_critical", "slo_id": slo_id},
             )
 
             self.logger.info(
                 "policy_evaluation_triggered",
                 schedule_id=schedule_id,
                 slo_id=slo_id,
-                budget_status=budget_status
+                budget_status=budget_status,
             )
 
             return schedule_id
 
         except Exception as e:
-            self.logger.error(
-                "policy_evaluation_failed",
-                slo_id=slo_id,
-                error=str(e)
-            )
+            self.logger.error("policy_evaluation_failed", slo_id=slo_id, error=str(e))
             return None
 
-    async def _trigger_remediation_workflow(
-        self,
-        violation: Dict[str, Any]
-    ) -> Optional[str]:
+    async def _trigger_remediation_workflow(self, violation: Dict[str, Any]) -> Optional[str]:
         """
         Dispara workflow de remediação.
 
@@ -230,8 +180,7 @@ class SLAEventHandler:
         try:
             severity = violation.get("severity", "MEDIUM")
             priority = (
-                SchedulePriority.CRITICAL if severity == "CRITICAL"
-                else SchedulePriority.HIGH
+                SchedulePriority.CRITICAL if severity == "CRITICAL" else SchedulePriority.HIGH
             )
 
             schedule_id = await self.schedule_manager.create_schedule(
@@ -239,34 +188,24 @@ class SLAEventHandler:
                 schedule_type=ScheduleType.EVENT,
                 trigger=ScheduleTrigger(
                     event_type="slo.violation",
-                    event_filter={
-                        "slo_id": violation.get("slo_id"),
-                        "severity": severity
-                    },
-                    parameters=violation
+                    event_filter={"slo_id": violation.get("slo_id"), "severity": severity},
+                    parameters=violation,
                 ),
                 priority=priority,
-                metadata={
-                    "trigger": "slo_violation",
-                    "severity": severity
-                }
+                metadata={"trigger": "slo_violation", "severity": severity},
             )
 
             self.logger.info(
                 "remediation_triggered",
                 schedule_id=schedule_id,
                 slo_id=violation.get("slo_id"),
-                severity=severity
+                severity=severity,
             )
 
             return schedule_id
 
         except Exception as e:
-            self.logger.error(
-                "remediation_trigger_failed",
-                violation=violation,
-                error=str(e)
-            )
+            self.logger.error("remediation_trigger_failed", violation=violation, error=str(e))
             return None
 
     async def create_default_schedules(self) -> Dict[str, str]:
@@ -288,11 +227,10 @@ class SLAEventHandler:
             workflow="BudgetRecalculationWorkflow",
             schedule_type=ScheduleType.CRON,
             trigger=ScheduleTrigger(
-                cron_expression="0 * * * *",
-                parameters={"force_recalculate": False}
+                cron_expression="0 * * * *", parameters={"force_recalculate": False}
             ),
             priority=SchedulePriority.MEDIUM,
-            metadata={"description": "Recalcula budgets hora em hora"}
+            metadata={"description": "Recalcula budgets hora em hora"},
         )
 
         # Report generation - diário
@@ -301,10 +239,10 @@ class SLAEventHandler:
             schedule_type=ScheduleType.CRON,
             trigger=ScheduleTrigger(
                 cron_expression="0 0 * * *",
-                parameters={"report_types": ["slo", "budget", "performance"]}
+                parameters={"report_types": ["slo", "budget", "performance"]},
             ),
             priority=SchedulePriority.LOW,
-            metadata={"description": "Gera relatórios diários"}
+            metadata={"description": "Gera relatórios diários"},
         )
 
         # Maintenance - semanal
@@ -312,16 +250,12 @@ class SLAEventHandler:
             workflow="MaintenanceWorkflow",
             schedule_type=ScheduleType.CRON,
             trigger=ScheduleTrigger(
-                cron_expression="0 2 * * 0",
-                parameters={"tasks": ["cleanup", "vacuum", "stats"]}
+                cron_expression="0 2 * * 0", parameters={"tasks": ["cleanup", "vacuum", "stats"]}
             ),
             priority=SchedulePriority.LOW,
-            metadata={"description": "Manutenção semanal"}
+            metadata={"description": "Manutenção semanal"},
         )
 
-        self.logger.info(
-            "default_schedules_created",
-            schedules_count=len(schedules)
-        )
+        self.logger.info("default_schedules_created", schedules_count=len(schedules))
 
         return schedules

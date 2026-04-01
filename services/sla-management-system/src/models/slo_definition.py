@@ -2,15 +2,17 @@
 Modelos Pydantic para definições de SLO.
 """
 
+import uuid
 from datetime import datetime
 from enum import Enum
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
+
 from pydantic import BaseModel, Field
-import uuid
 
 
 class SLOType(str, Enum):
     """Tipos de SLO."""
+
     AVAILABILITY = "AVAILABILITY"
     LATENCY = "LATENCY"
     ERROR_RATE = "ERROR_RATE"
@@ -19,6 +21,7 @@ class SLOType(str, Enum):
 
 class SLOTarget(float, Enum):
     """Targets padrão de SLO."""
+
     FOUR_NINES = 0.9999  # 99.99%
     THREE_NINES_FIVE = 0.9995  # 99.95%
     THREE_NINES = 0.999  # 99.9%
@@ -28,6 +31,7 @@ class SLOTarget(float, Enum):
 
 class SLIQuery(BaseModel):
     """Query para calcular SLI."""
+
     metric_name: str = Field(..., description="Nome da métrica Prometheus")
     query: str = Field(..., description="Query PromQL completa")
     aggregation: str = Field(default="avg", description="Tipo de agregação")
@@ -64,7 +68,7 @@ class SLODefinition(BaseModel):
 
     def to_dict(self) -> dict:
         """Serializa para JSON."""
-        return self.model_dump(mode='json')
+        return self.model_dump(mode="json")
 
     @classmethod
     def from_crd(cls, crd_spec: dict) -> "SLODefinition":
@@ -80,5 +84,5 @@ class SLODefinition(BaseModel):
             window_days=crd_spec.get("windowDays", 30),
             sli_query=SLIQuery(**crd_spec["sliQuery"]),
             enabled=crd_spec.get("enabled", True),
-            metadata=crd_spec.get("metadata", {})
+            metadata=crd_spec.get("metadata", {}),
         )

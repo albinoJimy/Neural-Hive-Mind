@@ -1,6 +1,7 @@
 """Kafka producer para eventos de remediação"""
-from typing import Dict, Any, Optional
 import json
+from typing import Any, Dict, Optional
+
 import structlog
 from aiokafka import AIOKafkaProducer
 from aiokafka.errors import KafkaError
@@ -27,10 +28,10 @@ class RemediationProducer:
         try:
             self.producer = AIOKafkaProducer(
                 bootstrap_servers=self.bootstrap_servers,
-                value_serializer=lambda v: json.dumps(v).encode('utf-8'),
-                compression_type='gzip',
-                acks='all',
-                enable_idempotence=True
+                value_serializer=lambda v: json.dumps(v).encode("utf-8"),
+                compression_type="gzip",
+                acks="all",
+                enable_idempotence=True,
             )
             self.producer = instrument_kafka_producer(self.producer)
             await self.producer.start()
@@ -38,13 +39,13 @@ class RemediationProducer:
             logger.info(
                 "remediation_producer.connected",
                 bootstrap_servers=self.bootstrap_servers,
-                topic=self.topic
+                topic=self.topic,
             )
         except Exception as e:
             logger.error(
                 "remediation_producer.connect_failed",
                 error=str(e),
-                bootstrap_servers=self.bootstrap_servers
+                bootstrap_servers=self.bootstrap_servers,
             )
             raise
 
@@ -65,7 +66,7 @@ class RemediationProducer:
         action_type: str,
         status: str,
         details: Optional[Dict[str, Any]] = None,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> bool:
         """
         Publica evento de ação de remediação.
@@ -93,17 +94,13 @@ class RemediationProducer:
                 "status": status,
                 "details": details or {},
                 "metadata": metadata or {},
-                "timestamp": self._get_timestamp()
+                "timestamp": self._get_timestamp(),
             }
 
             # Usa incident_id como key para garantir ordenação por incidente
-            key = incident_id.encode('utf-8')
+            key = incident_id.encode("utf-8")
 
-            result = await self.producer.send_and_wait(
-                self.topic,
-                value=event,
-                key=key
-            )
+            result = await self.producer.send_and_wait(self.topic, value=event, key=key)
 
             logger.info(
                 "remediation_producer.published",
@@ -112,31 +109,23 @@ class RemediationProducer:
                 action_type=action_type,
                 status=status,
                 partition=result.partition,
-                offset=result.offset
+                offset=result.offset,
             )
 
             return True
 
         except KafkaError as e:
             logger.error(
-                "remediation_producer.kafka_error",
-                remediation_id=remediation_id,
-                error=str(e)
+                "remediation_producer.kafka_error", remediation_id=remediation_id, error=str(e)
             )
             return False
         except Exception as e:
             logger.error(
-                "remediation_producer.publish_failed",
-                remediation_id=remediation_id,
-                error=str(e)
+                "remediation_producer.publish_failed", remediation_id=remediation_id, error=str(e)
             )
             return False
 
-    async def publish_remediation_result(
-        self,
-        remediation_id: str,
-        result: Dict[str, Any]
-    ) -> bool:
+    async def publish_remediation_result(self, remediation_id: str, result: Dict[str, Any]) -> bool:
         """
         Publica resultado completo de remediação.
 
@@ -155,24 +144,20 @@ class RemediationProducer:
             event = {
                 "remediation_id": remediation_id,
                 "result": result,
-                "timestamp": self._get_timestamp()
+                "timestamp": self._get_timestamp(),
             }
 
             incident_id = result.get("incident_id", remediation_id)
-            key = incident_id.encode('utf-8')
+            key = incident_id.encode("utf-8")
 
-            result_obj = await self.producer.send_and_wait(
-                self.topic,
-                value=event,
-                key=key
-            )
+            result_obj = await self.producer.send_and_wait(self.topic, value=event, key=key)
 
             logger.info(
                 "remediation_producer.result_published",
                 remediation_id=remediation_id,
                 status=result.get("status"),
                 partition=result_obj.partition,
-                offset=result_obj.offset
+                offset=result_obj.offset,
             )
 
             return True
@@ -181,7 +166,7 @@ class RemediationProducer:
             logger.error(
                 "remediation_producer.publish_result_failed",
                 remediation_id=remediation_id,
-                error=str(e)
+                error=str(e),
             )
             return False
 
@@ -193,4 +178,5 @@ class RemediationProducer:
     def _get_timestamp() -> str:
         """Retorna timestamp ISO 8601"""
         from datetime import datetime, timezone
+
         return datetime.now(timezone.utc).isoformat()

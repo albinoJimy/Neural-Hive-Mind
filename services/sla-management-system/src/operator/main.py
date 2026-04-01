@@ -7,21 +7,22 @@ synchronizing them with the PostgreSQL database and maintaining state.
 
 import asyncio
 import os
+from datetime import datetime, timezone
+from typing import Any, Dict, Optional
+
 import kopf
 import structlog
-from datetime import datetime
-from typing import Dict, Any, Optional
-from kubernetes import client, config
+from kubernetes import config
 
-from src.services.slo_manager import SLOManager
-from src.services.policy_enforcer import PolicyEnforcer
 from src.clients.postgresql_client import PostgreSQLClient
 from src.clients.prometheus_client import PrometheusClient
 from src.clients.redis_client import RedisClient
 from src.config.settings import Settings
+from src.models.freeze_policy import FreezePolicy, PolicyAction, PolicyScope
 from src.models.slo_definition import SLODefinition, SLOType
-from src.models.freeze_policy import FreezePolicy, PolicyScope, PolicyAction
 from src.observability.metrics import sla_metrics
+from src.services.policy_enforcer import PolicyEnforcer
+from src.services.slo_manager import SLOManager
 
 # Initialize logger
 logger = structlog.get_logger(__name__)
@@ -49,7 +50,7 @@ async def startup_handler(memo: kopf.Memo, **kwargs):
     settings = Settings()
 
     # Load reconciliation interval from environment variable
-    reconciliation_interval = float(os.getenv('RECONCILIATION_INTERVAL', '300'))
+    reconciliation_interval = float(os.getenv("RECONCILIATION_INTERVAL", "300"))
     logger.info(f"Reconciliation interval set to {reconciliation_interval} seconds")
 
     # Initialize Kubernetes client
@@ -72,8 +73,7 @@ async def startup_handler(memo: kopf.Memo, **kwargs):
 
     # Initialize services
     slo_manager = SLOManager(
-        postgresql_client=postgresql_client,
-        prometheus_client=prometheus_client
+        postgresql_client=postgresql_client, prometheus_client=prometheus_client
     )
     logger.info("SLO Manager initialized")
 
@@ -100,8 +100,10 @@ async def cleanup_handler(**kwargs):
     logger.info("SLA Management System Operator shutdown complete")
 
 
-@kopf.on.create('neural-hive.io', 'v1', 'slodefinitions')
-async def slo_create_handler(spec: Dict[str, Any], name: str, namespace: str, meta: Dict[str, Any], **kwargs):
+@kopf.on.create("neural-hive.io", "v1", "slodefinitions")
+async def slo_create_handler(
+    spec: Dict[str, Any], name: str, namespace: str, meta: Dict[str, Any], **kwargs
+):
     """
     Handle creation of SLODefinition CRD.
     """
@@ -110,22 +112,22 @@ async def slo_create_handler(spec: Dict[str, Any], name: str, namespace: str, me
     try:
         # Convert CRD spec to SLODefinition model
         slo = SLODefinition(
-            name=spec['name'],
-            description=spec.get('description', ''),
-            slo_type=SLOType(spec['sloType']),
-            service_name=spec['serviceName'],
-            component=spec.get('component'),
-            layer=spec['layer'],
-            target=spec['target'],
-            window_days=spec.get('windowDays', 30),
+            name=spec["name"],
+            description=spec.get("description", ""),
+            slo_type=SLOType(spec["sloType"]),
+            service_name=spec["serviceName"],
+            component=spec.get("component"),
+            layer=spec["layer"],
+            target=spec["target"],
+            window_days=spec.get("windowDays", 30),
             sli_query={
-                'metric_name': spec['sliQuery']['metricName'],
-                'query': spec['sliQuery']['query'],
-                'aggregation': spec['sliQuery'].get('aggregation', 'avg'),
-                'labels': spec['sliQuery'].get('labels', {})
+                "metric_name": spec["sliQuery"]["metricName"],
+                "query": spec["sliQuery"]["query"],
+                "aggregation": spec["sliQuery"].get("aggregation", "avg"),
+                "labels": spec["sliQuery"].get("labels", {}),
             },
-            enabled=spec.get('enabled', True),
-            metadata=spec.get('metadata', {})
+            enabled=spec.get("enabled", True),
+            metadata=spec.get("metadata", {}),
         )
 
         # Create SLO in database
@@ -135,43 +137,49 @@ async def slo_create_handler(spec: Dict[str, Any], name: str, namespace: str, me
 
         # Return status to update CRD
         return {
-            'synced': True,
-            'lastSyncTime': datetime.utcnow().isoformat(),
-            'sloId': str(slo_id),
-            'conditions': [{
-                'type': 'Synced',
-                'status': 'True',
-                'lastTransitionTime': datetime.utcnow().isoformat(),
-                'reason': 'SyncSuccessful',
-                'message': f'SLO created in database with ID {slo_id}'
-            }]
+            "synced": True,
+            "lastSyncTime": datetime.now(timezone.utc).isoformat(),
+            "sloId": str(slo_id),
+            "conditions": [
+                {
+                    "type": "Synced",
+                    "status": "True",
+                    "lastTransitionTime": datetime.now(timezone.utc).isoformat(),
+                    "reason": "SyncSuccessful",
+                    "message": f"SLO created in database with ID {slo_id}",
+                }
+            ],
         }
 
     except Exception as e:
         logger.error(f"Failed to create SLO {name}: {str(e)}", exc_info=True)
         sla_metrics.record_crd_sync_error(crd_type="slodefinition")
         return {
-            'synced': False,
-            'lastSyncTime': datetime.utcnow().isoformat(),
-            'conditions': [{
-                'type': 'Synced',
-                'status': 'False',
-                'lastTransitionTime': datetime.utcnow().isoformat(),
-                'reason': 'SyncFailed',
-                'message': f'Failed to create SLO: {str(e)}'
-            }]
+            "synced": False,
+            "lastSyncTime": datetime.now(timezone.utc).isoformat(),
+            "conditions": [
+                {
+                    "type": "Synced",
+                    "status": "False",
+                    "lastTransitionTime": datetime.now(timezone.utc).isoformat(),
+                    "reason": "SyncFailed",
+                    "message": f"Failed to create SLO: {str(e)}",
+                }
+            ],
         }
 
 
-@kopf.on.update('neural-hive.io', 'v1', 'slodefinitions')
-async def slo_update_handler(spec: Dict[str, Any], name: str, namespace: str, status: Dict[str, Any], **kwargs):
+@kopf.on.update("neural-hive.io", "v1", "slodefinitions")
+async def slo_update_handler(
+    spec: Dict[str, Any], name: str, namespace: str, status: Dict[str, Any], **kwargs
+):
     """
     Handle updates to SLODefinition CRD.
     """
     logger.info(f"Updating SLO: {name} in namespace {namespace}")
 
     try:
-        slo_id = status.get('sloId')
+        slo_id = status.get("sloId")
 
         # Auto-recovery: se não há sloId, tentar encontrar por nome ou criar novo
         if not slo_id:
@@ -179,8 +187,7 @@ async def slo_update_handler(spec: Dict[str, Any], name: str, namespace: str, st
 
             # Tentar encontrar SLO existente por nome e namespace
             existing_slo = await postgresql_client.find_slo_by_name(
-                name=spec['name'],
-                namespace=namespace
+                name=spec["name"], namespace=namespace
             )
 
             if existing_slo:
@@ -189,60 +196,62 @@ async def slo_update_handler(spec: Dict[str, Any], name: str, namespace: str, st
                 logger.info(f"Found existing SLO with ID: {slo_id}, will update it")
             else:
                 # SLO não encontrado, criar novo
-                logger.info(f"No existing SLO found, creating new one")
+                logger.info("No existing SLO found, creating new one")
                 slo = SLODefinition(
-                    name=spec['name'],
-                    description=spec.get('description', ''),
-                    slo_type=SLOType(spec['sloType']),
-                    service_name=spec['serviceName'],
-                    component=spec.get('component'),
-                    layer=spec['layer'],
-                    target=spec['target'],
-                    window_days=spec.get('windowDays', 30),
+                    name=spec["name"],
+                    description=spec.get("description", ""),
+                    slo_type=SLOType(spec["sloType"]),
+                    service_name=spec["serviceName"],
+                    component=spec.get("component"),
+                    layer=spec["layer"],
+                    target=spec["target"],
+                    window_days=spec.get("windowDays", 30),
                     sli_query={
-                        'metric_name': spec['sliQuery']['metricName'],
-                        'query': spec['sliQuery']['query'],
-                        'aggregation': spec['sliQuery'].get('aggregation', 'avg'),
-                        'labels': spec['sliQuery'].get('labels', {})
+                        "metric_name": spec["sliQuery"]["metricName"],
+                        "query": spec["sliQuery"]["query"],
+                        "aggregation": spec["sliQuery"].get("aggregation", "avg"),
+                        "labels": spec["sliQuery"].get("labels", {}),
                     },
-                    enabled=spec.get('enabled', True),
-                    metadata={'namespace': namespace, **(spec.get('metadata', {}))}
+                    enabled=spec.get("enabled", True),
+                    metadata={"namespace": namespace, **(spec.get("metadata", {}))},
                 )
                 slo_id = await slo_manager.create_slo(slo)
                 logger.info(f"Created new SLO with ID: {slo_id}")
 
                 # Retornar status atualizado com o novo ID
                 return {
-                    'synced': True,
-                    'lastSyncTime': datetime.utcnow().isoformat(),
-                    'sloId': str(slo_id),
-                    'conditions': [{
-                        'type': 'Synced',
-                        'status': 'True',
-                        'lastTransitionTime': datetime.utcnow().isoformat(),
-                        'reason': 'AutoRecoverySuccessful',
-                        'message': f'SLO created via auto-recovery with ID {slo_id}'
-                    }]
+                    "synced": True,
+                    "lastSyncTime": datetime.now(timezone.utc).isoformat(),
+                    "sloId": str(slo_id),
+                    "conditions": [
+                        {
+                            "type": "Synced",
+                            "status": "True",
+                            "lastTransitionTime": datetime.now(timezone.utc).isoformat(),
+                            "reason": "AutoRecoverySuccessful",
+                            "message": f"SLO created via auto-recovery with ID {slo_id}",
+                        }
+                    ],
                 }
 
         # Convert CRD spec to SLODefinition model
         slo_updates = {
-            'name': spec['name'],
-            'description': spec.get('description', ''),
-            'slo_type': SLOType(spec['sloType']),
-            'service_name': spec['serviceName'],
-            'component': spec.get('component'),
-            'layer': spec['layer'],
-            'target': spec['target'],
-            'window_days': spec.get('windowDays', 30),
-            'sli_query': {
-                'metric_name': spec['sliQuery']['metricName'],
-                'query': spec['sliQuery']['query'],
-                'aggregation': spec['sliQuery'].get('aggregation', 'avg'),
-                'labels': spec['sliQuery'].get('labels', {})
+            "name": spec["name"],
+            "description": spec.get("description", ""),
+            "slo_type": SLOType(spec["sloType"]),
+            "service_name": spec["serviceName"],
+            "component": spec.get("component"),
+            "layer": spec["layer"],
+            "target": spec["target"],
+            "window_days": spec.get("windowDays", 30),
+            "sli_query": {
+                "metric_name": spec["sliQuery"]["metricName"],
+                "query": spec["sliQuery"]["query"],
+                "aggregation": spec["sliQuery"].get("aggregation", "avg"),
+                "labels": spec["sliQuery"].get("labels", {}),
             },
-            'enabled': spec.get('enabled', True),
-            'metadata': spec.get('metadata', {})
+            "enabled": spec.get("enabled", True),
+            "metadata": spec.get("metadata", {}),
         }
 
         # Update SLO in database
@@ -251,49 +260,55 @@ async def slo_update_handler(spec: Dict[str, Any], name: str, namespace: str, st
         logger.info(f"SLO updated in database: {slo_id}")
 
         return {
-            'synced': True,
-            'lastSyncTime': datetime.utcnow().isoformat(),
-            'sloId': slo_id,
-            'conditions': [{
-                'type': 'Synced',
-                'status': 'True',
-                'lastTransitionTime': datetime.utcnow().isoformat(),
-                'reason': 'SyncSuccessful',
-                'message': f'SLO updated in database'
-            }]
+            "synced": True,
+            "lastSyncTime": datetime.now(timezone.utc).isoformat(),
+            "sloId": slo_id,
+            "conditions": [
+                {
+                    "type": "Synced",
+                    "status": "True",
+                    "lastTransitionTime": datetime.now(timezone.utc).isoformat(),
+                    "reason": "SyncSuccessful",
+                    "message": "SLO updated in database",
+                }
+            ],
         }
 
     except Exception as e:
         logger.error(f"Failed to update SLO {name}: {str(e)}", exc_info=True)
         sla_metrics.record_crd_sync_error(crd_type="slodefinition")
         return {
-            'synced': False,
-            'lastSyncTime': datetime.utcnow().isoformat(),
-            'conditions': [{
-                'type': 'Synced',
-                'status': 'False',
-                'lastTransitionTime': datetime.utcnow().isoformat(),
-                'reason': 'SyncFailed',
-                'message': f'Failed to update SLO: {str(e)}'
-            }]
+            "synced": False,
+            "lastSyncTime": datetime.now(timezone.utc).isoformat(),
+            "conditions": [
+                {
+                    "type": "Synced",
+                    "status": "False",
+                    "lastTransitionTime": datetime.now(timezone.utc).isoformat(),
+                    "reason": "SyncFailed",
+                    "message": f"Failed to update SLO: {str(e)}",
+                }
+            ],
         }
 
 
-@kopf.on.delete('neural-hive.io', 'v1', 'slodefinitions')
-async def slo_delete_handler(spec: Dict[str, Any], name: str, namespace: str, status: Dict[str, Any], **kwargs):
+@kopf.on.delete("neural-hive.io", "v1", "slodefinitions")
+async def slo_delete_handler(
+    spec: Dict[str, Any], name: str, namespace: str, status: Dict[str, Any], **kwargs
+):
     """
     Handle deletion of SLODefinition CRD (soft delete).
     """
     logger.info(f"Deleting SLO: {name} in namespace {namespace}")
 
     try:
-        slo_id = status.get('sloId')
+        slo_id = status.get("sloId")
         if not slo_id:
             logger.warning(f"SLO ID not found in status for {name} - skipping delete")
             return
 
         # Soft delete by disabling the SLO
-        await slo_manager.update_slo(slo_id, {'enabled': False})
+        await slo_manager.update_slo(slo_id, {"enabled": False})
 
         logger.info(f"SLO soft-deleted (disabled) in database: {slo_id}")
 
@@ -302,7 +317,7 @@ async def slo_delete_handler(spec: Dict[str, Any], name: str, namespace: str, st
         raise kopf.PermanentError(f"Failed to delete SLO: {str(e)}")
 
 
-@kopf.on.create('neural-hive.io', 'v1', 'slapolicies')
+@kopf.on.create("neural-hive.io", "v1", "slapolicies")
 async def policy_create_handler(spec: Dict[str, Any], name: str, namespace: str, **kwargs):
     """
     Handle creation of SLAPolicy CRD.
@@ -312,16 +327,16 @@ async def policy_create_handler(spec: Dict[str, Any], name: str, namespace: str,
     try:
         # Convert CRD spec to FreezePolicy model
         policy = FreezePolicy(
-            name=spec['name'],
-            description=spec.get('description', ''),
-            scope=PolicyScope(spec['scope']),
-            target=spec['target'],
-            actions=[PolicyAction(action) for action in spec['actions']],
-            trigger_threshold_percent=spec.get('triggerThresholdPercent', 20),
-            auto_unfreeze=spec.get('autoUnfreeze', True),
-            unfreeze_threshold_percent=spec.get('unfreezeThresholdPercent', 50),
-            enabled=spec.get('enabled', True),
-            metadata=spec.get('metadata', {})
+            name=spec["name"],
+            description=spec.get("description", ""),
+            scope=PolicyScope(spec["scope"]),
+            target=spec["target"],
+            actions=[PolicyAction(action) for action in spec["actions"]],
+            trigger_threshold_percent=spec.get("triggerThresholdPercent", 20),
+            auto_unfreeze=spec.get("autoUnfreeze", True),
+            unfreeze_threshold_percent=spec.get("unfreezeThresholdPercent", 50),
+            enabled=spec.get("enabled", True),
+            metadata=spec.get("metadata", {}),
         )
 
         # Create policy in database
@@ -330,44 +345,50 @@ async def policy_create_handler(spec: Dict[str, Any], name: str, namespace: str,
         logger.info(f"SLA Policy created in database with ID: {policy_id}")
 
         return {
-            'synced': True,
-            'lastSyncTime': datetime.utcnow().isoformat(),
-            'policyId': str(policy_id),
-            'activeFreezes': 0,
-            'conditions': [{
-                'type': 'Synced',
-                'status': 'True',
-                'lastTransitionTime': datetime.utcnow().isoformat(),
-                'reason': 'SyncSuccessful',
-                'message': f'Policy created in database with ID {policy_id}'
-            }]
+            "synced": True,
+            "lastSyncTime": datetime.now(timezone.utc).isoformat(),
+            "policyId": str(policy_id),
+            "activeFreezes": 0,
+            "conditions": [
+                {
+                    "type": "Synced",
+                    "status": "True",
+                    "lastTransitionTime": datetime.now(timezone.utc).isoformat(),
+                    "reason": "SyncSuccessful",
+                    "message": f"Policy created in database with ID {policy_id}",
+                }
+            ],
         }
 
     except Exception as e:
         logger.error(f"Failed to create SLA Policy {name}: {str(e)}", exc_info=True)
         sla_metrics.record_crd_sync_error(crd_type="slapolicy")
         return {
-            'synced': False,
-            'lastSyncTime': datetime.utcnow().isoformat(),
-            'conditions': [{
-                'type': 'Synced',
-                'status': 'False',
-                'lastTransitionTime': datetime.utcnow().isoformat(),
-                'reason': 'SyncFailed',
-                'message': f'Failed to create policy: {str(e)}'
-            }]
+            "synced": False,
+            "lastSyncTime": datetime.now(timezone.utc).isoformat(),
+            "conditions": [
+                {
+                    "type": "Synced",
+                    "status": "False",
+                    "lastTransitionTime": datetime.now(timezone.utc).isoformat(),
+                    "reason": "SyncFailed",
+                    "message": f"Failed to create policy: {str(e)}",
+                }
+            ],
         }
 
 
-@kopf.on.update('neural-hive.io', 'v1', 'slapolicies')
-async def policy_update_handler(spec: Dict[str, Any], name: str, namespace: str, status: Dict[str, Any], **kwargs):
+@kopf.on.update("neural-hive.io", "v1", "slapolicies")
+async def policy_update_handler(
+    spec: Dict[str, Any], name: str, namespace: str, status: Dict[str, Any], **kwargs
+):
     """
     Handle updates to SLAPolicy CRD.
     """
     logger.info(f"Updating SLA Policy: {name} in namespace {namespace}")
 
     try:
-        policy_id = status.get('policyId')
+        policy_id = status.get("policyId")
 
         # Auto-recovery: se não há policyId, tentar encontrar por nome ou criar novo
         if not policy_id:
@@ -375,8 +396,7 @@ async def policy_update_handler(spec: Dict[str, Any], name: str, namespace: str,
 
             # Tentar encontrar Policy existente por nome e namespace
             existing_policy = await postgresql_client.find_policy_by_name(
-                name=spec['name'],
-                namespace=namespace
+                name=spec["name"], namespace=namespace
             )
 
             if existing_policy:
@@ -385,49 +405,51 @@ async def policy_update_handler(spec: Dict[str, Any], name: str, namespace: str,
                 logger.info(f"Found existing Policy with ID: {policy_id}, will update it")
             else:
                 # Policy não encontrada, criar nova
-                logger.info(f"No existing Policy found, creating new one")
+                logger.info("No existing Policy found, creating new one")
                 policy = FreezePolicy(
-                    name=spec['name'],
-                    description=spec.get('description', ''),
-                    scope=PolicyScope(spec['scope']),
-                    target=spec['target'],
-                    actions=[PolicyAction(action) for action in spec['actions']],
-                    trigger_threshold_percent=spec.get('triggerThresholdPercent', 20),
-                    auto_unfreeze=spec.get('autoUnfreeze', True),
-                    unfreeze_threshold_percent=spec.get('unfreezeThresholdPercent', 50),
-                    enabled=spec.get('enabled', True),
-                    metadata={'namespace': namespace, **(spec.get('metadata', {}))}
+                    name=spec["name"],
+                    description=spec.get("description", ""),
+                    scope=PolicyScope(spec["scope"]),
+                    target=spec["target"],
+                    actions=[PolicyAction(action) for action in spec["actions"]],
+                    trigger_threshold_percent=spec.get("triggerThresholdPercent", 20),
+                    auto_unfreeze=spec.get("autoUnfreeze", True),
+                    unfreeze_threshold_percent=spec.get("unfreezeThresholdPercent", 50),
+                    enabled=spec.get("enabled", True),
+                    metadata={"namespace": namespace, **(spec.get("metadata", {}))},
                 )
                 policy_id = await postgresql_client.create_policy(policy)
                 logger.info(f"Created new Policy with ID: {policy_id}")
 
                 # Retornar status atualizado com o novo ID
                 return {
-                    'synced': True,
-                    'lastSyncTime': datetime.utcnow().isoformat(),
-                    'policyId': str(policy_id),
-                    'activeFreezes': 0,
-                    'conditions': [{
-                        'type': 'Synced',
-                        'status': 'True',
-                        'lastTransitionTime': datetime.utcnow().isoformat(),
-                        'reason': 'AutoRecoverySuccessful',
-                        'message': f'Policy created via auto-recovery with ID {policy_id}'
-                    }]
+                    "synced": True,
+                    "lastSyncTime": datetime.now(timezone.utc).isoformat(),
+                    "policyId": str(policy_id),
+                    "activeFreezes": 0,
+                    "conditions": [
+                        {
+                            "type": "Synced",
+                            "status": "True",
+                            "lastTransitionTime": datetime.now(timezone.utc).isoformat(),
+                            "reason": "AutoRecoverySuccessful",
+                            "message": f"Policy created via auto-recovery with ID {policy_id}",
+                        }
+                    ],
                 }
 
         # Convert CRD spec to policy updates
         policy_updates = {
-            'name': spec['name'],
-            'description': spec.get('description', ''),
-            'scope': PolicyScope(spec['scope']),
-            'target': spec['target'],
-            'actions': [PolicyAction(action) for action in spec['actions']],
-            'trigger_threshold_percent': spec.get('triggerThresholdPercent', 20),
-            'auto_unfreeze': spec.get('autoUnfreeze', True),
-            'unfreeze_threshold_percent': spec.get('unfreezeThresholdPercent', 50),
-            'enabled': spec.get('enabled', True),
-            'metadata': spec.get('metadata', {})
+            "name": spec["name"],
+            "description": spec.get("description", ""),
+            "scope": PolicyScope(spec["scope"]),
+            "target": spec["target"],
+            "actions": [PolicyAction(action) for action in spec["actions"]],
+            "trigger_threshold_percent": spec.get("triggerThresholdPercent", 20),
+            "auto_unfreeze": spec.get("autoUnfreeze", True),
+            "unfreeze_threshold_percent": spec.get("unfreezeThresholdPercent", 50),
+            "enabled": spec.get("enabled", True),
+            "metadata": spec.get("metadata", {}),
         }
 
         # Update policy in database
@@ -436,49 +458,55 @@ async def policy_update_handler(spec: Dict[str, Any], name: str, namespace: str,
         logger.info(f"SLA Policy updated in database: {policy_id}")
 
         return {
-            'synced': True,
-            'lastSyncTime': datetime.utcnow().isoformat(),
-            'policyId': policy_id,
-            'conditions': [{
-                'type': 'Synced',
-                'status': 'True',
-                'lastTransitionTime': datetime.utcnow().isoformat(),
-                'reason': 'SyncSuccessful',
-                'message': f'Policy updated in database'
-            }]
+            "synced": True,
+            "lastSyncTime": datetime.now(timezone.utc).isoformat(),
+            "policyId": policy_id,
+            "conditions": [
+                {
+                    "type": "Synced",
+                    "status": "True",
+                    "lastTransitionTime": datetime.now(timezone.utc).isoformat(),
+                    "reason": "SyncSuccessful",
+                    "message": "Policy updated in database",
+                }
+            ],
         }
 
     except Exception as e:
         logger.error(f"Failed to update SLA Policy {name}: {str(e)}", exc_info=True)
         sla_metrics.record_crd_sync_error(crd_type="slapolicy")
         return {
-            'synced': False,
-            'lastSyncTime': datetime.utcnow().isoformat(),
-            'conditions': [{
-                'type': 'Synced',
-                'status': 'False',
-                'lastTransitionTime': datetime.utcnow().isoformat(),
-                'reason': 'SyncFailed',
-                'message': f'Failed to update policy: {str(e)}'
-            }]
+            "synced": False,
+            "lastSyncTime": datetime.now(timezone.utc).isoformat(),
+            "conditions": [
+                {
+                    "type": "Synced",
+                    "status": "False",
+                    "lastTransitionTime": datetime.now(timezone.utc).isoformat(),
+                    "reason": "SyncFailed",
+                    "message": f"Failed to update policy: {str(e)}",
+                }
+            ],
         }
 
 
-@kopf.on.delete('neural-hive.io', 'v1', 'slapolicies')
-async def policy_delete_handler(spec: Dict[str, Any], name: str, namespace: str, status: Dict[str, Any], **kwargs):
+@kopf.on.delete("neural-hive.io", "v1", "slapolicies")
+async def policy_delete_handler(
+    spec: Dict[str, Any], name: str, namespace: str, status: Dict[str, Any], **kwargs
+):
     """
     Handle deletion of SLAPolicy CRD (soft delete).
     """
     logger.info(f"Deleting SLA Policy: {name} in namespace {namespace}")
 
     try:
-        policy_id = status.get('policyId')
+        policy_id = status.get("policyId")
         if not policy_id:
             logger.warning(f"Policy ID not found in status for {name} - skipping delete")
             return
 
         # Soft delete by disabling the policy
-        await postgresql_client.update_policy(policy_id, {'enabled': False})
+        await postgresql_client.update_policy(policy_id, {"enabled": False})
 
         logger.info(f"SLA Policy soft-deleted (disabled) in database: {policy_id}")
 
@@ -487,8 +515,10 @@ async def policy_delete_handler(spec: Dict[str, Any], name: str, namespace: str,
         raise kopf.PermanentError(f"Failed to delete policy: {str(e)}")
 
 
-@kopf.timer('neural-hive.io', 'v1', 'slodefinitions', idle=1.0)
-async def slo_reconciliation_timer(spec: Dict[str, Any], name: str, namespace: str, status: Dict[str, Any], **kwargs):
+@kopf.timer("neural-hive.io", "v1", "slodefinitions", idle=1.0)
+async def slo_reconciliation_timer(
+    spec: Dict[str, Any], name: str, namespace: str, status: Dict[str, Any], **kwargs
+):
     """
     Periodic reconciliation of SLODefinition CRDs.
     Uses RECONCILIATION_INTERVAL environment variable for interval (default 300s).
@@ -501,16 +531,17 @@ async def slo_reconciliation_timer(spec: Dict[str, Any], name: str, namespace: s
     logger.debug(f"Reconciling SLO: {name} in namespace {namespace}")
 
     try:
-        slo_id = status.get('sloId')
+        slo_id = status.get("sloId")
 
         # Auto-recovery: se não há sloId, tentar encontrar por nome
         if not slo_id:
-            logger.warning(f"SLO ID not found for {name} during reconciliation, attempting auto-recovery")
+            logger.warning(
+                f"SLO ID not found for {name} during reconciliation, attempting auto-recovery"
+            )
 
             # Tentar encontrar SLO existente por nome e namespace
             existing_slo = await postgresql_client.find_slo_by_name(
-                name=spec['name'],
-                namespace=namespace
+                name=spec["name"], namespace=namespace
             )
 
             if existing_slo:
@@ -519,30 +550,34 @@ async def slo_reconciliation_timer(spec: Dict[str, Any], name: str, namespace: s
                 logger.info(f"Auto-recovery: Found existing SLO with ID: {slo_id}")
 
                 return {
-                    'synced': True,
-                    'lastSyncTime': datetime.utcnow().isoformat(),
-                    'sloId': str(slo_id),
-                    'conditions': [{
-                        'type': 'Synced',
-                        'status': 'True',
-                        'lastTransitionTime': datetime.utcnow().isoformat(),
-                        'reason': 'AutoRecoverySuccessful',
-                        'message': f'SLO ID recovered: {slo_id}'
-                    }]
+                    "synced": True,
+                    "lastSyncTime": datetime.now(timezone.utc).isoformat(),
+                    "sloId": str(slo_id),
+                    "conditions": [
+                        {
+                            "type": "Synced",
+                            "status": "True",
+                            "lastTransitionTime": datetime.now(timezone.utc).isoformat(),
+                            "reason": "AutoRecoverySuccessful",
+                            "message": f"SLO ID recovered: {slo_id}",
+                        }
+                    ],
                 }
             else:
                 # Não foi possível recuperar, sinalizar para re-criação
                 logger.error(f"Auto-recovery failed: SLO not found for {name}")
                 return {
-                    'synced': False,
-                    'lastSyncTime': datetime.utcnow().isoformat(),
-                    'conditions': [{
-                        'type': 'Synced',
-                        'status': 'False',
-                        'lastTransitionTime': datetime.utcnow().isoformat(),
-                        'reason': 'AutoRecoveryFailed',
-                        'message': 'SLO ID not found and no matching SLO in database'
-                    }]
+                    "synced": False,
+                    "lastSyncTime": datetime.now(timezone.utc).isoformat(),
+                    "conditions": [
+                        {
+                            "type": "Synced",
+                            "status": "False",
+                            "lastTransitionTime": datetime.now(timezone.utc).isoformat(),
+                            "reason": "AutoRecoveryFailed",
+                            "message": "SLO ID not found and no matching SLO in database",
+                        }
+                    ],
                 }
 
         # Verify SLO still exists in database
@@ -550,15 +585,17 @@ async def slo_reconciliation_timer(spec: Dict[str, Any], name: str, namespace: s
         if not slo:
             logger.warning(f"SLO {slo_id} not found in database - may need re-sync")
             return {
-                'synced': False,
-                'lastSyncTime': datetime.utcnow().isoformat(),
-                'conditions': [{
-                    'type': 'Synced',
-                    'status': 'False',
-                    'lastTransitionTime': datetime.utcnow().isoformat(),
-                    'reason': 'NotFoundInDatabase',
-                    'message': 'SLO not found in database'
-                }]
+                "synced": False,
+                "lastSyncTime": datetime.now(timezone.utc).isoformat(),
+                "conditions": [
+                    {
+                        "type": "Synced",
+                        "status": "False",
+                        "lastTransitionTime": datetime.now(timezone.utc).isoformat(),
+                        "reason": "NotFoundInDatabase",
+                        "message": "SLO not found in database",
+                    }
+                ],
             }
 
         # Get current budget status
@@ -566,19 +603,21 @@ async def slo_reconciliation_timer(spec: Dict[str, Any], name: str, namespace: s
 
         # Update status with current values
         return {
-            'synced': True,
-            'lastSyncTime': datetime.utcnow().isoformat(),
-            'sloId': slo_id,
-            'currentSLI': budget.current_sli if budget else None,
-            'budgetRemaining': budget.remaining_percent if budget else None,
-            'budgetStatus': budget.status.value if budget else None,
-            'conditions': [{
-                'type': 'Synced',
-                'status': 'True',
-                'lastTransitionTime': datetime.utcnow().isoformat(),
-                'reason': 'ReconciliationSuccessful',
-                'message': 'Periodic reconciliation completed'
-            }]
+            "synced": True,
+            "lastSyncTime": datetime.now(timezone.utc).isoformat(),
+            "sloId": slo_id,
+            "currentSLI": budget.current_sli if budget else None,
+            "budgetRemaining": budget.remaining_percent if budget else None,
+            "budgetStatus": budget.status.value if budget else None,
+            "conditions": [
+                {
+                    "type": "Synced",
+                    "status": "True",
+                    "lastTransitionTime": datetime.now(timezone.utc).isoformat(),
+                    "reason": "ReconciliationSuccessful",
+                    "message": "Periodic reconciliation completed",
+                }
+            ],
         }
 
     except Exception as e:
@@ -586,8 +625,10 @@ async def slo_reconciliation_timer(spec: Dict[str, Any], name: str, namespace: s
         # Don't update status on reconciliation errors to avoid flapping
 
 
-@kopf.timer('neural-hive.io', 'v1', 'slapolicies', idle=1.0)
-async def policy_reconciliation_timer(spec: Dict[str, Any], name: str, namespace: str, status: Dict[str, Any], **kwargs):
+@kopf.timer("neural-hive.io", "v1", "slapolicies", idle=1.0)
+async def policy_reconciliation_timer(
+    spec: Dict[str, Any], name: str, namespace: str, status: Dict[str, Any], **kwargs
+):
     """
     Periodic reconciliation of SLAPolicy CRDs.
     Uses RECONCILIATION_INTERVAL environment variable for interval (default 300s).
@@ -600,16 +641,17 @@ async def policy_reconciliation_timer(spec: Dict[str, Any], name: str, namespace
     logger.debug(f"Reconciling SLA Policy: {name} in namespace {namespace}")
 
     try:
-        policy_id = status.get('policyId')
+        policy_id = status.get("policyId")
 
         # Auto-recovery: se não há policyId, tentar encontrar por nome
         if not policy_id:
-            logger.warning(f"Policy ID not found for {name} during reconciliation, attempting auto-recovery")
+            logger.warning(
+                f"Policy ID not found for {name} during reconciliation, attempting auto-recovery"
+            )
 
             # Tentar encontrar Policy existente por nome e namespace
             existing_policy = await postgresql_client.find_policy_by_name(
-                name=spec['name'],
-                namespace=namespace
+                name=spec["name"], namespace=namespace
             )
 
             if existing_policy:
@@ -618,31 +660,35 @@ async def policy_reconciliation_timer(spec: Dict[str, Any], name: str, namespace
                 logger.info(f"Auto-recovery: Found existing Policy with ID: {policy_id}")
 
                 return {
-                    'synced': True,
-                    'lastSyncTime': datetime.utcnow().isoformat(),
-                    'policyId': str(policy_id),
-                    'activeFreezes': 0,
-                    'conditions': [{
-                        'type': 'Synced',
-                        'status': 'True',
-                        'lastTransitionTime': datetime.utcnow().isoformat(),
-                        'reason': 'AutoRecoverySuccessful',
-                        'message': f'Policy ID recovered: {policy_id}'
-                    }]
+                    "synced": True,
+                    "lastSyncTime": datetime.now(timezone.utc).isoformat(),
+                    "policyId": str(policy_id),
+                    "activeFreezes": 0,
+                    "conditions": [
+                        {
+                            "type": "Synced",
+                            "status": "True",
+                            "lastTransitionTime": datetime.now(timezone.utc).isoformat(),
+                            "reason": "AutoRecoverySuccessful",
+                            "message": f"Policy ID recovered: {policy_id}",
+                        }
+                    ],
                 }
             else:
                 # Não foi possível recuperar, sinalizar para re-criação
                 logger.error(f"Auto-recovery failed: Policy not found for {name}")
                 return {
-                    'synced': False,
-                    'lastSyncTime': datetime.utcnow().isoformat(),
-                    'conditions': [{
-                        'type': 'Synced',
-                        'status': 'False',
-                        'lastTransitionTime': datetime.utcnow().isoformat(),
-                        'reason': 'AutoRecoveryFailed',
-                        'message': 'Policy ID not found and no matching Policy in database'
-                    }]
+                    "synced": False,
+                    "lastSyncTime": datetime.now(timezone.utc).isoformat(),
+                    "conditions": [
+                        {
+                            "type": "Synced",
+                            "status": "False",
+                            "lastTransitionTime": datetime.now(timezone.utc).isoformat(),
+                            "reason": "AutoRecoveryFailed",
+                            "message": "Policy ID not found and no matching Policy in database",
+                        }
+                    ],
                 }
 
         # Verify policy still exists in database
@@ -650,15 +696,17 @@ async def policy_reconciliation_timer(spec: Dict[str, Any], name: str, namespace
         if not policy:
             logger.warning(f"Policy {policy_id} not found in database - may need re-sync")
             return {
-                'synced': False,
-                'lastSyncTime': datetime.utcnow().isoformat(),
-                'conditions': [{
-                    'type': 'Synced',
-                    'status': 'False',
-                    'lastTransitionTime': datetime.utcnow().isoformat(),
-                    'reason': 'NotFoundInDatabase',
-                    'message': 'Policy not found in database'
-                }]
+                "synced": False,
+                "lastSyncTime": datetime.now(timezone.utc).isoformat(),
+                "conditions": [
+                    {
+                        "type": "Synced",
+                        "status": "False",
+                        "lastTransitionTime": datetime.now(timezone.utc).isoformat(),
+                        "reason": "NotFoundInDatabase",
+                        "message": "Policy not found in database",
+                    }
+                ],
             }
 
         # Get active freezes for this policy (if policy_enforcer is available)
@@ -668,18 +716,22 @@ async def policy_reconciliation_timer(spec: Dict[str, Any], name: str, namespace
 
         # Update status with current values
         return {
-            'synced': True,
-            'lastSyncTime': datetime.utcnow().isoformat(),
-            'policyId': policy_id,
-            'activeFreezes': len(active_freezes) if active_freezes else 0,
-            'lastTriggeredAt': max([f.triggered_at for f in active_freezes]).isoformat() if active_freezes else None,
-            'conditions': [{
-                'type': 'Synced',
-                'status': 'True',
-                'lastTransitionTime': datetime.utcnow().isoformat(),
-                'reason': 'ReconciliationSuccessful',
-                'message': 'Periodic reconciliation completed'
-            }]
+            "synced": True,
+            "lastSyncTime": datetime.now(timezone.utc).isoformat(),
+            "policyId": policy_id,
+            "activeFreezes": len(active_freezes) if active_freezes else 0,
+            "lastTriggeredAt": max([f.triggered_at for f in active_freezes]).isoformat()
+            if active_freezes
+            else None,
+            "conditions": [
+                {
+                    "type": "Synced",
+                    "status": "True",
+                    "lastTransitionTime": datetime.now(timezone.utc).isoformat(),
+                    "reason": "ReconciliationSuccessful",
+                    "message": "Periodic reconciliation completed",
+                }
+            ],
         }
 
     except Exception as e:
@@ -687,6 +739,6 @@ async def policy_reconciliation_timer(spec: Dict[str, Any], name: str, namespace
         # Don't update status on reconciliation errors to avoid flapping
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Run the operator
     kopf.run()

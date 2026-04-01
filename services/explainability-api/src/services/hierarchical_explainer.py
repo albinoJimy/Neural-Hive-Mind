@@ -6,11 +6,12 @@ Calcula breakdown por nível de senioridade e força de consenso entre especiali
 Explainability API v3 - Task 3
 """
 
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional
+
 import structlog
 
 # Importar modelos de senioridade locais (sincronizados com consensus-engine)
-from src.models.seniority import SENIORITY_MULTIPLIERS, SeniorityLevel, get_multiplier
+from src.models.seniority import SENIORITY_MULTIPLIERS, SeniorityLevel
 
 logger = structlog.get_logger(__name__)
 
@@ -67,9 +68,7 @@ class HierarchicalExplainer:
         dominant_level = self._determine_dominant_level(by_level)
 
         # Calcular contribuições individuais
-        individual_contributions = self._calculate_individual_contributions(
-            normalized_votes
-        )
+        individual_contributions = self._calculate_individual_contributions(normalized_votes)
 
         return {
             "hierarchical_breakdown": {
@@ -231,9 +230,7 @@ class HierarchicalExplainer:
 
         return by_level
 
-    def _calculate_consensus_strength(
-        self, by_level: Dict[str, Dict[str, Any]]
-    ) -> float:
+    def _calculate_consensus_strength(self, by_level: Dict[str, Dict[str, Any]]) -> float:
         """
         Calcula a força do consenso entre níveis hierárquicos.
 
@@ -277,9 +274,7 @@ class HierarchicalExplainer:
 
         return most_common_count / len(directions)
 
-    def _determine_dominant_level(
-        self, by_level: Dict[str, Dict[str, Any]]
-    ) -> Optional[str]:
+    def _determine_dominant_level(self, by_level: Dict[str, Dict[str, Any]]) -> Optional[str]:
         """
         Determina o nível hierárquico dominante na decisão.
 
@@ -356,3 +351,104 @@ class HierarchicalExplainer:
             contribution["rank"] = i
 
         return contributions
+
+    async def explain_decision(self, decision: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Gera explicação completa para uma decisão (async wrapper).
+
+        Args:
+            decision: Dicionário com decisão incluindo specialist_votes
+
+        Returns:
+            Dicionário com explicação hierárquica
+        """
+        votes = decision.get("specialist_votes", decision.get("votes", []))
+
+        result = self.explain(votes)
+
+        # Adicionar decision_id ao resultado
+        result["decision_id"] = decision.get("decision_id", "unknown")
+
+        # Adicionar campos esperados pelos testes
+        if "hierarchical_breakdown" in result:
+            result["hierarchical_weights"] = [
+                level_data.get("weight_multiplier", 1.0)
+                for level_data in result["hierarchical_breakdown"].get("by_level", {}).values()
+            ]
+
+            # Calcular seniority impact
+            result["seniority_impact"] = self._calculate_seniority_impact(
+                result["hierarchical_breakdown"]
+            )
+
+        return result
+
+    def _calculate_seniority_impact(self, breakdown: Dict[str, Any]) -> float:
+        """Calcula impacto total da senioridade na decisão."""
+        by_level = breakdown.get("by_level", {})
+
+        if not by_level:
+            return 0.0
+
+        # Somar contribuições ponderadas absolutas
+        total_impact = sum(
+            abs(level_data.get("weighted_contribution", 0.0)) for level_data in by_level.values()
+        )
+
+        return total_impact
+
+    def calculate_seniority_weights(self, votes: List[Dict[str, Any]]) -> Dict[str, float]:
+        """
+        Calcula pesos de senioridade para uma lista de votos.
+
+        Args:
+            votes: Lista de votos com campo seniority/seniority_level
+
+        Returns:
+            Dicionário mapeando nível para peso
+        """
+        weights = {}
+
+        for vote in votes:
+            # Tentar diferentes formatos de seniority
+            seniority = vote.get("seniority_level", vote.get("seniority", "mid_level"))
+
+            if seniority not in weights:
+                weights[seniority] = SENIORITY_MULTIPLIERS.get(seniority, 1.0)
+
+        return weights
+
+    def _calculate_seniority_impact(self, breakdown: Dict[str, Any]) -> float:
+        """Calcula impacto total da senioridade na decisão."""
+        by_level = breakdown.get("by_level", {})
+
+        if not by_level:
+            return 0.0
+
+        # Somar contribuições ponderadas absolutas
+        total_impact = sum(
+            abs(level_data.get("weighted_contribution", 0.0)) for level_data in by_level.values()
+        )
+
+        return total_impact
+
+    def calculate_seniority_weights(self, votes: List[Dict[str, Any]]) -> Dict[str, float]:
+        """
+        Calcula pesos de senioridade para uma lista de votos.
+
+        Args:
+            votes: Lista de votos com campo seniority/seniority_level
+
+        Returns:
+            Dicionário mapeando nível para peso
+        """
+        weights = {}
+
+        for vote in votes:
+            # Tentar diferentes formatos de seniority
+            seniority = vote.get("seniority_level", vote.get("seniority", "mid_level"))
+
+            if seniority not in weights:
+                weights[seniority] = SENIORITY_MULTIPLIERS.get(seniority, 1.0)
+
+        return weights

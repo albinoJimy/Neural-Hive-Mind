@@ -1,9 +1,9 @@
 """Analyzer para código Python."""
 import ast
 import logging
-from typing import Any, Dict
+from typing import Any
 
-from .base import BaseAnalyzer, AnalysisResult, RecommendationType, Severity, TargetType
+from .base import AnalysisResult, BaseAnalyzer, RecommendationType, Severity, TargetType
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +18,7 @@ class CodeAnalyzer(BaseAnalyzer):
     def supports(self, target_type: str) -> bool:
         return target_type.lower() in ["code", "python", "py"]
 
-    async def analyze(self, context: Dict[str, Any]) -> AnalysisResult:
+    async def analyze(self, context: dict[str, Any]) -> AnalysisResult:
         """Analisa código Python."""
         issues = []
         metrics = {"analyzed_functions": 0}
@@ -34,15 +34,17 @@ class CodeAnalyzer(BaseAnalyzer):
                     metrics["analyzed_functions"] += 1
                     complexity = self._calculate_complexity(node)
                     if complexity > 15:
-                        issues.append({
-                            "type": RecommendationType.REDUCE_COMPLEXITY,
-                            "severity": Severity.CRITICAL if complexity > 25 else Severity.HIGH,
-                            "description": f"Função '{node.name}' tem complexidade {complexity}",
-                            "estimated_improvement_pct": min(50, complexity * 2),
-                            "target_type": TargetType.CODE,
-                            "file_path": context.get("file_path"),
-                            "line_number": node.lineno,
-                        })
+                        issues.append(
+                            {
+                                "type": RecommendationType.REDUCE_COMPLEXITY,
+                                "severity": Severity.CRITICAL if complexity > 25 else Severity.HIGH,
+                                "description": f"Função '{node.name}' tem complexidade {complexity}",
+                                "estimated_improvement_pct": min(50, complexity * 2),
+                                "target_type": TargetType.CODE,
+                                "file_path": context.get("file_path"),
+                                "line_number": node.lineno,
+                            }
+                        )
 
         except SyntaxError:
             pass

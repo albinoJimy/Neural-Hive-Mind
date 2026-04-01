@@ -2,13 +2,14 @@
 API REST endpoints para operações com ferramentas MCP.
 """
 
-from datetime import datetime, timedelta
-from typing import List, Optional, Dict, Any
-from fastapi import APIRouter, HTTPException, Query, Path
-from pydantic import BaseModel, Field
-import structlog
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, List, Optional
 
-from ..models.tool_descriptor import ToolDescriptor, ToolCategory
+import structlog
+from fastapi import APIRouter, HTTPException, Path, Query
+from pydantic import BaseModel, Field
+
+from ..models.tool_descriptor import ToolCategory
 from ..services.tool_registry import ToolRegistry
 
 logger = structlog.get_logger(__name__)
@@ -17,8 +18,10 @@ router = APIRouter(prefix="/api/v1/tools", tags=["tools"])
 
 # ===== Request/Response Models =====
 
+
 class ToolResponse(BaseModel):
     """Resposta com dados de uma ferramenta."""
+
     tool_id: str
     tool_name: str
     category: str
@@ -33,12 +36,14 @@ class ToolResponse(BaseModel):
 
 class ToolListResponse(BaseModel):
     """Resposta com lista de ferramentas."""
+
     total: int
     tools: List[ToolResponse]
 
 
 class ToolHealthResponse(BaseModel):
     """Resposta de health check de ferramenta."""
+
     tool_id: str
     tool_name: str
     is_healthy: bool
@@ -67,16 +72,15 @@ def set_tool_registry(registry: ToolRegistry):
 
 # ===== Endpoints =====
 
+
 @router.get("", response_model=ToolListResponse)
 async def list_tools(
     category: Optional[str] = Query(None, description="Filtrar por categoria"),
     min_reputation: Optional[float] = Query(
         None, ge=0.0, le=1.0, description="Reputation score mínimo"
     ),
-    max_cost: Optional[float] = Query(
-        None, ge=0.0, le=1.0, description="Cost score máximo"
-    ),
-    limit: int = Query(100, ge=1, le=500, description="Número máximo de resultados")
+    max_cost: Optional[float] = Query(None, ge=0.0, le=1.0, description="Cost score máximo"),
+    limit: int = Query(100, ge=1, le=500, description="Número máximo de resultados"),
 ):
     """
     Lista todas as ferramentas do catálogo com filtros opcionais.
@@ -103,10 +107,7 @@ async def list_tools(
                 cat = ToolCategory(category.upper())
                 tools = [t for t in tools if t.category == cat]
             except ValueError:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Invalid category: {category}"
-                )
+                raise HTTPException(status_code=400, detail=f"Invalid category: {category}")
 
         if min_reputation is not None:
             tools = [t for t in tools if t.reputation_score >= min_reputation]
@@ -129,15 +130,12 @@ async def list_tools(
                 average_execution_time_ms=t.average_execution_time_ms,
                 integration_type=t.integration_type.value,
                 capabilities=t.capabilities,
-                metadata=t.metadata or {}
+                metadata=t.metadata or {},
             )
             for t in tools
         ]
 
-        return ToolListResponse(
-            total=len(tool_responses),
-            tools=tool_responses
-        )
+        return ToolListResponse(total=len(tool_responses), tools=tool_responses)
 
     except Exception as e:
         logger.error("list_tools_failed", error=str(e))
@@ -145,9 +143,7 @@ async def list_tools(
 
 
 @router.get("/{tool_id}", response_model=ToolResponse)
-async def get_tool(
-    tool_id: str = Path(..., description="ID da ferramenta")
-):
+async def get_tool(tool_id: str = Path(..., description="ID da ferramenta")):
     """
     Obtém detalhes de uma ferramenta específica.
 
@@ -164,10 +160,7 @@ async def get_tool(
         tool = await tool_registry.get_tool_by_id(tool_id)
 
         if not tool:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Tool {tool_id} not found"
-            )
+            raise HTTPException(status_code=404, detail=f"Tool {tool_id} not found")
 
         return ToolResponse(
             tool_id=tool.tool_id,
@@ -179,7 +172,7 @@ async def get_tool(
             average_execution_time_ms=tool.average_execution_time_ms,
             integration_type=tool.integration_type.value,
             capabilities=tool.capabilities,
-            metadata=tool.metadata or {}
+            metadata=tool.metadata or {},
         )
 
     except HTTPException:
@@ -190,9 +183,7 @@ async def get_tool(
 
 
 @router.get("/category/{category}", response_model=ToolListResponse)
-async def get_tools_by_category(
-    category: str = Path(..., description="Categoria da ferramenta")
-):
+async def get_tools_by_category(category: str = Path(..., description="Categoria da ferramenta")):
     """
     Lista ferramentas por categoria.
 
@@ -210,7 +201,7 @@ async def get_tools_by_category(
     except ValueError:
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid category: {category}. Valid: {[c.value for c in ToolCategory]}"
+            detail=f"Invalid category: {category}. Valid: {[c.value for c in ToolCategory]}",
         )
 
     try:
@@ -227,29 +218,20 @@ async def get_tools_by_category(
                 average_execution_time_ms=t.average_execution_time_ms,
                 integration_type=t.integration_type.value,
                 capabilities=t.capabilities,
-                metadata=t.metadata or {}
+                metadata=t.metadata or {},
             )
             for t in tools
         ]
 
-        return ToolListResponse(
-            total=len(tool_responses),
-            tools=tool_responses
-        )
+        return ToolListResponse(total=len(tool_responses), tools=tool_responses)
 
     except Exception as e:
-        logger.error(
-            "get_tools_by_category_failed",
-            category=category,
-            error=str(e)
-        )
+        logger.error("get_tools_by_category_failed", category=category, error=str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/health/{tool_id}", response_model=ToolHealthResponse)
-async def check_tool_health(
-    tool_id: str = Path(..., description="ID da ferramenta")
-):
+async def check_tool_health(tool_id: str = Path(..., description="ID da ferramenta")):
     """
     Verifica health status de uma ferramenta.
 
@@ -266,10 +248,7 @@ async def check_tool_health(
         tool = await tool_registry.get_tool_by_id(tool_id)
 
         if not tool:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Tool {tool_id} not found"
-            )
+            raise HTTPException(status_code=404, detail=f"Tool {tool_id} not found")
 
         # Verificar health no Redis (fallback para True se não tiver info)
         health_status = await tool_registry.redis_client.get_tool_health(tool.tool_id)
@@ -285,7 +264,7 @@ async def check_tool_health(
                 # Se TTL < 300, foi definido há (300 - TTL) segundos
                 default_ttl = 300
                 seconds_ago = default_ttl - ttl
-                last_check_time = datetime.utcnow() - timedelta(seconds=seconds_ago)
+                last_check_time = datetime.now(timezone.utc) - timedelta(seconds=seconds_ago)
                 last_check_str = last_check_time.isoformat() + "Z"
 
         return ToolHealthResponse(
@@ -293,7 +272,7 @@ async def check_tool_health(
             tool_name=tool.tool_name,
             is_healthy=is_healthy,
             last_check=last_check_str,
-            error=None if is_healthy else "Tool marked as unhealthy"
+            error=None if is_healthy else "Tool marked as unhealthy",
         )
 
     except HTTPException:
@@ -305,18 +284,14 @@ async def check_tool_health(
 
 @router.post("/{tool_id}/feedback", status_code=204)
 async def submit_tool_feedback(
-    tool_id: str = Path(..., description="ID da ferramenta"),
-    feedback: ToolFeedbackRequest = None
+    tool_id: str = Path(..., description="ID da ferramenta"), feedback: ToolFeedbackRequest = None
 ):
     """Recebe feedback de execução de ferramenta."""
     if not tool_registry:
         raise HTTPException(status_code=500, detail="Tool registry not initialized")
 
     if feedback and feedback.tool_id != tool_id:
-        raise HTTPException(
-            status_code=400,
-            detail="tool_id in path and body must match"
-        )
+        raise HTTPException(status_code=400, detail="tool_id in path and body must match")
 
     try:
         tool = await tool_registry.get_tool_by_id(tool_id)
@@ -328,14 +303,14 @@ async def submit_tool_feedback(
             category=tool.category.value,
             success=feedback.success,
             execution_time_ms=feedback.execution_time_ms,
-            metadata=feedback.metadata
+            metadata=feedback.metadata,
         )
 
         logger.info(
             "tool_feedback_processed",
             tool_id=tool_id,
             selection_id=feedback.selection_id,
-            success=feedback.success
+            success=feedback.success,
         )
         return None
     except HTTPException:

@@ -1,17 +1,15 @@
 """Consumer Kafka para eventos ticket.completed."""
 import asyncio
 import json
-import logging
-from datetime import datetime
-from typing import Optional
+from datetime import UTC, datetime
 
 from aiokafka import AIOKafkaConsumer
 from aiokafka.errors import KafkaConnectionError
 from motor.motor_asyncio import AsyncIOMotorClient
 from structlog import get_logger
 
-from src.config.settings import get_settings
 from src.analyzers.factory import AnalyzerFactory
+from src.config.settings import get_settings
 from src.repositories.optimization_repository import get_repository
 
 logger = get_logger(__name__)
@@ -20,10 +18,10 @@ logger = get_logger(__name__)
 class TicketCompletedConsumer:
     """Consumer para eventos ticket.completed."""
 
-    def __init__(self, settings: Optional[get_settings] = None):
+    def __init__(self, settings: get_settings | None = None):
         """Inicializa consumer."""
         self.settings = settings or get_settings()
-        self._consumer: Optional[AIOKafkaConsumer] = None
+        self._consumer: AIOKafkaConsumer | None = None
         self._running = False
         self._repository = None
 
@@ -44,8 +42,7 @@ class TicketCompletedConsumer:
             # Inicializar MongoDB repository
             mongo_client = AsyncIOMotorClient(self.settings.mongodb_url)
             self._repository = await get_repository(
-                mongo_client,
-                self.settings.mongodb_database_name
+                mongo_client, self.settings.mongodb_database_name
             )
             logger.info("optimization_repository_initialized")
 
@@ -133,33 +130,37 @@ class TicketCompletedConsumer:
             # Consolidar bottlenecks
             for issue in recommendations_issues:
                 if issue.get("severity") in ["high", "critical"]:
-                    bottlenecks.append({
-                        "task_id": issue.get("task_id"),
-                        "task_type": issue.get("target_type"),
-                        "issue": issue.get("description"),
-                        "impact_score": 0.8 if issue.get("severity") == "critical" else 0.6,
-                    })
+                    bottlenecks.append(
+                        {
+                            "task_id": issue.get("task_id"),
+                            "task_type": issue.get("target_type"),
+                            "issue": issue.get("description"),
+                            "impact_score": 0.8 if issue.get("severity") == "critical" else 0.6,
+                        }
+                    )
 
             performance_analysis["bottlenecks"] = bottlenecks
 
             # Preparar recomendações finais
             final_recommendations = []
             for issue in recommendations_issues:
-                final_recommendations.append({
-                    "id": str(hash(f"{ticket_id}_{issue.get('task_id')}_{issue.get('type')}")),
-                    "type": str(issue.get("type", "unknown")),
-                    "severity": str(issue.get("severity", "medium")),
-                    "target_type": issue.get("target_type", "code"),
-                    "file_path": issue.get("file_path"),
-                    "line_number": issue.get("line_number"),
-                    "function_name": issue.get("function_name"),
-                    "description": issue.get("description", ""),
-                    "estimated_improvement_pct": issue.get("estimated_improvement_pct", 10.0),
-                    "code_diff": issue.get("code_diff"),
-                    "query_suggestion": issue.get("query_suggestion"),
-                    "auto_apply": issue.get("auto_apply", False),
-                    "status": "pending",
-                })
+                final_recommendations.append(
+                    {
+                        "id": str(hash(f"{ticket_id}_{issue.get('task_id')}_{issue.get('type')}")),
+                        "type": str(issue.get("type", "unknown")),
+                        "severity": str(issue.get("severity", "medium")),
+                        "target_type": issue.get("target_type", "code"),
+                        "file_path": issue.get("file_path"),
+                        "line_number": issue.get("line_number"),
+                        "function_name": issue.get("function_name"),
+                        "description": issue.get("description", ""),
+                        "estimated_improvement_pct": issue.get("estimated_improvement_pct", 10.0),
+                        "code_diff": issue.get("code_diff"),
+                        "query_suggestion": issue.get("query_suggestion"),
+                        "auto_apply": issue.get("auto_apply", False),
+                        "status": "pending",
+                    }
+                )
 
             # Criar documento de recomendação
             if final_recommendations:
@@ -170,7 +171,7 @@ class TicketCompletedConsumer:
                     "performance_analysis": performance_analysis,
                     "recommendations": final_recommendations,
                     "analyzed_by": "optimizer-agents",
-                    "analyzed_at": datetime.utcnow(),
+                    "analyzed_at": datetime.now(UTC),
                 }
 
                 # Persistir no MongoDB
@@ -184,9 +185,7 @@ class TicketCompletedConsumer:
                 )
             else:
                 logger.info(
-                    "no_optimization_recommendations",
-                    ticket_id=ticket_id,
-                    reason="no_issues_found"
+                    "no_optimization_recommendations", ticket_id=ticket_id, reason="no_issues_found"
                 )
 
         except Exception as e:

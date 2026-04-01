@@ -1,41 +1,10 @@
-# Web Framework
-fastapi==0.115.10
-uvicorn[standard]==0.34.0
+# Dependências base consolidadas para Neural-Hive-Mind
+-r ../../requirements-base.txt
 
-# Data Validation
-pydantic==2.10.4
-pydantic-settings==2.6.1  # 2.7.x has _lenient_issubclass bug
-
-# Observability
-prometheus-client==0.21.1
-prometheus-api-client==0.5.3
-opentelemetry-api==1.29.0
-opentelemetry-sdk==1.29.0
-opentelemetry-instrumentation-fastapi==0.50b0
-structlog==24.4.0
-
-# Database
+# Service-specific dependencies
 asyncpg==0.29.0
-
-# Cache
-redis[hiredis]==5.2.1
-
-# Messaging
-aiokafka==0.12.0
-
-# gRPC - versão consolidada para compatibilidade
-grpcio==1.68.1
-grpcio-tools==1.68.1
-protobuf==5.29.2
-
-# Kubernetes
+prometheus-api-client==0.5.3
 kopf==1.37.0
 kubernetes==28.1.0
-
-# HTTP Client
-httpx==0.28.1
-
-# Utilities
 python-dateutil==2.8.2
-numpy==1.26.4
 

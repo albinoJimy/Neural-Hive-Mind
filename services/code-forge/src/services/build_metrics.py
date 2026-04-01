@@ -8,14 +8,13 @@ Este módulo fornece funcionalidades para:
 - Exportar métricas para formatos analisáveis
 """
 
-import time
 import json
-from dataclasses import dataclass, field, asdict
-from typing import Dict, List, Optional, Any
-from datetime import datetime
-from pathlib import Path
 import statistics
+from dataclasses import asdict, dataclass
+from datetime import datetime, timezone
 from enum import Enum
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 import structlog
 
@@ -24,6 +23,7 @@ logger = structlog.get_logger(__name__)
 
 class MetricType(Enum):
     """Tipos de métricas coletadas."""
+
     DURATION = "duration_seconds"
     SIZE = "size_bytes"
     CACHE_HIT = "cache_hit"
@@ -34,6 +34,7 @@ class MetricType(Enum):
 @dataclass
 class BuildMetric:
     """Métrica individual de um build."""
+
     timestamp: str
     language: str
     framework: Optional[str]
@@ -57,6 +58,7 @@ class BuildMetric:
 @dataclass
 class MetricStats:
     """Estatísticas agregadas de métricas."""
+
     metric_type: str
     count: int
     mean: float
@@ -104,11 +106,7 @@ class BuildMetricsCollector:
                         if line.strip():
                             data = json.loads(line)
                             self.metrics.append(BuildMetric(**data))
-                logger.info(
-                    "metrics_loaded",
-                    count=len(self.metrics),
-                    path=self.storage_path
-                )
+                logger.info("metrics_loaded", count=len(self.metrics), path=self.storage_path)
         except Exception as e:
             logger.warning("metrics_load_failed", error=str(e))
 
@@ -146,7 +144,7 @@ class BuildMetricsCollector:
             BuildMetric registrada
         """
         metric = BuildMetric(
-            timestamp=datetime.utcnow().isoformat(),
+            timestamp=datetime.now(timezone.utc).isoformat(),
             language=language,
             framework=framework,
             artifact_type=artifact_type,
@@ -236,7 +234,9 @@ class BuildMetricsCollector:
 
         return filtered
 
-    def _group_metrics(self, metrics: List[BuildMetric], group_by: str) -> Dict[str, List[BuildMetric]]:
+    def _group_metrics(
+        self, metrics: List[BuildMetric], group_by: str
+    ) -> Dict[str, List[BuildMetric]]:
         """Agrupa métricas por um campo."""
         groups = {}
         for metric in metrics:
@@ -246,7 +246,9 @@ class BuildMetricsCollector:
             groups[group_value].append(metric)
         return groups
 
-    def _extract_metric_values(self, metrics: List[BuildMetric], metric_type: MetricType) -> List[float]:
+    def _extract_metric_values(
+        self, metrics: List[BuildMetric], metric_type: MetricType
+    ) -> List[float]:
         """Extrai valores numéricos baseado no tipo de métrica."""
         values = []
         for metric in metrics:
@@ -316,9 +318,7 @@ class BuildMetricsCollector:
             }
 
         # Ordenar por média
-        sorted_comparison = dict(
-            sorted(comparison.items(), key=lambda x: x[1]["mean"])
-        )
+        sorted_comparison = dict(sorted(comparison.items(), key=lambda x: x[1]["mean"]))
 
         return sorted_comparison
 
@@ -335,35 +335,35 @@ class BuildMetricsCollector:
 
         # Estatísticas por linguagem
         language_duration = self.compare_performance(
-            metric_type=MetricType.DURATION,
-            dimension="language"
+            metric_type=MetricType.DURATION, dimension="language"
         )
 
         # Estatísticas por builder
         builder_duration = self.compare_performance(
-            metric_type=MetricType.DURATION,
-            dimension="builder_type"
+            metric_type=MetricType.DURATION, dimension="builder_type"
         )
 
         # Cache hit rate por linguagem
-        cache_stats = self.get_stats(
-            metric_type=MetricType.CACHE_HIT,
-            group_by="language"
-        )
+        cache_stats = self.get_stats(metric_type=MetricType.CACHE_HIT, group_by="language")
 
         # Tamanho médio por linguagem
-        size_stats = self.get_stats(
-            metric_type=MetricType.SIZE,
-            group_by="language"
-        )
+        size_stats = self.get_stats(metric_type=MetricType.SIZE, group_by="language")
 
         # Multi-arch impact
         single_arch = [m for m in self.metrics if not m.multi_arch]
         multi_arch = [m for m in self.metrics if m.multi_arch]
 
-        single_arch_duration = statistics.mean([m.duration_seconds for m in single_arch]) if single_arch else 0
-        multi_arch_duration = statistics.mean([m.duration_seconds for m in multi_arch]) if multi_arch else 0
-        multi_arch_overhead = ((multi_arch_duration / single_arch_duration) - 1) * 100 if single_arch_duration > 0 else 0
+        single_arch_duration = (
+            statistics.mean([m.duration_seconds for m in single_arch]) if single_arch else 0
+        )
+        multi_arch_duration = (
+            statistics.mean([m.duration_seconds for m in multi_arch]) if multi_arch else 0
+        )
+        multi_arch_overhead = (
+            ((multi_arch_duration / single_arch_duration) - 1) * 100
+            if single_arch_duration > 0
+            else 0
+        )
 
         return {
             "summary": {
@@ -377,9 +377,7 @@ class BuildMetricsCollector:
             "cache_hit_rate_by_language": {
                 k: round(v.mean * 100, 1) for k, v in cache_stats.items()
             },
-            "size_by_language_bytes": {
-                k: round(v.mean, 0) for k, v in size_stats.items()
-            },
+            "size_by_language_bytes": {k: round(v.mean, 0) for k, v in size_stats.items()},
             "multi_arch_impact": {
                 "single_arch_avg_duration": round(single_arch_duration, 2),
                 "multi_arch_avg_duration": round(multi_arch_duration, 2),
@@ -387,7 +385,7 @@ class BuildMetricsCollector:
                 "single_arch_count": len(single_arch),
                 "multi_arch_count": len(multi_arch),
             },
-            "generated_at": datetime.utcnow().isoformat(),
+            "generated_at": datetime.now(timezone.utc).isoformat(),
         }
 
     def export_metrics(self, output_path: str, format: str = "json"):
@@ -410,6 +408,7 @@ class BuildMetricsCollector:
                     f.write(json.dumps(metric.to_dict()) + "\n")
         elif format == "csv":
             import csv
+
             with open(path, "w", newline="") as f:
                 if self.metrics:
                     writer = csv.DictWriter(f, fieldnames=self.metrics[0].to_dict().keys())
@@ -429,11 +428,7 @@ class BuildMetricsCollector:
         Returns:
             Lista dos builds mais lentos
         """
-        sorted_by_duration = sorted(
-            self.metrics,
-            key=lambda m: m.duration_seconds,
-            reverse=True
-        )
+        sorted_by_duration = sorted(self.metrics, key=lambda m: m.duration_seconds, reverse=True)
 
         return [
             {

@@ -1,5 +1,6 @@
 """Dependency injection for FastAPI database sessions."""
 from typing import AsyncGenerator
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .postgres_client import get_postgres_client

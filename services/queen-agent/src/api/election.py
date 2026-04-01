@@ -3,13 +3,13 @@ API REST para Leader Election
 
 Endpoints para consultar estado da eleição e metadados do líder.
 """
+
+import structlog
 from fastapi import APIRouter, Request, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from typing import Dict, Any, Optional
-import structlog
 
-from ..services import NodeRole
+from src.services import NodeRole
 
 logger = structlog.get_logger()
 router = APIRouter(prefix="/api/v1/election", tags=["election"])
@@ -17,25 +17,28 @@ router = APIRouter(prefix="/api/v1/election", tags=["election"])
 
 class ElectionStatusResponse(BaseModel):
     """Resposta do status da eleição"""
+
     node_id: str
     role: str
-    leader_id: Optional[str]
+    leader_id: str | None
     is_leader: bool
     term: int
 
 
 class LeaderMetadataResponse(BaseModel):
     """Resposta dos metadados do líder"""
-    node_id: Optional[str]
-    term: Optional[int]
-    acquired_at: Optional[str]
-    ttl: Optional[int]
+
+    node_id: str | None
+    term: int | None
+    acquired_at: str | None
+    ttl: int | None
 
 
 class LeaderHeartbeatResponse(BaseModel):
     """Resposta do heartbeat do líder"""
-    node_id: Optional[str]
-    timestamp: Optional[str]
+
+    node_id: str | None
+    timestamp: str | None
 
 
 @router.get("/status", response_model=ElectionStatusResponse)

@@ -1,11 +1,9 @@
-from typing import List, Optional
-
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from src.clients.mongodb_client import MongoDBClient
 from src.config.settings import get_settings
-from src.models.experiment_request import ExperimentRequest, ExperimentType
+from src.models.experiment_request import ExperimentType
 from src.services.experiment_manager import ExperimentManager
 
 router = APIRouter(prefix="/api/v1/experiments", tags=["experiments"])
@@ -22,8 +20,8 @@ class SubmitExperimentRequest(BaseModel):
     objective: str
     baseline_configuration: dict
     experimental_configuration: dict
-    success_criteria: List[dict]
-    guardrails: List[dict]
+    success_criteria: list[dict]
+    guardrails: list[dict]
     traffic_percentage: float = 0.1
     duration_seconds: int = 3600
 
@@ -39,7 +37,7 @@ class SubmitExperimentResponse(BaseModel):
 class ExperimentListResponse(BaseModel):
     """Response de listagem de experimentos."""
 
-    experiments: List[dict]
+    experiments: list[dict]
     total: int
     page: int
     page_size: int
@@ -59,6 +57,7 @@ class ExperimentStatisticsResponse(BaseModel):
 # These are default providers that return HTTP 503 when not overridden.
 # In main.py, app.dependency_overrides replaces these with actual implementations.
 
+
 def get_mongodb_client() -> MongoDBClient:
     """
     Dependency para injetar MongoDBClient.
@@ -66,8 +65,7 @@ def get_mongodb_client() -> MongoDBClient:
     Returns HTTP 503 if not overridden via app.dependency_overrides in main.py.
     """
     raise HTTPException(
-        status_code=503,
-        detail="MongoDBClient not available. Service is starting or misconfigured."
+        status_code=503, detail="MongoDBClient not available. Service is starting or misconfigured."
     )
 
 
@@ -79,7 +77,7 @@ def get_experiment_manager() -> ExperimentManager:
     """
     raise HTTPException(
         status_code=503,
-        detail="ExperimentManager not available. Service is starting or misconfigured."
+        detail="ExperimentManager not available. Service is starting or misconfigured.",
     )
 
 
@@ -95,8 +93,8 @@ async def submit_experiment(
     """
     try:
         # Criar hipótese sintética para ExperimentManager
-        from src.models.optimization_hypothesis import OptimizationHypothesis
         from src.models.optimization_event import OptimizationType
+        from src.models.optimization_hypothesis import OptimizationHypothesis
 
         # Convert baseline_configuration values to float for metrics
         baseline_metrics = {}
@@ -142,8 +140,8 @@ async def submit_experiment(
 async def list_experiments(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
-    status: Optional[str] = None,
-    experiment_type: Optional[ExperimentType] = None,
+    status: str | None = None,
+    experiment_type: ExperimentType | None = None,
     mongodb_client: MongoDBClient = Depends(get_mongodb_client),
 ):
     """
@@ -164,7 +162,9 @@ async def list_experiments(
         experiments = []
         total = 0
 
-        return ExperimentListResponse(experiments=experiments, total=total, page=page, page_size=page_size)
+        return ExperimentListResponse(
+            experiments=experiments, total=total, page=page, page_size=page_size
+        )
 
     except HTTPException:
         raise
@@ -217,7 +217,8 @@ async def abort_experiment(
         status = experiment.get("status", "")
         if status not in ["RUNNING", "PENDING"]:
             raise HTTPException(
-                status_code=400, detail=f"Experiment {experiment_id} is not running (status: {status})"
+                status_code=400,
+                detail=f"Experiment {experiment_id} is not running (status: {status})",
             )
 
         # Abortar
@@ -226,7 +227,11 @@ async def abort_experiment(
         if not success:
             raise HTTPException(status_code=500, detail="Failed to abort experiment")
 
-        return {"experiment_id": experiment_id, "status": "aborted", "message": "Experiment aborted successfully"}
+        return {
+            "experiment_id": experiment_id,
+            "status": "aborted",
+            "message": "Experiment aborted successfully",
+        }
 
     except HTTPException:
         raise
@@ -255,7 +260,8 @@ async def get_experiment_results(
         status = experiment.get("status", "")
         if status != "COMPLETED":
             raise HTTPException(
-                status_code=400, detail=f"Experiment {experiment_id} is not completed (status: {status})"
+                status_code=400,
+                detail=f"Experiment {experiment_id} is not completed (status: {status})",
             )
 
         # Analisar resultados

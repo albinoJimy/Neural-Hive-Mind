@@ -1,8 +1,8 @@
 import asyncio
-from dataclasses import dataclass, field, asdict
-from datetime import datetime
+from dataclasses import asdict, dataclass, field
+from datetime import datetime, timezone
 from enum import Enum
-from typing import Dict, Optional, Callable
+from typing import Callable, Dict, Optional
 from uuid import uuid4
 
 import structlog
@@ -49,9 +49,7 @@ class RemediationManager:
         self.active_remediations: Dict[str, RemediationState] = {}
 
     def start_remediation(
-        self,
-        request: RemediationRequest,
-        total_actions: int = 0
+        self, request: RemediationRequest, total_actions: int = 0
     ) -> RemediationState:
         """Cria um RemediationState inicial e registra em memória/Redis."""
         remediation_id = request.remediation_id or str(uuid4())
@@ -62,10 +60,7 @@ class RemediationManager:
             playbook_name=request.playbook_name,
             status=RemediationStatus.PENDING,
             total_actions=total_actions,
-            metadata={
-                "execution_mode": request.execution_mode,
-                "parameters": request.parameters
-            }
+            metadata={"execution_mode": request.execution_mode, "parameters": request.parameters},
         )
 
         self.active_remediations[remediation_id] = state
@@ -75,7 +70,7 @@ class RemediationManager:
             "remediation_manager.state_created",
             remediation_id=remediation_id,
             playbook=request.playbook_name,
-            total_actions=total_actions
+            total_actions=total_actions,
         )
 
         return state
@@ -85,11 +80,11 @@ class RemediationManager:
         state: RemediationState,
         executor,
         request: RemediationRequest,
-        on_completed: Optional[Callable[[RemediationState], None]] = None
+        on_completed: Optional[Callable[[RemediationState], None]] = None,
     ):
         """Executa playbook e atualiza progresso/estado."""
         state.status = RemediationStatus.RUNNING
-        state.started_at = datetime.utcnow().isoformat()
+        state.started_at = datetime.now(timezone.utc).isoformat()
         await self._persist_state(state)
 
         async def on_action_completed(action_result: dict):
@@ -100,9 +95,11 @@ class RemediationManager:
 
         async def on_playbook_completed(result: dict):
             state.result = result
-            state.status = RemediationStatus.COMPLETED if result.get("success") else RemediationStatus.FAILED
+            state.status = (
+                RemediationStatus.COMPLETED if result.get("success") else RemediationStatus.FAILED
+            )
             state.error = result.get("error")
-            state.completed_at = datetime.utcnow().isoformat()
+            state.completed_at = datetime.now(timezone.utc).isoformat()
             await self._persist_state(state)
             if on_completed:
                 on_completed(state)
@@ -113,36 +110,35 @@ class RemediationManager:
                 request.parameters,
                 on_action_completed=on_action_completed,
                 on_playbook_completed=on_playbook_completed,
-                timeout_seconds=self.default_timeout_seconds
+                timeout_seconds=self.default_timeout_seconds,
             )
         except asyncio.TimeoutError:
             state.status = RemediationStatus.TIMEOUT
             state.error = "Playbook timeout"
-            state.completed_at = datetime.utcnow().isoformat()
+            state.completed_at = datetime.now(timezone.utc).isoformat()
             await self._persist_state(state)
             logger.warning(
                 "remediation_manager.playbook_timeout",
                 remediation_id=state.remediation_id,
-                playbook=state.playbook_name
+                playbook=state.playbook_name,
             )
         except asyncio.CancelledError:
             state.status = RemediationStatus.CANCELLED
             state.error = "Cancelled"
-            state.completed_at = datetime.utcnow().isoformat()
+            state.completed_at = datetime.now(timezone.utc).isoformat()
             await self._persist_state(state)
             logger.info(
-                "remediation_manager.playbook_cancelled",
-                remediation_id=state.remediation_id
+                "remediation_manager.playbook_cancelled", remediation_id=state.remediation_id
             )
         except Exception as exc:  # noqa: BLE001 - fail-open
             state.status = RemediationStatus.FAILED
             state.error = str(exc)
-            state.completed_at = datetime.utcnow().isoformat()
+            state.completed_at = datetime.now(timezone.utc).isoformat()
             await self._persist_state(state)
             logger.error(
                 "remediation_manager.playbook_failed",
                 remediation_id=state.remediation_id,
-                error=str(exc)
+                error=str(exc),
             )
 
     def update_status(self, remediation_id: str, **kwargs) -> Optional[RemediationState]:
@@ -169,7 +165,7 @@ class RemediationManager:
             return None
 
         state.status = RemediationStatus.CANCELLED
-        state.completed_at = datetime.utcnow().isoformat()
+        state.completed_at = datetime.now(timezone.utc).isoformat()
         asyncio.create_task(self._persist_state(state))
 
         logger.info("remediation_manager.remediation_cancelled", remediation_id=remediation_id)
@@ -182,13 +178,11 @@ class RemediationManager:
 
         try:
             await self.redis_client.set(
-                f"remediation:{state.remediation_id}",
-                state.to_dict(),
-                ex=3600
+                f"remediation:{state.remediation_id}", state.to_dict(), ex=3600
             )
         except Exception as exc:  # noqa: BLE001
             logger.warning(
                 "remediation_manager.redis_persist_failed",
                 remediation_id=state.remediation_id,
-                error=str(exc)
+                error=str(exc),
             )

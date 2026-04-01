@@ -1,21 +1,21 @@
 """Cliente gRPC para Orchestrator Dynamic com suporte a mTLS via SPIFFE."""
 
-from typing import Dict, List, Optional, Tuple
 
 import grpc
 import structlog
-
 from neural_hive_observability import instrument_grpc_channel
+
 from src.config.settings import get_settings
 
 # Importar SPIFFE/mTLS se disponível
 try:
     from neural_hive_security import (
-        SPIFFEManager,
         SPIFFEConfig,
+        SPIFFEManager,
         create_secure_grpc_channel,
         get_grpc_metadata_with_jwt,
     )
+
     SECURITY_LIB_AVAILABLE = True
 except ImportError:
     SECURITY_LIB_AVAILABLE = False
@@ -27,10 +27,13 @@ logger = structlog.get_logger()
 # Proto imports - will be available after `make proto` compilation
 try:
     from proto import orchestrator_extensions_pb2, orchestrator_extensions_pb2_grpc
+
     PROTO_AVAILABLE = True
 except ImportError:
     PROTO_AVAILABLE = False
-    logger.warning("orchestrator_proto_not_compiled", message="Run 'make proto' to compile protocol buffers")
+    logger.warning(
+        "orchestrator_proto_not_compiled", message="Run 'make proto' to compile protocol buffers"
+    )
 
 
 class OrchestratorGrpcClient:
@@ -42,9 +45,9 @@ class OrchestratorGrpcClient:
 
     def __init__(self, settings=None):
         self.settings = settings or get_settings()
-        self.channel: Optional[grpc.aio.Channel] = None
+        self.channel: grpc.aio.Channel | None = None
         self.stub = None
-        self.spiffe_manager: Optional[SPIFFEManager] = None
+        self.spiffe_manager: SPIFFEManager | None = None
 
     async def connect(self):
         """Estabelecer canal gRPC com Orchestrator com suporte a mTLS."""
@@ -53,8 +56,8 @@ class OrchestratorGrpcClient:
 
             # Verificar se mTLS via SPIFFE está habilitado
             spiffe_x509_enabled = (
-                getattr(self.settings, 'spiffe_enabled', False)
-                and getattr(self.settings, 'spiffe_enable_x509', False)
+                getattr(self.settings, "spiffe_enabled", False)
+                and getattr(self.settings, "spiffe_enable_x509", False)
                 and SECURITY_LIB_AVAILABLE
             )
 
@@ -66,7 +69,7 @@ class OrchestratorGrpcClient:
                     jwt_audience=self.settings.spiffe_jwt_audience,
                     jwt_ttl_seconds=self.settings.spiffe_jwt_ttl_seconds,
                     enable_x509=True,
-                    environment=self.settings.environment
+                    environment=self.settings.environment,
                 )
 
                 # Criar SPIFFE manager
@@ -75,23 +78,27 @@ class OrchestratorGrpcClient:
 
                 # Criar canal seguro com mTLS
                 # Permitir fallback inseguro apenas em ambientes de desenvolvimento
-                is_dev_env = self.settings.environment.lower() in ('dev', 'development')
+                is_dev_env = self.settings.environment.lower() in ("dev", "development")
                 self.channel = await create_secure_grpc_channel(
                     target=target,
                     spiffe_config=spiffe_config,
                     spiffe_manager=self.spiffe_manager,
-                    fallback_insecure=is_dev_env
+                    fallback_insecure=is_dev_env,
                 )
 
-                logger.info('mtls_channel_configured', target=target, environment=self.settings.environment)
+                logger.info(
+                    "mtls_channel_configured", target=target, environment=self.settings.environment
+                )
             else:
                 # Fallback para canal inseguro (apenas desenvolvimento)
-                if self.settings.environment in ['production', 'staging', 'prod']:
+                if self.settings.environment in ["production", "staging", "prod"]:
                     raise RuntimeError(
                         f"mTLS is required in {self.settings.environment} but SPIFFE X.509 is disabled."
                     )
 
-                logger.warning('using_insecure_channel', target=target, environment=self.settings.environment)
+                logger.warning(
+                    "using_insecure_channel", target=target, environment=self.settings.environment
+                )
                 self.channel = grpc.aio.insecure_channel(
                     target,
                     options=[
@@ -101,17 +108,22 @@ class OrchestratorGrpcClient:
                     ],
                 )
 
-            self.channel = instrument_grpc_channel(self.channel, service_name='orchestrator-dynamic')
+            self.channel = instrument_grpc_channel(
+                self.channel, service_name="orchestrator-dynamic"
+            )
 
             # Criar stub quando proto estiver compilado
             if PROTO_AVAILABLE:
-                self.stub = orchestrator_extensions_pb2_grpc.OrchestratorOptimizationStub(self.channel)
+                self.stub = orchestrator_extensions_pb2_grpc.OrchestratorOptimizationStub(
+                    self.channel
+                )
                 logger.info("orchestrator_stub_created")
             else:
                 logger.warning("orchestrator_stub_not_created", reason="proto_not_compiled")
 
             # Testar conexão com timeout - não bloquear se falhar
             import asyncio
+
             try:
                 ready_task = asyncio.create_task(self.channel.channel_ready())
                 done, pending = await asyncio.wait({ready_task}, timeout=5.0)
@@ -125,14 +137,18 @@ class OrchestratorGrpcClient:
                         pass
                     logger.warning("orchestrator_grpc_connection_timeout", endpoint=target)
             except Exception as conn_error:
-                logger.warning("orchestrator_grpc_connection_check_failed", endpoint=target, error=str(conn_error))
+                logger.warning(
+                    "orchestrator_grpc_connection_check_failed",
+                    endpoint=target,
+                    error=str(conn_error),
+                )
         except Exception as e:
             logger.error("orchestrator_grpc_connection_failed", error=str(e))
             raise
 
-    async def _get_grpc_metadata(self) -> List[Tuple[str, str]]:
+    async def _get_grpc_metadata(self) -> list[tuple[str, str]]:
         """Obter metadata gRPC com JWT-SVID para autenticação."""
-        if not getattr(self.settings, 'spiffe_enabled', False) or not self.spiffe_manager:
+        if not getattr(self.settings, "spiffe_enabled", False) or not self.spiffe_manager:
             return []
 
         try:
@@ -140,11 +156,11 @@ class OrchestratorGrpcClient:
             return await get_grpc_metadata_with_jwt(
                 spiffe_manager=self.spiffe_manager,
                 audience=audience,
-                environment=self.settings.environment
+                environment=self.settings.environment,
             )
         except Exception as e:
-            logger.warning('jwt_svid_fetch_failed', error=str(e))
-            if self.settings.environment in ['production', 'staging', 'prod']:
+            logger.warning("jwt_svid_fetch_failed", error=str(e))
+            if self.settings.environment in ["production", "staging", "prod"]:
                 raise
             return []
 
@@ -156,7 +172,7 @@ class OrchestratorGrpcClient:
             await self.channel.close()
             logger.info("orchestrator_grpc_disconnected")
 
-    async def get_current_slos(self, service: Optional[str] = None) -> Optional[Dict]:
+    async def get_current_slos(self, service: str | None = None) -> dict | None:
         """
         Obter SLOs atuais.
 
@@ -199,7 +215,9 @@ class OrchestratorGrpcClient:
                     "target_latency_ms": slo_config.target_latency_ms,
                     "target_availability": slo_config.target_availability,
                     "target_error_rate": slo_config.target_error_rate,
-                    "min_throughput": slo_config.min_throughput if slo_config.HasField("min_throughput") else None,
+                    "min_throughput": slo_config.min_throughput
+                    if slo_config.HasField("min_throughput")
+                    else None,
                     "latency_percentile": slo_config.latency_percentile,
                     "time_window_seconds": slo_config.time_window_seconds,
                     "metadata": dict(slo_config.metadata),
@@ -217,7 +235,7 @@ class OrchestratorGrpcClient:
             return None
 
     async def update_slos(
-        self, slo_updates: Dict[str, Dict], justification: str, optimization_id: str
+        self, slo_updates: dict[str, dict], justification: str, optimization_id: str
     ) -> bool:
         """
         Atualizar SLOs.
@@ -260,7 +278,7 @@ class OrchestratorGrpcClient:
                 slo_updates=slo_configs,
                 justification=justification,
                 optimization_id=optimization_id,
-                validate_before_apply=True
+                validate_before_apply=True,
             )
             response = await self.stub.UpdateSLOs(request, timeout=self.settings.grpc_timeout)
 
@@ -269,7 +287,7 @@ class OrchestratorGrpcClient:
                     "slos_updated",
                     optimization_id=optimization_id,
                     services=list(slo_updates.keys()),
-                    applied_at=response.applied_at
+                    applied_at=response.applied_at,
                 )
             return response.success
 
@@ -285,7 +303,7 @@ class OrchestratorGrpcClient:
             logger.error("update_slos_failed", optimization_id=optimization_id, error=str(e))
             return False
 
-    async def get_slo_compliance_metrics(self, service: str, time_range: str = "1h") -> Optional[Dict]:
+    async def get_slo_compliance_metrics(self, service: str, time_range: str = "1h") -> dict | None:
         """
         Obter métricas de compliance de SLO.
 
@@ -309,10 +327,11 @@ class OrchestratorGrpcClient:
 
             # Chamada gRPC real
             request = orchestrator_extensions_pb2.GetSLOComplianceMetricsRequest(
-                service=service,
-                time_range=time_range
+                service=service, time_range=time_range
             )
-            response = await self.stub.GetSLOComplianceMetrics(request, timeout=self.settings.grpc_timeout)
+            response = await self.stub.GetSLOComplianceMetrics(
+                request, timeout=self.settings.grpc_timeout
+            )
 
             # Converter resposta proto para dict
             metrics = {
@@ -333,20 +352,22 @@ class OrchestratorGrpcClient:
                         "in_violation": v.in_violation,
                     }
                     for k, v in response.metric_compliance.items()
-                }
+                },
             }
 
             logger.info("slo_compliance_metrics_retrieved", service=service)
             return metrics
 
         except grpc.RpcError as e:
-            logger.error("get_slo_compliance_metrics_failed", service=service, error=str(e), code=e.code())
+            logger.error(
+                "get_slo_compliance_metrics_failed", service=service, error=str(e), code=e.code()
+            )
             return None
         except Exception as e:
             logger.error("get_slo_compliance_metrics_failed", service=service, error=str(e))
             return None
 
-    async def validate_slo_adjustment(self, proposed_slos: Dict) -> bool:
+    async def validate_slo_adjustment(self, proposed_slos: dict) -> bool:
         """
         Validar se ajuste de SLO é seguro.
 
@@ -366,7 +387,9 @@ class OrchestratorGrpcClient:
                         return False
                     availability = slo_config.get("target_availability", 0)
                     if not (0.0 <= availability <= 1.0):
-                        logger.warning("invalid_availability", service=service, availability=availability)
+                        logger.warning(
+                            "invalid_availability", service=service, availability=availability
+                        )
                         return False
                     error_rate = slo_config.get("target_error_rate", 0)
                     if not (0.0 <= error_rate <= 1.0):
@@ -392,22 +415,29 @@ class OrchestratorGrpcClient:
 
             # Chamada gRPC real
             request = orchestrator_extensions_pb2.ValidateSLOAdjustmentRequest(
-                proposed_slos=slo_configs,
-                check_error_budget=True
+                proposed_slos=slo_configs, check_error_budget=True
             )
-            response = await self.stub.ValidateSLOAdjustment(request, timeout=self.settings.grpc_timeout)
+            response = await self.stub.ValidateSLOAdjustment(
+                request, timeout=self.settings.grpc_timeout
+            )
 
             if not response.is_valid:
-                logger.warning("slo_adjustment_invalid", message=response.message, errors=len(response.errors))
+                logger.warning(
+                    "slo_adjustment_invalid", message=response.message, errors=len(response.errors)
+                )
                 for error in response.errors:
                     logger.warning(
                         "slo_validation_error",
                         service=error.service,
                         field=error.field,
-                        description=error.description
+                        description=error.description,
                     )
 
-            logger.info("slo_adjustment_validated", services=list(proposed_slos.keys()), is_valid=response.is_valid)
+            logger.info(
+                "slo_adjustment_validated",
+                services=list(proposed_slos.keys()),
+                is_valid=response.is_valid,
+            )
             return response.is_valid
 
         except grpc.RpcError as e:
@@ -434,8 +464,7 @@ class OrchestratorGrpcClient:
 
             # Chamada gRPC real
             request = orchestrator_extensions_pb2.RollbackSLOsRequest(
-                optimization_id=optimization_id,
-                force=False
+                optimization_id=optimization_id, force=False
             )
             response = await self.stub.RollbackSLOs(request, timeout=self.settings.grpc_timeout)
 
@@ -444,18 +473,20 @@ class OrchestratorGrpcClient:
                     "slos_rolled_back",
                     optimization_id=optimization_id,
                     services=list(response.restored_slos.keys()),
-                    rolled_back_at=response.rolled_back_at
+                    rolled_back_at=response.rolled_back_at,
                 )
             return response.success
 
         except grpc.RpcError as e:
-            logger.error("rollback_slos_failed", optimization_id=optimization_id, error=str(e), code=e.code())
+            logger.error(
+                "rollback_slos_failed", optimization_id=optimization_id, error=str(e), code=e.code()
+            )
             return False
         except Exception as e:
             logger.error("rollback_slos_failed", optimization_id=optimization_id, error=str(e))
             return False
 
-    async def get_error_budget(self, service: str) -> Optional[Dict]:
+    async def get_error_budget(self, service: str) -> dict | None:
         """
         Obter error budget restante.
 

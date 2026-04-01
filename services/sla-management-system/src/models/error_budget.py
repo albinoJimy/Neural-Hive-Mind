@@ -2,15 +2,17 @@
 Modelos Pydantic para error budgets calculados.
 """
 
+import uuid
 from datetime import datetime
 from enum import Enum
-from typing import List, Dict, Any, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+
 from pydantic import BaseModel, Field
-import uuid
 
 
 class BudgetStatus(str, Enum):
     """Status do budget."""
+
     HEALTHY = "HEALTHY"
     WARNING = "WARNING"
     CRITICAL = "CRITICAL"
@@ -19,6 +21,7 @@ class BudgetStatus(str, Enum):
 
 class BurnRateLevel(str, Enum):
     """Nível de burn rate."""
+
     NORMAL = "NORMAL"
     ELEVATED = "ELEVATED"
     FAST = "FAST"
@@ -27,12 +30,12 @@ class BurnRateLevel(str, Enum):
 
 class BurnRate(BaseModel):
     """Taxa de consumo do budget."""
+
     window_hours: int = Field(..., description="Janela de análise")
     rate: float = Field(..., description="Taxa de consumo (multiplicador)")
     level: BurnRateLevel = Field(..., description="Nível da taxa")
     estimated_exhaustion_hours: Optional[float] = Field(
-        None,
-        description="Horas até esgotar budget"
+        None, description="Horas até esgotar budget"
     )
 
 
@@ -73,14 +76,11 @@ class ErrorBudget(BaseModel):
 
     def to_dict(self) -> dict:
         """Serialização para JSON."""
-        return self.model_dump(mode='json')
+        return self.model_dump(mode="json")
 
     def to_prometheus_metrics(self) -> List[Tuple[str, float, dict]]:
         """Converte para métricas Prometheus."""
-        labels = {
-            "slo_id": self.slo_id,
-            "service_name": self.service_name
-        }
+        labels = {"slo_id": self.slo_id, "service_name": self.service_name}
 
         metrics = [
             ("sla_budget_remaining_percent", self.error_budget_remaining, labels),
@@ -100,6 +100,6 @@ class ErrorBudget(BaseModel):
             BudgetStatus.HEALTHY: 0,
             BudgetStatus.WARNING: 1,
             BudgetStatus.CRITICAL: 2,
-            BudgetStatus.EXHAUSTED: 3
+            BudgetStatus.EXHAUSTED: 3,
         }
         return status_map.get(self.status, 0)

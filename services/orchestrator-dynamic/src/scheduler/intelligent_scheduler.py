@@ -6,22 +6,23 @@ Implementa cache de descobertas e fallback para Service Registry indisponível.
 """
 
 import asyncio
-import httpx
-import structlog
 from datetime import datetime, timedelta
-from typing import Dict, Optional, List, Set
-from functools import lru_cache
 from enum import Enum
 
+import httpx
+import structlog
+
+from neural_hive_resilience.circuit_breaker import CircuitBreakerError, MonitoredCircuitBreaker
 from src.config.settings import OrchestratorSettings
 from src.observability.metrics import OrchestratorMetrics
-from neural_hive_resilience.circuit_breaker import MonitoredCircuitBreaker, CircuitBreakerError
+
 from .priority_calculator import PriorityCalculator
 from .resource_allocator import ResourceAllocator
 
 # Import centralized ML predictors
 try:
-    from neural_hive_ml.predictive_models import SchedulingPredictor, LoadPredictor
+    from neural_hive_ml.predictive_models import LoadPredictor, SchedulingPredictor
+
     ML_AVAILABLE = True
 except ImportError:
     SchedulingPredictor = None
@@ -33,6 +34,7 @@ logger = structlog.get_logger(__name__)
 
 class Priority(Enum):
     """Task priority levels for preemption logic."""
+
     LOW = 1
     MEDIUM = 2
     HIGH = 3
@@ -54,10 +56,10 @@ class IntelligentScheduler:
         priority_calculator: PriorityCalculator,
         resource_allocator: ResourceAllocator,
         scheduling_optimizer=None,
-        scheduling_predictor: Optional[SchedulingPredictor] = None,
-        load_predictor: Optional[LoadPredictor] = None,
+        scheduling_predictor: SchedulingPredictor | None = None,
+        load_predictor: LoadPredictor | None = None,
         anomaly_detector=None,
-        spiffe_manager=None
+        spiffe_manager=None,
     ):
         """
         Inicializa o scheduler.
@@ -82,7 +84,7 @@ class IntelligentScheduler:
         self.load_predictor = load_predictor
         self.anomaly_detector = anomaly_detector
         self.spiffe_manager = spiffe_manager
-        self.logger = logger.bind(component='intelligent_scheduler')
+        self.logger = logger.bind(component="intelligent_scheduler")
         self.registry_breaker = None
         if getattr(config, "CIRCUIT_BREAKER_ENABLED", False):
             self.registry_breaker = MonitoredCircuitBreaker(
@@ -99,20 +101,20 @@ class IntelligentScheduler:
             )
 
         # Cache de descobertas: {cache_key: (workers, timestamp)}
-        self._discovery_cache: Dict[str, tuple[List[Dict], datetime]] = {}
+        self._discovery_cache: dict[str, tuple[list[dict], datetime]] = {}
         self._cache_ttl = timedelta(seconds=config.service_registry_cache_ttl_seconds)
 
         # Cache de prioridades de workflows: {workflow_id: priority}
-        self._workflow_priorities: Dict[str, int] = {}
+        self._workflow_priorities: dict[str, int] = {}
 
         # Cache de alocações de recursos: {workflow_id: allocation_dict}
-        self._workflow_allocations: Dict[str, Dict] = {}
+        self._workflow_allocations: dict[str, dict] = {}
 
         # Preemption tracking
-        self._preemption_cooldowns: Dict[str, datetime] = {}  # worker_id -> cooldown_end_time
-        self._active_preemptions: Set[str] = set()  # Set of ticket_ids being preempted
+        self._preemption_cooldowns: dict[str, datetime] = {}  # worker_id -> cooldown_end_time
+        self._active_preemptions: set[str] = set()  # Set of ticket_ids being preempted
 
-    async def schedule_ticket(self, ticket: Dict) -> Dict:
+    async def schedule_ticket(self, ticket: dict) -> dict:
         """
         Agenda um ticket para execução.
 
@@ -128,14 +130,13 @@ class IntelligentScheduler:
             fallbacks também preenchem agent_id='worker-agent-pool')
         """
         start_time = datetime.now()
-        ticket_id = ticket.get('ticket_id', 'unknown')
-        fallback_used = False
+        ticket_id = ticket.get("ticket_id", "unknown")
 
         self.logger.info(
-            'scheduling_ticket',
+            "scheduling_ticket",
             ticket_id=ticket_id,
-            risk_band=ticket.get('risk_band'),
-            required_capabilities=ticket.get('required_capabilities')
+            risk_band=ticket.get("risk_band"),
+            required_capabilities=ticket.get("required_capabilities"),
         )
 
         try:
@@ -149,14 +150,14 @@ class IntelligentScheduler:
             priority_score = self.priority_calculator.calculate_priority_score(ticket)
 
             # Ajusta prioridade com ML predictions se disponível
-            predictions = ticket.get('predictions', {})
+            predictions = ticket.get("predictions", {})
             boosted = False
             has_predictions = bool(predictions)
 
             if predictions:
                 # Boost por duração prevista
-                predicted_duration = predictions.get('duration_ms', 0)
-                estimated_duration = ticket.get('estimated_duration_ms', 0)
+                predicted_duration = predictions.get("duration_ms", 0)
+                estimated_duration = ticket.get("estimated_duration_ms", 0)
 
                 if predicted_duration > 0 and estimated_duration > 0:
                     duration_ratio = predicted_duration / estimated_duration
@@ -166,37 +167,35 @@ class IntelligentScheduler:
                         priority_score = min(priority_score * 1.2, 1.0)
                         boosted = True
                         self.logger.info(
-                            'priority_boosted_by_ml_duration',
+                            "priority_boosted_by_ml_duration",
                             ticket_id=ticket_id,
                             duration_ratio=duration_ratio,
-                            new_priority=priority_score
+                            new_priority=priority_score,
                         )
 
                 # Boost por anomalia detectada
-                anomaly = predictions.get('anomaly', {})
-                if anomaly.get('is_anomaly', False):
+                anomaly = predictions.get("anomaly", {})
+                if anomaly.get("is_anomaly", False):
                     priority_score = min(priority_score * 1.2, 1.0)
                     boosted = True
                     self.logger.info(
-                        'priority_boosted_by_anomaly',
+                        "priority_boosted_by_anomaly",
                         ticket_id=ticket_id,
-                        anomaly_type=anomaly.get('type'),
-                        anomaly_score=anomaly.get('score'),
-                        new_priority=priority_score
+                        anomaly_type=anomaly.get("type"),
+                        anomaly_score=anomaly.get("score"),
+                        new_priority=priority_score,
                     )
 
             # Registrar priority score com flag boosted
             self.metrics.record_priority_score(
-                ticket.get('risk_band', 'unknown'),
-                priority_score,
-                boosted=boosted
+                ticket.get("risk_band", "unknown"), priority_score, boosted=boosted
             )
 
             self.logger.info(
-                'priority_calculated',
+                "priority_calculated",
                 ticket_id=ticket_id,
                 priority_score=priority_score,
-                boosted=boosted
+                boosted=boosted,
             )
 
             # Obter load forecast se optimizer disponível
@@ -215,42 +214,42 @@ class IntelligentScheduler:
                         self.logger.info(
                             "load_forecast_obtained",
                             ticket_id=ticket_id,
-                            forecast_points=len(load_forecast.get('forecast', []))
+                            forecast_points=len(load_forecast.get("forecast", [])),
                         )
                 except Exception as e:
-                    self.logger.warning(
-                        "load_forecast_error",
-                        ticket_id=ticket_id,
-                        error=str(e)
-                    )
+                    self.logger.warning("load_forecast_error", ticket_id=ticket_id, error=str(e))
 
             # Etapa 2: Descobrir workers disponíveis
             workers = await self._discover_workers_cached(ticket)
 
             if not workers:
                 # Tentar preempção para tickets de alta prioridade quando descoberta retorna vazia
-                ticket_priority = ticket.get('priority', 'MEDIUM')
-                if self._can_preempt(ticket_priority, 'LOW'):
+                ticket_priority = ticket.get("priority", "MEDIUM")
+                if self._can_preempt(ticket_priority, "LOW"):
                     self.logger.info(
-                        'attempting_preemption_no_workers',
+                        "attempting_preemption_no_workers",
                         ticket_id=ticket_id,
-                        priority=ticket_priority
+                        priority=ticket_priority,
                     )
-                    freed_workers = await self.preempt_low_priority_tasks(ticket, required_workers=1)
+                    freed_workers = await self.preempt_low_priority_tasks(
+                        ticket, required_workers=1
+                    )
                     if freed_workers:
                         # Redescobrir workers após preempção, invalidando cache
                         workers = await self._discover_workers_cached(ticket, force_refresh=True)
 
                 if not workers:
                     self.logger.error(
-                        'no_workers_discovered_ticket_rejected',
+                        "no_workers_discovered_ticket_rejected",
                         ticket_id=ticket_id,
-                        required_capabilities=ticket.get('required_capabilities'),
-                        namespace=ticket.get('namespace', 'default')
+                        required_capabilities=ticket.get("required_capabilities"),
+                        namespace=ticket.get("namespace", "default"),
                     )
                     # Registrar rejeição e marcar ticket como rejeitado
-                    self.metrics.record_scheduler_rejection('no_workers')
-                    return self._reject_ticket(ticket, 'no_workers', 'Nenhum worker disponível para o ticket')
+                    self.metrics.record_scheduler_rejection("no_workers")
+                    return self._reject_ticket(
+                        ticket, "no_workers", "Nenhum worker disponível para o ticket"
+                    )
 
             self.metrics.record_workers_discovered(len(workers))
 
@@ -259,20 +258,22 @@ class IntelligentScheduler:
                 workers=workers,
                 priority_score=priority_score,
                 ticket=ticket,
-                load_forecast=load_forecast
+                load_forecast=load_forecast,
             )
 
             # Tentar preempção também quando select_best_worker retorna None (workers ocupados)
             if not best_worker:
-                ticket_priority = ticket.get('priority', 'MEDIUM')
-                if self._can_preempt(ticket_priority, 'LOW'):
+                ticket_priority = ticket.get("priority", "MEDIUM")
+                if self._can_preempt(ticket_priority, "LOW"):
                     self.logger.info(
-                        'attempting_preemption_no_suitable_worker',
+                        "attempting_preemption_no_suitable_worker",
                         ticket_id=ticket_id,
                         priority=ticket_priority,
-                        workers_count=len(workers)
+                        workers_count=len(workers),
                     )
-                    freed_workers = await self.preempt_low_priority_tasks(ticket, required_workers=1)
+                    freed_workers = await self.preempt_low_priority_tasks(
+                        ticket, required_workers=1
+                    )
                     if freed_workers:
                         # Redescobrir workers após preempção, invalidando cache
                         workers = await self._discover_workers_cached(ticket, force_refresh=True)
@@ -282,112 +283,107 @@ class IntelligentScheduler:
                                 workers=workers,
                                 priority_score=priority_score,
                                 ticket=ticket,
-                                load_forecast=load_forecast
+                                load_forecast=load_forecast,
                             )
 
             if not best_worker:
                 self.logger.error(
-                    'no_suitable_worker_ticket_rejected',
+                    "no_suitable_worker_ticket_rejected",
                     ticket_id=ticket_id,
                     workers_count=len(workers),
-                    required_capabilities=ticket.get('required_capabilities'),
-                    namespace=ticket.get('namespace', 'default')
+                    required_capabilities=ticket.get("required_capabilities"),
+                    namespace=ticket.get("namespace", "default"),
                 )
                 # Registrar rejeição e marcar ticket como rejeitado
-                self.metrics.record_scheduler_rejection('no_suitable_worker')
+                self.metrics.record_scheduler_rejection("no_suitable_worker")
                 return self._reject_ticket(
                     ticket,
-                    'no_suitable_worker',
-                    f'Nenhum worker adequado entre {len(workers)} candidatos'
+                    "no_suitable_worker",
+                    f"Nenhum worker adequado entre {len(workers)} candidatos",
                 )
 
             # Etapa 4: Atualizar ticket com allocation metadata
             allocation_metadata = {
-                'allocated_at': int(datetime.now().timestamp() * 1000),
-                'agent_id': best_worker.get('agent_id'),
-                'agent_type': best_worker.get('agent_type'),
-                'priority_score': priority_score,
-                'agent_score': best_worker.get('score', 0.0),
-                'composite_score': self._calculate_composite_score(
-                    priority_score,
-                    best_worker.get('score', 0.0)
+                "allocated_at": int(datetime.now().timestamp() * 1000),
+                "agent_id": best_worker.get("agent_id"),
+                "agent_type": best_worker.get("agent_type"),
+                "priority_score": priority_score,
+                "agent_score": best_worker.get("score", 0.0),
+                "composite_score": self._calculate_composite_score(
+                    priority_score, best_worker.get("score", 0.0)
                 ),
-                'allocation_method': 'intelligent_scheduler',
-                'workers_evaluated': len(workers),
-                'ml_optimization_attempted': ml_optimization_attempted
+                "allocation_method": "intelligent_scheduler",
+                "workers_evaluated": len(workers),
+                "ml_optimization_attempted": ml_optimization_attempted,
             }
 
             # Adiciona dados de ML predictions se disponíveis
             if predictions:
-                allocation_metadata['predicted_duration_ms'] = predictions.get('duration_ms')
+                allocation_metadata["predicted_duration_ms"] = predictions.get("duration_ms")
 
                 # Processa detecção de anomalia
-                anomaly = predictions.get('anomaly', {})
-                is_anomaly = anomaly.get('is_anomaly', False)
-                allocation_metadata['anomaly_detected'] = is_anomaly
+                anomaly = predictions.get("anomaly", {})
+                is_anomaly = anomaly.get("is_anomaly", False)
+                allocation_metadata["anomaly_detected"] = is_anomaly
 
                 # Registra métricas de anomalia se detectada
                 if is_anomaly and self.metrics:
-                    self.metrics.record_ml_anomaly(
-                        anomaly_type=anomaly.get('type', 'unknown')
-                    )
-                    allocation_metadata['anomaly_type'] = anomaly.get('type')
-                    allocation_metadata['anomaly_score'] = anomaly.get('score')
+                    self.metrics.record_ml_anomaly(anomaly_type=anomaly.get("type", "unknown"))
+                    allocation_metadata["anomaly_type"] = anomaly.get("type")
+                    allocation_metadata["anomaly_score"] = anomaly.get("score")
 
             # Adiciona ML scheduling optimization metadata
-            if best_worker.get('ml_enriched', False):
-                allocation_metadata['ml_scheduling_enriched'] = True
-                allocation_metadata['predicted_queue_ms'] = best_worker.get('predicted_queue_ms')
-                allocation_metadata['predicted_load_pct'] = best_worker.get('predicted_load_pct')
+            if best_worker.get("ml_enriched", False):
+                allocation_metadata["ml_scheduling_enriched"] = True
+                allocation_metadata["predicted_queue_ms"] = best_worker.get("predicted_queue_ms")
+                allocation_metadata["predicted_load_pct"] = best_worker.get("predicted_load_pct")
                 # Esses campos serão usados para feedback loop em result_consolidation.py
 
-            ticket['allocation_metadata'] = allocation_metadata
+            ticket["allocation_metadata"] = allocation_metadata
 
             duration = (datetime.now() - start_time).total_seconds()
             self.metrics.record_scheduler_allocation(
-                status='success',
+                status="success",
                 fallback=False,
                 duration_seconds=duration,
-                has_predictions=has_predictions
+                has_predictions=has_predictions,
             )
 
             self.logger.info(
-                'ticket_scheduled',
+                "ticket_scheduled",
                 ticket_id=ticket_id,
-                agent_id=best_worker.get('agent_id'),
-                agent_type=best_worker.get('agent_type'),
+                agent_id=best_worker.get("agent_id"),
+                agent_type=best_worker.get("agent_type"),
                 priority_score=priority_score,
-                duration_seconds=duration
+                duration_seconds=duration,
             )
 
             return ticket
 
         except Exception as e:
             duration = (datetime.now() - start_time).total_seconds()
-            self.logger.error(
-                'scheduling_error_ticket_rejected',
+            self.logger.exception(
+                "scheduling_error_ticket_rejected",
                 ticket_id=ticket_id,
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
 
             # Verificar se tem predictions antes de registrar erro
-            has_predictions = bool(ticket.get('predictions', {}))
+            has_predictions = bool(ticket.get("predictions", {}))
 
             self.metrics.record_scheduler_allocation(
-                status='error',
+                status="error",
                 fallback=False,
                 duration_seconds=duration,
-                has_predictions=has_predictions
+                has_predictions=has_predictions,
             )
 
-            return self._reject_ticket(ticket, 'scheduling_error', str(e))
+            return self._reject_ticket(ticket, "scheduling_error", str(e))
 
     async def _discover_workers_cached(
-        self,
-        ticket: Dict,
-        force_refresh: bool = False
-    ) -> List[Dict]:
+        self, ticket: dict, force_refresh: bool = False
+    ) -> list[dict]:
         """
         Descobre workers com cache.
 
@@ -406,21 +402,14 @@ class IntelligentScheduler:
         # Invalidate cache if force_refresh requested
         if force_refresh and cache_key in self._discovery_cache:
             del self._discovery_cache[cache_key]
-            self.logger.debug(
-                'cache_invalidated_force_refresh',
-                cache_key=cache_key
-            )
+            self.logger.debug("cache_invalidated_force_refresh", cache_key=cache_key)
 
         cached = self._discovery_cache.get(cache_key)
         if cached:
             workers, timestamp = cached
             if datetime.now() - timestamp < self._cache_ttl:
                 self.metrics.record_cache_hit()
-                self.logger.debug(
-                    'cache_hit',
-                    cache_key=cache_key,
-                    workers_count=len(workers)
-                )
+                self.logger.debug("cache_hit", cache_key=cache_key, workers_count=len(workers))
                 return workers
             del self._discovery_cache[cache_key]
 
@@ -428,15 +417,13 @@ class IntelligentScheduler:
             if self.registry_breaker:
                 workers = await asyncio.wait_for(
                     self.registry_breaker.call_async(
-                        self.resource_allocator.discover_workers,
-                        ticket
+                        self.resource_allocator.discover_workers, ticket
                     ),
-                    timeout=5.0
+                    timeout=5.0,
                 )
             else:
                 workers = await asyncio.wait_for(
-                    self.resource_allocator.discover_workers(ticket),
-                    timeout=5.0
+                    self.resource_allocator.discover_workers(ticket), timeout=5.0
                 )
 
             self._discovery_cache[cache_key] = (workers, datetime.now())
@@ -444,50 +431,53 @@ class IntelligentScheduler:
 
         except CircuitBreakerError:
             # Log detalhado do estado do circuit breaker
-            breaker_state = 'unknown'
+            breaker_state = "unknown"
             if self.registry_breaker:
-                breaker_state = self.registry_breaker.state.name if hasattr(self.registry_breaker, 'state') else 'open'
+                breaker_state = (
+                    self.registry_breaker.state.name
+                    if hasattr(self.registry_breaker, "state")
+                    else "open"
+                )
 
             if cached:
                 self.logger.warning(
-                    'service_registry_circuit_open_using_cache',
+                    "service_registry_circuit_open_using_cache",
                     cache_key=cache_key,
                     workers_cached=len(cached[0]),
                     circuit_breaker_state=breaker_state,
-                    circuit_name='service_registry_discovery'
+                    circuit_name="service_registry_discovery",
                 )
                 return cached[0]
 
             self.logger.warning(
-                'service_registry_circuit_open_no_cache',
+                "service_registry_circuit_open_no_cache",
                 cache_key=cache_key,
                 circuit_breaker_state=breaker_state,
-                circuit_name='service_registry_discovery',
-                reason='circuit_breaker_open_no_cached_workers_available'
+                circuit_name="service_registry_discovery",
+                reason="circuit_breaker_open_no_cached_workers_available",
             )
-            self.metrics.record_discovery_failure('circuit_open')
+            self.metrics.record_discovery_failure("circuit_open")
             return []
-        except asyncio.TimeoutError:
+        except TimeoutError:
             self.logger.warning(
-                'discovery_timeout',
+                "discovery_timeout",
                 cache_key=cache_key,
                 timeout_seconds=5.0,
-                reason='service_registry_discovery_exceeded_5s_timeout',
-                circuit_breaker_state=self.registry_breaker.state.name if self.registry_breaker else 'not_configured'
+                reason="service_registry_discovery_exceeded_5s_timeout",
+                circuit_breaker_state=self.registry_breaker.state.name
+                if self.registry_breaker
+                else "not_configured",
             )
-            self.metrics.record_discovery_failure('timeout')
+            self.metrics.record_discovery_failure("timeout")
             return []
         except Exception as e:
-            self.logger.error(
-                'discovery_error',
-                cache_key=cache_key,
-                error=str(e),
-                error_type=type(e).__name__
+            self.logger.exception(
+                "discovery_error", cache_key=cache_key, error=str(e), error_type=type(e).__name__
             )
             self.metrics.record_discovery_failure(type(e).__name__)
             return []
 
-    def _build_cache_key(self, ticket: Dict) -> str:
+    def _build_cache_key(self, ticket: dict) -> str:
         """
         Constrói chave de cache baseada em capabilities e namespace.
 
@@ -497,17 +487,13 @@ class IntelligentScheduler:
         Returns:
             Chave de cache
         """
-        capabilities = sorted(ticket.get('required_capabilities', []))
-        namespace = ticket.get('namespace', 'default')
-        security_level = ticket.get('security_level', 'standard')
+        capabilities = sorted(ticket.get("required_capabilities", []))
+        namespace = ticket.get("namespace", "default")
+        security_level = ticket.get("security_level", "standard")
 
         return f"{namespace}:{security_level}:{':'.join(capabilities)}"
 
-    def _calculate_composite_score(
-        self,
-        priority_score: float,
-        agent_score: float
-    ) -> float:
+    def _calculate_composite_score(self, priority_score: float, agent_score: float) -> float:
         """
         Calcula score composto combinando prioridade e score do agente.
 
@@ -522,7 +508,7 @@ class IntelligentScheduler:
         composite = (agent_score * 0.6) + (priority_score * 0.4)
         return min(max(composite, 0.0), 1.0)
 
-    def _reject_ticket(self, ticket: Dict, rejection_reason: str, rejection_message: str) -> Dict:
+    def _reject_ticket(self, ticket: dict, rejection_reason: str, rejection_message: str) -> dict:
         """
         Rejeita ticket quando não é possível alocar um worker válido.
 
@@ -537,27 +523,27 @@ class IntelligentScheduler:
         Returns:
             Ticket com status 'rejected' e metadata de rejeição
         """
-        ticket_id = ticket.get('ticket_id', 'unknown')
+        ticket_id = ticket.get("ticket_id", "unknown")
 
         # Marcar ticket como rejeitado
-        ticket['status'] = 'rejected'
-        ticket['rejection_metadata'] = {
-            'rejected_at': int(datetime.now().timestamp() * 1000),
-            'rejection_reason': rejection_reason,
-            'rejection_message': rejection_message,
-            'required_capabilities': ticket.get('required_capabilities', []),
-            'namespace': ticket.get('namespace', 'default'),
-            'allocation_method': 'rejected'
+        ticket["status"] = "rejected"
+        ticket["rejection_metadata"] = {
+            "rejected_at": int(datetime.now().timestamp() * 1000),
+            "rejection_reason": rejection_reason,
+            "rejection_message": rejection_message,
+            "required_capabilities": ticket.get("required_capabilities", []),
+            "namespace": ticket.get("namespace", "default"),
+            "allocation_method": "rejected",
         }
 
         # Não incluir allocation_metadata válido para evitar publicação
-        ticket['allocation_metadata'] = None
+        ticket["allocation_metadata"] = None
 
         self.logger.warning(
-            'ticket_rejected',
+            "ticket_rejected",
             ticket_id=ticket_id,
             rejection_reason=rejection_reason,
-            rejection_message=rejection_message
+            rejection_message=rejection_message,
         )
 
         # Emitir evento/alerta de rejeição
@@ -566,7 +552,7 @@ class IntelligentScheduler:
 
         return ticket
 
-    async def _enrich_ticket_with_predictions(self, ticket: Dict) -> Dict:
+    async def _enrich_ticket_with_predictions(self, ticket: dict) -> dict:
         """
         Enriquece ticket com predições ML (duração, recursos, anomalia).
         Enriquece ticket com predições ML antes da alocação (usado para priority boosting e feedback loop).
@@ -585,28 +571,28 @@ class IntelligentScheduler:
                 duration_pred = await self.scheduling_predictor.predict_duration(ticket)
                 resources_pred = await self.scheduling_predictor.predict_resources(ticket)
 
-                predictions.update({
-                    'duration_ms': duration_pred.get('predicted_duration_ms', 0),
-                    'confidence': duration_pred.get('confidence', 0.0),
-                    'duration_confidence': duration_pred.get('confidence', 0.0),
-                    'cpu_cores': resources_pred.get('cpu_cores', 1.0),
-                    'memory_mb': resources_pred.get('memory_mb', 512),
-                    'resources_confidence': resources_pred.get('confidence', 0.0),
-                    'model_type': duration_pred.get('model_type', 'unknown')
-                })
+                predictions.update(
+                    {
+                        "duration_ms": duration_pred.get("predicted_duration_ms", 0),
+                        "confidence": duration_pred.get("confidence", 0.0),
+                        "duration_confidence": duration_pred.get("confidence", 0.0),
+                        "cpu_cores": resources_pred.get("cpu_cores", 1.0),
+                        "memory_mb": resources_pred.get("memory_mb", 512),
+                        "resources_confidence": resources_pred.get("confidence", 0.0),
+                        "model_type": duration_pred.get("model_type", "unknown"),
+                    }
+                )
 
                 self.logger.debug(
-                    'ticket_enriched_with_scheduling_predictions',
-                    ticket_id=ticket.get('ticket_id'),
-                    predicted_duration_ms=predictions['duration_ms'],
-                    confidence=predictions['duration_confidence']
+                    "ticket_enriched_with_scheduling_predictions",
+                    ticket_id=ticket.get("ticket_id"),
+                    predicted_duration_ms=predictions["duration_ms"],
+                    confidence=predictions["duration_confidence"],
                 )
 
             except Exception as e:
                 self.logger.warning(
-                    'scheduling_prediction_failed',
-                    ticket_id=ticket.get('ticket_id'),
-                    error=str(e)
+                    "scheduling_prediction_failed", ticket_id=ticket.get("ticket_id"), error=str(e)
                 )
 
         # Detecção de anomalias
@@ -614,30 +600,28 @@ class IntelligentScheduler:
             try:
                 anomaly_result = await self.anomaly_detector.detect_anomaly(ticket)
 
-                predictions['anomaly'] = {
-                    'is_anomaly': anomaly_result.get('is_anomaly', False),
-                    'score': anomaly_result.get('anomaly_score', 0.0),
-                    'type': anomaly_result.get('anomaly_type', 'unknown')
+                predictions["anomaly"] = {
+                    "is_anomaly": anomaly_result.get("is_anomaly", False),
+                    "score": anomaly_result.get("anomaly_score", 0.0),
+                    "type": anomaly_result.get("anomaly_type", "unknown"),
                 }
 
-                if anomaly_result.get('is_anomaly'):
+                if anomaly_result.get("is_anomaly"):
                     self.logger.info(
-                        'anomaly_detected_in_ticket',
-                        ticket_id=ticket.get('ticket_id'),
-                        anomaly_type=anomaly_result.get('anomaly_type'),
-                        score=anomaly_result.get('anomaly_score')
+                        "anomaly_detected_in_ticket",
+                        ticket_id=ticket.get("ticket_id"),
+                        anomaly_type=anomaly_result.get("anomaly_type"),
+                        score=anomaly_result.get("anomaly_score"),
                     )
 
             except Exception as e:
                 self.logger.warning(
-                    'anomaly_detection_failed',
-                    ticket_id=ticket.get('ticket_id'),
-                    error=str(e)
+                    "anomaly_detection_failed", ticket_id=ticket.get("ticket_id"), error=str(e)
                 )
 
         # Atualizar ticket apenas se houver predições
         if predictions:
-            ticket['predictions'] = predictions
+            ticket["predictions"] = predictions
 
         return ticket
 
@@ -655,7 +639,7 @@ class IntelligentScheduler:
         if not self.config.scheduler_enable_preemption:
             return False
 
-        priority_order = {'LOW': 1, 'MEDIUM': 2, 'HIGH': 3, 'CRITICAL': 4}
+        priority_order = {"LOW": 1, "MEDIUM": 2, "HIGH": 3, "CRITICAL": 4}
 
         preemptor_level = priority_order.get(preemptor_priority.upper(), 0)
         preemptable_level = priority_order.get(preemptable_priority.upper(), 0)
@@ -670,10 +654,8 @@ class IntelligentScheduler:
         return preemptor_level >= min_preemptor and preemptable_level <= max_preemptable
 
     async def preempt_low_priority_tasks(
-        self,
-        high_priority_ticket: Dict,
-        required_workers: int = 1
-    ) -> List[str]:
+        self, high_priority_ticket: dict, required_workers: int = 1
+    ) -> list[str]:
         """
         Preempt low-priority tasks to make room for high-priority ticket.
 
@@ -693,24 +675,23 @@ class IntelligentScheduler:
             self.logger.warning(
                 "max_concurrent_preemptions_reached",
                 active_preemptions=len(self._active_preemptions),
-                limit=self.config.scheduler_preemption_max_concurrent
+                limit=self.config.scheduler_preemption_max_concurrent,
             )
             self.metrics.record_preemption_attempt(success=False, reason="max_concurrent")
             return []
 
-        ticket_priority = high_priority_ticket.get('priority', 'MEDIUM')
+        ticket_priority = high_priority_ticket.get("priority", "MEDIUM")
 
         # Find preemptable tasks
         preemptable_tasks = await self._find_preemptable_tasks(
-            high_priority_ticket,
-            limit=required_workers
+            high_priority_ticket, limit=required_workers
         )
 
         if not preemptable_tasks:
             self.logger.info(
                 "no_preemptable_tasks_found",
-                ticket_id=high_priority_ticket.get('ticket_id'),
-                priority=ticket_priority
+                ticket_id=high_priority_ticket.get("ticket_id"),
+                priority=ticket_priority,
             )
             return []
 
@@ -719,7 +700,7 @@ class IntelligentScheduler:
             if len(freed_workers) >= required_workers:
                 break
 
-            worker_id = task.get('worker_id')
+            worker_id = task.get("worker_id")
 
             # Check cooldown
             if worker_id in self._preemption_cooldowns:
@@ -728,7 +709,7 @@ class IntelligentScheduler:
                     self.logger.debug(
                         "worker_in_cooldown",
                         worker_id=worker_id,
-                        cooldown_remaining_seconds=(cooldown_end - datetime.now()).total_seconds()
+                        cooldown_remaining_seconds=(cooldown_end - datetime.now()).total_seconds(),
                     )
                     continue
 
@@ -740,28 +721,28 @@ class IntelligentScheduler:
 
                 # Set cooldown
                 cooldown_seconds = self.config.scheduler_preemption_worker_cooldown_seconds
-                self._preemption_cooldowns[worker_id] = datetime.now() + timedelta(seconds=cooldown_seconds)
+                self._preemption_cooldowns[worker_id] = datetime.now() + timedelta(
+                    seconds=cooldown_seconds
+                )
 
                 self.logger.info(
                     "task_preempted_successfully",
-                    preempted_ticket_id=task.get('ticket_id'),
+                    preempted_ticket_id=task.get("ticket_id"),
                     worker_id=worker_id,
-                    preemptor_ticket_id=high_priority_ticket.get('ticket_id'),
-                    preemptor_priority=ticket_priority
+                    preemptor_ticket_id=high_priority_ticket.get("ticket_id"),
+                    preemptor_priority=ticket_priority,
                 )
 
         self.metrics.record_preemption_attempt(
             success=len(freed_workers) > 0,
-            reason="success" if freed_workers else "preemption_failed"
+            reason="success" if freed_workers else "preemption_failed",
         )
 
         return freed_workers
 
     async def _find_preemptable_tasks(
-        self,
-        high_priority_ticket: Dict,
-        limit: int = 5
-    ) -> List[Dict]:
+        self, high_priority_ticket: dict, limit: int = 5
+    ) -> list[dict]:
         """
         Find tasks that can be preempted based on priority and matching capabilities.
 
@@ -773,15 +754,15 @@ class IntelligentScheduler:
             List of preemptable task metadata
         """
         preemptable = []
-        ticket_priority = high_priority_ticket.get('priority', 'MEDIUM')
-        required_capabilities = set(high_priority_ticket.get('required_capabilities', []))
+        ticket_priority = high_priority_ticket.get("priority", "MEDIUM")
+        required_capabilities = set(high_priority_ticket.get("required_capabilities", []))
 
         try:
             # Query running tasks from worker agents via Service Registry
             workers = await self._discover_workers_cached(high_priority_ticket)
 
             for worker in workers:
-                worker_id = worker.get('agent_id')
+                worker_id = worker.get("agent_id")
 
                 # Skip workers in cooldown
                 if worker_id in self._preemption_cooldowns:
@@ -789,50 +770,49 @@ class IntelligentScheduler:
                         continue
 
                 # Check if worker has matching capabilities
-                worker_capabilities = set(worker.get('capabilities', []))
+                worker_capabilities = set(worker.get("capabilities", []))
                 if not required_capabilities.issubset(worker_capabilities):
                     continue
 
                 # Get running task info from worker
-                running_task = worker.get('running_task', {})
+                running_task = worker.get("running_task", {})
                 if not running_task:
                     continue
 
-                running_priority = running_task.get('priority', 'MEDIUM')
+                running_priority = running_task.get("priority", "MEDIUM")
 
                 # Check if can preempt
                 if self._can_preempt(ticket_priority, running_priority):
-                    preemptable.append({
-                        'ticket_id': running_task.get('ticket_id'),
-                        'worker_id': worker_id,
-                        'worker_endpoint': worker.get('endpoint'),
-                        'priority': running_priority,
-                        'started_at': running_task.get('started_at'),
-                        'progress_pct': running_task.get('progress_pct', 0)
-                    })
+                    preemptable.append(
+                        {
+                            "ticket_id": running_task.get("ticket_id"),
+                            "worker_id": worker_id,
+                            "worker_endpoint": worker.get("endpoint"),
+                            "priority": running_priority,
+                            "started_at": running_task.get("started_at"),
+                            "progress_pct": running_task.get("progress_pct", 0),
+                        }
+                    )
 
                 if len(preemptable) >= limit:
                     break
 
             # Sort by priority (lowest first) then by progress (lowest first - less work lost)
-            priority_order = {'LOW': 1, 'MEDIUM': 2, 'HIGH': 3, 'CRITICAL': 4}
+            priority_order = {"LOW": 1, "MEDIUM": 2, "HIGH": 3, "CRITICAL": 4}
             preemptable.sort(
-                key=lambda x: (
-                    priority_order.get(x['priority'], 2),
-                    x.get('progress_pct', 0)
-                )
+                key=lambda x: (priority_order.get(x["priority"], 2), x.get("progress_pct", 0))
             )
 
         except Exception as e:
-            self.logger.error(
+            self.logger.exception(
                 "find_preemptable_tasks_error",
                 error=str(e),
-                ticket_id=high_priority_ticket.get('ticket_id')
+                ticket_id=high_priority_ticket.get("ticket_id"),
             )
 
         return preemptable[:limit]
 
-    async def _get_auth_headers(self) -> Dict[str, str]:
+    async def _get_auth_headers(self) -> dict[str, str]:
         """
         Obtém headers de autenticação para chamadas de preempção.
 
@@ -846,31 +826,23 @@ class IntelligentScheduler:
         if self.spiffe_manager and self.config.spiffe_enabled:
             try:
                 # Obter JWT-SVID para autenticação com worker-agents
-                audience = getattr(self.config, 'spiffe_jwt_audience', 'worker-agents.neural-hive.local')
+                audience = getattr(
+                    self.config, "spiffe_jwt_audience", "worker-agents.neural-hive.local"
+                )
                 jwt_token = await self.spiffe_manager.get_jwt_svid(audience=audience)
 
                 if jwt_token:
-                    headers['Authorization'] = f'Bearer {jwt_token}'
-                    self.logger.debug(
-                        'preemption_auth_header_obtained',
-                        audience=audience
-                    )
+                    headers["Authorization"] = f"Bearer {jwt_token}"
+                    self.logger.debug("preemption_auth_header_obtained", audience=audience)
                 else:
-                    self.logger.warning('preemption_jwt_token_not_available')
+                    self.logger.warning("preemption_jwt_token_not_available")
 
             except Exception as e:
-                self.logger.warning(
-                    'preemption_auth_header_failed',
-                    error=str(e)
-                )
+                self.logger.warning("preemption_auth_header_failed", error=str(e))
 
         return headers
 
-    async def _preempt_task(
-        self,
-        task: Dict,
-        preemptor_ticket: Dict
-    ) -> bool:
+    async def _preempt_task(self, task: dict, preemptor_ticket: dict) -> bool:
         """
         Envia sinal de cancelamento ao worker agent para preemptar uma tarefa.
 
@@ -881,14 +853,11 @@ class IntelligentScheduler:
         Returns:
             True se o sinal de preempção foi enviado com sucesso
         """
-        ticket_id = task.get('ticket_id')
-        worker_endpoint = task.get('worker_endpoint')
+        ticket_id = task.get("ticket_id")
+        worker_endpoint = task.get("worker_endpoint")
 
         if not worker_endpoint:
-            self.logger.error(
-                "preemption_failed_no_endpoint",
-                ticket_id=ticket_id
-            )
+            self.logger.error("preemption_failed_no_endpoint", ticket_id=ticket_id)
             return False
 
         self._active_preemptions.add(ticket_id)
@@ -902,52 +871,42 @@ class IntelligentScheduler:
                     f"{worker_endpoint}/api/v1/tasks/{ticket_id}/cancel",
                     json={
                         "reason": "preemption",
-                        "preempted_by": preemptor_ticket.get('ticket_id'),
-                        "grace_period_seconds": self.config.scheduler_preemption_grace_period_seconds
+                        "preempted_by": preemptor_ticket.get("ticket_id"),
+                        "grace_period_seconds": self.config.scheduler_preemption_grace_period_seconds,
                     },
-                    headers=auth_headers
+                    headers=auth_headers,
                 )
 
                 if response.status_code == 200:
                     self.metrics.record_task_preempted(
-                        preempted_priority=task.get('priority'),
-                        preemptor_priority=preemptor_ticket.get('priority')
+                        preempted_priority=task.get("priority"),
+                        preemptor_priority=preemptor_ticket.get("priority"),
                     )
                     return True
-                else:
-                    self.logger.warning(
-                        "preemption_request_failed",
-                        ticket_id=ticket_id,
-                        status_code=response.status_code,
-                        response=response.text
-                    )
-                    self.metrics.record_preemption_failure(reason="worker_rejected")
-                    return False
+                self.logger.warning(
+                    "preemption_request_failed",
+                    ticket_id=ticket_id,
+                    status_code=response.status_code,
+                    response=response.text,
+                )
+                self.metrics.record_preemption_failure(reason="worker_rejected")
+                return False
 
         except httpx.TimeoutException:
-            self.logger.error(
-                "preemption_timeout",
-                ticket_id=ticket_id,
-                worker_endpoint=worker_endpoint
+            self.logger.exception(
+                "preemption_timeout", ticket_id=ticket_id, worker_endpoint=worker_endpoint
             )
             self.metrics.record_preemption_failure(reason="timeout")
             return False
         except Exception as e:
-            self.logger.error(
-                "preemption_error",
-                ticket_id=ticket_id,
-                error=str(e)
-            )
+            self.logger.exception("preemption_error", ticket_id=ticket_id, error=str(e))
             self.metrics.record_preemption_failure(reason="error")
             return False
         finally:
             self._active_preemptions.discard(ticket_id)
 
     async def update_workflow_priority(
-        self,
-        workflow_id: str,
-        new_priority: int,
-        reason: str = ''
+        self, workflow_id: str, new_priority: int, reason: str = ""
     ) -> bool:
         """
         Atualiza a prioridade de um workflow no scheduler.
@@ -967,37 +926,31 @@ class IntelligentScheduler:
             self._workflow_priorities[workflow_id] = new_priority
 
             self.logger.info(
-                'workflow_priority_updated',
+                "workflow_priority_updated",
                 workflow_id=workflow_id,
                 old_priority=old_priority,
                 new_priority=new_priority,
-                reason=reason
+                reason=reason,
             )
 
             # Registrar métrica de ajuste de prioridade
             if self.metrics:
                 self.metrics.record_priority_adjustment(
-                    workflow_id=workflow_id,
-                    old_priority=old_priority,
-                    new_priority=new_priority
+                    workflow_id=workflow_id, old_priority=old_priority, new_priority=new_priority
                 )
 
             return True
 
         except Exception as e:
-            self.logger.error(
-                'workflow_priority_update_failed',
+            self.logger.exception(
+                "workflow_priority_update_failed",
                 workflow_id=workflow_id,
                 new_priority=new_priority,
-                error=str(e)
+                error=str(e),
             )
             return False
 
-    async def reallocate_resources(
-        self,
-        workflow_id: str,
-        target_allocation: Dict
-    ) -> Dict:
+    async def reallocate_resources(self, workflow_id: str, target_allocation: dict) -> dict:
         """
         Realoca recursos para um workflow específico.
 
@@ -1015,46 +968,44 @@ class IntelligentScheduler:
 
             # Armazenar nova alocação
             self._workflow_allocations[workflow_id] = {
-                'cpu_millicores': target_allocation.get('cpu_millicores', 1000),
-                'memory_mb': target_allocation.get('memory_mb', 2048),
-                'max_parallel_tickets': target_allocation.get('max_parallel_tickets', 10),
-                'scheduling_priority': target_allocation.get('scheduling_priority', 5),
-                'updated_at': datetime.now()
+                "cpu_millicores": target_allocation.get("cpu_millicores", 1000),
+                "memory_mb": target_allocation.get("memory_mb", 2048),
+                "max_parallel_tickets": target_allocation.get("max_parallel_tickets", 10),
+                "scheduling_priority": target_allocation.get("scheduling_priority", 5),
+                "updated_at": datetime.now(),
             }
 
             self.logger.info(
-                'workflow_resources_reallocated',
+                "workflow_resources_reallocated",
                 workflow_id=workflow_id,
                 old_allocation=old_allocation,
-                new_allocation=self._workflow_allocations[workflow_id]
+                new_allocation=self._workflow_allocations[workflow_id],
             )
 
             # Registrar métrica de realocação
             if self.metrics:
                 self.metrics.record_resource_reallocation(
                     workflow_id=workflow_id,
-                    cpu_millicores=target_allocation.get('cpu_millicores', 1000),
-                    memory_mb=target_allocation.get('memory_mb', 2048)
+                    cpu_millicores=target_allocation.get("cpu_millicores", 1000),
+                    memory_mb=target_allocation.get("memory_mb", 2048),
                 )
 
             return {
-                'success': True,
-                'workflow_id': workflow_id,
-                'previous_allocation': old_allocation,
-                'applied_allocation': self._workflow_allocations[workflow_id],
-                'message': 'Recursos realocados com sucesso'
+                "success": True,
+                "workflow_id": workflow_id,
+                "previous_allocation": old_allocation,
+                "applied_allocation": self._workflow_allocations[workflow_id],
+                "message": "Recursos realocados com sucesso",
             }
 
         except Exception as e:
-            self.logger.error(
-                'workflow_resource_reallocation_failed',
-                workflow_id=workflow_id,
-                error=str(e)
+            self.logger.exception(
+                "workflow_resource_reallocation_failed", workflow_id=workflow_id, error=str(e)
             )
             return {
-                'success': False,
-                'workflow_id': workflow_id,
-                'message': f'Falha na realocação: {str(e)}'
+                "success": False,
+                "workflow_id": workflow_id,
+                "message": f"Falha na realocação: {e!s}",
             }
 
     def get_workflow_priority(self, workflow_id: str) -> int:
@@ -1069,7 +1020,7 @@ class IntelligentScheduler:
         """
         return self._workflow_priorities.get(workflow_id, 5)
 
-    def get_workflow_allocation(self, workflow_id: str) -> Dict:
+    def get_workflow_allocation(self, workflow_id: str) -> dict:
         """
         Obtém a alocação de recursos atual de um workflow.
 
@@ -1079,9 +1030,12 @@ class IntelligentScheduler:
         Returns:
             Dict com alocação de recursos (default values se não definido)
         """
-        return self._workflow_allocations.get(workflow_id, {
-            'cpu_millicores': 1000,
-            'memory_mb': 2048,
-            'max_parallel_tickets': 10,
-            'scheduling_priority': 5
-        })
+        return self._workflow_allocations.get(
+            workflow_id,
+            {
+                "cpu_millicores": 1000,
+                "memory_mb": 2048,
+                "max_parallel_tickets": 10,
+                "scheduling_priority": 5,
+            },
+        )

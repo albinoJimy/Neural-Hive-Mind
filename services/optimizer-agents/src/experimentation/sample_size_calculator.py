@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Calculadora de Tamanho de Amostra para testes A/B.
 
@@ -8,10 +7,9 @@ para atingir significancia estatistica desejada.
 
 import math
 from dataclasses import dataclass
-from typing import Optional
 
-from scipy import stats
 import structlog
+from scipy import stats
 
 logger = structlog.get_logger()
 
@@ -19,6 +17,7 @@ logger = structlog.get_logger()
 @dataclass
 class SampleSizeResult:
     """Resultado do calculo de tamanho de amostra."""
+
     sample_size_per_group: int
     total_sample_size: int
     mde: float  # Minimum Detectable Effect
@@ -31,6 +30,7 @@ class SampleSizeResult:
 @dataclass
 class DurationEstimate:
     """Estimativa de duracao do experimento."""
+
     estimated_days: float
     estimated_hours: float
     sample_size_per_group: int
@@ -359,9 +359,9 @@ class SampleSizeCalculator:
         """
         # Tabela de MDEs recomendados por impacto
         impact_factors = {
-            "low": 0.02,     # 2% de melhoria
+            "low": 0.02,  # 2% de melhoria
             "medium": 0.05,  # 5% de melhoria
-            "high": 0.10,    # 10% de melhoria
+            "high": 0.10,  # 10% de melhoria
         }
 
         factor = impact_factors.get(business_impact, 0.05)

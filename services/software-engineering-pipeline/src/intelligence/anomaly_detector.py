@@ -1,5 +1,3 @@
-from datetime import datetime, timedelta, timezone
-from typing import Any
 from pydantic import BaseModel, ConfigDict, Field
 from structlog import get_logger
 
@@ -12,9 +10,7 @@ class AnomalyDetectionConfig(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    flaky_test_threshold: int = Field(
-        default=3, ge=1, description="Número de falhas consecutivas"
-    )
+    flaky_test_threshold: int = Field(default=3, ge=1, description="Número de falhas consecutivas")
     failure_rate_threshold: float = Field(
         default=0.5, ge=0.0, le=1.0, description="Taxa de falha (50%)"
     )
@@ -60,9 +56,7 @@ class AnomalyDetector:
 
         # Check for performance degradation
         if self.config.enable_performance_detection:
-            perf_anomalies = await self._detect_performance_degradation(
-                run, historical_runs
-            )
+            perf_anomalies = await self._detect_performance_degradation(run, historical_runs)
             anomalies.extend(perf_anomalies)
 
         # Check for security issues
@@ -73,9 +67,7 @@ class AnomalyDetector:
         self.logger.info("anomaly_analysis_complete", count=len(anomalies))
         return anomalies
 
-    async def _detect_flaky_tests(
-        self, run: dict, historical_runs: list[dict]
-    ) -> list[Anomaly]:
+    async def _detect_flaky_tests(self, run: dict, historical_runs: list[dict]) -> list[Anomaly]:
         """Detecta testes flaky (que falham intermitentemente)."""
         anomalies: list[Anomaly] = []
 
@@ -134,9 +126,7 @@ class AnomalyDetector:
             return anomalies
 
         durations = [
-            r.get("duration_seconds", 0)
-            for r in historical_runs
-            if r.get("duration_seconds")
+            r.get("duration_seconds", 0) for r in historical_runs if r.get("duration_seconds")
         ]
         if not durations:
             return anomalies

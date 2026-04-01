@@ -13,9 +13,7 @@ class PipelineTriggerRequest(BaseModel):
 
     project_id: int | str = Field(..., description="ID ou path do projeto")
     ref: str = Field(default="main", description="Branch ou tag")
-    variables: dict[str, str] = Field(
-        default_factory=dict, description="Variáveis do pipeline"
-    )
+    variables: dict[str, str] = Field(default_factory=dict, description="Variáveis do pipeline")
 
 
 class PipelineTriggerResponse(BaseModel):
@@ -69,9 +67,7 @@ class GitLabClient:
             await self._client.aclose()
             self._client = None
 
-    async def trigger_pipeline(
-        self, request: PipelineTriggerRequest
-    ) -> PipelineTriggerResponse:
+    async def trigger_pipeline(self, request: PipelineTriggerRequest) -> PipelineTriggerResponse:
         """
         Dispara um pipeline do GitLab CI.
 
@@ -88,9 +84,7 @@ class GitLabClient:
         payload = {"ref": request.ref}
 
         if request.variables:
-            payload["variables"] = [
-                {"key": k, "value": v} for k, v in request.variables.items()
-            ]
+            payload["variables"] = [{"key": k, "value": v} for k, v in request.variables.items()]
 
         response = await client.post(url, json=payload)
 
@@ -209,9 +203,7 @@ class GitLabClient:
 
         return []
 
-    async def retry_pipeline_job(
-        self, project_id: int | str, job_id: int
-    ) -> dict | None:
+    async def retry_pipeline_job(self, project_id: int | str, job_id: int) -> dict | None:
         """
         Retenta um job de pipeline.
 
@@ -274,7 +266,6 @@ class GitLabClient:
         client = await self._get_client()
 
         url = f"/projects/{project_id}/repository/files/{file_path}"
-        params = {"ref": ref}
 
         response = await client.get(url)
 

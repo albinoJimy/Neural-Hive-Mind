@@ -1,5 +1,3 @@
-from typing import Dict, List, Optional
-
 import structlog
 
 from src.clients.consensus_engine_grpc_client import ConsensusEngineGrpcClient
@@ -30,10 +28,10 @@ class WeightRecalibrator:
     def __init__(
         self,
         settings=None,
-        consensus_client: Optional[ConsensusEngineGrpcClient] = None,
-        mongodb_client: Optional[MongoDBClient] = None,
-        redis_client: Optional[RedisClient] = None,
-        optimization_producer: Optional[OptimizationProducer] = None,
+        consensus_client: ConsensusEngineGrpcClient | None = None,
+        mongodb_client: MongoDBClient | None = None,
+        redis_client: RedisClient | None = None,
+        optimization_producer: OptimizationProducer | None = None,
         metrics=None,
     ):
         self.settings = settings or get_settings()
@@ -43,7 +41,9 @@ class WeightRecalibrator:
         self.optimization_producer = optimization_producer
         self.metrics = metrics
 
-    async def apply_weight_recalibration(self, hypothesis: OptimizationHypothesis) -> Optional[OptimizationEvent]:
+    async def apply_weight_recalibration(
+        self, hypothesis: OptimizationHypothesis
+    ) -> OptimizationEvent | None:
         """
         Aplicar recalibração de pesos baseada em hipótese.
 
@@ -68,7 +68,9 @@ class WeightRecalibrator:
             current_weights = await self.consensus_client.get_current_weights()
 
             if not current_weights:
-                logger.error("failed_to_get_current_weights", hypothesis_id=hypothesis.hypothesis_id)
+                logger.error(
+                    "failed_to_get_current_weights", hypothesis_id=hypothesis.hypothesis_id
+                )
                 return None
 
             # Calcular novos pesos
@@ -137,10 +139,14 @@ class WeightRecalibrator:
                 await self.redis_client.unlock_component("consensus-engine")
 
         except Exception as e:
-            logger.error("weight_recalibration_failed", hypothesis_id=hypothesis.hypothesis_id, error=str(e))
+            logger.error(
+                "weight_recalibration_failed", hypothesis_id=hypothesis.hypothesis_id, error=str(e)
+            )
             return None
 
-    def _calculate_proposed_weights(self, current_weights: Dict[str, float], adjustments: List[Dict]) -> Dict[str, float]:
+    def _calculate_proposed_weights(
+        self, current_weights: dict[str, float], adjustments: list[dict]
+    ) -> dict[str, float]:
         """
         Calcular pesos propostos baseado em ajustes.
 
@@ -174,8 +180,8 @@ class WeightRecalibrator:
     def _create_optimization_event(
         self,
         hypothesis: OptimizationHypothesis,
-        baseline_weights: Dict[str, float],
-        optimized_weights: Dict[str, float],
+        baseline_weights: dict[str, float],
+        optimized_weights: dict[str, float],
     ) -> OptimizationEvent:
         """
         Criar evento de otimização.
@@ -262,5 +268,9 @@ class WeightRecalibrator:
             return success
 
         except Exception as e:
-            logger.error("weight_recalibration_rollback_failed", optimization_id=optimization_id, error=str(e))
+            logger.error(
+                "weight_recalibration_rollback_failed",
+                optimization_id=optimization_id,
+                error=str(e),
+            )
             return False

@@ -4,8 +4,8 @@ Adapter base para execução de ferramentas MCP.
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Dict, Any, Optional, List
-from datetime import datetime
+from typing import Any, Dict, Optional
+
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -29,6 +29,7 @@ class ExecutionResult:
 
 class AdapterError(Exception):
     """Erro durante execução de adapter."""
+
     pass
 
 
@@ -45,7 +46,7 @@ class BaseToolAdapter(ABC):
         tool_name: str,
         command: str,
         parameters: Dict[str, Any],
-        context: Dict[str, Any]
+        context: Dict[str, Any],
     ) -> ExecutionResult:
         """
         Executa uma ferramenta.
@@ -75,12 +76,7 @@ class BaseToolAdapter(ABC):
         """
         pass
 
-    async def _log_execution(
-        self,
-        tool_name: str,
-        command: str,
-        result: ExecutionResult
-    ):
+    async def _log_execution(self, tool_name: str, command: str, result: ExecutionResult):
         """Log estruturado da execução."""
         self.logger.info(
             "tool_execution_completed",
@@ -88,5 +84,5 @@ class BaseToolAdapter(ABC):
             command=command,
             success=result.success,
             execution_time_ms=result.execution_time_ms,
-            exit_code=result.exit_code
+            exit_code=result.exit_code,
         )

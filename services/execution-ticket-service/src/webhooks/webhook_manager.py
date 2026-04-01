@@ -9,7 +9,6 @@ from typing import Dict, Optional
 
 import aiohttp
 import structlog
-from opentelemetry import trace
 from opentelemetry.propagate import inject
 
 from neural_hive_observability import get_tracer
@@ -25,7 +24,7 @@ tracer = get_tracer()
 def inject_context_to_headers(headers: Dict[str, str]) -> None:
     """
     Injeta contexto de trace OpenTelemetry em HTTP headers.
-    
+
     Args:
         headers: Dicionário de headers HTTP para injetar contexto
     """
@@ -57,9 +56,9 @@ class WebhookManager:
             self.workers.append(worker)
 
         logger.info(
-            f"Webhook manager started",
+            "Webhook manager started",
             workers=self.settings.webhook_worker_count,
-            queue_size=self.queue.maxsize
+            queue_size=self.queue.maxsize,
         )
 
     async def stop(self):
@@ -103,17 +102,17 @@ class WebhookManager:
             self.metrics.webhook_queue_size.set(self.queue.qsize())
 
             logger.debug(
-                f"Webhook enqueued",
+                "Webhook enqueued",
                 event_id=event.event_id,
                 ticket_id=event.ticket_id,
-                queue_size=self.queue.qsize()
+                queue_size=self.queue.qsize(),
             )
 
         except asyncio.QueueFull:
             logger.warning(
-                f"Webhook queue full, dropping event",
+                "Webhook queue full, dropping event",
                 event_id=event.event_id,
-                ticket_id=event.ticket_id
+                ticket_id=event.ticket_id,
             )
             self.metrics.webhooks_failed_total.inc()
 
@@ -143,10 +142,7 @@ class WebhookManager:
                 logger.info(f"Webhook worker {worker_id} cancelled")
                 break
             except Exception as e:
-                logger.error(
-                    f"Worker {worker_id} error: {e}",
-                    exc_info=True
-                )
+                logger.error(f"Worker {worker_id} error: {e}", exc_info=True)
 
         logger.info(f"Webhook worker {worker_id} stopped")
 
@@ -168,11 +164,11 @@ class WebhookManager:
 
             # Headers
             headers = {
-                'Content-Type': 'application/json',
-                'X-Neural-Hive-Event': event.event_type,
-                'X-Neural-Hive-Ticket-Id': event.ticket_id,
-                'X-Neural-Hive-Signature': signature,
-                'User-Agent': 'Neural-Hive-Execution-Ticket-Service/1.0'
+                "Content-Type": "application/json",
+                "X-Neural-Hive-Event": event.event_type,
+                "X-Neural-Hive-Ticket-Id": event.ticket_id,
+                "X-Neural-Hive-Signature": signature,
+                "User-Agent": "Neural-Hive-Execution-Ticket-Service/1.0",
             }
 
             with tracer.start_as_current_span("send_webhook") as span:
@@ -182,38 +178,36 @@ class WebhookManager:
 
                 # Enviar POST
                 async with self.http_session.post(
-                    str(event.webhook_url),
-                    json=payload,
-                    headers=headers
+                    str(event.webhook_url), json=payload, headers=headers
                 ) as response:
                     event.response_status_code = response.status
                     event.response_body = await response.text()
                     span.set_attribute("http.status_code", response.status)
 
                     if 200 <= response.status < 300:
-                        event.status = 'sent'
+                        event.status = "sent"
                         self.metrics.webhooks_sent_total.inc()
 
                         logger.info(
-                            f"Webhook sent successfully",
+                            "Webhook sent successfully",
                             event_id=event.event_id,
                             ticket_id=event.ticket_id,
                             url=event.webhook_url,
-                            status_code=response.status
+                            status_code=response.status,
                         )
                     else:
                         raise Exception(f"HTTP {response.status}: {event.response_body}")
 
         except Exception as e:
             event.error_message = str(e)
-            event.status = 'failed'
+            event.status = "failed"
 
             logger.error(
-                f"Webhook failed",
+                "Webhook failed",
                 event_id=event.event_id,
                 ticket_id=event.ticket_id,
                 url=event.webhook_url,
-                error=str(e)
+                error=str(e),
             )
 
             self.metrics.webhooks_failed_total.inc()
@@ -227,11 +221,11 @@ class WebhookManager:
                 delay_seconds = (event.next_retry_at - int(time.time() * 1000)) / 1000.0
 
                 logger.info(
-                    f"Scheduling webhook retry",
+                    "Scheduling webhook retry",
                     event_id=event.event_id,
                     ticket_id=event.ticket_id,
                     retry_count=event.retry_count,
-                    delay_seconds=delay_seconds
+                    delay_seconds=delay_seconds,
                 )
 
                 # Aguardar e re-enfileirar
@@ -239,10 +233,10 @@ class WebhookManager:
                 await self.enqueue_webhook(event)
             else:
                 logger.warning(
-                    f"Webhook max retries exceeded",
+                    "Webhook max retries exceeded",
                     event_id=event.event_id,
                     ticket_id=event.ticket_id,
-                    retry_count=event.retry_count
+                    retry_count=event.retry_count,
                 )
 
         finally:
@@ -267,9 +261,9 @@ class WebhookManager:
 
         # Calcular HMAC
         signature = hmac.new(
-            self.settings.jwt_secret_key.encode('utf-8'),
-            payload_str.encode('utf-8'),
-            hashlib.sha256
+            self.settings.jwt_secret_key.encode("utf-8"),
+            payload_str.encode("utf-8"),
+            hashlib.sha256,
         ).hexdigest()
 
         return signature

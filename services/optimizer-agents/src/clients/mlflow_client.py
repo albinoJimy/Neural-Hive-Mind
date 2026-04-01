@@ -1,9 +1,8 @@
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-import structlog
 import mlflow
+import structlog
 from mlflow.tracking import MlflowClient as MLflowTrackingClient
-from mlflow.entities import Metric, Param
 
 from src.config.settings import get_settings
 
@@ -15,8 +14,8 @@ class MLflowClient:
 
     def __init__(self, settings=None):
         self.settings = settings or get_settings()
-        self.client: Optional[MLflowTrackingClient] = None
-        self.experiment_id: Optional[str] = None
+        self.client: MLflowTrackingClient | None = None
+        self.experiment_id: str | None = None
 
     def connect(self):
         """Inicializar cliente MLflow."""
@@ -26,13 +25,19 @@ class MLflowClient:
 
             # Criar ou obter experiment
             try:
-                experiment = self.client.get_experiment_by_name(self.settings.mlflow_experiment_name)
+                experiment = self.client.get_experiment_by_name(
+                    self.settings.mlflow_experiment_name
+                )
                 if experiment:
                     self.experiment_id = experiment.experiment_id
                 else:
-                    self.experiment_id = self.client.create_experiment(self.settings.mlflow_experiment_name)
+                    self.experiment_id = self.client.create_experiment(
+                        self.settings.mlflow_experiment_name
+                    )
             except Exception:
-                self.experiment_id = self.client.create_experiment(self.settings.mlflow_experiment_name)
+                self.experiment_id = self.client.create_experiment(
+                    self.settings.mlflow_experiment_name
+                )
 
             logger.info(
                 "mlflow_connected",
@@ -44,10 +49,14 @@ class MLflowClient:
             logger.error("mlflow_connection_failed", error=str(e))
             raise
 
-    def start_experiment_run(self, experiment_name: str, run_name: str, tags: Optional[Dict] = None) -> str:
+    def start_experiment_run(
+        self, experiment_name: str, run_name: str, tags: dict | None = None
+    ) -> str:
         """Iniciar run de experimento."""
         try:
-            run = self.client.create_run(experiment_id=self.experiment_id, run_name=run_name, tags=tags or {})
+            run = self.client.create_run(
+                experiment_id=self.experiment_id, run_name=run_name, tags=tags or {}
+            )
 
             logger.info("mlflow_run_started", run_id=run.info.run_id, run_name=run_name)
             return run.info.run_id
@@ -55,7 +64,7 @@ class MLflowClient:
             logger.error("mlflow_run_start_failed", run_name=run_name, error=str(e))
             raise
 
-    def log_params(self, run_id: str, params: Dict[str, Any]):
+    def log_params(self, run_id: str, params: dict[str, Any]):
         """Logar parâmetros do experimento."""
         try:
             for key, value in params.items():
@@ -65,7 +74,7 @@ class MLflowClient:
         except Exception as e:
             logger.error("mlflow_params_log_failed", run_id=run_id, error=str(e))
 
-    def log_metrics(self, run_id: str, metrics: Dict[str, float], step: Optional[int] = None):
+    def log_metrics(self, run_id: str, metrics: dict[str, float], step: int | None = None):
         """Logar métricas."""
         try:
             for key, value in metrics.items():
@@ -80,8 +89,8 @@ class MLflowClient:
         try:
             # Salvar artefato localmente temporariamente
             import json
-            import tempfile
             import os
+            import tempfile
 
             with tempfile.TemporaryDirectory() as tmpdir:
                 file_path = os.path.join(tmpdir, os.path.basename(artifact_path))
@@ -98,7 +107,9 @@ class MLflowClient:
 
             logger.debug("mlflow_artifact_logged", run_id=run_id, path=artifact_path)
         except Exception as e:
-            logger.error("mlflow_artifact_log_failed", run_id=run_id, path=artifact_path, error=str(e))
+            logger.error(
+                "mlflow_artifact_log_failed", run_id=run_id, path=artifact_path, error=str(e)
+            )
 
     def end_run(self, run_id: str, status: str = "FINISHED"):
         """Finalizar run."""
@@ -108,7 +119,7 @@ class MLflowClient:
         except Exception as e:
             logger.error("mlflow_run_end_failed", run_id=run_id, error=str(e))
 
-    def register_policy_version(self, policy_name: str, policy_config: Dict, version: str) -> bool:
+    def register_policy_version(self, policy_name: str, policy_config: dict, version: str) -> bool:
         """Registrar versão de política no Model Registry."""
         try:
             # Criar run temporário para registrar política
@@ -127,13 +138,17 @@ class MLflowClient:
             # Finalizar run
             self.end_run(run_id, "FINISHED")
 
-            logger.info("policy_registered", policy_name=policy_name, version=version, run_id=run_id)
+            logger.info(
+                "policy_registered", policy_name=policy_name, version=version, run_id=run_id
+            )
             return True
         except Exception as e:
-            logger.error("policy_registration_failed", policy_name=policy_name, version=version, error=str(e))
+            logger.error(
+                "policy_registration_failed", policy_name=policy_name, version=version, error=str(e)
+            )
             return False
 
-    def get_policy_version(self, policy_name: str, version: str) -> Optional[Dict]:
+    def get_policy_version(self, policy_name: str, version: str) -> dict | None:
         """Recuperar versão de política."""
         try:
             # Buscar run com tags específicas
@@ -153,10 +168,14 @@ class MLflowClient:
             logger.warning("policy_not_found", policy_name=policy_name, version=version)
             return None
         except Exception as e:
-            logger.error("policy_retrieval_failed", policy_name=policy_name, version=version, error=str(e))
+            logger.error(
+                "policy_retrieval_failed", policy_name=policy_name, version=version, error=str(e)
+            )
             return None
 
-    def compare_runs(self, run_ids: List[str], metric_names: List[str]) -> Dict[str, Dict[str, float]]:
+    def compare_runs(
+        self, run_ids: list[str], metric_names: list[str]
+    ) -> dict[str, dict[str, float]]:
         """Comparar runs de experimentos."""
         try:
             comparison = {}
@@ -175,7 +194,9 @@ class MLflowClient:
             logger.error("runs_comparison_failed", error=str(e))
             return {}
 
-    def get_best_run(self, experiment_name: str, metric_name: str, maximize: bool = True) -> Optional[str]:
+    def get_best_run(
+        self, experiment_name: str, metric_name: str, maximize: bool = True
+    ) -> str | None:
         """Obter melhor run por métrica."""
         try:
             # Buscar runs ordenados pela métrica

@@ -5,13 +5,13 @@ Coordena multiple priority queues e fornece interface unificada
 para enqueue/dequeue de tickets com priorização automática.
 """
 
+from typing import Any
+
 import structlog
-from typing import Dict, Optional, Any, List
 
-from src.scheduler.priority_queues import PriorityQueues, PriorityLevel
-from src.scheduler.priority_calculator import PriorityCalculator
 from src.config.settings import OrchestratorSettings
-
+from src.scheduler.priority_calculator import PriorityCalculator
+from src.scheduler.priority_queues import PriorityLevel, PriorityQueues
 
 logger = structlog.get_logger(__name__)
 
@@ -37,13 +37,9 @@ class QueueManager:
         self.config = config
         self.priority_queues = PriorityQueues()
         self.priority_calculator = PriorityCalculator(config)
-        self.logger = logger.bind(component='queue_manager')
+        self.logger = logger.bind(component="queue_manager")
 
-    def enqueue_ticket(
-        self,
-        ticket: Dict[str, Any],
-        priority_score: Optional[float] = None
-    ) -> str:
+    def enqueue_ticket(self, ticket: dict[str, Any], priority_score: float | None = None) -> str:
         """
         Enfileira ticket calculando prioridade automaticamente.
 
@@ -62,18 +58,15 @@ class QueueManager:
         queue_name = self.priority_queues.enqueue(ticket, priority_score)
 
         self.logger.info(
-            'ticket_enqueued',
-            ticket_id=ticket.get('ticket_id', 'unknown'),
+            "ticket_enqueued",
+            ticket_id=ticket.get("ticket_id", "unknown"),
             queue=queue_name,
-            priority_score=priority_score
+            priority_score=priority_score,
         )
 
         return queue_name
 
-    async def get_next_ticket(
-        self,
-        queue_name: Optional[str] = None
-    ) -> Optional[Dict[str, Any]]:
+    async def get_next_ticket(self, queue_name: str | None = None) -> dict[str, Any] | None:
         """
         Retorna próximo ticket usando weighted round-robin.
 
@@ -87,14 +80,14 @@ class QueueManager:
 
         if ticket:
             self.logger.info(
-                'next_ticket_retrieved',
-                ticket_id=ticket.get('ticket_id', 'unknown'),
-                queue=queue_name or 'round_robin'
+                "next_ticket_retrieved",
+                ticket_id=ticket.get("ticket_id", "unknown"),
+                queue=queue_name or "round_robin",
             )
 
         return ticket
 
-    def peek_queue(self, queue_name: str) -> Optional[Dict[str, Any]]:
+    def peek_queue(self, queue_name: str) -> dict[str, Any] | None:
         """
         Retorna próximo ticket de uma fila sem remover.
 
@@ -106,7 +99,7 @@ class QueueManager:
         """
         return self.priority_queues.peek(queue_name)
 
-    def get_queue_sizes(self) -> Dict[str, int]:
+    def get_queue_sizes(self) -> dict[str, int]:
         """
         Retorna tamanho de todas as filas.
 
@@ -157,7 +150,7 @@ class QueueManager:
         """
         return self.priority_queues.get_total_pending()
 
-    def calculate_priority(self, ticket: Dict[str, Any]) -> float:
+    def calculate_priority(self, ticket: dict[str, Any]) -> float:
         """
         Calcula priority_score para um ticket.
 
@@ -169,11 +162,7 @@ class QueueManager:
         """
         return self.priority_calculator.calculate_priority_score(ticket)
 
-    def map_risk_to_priority(
-        self,
-        risk_band: str,
-        sla_urgency: float = 0.0
-    ) -> PriorityLevel:
+    def map_risk_to_priority(self, risk_band: str, sla_urgency: float = 0.0) -> PriorityLevel:
         """
         Mapeia risk_band e sla_urgency para PriorityLevel.
 
@@ -187,10 +176,7 @@ class QueueManager:
         return self.priority_queues.map_risk_band_to_queue(risk_band, sla_urgency)
 
     def enqueue_by_risk(
-        self,
-        ticket: Dict[str, Any],
-        risk_band: str,
-        sla_urgency: float = 0.0
+        self, ticket: dict[str, Any], risk_band: str, sla_urgency: float = 0.0
     ) -> str:
         """
         Enfileira ticket baseado em risk_band e sla_urgency.
@@ -213,16 +199,16 @@ class QueueManager:
         self.priority_queues.queues[level].append(ticket)
 
         self.logger.info(
-            'ticket_enqueued_by_risk',
-            ticket_id=ticket.get('ticket_id', 'unknown'),
+            "ticket_enqueued_by_risk",
+            ticket_id=ticket.get("ticket_id", "unknown"),
             queue=level.value,
             risk_band=risk_band,
-            sla_urgency=sla_urgency
+            sla_urgency=sla_urgency,
         )
 
         return level.value
 
-    def get_queue_statistics(self) -> Dict[str, Any]:
+    def get_queue_statistics(self) -> dict[str, Any]:
         """
         Retorna estatísticas detalhadas das filas.
 
@@ -233,29 +219,28 @@ class QueueManager:
         total = self.get_total_pending()
 
         return {
-            'total_pending': total,
-            'queues': {
-                'CRITICAL': {
-                    'size': sizes.get('CRITICAL', 0),
-                    'percentage': round(sizes.get('CRITICAL', 0) / total * 100, 1) if total > 0 else 0
+            "total_pending": total,
+            "queues": {
+                "CRITICAL": {
+                    "size": sizes.get("CRITICAL", 0),
+                    "percentage": round(sizes.get("CRITICAL", 0) / total * 100, 1)
+                    if total > 0
+                    else 0,
                 },
-                'HIGH': {
-                    'size': sizes.get('HIGH', 0),
-                    'percentage': round(sizes.get('HIGH', 0) / total * 100, 1) if total > 0 else 0
+                "HIGH": {
+                    "size": sizes.get("HIGH", 0),
+                    "percentage": round(sizes.get("HIGH", 0) / total * 100, 1) if total > 0 else 0,
                 },
-                'NORMAL': {
-                    'size': sizes.get('NORMAL', 0),
-                    'percentage': round(sizes.get('NORMAL', 0) / total * 100, 1) if total > 0 else 0
+                "NORMAL": {
+                    "size": sizes.get("NORMAL", 0),
+                    "percentage": round(sizes.get("NORMAL", 0) / total * 100, 1)
+                    if total > 0
+                    else 0,
                 },
-                'LOW': {
-                    'size': sizes.get('LOW', 0),
-                    'percentage': round(sizes.get('LOW', 0) / total * 100, 1) if total > 0 else 0
-                }
+                "LOW": {
+                    "size": sizes.get("LOW", 0),
+                    "percentage": round(sizes.get("LOW", 0) / total * 100, 1) if total > 0 else 0,
+                },
             },
-            'weights': {
-                'CRITICAL': 4,
-                'HIGH': 3,
-                'NORMAL': 2,
-                'LOW': 1
-            }
+            "weights": {"CRITICAL": 4, "HIGH": 3, "NORMAL": 2, "LOW": 1},
         }

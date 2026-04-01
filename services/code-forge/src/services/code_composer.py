@@ -1,16 +1,17 @@
-import uuid
 import hashlib
+import uuid
 from datetime import datetime
 from typing import Optional
+
 import structlog
 
-from ..models.pipeline_context import PipelineContext
-from ..models.artifact import CodeForgeArtifact, GenerationMethod
-from ..types.artifact_types import ArtifactCategory
-from ..clients.mongodb_client import MongoDBClient
+from ..clients.analyst_agents_client import AnalystAgentsClient
 from ..clients.llm_client import LLMClient
 from ..clients.mcp_tool_catalog_client import MCPToolCatalogClient
-from ..clients.analyst_agents_client import AnalystAgentsClient
+from ..clients.mongodb_client import MongoDBClient
+from ..models.artifact import CodeForgeArtifact, GenerationMethod
+from ..models.pipeline_context import PipelineContext
+from ..types.artifact_types import ArtifactCategory
 from .iac_generator import IaCGenerator
 
 logger = structlog.get_logger()
@@ -24,7 +25,7 @@ class CodeComposer:
         mongodb_client: MongoDBClient,
         llm_client: Optional[LLMClient] = None,
         analyst_client: Optional[AnalystAgentsClient] = None,
-        mcp_client: Optional[MCPToolCatalogClient] = None
+        mcp_client: Optional[MCPToolCatalogClient] = None,
     ):
         self.mongodb_client = mongodb_client
         self.llm_client = llm_client
@@ -42,51 +43,48 @@ class CodeComposer:
         template = context.selected_template
         ticket = context.ticket
 
-        logger.info('code_composition_started', template_id=template.template_id)
+        logger.info("code_composition_started", template_id=template.template_id)
 
         # === INTEGRAÇÃO MCP: Determinar método de geração ===
-        generation_method_str = getattr(context, 'generation_method', None)
+        generation_method_str = getattr(context, "generation_method", None)
         if generation_method_str:
             generation_method_str = generation_method_str.upper()
         if not generation_method_str or generation_method_str not in GenerationMethod.__members__:
-            generation_method_str = 'TEMPLATE'
+            generation_method_str = "TEMPLATE"
 
         # Validar e normalizar generation_method
         generation_method_enum = GenerationMethod.__members__.get(
-            generation_method_str,
-            GenerationMethod.TEMPLATE
+            generation_method_str, GenerationMethod.TEMPLATE
         )
 
         if generation_method_str not in GenerationMethod.__members__:
             logger.warning(
-                'invalid_generation_method_using_fallback',
+                "invalid_generation_method_using_fallback",
                 requested_method=generation_method_str,
-                fallback_method='TEMPLATE'
+                fallback_method="TEMPLATE",
             )
-            generation_method_str = 'TEMPLATE'
+            generation_method_str = "TEMPLATE"
 
-        if generation_method_str == 'LLM' and self.llm_client:
+        if generation_method_str == "LLM" and self.llm_client:
             code_content, confidence_score, effective_method = await self._generate_via_llm(context)
             generation_method_enum = GenerationMethod.__members__.get(
-                effective_method,
-                GenerationMethod.LLM
+                effective_method, GenerationMethod.LLM
             )
-        elif generation_method_str == 'HYBRID' and self.llm_client:
+        elif generation_method_str == "HYBRID" and self.llm_client:
             code_content, confidence_score = await self._generate_hybrid(context)
-            effective_method = 'HYBRID'
-        elif generation_method_str == 'HEURISTIC':
+            effective_method = "HYBRID"
+        elif generation_method_str == "HEURISTIC":
             code_content = self._generate_heuristic(ticket.parameters)
             confidence_score = 0.78
-            effective_method = 'HEURISTIC'
+            effective_method = "HEURISTIC"
             generation_method_enum = GenerationMethod.__members__.get(
-                'HEURISTIC',
-                GenerationMethod.HEURISTIC
+                "HEURISTIC", GenerationMethod.HEURISTIC
             )
         else:
             # Fallback para template (método original)
             code_content = self._generate_python_microservice(ticket.parameters)
             confidence_score = 0.85
-            effective_method = 'TEMPLATE'
+            effective_method = "TEMPLATE"
             generation_method_enum = GenerationMethod.TEMPLATE
 
         # Calcular hash
@@ -97,41 +95,40 @@ class CodeComposer:
         await self.mongodb_client.save_artifact_content(artifact_id, code_content)
 
         # Preparar metadata com valores string (CodeForgeArtifact.metadata é Dict[str, str])
-        mcp_selection_id = getattr(context, 'mcp_selection_id', None) or ''
-        selected_tools = getattr(context, 'selected_tools', [])
-        mcp_tools_used = ','.join(t.get('tool_name', '') for t in selected_tools if t.get('tool_name'))
+        mcp_selection_id = getattr(context, "mcp_selection_id", None) or ""
+        selected_tools = getattr(context, "selected_tools", [])
+        mcp_tools_used = ",".join(
+            t.get("tool_name", "") for t in selected_tools if t.get("tool_name")
+        )
 
         # Criar artefato
         artifact = CodeForgeArtifact(
             artifact_id=artifact_id,
             ticket_id=ticket.ticket_id,
-            plan_id=getattr(ticket, 'plan_id', None),
-            intent_id=getattr(ticket, 'intent_id', None),
-            decision_id=getattr(ticket, 'decision_id', None),
-            correlation_id=getattr(ticket, 'correlation_id', str(uuid.uuid4())),
+            plan_id=getattr(ticket, "plan_id", None),
+            intent_id=getattr(ticket, "intent_id", None),
+            decision_id=getattr(ticket, "decision_id", None),
+            correlation_id=getattr(ticket, "correlation_id", str(uuid.uuid4())),
             trace_id=context.trace_id,
             span_id=context.span_id,
             artifact_type=ArtifactCategory.CODE,
-            language=ticket.parameters.get('language', 'python'),
+            language=ticket.parameters.get("language", "python"),
             template_id=template.template_id,
             confidence_score=confidence_score,
             generation_method=generation_method_enum,
-            content_uri=f'mongodb://artifacts/{artifact_id}',
+            content_uri=f"mongodb://artifacts/{artifact_id}",
             content_hash=content_hash,
             created_at=datetime.now(),
-            metadata={
-                'mcp_selection_id': mcp_selection_id,
-                'mcp_tools_used': mcp_tools_used
-            }
+            metadata={"mcp_selection_id": mcp_selection_id, "mcp_tools_used": mcp_tools_used},
         )
 
         context.add_artifact(artifact)
         logger.info(
-            'artifact_generated',
+            "artifact_generated",
             artifact_id=artifact_id,
             type=artifact.artifact_type,
             generation_method=generation_method_str,
-            confidence=confidence_score
+            confidence=confidence_score,
         )
 
     async def _generate_via_llm(self, context: PipelineContext) -> tuple[str, float, str]:
@@ -156,27 +153,25 @@ class CodeComposer:
 
         # Gerar via LLM
         constraints = {
-            'language': ticket.parameters.get('language', 'python'),
-            'framework': ticket.parameters.get('framework', ''),
-            'patterns': ticket.parameters.get('patterns', []),
-            'max_lines': ticket.parameters.get('max_lines', 1000)
+            "language": ticket.parameters.get("language", "python"),
+            "framework": ticket.parameters.get("framework", ""),
+            "patterns": ticket.parameters.get("patterns", []),
+            "max_lines": ticket.parameters.get("max_lines", 1000),
         }
 
         llm_result = await self.llm_client.generate_code(
-            prompt=prompt,
-            constraints=constraints,
-            temperature=0.2
+            prompt=prompt, constraints=constraints, temperature=0.2
         )
 
         if not llm_result:
             # Fallback para heurística se LLM falhar
-            logger.warning('llm_generation_failed_using_heuristic', ticket_id=ticket.ticket_id)
-            return self._generate_heuristic(ticket.parameters), 0.75, 'HEURISTIC'
+            logger.warning("llm_generation_failed_using_heuristic", ticket_id=ticket.ticket_id)
+            return self._generate_heuristic(ticket.parameters), 0.75, "HEURISTIC"
 
-        code_content = llm_result.get('code', '')
-        confidence_score = llm_result.get('confidence_score', 0.7)
+        code_content = llm_result.get("code", "")
+        confidence_score = llm_result.get("confidence_score", 0.7)
 
-        return code_content, confidence_score, 'LLM'
+        return code_content, confidence_score, "LLM"
 
     async def _generate_hybrid(self, context: PipelineContext) -> tuple[str, float]:
         """
@@ -206,24 +201,22 @@ Add:
 Maintain the existing structure."""
 
         constraints = {
-            'language': context.ticket.parameters.get('language', 'python'),
-            'framework': context.ticket.parameters.get('framework', ''),
-            'patterns': ['error_handling', 'logging', 'metrics'],
-            'max_lines': 2000
+            "language": context.ticket.parameters.get("language", "python"),
+            "framework": context.ticket.parameters.get("framework", ""),
+            "patterns": ["error_handling", "logging", "metrics"],
+            "max_lines": 2000,
         }
 
         llm_result = await self.llm_client.generate_code(
-            prompt=enhancement_prompt,
-            constraints=constraints,
-            temperature=0.3
+            prompt=enhancement_prompt, constraints=constraints, temperature=0.3
         )
 
         if not llm_result:
             # Fallback para código base se enriquecimento falhar
             return base_code, 0.85
 
-        enhanced_code = llm_result.get('code', base_code)
-        llm_confidence = llm_result.get('confidence_score', 0.7)
+        enhanced_code = llm_result.get("code", base_code)
+        llm_confidence = llm_result.get("confidence_score", 0.7)
 
         # Confidence híbrido (média ponderada)
         hybrid_confidence = (0.6 * llm_confidence) + (0.4 * 0.85)  # 0.85 = template confidence
@@ -254,38 +247,33 @@ Maintain the existing structure."""
             similar_templates = []
             if embedding:
                 similar_templates = await self.analyst_client.find_similar_templates(
-                    embedding=embedding,
-                    top_k=5
+                    embedding=embedding, top_k=5
                 )
             else:
                 logger.warning(
-                    'embedding_generation_failed_skipping_template_search',
-                    ticket_id=ticket.ticket_id
+                    "embedding_generation_failed_skipping_template_search",
+                    ticket_id=ticket.ticket_id,
                 )
 
             # Buscar padrões arquiteturais
             architectural_patterns = await self.analyst_client.get_architectural_patterns(
-                domain=ticket.parameters.get('domain', 'TECHNICAL')
+                domain=ticket.parameters.get("domain", "TECHNICAL")
             )
 
             logger.info(
-                'rag_context_built',
+                "rag_context_built",
                 ticket_id=ticket.ticket_id,
                 similar_templates_count=len(similar_templates),
-                patterns_count=len(architectural_patterns)
+                patterns_count=len(architectural_patterns),
             )
 
             return {
                 "similar_templates": similar_templates,
-                "architectural_patterns": architectural_patterns
+                "architectural_patterns": architectural_patterns,
             }
 
         except Exception as e:
-            logger.error(
-                'rag_context_failed',
-                ticket_id=ticket.ticket_id,
-                error=str(e)
-            )
+            logger.error("rag_context_failed", ticket_id=ticket.ticket_id, error=str(e))
             return {"similar_templates": [], "architectural_patterns": []}
 
     def _build_llm_prompt(self, ticket, rag_context: dict) -> str:
@@ -299,17 +287,19 @@ Maintain the existing structure."""
         Returns:
             Prompt estruturado para LLM
         """
-        similar_templates = rag_context.get('similar_templates', [])
-        architectural_patterns = rag_context.get('architectural_patterns', [])
+        similar_templates = rag_context.get("similar_templates", [])
+        architectural_patterns = rag_context.get("architectural_patterns", [])
 
         # Construir seção de templates similares
         templates_section = ""
         if similar_templates:
             templates_section = "\nSimilar Templates (for reference):\n"
-            templates_section += "\n".join([
-                f"- {t.get('text', 'Unknown')[:100]}... (similarity: {t.get('similarity', 0.0):.2f})"
-                for t in similar_templates[:3]
-            ])
+            templates_section += "\n".join(
+                [
+                    f"- {t.get('text', 'Unknown')[:100]}... (similarity: {t.get('similarity', 0.0):.2f})"
+                    for t in similar_templates[:3]
+                ]
+            )
 
         # Construir seção de padrões arquiteturais
         patterns_section = ""
@@ -348,25 +338,25 @@ Generate production-ready code with:
         Returns:
             Código gerado via heurística
         """
-        artifact_type = parameters.get('artifact_type', 'MICROSERVICE').upper()
-        language = parameters.get('language', 'python').lower()
-        service_name = parameters.get('service_name', 'my-service')
+        artifact_type = parameters.get("artifact_type", "MICROSERVICE").upper()
+        language = parameters.get("language", "python").lower()
+        service_name = parameters.get("service_name", "my-service")
 
         logger.info(
-            'heuristic_generation_started',
+            "heuristic_generation_started",
             artifact_type=artifact_type,
             language=language,
-            service_name=service_name
+            service_name=service_name,
         )
 
         # Selecionar gerador baseado em tipo e linguagem
         code = self._select_generator(artifact_type, language, parameters)
 
         logger.info(
-            'heuristic_generation_completed',
+            "heuristic_generation_completed",
             artifact_type=artifact_type,
             language=language,
-            code_length=len(code)
+            code_length=len(code),
         )
 
         return code
@@ -385,33 +375,33 @@ Generate production-ready code with:
         """
         # Mapeamento tipo -> função geradora
         type_generators = {
-            'MICROSERVICE': {
-                'python': self._generate_python_microservice,
-                'javascript': self._generate_javascript_microservice,
-                'typescript': self._generate_typescript_microservice,
-                'go': self._generate_go_microservice,
-                'java': self._generate_java_microservice,
-                'rust': self._generate_rust_microservice,
+            "MICROSERVICE": {
+                "python": self._generate_python_microservice,
+                "javascript": self._generate_javascript_microservice,
+                "typescript": self._generate_typescript_microservice,
+                "go": self._generate_go_microservice,
+                "java": self._generate_java_microservice,
+                "rust": self._generate_rust_microservice,
             },
-            'LIBRARY': {
-                'python': self._generate_python_library,
-                'javascript': self._generate_javascript_library,
-                'typescript': self._generate_typescript_library,
-                'go': self._generate_go_library,
+            "LIBRARY": {
+                "python": self._generate_python_library,
+                "javascript": self._generate_javascript_library,
+                "typescript": self._generate_typescript_library,
+                "go": self._generate_go_library,
             },
-            'SCRIPT': {
-                'python': self._generate_python_script,
-                'javascript': self._generate_javascript_script,
-                'bash': self._generate_bash_script,
+            "SCRIPT": {
+                "python": self._generate_python_script,
+                "javascript": self._generate_javascript_script,
+                "bash": self._generate_bash_script,
             },
-            'IAC_TERRAFORM': {
-                'hcl': self._generate_terraform_module,
+            "IAC_TERRAFORM": {
+                "hcl": self._generate_terraform_module,
             },
-            'IAC_HELM': {
-                'yaml': self._generate_helm_chart,
+            "IAC_HELM": {
+                "yaml": self._generate_helm_chart,
             },
-            'POLICY_OPA': {
-                'rego': self._generate_opa_policy,
+            "POLICY_OPA": {
+                "rego": self._generate_opa_policy,
             },
         }
 
@@ -424,15 +414,15 @@ Generate production-ready code with:
 
         # Fallback para gerador Python se linguagem não suportada
         logger.warning(
-            'language_not_supported_fallback_to_python',
+            "language_not_supported_fallback_to_python",
             artifact_type=artifact_type,
-            language=language
+            language=language,
         )
         return self._generate_python_microservice(parameters)
 
     def _generate_python_library(self, params: dict) -> str:
         """Gera biblioteca Python baseada em template"""
-        library_name = params.get('service_name', 'my-lib')
+        library_name = params.get("service_name", "my-lib")
         return f'''# {library_name} - Generated by Neural Code Forge
 """
 {library_name} - A Python library
@@ -454,7 +444,7 @@ class {library_name.replace('-', '_').title()}:
 
     def _generate_python_script(self, params: dict) -> str:
         """Gera script Python baseado em template"""
-        script_name = params.get('service_name', 'my-script')
+        script_name = params.get("service_name", "my-script")
         return f'''#!/usr/bin/env python3
 # {script_name} - Generated by Neural Code Forge
 """
@@ -480,8 +470,8 @@ if __name__ == "__main__":
 
     def _generate_python_microservice(self, params: dict) -> str:
         """Gera código Python baseado em template"""
-        service_name = params.get('service_name', 'my-service')
-        description = params.get('description', 'Generated microservice')
+        service_name = params.get("service_name", "my-service")
+        description = params.get("description", "Generated microservice")
         return f'''# {service_name} - Generated by Neural Code Forge
 """
 {description}
@@ -519,9 +509,9 @@ async def root():
 
     def _generate_javascript_microservice(self, params: dict) -> str:
         """Gera microservício em JavaScript/Node.js"""
-        service_name = params.get('service_name', 'my-service')
-        description = params.get('description', 'Generated microservice')
-        return f'''// {service_name} - Generated by Neural Code Forge
+        service_name = params.get("service_name", "my-service")
+        description = params.get("description", "Generated microservice")
+        return f"""// {service_name} - Generated by Neural Code Forge
 /**
  * {description}
  */
@@ -571,13 +561,13 @@ if (require.main === module) {{
 }}
 
 module.exports = app;
-'''
+"""
 
     def _generate_typescript_microservice(self, params: dict) -> str:
         """Gera microservício em TypeScript/Node.js"""
-        service_name = params.get('service_name', 'my-service')
-        className = service_name.replace('-', '').replace('_', '').title().replace(' ', '')
-        return f'''// {service_name} - Generated by Neural Code Forge
+        service_name = params.get("service_name", "my-service")
+        className = service_name.replace("-", "").replace("_", "").title().replace(" ", "")
+        return f"""// {service_name} - Generated by Neural Code Forge
 /**
  * Generated TypeScript microservice
  */
@@ -661,13 +651,13 @@ if (require.main === module) {{
 }}
 
 export default {className}App;
-'''
+"""
 
     def _generate_go_microservice(self, params: dict) -> str:
         """Gera microservício em Go"""
-        service_name = params.get('service_name', 'my-service')
-        module_name = service_name.replace('-', '_')
-        return f'''// Package main - {service_name} - Generated by Neural Code Forge
+        service_name = params.get("service_name", "my-service")
+        service_name.replace("-", "_")
+        return f"""// Package main - {service_name} - Generated by Neural Code Forge
 // {params.get('description', 'Generated microservice')}
 
 package main
@@ -726,14 +716,14 @@ func main() {{
 		log.Fatalf("Failed to start server: %v", err)
 	}}
 }}
-'''
+"""
 
     def _generate_java_microservice(self, params: dict) -> str:
         """Gera microservício em Java (Spring Boot)"""
-        service_name = params.get('service_name', 'my-service')
-        package_name = service_name.replace('-', '.')
-        class_name = ''.join(word.title() for word in service_name.replace('-', ' ').split())
-        return f'''// {service_name} - Generated by Neural Code Forge
+        service_name = params.get("service_name", "my-service")
+        package_name = service_name.replace("-", ".")
+        class_name = "".join(word.title() for word in service_name.replace("-", " ").split())
+        return f"""// {service_name} - Generated by Neural Code Forge
 package com.neuralhive.{package_name};
 
 import org.springframework.boot.SpringApplication;
@@ -773,12 +763,12 @@ public class {class_name}Application {{
         return ResponseEntity.ok(response);
     }}
 }}
-'''
+"""
 
     def _generate_rust_microservice(self, params: dict) -> str:
         """Gera microservício em Rust"""
-        service_name = params.get('service_name', 'my-service')
-        return f'''// {service_name} - Generated by Neural Code Forge
+        service_name = params.get("service_name", "my-service")
+        return f"""// {service_name} - Generated by Neural Code Forge
 // {params.get('description', 'Generated microservice')}
 
 use actix_web::{{web, App, HttpResponse, HttpServer, Responder}};
@@ -831,12 +821,12 @@ async fn main() -> std::io::Result<()> {{
     .run()
     .await
 }}
-'''
+"""
 
     def _generate_javascript_library(self, params: dict) -> str:
         """Gera biblioteca JavaScript"""
-        lib_name = params.get('service_name', 'my-lib')
-        return f'''// {lib_name} - Generated by Neural Code Forge
+        lib_name = params.get("service_name", "my-lib")
+        return f"""// {lib_name} - Generated by Neural Code Forge
 /**
  * {params.get('description', 'Generated JavaScript library')}
  */
@@ -874,13 +864,13 @@ class {lib_name.replace('-', '').replace('_', '').title().replace(' ', '')} {{
 
 module.exports = {lib_name.replace('-', '')};
 module.exports.default = {lib_name.replace('-', '')};
-'''
+"""
 
     def _generate_typescript_library(self, params: dict) -> str:
         """Gera biblioteca TypeScript"""
-        lib_name = params.get('service_name', 'my-lib')
-        className = lib_name.replace('-', '').replace('_', '').title().replace(' ', '')
-        return f'''// {lib_name} - Generated by Neural Code Forge
+        lib_name = params.get("service_name", "my-lib")
+        className = lib_name.replace("-", "").replace("_", "").title().replace(" ", "")
+        return f"""// {lib_name} - Generated by Neural Code Forge
 /**
  * {params.get('description', 'Generated TypeScript library')}
  */
@@ -923,13 +913,13 @@ export class {className} {{
 }}
 
 export default {className};
-'''
+"""
 
     def _generate_go_library(self, params: dict) -> str:
         """Gera biblioteca Go"""
-        lib_name = params.get('service_name', 'my-lib')
-        package_name = lib_name.replace('-', '_')
-        return f'''// Package {package_name} - {params.get('description', 'Generated Go library')}
+        lib_name = params.get("service_name", "my-lib")
+        package_name = lib_name.replace("-", "_")
+        return f"""// Package {package_name} - {params.get('description', 'Generated Go library')}
 // Generated by Neural Code Forge
 
 package {package_name}
@@ -971,12 +961,12 @@ func (l *Library) Process(data interface{{}}) interface{{}} {{
 func (l *Library) Transform(data interface{{}}, fn func(interface{{}}) interface{{}}) interface{{}} {{
 	return fn(data)
 }}
-'''
+"""
 
     def _generate_javascript_script(self, params: dict) -> str:
         """Gera script JavaScript"""
-        script_name = params.get('service_name', 'my-script')
-        return f'''#!/usr/bin/env node
+        script_name = params.get("service_name", "my-script")
+        return f"""#!/usr/bin/env node
 // {script_name} - Generated by Neural Code Forge
 /**
  * {params.get('description', 'Generated script')}
@@ -1023,12 +1013,12 @@ main().catch(err => {{
   logger.error('Script failed', {{ error: err.message }});
   process.exit(1);
 }});
-'''
+"""
 
     def _generate_bash_script(self, params: dict) -> str:
         """Gera script Bash"""
-        script_name = params.get('service_name', 'my-script')
-        return f'''#!/bin/bash
+        script_name = params.get("service_name", "my-script")
+        return f"""#!/bin/bash
 # {script_name} - Generated by Neural Code Forge
 # {params.get('description', 'Generated script')}
 
@@ -1064,30 +1054,30 @@ main() {{
 
 # Run main
 main "$@"
-'''
+"""
 
     def _generate_terraform_module(self, params: dict) -> str:
         """Gera módulo Terraform usando IaCGenerator avançado."""
-        provider = params.get('provider', 'aws')
-        resources = params.get('resources', ['s3_bucket', 'dynamodb_table'])
+        provider = params.get("provider", "aws")
+        resources = params.get("resources", ["s3_bucket", "dynamodb_table"])
 
         return self.iac_generator.generate_terraform_module(
-            params=params,
-            provider=provider,
-            resources=resources
+            params=params, provider=provider, resources=resources
         )
 
     def _generate_helm_chart(self, params: dict) -> str:
         """Gera Helm Chart usando IaCGenerator avançado."""
-        templates = params.get('templates', ['deployment', 'service', 'configmap', 'hpa', 'ingress', 'serviceaccount'])
+        templates = params.get(
+            "templates", ["deployment", "service", "configmap", "hpa", "ingress", "serviceaccount"]
+        )
         chart_files = self.iac_generator.generate_helm_chart(params, templates)
         # Retorna o Chart.yaml (representativo)
         return chart_files.get("Chart.yaml", "# Helm Chart\n")
 
     def _generate_opa_policy(self, params: dict) -> str:
         """Gera política OPA/Rego"""
-        policy_name = params.get('service_name', 'my-policy')
-        return f'''# OPA Policy - {policy_name}
+        policy_name = params.get("service_name", "my-policy")
+        return f"""# OPA Policy - {policy_name}
 # Generated by Neural Code Forge
 # {params.get('description', 'Generated OPA policy')}
 
@@ -1138,4 +1128,4 @@ allowed_actions = {{
   "user": ["read", "update"],
   "guest": ["read"],
 }}
-'''
+"""

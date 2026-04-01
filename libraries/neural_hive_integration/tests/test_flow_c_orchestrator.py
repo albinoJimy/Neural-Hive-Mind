@@ -4,7 +4,7 @@ Testes unitários para FlowCOrchestrator.
 
 import pytest
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from neural_hive_integration.orchestration.flow_c_orchestrator import FlowCOrchestrator
@@ -86,7 +86,7 @@ async def test_execute_flow_c_success(orchestrator, sample_decision, mock_worker
         "task_type": "code_generation",
         "required_capabilities": ["python", "fastapi"],
         "payload": {"template_id": "microservice", "parameters": {}, "ticket_id": "ticket-001"},
-        "sla_deadline": (datetime.utcnow() + timedelta(hours=4)).isoformat(),
+        "sla_deadline": (datetime.now(timezone.utc) + timedelta(hours=4)).isoformat(),
         "priority": 5
     }
     orchestrator.ticket_client.create_ticket = AsyncMock(return_value=mock_ticket)
@@ -163,7 +163,7 @@ async def test_execute_c2_generate_tickets(orchestrator, sample_decision):
     context.plan_id = "plan-456"
     context.correlation_id = "corr-abc"
     context.priority = 5
-    context.sla_deadline = datetime.utcnow() + timedelta(hours=4)
+    context.sla_deadline = datetime.now(timezone.utc) + timedelta(hours=4)
 
     workflow_id, tickets = await orchestrator._execute_c2_generate_tickets(sample_decision, context)
 
@@ -219,7 +219,7 @@ async def test_execute_c5_monitor_execution_timeout(orchestrator):
     tickets = [{"ticket_id": "ticket-001"}]
     context = MagicMock()
     # SLA deadline já passou
-    context.sla_deadline = datetime.utcnow() - timedelta(seconds=1)
+    context.sla_deadline = datetime.now(timezone.utc) - timedelta(seconds=1)
 
     results = await orchestrator._execute_c5_monitor_execution(tickets, context)
 
@@ -236,7 +236,7 @@ async def test_execute_c5_monitor_execution_completed(orchestrator):
 
     tickets = [{"ticket_id": "ticket-001"}, {"ticket_id": "ticket-002"}]
     context = MagicMock()
-    context.sla_deadline = datetime.utcnow() + timedelta(hours=4)
+    context.sla_deadline = datetime.now(timezone.utc) + timedelta(hours=4)
 
     results = await orchestrator._execute_c5_monitor_execution(tickets, context)
 
@@ -258,7 +258,7 @@ async def test_flow_c_sla_violation(orchestrator, sample_decision, mock_workers)
         "task_type": "code_generation",
         "required_capabilities": ["python"],
         "payload": {"template_id": "test", "ticket_id": "ticket-001"},
-        "sla_deadline": (datetime.utcnow() - timedelta(hours=1)).isoformat(),  # SLA violado
+        "sla_deadline": (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat(),  # SLA violado
         "priority": 5
     }
     orchestrator.ticket_client.create_ticket = AsyncMock(return_value=mock_ticket)
@@ -274,7 +274,7 @@ async def test_flow_c_sla_violation(orchestrator, sample_decision, mock_workers)
 
         # Forçar deadline no passado no context
         with patch('neural_hive_integration.orchestration.flow_c_orchestrator.datetime') as mock_datetime:
-            past_time = datetime.utcnow() - timedelta(hours=5)
+            past_time = datetime.now(timezone.utc) - timedelta(hours=5)
             mock_datetime.utcnow.return_value = past_time
             mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
 
@@ -358,7 +358,7 @@ async def test_get_tickets_from_workflow_fallback(orchestrator):
     context = MagicMock()
     context.plan_id = "plan-456"
     context.priority = 5
-    context.sla_deadline = datetime.utcnow() + timedelta(hours=4)
+    context.sla_deadline = datetime.now(timezone.utc) + timedelta(hours=4)
 
     cognitive_plan = {
         "tasks": [
@@ -396,7 +396,7 @@ async def test_get_tickets_from_workflow_empty_result(orchestrator):
     context = MagicMock()
     context.plan_id = "plan-456"
     context.priority = 5
-    context.sla_deadline = datetime.utcnow() + timedelta(hours=4)
+    context.sla_deadline = datetime.now(timezone.utc) + timedelta(hours=4)
 
     tickets = await orchestrator._get_tickets_from_workflow(
         workflow_id="workflow-123",
@@ -570,7 +570,7 @@ async def test_execute_c2_with_workflow_query(orchestrator, sample_decision):
     context.plan_id = "plan-456"
     context.correlation_id = "corr-abc"
     context.priority = 5
-    context.sla_deadline = datetime.utcnow() + timedelta(hours=4)
+    context.sla_deadline = datetime.now(timezone.utc) + timedelta(hours=4)
 
     workflow_id, tickets = await orchestrator._execute_c2_generate_tickets(sample_decision, context)
 
@@ -598,7 +598,7 @@ async def test_extract_tickets_from_plan(orchestrator):
     context = MagicMock()
     context.plan_id = "plan-456"
     context.priority = 5
-    context.sla_deadline = datetime.utcnow() + timedelta(hours=4)
+    context.sla_deadline = datetime.now(timezone.utc) + timedelta(hours=4)
 
     cognitive_plan = {
         "tasks": [

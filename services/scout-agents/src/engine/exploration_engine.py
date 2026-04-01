@@ -1,20 +1,20 @@
 """Main exploration engine orchestrating the scout pipeline"""
-import asyncio
 from collections import deque
-from datetime import datetime, timedelta
-from pathlib import Path
-from typing import Optional, Deque, Dict, List, Any
+from datetime import datetime, timedelta, timezone
+from typing import Any, Deque, Dict, List, Optional
+
 import structlog
+
+from neural_hive_domain import UnifiedDomain
 from neural_hive_observability import get_tracer, instrument_kafka_producer
 
-from ..models.raw_event import RawEvent
-from ..models.scout_signal import ScoutSignal, ChannelType
-from neural_hive_domain import UnifiedDomain
-from ..detection.signal_detector import SignalDetector
 from ..clients.kafka_signal_producer import KafkaSignalProducer
 from ..clients.memory_layer_client import MemoryLayerClient
 from ..clients.pheromone_client import PheromoneClient
 from ..config import get_settings
+from ..detection.signal_detector import SignalDetector
+from ..models.raw_event import RawEvent
+from ..models.scout_signal import ChannelType, ScoutSignal
 
 # Import new signal detection modules
 from ..signals.curiosity_calculator import CuriosityCalculator
@@ -38,8 +38,10 @@ class ExplorationEngine:
 
         # Codebase exploration components
         self.curiosity_calculator = CuriosityCalculator(
-            decay_factor=self.settings.detection.curiosity_decay_factor if hasattr(self.settings.detection, 'curiosity_decay_factor') else 0.8,
-            decay_hours=24
+            decay_factor=self.settings.detection.curiosity_decay_factor
+            if hasattr(self.settings.detection, "curiosity_decay_factor")
+            else 0.8,
+            decay_hours=24,
         )
         self.file_signal_detector = FileSignalDetector(window_minutes=60)
 
@@ -55,13 +57,13 @@ class ExplorationEngine:
 
         # Statistics
         self.stats = {
-            'processed': 0,
-            'detected': 0,
-            'published': 0,
-            'discarded': 0,
-            'rate_limited': 0,
-            'files_scanned': 0,
-            'high_activity_detected': 0
+            "processed": 0,
+            "detected": 0,
+            "published": 0,
+            "discarded": 0,
+            "rate_limited": 0,
+            "files_scanned": 0,
+            "high_activity_detected": 0,
         }
 
     async def start(self):
@@ -76,7 +78,7 @@ class ExplorationEngine:
             logger.info(
                 "exploration_engine_started",
                 scout_agent_id=self.scout_agent_id,
-                max_signals_per_minute=self.max_signals_per_minute
+                max_signals_per_minute=self.max_signals_per_minute,
             )
         except Exception as e:
             logger.error("exploration_engine_start_failed", error=str(e))
@@ -87,10 +89,7 @@ class ExplorationEngine:
         self._is_running = False
 
         # Process remaining signals in queue
-        logger.info(
-            "processing_remaining_signals",
-            queue_size=len(self.signal_queue)
-        )
+        logger.info("processing_remaining_signals", queue_size=len(self.signal_queue))
 
         while self.signal_queue:
             signal = self.signal_queue.popleft()
@@ -100,16 +99,10 @@ class ExplorationEngine:
         await self.memory_client.stop()
         await self.pheromone_client.stop()
 
-        logger.info(
-            "exploration_engine_stopped",
-            stats=self.stats
-        )
+        logger.info("exploration_engine_stopped", stats=self.stats)
 
     async def process_event(
-        self,
-        event: RawEvent,
-        domain: UnifiedDomain,
-        channel: ChannelType = ChannelType.CORE
+        self, event: RawEvent, domain: UnifiedDomain, channel: ChannelType = ChannelType.CORE
     ) -> Optional[ScoutSignal]:
         """
         Main pipeline: process raw event and publish signal if detected
@@ -126,7 +119,7 @@ class ExplorationEngine:
             logger.warning("engine_not_running", event_id=event.event_id)
             return None
 
-        self.stats['processed'] += 1
+        self.stats["processed"] += 1
 
         try:
             # Step 1: Detect signal
@@ -141,15 +134,15 @@ class ExplorationEngine:
             if not signal:
                 return None
 
-            self.stats['detected'] += 1
+            self.stats["detected"] += 1
 
             # Step 2: Check rate limit
             if not self._check_rate_limit():
-                self.stats['rate_limited'] += 1
+                self.stats["rate_limited"] += 1
                 logger.warning(
                     "rate_limit_exceeded",
                     signal_id=signal.signal_id,
-                    current_rate=len(self.published_signals)
+                    current_rate=len(self.published_signals),
                 )
 
                 # Add to queue if high priority
@@ -162,23 +155,19 @@ class ExplorationEngine:
             success = await self._publish_signal_internal(signal)
 
             if success:
-                self.stats['published'] += 1
+                self.stats["published"] += 1
                 return signal
             else:
-                self.stats['discarded'] += 1
+                self.stats["discarded"] += 1
                 return None
 
         except Exception as e:
-            logger.error(
-                "event_processing_failed",
-                event_id=event.event_id,
-                error=str(e)
-            )
+            logger.error("event_processing_failed", event_id=event.event_id, error=str(e))
             return None
 
     def _check_rate_limit(self) -> bool:
         """Check if rate limit allows publishing new signal"""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         cutoff = now - timedelta(minutes=1)
 
         # Remove old timestamps
@@ -195,34 +184,25 @@ class ExplorationEngine:
             kafka_success = await self.kafka_producer.publish_signal(signal)
 
             if not kafka_success:
-                logger.error(
-                    "kafka_publish_failed",
-                    signal_id=signal.signal_id
-                )
+                logger.error("kafka_publish_failed", signal_id=signal.signal_id)
                 return False
 
             # Store in Memory Layer (Redis for short-term)
             memory_success = await self.memory_client.store_signal_redis(signal)
 
             if not memory_success:
-                logger.warning(
-                    "memory_storage_failed",
-                    signal_id=signal.signal_id
-                )
+                logger.warning("memory_storage_failed", signal_id=signal.signal_id)
                 # Don't fail the whole pipeline if memory storage fails
 
             # Publish digital pheromone
             pheromone_success = await self.pheromone_client.publish_pheromone(signal)
 
             if not pheromone_success:
-                logger.warning(
-                    "pheromone_publish_failed",
-                    signal_id=signal.signal_id
-                )
+                logger.warning("pheromone_publish_failed", signal_id=signal.signal_id)
                 # Don't fail the whole pipeline if pheromone publish fails
 
             # Update rate limit tracker
-            self.published_signals.append(datetime.utcnow())
+            self.published_signals.append(datetime.now(timezone.utc))
 
             logger.info(
                 "signal_published",
@@ -230,17 +210,13 @@ class ExplorationEngine:
                 signal_type=signal.signal_type.value,
                 domain=signal.exploration_domain.value,
                 curiosity=signal.curiosity_score,
-                confidence=signal.confidence
+                confidence=signal.confidence,
             )
 
             return True
 
         except Exception as e:
-            logger.error(
-                "signal_publish_failed",
-                signal_id=signal.signal_id,
-                error=str(e)
-            )
+            logger.error("signal_publish_failed", signal_id=signal.signal_id, error=str(e))
             return False
 
     async def process_queue(self):
@@ -250,9 +226,7 @@ class ExplorationEngine:
 
         # Sort queue by priority
         sorted_signals = sorted(
-            self.signal_queue,
-            key=lambda s: s.calculate_priority(),
-            reverse=True
+            self.signal_queue, key=lambda s: s.calculate_priority(), reverse=True
         )
 
         processed = 0
@@ -263,7 +237,7 @@ class ExplorationEngine:
             success = await self._publish_signal_internal(signal)
             if success:
                 processed += 1
-                self.stats['published'] += 1
+                self.stats["published"] += 1
 
         # Remove processed signals from queue
         for _ in range(processed):
@@ -271,19 +245,15 @@ class ExplorationEngine:
                 self.signal_queue.popleft()
 
         if processed > 0:
-            logger.info(
-                "queue_processed",
-                processed=processed,
-                remaining=len(self.signal_queue)
-            )
+            logger.info("queue_processed", processed=processed, remaining=len(self.signal_queue))
 
     def get_stats(self) -> dict:
         """Get engine statistics"""
         return {
             **self.stats,
-            'queue_size': len(self.signal_queue),
-            'current_rate': len(self.published_signals),
-            'is_running': self._is_running
+            "queue_size": len(self.signal_queue),
+            "current_rate": len(self.published_signals),
+            "is_running": self._is_running,
         }
 
     async def handle_feedback(
@@ -291,7 +261,7 @@ class ExplorationEngine:
         signal_id: str,
         validation_score: float,
         domain: Optional[UnifiedDomain] = None,
-        feature_mean: Optional[float] = None
+        feature_mean: Optional[float] = None,
     ) -> None:
         """
         Handle feedback from Analyst Agents for adaptive learning
@@ -303,11 +273,7 @@ class ExplorationEngine:
             feature_mean: Feature mean for likelihood update (optional)
         """
         try:
-            logger.info(
-                "feedback_received",
-                signal_id=signal_id,
-                validation_score=validation_score
-            )
+            logger.info("feedback_received", signal_id=signal_id, validation_score=validation_score)
 
             # Determine if signal was valid based on validation score
             is_valid_signal = validation_score >= 0.5
@@ -323,9 +289,7 @@ class ExplorationEngine:
                 # Update likelihood if feature mean provided
                 if feature_mean is not None:
                     self.detector.bayesian_filter.update_likelihood(
-                        domain,
-                        feature_mean,
-                        weight=0.1
+                        domain, feature_mean, weight=0.1
                     )
 
                 # Get updated posterior stats for monitoring
@@ -337,22 +301,18 @@ class ExplorationEngine:
                     domain=domain.value,
                     is_valid=is_valid_signal,
                     validation_score=validation_score,
-                    posterior_mean=stats['mean'],
-                    samples_count=stats['samples']
+                    posterior_mean=stats["mean"],
+                    samples_count=stats["samples"],
                 )
             else:
                 logger.warning(
                     "feedback_domain_not_found",
                     signal_id=signal_id,
-                    message="Domain not provided and could not be retrieved from memory"
+                    message="Domain not provided and could not be retrieved from memory",
                 )
 
         except Exception as e:
-            logger.error(
-                "feedback_handling_failed",
-                signal_id=signal_id,
-                error=str(e)
-            )
+            logger.error("feedback_handling_failed", signal_id=signal_id, error=str(e))
 
     async def _retrieve_signal_domain(self, signal_id: str) -> Optional[UnifiedDomain]:
         """
@@ -366,7 +326,6 @@ class ExplorationEngine:
         """
         try:
             # Try to retrieve signal from Redis memory
-            from ..models.scout_signal import ScoutSignal
             import json
 
             signal_data = await self.memory_client.get_signal_redis(signal_id)
@@ -376,18 +335,14 @@ class ExplorationEngine:
                 else:
                     signal_dict = signal_data
 
-                domain_str = signal_dict.get('exploration_domain')
+                domain_str = signal_dict.get("exploration_domain")
                 if domain_str:
                     return UnifiedDomain(domain_str)
 
             return None
 
         except Exception as e:
-            logger.debug(
-                "signal_domain_retrieval_failed",
-                signal_id=signal_id,
-                error=str(e)
-            )
+            logger.debug("signal_domain_retrieval_failed", signal_id=signal_id, error=str(e))
             return None
 
     # ========================================================================
@@ -395,9 +350,7 @@ class ExplorationEngine:
     # ========================================================================
 
     async def scan_codebase(
-        self,
-        directory: str,
-        extensions: Optional[set] = None
+        self, directory: str, extensions: Optional[set] = None
     ) -> List[Dict[str, Any]]:
         """
         Escaneia diretório em busca de sinais de mudança.
@@ -411,18 +364,18 @@ class ExplorationEngine:
         """
         try:
             signals = self.file_signal_detector.scan_directory(directory, extensions)
-            self.stats['files_scanned'] += len(signals)
+            self.stats["files_scanned"] += len(signals)
 
             # Detectar alta atividade
             hotspots = self.file_signal_detector.get_hotspots(limit=10)
             if hotspots:
-                self.stats['high_activity_detected'] += len(hotspots)
+                self.stats["high_activity_detected"] += len(hotspots)
 
             logger.info(
                 "codebase_scanned",
                 directory=directory,
                 signals_detected=len(signals),
-                hotspots=len(hotspots)
+                hotspots=len(hotspots),
             )
 
             return [s.to_dict() for s in signals]
@@ -431,11 +384,7 @@ class ExplorationEngine:
             logger.error("codebase_scan_failed", directory=directory, error=str(e))
             return []
 
-    async def get_curiosity_scores(
-        self,
-        directory: str,
-        limit: int = 10
-    ) -> List[Dict[str, Any]]:
+    async def get_curiosity_scores(self, directory: str, limit: int = 10) -> List[Dict[str, Any]]:
         """
         Retorna arquivos mais interessantes baseado em curiosidade.
 
@@ -449,15 +398,10 @@ class ExplorationEngine:
         try:
             top_files = self.curiosity_calculator.get_top_interesting_files(directory, limit)
 
-            result = [
-                {'filepath': fp, 'curiosity_score': score}
-                for fp, score in top_files
-            ]
+            result = [{"filepath": fp, "curiosity_score": score} for fp, score in top_files]
 
             logger.info(
-                "curiosity_scores_calculated",
-                directory=directory,
-                files_analyzed=len(result)
+                "curiosity_scores_calculated", directory=directory, files_analyzed=len(result)
             )
 
             return result
@@ -490,19 +434,19 @@ class ExplorationEngine:
             burst_files = self.file_signal_detector.detect_burst_activity()
 
             result = {
-                'directory': directory,
-                'directory_curiosity': dir_curiosity,
-                'signal_summary': signal_summary,
-                'hotspots': hotspots,
-                'burst_files': burst_files,
-                'timestamp': datetime.now().isoformat()
+                "directory": directory,
+                "directory_curiosity": dir_curiosity,
+                "signal_summary": signal_summary,
+                "hotspots": hotspots,
+                "burst_files": burst_files,
+                "timestamp": datetime.now().isoformat(),
             }
 
             logger.info(
                 "exploration_summary_generated",
                 directory=directory,
                 curiosity=dir_curiosity,
-                signals_count=signal_summary['total_signals']
+                signals_count=signal_summary["total_signals"],
             )
 
             return result
@@ -511,10 +455,7 @@ class ExplorationEngine:
             logger.error("exploration_summary_failed", directory=directory, error=str(e))
             return {}
 
-    async def rank_directories_by_interest(
-        self,
-        root: str
-    ) -> Dict[str, float]:
+    async def rank_directories_by_interest(self, root: str) -> Dict[str, float]:
         """
         Rankeia subdiretórios por nível de interesse.
 
@@ -527,11 +468,7 @@ class ExplorationEngine:
         try:
             rankings = self.curiosity_calculator.rank_directories(root)
 
-            logger.info(
-                "directories_ranked",
-                root=root,
-                directories_count=len(rankings)
-            )
+            logger.info("directories_ranked", root=root, directories_count=len(rankings))
 
             return rankings
 

@@ -1,12 +1,13 @@
 """Analyzer base para otimização."""
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
+from typing import Any
 
 
-class RecommendationType(str, Enum):
+class RecommendationType(StrEnum):
     """Tipo de recomendação."""
+
     REDUCE_COMPLEXITY = "reduce_complexity"
     SPLIT_FUNCTION = "split_function"
     ADD_CACHING = "add_caching"
@@ -18,8 +19,9 @@ class RecommendationType(str, Enum):
     PARTITIONING = "partitioning"
 
 
-class Severity(str, Enum):
+class Severity(StrEnum):
     """Nível de severidade."""
+
     INFO = "info"
     LOW = "low"
     MEDIUM = "medium"
@@ -27,8 +29,9 @@ class Severity(str, Enum):
     CRITICAL = "critical"
 
 
-class TargetType(str, Enum):
+class TargetType(StrEnum):
     """Tipo de target da otimização."""
+
     CODE = "code"
     MONGODB = "mongodb"
     POSTGRESQL = "postgresql"
@@ -40,8 +43,9 @@ class TargetType(str, Enum):
 @dataclass
 class AnalysisResult:
     """Resultado de uma análise."""
-    issues: List[Dict[str, Any]]
-    metrics: Dict[str, Any]
+
+    issues: list[dict[str, Any]]
+    metrics: dict[str, Any]
     analyzed_at: str
 
 
@@ -53,7 +57,7 @@ class BaseAnalyzer(ABC):
         self.target_type: TargetType = TargetType.CODE
 
     @abstractmethod
-    async def analyze(self, context: Dict[str, Any]) -> AnalysisResult:
+    async def analyze(self, context: dict[str, Any]) -> AnalysisResult:
         """Executa análise."""
         pass
 

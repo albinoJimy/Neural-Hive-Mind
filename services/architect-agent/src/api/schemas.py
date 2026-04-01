@@ -1,11 +1,9 @@
 """Schemas Pydantic para API REST."""
 
-from pydantic import BaseModel, Field
-from typing import Optional
 from datetime import datetime
+from typing import Optional
 
-from src.models.architecture import ArchitectureType, Pattern
-from src.models.validation import Severity
+from pydantic import BaseModel, Field
 
 
 # Request Schemas

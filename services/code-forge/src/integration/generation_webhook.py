@@ -2,20 +2,21 @@
 Webhook handler para notificações de conclusão de pipelines CI/CD.
 """
 
-import structlog
-import hmac
 import hashlib
-import os
+import hmac
 import json
-from datetime import datetime
-from fastapi import APIRouter, HTTPException, Header, Request
-from pydantic import BaseModel
-from typing import List, Optional, Dict, Any
-from prometheus_client import Counter
+import os
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
 
+import structlog
+from fastapi import APIRouter, Header, HTTPException, Request
+from prometheus_client import Counter
+from pydantic import BaseModel
+
+from ..clients.execution_ticket_client import ExecutionTicketClient as LocalExecutionTicketClient
 from ..clients.mongodb_client import MongoDBClient
 from ..clients.postgres_client import PostgresClient
-from ..clients.execution_ticket_client import ExecutionTicketClient as LocalExecutionTicketClient
 from ..models.artifact import PipelineResult, PipelineStatus
 from ..models.execution_ticket import TicketStatus
 
@@ -42,6 +43,7 @@ router = APIRouter(prefix="/api/v1/webhooks", tags=["webhooks"])
 
 class PipelineArtifact(BaseModel):
     """Artefato gerado pelo pipeline."""
+
     artifact_id: str
     artifact_type: str  # container, iac, library, etc
     location: str
@@ -50,6 +52,7 @@ class PipelineArtifact(BaseModel):
 
 class SBOM(BaseModel):
     """Software Bill of Materials."""
+
     format: str  # cyclonedx, spdx
     version: str
     components: List[Dict[str, Any]]
@@ -57,6 +60,7 @@ class SBOM(BaseModel):
 
 class PipelineCompletedPayload(BaseModel):
     """Payload do webhook de pipeline completo."""
+
     pipeline_id: str
     artifact_id: str
     ticket_id: Optional[str] = None
@@ -77,7 +81,7 @@ class WebhookHandler:
         webhook_secret: Optional[str] = None,
         mongodb_client: Optional[MongoDBClient] = None,
         postgres_client: Optional[PostgresClient] = None,
-        ticket_client: Optional[LocalExecutionTicketClient] = None
+        ticket_client: Optional[LocalExecutionTicketClient] = None,
     ):
         """
         Inicializa o handler de webhooks.
@@ -105,9 +109,9 @@ class WebhookHandler:
         """Fechar handler."""
         if self.ticket_client:
             # Local client usa stop(), não close()
-            if hasattr(self.ticket_client, 'stop'):
+            if hasattr(self.ticket_client, "stop"):
                 await self.ticket_client.stop()
-            elif hasattr(self.ticket_client, 'close'):
+            elif hasattr(self.ticket_client, "close"):
                 # Fallback para compatibilidade
                 await self.ticket_client.close()
 
@@ -139,9 +143,7 @@ class WebhookHandler:
 
         # Calcular HMAC esperado
         expected_hash = hmac.new(
-            self.webhook_secret.encode('utf-8'),
-            payload_bytes,
-            hashlib.sha256
+            self.webhook_secret.encode("utf-8"), payload_bytes, hashlib.sha256
         ).hexdigest()
 
         # Comparação constant-time para prevenir timing attacks
@@ -212,7 +214,7 @@ class WebhookHandler:
                 await self.ticket_client.update_status(
                     ticket_id=payload.ticket_id,
                     status=TicketStatus[ticket_status.upper()],
-                    metadata=result
+                    metadata=result,
                 )
 
                 self.logger.info(
@@ -244,7 +246,9 @@ class WebhookHandler:
                 await self.mongodb_client.save_pipeline_logs(payload.pipeline_id, logs_data)
                 self.logger.debug("pipeline_logs_saved_to_mongodb", pipeline_id=payload.pipeline_id)
             except Exception as e:
-                self.logger.warning("mongodb_save_logs_failed", pipeline_id=payload.pipeline_id, error=str(e))
+                self.logger.warning(
+                    "mongodb_save_logs_failed", pipeline_id=payload.pipeline_id, error=str(e)
+                )
 
         # Persistir resultado do pipeline no PostgreSQL
         if self.postgres_client:
@@ -272,17 +276,23 @@ class WebhookHandler:
                     total_duration_ms=payload.duration_ms,
                     approval_required=False,
                     approval_reason=None,
-                    error_message=None if payload.status == "completed" else payload.metadata.get("error_message"),
+                    error_message=None
+                    if payload.status == "completed"
+                    else payload.metadata.get("error_message"),
                     git_mr_url=payload.metadata.get("git_mr_url"),
                     metadata={k: str(v) for k, v in payload.metadata.items()},
-                    created_at=datetime.utcnow(),
-                    completed_at=datetime.utcnow(),
+                    created_at=datetime.now(timezone.utc),
+                    completed_at=datetime.now(timezone.utc),
                 )
 
                 await self.postgres_client.save_pipeline(pipeline_result)
-                self.logger.debug("pipeline_result_saved_to_postgres", pipeline_id=payload.pipeline_id)
+                self.logger.debug(
+                    "pipeline_result_saved_to_postgres", pipeline_id=payload.pipeline_id
+                )
             except Exception as e:
-                self.logger.warning("postgres_save_pipeline_failed", pipeline_id=payload.pipeline_id, error=str(e))
+                self.logger.warning(
+                    "postgres_save_pipeline_failed", pipeline_id=payload.pipeline_id, error=str(e)
+                )
 
         return {
             "status": "processed",
@@ -324,7 +334,7 @@ async def pipeline_completed_webhook(
         body_bytes = await request.body()
 
         # Parse payload
-        body_str = body_bytes.decode('utf-8')
+        body_str = body_bytes.decode("utf-8")
         payload_dict = json.loads(body_str)
         payload = PipelineCompletedPayload(**payload_dict)
 

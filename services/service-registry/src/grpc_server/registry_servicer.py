@@ -1,17 +1,17 @@
-import grpc
 import json
-import structlog
-from uuid import UUID
-from typing import Iterator, AsyncIterator
 from datetime import datetime, timezone
+from typing import AsyncIterator
+from uuid import UUID
+
+import grpc
+import structlog
 from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
-from src.services import RegistryService, MatchingEngine
-from src.models import AgentType, AgentTelemetry
+from src.models import AgentTelemetry, AgentType
+from src.services import MatchingEngine, RegistryService
 
 from neural_hive_observability.context import set_baggage
 from neural_hive_observability.grpc_instrumentation import extract_grpc_context
-
 
 logger = structlog.get_logger()
 tracer = trace.get_tracer(__name__)
@@ -20,11 +20,7 @@ tracer = trace.get_tracer(__name__)
 class ServiceRegistryServicer:
     """Implementação do serviço gRPC ServiceRegistry"""
 
-    def __init__(
-        self,
-        registry_service: RegistryService,
-        matching_engine: MatchingEngine
-    ):
+    def __init__(self, registry_service: RegistryService, matching_engine: MatchingEngine):
         self.registry_service = registry_service
         self.matching_engine = matching_engine
 
@@ -47,8 +43,7 @@ class ServiceRegistryServicer:
                 # Validações
                 if not capabilities:
                     return context.abort(
-                        grpc.StatusCode.INVALID_ARGUMENT,
-                        "Capabilities não podem estar vazias"
+                        grpc.StatusCode.INVALID_ARGUMENT, "Capabilities não podem estar vazias"
                     )
 
                 # Registrar agente
@@ -58,15 +53,16 @@ class ServiceRegistryServicer:
                     metadata=metadata,
                     namespace=namespace,
                     cluster=cluster,
-                    version=version
+                    version=version,
                 )
 
                 # Criar response
                 from src.proto import service_registry_pb2
+
                 response = service_registry_pb2.RegisterResponse(
                     agent_id=str(agent_id),
                     registration_token=registration_token,
-                    registered_at=int(datetime.now(timezone.utc).timestamp())
+                    registered_at=int(datetime.now(timezone.utc).timestamp()),
                 )
 
                 span.set_status(Status(StatusCode.OK))
@@ -97,27 +93,27 @@ class ServiceRegistryServicer:
 
                 # Converter telemetria
                 telemetry = None
-                if request.HasField('telemetry'):
+                if request.HasField("telemetry"):
                     telemetry = AgentTelemetry(
                         success_rate=request.telemetry.success_rate,
                         avg_duration_ms=request.telemetry.avg_duration_ms,
                         total_executions=request.telemetry.total_executions,
                         failed_executions=request.telemetry.failed_executions,
-                        last_execution_at=request.telemetry.last_execution_at or None
+                        last_execution_at=request.telemetry.last_execution_at or None,
                     )
 
                 # Atualizar heartbeat
                 status = await self.registry_service.update_heartbeat(
-                    agent_id=agent_id,
-                    telemetry=telemetry
+                    agent_id=agent_id, telemetry=telemetry
                 )
 
                 # Criar response
-                from src.proto import service_registry_pb2
                 from datetime import datetime, timezone
+
+                from src.proto import service_registry_pb2
+
                 response = service_registry_pb2.HeartbeatResponse(
-                    status=status.value,
-                    last_seen=int(datetime.now(timezone.utc).timestamp())
+                    status=status.value, last_seen=int(datetime.now(timezone.utc).timestamp())
                 )
 
                 span.set_attribute("agent_id", str(agent_id))
@@ -131,6 +127,7 @@ class ServiceRegistryServicer:
                 await context.abort(grpc.StatusCode.NOT_FOUND, str(e))
                 # Retornar resposta vazia para evitar TypeError na serialização
                 from src.proto import service_registry_pb2
+
                 return service_registry_pb2.HeartbeatResponse()
 
             except Exception as e:
@@ -139,6 +136,7 @@ class ServiceRegistryServicer:
                 await context.abort(grpc.StatusCode.INTERNAL, f"Erro interno: {str(e)}")
                 # Retornar resposta vazia para evitar TypeError na serialização
                 from src.proto import service_registry_pb2
+
                 return service_registry_pb2.HeartbeatResponse()
 
     async def Deregister(self, request, context):
@@ -156,9 +154,8 @@ class ServiceRegistryServicer:
 
                 # Criar response
                 from src.proto import service_registry_pb2
-                response = service_registry_pb2.DeregisterResponse(
-                    success=success
-                )
+
+                response = service_registry_pb2.DeregisterResponse(success=success)
 
                 span.set_attribute("agent_id", str(agent_id))
                 span.set_attribute("success", success)
@@ -170,6 +167,7 @@ class ServiceRegistryServicer:
                 span.set_status(Status(StatusCode.ERROR, str(e)))
                 await context.abort(grpc.StatusCode.INTERNAL, f"Erro interno: {str(e)}")
                 from src.proto import service_registry_pb2
+
                 return service_registry_pb2.DeregisterResponse(success=False)
 
     async def DiscoverAgents(self, request, context):
@@ -187,6 +185,7 @@ class ServiceRegistryServicer:
                 agent_type = None
                 if filters and "agent_type" in filters:
                     from src.proto import service_registry_pb2
+
                     agent_type_str = filters.pop("agent_type").lower()
                     try:
                         agent_type = AgentType[agent_type_str.upper()]
@@ -203,21 +202,19 @@ class ServiceRegistryServicer:
                     capabilities_required=capabilities_required,
                     filters=filters,
                     max_results=max_results,
-                    agent_type=agent_type
+                    agent_type=agent_type,
                 )
 
                 # Converter para proto
                 from src.proto import service_registry_pb2
+
                 agent_protos = []
                 for agent in agents:
                     agent_dict = agent.to_proto_dict()
                     agent_proto = service_registry_pb2.AgentInfo(**agent_dict)
                     agent_protos.append(agent_proto)
 
-                response = service_registry_pb2.DiscoverResponse(
-                    agents=agent_protos,
-                    ranked=True
-                )
+                response = service_registry_pb2.DiscoverResponse(agents=agent_protos, ranked=True)
 
                 span.set_attribute("capabilities_count", len(capabilities_required))
                 span.set_attribute("agents_found", len(agents))
@@ -246,20 +243,19 @@ class ServiceRegistryServicer:
                 if not agent:
                     span.set_status(Status(StatusCode.ERROR, f"Agente {agent_id} não encontrado"))
                     await context.abort(
-                        grpc.StatusCode.NOT_FOUND,
-                        f"Agente {agent_id} não encontrado"
+                        grpc.StatusCode.NOT_FOUND, f"Agente {agent_id} não encontrado"
                     )
                     from src.proto import service_registry_pb2
+
                     return service_registry_pb2.GetAgentResponse()
 
                 # Converter para proto
                 from src.proto import service_registry_pb2
+
                 agent_dict = agent.to_proto_dict()
                 agent_proto = service_registry_pb2.AgentInfo(**agent_dict)
 
-                response = service_registry_pb2.GetAgentResponse(
-                    agent=agent_proto
-                )
+                response = service_registry_pb2.GetAgentResponse(agent=agent_proto)
 
                 span.set_attribute("agent_id", str(agent_id))
 
@@ -269,6 +265,7 @@ class ServiceRegistryServicer:
                 span.set_status(Status(StatusCode.ERROR, str(e)))
                 await context.abort(grpc.StatusCode.INVALID_ARGUMENT, str(e))
                 from src.proto import service_registry_pb2
+
                 return service_registry_pb2.GetAgentResponse()
 
             except Exception as e:
@@ -276,6 +273,7 @@ class ServiceRegistryServicer:
                 span.set_status(Status(StatusCode.ERROR, str(e)))
                 await context.abort(grpc.StatusCode.INTERNAL, f"Erro interno: {str(e)}")
                 from src.proto import service_registry_pb2
+
                 return service_registry_pb2.GetAgentResponse()
 
     async def ListAgents(self, request, context):
@@ -292,21 +290,19 @@ class ServiceRegistryServicer:
 
                 # Listar agentes
                 agents = await self.registry_service.list_agents(
-                    agent_type=agent_type,
-                    filters=filters
+                    agent_type=agent_type, filters=filters
                 )
 
                 # Converter para proto
                 from src.proto import service_registry_pb2
+
                 agent_protos = []
                 for agent in agents:
                     agent_dict = agent.to_proto_dict()
                     agent_proto = service_registry_pb2.AgentInfo(**agent_dict)
                     agent_protos.append(agent_proto)
 
-                response = service_registry_pb2.ListAgentsResponse(
-                    agents=agent_protos
-                )
+                response = service_registry_pb2.ListAgentsResponse(agents=agent_protos)
 
                 span.set_attribute("agents_count", len(agents))
 
@@ -317,6 +313,7 @@ class ServiceRegistryServicer:
                 span.set_status(Status(StatusCode.ERROR, str(e)))
                 await context.abort(grpc.StatusCode.INTERNAL, f"Erro interno: {str(e)}")
                 from src.proto import service_registry_pb2
+
                 return service_registry_pb2.ListAgentsResponse(agents=[])
 
     async def WatchAgents(self, request, context) -> AsyncIterator:
@@ -334,7 +331,7 @@ class ServiceRegistryServicer:
 
             # Register done callback for clean cancellation handling
             # Note: add_done_callback may not exist in all gRPC versions
-            if hasattr(context, 'add_done_callback'):
+            if hasattr(context, "add_done_callback"):
                 try:
                     context.add_done_callback(on_rpc_done)
                 except (AttributeError, TypeError):
@@ -351,7 +348,10 @@ class ServiceRegistryServicer:
                 pubsub = self.registry_service.etcd_client.client.pubsub()
                 await pubsub.subscribe(f"{self.registry_service.etcd_client.prefix}:events")
 
-                logger.info("watch_agents_started", agent_type=agent_type_filter.value if agent_type_filter else "all")
+                logger.info(
+                    "watch_agents_started",
+                    agent_type=agent_type_filter.value if agent_type_filter else "all",
+                )
 
                 try:
                     async for message in pubsub.listen():
@@ -360,7 +360,7 @@ class ServiceRegistryServicer:
                         is_active = True
                         if cancelled:
                             is_active = False
-                        elif hasattr(context, 'is_active'):
+                        elif hasattr(context, "is_active"):
                             try:
                                 is_active = context.is_active()
                             except (AttributeError, TypeError):
@@ -388,18 +388,26 @@ class ServiceRegistryServicer:
                             agent = await self.registry_service.get_agent(agent_id)
 
                             # Aplicar filtro de tipo
-                            if agent_type_filter and agent and agent.agent_type != agent_type_filter:
+                            if (
+                                agent_type_filter
+                                and agent
+                                and agent.agent_type != agent_type_filter
+                            ):
                                 continue
 
                             # Mapear evento Redis para proto EventType
                             from src.proto import service_registry_pb2
+
                             event_type_map = {
                                 "registered": service_registry_pb2.AgentChangeEvent.REGISTERED,
                                 "updated": service_registry_pb2.AgentChangeEvent.UPDATED,
                                 "deregistered": service_registry_pb2.AgentChangeEvent.DEREGISTERED,
-                                "status_changed": service_registry_pb2.AgentChangeEvent.STATUS_CHANGED
+                                "status_changed": service_registry_pb2.AgentChangeEvent.STATUS_CHANGED,
                             }
-                            proto_event_type = event_type_map.get(event_type, service_registry_pb2.AgentChangeEvent.EVENT_TYPE_UNSPECIFIED)
+                            proto_event_type = event_type_map.get(
+                                event_type,
+                                service_registry_pb2.AgentChangeEvent.EVENT_TYPE_UNSPECIFIED,
+                            )
 
                             # Criar AgentChangeEvent
                             if agent:
@@ -409,19 +417,21 @@ class ServiceRegistryServicer:
                                 # Agente foi deregistrado - criar AgentInfo mínimo
                                 agent_proto = service_registry_pb2.AgentInfo(
                                     agent_id=agent_id_str,
-                                    agent_type=service_registry_pb2.AGENT_TYPE_UNSPECIFIED
+                                    agent_type=service_registry_pb2.AGENT_TYPE_UNSPECIFIED,
                                 )
 
                             event = service_registry_pb2.AgentChangeEvent(
                                 event_type=proto_event_type,
                                 agent=agent_proto,
-                                timestamp=int(datetime.now(timezone.utc).timestamp())
+                                timestamp=int(datetime.now(timezone.utc).timestamp()),
                             )
 
                             # Yield evento para stream
                             yield event
 
-                            logger.debug("watch_event_sent", event_type=event_type, agent_id=agent_id_str)
+                            logger.debug(
+                                "watch_event_sent", event_type=event_type, agent_id=agent_id_str
+                            )
 
                         except Exception as e:
                             logger.error("watch_event_processing_error", error=str(e))
@@ -462,10 +472,11 @@ class ServiceRegistryServicer:
                     agent_id=agent_id,
                     notification_type=notification_type,
                     message=request.message,
-                    metadata=metadata
+                    metadata=metadata,
                 )
 
                 from src.proto import service_registry_pb2
+
                 response = service_registry_pb2.NotifyAgentResponse(success=True, error="")
 
                 span.set_attribute("agent_id", agent_id)

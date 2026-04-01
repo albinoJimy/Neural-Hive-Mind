@@ -63,16 +63,21 @@ class GeneticToolSelector:
         available_tools = await self._get_available_tools(request)
 
         if not available_tools:
-            return self._create_fallback_response(request, "No tools available for required categories")
+            return self._create_fallback_response(
+                request, "No tools available for required categories"
+            )
 
         # Run genetic algorithm with timeout
         try:
             ga_start = time.time()
-            timeout_seconds = self.settings.GA_TIMEOUT_SECONDS if hasattr(self.settings, 'GA_TIMEOUT_SECONDS') else 30
+            timeout_seconds = (
+                self.settings.GA_TIMEOUT_SECONDS
+                if hasattr(self.settings, "GA_TIMEOUT_SECONDS")
+                else 30
+            )
 
             best_combination, generations, converged = await asyncio.wait_for(
-                self._run_genetic_algorithm(available_tools, request),
-                timeout=timeout_seconds
+                self._run_genetic_algorithm(available_tools, request), timeout=timeout_seconds
             )
 
             ga_duration = time.time() - ga_start
@@ -84,12 +89,17 @@ class GeneticToolSelector:
                     converged=converged,
                     timeout=False,
                     duration=ga_duration,
-                    generations=generations
+                    generations=generations,
                 )
 
             # Create response
             response = self._create_response_from_combination(
-                request, best_combination, SelectionMethod.GENETIC_ALGORITHM, generations, duration_ms, converged
+                request,
+                best_combination,
+                SelectionMethod.GENETIC_ALGORITHM,
+                generations,
+                duration_ms,
+                converged,
             )
 
             # Cache result
@@ -101,7 +111,7 @@ class GeneticToolSelector:
                     method=SelectionMethod.GENETIC_ALGORITHM.value,
                     cached=False,
                     duration=duration_ms / 1000.0,
-                    fitness=best_combination.fitness_score
+                    fitness=best_combination.fitness_score,
                 )
 
             # Save to history
@@ -120,16 +130,17 @@ class GeneticToolSelector:
             return response
 
         except asyncio.TimeoutError:
-            ga_duration = time.time() - ga_start if 'ga_start' in locals() else 0
-            logger.warning("genetic_algorithm_timeout", request_id=request.request_id, timeout_seconds=timeout_seconds)
+            ga_duration = time.time() - ga_start if "ga_start" in locals() else 0
+            logger.warning(
+                "genetic_algorithm_timeout",
+                request_id=request.request_id,
+                timeout_seconds=timeout_seconds,
+            )
 
             # Record timeout metrics
             if self.metrics:
                 self.metrics.record_genetic_algorithm(
-                    converged=False,
-                    timeout=True,
-                    duration=ga_duration,
-                    generations=0
+                    converged=False, timeout=True, duration=ga_duration, generations=0
                 )
 
             # Fallback to heuristic
@@ -139,7 +150,9 @@ class GeneticToolSelector:
             logger.error("genetic_selection_failed", error=str(e), request_id=request.request_id)
             return await self._heuristic_selection(request, available_tools)
 
-    async def _get_available_tools(self, request: ToolSelectionRequest) -> Dict[str, List[ToolDescriptor]]:
+    async def _get_available_tools(
+        self, request: ToolSelectionRequest
+    ) -> Dict[str, List[ToolDescriptor]]:
         """Get available tools grouped by required categories."""
         tools_by_category = {}
 
@@ -319,7 +332,11 @@ class GeneticToolSelector:
             )
             idx += 1
 
-        avg_fitness = sum(t.fitness_score for t in selected_tools) / len(selected_tools) if selected_tools else 0.0
+        avg_fitness = (
+            sum(t.fitness_score for t in selected_tools) / len(selected_tools)
+            if selected_tools
+            else 0.0
+        )
 
         return ToolSelectionResponse(
             request_id=request.request_id,
@@ -334,7 +351,9 @@ class GeneticToolSelector:
             cached=False,
         )
 
-    def _create_fallback_response(self, request: ToolSelectionRequest, reason: str) -> ToolSelectionResponse:
+    def _create_fallback_response(
+        self, request: ToolSelectionRequest, reason: str
+    ) -> ToolSelectionResponse:
         """Create fallback response when selection fails."""
         return ToolSelectionResponse(
             request_id=request.request_id,
@@ -362,7 +381,7 @@ class GeneticToolSelector:
                     method=response.selection_method.value,
                     cached=True,
                     duration=0.001,  # cached response is fast
-                    fitness=response.total_fitness_score
+                    fitness=response.total_fitness_score,
                 )
 
             return response

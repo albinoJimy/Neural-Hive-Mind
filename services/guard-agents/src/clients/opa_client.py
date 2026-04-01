@@ -1,5 +1,6 @@
 """Cliente HTTP para integração com Open Policy Agent (OPA)"""
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
+
 import httpx
 import structlog
 
@@ -12,21 +13,14 @@ class OPAClient:
     Integra com servidor OPA para decisões de enforcement.
     """
 
-    def __init__(
-        self,
-        base_url: str = "http://opa:8181",
-        timeout: float = 5.0
-    ):
-        self.base_url = base_url.rstrip('/')
+    def __init__(self, base_url: str = "http://opa:8181", timeout: float = 5.0):
+        self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self._client: Optional[httpx.AsyncClient] = None
 
     async def connect(self):
         """Inicializa cliente HTTP assíncrono"""
-        self._client = httpx.AsyncClient(
-            base_url=self.base_url,
-            timeout=self.timeout
-        )
+        self._client = httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout)
 
         # Verifica conectividade
         try:
@@ -34,16 +28,9 @@ class OPAClient:
             if response.status_code == 200:
                 logger.info("opa_client.connected", base_url=self.base_url)
             else:
-                logger.warning(
-                    "opa_client.health_check_failed",
-                    status_code=response.status_code
-                )
+                logger.warning("opa_client.health_check_failed", status_code=response.status_code)
         except Exception as e:
-            logger.error(
-                "opa_client.connect_failed",
-                base_url=self.base_url,
-                error=str(e)
-            )
+            logger.error("opa_client.connect_failed", base_url=self.base_url, error=str(e))
             raise
 
     async def close(self):
@@ -52,11 +39,7 @@ class OPAClient:
             await self._client.aclose()
             logger.info("opa_client.closed")
 
-    async def evaluate_policy(
-        self,
-        policy_path: str,
-        input_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    async def evaluate_policy(self, policy_path: str, input_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Avalia política OPA com dados de entrada.
 
@@ -76,10 +59,7 @@ class OPAClient:
 
             payload = {"input": input_data}
 
-            logger.debug(
-                "opa_client.evaluating_policy",
-                policy_path=policy_path
-            )
+            logger.debug("opa_client.evaluating_policy", policy_path=policy_path)
 
             response = await self._client.post(url, json=payload)
             response.raise_for_status()
@@ -89,7 +69,7 @@ class OPAClient:
             logger.debug(
                 "opa_client.policy_evaluated",
                 policy_path=policy_path,
-                allowed=result.get("result", {}).get("allowed")
+                allowed=result.get("result", {}).get("allowed"),
             )
 
             return result.get("result", {})
@@ -99,25 +79,13 @@ class OPAClient:
                 "opa_client.evaluation_failed",
                 policy_path=policy_path,
                 status_code=e.response.status_code,
-                error=str(e)
+                error=str(e),
             )
             # Em caso de erro, retorna negado por segurança
-            return {
-                "allowed": False,
-                "reason": f"OPA evaluation failed: {str(e)}",
-                "error": True
-            }
+            return {"allowed": False, "reason": f"OPA evaluation failed: {str(e)}", "error": True}
         except Exception as e:
-            logger.error(
-                "opa_client.evaluation_error",
-                policy_path=policy_path,
-                error=str(e)
-            )
-            return {
-                "allowed": False,
-                "reason": f"OPA error: {str(e)}",
-                "error": True
-            }
+            logger.error("opa_client.evaluation_error", policy_path=policy_path, error=str(e))
+            return {"allowed": False, "reason": f"OPA error: {str(e)}", "error": True}
 
     def is_connected(self) -> bool:
         """Verifica se cliente está conectado"""

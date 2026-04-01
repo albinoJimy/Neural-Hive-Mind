@@ -8,15 +8,16 @@ Utiliza weighted round-robin para dequeue: CRITICAL=4, HIGH=3, NORMAL=2, LOW=1.
 import asyncio
 from collections import deque
 from enum import Enum
-from typing import Dict, Optional, Any, List
-import structlog
+from typing import Any
 
+import structlog
 
 logger = structlog.get_logger(__name__)
 
 
 class PriorityLevel(Enum):
     """Níveis de prioridade suportados."""
+
     CRITICAL = "CRITICAL"
     HIGH = "HIGH"
     NORMAL = "NORMAL"
@@ -39,21 +40,17 @@ class PriorityQueues:
         PriorityLevel.CRITICAL: 4,
         PriorityLevel.HIGH: 3,
         PriorityLevel.NORMAL: 2,
-        PriorityLevel.LOW: 1
+        PriorityLevel.LOW: 1,
     }
 
     def __init__(self):
         """Inicializa as filas de prioridade."""
-        self.queues: Dict[PriorityLevel, deque] = {
-            level: deque() for level in PriorityLevel
-        }
-        self._round_robin_counters: Dict[PriorityLevel, int] = {
-            level: 0 for level in PriorityLevel
-        }
+        self.queues: dict[PriorityLevel, deque] = {level: deque() for level in PriorityLevel}
+        self._round_robin_counters: dict[PriorityLevel, int] = dict.fromkeys(PriorityLevel, 0)
         self._lock = asyncio.Lock()
-        self.logger = logger.bind(component='priority_queues')
+        self.logger = logger.bind(component="priority_queues")
 
-    def enqueue(self, ticket: Dict[str, Any], priority_score: float) -> str:
+    def enqueue(self, ticket: dict[str, Any], priority_score: float) -> str:
         """
         Adiciona ticket à fila apropriada baseado no priority_score.
 
@@ -76,11 +73,11 @@ class PriorityQueues:
         self.queues[queue_name].append(ticket)
 
         self.logger.debug(
-            'ticket_enqueued',
-            ticket_id=ticket.get('ticket_id', 'unknown'),
+            "ticket_enqueued",
+            ticket_id=ticket.get("ticket_id", "unknown"),
             queue=queue_name.value,
             priority_score=priority_score,
-            queue_size=len(self.queues[queue_name])
+            queue_size=len(self.queues[queue_name]),
         )
 
         return queue_name.value
@@ -97,12 +94,11 @@ class PriorityQueues:
         """
         if priority_score >= 0.9:
             return PriorityLevel.CRITICAL
-        elif priority_score >= 0.7:
+        if priority_score >= 0.7:
             return PriorityLevel.HIGH
-        elif priority_score >= 0.4:
+        if priority_score >= 0.4:
             return PriorityLevel.NORMAL
-        else:
-            return PriorityLevel.LOW
+        return PriorityLevel.LOW
 
     def map_risk_band_to_queue(self, risk_band: str, sla_urgency: float = 0.0) -> PriorityLevel:
         """
@@ -117,22 +113,21 @@ class PriorityQueues:
         Returns:
             PriorityLevel correspondente
         """
-        risk_band_lower = risk_band.lower() if isinstance(risk_band, str) else 'normal'
+        risk_band_lower = risk_band.lower() if isinstance(risk_band, str) else "normal"
 
         # CRITICAL: risk='critical' ou (risk='high' e sla_urgency > 0.8)
-        if risk_band_lower == 'critical' or (risk_band_lower == 'high' and sla_urgency > 0.8):
+        if risk_band_lower == "critical" or (risk_band_lower == "high" and sla_urgency > 0.8):
             return PriorityLevel.CRITICAL
         # HIGH: risk='high' ou sla_urgency > 0.5
-        elif risk_band_lower == 'high' or sla_urgency > 0.5:
+        if risk_band_lower == "high" or sla_urgency > 0.5:
             return PriorityLevel.HIGH
         # LOW: risk='low'
-        elif risk_band_lower == 'low':
+        if risk_band_lower == "low":
             return PriorityLevel.LOW
         # NORMAL: default
-        else:
-            return PriorityLevel.NORMAL
+        return PriorityLevel.NORMAL
 
-    async def dequeue(self, queue_name: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    async def dequeue(self, queue_name: str | None = None) -> dict[str, Any] | None:
         """
         Remove próximo ticket usando weighted round-robin.
 
@@ -152,9 +147,9 @@ class PriorityQueues:
                 if self.queues[level]:
                     ticket = self.queues[level].popleft()
                     self.logger.debug(
-                        'ticket_dequeued',
-                        ticket_id=ticket.get('ticket_id', 'unknown'),
-                        queue=level.value
+                        "ticket_dequeued",
+                        ticket_id=ticket.get("ticket_id", "unknown"),
+                        queue=level.value,
                     )
                     return ticket
                 return None
@@ -162,7 +157,7 @@ class PriorityQueues:
             # Weighted round-robin para selecionar próxima fila
             return self._dequeue_round_robin()
 
-    def _dequeue_round_robin(self) -> Optional[Dict[str, Any]]:
+    def _dequeue_round_robin(self) -> dict[str, Any] | None:
         """
         Implementa weighted round-robin para dequeue.
 
@@ -189,17 +184,16 @@ class PriorityQueues:
                 ticket = self.queues[level].popleft()
 
                 self.logger.debug(
-                    'ticket_dequeued_round_robin',
-                    ticket_id=ticket.get('ticket_id', 'unknown'),
+                    "ticket_dequeued_round_robin",
+                    ticket_id=ticket.get("ticket_id", "unknown"),
                     queue=level.value,
                     counter=self._round_robin_counters[level],
-                    weight=weight
+                    weight=weight,
                 )
 
                 return ticket
-            else:
-                # Reset counter e continuar para próxima fila
-                self._round_robin_counters[level] = 0
+            # Reset counter e continuar para próxima fila
+            self._round_robin_counters[level] = 0
 
         # Todos os contadores resetados, tentar novamente (início de novo ciclo)
         for level in PriorityLevel:
@@ -208,16 +202,16 @@ class PriorityQueues:
                 ticket = self.queues[level].popleft()
 
                 self.logger.debug(
-                    'ticket_dequeued_new_cycle',
-                    ticket_id=ticket.get('ticket_id', 'unknown'),
-                    queue=level.value
+                    "ticket_dequeued_new_cycle",
+                    ticket_id=ticket.get("ticket_id", "unknown"),
+                    queue=level.value,
                 )
 
                 return ticket
 
         return None
 
-    def peek(self, queue_name: str) -> Optional[Dict[str, Any]]:
+    def peek(self, queue_name: str) -> dict[str, Any] | None:
         """
         Retorna próximo ticket de uma fila sem remover.
 
@@ -247,17 +241,14 @@ class PriorityQueues:
         level = self._parse_queue_name(queue_name)
         return len(self.queues[level])
 
-    def get_all_sizes(self) -> Dict[str, int]:
+    def get_all_sizes(self) -> dict[str, int]:
         """
         Retorna tamanho de todas as filas.
 
         Returns:
             Dict com tamanho de cada fila
         """
-        return {
-            level.value: len(self.queues[level])
-            for level in PriorityLevel
-        }
+        return {level.value: len(self.queues[level]) for level in PriorityLevel}
 
     def clear_queue(self, queue_name: str) -> int:
         """
@@ -273,11 +264,7 @@ class PriorityQueues:
         size = len(self.queues[level])
         self.queues[level].clear()
 
-        self.logger.info(
-            'queue_cleared',
-            queue=level.value,
-            tickets_removed=size
-        )
+        self.logger.info("queue_cleared", queue=level.value, tickets_removed=size)
 
         return size
 
@@ -320,11 +307,10 @@ class PriorityQueues:
         except ValueError:
             valid_levels = [level.value for level in PriorityLevel]
             raise ValueError(
-                f'Invalid queue_name: {queue_name}. '
-                f'Must be one of: {valid_levels}'
+                f"Invalid queue_name: {queue_name}. " f"Must be one of: {valid_levels}"
             )
 
     def reset_counters(self):
         """Reset todos os contadores de round-robin."""
-        self._round_robin_counters = {level: 0 for level in PriorityLevel}
-        self.logger.debug('round_robin_counters_reset')
+        self._round_robin_counters = dict.fromkeys(PriorityLevel, 0)
+        self.logger.debug("round_robin_counters_reset")

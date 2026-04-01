@@ -11,7 +11,8 @@ import hashlib
 from collections import defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple, Any
+from typing import Any, Dict, List, Optional, Set, Tuple
+
 import structlog
 
 logger = structlog.get_logger()
@@ -21,11 +22,7 @@ class FileSignal:
     """Representa um sinal detectado em um arquivo."""
 
     def __init__(
-        self,
-        filepath: str,
-        signal_type: str,
-        intensity: float,
-        metadata: Optional[Dict] = None
+        self, filepath: str, signal_type: str, intensity: float, metadata: Optional[Dict] = None
     ):
         self.filepath = filepath
         self.signal_type = signal_type  # 'created', 'modified', 'deleted', 'high_activity'
@@ -36,11 +33,11 @@ class FileSignal:
     def to_dict(self) -> Dict:
         """Converte para dicionário."""
         return {
-            'filepath': self.filepath,
-            'signal_type': self.signal_type,
-            'intensity': self.intensity,
-            'metadata': self.metadata,
-            'timestamp': self.timestamp.isoformat()
+            "filepath": self.filepath,
+            "signal_type": self.signal_type,
+            "intensity": self.intensity,
+            "metadata": self.metadata,
+            "timestamp": self.timestamp.isoformat(),
         }
 
 
@@ -66,7 +63,9 @@ class SignalDetector:
         # Contagem de atividade por arquivo
         self._activity_counts: Dict[str, int] = defaultdict(int)
 
-    def scan_directory(self, directory: str, extensions: Optional[Set[str]] = None) -> List[FileSignal]:
+    def scan_directory(
+        self, directory: str, extensions: Optional[Set[str]] = None
+    ) -> List[FileSignal]:
         """
         Escaneia diretório em busca de sinais.
 
@@ -84,12 +83,12 @@ class SignalDetector:
             logger.warning("directory_not_found", directory=directory)
             return new_signals
 
-        extensions = extensions or {'.py', '.ts', '.js', '.yaml', '.yml', '.json'}
+        extensions = extensions or {".py", ".ts", ".js", ".yaml", ".yml", ".json"}
 
         # Arquivos atuais
         current_files = set()
 
-        for filepath in dir_path.rglob('*'):
+        for filepath in dir_path.rglob("*"):
             if not filepath.is_file():
                 continue
 
@@ -109,7 +108,9 @@ class SignalDetector:
         # Detectar arquivos deletados
         deleted_files = set(self._file_hashes.keys()) - current_files
         for deleted in deleted_files:
-            signal = FileSignal(deleted, 'deleted', 0.5, {'previous_hash': self._file_hashes[deleted]})
+            signal = FileSignal(
+                deleted, "deleted", 0.5, {"previous_hash": self._file_hashes[deleted]}
+            )
             new_signals.append(signal)
             self._signals.append(signal)
             del self._file_hashes[deleted]
@@ -120,7 +121,7 @@ class SignalDetector:
     def _check_file(self, filepath: str) -> Optional[FileSignal]:
         """Verifica arquivo e detecta sinais."""
         try:
-            with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
+            with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
                 content = f.read()
 
             # Calcular hash do conteúdo
@@ -131,7 +132,7 @@ class SignalDetector:
             if filepath not in self._file_hashes:
                 self._file_hashes[filepath] = file_hash
                 self._file_timestamps[filepath] = mtime
-                return FileSignal(filepath, 'created', self._calculate_creation_intensity(content))
+                return FileSignal(filepath, "created", self._calculate_creation_intensity(content))
 
             # Arquivo modificado
             if file_hash != self._file_hashes[filepath]:
@@ -142,10 +143,9 @@ class SignalDetector:
                 # Calcular intensidade da mudança
                 intensity = self._calculate_modification_intensity(content, old_hash)
 
-                return FileSignal(filepath, 'modified', intensity, {
-                    'old_hash': old_hash,
-                    'new_hash': file_hash
-                })
+                return FileSignal(
+                    filepath, "modified", intensity, {"old_hash": old_hash, "new_hash": file_hash}
+                )
 
             return None
 
@@ -163,12 +163,12 @@ class SignalDetector:
         intensity += size_factor
 
         # Complexidade (número de linhas)
-        lines = len(content.split('\n'))
+        lines = len(content.split("\n"))
         complexity_factor = min(lines / 500, 1.0) * 0.2
         intensity += complexity_factor
 
         # Palavras-chave interessantes
-        interesting = ['class', 'def', 'function', 'interface', 'type', 'import', 'require']
+        interesting = ["class", "def", "function", "interface", "type", "import", "require"]
         keyword_count = sum(content.count(kw) for kw in interesting)
         keyword_factor = min(keyword_count / 50, 1.0) * 0.3
         intensity += keyword_factor
@@ -186,7 +186,7 @@ class SignalDetector:
         intensity += size_factor
 
         # Número de linhas modificadas
-        lines = len(content.split('\n'))
+        lines = len(content.split("\n"))
         line_factor = min(lines / 200, 1.0) * 0.2
         intensity += line_factor
 
@@ -207,8 +207,7 @@ class SignalDetector:
             Lista de (filepath, activity_count)
         """
         high_activity = [
-            (fp, count) for fp, count in self._activity_counts.items()
-            if count >= threshold
+            (fp, count) for fp, count in self._activity_counts.items() if count >= threshold
         ]
         return sorted(high_activity, key=lambda x: x[1], reverse=True)
 
@@ -225,10 +224,7 @@ class SignalDetector:
         window = minutes or self.window_minutes
         cutoff = datetime.now() - timedelta(minutes=window)
 
-        return [
-            signal for signal in self._signals
-            if signal.timestamp >= cutoff
-        ]
+        return [signal for signal in self._signals if signal.timestamp >= cutoff]
 
     def get_signal_summary(self, minutes: Optional[int] = None) -> Dict[str, Any]:
         """
@@ -243,25 +239,23 @@ class SignalDetector:
         signals = self.get_signals_in_window(minutes)
 
         summary = {
-            'total_signals': len(signals),
-            'by_type': defaultdict(int),
-            'by_file': defaultdict(int),
-            'total_intensity': 0.0,
-            'signals': []
+            "total_signals": len(signals),
+            "by_type": defaultdict(int),
+            "by_file": defaultdict(int),
+            "total_intensity": 0.0,
+            "signals": [],
         }
 
         for signal in signals:
-            summary['by_type'][signal.signal_type] += 1
-            summary['by_file'][signal.filepath] += 1
-            summary['total_intensity'] += signal.intensity
-            summary['signals'].append(signal.to_dict())
+            summary["by_type"][signal.signal_type] += 1
+            summary["by_file"][signal.filepath] += 1
+            summary["total_intensity"] += signal.intensity
+            summary["signals"].append(signal.to_dict())
 
         # Converter defaultdict para dict
-        summary['by_type'] = dict(summary['by_type'])
-        summary['by_file'] = dict(summary['by_file'])
-        summary['average_intensity'] = (
-            summary['total_intensity'] / len(signals) if signals else 0.0
-        )
+        summary["by_type"] = dict(summary["by_type"])
+        summary["by_file"] = dict(summary["by_file"])
+        summary["average_intensity"] = summary["total_intensity"] / len(signals) if signals else 0.0
 
         return summary
 
@@ -279,25 +273,25 @@ class SignalDetector:
         cutoff = datetime.now() - timedelta(minutes=window)
 
         # Contar sinais recentes por arquivo
-        recent_activity = defaultdict(lambda: {'count': 0, 'intensity': 0.0})
+        recent_activity = defaultdict(lambda: {"count": 0, "intensity": 0.0})
 
         for signal in self._signals:
             if signal.timestamp >= cutoff:
-                recent_activity[signal.filepath]['count'] += 1
-                recent_activity[signal.filepath]['intensity'] += signal.intensity
+                recent_activity[signal.filepath]["count"] += 1
+                recent_activity[signal.filepath]["intensity"] += signal.intensity
 
         # Converter para lista e ordenar
         hotspots = [
             {
-                'filepath': fp,
-                'activity_count': data['count'],
-                'total_intensity': data['intensity'],
-                'average_intensity': data['intensity'] / data['count'] if data['count'] > 0 else 0
+                "filepath": fp,
+                "activity_count": data["count"],
+                "total_intensity": data["intensity"],
+                "average_intensity": data["intensity"] / data["count"] if data["count"] > 0 else 0,
             }
             for fp, data in recent_activity.items()
         ]
 
-        hotspots.sort(key=lambda x: x['activity_count'], reverse=True)
+        hotspots.sort(key=lambda x: x["activity_count"], reverse=True)
         return hotspots[:limit]
 
     def detect_burst_activity(self, threshold: float = 3.0) -> List[str]:
@@ -330,10 +324,7 @@ class SignalDetector:
         avg_activity = sum(file_counts.values()) / len(file_counts)
 
         # Arquivos acima do threshold
-        burst_files = [
-            fp for fp, count in file_counts.items()
-            if count > avg_activity * threshold
-        ]
+        burst_files = [fp for fp, count in file_counts.items() if count > avg_activity * threshold]
 
         return burst_files
 

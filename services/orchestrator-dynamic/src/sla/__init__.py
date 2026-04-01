@@ -9,7 +9,7 @@ Componentes principais:
 - AlertManager: Publica alertas proativos e eventos de violação
 """
 
-from src.sla.sla_monitor import SLAMonitor
 from src.sla.alert_manager import AlertManager
+from src.sla.sla_monitor import SLAMonitor
 
-__all__ = ['SLAMonitor', 'AlertManager']
+__all__ = ["AlertManager", "SLAMonitor"]

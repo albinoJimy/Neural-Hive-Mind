@@ -22,20 +22,18 @@ Conversões:
       Importante: created_at é int64 em milissegundos, não string ISO
 """
 import logging
-from typing import Optional
 
 import grpc
-from ..proto_gen import ticket_service_pb2
-from ..proto_gen import ticket_service_pb2_grpc
 
 from neural_hive_observability import get_tracer
 from neural_hive_observability.context import set_baggage
 from neural_hive_observability.grpc_instrumentation import extract_grpc_context
 
+from ..config import get_settings
 from ..database import get_postgres_client
 from ..models import ExecutionTicket, TicketStatus
 from ..models.jwt_token import generate_token
-from ..config import get_settings
+from ..proto_gen import ticket_service_pb2, ticket_service_pb2_grpc
 
 logger = logging.getLogger(__name__)
 tracer = get_tracer()
@@ -44,11 +42,11 @@ tracer = get_tracer()
 def _get_enum_value(val) -> str:
     """
     Extrai valor de enum de forma segura.
-    
+
     Com Pydantic ConfigDict(use_enum_values=True), os valores podem vir
     já como strings em vez de objetos Enum. Esta função trata ambos os casos.
     """
-    return val.value if hasattr(val, 'value') else str(val)
+    return val.value if hasattr(val, "value") else str(val)
 
 
 class TicketServiceServicer(ticket_service_pb2_grpc.TicketServiceServicer):
@@ -80,7 +78,7 @@ class TicketServiceServicer(ticket_service_pb2_grpc.TicketServiceServicer):
 
             if not ticket_orm:
                 context.set_code(grpc.StatusCode.NOT_FOUND)
-                context.set_details(f'Ticket {ticket_id} not found')
+                context.set_details(f"Ticket {ticket_id} not found")
                 return ticket_service_pb2.GetTicketResponse()
 
             # Converter ORM → Pydantic → Proto
@@ -116,9 +114,9 @@ class TicketServiceServicer(ticket_service_pb2_grpc.TicketServiceServicer):
 
             filters = {}
             if request.plan_id:
-                filters['plan_id'] = request.plan_id
+                filters["plan_id"] = request.plan_id
             if request.status:
-                filters['status'] = request.status
+                filters["status"] = request.status
 
             offset = request.offset if request.offset > 0 else 0
             limit = min(request.limit if request.limit > 0 else 100, 1000)
@@ -127,15 +125,9 @@ class TicketServiceServicer(ticket_service_pb2_grpc.TicketServiceServicer):
             total = await postgres_client.count_tickets(filters)
 
             # Converter para proto
-            tickets_proto = [
-                self._pydantic_to_proto(t.to_pydantic())
-                for t in tickets_orm
-            ]
+            tickets_proto = [self._pydantic_to_proto(t.to_pydantic()) for t in tickets_orm]
 
-            return ticket_service_pb2.ListTicketsResponse(
-                tickets=tickets_proto,
-                total=total
-            )
+            return ticket_service_pb2.ListTicketsResponse(tickets=tickets_proto, total=total)
 
         except Exception as e:
             logger.error(f"ListTickets error: {e}", exc_info=True)
@@ -172,19 +164,17 @@ class TicketServiceServicer(ticket_service_pb2_grpc.TicketServiceServicer):
             ticket_orm = await postgres_client.get_ticket_by_id(ticket_id)
             if not ticket_orm:
                 context.set_code(grpc.StatusCode.NOT_FOUND)
-                context.set_details(f'Ticket {ticket_id} not found')
+                context.set_details(f"Ticket {ticket_id} not found")
                 return ticket_service_pb2.UpdateTicketStatusResponse()
 
             # Atualizar status
             updated_orm = await postgres_client.update_ticket_status(
-                ticket_id,
-                new_status,
-                error_message
+                ticket_id, new_status, error_message
             )
 
             if not updated_orm:
                 context.set_code(grpc.StatusCode.INTERNAL)
-                context.set_details('Failed to update ticket')
+                context.set_details("Failed to update ticket")
                 return ticket_service_pb2.UpdateTicketStatusResponse()
 
             # Converter para proto
@@ -226,16 +216,16 @@ class TicketServiceServicer(ticket_service_pb2_grpc.TicketServiceServicer):
             ticket_orm = await postgres_client.get_ticket_by_id(ticket_id)
             if not ticket_orm:
                 context.set_code(grpc.StatusCode.NOT_FOUND)
-                context.set_details(f'Ticket {ticket_id} not found')
+                context.set_details(f"Ticket {ticket_id} not found")
                 return ticket_service_pb2.GenerateTokenResponse()
 
             ticket = ticket_orm.to_pydantic()
 
             # Validar status
             status_value = _get_enum_value(ticket.status)
-            if status_value not in ['PENDING', 'RUNNING']:
+            if status_value not in ["PENDING", "RUNNING"]:
                 context.set_code(grpc.StatusCode.FAILED_PRECONDITION)
-                context.set_details(f'Cannot generate token for ticket with status {status_value}')
+                context.set_details(f"Cannot generate token for ticket with status {status_value}")
                 return ticket_service_pb2.GenerateTokenResponse()
 
             # Gerar token
@@ -245,13 +235,12 @@ class TicketServiceServicer(ticket_service_pb2_grpc.TicketServiceServicer):
                     ticket,
                     settings.jwt_secret_key,
                     settings.jwt_algorithm,
-                    settings.jwt_token_expiration_seconds
+                    settings.jwt_token_expiration_seconds,
                 )
                 span.set_attribute("neural.hive.ticket.status", status_value)
 
             return ticket_service_pb2.GenerateTokenResponse(
-                access_token=token.access_token,
-                expires_at=token.expires_at
+                access_token=token.access_token, expires_at=token.expires_at
             )
 
         except Exception as e:
@@ -279,5 +268,5 @@ class TicketServiceServicer(ticket_service_pb2_grpc.TicketServiceServicer):
             description=ticket.description,
             status=_get_enum_value(ticket.status),
             priority=_get_enum_value(ticket.priority),
-            created_at=ticket.created_at if ticket.created_at else 0
+            created_at=ticket.created_at if ticket.created_at else 0,
         )

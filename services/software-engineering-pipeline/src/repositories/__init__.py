@@ -1,9 +1,9 @@
 from src.repositories.base import BaseRepository
 from src.repositories.pipeline_repository import (
-    PipelineManifestRepository,
-    PipelineRunRepository,
     AnomalyRepository,
     InsightsRepository,
+    PipelineManifestRepository,
+    PipelineRunRepository,
 )
 
 __all__ = [

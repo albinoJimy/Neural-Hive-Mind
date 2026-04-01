@@ -1,10 +1,10 @@
-from datetime import datetime, timezone
-from typing import Any
+from datetime import datetime
+
 from pydantic import BaseModel, ConfigDict, Field
 from structlog import get_logger
 
 from src.models.pipeline import Insight, InsightsReport
-from src.models.schemas import Severity, InsightType
+from src.models.schemas import InsightType, Severity
 
 
 class InsightConfig(BaseModel):
@@ -52,17 +52,13 @@ class InsightsGenerator:
         successful_runs = [r for r in runs if r.get("status") == "success"]
         success_rate = len(successful_runs) / len(runs) if runs else 0.0
 
-        durations = [
-            r.get("duration_seconds", 0) for r in runs if r.get("duration_seconds")
-        ]
+        durations = [r.get("duration_seconds", 0) for r in runs if r.get("duration_seconds")]
         avg_duration = sum(durations) / len(durations) if durations else 0.0
 
         # Generate insights
         flaky_tests = await self._find_flaky_tests(runs, repo_url)
         slow_tests = await self._find_slow_tests(runs, repo_url)
-        optimization_opportunities = await self._find_optimization_opportunities(
-            runs, repo_url
-        )
+        optimization_opportunities = await self._find_optimization_opportunities(runs, repo_url)
         security_issues = await self._find_security_issues(runs, repo_url)
 
         return InsightsReport(
@@ -101,9 +97,7 @@ class InsightsGenerator:
         flaky = []
         for test_name, counts in test_results.items():
             if counts["failures"] > 0 and counts["passes"] > 0:
-                flaky_score = counts["failures"] / (
-                    counts["failures"] + counts["passes"]
-                )
+                flaky_score = counts["failures"] / (counts["failures"] + counts["passes"])
                 if flaky_score > 0.1:  # At least 10% failure rate
                     flaky.append(
                         Insight(
@@ -112,9 +106,7 @@ class InsightsGenerator:
                             insight_type=InsightType.FLAKY_TEST,
                             title=f"Flaky test: {test_name}",
                             description=f'Test fails {counts["failures"]} times but passes {counts["passes"]} times',
-                            impact=Severity.MEDIUM
-                            if flaky_score < 0.3
-                            else Severity.HIGH,
+                            impact=Severity.MEDIUM if flaky_score < 0.3 else Severity.HIGH,
                             effort="M",
                         )
                     )
@@ -179,8 +171,7 @@ class InsightsGenerator:
 
         # Check for parallelization opportunities
         avg_duration = (
-            sum(r.get("duration_seconds", 0) for r in runs if r.get("duration_seconds"))
-            / len(runs)
+            sum(r.get("duration_seconds", 0) for r in runs if r.get("duration_seconds")) / len(runs)
             if runs
             else 0
         )
@@ -200,9 +191,7 @@ class InsightsGenerator:
 
         return opportunities
 
-    async def _find_security_issues(
-        self, runs: list[dict], repo_url: str
-    ) -> list[Insight]:
+    async def _find_security_issues(self, runs: list[dict], repo_url: str) -> list[Insight]:
         """Encontra issues de segurança recorrentes."""
         security_issues = []
 

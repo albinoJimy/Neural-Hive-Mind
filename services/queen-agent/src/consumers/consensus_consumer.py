@@ -1,15 +1,12 @@
-import asyncio
+import json
+
 import structlog
 from aiokafka import AIOKafkaConsumer
-from typing import Optional
-import json
 
 from neural_hive_observability import instrument_kafka_consumer
 from neural_hive_observability.context import extract_context_from_headers, set_baggage
-
-from ..config import Settings
-from ..services import StrategicDecisionEngine
-
+from src.config import Settings
+from src.services import StrategicDecisionEngine
 
 logger = structlog.get_logger()
 
@@ -26,7 +23,7 @@ class ConsensusConsumer:
         self.settings = settings
         self.decision_engine = decision_engine
         self.strategic_producer = strategic_producer
-        self.consumer: Optional[AIOKafkaConsumer] = None
+        self.consumer: AIOKafkaConsumer | None = None
         self.running = False
 
     async def initialize(self) -> None:
@@ -50,7 +47,7 @@ class ConsensusConsumer:
             )
 
         except Exception as e:
-            logger.error("consensus_consumer_initialization_failed", error=str(e))
+            logger.exception("consensus_consumer_initialization_failed", error=str(e))
             raise
 
     async def start(self) -> None:
@@ -71,7 +68,7 @@ class ConsensusConsumer:
                     await self.consumer.commit()
 
                 except Exception as e:
-                    logger.error(
+                    logger.exception(
                         "consensus_message_processing_failed",
                         error=str(e),
                         offset=message.offset,
@@ -79,7 +76,7 @@ class ConsensusConsumer:
                     # Não commitar em caso de erro - mensagem será reprocessada
 
         except Exception as e:
-            logger.error("consensus_consumer_loop_failed", error=str(e))
+            logger.exception("consensus_consumer_loop_failed", error=str(e))
 
         finally:
             logger.info("consensus_consumer_stopped")
@@ -95,7 +92,7 @@ class ConsensusConsumer:
     async def process_message(self, message) -> None:
         """Processar mensagem de decisão consolidada"""
         try:
-            headers_dict = {k: v for k, v in (message.headers or [])}
+            headers_dict = dict(message.headers or [])
             extract_context_from_headers(headers_dict)
 
             decision_data = message.value
@@ -110,8 +107,8 @@ class ConsensusConsumer:
             logger.info("consensus_decision_received", decision_id=decision_id)
 
             # Processar via Decision Engine
-            strategic_decision = (
-                await self.decision_engine.process_consolidated_decision(decision_data)
+            strategic_decision = await self.decision_engine.process_consolidated_decision(
+                decision_data
             )
 
             if strategic_decision:
@@ -123,9 +120,7 @@ class ConsensusConsumer:
                 )
 
                 # Publicar decisão estratégica no Kafka
-                published = await self.strategic_producer.publish_decision(
-                    strategic_decision
-                )
+                published = await self.strategic_producer.publish_decision(strategic_decision)
                 if not published:
                     logger.error(
                         "failed_to_publish_strategic_decision",
@@ -146,10 +141,8 @@ class ConsensusConsumer:
                     raise Exception("Failed to execute decision action")
 
             else:
-                logger.debug(
-                    "consensus_decision_no_strategic_action", decision_id=decision_id
-                )
+                logger.debug("consensus_decision_no_strategic_action", decision_id=decision_id)
 
         except Exception as e:
-            logger.error("process_consensus_message_failed", error=str(e))
+            logger.exception("process_consensus_message_failed", error=str(e))
             raise

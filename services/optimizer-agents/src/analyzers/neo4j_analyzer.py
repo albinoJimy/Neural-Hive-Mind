@@ -1,9 +1,9 @@
 """Analyzer para Neo4j Cypher queries."""
 import logging
 import re
-from typing import Any, Dict
+from typing import Any
 
-from .base import BaseAnalyzer, AnalysisResult, RecommendationType, Severity, TargetType
+from .base import AnalysisResult, BaseAnalyzer, RecommendationType, Severity, TargetType
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +18,7 @@ class Neo4jAnalyzer(BaseAnalyzer):
     def supports(self, target_type: str) -> bool:
         return target_type.lower() in ["neo4j", "cypher", "graph"]
 
-    async def analyze(self, context: Dict[str, Any]) -> AnalysisResult:
+    async def analyze(self, context: dict[str, Any]) -> AnalysisResult:
         """Analisa query Cypher."""
         issues = []
         metrics = {"query_length": len(context.get("query", ""))}
@@ -27,12 +27,14 @@ class Neo4jAnalyzer(BaseAnalyzer):
 
         if re.search(r"MATCH\s+\([^)]+\)\s+RETURN", query, re.IGNORECASE):
             if "WHERE" not in query.upper():
-                issues.append({
-                    "type": RecommendationType.QUERY_OPTIMIZE,
-                    "severity": Severity.MEDIUM,
-                    "description": "MATCH sem filtro: pode retornar muitos nós",
-                    "estimated_improvement_pct": 50.0,
-                    "target_type": TargetType.NEO4J,
-                })
+                issues.append(
+                    {
+                        "type": RecommendationType.QUERY_OPTIMIZE,
+                        "severity": Severity.MEDIUM,
+                        "description": "MATCH sem filtro: pode retornar muitos nós",
+                        "estimated_improvement_pct": 50.0,
+                        "target_type": TargetType.NEO4J,
+                    }
+                )
 
         return AnalysisResult(issues=issues, metrics=metrics, analyzed_at="now")

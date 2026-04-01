@@ -39,28 +39,27 @@ sequenceDiagram
 
 import logging
 import time
-import structlog
 from datetime import datetime
-from typing import Dict, Optional, Any
 
-from tenacity import retry, stop_after_attempt, wait_exponential, before_sleep_log, RetryError
-
+import structlog
 from src.clients.mongodb_client import MongoDBClient
-from src.producers.plan_producer import KafkaPlanProducer
-from src.producers.approval_dlq_producer import ApprovalDLQProducer
-from src.models.cognitive_plan import CognitivePlan
 from src.models.approval_dlq import ApprovalDLQEntry
+from src.models.cognitive_plan import CognitivePlan
 from src.observability.metrics import NeuralHiveMetrics
+from src.producers.approval_dlq_producer import ApprovalDLQProducer
+from src.producers.plan_producer import KafkaPlanProducer
+from tenacity import RetryError, before_sleep_log, retry, stop_after_attempt, wait_exponential
 
 logger = structlog.get_logger()
 
 
 class SagaState:
     """Estados possíveis da saga de aprovação"""
-    EXECUTING = 'executing'
-    COMPLETED = 'completed'
-    COMPENSATED = 'compensated'
-    FAILED = 'failed'
+
+    EXECUTING = "executing"
+    COMPLETED = "completed"
+    COMPENSATED = "compensated"
+    FAILED = "failed"
 
 
 class ApprovalSaga:
@@ -82,8 +81,8 @@ class ApprovalSaga:
         self,
         mongodb_client: MongoDBClient,
         plan_producer: KafkaPlanProducer,
-        dlq_producer: Optional[ApprovalDLQProducer],
-        metrics: NeuralHiveMetrics
+        dlq_producer: ApprovalDLQProducer | None,
+        metrics: NeuralHiveMetrics,
     ):
         self.mongodb_client = mongodb_client
         self.plan_producer = plan_producer
@@ -98,9 +97,9 @@ class ApprovalSaga:
         approved_by: str,
         approved_at: datetime,
         cognitive_plan: CognitivePlan,
-        trace_context: Dict,
+        trace_context: dict,
         risk_band: str,
-        is_destructive: bool
+        is_destructive: bool,
     ) -> bool:
         """
         Executa a saga de aprovação completa.
@@ -123,32 +122,32 @@ class ApprovalSaga:
             RetryError: Se publicação falhar após compensação
         """
         start_time = time.time()
-        correlation_id = trace_context.get('correlation_id')
+        correlation_id = trace_context.get("correlation_id")
 
         logger.info(
-            'Iniciando saga de aprovação',
+            "Iniciando saga de aprovação",
             plan_id=plan_id,
             intent_id=intent_id,
             correlation_id=correlation_id,
-            saga_state=SagaState.EXECUTING
+            saga_state=SagaState.EXECUTING,
         )
 
         # Passo 1: Atualizar ledger com saga_state='executing'
         updated = await self.mongodb_client.update_plan_approval_status(
             plan_id=plan_id,
-            approval_status='approved',
+            approval_status="approved",
             approved_by=approved_by,
             approved_at=approved_at,
-            saga_state=SagaState.EXECUTING
+            saga_state=SagaState.EXECUTING,
         )
 
         if not updated:
             logger.error(
-                'Falha ao iniciar saga - ledger não atualizado',
+                "Falha ao iniciar saga - ledger não atualizado",
                 plan_id=plan_id,
-                saga_state=SagaState.FAILED
+                saga_state=SagaState.FAILED,
             )
-            self.metrics.increment_approval_ledger_error('saga_init_failed')
+            self.metrics.increment_approval_ledger_error("saga_init_failed")
             raise RuntimeError(f"Falha ao iniciar saga para plan_id={plan_id}")
 
         # Passo 2: Tentar publicar no Kafka com retry
@@ -160,7 +159,7 @@ class ApprovalSaga:
                 plan_id=plan_id,
                 approved_by=approved_by,
                 approved_at=approved_at,
-                correlation_id=correlation_id
+                correlation_id=correlation_id,
             )
 
             duration = time.time() - start_time
@@ -168,25 +167,25 @@ class ApprovalSaga:
             if completion_success:
                 self.metrics.observe_saga_duration(duration, SagaState.COMPLETED)
                 logger.info(
-                    'Saga de aprovação completada com sucesso',
+                    "Saga de aprovação completada com sucesso",
                     plan_id=plan_id,
                     intent_id=intent_id,
                     correlation_id=correlation_id,
                     saga_state=SagaState.COMPLETED,
-                    duration_ms=round(duration * 1000, 2)
+                    duration_ms=round(duration * 1000, 2),
                 )
             else:
                 # Publicação foi bem-sucedida mas atualização do ledger falhou
                 # Logar erro e marcar como failed - plano já foi publicado
                 self.metrics.observe_saga_duration(duration, SagaState.FAILED)
-                self.metrics.increment_approval_ledger_error('saga_completion_update_failed')
+                self.metrics.increment_approval_ledger_error("saga_completion_update_failed")
                 logger.error(
-                    'Saga publicou plano mas falhou ao atualizar ledger para completed',
+                    "Saga publicou plano mas falhou ao atualizar ledger para completed",
                     plan_id=plan_id,
                     intent_id=intent_id,
                     correlation_id=correlation_id,
                     saga_state=SagaState.FAILED,
-                    duration_ms=round(duration * 1000, 2)
+                    duration_ms=round(duration * 1000, 2),
                 )
 
             return True
@@ -198,10 +197,10 @@ class ApprovalSaga:
             failure_reason = str(original_error) if original_error else str(e)
 
             logger.warning(
-                'Publicação Kafka falhou após retries - iniciando compensação',
+                "Publicação Kafka falhou após retries - iniciando compensação",
                 plan_id=plan_id,
                 intent_id=intent_id,
-                error=failure_reason
+                error=failure_reason,
             )
 
             await self._compensate(
@@ -213,7 +212,7 @@ class ApprovalSaga:
                 approved_at=approved_at,
                 cognitive_plan=cognitive_plan,
                 risk_band=risk_band,
-                is_destructive=is_destructive
+                is_destructive=is_destructive,
             )
 
             duration = time.time() - start_time
@@ -225,13 +224,10 @@ class ApprovalSaga:
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
-        before_sleep=before_sleep_log(logging.getLogger(__name__), logging.WARNING)
+        before_sleep=before_sleep_log(logging.getLogger(__name__), logging.WARNING),
     )
     async def _publish_with_retry(
-        self,
-        cognitive_plan: CognitivePlan,
-        plan_id: str,
-        intent_id: str
+        self, cognitive_plan: CognitivePlan, plan_id: str, intent_id: str
     ) -> None:
         """
         Publica plano no Kafka com retry para falhas transientes.
@@ -241,27 +237,19 @@ class ApprovalSaga:
             plan_id: ID do plano
             intent_id: ID do intent
         """
-        logger.info(
-            'Tentando publicar plano aprovado',
-            plan_id=plan_id,
-            intent_id=intent_id
-        )
+        logger.info("Tentando publicar plano aprovado", plan_id=plan_id, intent_id=intent_id)
 
         await self.plan_producer.send_plan(cognitive_plan)
 
-        logger.info(
-            'Plano publicado com sucesso',
-            plan_id=plan_id,
-            intent_id=intent_id
-        )
+        logger.info("Plano publicado com sucesso", plan_id=plan_id, intent_id=intent_id)
 
     async def _update_completion_status_with_retry(
         self,
         plan_id: str,
         approved_by: str,
         approved_at: datetime,
-        correlation_id: Optional[str],
-        max_retries: int = 3
+        correlation_id: str | None,
+        max_retries: int = 3,
     ) -> bool:
         """
         Atualiza saga_state para 'completed' com retry em caso de falha.
@@ -284,54 +272,54 @@ class ApprovalSaga:
             try:
                 updated = await self.mongodb_client.update_plan_approval_status(
                     plan_id=plan_id,
-                    approval_status='approved',
+                    approval_status="approved",
                     approved_by=approved_by,
                     approved_at=approved_at,
-                    saga_state=SagaState.COMPLETED
+                    saga_state=SagaState.COMPLETED,
                 )
 
                 if updated:
                     return True
 
                 logger.warning(
-                    'Update para saga_state=completed retornou false',
+                    "Update para saga_state=completed retornou false",
                     plan_id=plan_id,
                     attempt=attempt + 1,
-                    max_retries=max_retries
+                    max_retries=max_retries,
                 )
 
             except Exception as e:
                 last_error = e
                 logger.warning(
-                    'Erro ao atualizar saga_state para completed',
+                    "Erro ao atualizar saga_state para completed",
                     plan_id=plan_id,
                     attempt=attempt + 1,
                     max_retries=max_retries,
-                    error=str(e)
+                    error=str(e),
                 )
 
         # Todas as tentativas falharam - marcar como failed via best-effort
         logger.error(
-            'Falha ao atualizar saga_state para completed após retries - marcando como failed',
+            "Falha ao atualizar saga_state para completed após retries - marcando como failed",
             plan_id=plan_id,
-            last_error=str(last_error) if last_error else 'update returned false',
-            correlation_id=correlation_id
+            last_error=str(last_error) if last_error else "update returned false",
+            correlation_id=correlation_id,
         )
 
         try:
             await self.mongodb_client.update_plan_approval_status(
                 plan_id=plan_id,
-                approval_status='approved',
+                approval_status="approved",
                 approved_by=approved_by,
                 approved_at=approved_at,
                 saga_state=SagaState.FAILED,
-                saga_failure_reason=f"Falha ao persistir completion: {last_error or 'update returned false'}"
+                saga_failure_reason=f"Falha ao persistir completion: {last_error or 'update returned false'}",
             )
         except Exception as e:
-            logger.error(
-                'Best-effort update para saga_state=failed também falhou',
+            logger.exception(
+                "Best-effort update para saga_state=failed também falhou",
                 plan_id=plan_id,
-                error=str(e)
+                error=str(e),
             )
 
         return False
@@ -341,12 +329,12 @@ class ApprovalSaga:
         plan_id: str,
         intent_id: str,
         failure_reason: str,
-        trace_context: Dict,
+        trace_context: dict,
         approved_by: str,
         approved_at: datetime,
         cognitive_plan: CognitivePlan,
         risk_band: str,
-        is_destructive: bool
+        is_destructive: bool,
     ) -> None:
         """
         Executa compensação: reverte status do ledger e envia para DLQ.
@@ -365,35 +353,34 @@ class ApprovalSaga:
             risk_band: Faixa de risco
             is_destructive: Se é destrutivo
         """
-        correlation_id = trace_context.get('correlation_id')
+        correlation_id = trace_context.get("correlation_id")
 
         logger.info(
-            'Executando compensação da saga',
+            "Executando compensação da saga",
             plan_id=plan_id,
             intent_id=intent_id,
             correlation_id=correlation_id,
-            saga_state=SagaState.COMPENSATED
+            saga_state=SagaState.COMPENSATED,
         )
 
         # Reverter status no MongoDB
         compensation_success = await self._revert_ledger_status(
-            plan_id=plan_id,
-            failure_reason=failure_reason
+            plan_id=plan_id, failure_reason=failure_reason
         )
 
         if not compensation_success:
             logger.error(
-                'Falha na compensação - ledger não foi revertido',
+                "Falha na compensação - ledger não foi revertido",
                 plan_id=plan_id,
                 intent_id=intent_id,
-                saga_state=SagaState.FAILED
+                saga_state=SagaState.FAILED,
             )
 
             # Best-effort: marcar saga_state='failed' para não deixar ledger em estado inconsistente
             await self._mark_saga_as_failed(
                 plan_id=plan_id,
                 failure_reason=f"Compensação falhou: {failure_reason}",
-                correlation_id=correlation_id
+                correlation_id=correlation_id,
             )
 
             # Registrar métrica específica para falha de compensação
@@ -403,10 +390,7 @@ class ApprovalSaga:
             failure_reason = f"COMPENSATION_FAILED: {failure_reason}"
 
         # Registrar métrica de compensação
-        self.metrics.record_saga_compensation(
-            reason='kafka_publish_failed',
-            risk_band=risk_band
-        )
+        self.metrics.record_saga_compensation(reason="kafka_publish_failed", risk_band=risk_band)
 
         # Enviar para DLQ com metadados de compensação
         await self._send_to_dlq_with_compensation_metadata(
@@ -419,22 +403,18 @@ class ApprovalSaga:
             cognitive_plan=cognitive_plan,
             risk_band=risk_band,
             is_destructive=is_destructive,
-            compensation_executed=compensation_success
+            compensation_executed=compensation_success,
         )
 
         logger.info(
-            'Compensação da saga concluída',
+            "Compensação da saga concluída",
             plan_id=plan_id,
             intent_id=intent_id,
             compensation_success=compensation_success,
-            saga_state=SagaState.COMPENSATED if compensation_success else SagaState.FAILED
+            saga_state=SagaState.COMPENSATED if compensation_success else SagaState.FAILED,
         )
 
-    async def _revert_ledger_status(
-        self,
-        plan_id: str,
-        failure_reason: str
-    ) -> bool:
+    async def _revert_ledger_status(self, plan_id: str, failure_reason: str) -> bool:
         """
         Reverte status do plano no ledger para 'pending'.
 
@@ -449,36 +429,26 @@ class ApprovalSaga:
             reverted = await self.mongodb_client.revert_plan_approval_status(
                 plan_id=plan_id,
                 saga_state=SagaState.COMPENSATED,
-                compensation_reason=failure_reason
+                compensation_reason=failure_reason,
             )
 
             if reverted:
                 logger.info(
-                    'Status do plano revertido para pending',
+                    "Status do plano revertido para pending",
                     plan_id=plan_id,
-                    saga_state=SagaState.COMPENSATED
+                    saga_state=SagaState.COMPENSATED,
                 )
             else:
-                logger.warning(
-                    'Nenhum documento atualizado na reversão',
-                    plan_id=plan_id
-                )
+                logger.warning("Nenhum documento atualizado na reversão", plan_id=plan_id)
 
             return reverted
 
         except Exception as e:
-            logger.error(
-                'Erro ao reverter status do plano',
-                plan_id=plan_id,
-                error=str(e)
-            )
+            logger.exception("Erro ao reverter status do plano", plan_id=plan_id, error=str(e))
             return False
 
     async def _mark_saga_as_failed(
-        self,
-        plan_id: str,
-        failure_reason: str,
-        correlation_id: Optional[str]
+        self, plan_id: str, failure_reason: str, correlation_id: str | None
     ) -> None:
         """
         Marca saga_state como 'failed' via best-effort update.
@@ -493,22 +463,20 @@ class ApprovalSaga:
         """
         try:
             await self.mongodb_client.update_plan_saga_state(
-                plan_id=plan_id,
-                saga_state=SagaState.FAILED,
-                saga_failure_reason=failure_reason
+                plan_id=plan_id, saga_state=SagaState.FAILED, saga_failure_reason=failure_reason
             )
             logger.info(
-                'Saga marcada como failed após falha de compensação',
+                "Saga marcada como failed após falha de compensação",
                 plan_id=plan_id,
                 saga_state=SagaState.FAILED,
-                correlation_id=correlation_id
+                correlation_id=correlation_id,
             )
         except Exception as e:
-            logger.error(
-                'Best-effort update para saga_state=failed falhou',
+            logger.exception(
+                "Best-effort update para saga_state=failed falhou",
                 plan_id=plan_id,
                 error=str(e),
-                correlation_id=correlation_id
+                correlation_id=correlation_id,
             )
             # Não propagar erro - é best-effort
 
@@ -517,13 +485,13 @@ class ApprovalSaga:
         plan_id: str,
         intent_id: str,
         failure_reason: str,
-        trace_context: Dict,
+        trace_context: dict,
         approved_by: str,
         approved_at: datetime,
         cognitive_plan: CognitivePlan,
         risk_band: str,
         is_destructive: bool,
-        compensation_executed: bool
+        compensation_executed: bool,
     ) -> None:
         """
         Envia entrada para DLQ com metadados de compensação.
@@ -541,10 +509,7 @@ class ApprovalSaga:
             compensation_executed: Se a compensação foi executada com sucesso
         """
         if not self.dlq_producer:
-            logger.warning(
-                'DLQ producer não configurado - entrada não enviada',
-                plan_id=plan_id
-            )
+            logger.warning("DLQ producer não configurado - entrada não enviada", plan_id=plan_id)
             return
 
         try:
@@ -561,42 +526,36 @@ class ApprovalSaga:
                 failure_reason=enhanced_reason,
                 retry_count=3,
                 original_approval_response={
-                    'plan_id': plan_id,
-                    'intent_id': intent_id,
-                    'decision': 'approved',
-                    'approved_by': approved_by,
-                    'approved_at': int(approved_at.timestamp() * 1000),
-                    'cognitive_plan': cognitive_plan.to_avro_dict(),
-                    'saga_compensation_executed': compensation_executed
+                    "plan_id": plan_id,
+                    "intent_id": intent_id,
+                    "decision": "approved",
+                    "approved_by": approved_by,
+                    "approved_at": int(approved_at.timestamp() * 1000),
+                    "cognitive_plan": cognitive_plan.to_avro_dict(),
+                    "saga_compensation_executed": compensation_executed,
                 },
-                correlation_id=trace_context.get('correlation_id'),
-                trace_id=trace_context.get('trace_id'),
-                span_id=trace_context.get('span_id'),
+                correlation_id=trace_context.get("correlation_id"),
+                trace_id=trace_context.get("trace_id"),
+                span_id=trace_context.get("span_id"),
                 approved_by=approved_by,
                 risk_band=risk_band,
-                is_destructive=is_destructive
+                is_destructive=is_destructive,
             )
 
             await self.dlq_producer.send_dlq_entry(dlq_entry)
 
             logger.info(
-                'Entrada DLQ enviada com metadados de compensação',
+                "Entrada DLQ enviada com metadados de compensação",
                 plan_id=plan_id,
                 intent_id=intent_id,
-                compensation_executed=compensation_executed
+                compensation_executed=compensation_executed,
             )
 
             # Registrar métrica
             self.metrics.increment_approval_dlq_messages(
-                reason='saga_compensation',
-                risk_band=risk_band,
-                is_destructive=is_destructive
+                reason="saga_compensation", risk_band=risk_band, is_destructive=is_destructive
             )
 
         except Exception as e:
-            logger.error(
-                'Falha ao enviar entrada para DLQ',
-                plan_id=plan_id,
-                error=str(e)
-            )
+            logger.exception("Falha ao enviar entrada para DLQ", plan_id=plan_id, error=str(e))
             # Não propagar erro - DLQ é best-effort

@@ -9,15 +9,16 @@ Implementa três tipos de drift:
 """
 
 import logging
-from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any
+
 import numpy as np
 from scipy import stats
 
-from src.config.settings import OrchestratorSettings
 from src.clients.mongodb_client import MongoDBClient
-from src.observability.metrics import OrchestratorMetrics
+from src.config.settings import OrchestratorSettings
 from src.ml.feature_engineering import extract_ticket_features
+from src.observability.metrics import OrchestratorMetrics
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +30,7 @@ class DriftDetector:
         self,
         config: OrchestratorSettings,
         mongodb_client: MongoDBClient,
-        metrics: Optional[OrchestratorMetrics] = None
+        metrics: OrchestratorMetrics | None = None,
     ):
         """
         Inicializa o detector de drift.
@@ -44,25 +45,20 @@ class DriftDetector:
         self.metrics = metrics or OrchestratorMetrics()
 
         # Thresholds de drift
-        self.psi_threshold = getattr(config, 'ml_drift_psi_threshold', 0.25)
-        self.mae_ratio_threshold = getattr(config, 'ml_drift_mae_ratio_threshold', 1.5)
-        self.ks_pvalue_threshold = getattr(config, 'ml_drift_ks_pvalue_threshold', 0.05)
+        self.psi_threshold = getattr(config, "ml_drift_psi_threshold", 0.25)
+        self.mae_ratio_threshold = getattr(config, "ml_drift_mae_ratio_threshold", 1.5)
+        self.ks_pvalue_threshold = getattr(config, "ml_drift_ks_pvalue_threshold", 0.05)
 
         logger.info(
             "DriftDetector initialized",
             extra={
                 "psi_threshold": self.psi_threshold,
                 "mae_ratio_threshold": self.mae_ratio_threshold,
-                "ks_pvalue_threshold": self.ks_pvalue_threshold
-            }
+                "ks_pvalue_threshold": self.ks_pvalue_threshold,
+            },
         )
 
-    def _calculate_psi(
-        self,
-        expected: np.ndarray,
-        actual: np.ndarray,
-        bins: int = 10
-    ) -> float:
+    def _calculate_psi(self, expected: np.ndarray, actual: np.ndarray, bins: int = 10) -> float:
         """
         Calcula Population Stability Index (PSI) entre duas distribuições.
 
@@ -96,7 +92,7 @@ class DriftDetector:
 
         return float(psi)
 
-    async def detect_feature_drift(self, window_days: int = 7) -> Dict[str, float]:
+    async def detect_feature_drift(self, window_days: int = 7) -> dict[str, float]:
         """
         Detecta drift nas features de entrada usando PSI.
 
@@ -108,13 +104,15 @@ class DriftDetector:
         """
         try:
             # Query tickets recentes via cliente async
-            end_date = datetime.utcnow()
+            end_date = datetime.now(UTC)
             start_date = end_date - timedelta(days=window_days)
 
-            recent_tickets = await self.mongodb_client.db['execution_tickets'].find({
-                "created_at": {"$gte": start_date, "$lte": end_date},
-                "status": "completed"
-            }).limit(1000).to_list(length=1000)
+            recent_tickets = (
+                await self.mongodb_client.db["execution_tickets"]
+                .find({"created_at": {"$gte": start_date, "$lte": end_date}, "status": "completed"})
+                .limit(1000)
+                .to_list(length=1000)
+            )
 
             if len(recent_tickets) < 50:
                 logger.warning(
@@ -134,34 +132,36 @@ class DriftDetector:
                 return {}
 
             # Carregar baseline de features do MongoDB (async)
-            baseline_doc = await self.mongodb_client.db['ml_feature_baselines'].find_one(
-                {},
-                sort=[("timestamp", -1)]
+            baseline_doc = await self.mongodb_client.db["ml_feature_baselines"].find_one(
+                {}, sort=[("timestamp", -1)]
             )
 
             if not baseline_doc:
                 logger.warning("No feature baseline found in database")
                 return {}
 
-            baseline_features = baseline_doc.get('features', {})
+            baseline_features = baseline_doc.get("features", {})
 
             # Calcular PSI para cada feature
             psi_scores = {}
 
-            for feature_name in recent_features[0].keys():
+            for feature_name in recent_features[0]:
                 try:
                     # Valores recentes
-                    recent_values = np.array([
-                        f[feature_name] for f in recent_features
-                        if feature_name in f and f[feature_name] is not None
-                    ])
+                    recent_values = np.array(
+                        [
+                            f[feature_name]
+                            for f in recent_features
+                            if feature_name in f and f[feature_name] is not None
+                        ]
+                    )
 
                     # Valores baseline
                     baseline_data = baseline_features.get(feature_name, {})
-                    if not baseline_data or 'values' not in baseline_data:
+                    if not baseline_data or "values" not in baseline_data:
                         continue
 
-                    baseline_values = np.array(baseline_data['values'])
+                    baseline_values = np.array(baseline_data["values"])
 
                     # Calcular PSI
                     if len(recent_values) > 0 and len(baseline_values) > 0:
@@ -171,22 +171,18 @@ class DriftDetector:
                         # Registrar métrica
                         if self.metrics:
                             self.metrics.record_drift_score(
-                                drift_type="feature",
-                                score=psi,
-                                feature=feature_name
+                                drift_type="feature", score=psi, feature=feature_name
                             )
 
                         # Log drift significativo
                         if psi > self.psi_threshold:
                             logger.warning(
                                 f"Significant feature drift detected: {feature_name}",
-                                extra={"psi_score": psi, "threshold": self.psi_threshold}
+                                extra={"psi_score": psi, "threshold": self.psi_threshold},
                             )
 
                 except Exception as e:
-                    logger.error(
-                        f"Error calculating PSI for feature {feature_name}: {e}"
-                    )
+                    logger.exception(f"Error calculating PSI for feature {feature_name}: {e}")
 
             return psi_scores
 
@@ -194,7 +190,7 @@ class DriftDetector:
             logger.error(f"Error detecting feature drift: {e}", exc_info=True)
             return {}
 
-    async def detect_prediction_drift(self, window_days: int = 7) -> Dict[str, float]:
+    async def detect_prediction_drift(self, window_days: int = 7) -> dict[str, float]:
         """
         Detecta degradação na acurácia das predições comparando MAE atual vs treino.
 
@@ -205,7 +201,7 @@ class DriftDetector:
             Dict com MAE por janela temporal e drift ratio
         """
         try:
-            end_date = datetime.utcnow()
+            end_date = datetime.now(UTC)
 
             # Calcular MAE para diferentes janelas
             mae_results = {}
@@ -217,12 +213,19 @@ class DriftDetector:
                 start_date = end_date - timedelta(days=days)
 
                 # Query tickets completos com predições (async)
-                tickets = await self.mongodb_client.db['execution_tickets'].find({
-                    "created_at": {"$gte": start_date, "$lte": end_date},
-                    "status": "completed",
-                    "actual_duration_ms": {"$exists": True, "$gt": 0},
-                    "predictions.duration_ms": {"$exists": True, "$gt": 0}
-                }).limit(500).to_list(length=500)
+                tickets = (
+                    await self.mongodb_client.db["execution_tickets"]
+                    .find(
+                        {
+                            "created_at": {"$gte": start_date, "$lte": end_date},
+                            "status": "completed",
+                            "actual_duration_ms": {"$exists": True, "$gt": 0},
+                            "predictions.duration_ms": {"$exists": True, "$gt": 0},
+                        }
+                    )
+                    .limit(500)
+                    .to_list(length=500)
+                )
 
                 if not tickets:
                     continue
@@ -230,8 +233,8 @@ class DriftDetector:
                 # Calcular MAE
                 errors = []
                 for ticket in tickets:
-                    actual = ticket.get('actual_duration_ms', 0)
-                    predicted = ticket.get('predictions', {}).get('duration_ms', 0)
+                    actual = ticket.get("actual_duration_ms", 0)
+                    predicted = ticket.get("predictions", {}).get("duration_ms", 0)
 
                     if actual > 0 and predicted > 0:
                         error = abs(actual - predicted)
@@ -239,25 +242,29 @@ class DriftDetector:
 
                 if errors:
                     mae = np.mean(errors)
-                    mae_results[f'mae_{days}d'] = float(mae)
+                    mae_results[f"mae_{days}d"] = float(mae)
 
             # Obter MAE de treino do MLflow (via baseline ou metadata)
             training_mae = await self._get_training_mae()
             if training_mae:
-                mae_results['mae_training'] = training_mae
+                mae_results["mae_training"] = training_mae
 
                 # Calcular drift ratio (MAE atual / MAE treino)
-                current_mae = mae_results.get('mae_7d') or mae_results.get('mae_3d') or mae_results.get('mae_1d')
+                current_mae = (
+                    mae_results.get("mae_7d")
+                    or mae_results.get("mae_3d")
+                    or mae_results.get("mae_1d")
+                )
                 if current_mae:
                     drift_ratio = current_mae / training_mae
-                    mae_results['drift_ratio'] = float(drift_ratio)
+                    mae_results["drift_ratio"] = float(drift_ratio)
 
                     # Registrar métrica
                     if self.metrics:
                         self.metrics.record_drift_score(
                             drift_type="prediction",
                             score=drift_ratio,
-                            model_name="duration-predictor"
+                            model_name="duration-predictor",
                         )
 
                     # Log degradação crítica
@@ -268,8 +275,8 @@ class DriftDetector:
                                 "drift_ratio": drift_ratio,
                                 "current_mae": current_mae,
                                 "training_mae": training_mae,
-                                "threshold": self.mae_ratio_threshold
-                            }
+                                "threshold": self.mae_ratio_threshold,
+                            },
                         )
 
             return mae_results
@@ -278,7 +285,7 @@ class DriftDetector:
             logger.error(f"Error detecting prediction drift: {e}", exc_info=True)
             return {}
 
-    async def detect_target_drift(self, window_days: int = 7) -> Dict[str, Any]:
+    async def detect_target_drift(self, window_days: int = 7) -> dict[str, Any]:
         """
         Detecta mudanças na distribuição da variável alvo (actual_duration_ms)
         usando Kolmogorov-Smirnov test.
@@ -290,37 +297,46 @@ class DriftDetector:
             Dict com estatísticas de drift do target
         """
         try:
-            end_date = datetime.utcnow()
+            end_date = datetime.now(UTC)
             start_date = end_date - timedelta(days=window_days)
 
             # Query tickets recentes (async)
-            recent_tickets = await self.mongodb_client.db['execution_tickets'].find({
-                "created_at": {"$gte": start_date, "$lte": end_date},
-                "status": "completed",
-                "actual_duration_ms": {"$exists": True, "$gt": 0}
-            }).limit(1000).to_list(length=1000)
+            recent_tickets = (
+                await self.mongodb_client.db["execution_tickets"]
+                .find(
+                    {
+                        "created_at": {"$gte": start_date, "$lte": end_date},
+                        "status": "completed",
+                        "actual_duration_ms": {"$exists": True, "$gt": 0},
+                    }
+                )
+                .limit(1000)
+                .to_list(length=1000)
+            )
 
             if len(recent_tickets) < 50:
                 logger.warning(f"Insufficient tickets for target drift: {len(recent_tickets)}")
                 return {}
 
-            recent_durations = np.array([
-                t['actual_duration_ms'] for t in recent_tickets
-                if 'actual_duration_ms' in t and t['actual_duration_ms'] > 0
-            ])
-
-            # Carregar distribuição baseline (async)
-            baseline_doc = await self.mongodb_client.db['ml_feature_baselines'].find_one(
-                {},
-                sort=[("timestamp", -1)]
+            recent_durations = np.array(
+                [
+                    t["actual_duration_ms"]
+                    for t in recent_tickets
+                    if "actual_duration_ms" in t and t["actual_duration_ms"] > 0
+                ]
             )
 
-            if not baseline_doc or 'target_distribution' not in baseline_doc:
+            # Carregar distribuição baseline (async)
+            baseline_doc = await self.mongodb_client.db["ml_feature_baselines"].find_one(
+                {}, sort=[("timestamp", -1)]
+            )
+
+            if not baseline_doc or "target_distribution" not in baseline_doc:
                 logger.warning("No target baseline found in database")
                 return {}
 
-            baseline_stats = baseline_doc['target_distribution']
-            baseline_durations = np.array(baseline_stats.get('values', []))
+            baseline_stats = baseline_doc["target_distribution"]
+            baseline_durations = np.array(baseline_stats.get("values", []))
 
             if len(baseline_durations) == 0:
                 return {}
@@ -329,8 +345,8 @@ class DriftDetector:
             ks_statistic, p_value = stats.ks_2samp(baseline_durations, recent_durations)
 
             # Calcular shifts de estatísticas descritivas
-            baseline_mean = baseline_stats.get('mean', np.mean(baseline_durations))
-            baseline_std = baseline_stats.get('std', np.std(baseline_durations))
+            baseline_mean = baseline_stats.get("mean", np.mean(baseline_durations))
+            baseline_std = baseline_stats.get("std", np.std(baseline_durations))
 
             recent_mean = float(np.mean(recent_durations))
             recent_std = float(np.std(recent_durations))
@@ -339,34 +355,31 @@ class DriftDetector:
             if baseline_mean == 0:
                 logger.warning(
                     "baseline_mean is zero, cannot calculate mean_shift_pct normally",
-                    extra={
-                        "baseline_mean": baseline_mean,
-                        "recent_mean": recent_mean
-                    }
+                    extra={"baseline_mean": baseline_mean, "recent_mean": recent_mean},
                 )
                 mean_shift_pct = 0.0
             else:
                 mean_shift_pct = ((recent_mean - baseline_mean) / baseline_mean) * 100
 
-            std_shift_pct = ((recent_std - baseline_std) / baseline_std) * 100 if baseline_std > 0 else 0
+            std_shift_pct = (
+                ((recent_std - baseline_std) / baseline_std) * 100 if baseline_std > 0 else 0
+            )
 
             result = {
-                'ks_statistic': float(ks_statistic),
-                'p_value': float(p_value),
-                'mean_shift_pct': float(mean_shift_pct),
-                'std_shift_pct': float(std_shift_pct),
-                'baseline_mean': float(baseline_mean),
-                'baseline_std': float(baseline_std),
-                'recent_mean': recent_mean,
-                'recent_std': recent_std
+                "ks_statistic": float(ks_statistic),
+                "p_value": float(p_value),
+                "mean_shift_pct": float(mean_shift_pct),
+                "std_shift_pct": float(std_shift_pct),
+                "baseline_mean": float(baseline_mean),
+                "baseline_std": float(baseline_std),
+                "recent_mean": recent_mean,
+                "recent_std": recent_std,
             }
 
             # Registrar métrica
             if self.metrics:
                 self.metrics.record_drift_score(
-                    drift_type="target",
-                    score=ks_statistic,
-                    model_name="duration-predictor"
+                    drift_type="target", score=ks_statistic, model_name="duration-predictor"
                 )
 
             # Log drift significativo
@@ -376,8 +389,8 @@ class DriftDetector:
                     extra={
                         "ks_statistic": ks_statistic,
                         "p_value": p_value,
-                        "mean_shift_pct": mean_shift_pct
-                    }
+                        "mean_shift_pct": mean_shift_pct,
+                    },
                 )
 
             return result
@@ -386,14 +399,14 @@ class DriftDetector:
             logger.error(f"Error detecting target drift: {e}", exc_info=True)
             return {}
 
-    async def run_drift_check(self) -> Dict[str, Any]:
+    async def run_drift_check(self) -> dict[str, Any]:
         """
         Executa verificação completa de drift (features, predictions, target).
 
         Returns:
             Relatório consolidado de drift
         """
-        window_days = getattr(self.config, 'ml_drift_check_window_days', 7)
+        window_days = getattr(self.config, "ml_drift_check_window_days", 7)
 
         logger.info(f"Running drift check with {window_days} day window")
 
@@ -404,91 +417,87 @@ class DriftDetector:
 
         # Determinar status geral
         overall_status = self._determine_overall_status(
-            feature_drift,
-            prediction_drift,
-            target_drift
+            feature_drift, prediction_drift, target_drift
         )
 
         # Gerar recomendações
         recommendations = self._generate_recommendations(
-            feature_drift,
-            prediction_drift,
-            target_drift
+            feature_drift, prediction_drift, target_drift
         )
 
         report = {
-            'timestamp': datetime.utcnow().isoformat(),
-            'window_days': window_days,
-            'feature_drift': feature_drift,
-            'prediction_drift': prediction_drift,
-            'target_drift': target_drift,
-            'overall_status': overall_status,
-            'recommendations': recommendations
+            "timestamp": datetime.now(UTC).isoformat(),
+            "window_days": window_days,
+            "feature_drift": feature_drift,
+            "prediction_drift": prediction_drift,
+            "target_drift": target_drift,
+            "overall_status": overall_status,
+            "recommendations": recommendations,
         }
 
         # Atualizar status geral em métricas
         if self.metrics:
-            status_value = {'ok': 0, 'warning': 1, 'critical': 2}.get(overall_status, 0)
+            {"ok": 0, "warning": 1, "critical": 2}.get(overall_status, 0)
             self.metrics.update_drift_status(
-                model_name="duration-predictor",
-                drift_type="overall",
-                status=overall_status
+                model_name="duration-predictor", drift_type="overall", status=overall_status
             )
 
         logger.info(
             "Drift check completed",
             extra={
                 "overall_status": overall_status,
-                "features_drifted": len([s for s in feature_drift.values() if s > self.psi_threshold]),
-                "prediction_drift_ratio": prediction_drift.get('drift_ratio'),
-                "target_drift_pvalue": target_drift.get('p_value')
-            }
+                "features_drifted": len(
+                    [s for s in feature_drift.values() if s > self.psi_threshold]
+                ),
+                "prediction_drift_ratio": prediction_drift.get("drift_ratio"),
+                "target_drift_pvalue": target_drift.get("p_value"),
+            },
         )
 
         return report
 
     def _determine_overall_status(
         self,
-        feature_drift: Dict[str, float],
-        prediction_drift: Dict[str, float],
-        target_drift: Dict[str, Any]
+        feature_drift: dict[str, float],
+        prediction_drift: dict[str, float],
+        target_drift: dict[str, Any],
     ) -> str:
         """Determina status geral baseado nos drifts detectados."""
 
         # Verificar drift crítico
         critical_conditions = [
             # Prediction drift crítico
-            prediction_drift.get('drift_ratio', 0) > self.mae_ratio_threshold,
+            prediction_drift.get("drift_ratio", 0) > self.mae_ratio_threshold,
             # Feature drift crítico em múltiplas features
             len([s for s in feature_drift.values() if s > self.psi_threshold]) > 3,
             # Target drift muito significativo
-            target_drift.get('p_value', 1.0) < 0.01
+            target_drift.get("p_value", 1.0) < 0.01,
         ]
 
         if any(critical_conditions):
-            return 'critical'
+            return "critical"
 
         # Verificar drift moderado
         warning_conditions = [
             # Prediction drift moderado
-            prediction_drift.get('drift_ratio', 0) > 1.2,
+            prediction_drift.get("drift_ratio", 0) > 1.2,
             # Qualquer feature drift moderado
             len([s for s in feature_drift.values() if s > 0.1]) > 0,
             # Target drift significativo
-            target_drift.get('p_value', 1.0) < self.ks_pvalue_threshold
+            target_drift.get("p_value", 1.0) < self.ks_pvalue_threshold,
         ]
 
         if any(warning_conditions):
-            return 'warning'
+            return "warning"
 
-        return 'ok'
+        return "ok"
 
     def _generate_recommendations(
         self,
-        feature_drift: Dict[str, float],
-        prediction_drift: Dict[str, float],
-        target_drift: Dict[str, Any]
-    ) -> List[str]:
+        feature_drift: dict[str, float],
+        prediction_drift: dict[str, float],
+        target_drift: dict[str, Any],
+    ) -> list[str]:
         """Gera recomendações baseadas nos drifts detectados."""
 
         recommendations = []
@@ -502,7 +511,7 @@ class DriftDetector:
                 )
 
         # Prediction drift
-        drift_ratio = prediction_drift.get('drift_ratio')
+        drift_ratio = prediction_drift.get("drift_ratio")
         if drift_ratio and drift_ratio > self.mae_ratio_threshold:
             recommendations.append(
                 f"Acurácia degradou {(drift_ratio - 1) * 100:.1f}% comparado ao treino. "
@@ -515,9 +524,9 @@ class DriftDetector:
             )
 
         # Target drift
-        p_value = target_drift.get('p_value')
+        p_value = target_drift.get("p_value")
         if p_value is not None and p_value < self.ks_pvalue_threshold:
-            mean_shift = target_drift.get('mean_shift_pct', 0)
+            mean_shift = target_drift.get("mean_shift_pct", 0)
             recommendations.append(
                 f"Distribuição do target mudou significativamente "
                 f"(p-value={p_value:.4f}, mean shift={mean_shift:.1f}%). "
@@ -529,30 +538,29 @@ class DriftDetector:
 
         return recommendations
 
-    async def _get_training_mae(self) -> Optional[float]:
+    async def _get_training_mae(self) -> float | None:
         """Obtém MAE de treino do baseline mais recente."""
         try:
-            baseline_doc = await self.mongodb_client.db['ml_feature_baselines'].find_one(
-                {},
-                sort=[("timestamp", -1)]
+            baseline_doc = await self.mongodb_client.db["ml_feature_baselines"].find_one(
+                {}, sort=[("timestamp", -1)]
             )
 
-            if baseline_doc and 'training_mae' in baseline_doc:
-                return float(baseline_doc['training_mae'])
+            if baseline_doc and "training_mae" in baseline_doc:
+                return float(baseline_doc["training_mae"])
 
             return None
 
         except Exception as e:
-            logger.error(f"Error getting training MAE: {e}")
+            logger.exception(f"Error getting training MAE: {e}")
             return None
 
     async def save_feature_baseline(
         self,
-        features_data: List[Dict[str, Any]],
-        target_values: List[float],
+        features_data: list[dict[str, Any]],
+        target_values: list[float],
         training_mae: float,
         model_name: str = "duration-predictor",
-        version: str = "latest"
+        version: str = "latest",
     ) -> None:
         """
         Salva baseline de features para futuras comparações de drift.
@@ -571,41 +579,42 @@ class DriftDetector:
 
             # Extrair valores por feature
             baseline_features = {}
-            for feature_name in features_data[0].keys():
+            for feature_name in features_data[0]:
                 values = [
-                    f[feature_name] for f in features_data
+                    f[feature_name]
+                    for f in features_data
                     if feature_name in f and f[feature_name] is not None
                 ]
                 if values:
                     baseline_features[feature_name] = {
-                        'values': values,
-                        'mean': float(np.mean(values)),
-                        'std': float(np.std(values)),
-                        'min': float(np.min(values)),
-                        'max': float(np.max(values))
+                        "values": values,
+                        "mean": float(np.mean(values)),
+                        "std": float(np.std(values)),
+                        "min": float(np.min(values)),
+                        "max": float(np.max(values)),
                     }
 
             # Salvar baseline no MongoDB (async)
             baseline_doc = {
-                'model_name': model_name,
-                'version': version,
-                'timestamp': datetime.utcnow(),
-                'features': baseline_features,
-                'target_distribution': {
-                    'values': target_values[:1000],  # Limitar para não crescer demais
-                    'mean': float(np.mean(target_values)),
-                    'std': float(np.std(target_values)),
-                    'percentiles': {
-                        'p50': float(np.percentile(target_values, 50)),
-                        'p95': float(np.percentile(target_values, 95)),
-                        'p99': float(np.percentile(target_values, 99))
-                    }
+                "model_name": model_name,
+                "version": version,
+                "timestamp": datetime.now(UTC),
+                "features": baseline_features,
+                "target_distribution": {
+                    "values": target_values[:1000],  # Limitar para não crescer demais
+                    "mean": float(np.mean(target_values)),
+                    "std": float(np.std(target_values)),
+                    "percentiles": {
+                        "p50": float(np.percentile(target_values, 50)),
+                        "p95": float(np.percentile(target_values, 95)),
+                        "p99": float(np.percentile(target_values, 99)),
+                    },
                 },
-                'training_mae': training_mae,
-                'sample_count': len(features_data)
+                "training_mae": training_mae,
+                "sample_count": len(features_data),
             }
 
-            await self.mongodb_client.db['ml_feature_baselines'].insert_one(baseline_doc)
+            await self.mongodb_client.db["ml_feature_baselines"].insert_one(baseline_doc)
 
             logger.info(
                 "Feature baseline saved",
@@ -613,8 +622,8 @@ class DriftDetector:
                     "model_name": model_name,
                     "version": version,
                     "features_count": len(baseline_features),
-                    "sample_count": len(features_data)
-                }
+                    "sample_count": len(features_data),
+                },
             )
 
         except Exception as e:

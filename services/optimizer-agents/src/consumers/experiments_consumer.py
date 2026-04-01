@@ -1,6 +1,5 @@
 import asyncio
 import json
-from typing import Optional
 
 import structlog
 from confluent_kafka import Consumer, KafkaError, KafkaException
@@ -17,12 +16,14 @@ class ExperimentsConsumer:
     Consome resultados de experimentos e atualiza Q-table com base no sucesso/falha.
     """
 
-    def __init__(self, settings=None, optimization_engine=None, experiment_manager=None, metrics=None):
+    def __init__(
+        self, settings=None, optimization_engine=None, experiment_manager=None, metrics=None
+    ):
         self.settings = settings or get_settings()
         self.optimization_engine = optimization_engine
         self.experiment_manager = experiment_manager
         self.metrics = metrics
-        self.consumer: Optional[Consumer] = None
+        self.consumer: Consumer | None = None
         self.running = False
 
     def start(self):
@@ -185,7 +186,9 @@ class ExperimentsConsumer:
                 )
 
         except Exception as e:
-            logger.error("process_completed_experiment_failed", experiment_id=experiment_id, error=str(e))
+            logger.error(
+                "process_completed_experiment_failed", experiment_id=experiment_id, error=str(e)
+            )
 
     async def _process_failed_experiment(self, experiment_id: str, result: dict):
         """
@@ -237,7 +240,9 @@ class ExperimentsConsumer:
                 )
 
         except Exception as e:
-            logger.error("process_failed_experiment_failed", experiment_id=experiment_id, error=str(e))
+            logger.error(
+                "process_failed_experiment_failed", experiment_id=experiment_id, error=str(e)
+            )
 
     def _calculate_improvement(self, baseline: dict, final: dict) -> float:
         """

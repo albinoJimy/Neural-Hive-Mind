@@ -1,28 +1,28 @@
 """Módulo de modelos de dados."""
 from .execution_ticket import (
+    SLA,
+    Consistency,
+    DeliveryMode,
+    Durability,
     ExecutionTicket,
-    TaskType,
-    TicketStatus,
     Priority,
+    QoS,
     RiskBand,
     SecurityLevel,
-    DeliveryMode,
-    Consistency,
-    Durability,
-    SLA,
-    QoS
+    TaskType,
+    TicketStatus,
 )
 
 __all__ = [
-    'ExecutionTicket',
-    'TaskType',
-    'TicketStatus',
-    'Priority',
-    'RiskBand',
-    'SecurityLevel',
-    'DeliveryMode',
-    'Consistency',
-    'Durability',
-    'SLA',
-    'QoS'
+    "SLA",
+    "Consistency",
+    "DeliveryMode",
+    "Durability",
+    "ExecutionTicket",
+    "Priority",
+    "QoS",
+    "RiskBand",
+    "SecurityLevel",
+    "TaskType",
+    "TicketStatus",
 ]

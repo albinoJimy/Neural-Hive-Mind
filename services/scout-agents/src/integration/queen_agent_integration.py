@@ -9,7 +9,8 @@ Responsável por:
 """
 
 import asyncio
-from typing import Dict, List, Any, Optional, Callable
+from typing import Any, Callable, Dict, List, Optional
+
 import structlog
 
 logger = structlog.get_logger()
@@ -19,11 +20,7 @@ class QueenAgentIntegration:
     """Integração gRPC com Queen Agent."""
 
     def __init__(
-        self,
-        channel,
-        stub,
-        agent_id: Optional[str] = None,
-        heartbeat_interval_sec: int = 30
+        self, channel, stub, agent_id: Optional[str] = None, heartbeat_interval_sec: int = 30
     ):
         """
         Inicializa a integração com Queen Agent.
@@ -36,24 +33,21 @@ class QueenAgentIntegration:
         """
         self.channel = channel
         self.stub = stub
-        self.agent_id = agent_id or 'scout-agent-unknown'
+        self.agent_id = agent_id or "scout-agent-unknown"
         self.heartbeat_interval_sec = heartbeat_interval_sec
 
         # Capacidades do agente
         self.capabilities: List[str] = [
-            'codebase_exploration',
-            'pattern_discovery',
-            'solution_synthesis'
+            "codebase_exploration",
+            "pattern_discovery",
+            "solution_synthesis",
         ]
 
         # Handlers de comandos
         self.command_handlers: Dict[str, Callable] = {}
 
         # Status atual
-        self.current_status: Dict[str, Any] = {
-            'status': 'ready',
-            'active_explorations': 0
-        }
+        self.current_status: Dict[str, Any] = {"status": "ready", "active_explorations": 0}
 
         # Task de heartbeat
         self._heartbeat_task: Optional[asyncio.Task] = None
@@ -70,16 +64,14 @@ class QueenAgentIntegration:
             # Em produção, isso seria: await self.stub.RegisterAgent(...)
             # Para testes, retornamos mock
             logger.info(
-                "registering_in_queen_agent",
-                agent_id=self.agent_id,
-                capabilities=self.capabilities
+                "registering_in_queen_agent", agent_id=self.agent_id, capabilities=self.capabilities
             )
 
             # Mock response para testes
             response = {
-                'agent_id': f'registered-{self.agent_id}',
-                'status': 'accepted',
-                'heartbeat_interval': self.heartbeat_interval_sec
+                "agent_id": f"registered-{self.agent_id}",
+                "status": "accepted",
+                "heartbeat_interval": self.heartbeat_interval_sec,
             }
 
             # Iniciar heartbeat
@@ -88,16 +80,8 @@ class QueenAgentIntegration:
             return response
 
         except Exception as e:
-            logger.error(
-                "registration_failed",
-                agent_id=self.agent_id,
-                error=str(e)
-            )
-            return {
-                'agent_id': self.agent_id,
-                'status': 'failed',
-                'error': str(e)
-            }
+            logger.error("registration_failed", agent_id=self.agent_id, error=str(e))
+            return {"agent_id": self.agent_id, "status": "failed", "error": str(e)}
 
     async def send_heartbeat(self) -> Dict[str, Any]:
         """
@@ -110,16 +94,13 @@ class QueenAgentIntegration:
             logger.debug("sending_heartbeat", agent_id=self.agent_id)
 
             # Em produção: await self.stub.SendHeartbeat(...)
-            response = {
-                'acknowledged': True,
-                'timestamp': asyncio.get_event_loop().time()
-            }
+            response = {"acknowledged": True, "timestamp": asyncio.get_event_loop().time()}
 
             return response
 
         except Exception as e:
             logger.error("heartbeat_failed", error=str(e))
-            return {'acknowledged': False, 'error': str(e)}
+            return {"acknowledged": False, "error": str(e)}
 
     def _start_heartbeat(self):
         """Inicia task de heartbeat em background."""
@@ -138,10 +119,7 @@ class QueenAgentIntegration:
             except Exception as e:
                 logger.error("heartbeat_loop_error", error=str(e))
 
-    async def report_exploration_results(
-        self,
-        results: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    async def report_exploration_results(self, results: Dict[str, Any]) -> Dict[str, Any]:
         """
         Reporta resultados de exploração ao Queen Agent.
 
@@ -154,31 +132,22 @@ class QueenAgentIntegration:
         try:
             logger.info(
                 "reporting_exploration_results",
-                exploration_id=results.get('exploration_id'),
-                status=results.get('status')
+                exploration_id=results.get("exploration_id"),
+                status=results.get("status"),
             )
 
             # Em produção: await self.stub.ReportExploration(...)
-            response = {
-                'received': True,
-                'exploration_id': results.get('exploration_id')
-            }
+            response = {"received": True, "exploration_id": results.get("exploration_id")}
 
             return response
 
         except Exception as e:
             logger.error(
-                "report_results_failed",
-                exploration_id=results.get('exploration_id'),
-                error=str(e)
+                "report_results_failed", exploration_id=results.get("exploration_id"), error=str(e)
             )
-            return {'received': False, 'error': str(e)}
+            return {"received": False, "error": str(e)}
 
-    def register_command_handler(
-        self,
-        command: str,
-        handler: Callable
-    ):
+    def register_command_handler(self, command: str, handler: Callable):
         """
         Registra handler para comando do Queen Agent.
 
@@ -189,10 +158,7 @@ class QueenAgentIntegration:
         self.command_handlers[command] = handler
         logger.info("command_handler_registered", command=command)
 
-    async def handle_command(
-        self,
-        command: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    async def handle_command(self, command: Dict[str, Any]) -> Dict[str, Any]:
         """
         Processa comando recebido do Queen Agent.
 
@@ -202,40 +168,24 @@ class QueenAgentIntegration:
         Returns:
             Dict com resultado do processamento
         """
-        command_name = command.get('command')
-        params = command.get('params', {})
+        command_name = command.get("command")
+        params = command.get("params", {})
 
-        logger.info(
-            "handling_command",
-            command=command_name,
-            params=params
-        )
+        logger.info("handling_command", command=command_name, params=params)
 
         handler = self.command_handlers.get(command_name)
 
         if handler:
             try:
                 result = await handler(command)
-                return {
-                    'handled': True,
-                    'result': result
-                }
+                return {"handled": True, "result": result}
             except Exception as e:
                 logger.error("command_handler_failed", error=str(e))
-                return {
-                    'handled': False,
-                    'error': str(e)
-                }
+                return {"handled": False, "error": str(e)}
         else:
-            return {
-                'handled': False,
-                'error': f'No handler for command: {command_name}'
-            }
+            return {"handled": False, "error": f"No handler for command: {command_name}"}
 
-    async def report_status(
-        self,
-        status: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    async def report_status(self, status: Dict[str, Any]) -> Dict[str, Any]:
         """
         Reporta status atual ao Queen Agent.
 
@@ -246,26 +196,19 @@ class QueenAgentIntegration:
             Dict com confirmação
         """
         try:
-            logger.info(
-                "reporting_status",
-                agent_id=self.agent_id,
-                status=status.get('status')
-            )
+            logger.info("reporting_status", agent_id=self.agent_id, status=status.get("status"))
 
             # Atualizar status interno
             self.current_status.update(status)
 
             # Em produção: await self.stub.ReportStatus(...)
-            response = {
-                'received': True,
-                'agent_id': self.agent_id
-            }
+            response = {"received": True, "agent_id": self.agent_id}
 
             return response
 
         except Exception as e:
             logger.error("report_status_failed", error=str(e))
-            return {'received': False, 'error': str(e)}
+            return {"received": False, "error": str(e)}
 
     async def shutdown(self):
         """Encerra a integração e para o heartbeat."""

@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Any
+
 from pydantic import BaseModel, ConfigDict
 from structlog import get_logger
 
@@ -187,9 +188,7 @@ class ApprovalStage(BaseStage):
         approved = context.get("approved", False)
 
         message = "Approval granted" if approved else "Awaiting approval"
-        self.logger.info(
-            "approval_stage_complete", run_id=run.run_id, approved=approved
-        )
+        self.logger.info("approval_stage_complete", run_id=run.run_id, approved=approved)
 
         return StageResult(
             stage=self.get_name(),

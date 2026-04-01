@@ -1,12 +1,14 @@
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Dict, List, Optional
 from uuid import UUID, uuid4
-from datetime import datetime, timezone
+
 from pydantic import BaseModel, Field
 
 
 class AgentType(str, Enum):
     """Tipos de agentes no Neural Hive-Mind"""
+
     WORKER = "WORKER"
     SCOUT = "SCOUT"
     GUARD = "GUARD"
@@ -74,6 +76,7 @@ class AgentType(str, Enum):
 
 class AgentStatus(str, Enum):
     """Status de saúde do agente"""
+
     HEALTHY = "HEALTHY"
     UNHEALTHY = "UNHEALTHY"
     DEGRADED = "DEGRADED"
@@ -81,6 +84,7 @@ class AgentStatus(str, Enum):
 
 class AgentTelemetry(BaseModel):
     """Telemetria do agente"""
+
     success_rate: float = Field(default=0.0, ge=0.0, le=1.0)
     avg_duration_ms: int = Field(default=0, ge=0)
     total_executions: int = Field(default=0, ge=0)
@@ -96,6 +100,7 @@ class AgentTelemetry(BaseModel):
 
 class AgentInfo(BaseModel):
     """Informações completas do agente"""
+
     agent_id: UUID = Field(default_factory=uuid4)
     agent_type: AgentType
     capabilities: List[str] = Field(default_factory=list)

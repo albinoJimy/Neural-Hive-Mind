@@ -10,15 +10,14 @@ com retry_count incrementado para controle de max retries.
 """
 
 import json
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any, Optional
+
 import structlog
-from datetime import datetime
-from typing import Dict, Any, Optional, TYPE_CHECKING
-
 from confluent_kafka import Producer
-
+from src.clients.mongodb_client import MongoDBClient
 from src.config.settings import Settings
 from src.models.approval_dlq import ApprovalDLQEntry
-from src.clients.mongodb_client import MongoDBClient
 from src.observability.metrics import NeuralHiveMetrics
 
 if TYPE_CHECKING:
@@ -44,43 +43,40 @@ class DLQReprocessor:
         mongodb_client: MongoDBClient,
         metrics: NeuralHiveMetrics,
         settings: Settings,
-        dlq_producer: Optional['ApprovalDLQProducer'] = None
+        dlq_producer: Optional["ApprovalDLQProducer"] = None,
     ):
         self.mongodb_client = mongodb_client
         self.metrics = metrics
         self.settings = settings
         self.dlq_producer = dlq_producer
-        self._producer: Optional[Producer] = None
+        self._producer: Producer | None = None
         self._topic = settings.kafka_approval_responses_topic
 
     async def initialize(self):
         """Inicializa producer Kafka para republicação"""
         producer_config = {
-            'bootstrap.servers': self.settings.kafka_bootstrap_servers,
-            'enable.idempotence': True,
-            'acks': 'all',
-            'max.in.flight.requests.per.connection': 5,
+            "bootstrap.servers": self.settings.kafka_bootstrap_servers,
+            "enable.idempotence": True,
+            "acks": "all",
+            "max.in.flight.requests.per.connection": 5,
         }
 
         # Configurações de segurança
-        if self.settings.kafka_security_protocol != 'PLAINTEXT':
-            producer_config.update({
-                'security.protocol': self.settings.kafka_security_protocol,
-                'sasl.mechanism': self.settings.kafka_sasl_mechanism,
-                'sasl.username': self.settings.kafka_sasl_username,
-                'sasl.password': self.settings.kafka_sasl_password,
-            })
+        if self.settings.kafka_security_protocol != "PLAINTEXT":
+            producer_config.update(
+                {
+                    "security.protocol": self.settings.kafka_security_protocol,
+                    "sasl.mechanism": self.settings.kafka_sasl_mechanism,
+                    "sasl.username": self.settings.kafka_sasl_username,
+                    "sasl.password": self.settings.kafka_sasl_password,
+                }
+            )
 
         self._producer = Producer(producer_config)
-        logger.info(
-            'DLQ Reprocessor producer inicializado',
-            topic=self._topic
-        )
+        logger.info("DLQ Reprocessor producer inicializado", topic=self._topic)
 
     async def reprocess_dlq_entry(
-        self,
-        dlq_entry: ApprovalDLQEntry,
-        trace_context: Dict[str, Any]
+        self, dlq_entry: ApprovalDLQEntry, trace_context: dict[str, Any]
     ) -> bool:
         """
         Reprocessa uma entrada da DLQ.
@@ -94,16 +90,16 @@ class DLQReprocessor:
                  ou falha transiente republicada na DLQ com retry_count incrementado
             False APENAS se não foi possível tratar a falha (sem DLQ producer)
         """
-        correlation_id = trace_context.get('correlation_id') or dlq_entry.correlation_id
-        risk_band = dlq_entry.risk_band or 'unknown'
+        correlation_id = trace_context.get("correlation_id") or dlq_entry.correlation_id
+        risk_band = dlq_entry.risk_band or "unknown"
 
         logger.info(
-            'Iniciando reprocessamento de entrada DLQ',
+            "Iniciando reprocessamento de entrada DLQ",
             plan_id=dlq_entry.plan_id,
             intent_id=dlq_entry.intent_id,
             retry_count=dlq_entry.retry_count,
             max_retry_count=self.settings.dlq_max_retry_count,
-            correlation_id=correlation_id
+            correlation_id=correlation_id,
         )
 
         # Verificar se excedeu limite de retries
@@ -115,14 +111,14 @@ class DLQReprocessor:
             await self._republish_approval_response(dlq_entry, trace_context)
 
             # Registrar métrica de sucesso
-            self.metrics.increment_dlq_reprocessed('success', risk_band)
+            self.metrics.increment_dlq_reprocessed("success", risk_band)
 
             logger.info(
-                'Entrada DLQ republicada com sucesso',
+                "Entrada DLQ republicada com sucesso",
                 plan_id=dlq_entry.plan_id,
                 intent_id=dlq_entry.intent_id,
                 retry_count=dlq_entry.retry_count,
-                correlation_id=correlation_id
+                correlation_id=correlation_id,
             )
 
             return True
@@ -132,14 +128,14 @@ class DLQReprocessor:
             error_type = type(e).__name__
             self.metrics.increment_dlq_reprocess_failure(error_type, risk_band)
 
-            logger.error(
-                'Falha ao republicar entrada DLQ',
+            logger.exception(
+                "Falha ao republicar entrada DLQ",
                 plan_id=dlq_entry.plan_id,
                 intent_id=dlq_entry.intent_id,
                 retry_count=dlq_entry.retry_count,
                 error=str(e),
                 error_type=error_type,
-                correlation_id=correlation_id
+                correlation_id=correlation_id,
             )
 
             # Incrementar retry_count e republicar na DLQ para controle de max retries
@@ -147,15 +143,15 @@ class DLQReprocessor:
                 dlq_entry=dlq_entry,
                 trace_context=trace_context,
                 risk_band=risk_band,
-                failure_reason=str(e)
+                failure_reason=str(e),
             )
 
     async def _handle_reprocess_failure(
         self,
         dlq_entry: ApprovalDLQEntry,
-        trace_context: Dict[str, Any],
+        trace_context: dict[str, Any],
         risk_band: str,
-        failure_reason: str
+        failure_reason: str,
     ) -> bool:
         """
         Trata falha no reprocessamento incrementando retry_count e republicando na DLQ.
@@ -173,25 +169,25 @@ class DLQReprocessor:
             True se tratado (republished ou permanent failure)
             False se não foi possível tratar (sem DLQ producer)
         """
-        correlation_id = trace_context.get('correlation_id') or dlq_entry.correlation_id
+        correlation_id = trace_context.get("correlation_id") or dlq_entry.correlation_id
         new_retry_count = dlq_entry.retry_count + 1
 
         logger.info(
-            'Tratando falha de reprocessamento DLQ',
+            "Tratando falha de reprocessamento DLQ",
             plan_id=dlq_entry.plan_id,
             old_retry_count=dlq_entry.retry_count,
             new_retry_count=new_retry_count,
             max_retry_count=self.settings.dlq_max_retry_count,
-            correlation_id=correlation_id
+            correlation_id=correlation_id,
         )
 
         # Verificar se novo retry_count excede limite
         if new_retry_count > self.settings.dlq_max_retry_count:
             logger.warning(
-                'Retry count excedeu limite após falha de reprocessamento',
+                "Retry count excedeu limite após falha de reprocessamento",
                 plan_id=dlq_entry.plan_id,
                 new_retry_count=new_retry_count,
-                max_retry_count=self.settings.dlq_max_retry_count
+                max_retry_count=self.settings.dlq_max_retry_count,
             )
             # Criar entrada com retry_count atualizado para permanent failure
             updated_entry = ApprovalDLQEntry(
@@ -200,22 +196,22 @@ class DLQReprocessor:
                 failure_reason=f"[REPROCESS_FAILED] {failure_reason}",
                 retry_count=new_retry_count,
                 original_approval_response=dlq_entry.original_approval_response,
-                failed_at=datetime.utcnow(),
+                failed_at=datetime.now(UTC),
                 correlation_id=dlq_entry.correlation_id,
                 trace_id=dlq_entry.trace_id,
                 span_id=dlq_entry.span_id,
                 approved_by=dlq_entry.approved_by,
                 risk_band=dlq_entry.risk_band,
-                is_destructive=dlq_entry.is_destructive
+                is_destructive=dlq_entry.is_destructive,
             )
             return await self._handle_permanent_failure(updated_entry, trace_context, risk_band)
 
         # Se não houver DLQ producer, retornar False para retry sem commit
         if not self.dlq_producer:
             logger.warning(
-                'DLQ producer não configurado - mensagem será retentada localmente sem incremento de retry_count',
+                "DLQ producer não configurado - mensagem será retentada localmente sem incremento de retry_count",
                 plan_id=dlq_entry.plan_id,
-                retry_count=dlq_entry.retry_count
+                retry_count=dlq_entry.retry_count,
             )
             return False
 
@@ -227,41 +223,39 @@ class DLQReprocessor:
                 failure_reason=f"[REPROCESS_FAILED] {failure_reason}",
                 retry_count=new_retry_count,
                 original_approval_response=dlq_entry.original_approval_response,
-                failed_at=datetime.utcnow(),
+                failed_at=datetime.now(UTC),
                 correlation_id=dlq_entry.correlation_id,
                 trace_id=dlq_entry.trace_id,
                 span_id=dlq_entry.span_id,
                 approved_by=dlq_entry.approved_by,
                 risk_band=dlq_entry.risk_band,
-                is_destructive=dlq_entry.is_destructive
+                is_destructive=dlq_entry.is_destructive,
             )
 
             await self.dlq_producer.send_dlq_entry(updated_entry)
 
             logger.info(
-                'Entrada DLQ republicada com retry_count incrementado',
+                "Entrada DLQ republicada com retry_count incrementado",
                 plan_id=dlq_entry.plan_id,
                 old_retry_count=dlq_entry.retry_count,
                 new_retry_count=new_retry_count,
-                correlation_id=correlation_id
+                correlation_id=correlation_id,
             )
 
             # Retornar True para que consumer commite o offset da entrada antiga
             return True
 
         except Exception as e:
-            logger.error(
-                'Falha ao republicar entrada na DLQ com retry_count incrementado',
+            logger.exception(
+                "Falha ao republicar entrada na DLQ com retry_count incrementado",
                 plan_id=dlq_entry.plan_id,
-                error=str(e)
+                error=str(e),
             )
             # Se falhar ao republicar na DLQ, retornar False para retry sem commit
             return False
 
     async def _republish_approval_response(
-        self,
-        dlq_entry: ApprovalDLQEntry,
-        trace_context: Dict[str, Any]
+        self, dlq_entry: ApprovalDLQEntry, trace_context: dict[str, Any]
     ) -> None:
         """
         Republica a resposta de aprovação original no tópico de approval-responses.
@@ -276,7 +270,7 @@ class DLQReprocessor:
         original_response = dlq_entry.original_approval_response
 
         # Validar estrutura da resposta original
-        required_fields = ['plan_id', 'intent_id', 'decision']
+        required_fields = ["plan_id", "intent_id", "decision"]
         for field in required_fields:
             if field not in original_response:
                 raise ValueError(
@@ -284,28 +278,28 @@ class DLQReprocessor:
                 )
 
         # Incrementar retry_count para próxima tentativa
-        original_response['dlq_retry_count'] = dlq_entry.retry_count + 1
-        original_response['dlq_reprocessed_at'] = int(datetime.utcnow().timestamp() * 1000)
+        original_response["dlq_retry_count"] = dlq_entry.retry_count + 1
+        original_response["dlq_reprocessed_at"] = int(datetime.now(UTC).timestamp() * 1000)
 
         # Preparar headers
         headers = [
-            ('plan-id', dlq_entry.plan_id.encode('utf-8')),
-            ('intent-id', dlq_entry.intent_id.encode('utf-8')),
-            ('content-type', b'application/json'),
-            ('dlq-reprocessed', b'true'),
-            ('dlq-retry-count', str(dlq_entry.retry_count + 1).encode('utf-8')),
+            ("plan-id", dlq_entry.plan_id.encode("utf-8")),
+            ("intent-id", dlq_entry.intent_id.encode("utf-8")),
+            ("content-type", b"application/json"),
+            ("dlq-reprocessed", b"true"),
+            ("dlq-retry-count", str(dlq_entry.retry_count + 1).encode("utf-8")),
         ]
 
-        if trace_context.get('correlation_id'):
-            headers.append(('correlation-id', trace_context['correlation_id'].encode('utf-8')))
-        if trace_context.get('trace_id'):
-            headers.append(('trace-id', trace_context['trace_id'].encode('utf-8')))
-        if trace_context.get('span_id'):
-            headers.append(('span-id', trace_context['span_id'].encode('utf-8')))
+        if trace_context.get("correlation_id"):
+            headers.append(("correlation-id", trace_context["correlation_id"].encode("utf-8")))
+        if trace_context.get("trace_id"):
+            headers.append(("trace-id", trace_context["trace_id"].encode("utf-8")))
+        if trace_context.get("span_id"):
+            headers.append(("span-id", trace_context["span_id"].encode("utf-8")))
 
         # Serializar resposta
-        value = json.dumps(original_response, default=str).encode('utf-8')
-        key = dlq_entry.plan_id.encode('utf-8')
+        value = json.dumps(original_response, default=str).encode("utf-8")
+        key = dlq_entry.plan_id.encode("utf-8")
 
         # Publicar mensagem
         self._producer.produce(
@@ -313,40 +307,33 @@ class DLQReprocessor:
             key=key,
             value=value,
             headers=headers,
-            on_delivery=self._delivery_callback
+            on_delivery=self._delivery_callback,
         )
         self._producer.flush()
 
         logger.debug(
-            'Resposta de aprovação republicada para reprocessamento',
+            "Resposta de aprovação republicada para reprocessamento",
             plan_id=dlq_entry.plan_id,
             intent_id=dlq_entry.intent_id,
-            decision=original_response.get('decision'),
-            dlq_retry_count=original_response['dlq_retry_count'],
-            topic=self._topic
+            decision=original_response.get("decision"),
+            dlq_retry_count=original_response["dlq_retry_count"],
+            topic=self._topic,
         )
 
     def _delivery_callback(self, err, msg):
         """Callback de entrega de mensagens"""
         if err:
-            logger.error(
-                'Falha na entrega da republicação DLQ',
-                error=str(err),
-                topic=msg.topic()
-            )
+            logger.error("Falha na entrega da republicação DLQ", error=str(err), topic=msg.topic())
         else:
             logger.debug(
-                'Republicação DLQ entregue',
+                "Republicação DLQ entregue",
                 topic=msg.topic(),
                 partition=msg.partition(),
-                offset=msg.offset()
+                offset=msg.offset(),
             )
 
     async def _handle_permanent_failure(
-        self,
-        dlq_entry: ApprovalDLQEntry,
-        trace_context: Dict[str, Any],
-        risk_band: str
+        self, dlq_entry: ApprovalDLQEntry, trace_context: dict[str, Any], risk_band: str
     ) -> bool:
         """
         Trata falha permanente quando retry_count excede o limite.
@@ -359,15 +346,15 @@ class DLQReprocessor:
         Returns:
             True para commitar offset (falha tratada)
         """
-        correlation_id = trace_context.get('correlation_id') or dlq_entry.correlation_id
+        correlation_id = trace_context.get("correlation_id") or dlq_entry.correlation_id
 
         logger.warning(
-            'Entrada DLQ excedeu limite de retries - marcando como permanentemente falhada',
+            "Entrada DLQ excedeu limite de retries - marcando como permanentemente falhada",
             plan_id=dlq_entry.plan_id,
             intent_id=dlq_entry.intent_id,
             retry_count=dlq_entry.retry_count,
             max_retry_count=self.settings.dlq_max_retry_count,
-            correlation_id=correlation_id
+            correlation_id=correlation_id,
         )
 
         # Registrar métrica de falha permanente
@@ -377,23 +364,23 @@ class DLQReprocessor:
         try:
             await self.mongodb_client.update_plan_dlq_status(
                 plan_id=dlq_entry.plan_id,
-                status='permanently_failed',
+                status="permanently_failed",
                 failure_reason=f"Excedeu máximo de {self.settings.dlq_max_retry_count} tentativas de reprocessamento DLQ",
                 retry_count=dlq_entry.retry_count,
-                last_failure_at=datetime.utcnow()
+                last_failure_at=datetime.now(UTC),
             )
 
             logger.info(
-                'Status de falha permanente registrado no MongoDB',
+                "Status de falha permanente registrado no MongoDB",
                 plan_id=dlq_entry.plan_id,
-                intent_id=dlq_entry.intent_id
+                intent_id=dlq_entry.intent_id,
             )
 
         except Exception as e:
-            logger.error(
-                'Falha ao atualizar MongoDB com status de falha permanente',
+            logger.exception(
+                "Falha ao atualizar MongoDB com status de falha permanente",
                 plan_id=dlq_entry.plan_id,
-                error=str(e)
+                error=str(e),
             )
             # Não propaga erro - falha permanente já está logada
 
@@ -403,4 +390,4 @@ class DLQReprocessor:
         """Fecha producer gracefully"""
         if self._producer:
             self._producer.flush()
-            logger.info('DLQ Reprocessor producer fechado')
+            logger.info("DLQ Reprocessor producer fechado")

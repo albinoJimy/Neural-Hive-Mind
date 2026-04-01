@@ -9,8 +9,9 @@ Responsável por:
 - Estatísticas agregadas
 """
 
-from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, List, Optional
+
 import structlog
 
 logger = structlog.get_logger()
@@ -22,8 +23,8 @@ class ScoutLedger:
     def __init__(
         self,
         mongo_client,
-        collection_name: str = 'scout_explorations',
-        database_name: str = 'scout_agents'
+        collection_name: str = "scout_explorations",
+        database_name: str = "scout_agents",
     ):
         """
         Inicializa o ScoutLedger.
@@ -45,10 +46,7 @@ class ScoutLedger:
             return self._test_collection
         return self.mongo_client[self.database_name][self.collection_name]
 
-    async def save_exploration(
-        self,
-        exploration_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    async def save_exploration(self, exploration_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Salva ou atualiza uma exploração.
 
@@ -59,42 +57,37 @@ class ScoutLedger:
             Dict com dados salvos incluindo _id
         """
         collection = self._get_collection()
-        exploration_id = exploration_data.get('exploration_id')
+        exploration_id = exploration_data.get("exploration_id")
 
         # Adicionar timestamps
-        now = datetime.utcnow()
-        if 'created_at' not in exploration_data:
-            exploration_data['created_at'] = now
-        exploration_data['updated_at'] = now
+        now = datetime.now(timezone.utc)
+        if "created_at" not in exploration_data:
+            exploration_data["created_at"] = now
+        exploration_data["updated_at"] = now
 
         # Upsert baseado em exploration_id
         if exploration_id:
             result = await collection.update_one(
-                {'exploration_id': exploration_id},
-                {'$set': exploration_data},
-                upsert=True
+                {"exploration_id": exploration_id}, {"$set": exploration_data}, upsert=True
             )
 
             # Se foi upsert (novo documento)
             if result.upserted_id:
-                exploration_data['_id'] = result.upserted_id
+                exploration_data["_id"] = result.upserted_id
         else:
             # Insert novo sem exploration_id pré-definido
             result = await collection.insert_one(exploration_data)
-            exploration_data['_id'] = result.inserted_id
+            exploration_data["_id"] = result.inserted_id
 
         logger.info(
             "exploration_saved",
             exploration_id=exploration_id,
-            status=exploration_data.get('status')
+            status=exploration_data.get("status"),
         )
 
         return exploration_data
 
-    async def get_exploration(
-        self,
-        exploration_id: str
-    ) -> Optional[Dict[str, Any]]:
+    async def get_exploration(self, exploration_id: str) -> Optional[Dict[str, Any]]:
         """
         Recupera uma exploração por ID.
 
@@ -106,12 +99,12 @@ class ScoutLedger:
         """
         collection = self._get_collection()
 
-        doc = await collection.find_one({'exploration_id': exploration_id})
+        doc = await collection.find_one({"exploration_id": exploration_id})
 
         if doc:
             # Converter ObjectId para string
-            if '_id' in doc:
-                doc['_id'] = str(doc['_id'])
+            if "_id" in doc:
+                doc["_id"] = str(doc["_id"])
 
         return doc
 
@@ -120,7 +113,7 @@ class ScoutLedger:
         plan_id: Optional[str] = None,
         status: Optional[str] = None,
         limit: int = 100,
-        skip: int = 0
+        skip: int = 0,
     ) -> List[Dict[str, Any]]:
         """
         Lista explorações com filtros opcionais.
@@ -139,9 +132,9 @@ class ScoutLedger:
         # Construir filtro
         filter_query = {}
         if plan_id:
-            filter_query['plan_id'] = plan_id
+            filter_query["plan_id"] = plan_id
         if status:
-            filter_query['status'] = status
+            filter_query["status"] = status
 
         # Executar query
         cursor = collection.find(filter_query)
@@ -152,14 +145,14 @@ class ScoutLedger:
             cursor = cursor.limit(limit)
 
         # Ordenar por created_at decrescente
-        cursor = cursor.sort('created_at', -1)
+        cursor = cursor.sort("created_at", -1)
 
         docs = await cursor.to_list(length=limit)
 
         # Converter ObjectIds
         for doc in docs:
-            if '_id' in doc:
-                doc['_id'] = str(doc['_id'])
+            if "_id" in doc:
+                doc["_id"] = str(doc["_id"])
 
         return docs
 
@@ -168,7 +161,7 @@ class ScoutLedger:
         exploration_id: str,
         status: str,
         results: Optional[Dict[str, Any]] = None,
-        error: Optional[str] = None
+        error: Optional[str] = None,
     ) -> bool:
         """
         Atualiza status de uma exploração.
@@ -184,35 +177,27 @@ class ScoutLedger:
         """
         collection = self._get_collection()
 
-        update_data = {
-            'status': status,
-            'updated_at': datetime.utcnow()
-        }
+        update_data = {"status": status, "updated_at": datetime.now(timezone.utc)}
 
-        if status == 'completed':
-            update_data['completed_at'] = datetime.utcnow()
-        elif status in ['failed', 'error']:
-            update_data['failed_at'] = datetime.utcnow()
+        if status == "completed":
+            update_data["completed_at"] = datetime.now(timezone.utc)
+        elif status in ["failed", "error"]:
+            update_data["failed_at"] = datetime.now(timezone.utc)
 
         if results:
-            update_data['results'] = results
+            update_data["results"] = results
 
         if error:
-            update_data['error'] = error
+            update_data["error"] = error
 
         result = await collection.update_one(
-            {'exploration_id': exploration_id},
-            {'$set': update_data}
+            {"exploration_id": exploration_id}, {"$set": update_data}
         )
 
         updated = result.modified_count > 0
 
         if updated:
-            logger.info(
-                "exploration_status_updated",
-                exploration_id=exploration_id,
-                status=status
-            )
+            logger.info("exploration_status_updated", exploration_id=exploration_id, status=status)
 
         return updated
 
@@ -228,7 +213,7 @@ class ScoutLedger:
         """
         collection = self._get_collection()
 
-        result = await collection.delete_one({'exploration_id': exploration_id})
+        result = await collection.delete_one({"exploration_id": exploration_id})
 
         deleted = result.deleted_count > 0
 
@@ -237,10 +222,7 @@ class ScoutLedger:
 
         return deleted
 
-    async def get_exploration_stats(
-        self,
-        plan_id: Optional[str] = None
-    ) -> Dict[str, Any]:
+    async def get_exploration_stats(self, plan_id: Optional[str] = None) -> Dict[str, Any]:
         """
         Retorna estatísticas de explorações.
 
@@ -257,15 +239,10 @@ class ScoutLedger:
 
         # Filtrar por plan_id se especificado
         if plan_id:
-            pipeline.append({'$match': {'plan_id': plan_id}})
+            pipeline.append({"$match": {"plan_id": plan_id}})
 
         # Agrupar por status
-        pipeline.append({
-            '$group': {
-                '_id': '$status',
-                'count': {'$sum': 1}
-            }
-        })
+        pipeline.append({"$group": {"_id": "$status", "count": {"$sum": 1}}})
 
         cursor = collection.aggregate(pipeline)
         status_counts = await cursor.to_list(length=10)
@@ -274,25 +251,20 @@ class ScoutLedger:
         by_status = {}
         total = 0
         for doc in status_counts:
-            status = doc['_id'] or 'unknown'
-            count = doc['count']
+            status = doc["_id"] or "unknown"
+            count = doc["count"]
             by_status[status] = count
             total += count
 
-        result = {
-            'total': total,
-            'by_status': by_status
-        }
+        result = {"total": total, "by_status": by_status}
 
         if plan_id:
-            result['plan_id'] = plan_id
+            result["plan_id"] = plan_id
 
         return result
 
     async def cleanup_old_explorations(
-        self,
-        days_older_than: int = 30,
-        status: Optional[str] = None
+        self, days_older_than: int = 30, status: Optional[str] = None
     ) -> int:
         """
         Remove explorações antigas.
@@ -306,15 +278,13 @@ class ScoutLedger:
         """
         collection = self._get_collection()
 
-        cutoff_date = datetime.utcnow() - timedelta(days=days_older_than)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_older_than)
 
-        filter_query = {
-            'created_at': {'$lt': cutoff_date}
-        }
+        filter_query = {"created_at": {"$lt": cutoff_date}}
 
         # Se status especificado, apenas limpa aqueles
         if status:
-            filter_query['status'] = status
+            filter_query["status"] = status
 
         result = await collection.delete_many(filter_query)
 
@@ -322,7 +292,7 @@ class ScoutLedger:
             "old_explorations_cleaned",
             count=result.deleted_count,
             days_older_than=days_older_than,
-            status=status
+            status=status,
         )
 
         return result.deleted_count
@@ -332,7 +302,7 @@ class ScoutLedger:
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         scouts_deployed: Optional[List[str]] = None,
-        limit: int = 100
+        limit: int = 100,
     ) -> List[Dict[str, Any]]:
         """
         Consulta explorações com filtros complexos.
@@ -354,26 +324,26 @@ class ScoutLedger:
         if start_date or end_date:
             date_filter = {}
             if start_date:
-                date_filter['$gte'] = start_date
+                date_filter["$gte"] = start_date
             if end_date:
-                date_filter['$lte'] = end_date
-            filter_query['created_at'] = date_filter
+                date_filter["$lte"] = end_date
+            filter_query["created_at"] = date_filter
 
         # Filtro de scouts
         if scouts_deployed:
-            filter_query['scouts_deployed'] = {'$in': scouts_deployed}
+            filter_query["scouts_deployed"] = {"$in": scouts_deployed}
 
         cursor = collection.find(filter_query)
 
         if limit:
             cursor = cursor.limit(limit)
 
-        cursor = cursor.sort('created_at', -1)
+        cursor = cursor.sort("created_at", -1)
 
         docs = await cursor.to_list(length=limit)
 
         for doc in docs:
-            if '_id' in doc:
-                doc['_id'] = str(doc['_id'])
+            if "_id" in doc:
+                doc["_id"] = str(doc["_id"])
 
         return docs

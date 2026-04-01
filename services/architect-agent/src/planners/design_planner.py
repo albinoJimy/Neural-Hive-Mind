@@ -3,8 +3,8 @@
 import json
 import re
 import uuid
-from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
+
 from pydantic import ValidationError
 
 from src.models.architecture import (
@@ -99,9 +99,7 @@ class DesignPlanner(BasePlanner):
                 if isinstance(comp, dict):
                     # Filtrar apenas campos permitidos pelo modelo Component
                     allowed_fields = {"name", "stack", "replicas", "ha", "resources"}
-                    filtered_comp = {
-                        k: v for k, v in comp.items() if k in allowed_fields
-                    }
+                    filtered_comp = {k: v for k, v in comp.items() if k in allowed_fields}
                     # Garantir campos obrigatórios
                     if "name" not in filtered_comp:
                         filtered_comp["name"] = "unknown"
@@ -109,9 +107,7 @@ class DesignPlanner(BasePlanner):
                         filtered_comp["stack"] = "python/fastapi"
                     components.append(Component(**filtered_comp))
                 elif isinstance(comp, str):
-                    components.append(
-                        Component(name=comp, stack="python/fastapi")
-                    )
+                    components.append(Component(name=comp, stack="python/fastapi"))
 
             # Normalizar padrões
             patterns = []
@@ -140,18 +136,14 @@ class DesignPlanner(BasePlanner):
                 "architecture_type": architecture_type,
                 "components": components,
                 "patterns": patterns,
-                "rationale": data.get(
-                    "rationale", "Auto-generated architecture"
-                ),
+                "rationale": data.get("rationale", "Auto-generated architecture"),
                 "requirements": data.get("requirements", {}),
             }
         except (json.JSONDecodeError, KeyError, ValidationError) as e:
             # Fallback para resposta padrão
             return {
                 "architecture_type": ArchitectureType.MONOLITH,
-                "components": [
-                    Component(name="app", stack="python/fastapi")
-                ],
+                "components": [Component(name="app", stack="python/fastapi")],
                 "patterns": [Pattern.REPOSITORY],
                 "rationale": f"Error parsing LLM response: {str(e)}",
                 "requirements": {},

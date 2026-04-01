@@ -1,4 +1,4 @@
-from prometheus_client import Counter, Histogram, Gauge
+from prometheus_client import Counter, Gauge, Histogram
 
 
 class QueenAgentMetrics:
@@ -47,9 +47,7 @@ class QueenAgentMetrics:
         "replannings_rejected_cooldown_total", "Replanejamentos rejeitados por cooldown"
     )
 
-    active_replannings = Gauge(
-        "active_replannings", "Replanejamentos ativos no momento"
-    )
+    active_replannings = Gauge("active_replannings", "Replanejamentos ativos no momento")
 
     # Exceções
     exception_requests_total = Counter(
@@ -74,9 +72,7 @@ class QueenAgentMetrics:
     )
 
     # Telemetria
-    system_health_score = Gauge(
-        "system_health_score", "Score geral de saúde do sistema (0-1)"
-    )
+    system_health_score = Gauge("system_health_score", "Score geral de saúde do sistema (0-1)")
 
     sla_compliance_ratio = Gauge("sla_compliance_ratio", "Ratio de compliance de SLA")
 

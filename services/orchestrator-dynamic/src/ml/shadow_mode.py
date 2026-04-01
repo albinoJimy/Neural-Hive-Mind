@@ -16,10 +16,11 @@ Características:
 import asyncio
 import time
 import uuid
-from datetime import datetime
-from typing import Dict, Any, Optional
-import structlog
+from datetime import UTC, datetime
+from typing import Any
+
 import pybreaker
+import structlog
 
 logger = structlog.get_logger(__name__)
 
@@ -58,7 +59,7 @@ class ShadowModeRunner:
         metrics,
         model_name: str,
         shadow_version: str,
-        audit_logger=None
+        audit_logger=None,
     ):
         """
         Inicializa ShadowModeRunner.
@@ -85,15 +86,15 @@ class ShadowModeRunner:
         self.audit_logger = audit_logger
         self._start_time = time.time()
         self.logger = logger.bind(
-            component="shadow_mode_runner",
-            model_name=model_name,
-            shadow_version=shadow_version
+            component="shadow_mode_runner", model_name=model_name, shadow_version=shadow_version
         )
 
         # Configurações
-        self.sample_rate = getattr(config, 'ml_shadow_mode_sample_rate', 1.0)
-        self.persist_comparisons = getattr(config, 'ml_shadow_mode_persist_comparisons', True)
-        self.circuit_breaker_enabled = getattr(config, 'ml_shadow_mode_circuit_breaker_enabled', True)
+        self.sample_rate = getattr(config, "ml_shadow_mode_sample_rate", 1.0)
+        self.persist_comparisons = getattr(config, "ml_shadow_mode_persist_comparisons", True)
+        self.circuit_breaker_enabled = getattr(
+            config, "ml_shadow_mode_circuit_breaker_enabled", True
+        )
 
         # Estatísticas de agreement
         self.agreement_count = 0
@@ -102,20 +103,18 @@ class ShadowModeRunner:
         self.total_latency_ms = 0.0
 
         # Versão de produção (para logging/métricas)
-        self.prod_version = 'production'
+        self.prod_version = "production"
 
         # Circuit breaker para shadow predictions
         if self.circuit_breaker_enabled:
             self.circuit_breaker = pybreaker.CircuitBreaker(
-                fail_max=5,
-                reset_timeout=60,
-                listeners=[ShadowCircuitBreakerListener(self)]
+                fail_max=5, reset_timeout=60, listeners=[ShadowCircuitBreakerListener(self)]
             )
         else:
             self.circuit_breaker = None
 
         # Collection MongoDB para comparações
-        self.collection_name = 'shadow_mode_comparisons'
+        self.collection_name = "shadow_mode_comparisons"
 
         # Lock para estatísticas thread-safe
         self._stats_lock = asyncio.Lock()
@@ -124,7 +123,7 @@ class ShadowModeRunner:
             "shadow_mode_runner_initialized",
             sample_rate=self.sample_rate,
             persist_comparisons=self.persist_comparisons,
-            circuit_breaker_enabled=self.circuit_breaker_enabled
+            circuit_breaker_enabled=self.circuit_breaker_enabled,
         )
 
         # Audit logging - shadow mode iniciado
@@ -133,11 +132,11 @@ class ShadowModeRunner:
 
     async def predict_with_shadow(
         self,
-        features: Dict[str, Any],
-        context: Dict[str, Any],
-        prod_result: Optional[Dict[str, Any]] = None,
-        normalized_features: Optional[Any] = None
-    ) -> Dict[str, Any]:
+        features: dict[str, Any],
+        context: dict[str, Any],
+        prod_result: dict[str, Any] | None = None,
+        normalized_features: Any | None = None,
+    ) -> dict[str, Any]:
         """
         Dispara predição shadow em paralelo com predição de produção já calculada.
 
@@ -169,15 +168,18 @@ class ShadowModeRunner:
             try:
                 prod_result = self._execute_production_prediction(features)
             except Exception as e:
-                self.logger.error("production_prediction_failed", error=str(e))
+                self.logger.exception("production_prediction_failed", error=str(e))
                 raise
 
         # Disparar predição shadow em background (fire-and-forget)
         if should_shadow and self._is_circuit_closed():
             asyncio.create_task(
                 self._shadow_predict(
-                    features, prod_result, context, start_time,
-                    normalized_features=normalized_features
+                    features,
+                    prod_result,
+                    context,
+                    start_time,
+                    normalized_features=normalized_features,
                 )
             )
 
@@ -185,10 +187,10 @@ class ShadowModeRunner:
 
     async def predict_shadow_only(
         self,
-        features: Dict[str, Any],
-        prod_result: Dict[str, Any],
-        context: Dict[str, Any],
-        normalized_features: Optional[Any] = None
+        features: dict[str, Any],
+        prod_result: dict[str, Any],
+        context: dict[str, Any],
+        normalized_features: Any | None = None,
     ) -> None:
         """
         Executa apenas a predição shadow em background (fire-and-forget).
@@ -213,12 +215,15 @@ class ShadowModeRunner:
         if should_shadow and self._is_circuit_closed():
             asyncio.create_task(
                 self._shadow_predict(
-                    features, prod_result, context, start_time,
-                    normalized_features=normalized_features
+                    features,
+                    prod_result,
+                    context,
+                    start_time,
+                    normalized_features=normalized_features,
                 )
             )
 
-    def _execute_production_prediction(self, features: Dict[str, Any]) -> Dict[str, Any]:
+    def _execute_production_prediction(self, features: dict[str, Any]) -> dict[str, Any]:
         """
         Executa predição de produção.
 
@@ -237,34 +242,30 @@ class ShadowModeRunner:
             feature_array = features
 
         # Determinar tipo de modelo baseado no nome
-        if 'duration' in self.model_name.lower():
+        if "duration" in self.model_name.lower():
             # DurationPredictor
             predicted = float(self.prod_model.predict(feature_array)[0])
-            return {
-                'duration_ms': max(predicted, 1000.0),
-                'confidence': 0.7  # Default confidence
-            }
-        elif 'anomaly' in self.model_name.lower():
+            return {"duration_ms": max(predicted, 1000.0), "confidence": 0.7}  # Default confidence
+        if "anomaly" in self.model_name.lower():
             # AnomalyDetector
             prediction = self.prod_model.predict(feature_array)[0]
             score = float(self.prod_model.score_samples(feature_array)[0])
             return {
-                'is_anomaly': prediction == -1,
-                'anomaly_score': score,
-                'confidence': abs(score)
+                "is_anomaly": prediction == -1,
+                "anomaly_score": score,
+                "confidence": abs(score),
             }
-        else:
-            # Modelo genérico
-            predicted = self.prod_model.predict(feature_array)
-            return {'prediction': predicted.tolist()}
+        # Modelo genérico
+        predicted = self.prod_model.predict(feature_array)
+        return {"prediction": predicted.tolist()}
 
     async def _shadow_predict(
         self,
-        features: Dict[str, Any],
-        prod_result: Dict[str, Any],
-        context: Dict[str, Any],
+        features: dict[str, Any],
+        prod_result: dict[str, Any],
+        context: dict[str, Any],
         start_time: float,
-        normalized_features: Optional[Any] = None
+        normalized_features: Any | None = None,
     ) -> None:
         """
         Executa predição shadow em background.
@@ -287,8 +288,8 @@ class ShadowModeRunner:
             # Verificar circuit breaker
             if self.circuit_breaker:
                 state = self.circuit_breaker.current_state
-                state_name = state.name if hasattr(state, 'name') else str(state)
-                if state_name == 'open':
+                state_name = state.name if hasattr(state, "name") else str(state)
+                if state_name == "open":
                     self.logger.debug("shadow_predict_skipped_circuit_open")
                     return
 
@@ -303,23 +304,20 @@ class ShadowModeRunner:
             # Executar predição shadow
             shadow_result = {}
 
-            if 'duration' in self.model_name.lower():
+            if "duration" in self.model_name.lower():
                 predicted = float(self.shadow_model.predict(feature_array)[0])
-                shadow_result = {
-                    'duration_ms': max(predicted, 1000.0),
-                    'confidence': 0.7
-                }
-            elif 'anomaly' in self.model_name.lower():
+                shadow_result = {"duration_ms": max(predicted, 1000.0), "confidence": 0.7}
+            elif "anomaly" in self.model_name.lower():
                 prediction = self.shadow_model.predict(feature_array)[0]
                 score = float(self.shadow_model.score_samples(feature_array)[0])
                 shadow_result = {
-                    'is_anomaly': prediction == -1,
-                    'anomaly_score': score,
-                    'confidence': abs(score)
+                    "is_anomaly": prediction == -1,
+                    "anomaly_score": score,
+                    "confidence": abs(score),
                 }
             else:
                 predicted = self.shadow_model.predict(feature_array)
-                shadow_result = {'prediction': predicted.tolist()}
+                shadow_result = {"prediction": predicted.tolist()}
 
             shadow_latency_ms = (time.time() - shadow_start) * 1000
             prod_latency_ms = (shadow_start - start_time) * 1000
@@ -335,35 +333,32 @@ class ShadowModeRunner:
                 self.metrics.record_shadow_prediction(
                     model_name=self.model_name,
                     model_version=self.shadow_version,
-                    status='success',
+                    status="success",
                     latency=shadow_latency_ms / 1000,
-                    agreement=agreement
+                    agreement=agreement,
                 )
 
             # Persistir comparação
             if self.persist_comparisons:
                 comparison = {
-                    'comparison_id': str(uuid.uuid4()),
-                    'model_name': self.model_name,
-                    'prod_version': self.prod_version,
-                    'shadow_version': self.shadow_version,
-                    'timestamp': datetime.utcnow(),
-                    'features': features if isinstance(features, dict) else {},
-                    'prod_result': prod_result,
-                    'shadow_result': shadow_result,
-                    'agreement': agreement,
-                    'latency_ms': {
-                        'prod': prod_latency_ms,
-                        'shadow': shadow_latency_ms
-                    },
-                    'context': context
+                    "comparison_id": str(uuid.uuid4()),
+                    "model_name": self.model_name,
+                    "prod_version": self.prod_version,
+                    "shadow_version": self.shadow_version,
+                    "timestamp": datetime.now(UTC),
+                    "features": features if isinstance(features, dict) else {},
+                    "prod_result": prod_result,
+                    "shadow_result": shadow_result,
+                    "agreement": agreement,
+                    "latency_ms": {"prod": prod_latency_ms, "shadow": shadow_latency_ms},
+                    "context": context,
                 }
                 await self._persist_comparison(comparison)
 
             self.logger.debug(
                 "shadow_prediction_completed",
-                agreement_overall=agreement.get('overall'),
-                shadow_latency_ms=round(shadow_latency_ms, 2)
+                agreement_overall=agreement.get("overall"),
+                shadow_latency_ms=round(shadow_latency_ms, 2),
             )
 
         except Exception as e:
@@ -381,8 +376,7 @@ class ShadowModeRunner:
             # Registrar erro nas métricas
             if self.metrics:
                 self.metrics.record_shadow_error(
-                    model_name=self.model_name,
-                    error_type=type(e).__name__
+                    model_name=self.model_name, error_type=type(e).__name__
                 )
 
     def _raise_error(self, error):
@@ -390,10 +384,8 @@ class ShadowModeRunner:
         raise error
 
     def _calculate_agreement(
-        self,
-        prod_result: Dict[str, Any],
-        shadow_result: Dict[str, Any]
-    ) -> Dict[str, bool]:
+        self, prod_result: dict[str, Any], shadow_result: dict[str, Any]
+    ) -> dict[str, bool]:
         """
         Calcula agreement entre produção e shadow.
 
@@ -420,33 +412,33 @@ class ShadowModeRunner:
         agreement = {}
 
         # Agreement para duration
-        if 'duration_ms' in prod_result and 'duration_ms' in shadow_result:
-            prod_duration = prod_result['duration_ms']
-            shadow_duration = shadow_result['duration_ms']
+        if "duration_ms" in prod_result and "duration_ms" in shadow_result:
+            prod_duration = prod_result["duration_ms"]
+            shadow_duration = shadow_result["duration_ms"]
 
             if prod_duration > 0:
                 duration_diff_pct = abs(prod_duration - shadow_duration) / prod_duration
-                agreement['duration'] = duration_diff_pct < 0.15  # 15% threshold
+                agreement["duration"] = duration_diff_pct < 0.15  # 15% threshold
             else:
-                agreement['duration'] = shadow_duration == 0
+                agreement["duration"] = shadow_duration == 0
 
         # Agreement para anomaly
-        if 'is_anomaly' in prod_result and 'is_anomaly' in shadow_result:
-            agreement['anomaly'] = prod_result['is_anomaly'] == shadow_result['is_anomaly']
+        if "is_anomaly" in prod_result and "is_anomaly" in shadow_result:
+            agreement["anomaly"] = prod_result["is_anomaly"] == shadow_result["is_anomaly"]
 
         # Agreement para confidence
-        if 'confidence' in prod_result and 'confidence' in shadow_result:
-            confidence_diff = abs(prod_result['confidence'] - shadow_result['confidence'])
-            agreement['confidence'] = confidence_diff < 0.2
+        if "confidence" in prod_result and "confidence" in shadow_result:
+            confidence_diff = abs(prod_result["confidence"] - shadow_result["confidence"])
+            agreement["confidence"] = confidence_diff < 0.2
 
         # Calcular overall agreement
         # Overall é True se todos os agreements específicos são True
-        specific_agreements = [v for k, v in agreement.items() if k != 'overall']
-        agreement['overall'] = all(specific_agreements) if specific_agreements else True
+        specific_agreements = [v for k, v in agreement.items() if k != "overall"]
+        agreement["overall"] = all(specific_agreements) if specific_agreements else True
 
         return agreement
 
-    async def _update_stats(self, agreement: Dict[str, bool], latency_ms: float) -> None:
+    async def _update_stats(self, agreement: dict[str, bool], latency_ms: float) -> None:
         """
         Atualiza estatísticas de agreement.
 
@@ -460,12 +452,12 @@ class ShadowModeRunner:
             self.total_count += 1
             self.total_latency_ms += latency_ms
 
-            if agreement.get('overall', False):
+            if agreement.get("overall", False):
                 self.agreement_count += 1
             else:
                 self.disagreement_count += 1
 
-    async def _persist_comparison(self, comparison: Dict[str, Any]) -> None:
+    async def _persist_comparison(self, comparison: dict[str, Any]) -> None:
         """
         Persiste comparação no MongoDB.
 
@@ -491,10 +483,10 @@ class ShadowModeRunner:
             return True
         # pybreaker.current_state pode ser objeto de estado ou string
         state = self.circuit_breaker.current_state
-        state_name = state.name if hasattr(state, 'name') else str(state)
-        return state_name != 'open'
+        state_name = state.name if hasattr(state, "name") else str(state)
+        return state_name != "open"
 
-    def get_agreement_stats(self) -> Dict[str, float]:
+    def get_agreement_stats(self) -> dict[str, float]:
         """
         Retorna estatísticas agregadas de agreement.
 
@@ -507,45 +499,43 @@ class ShadowModeRunner:
         """
         if self.total_count == 0:
             return {
-                'agreement_rate': 0.0,
-                'prediction_count': 0,
-                'avg_latency_ms': 0.0,
-                'disagreement_count': 0
+                "agreement_rate": 0.0,
+                "prediction_count": 0,
+                "avg_latency_ms": 0.0,
+                "disagreement_count": 0,
             }
 
         return {
-            'agreement_rate': self.agreement_count / self.total_count,
-            'prediction_count': self.total_count,
-            'avg_latency_ms': self.total_latency_ms / self.total_count,
-            'disagreement_count': self.disagreement_count
+            "agreement_rate": self.agreement_count / self.total_count,
+            "prediction_count": self.total_count,
+            "avg_latency_ms": self.total_latency_ms / self.total_count,
+            "disagreement_count": self.disagreement_count,
         }
 
     async def _log_shadow_mode_started(self) -> None:
         """Registra início do shadow mode no audit log."""
         try:
             from .model_audit_logger import AuditEventContext
+
             context = AuditEventContext(
-                user_id='system',
-                reason='Shadow mode iniciado para validação de modelo',
-                environment=getattr(self.config, 'environment', 'production'),
-                triggered_by='automatic',
-                metadata={
-                    'prod_version': self.prod_version,
-                    'sample_rate': self.sample_rate
-                }
+                user_id="system",
+                reason="Shadow mode iniciado para validação de modelo",
+                environment=getattr(self.config, "environment", "production"),
+                triggered_by="automatic",
+                metadata={"prod_version": self.prod_version, "sample_rate": self.sample_rate},
             )
             await self.audit_logger.log_shadow_mode_started(
                 model_name=self.model_name,
                 model_version=self.shadow_version,
                 context=context,
                 shadow_config={
-                    'sample_rate': self.sample_rate,
-                    'persist_comparisons': self.persist_comparisons,
-                    'circuit_breaker_enabled': self.circuit_breaker_enabled
-                }
+                    "sample_rate": self.sample_rate,
+                    "persist_comparisons": self.persist_comparisons,
+                    "circuit_breaker_enabled": self.circuit_breaker_enabled,
+                },
             )
         except Exception as e:
-            self.logger.warning('audit_logging_shadow_started_failed', error=str(e))
+            self.logger.warning("audit_logging_shadow_started_failed", error=str(e))
 
     async def close(self) -> None:
         """
@@ -558,35 +548,36 @@ class ShadowModeRunner:
         self.logger.info(
             "shadow_mode_runner_closing",
             total_predictions=self.total_count,
-            agreement_rate=stats.get('agreement_rate', 0)
+            agreement_rate=stats.get("agreement_rate", 0),
         )
 
         # Audit logging - shadow mode concluído
         if self.audit_logger:
             try:
                 from .model_audit_logger import AuditEventContext
+
                 duration = time.time() - self._start_time
                 context = AuditEventContext(
-                    user_id='system',
-                    reason='Shadow mode concluído',
+                    user_id="system",
+                    reason="Shadow mode concluído",
                     duration_seconds=duration,
-                    environment=getattr(self.config, 'environment', 'production'),
-                    triggered_by='automatic',
-                    metadata={'prod_version': self.prod_version}
+                    environment=getattr(self.config, "environment", "production"),
+                    triggered_by="automatic",
+                    metadata={"prod_version": self.prod_version},
                 )
                 await self.audit_logger.log_shadow_mode_completed(
                     model_name=self.model_name,
                     model_version=self.shadow_version,
                     context=context,
                     shadow_results={
-                        'agreement_rate': stats.get('agreement_rate', 0),
-                        'prediction_count': stats.get('prediction_count', 0),
-                        'avg_latency_ms': stats.get('avg_latency_ms', 0),
-                        'disagreement_count': stats.get('disagreement_count', 0)
-                    }
+                        "agreement_rate": stats.get("agreement_rate", 0),
+                        "prediction_count": stats.get("prediction_count", 0),
+                        "avg_latency_ms": stats.get("avg_latency_ms", 0),
+                        "disagreement_count": stats.get("disagreement_count", 0),
+                    },
                 )
             except Exception as e:
-                self.logger.warning('audit_logging_shadow_completed_failed', error=str(e))
+                self.logger.warning("audit_logging_shadow_completed_failed", error=str(e))
 
         # Reset stats
         self.agreement_count = 0
@@ -615,14 +606,13 @@ class ShadowCircuitBreakerListener(pybreaker.CircuitBreakerListener):
             "shadow_circuit_breaker_state_change",
             model_name=self.runner.model_name,
             old_state=old_state.name,
-            new_state=new_state.name
+            new_state=new_state.name,
         )
 
         if self.runner.metrics:
             state_name = new_state.name.lower()
             self.runner.metrics.set_shadow_circuit_breaker_state(
-                model_name=self.runner.model_name,
-                state=state_name
+                model_name=self.runner.model_name, state=state_name
             )
 
     def failure(self, cb, exc):
@@ -631,9 +621,8 @@ class ShadowCircuitBreakerListener(pybreaker.CircuitBreakerListener):
             "shadow_circuit_breaker_failure",
             model_name=self.runner.model_name,
             failure_count=cb.fail_counter,
-            error=str(exc)
+            error=str(exc),
         )
 
     def success(self, cb):
         """Callback quando operação tem sucesso."""
-        pass

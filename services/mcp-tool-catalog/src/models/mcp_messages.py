@@ -53,21 +53,27 @@ class MCPToolDescriptor(BaseModel):
     title: Optional[str] = Field(default=None, description="Título legível da ferramenta")
     description: str = Field(..., description="Descrição da funcionalidade")
     inputSchema: Dict[str, Any] = Field(..., description="Schema JSON para parâmetros de entrada")
-    outputSchema: Optional[Dict[str, Any]] = Field(default=None, description="Schema JSON para saída")
+    outputSchema: Optional[Dict[str, Any]] = Field(
+        default=None, description="Schema JSON para saída"
+    )
     annotations: Optional[Dict[str, Any]] = Field(default=None, description="Metadados adicionais")
 
 
 class MCPToolsListResponse(BaseModel):
     """Modelo para resposta de tools/list."""
 
-    tools: List[MCPToolDescriptor] = Field(default_factory=list, description="Lista de ferramentas disponíveis")
+    tools: List[MCPToolDescriptor] = Field(
+        default_factory=list, description="Lista de ferramentas disponíveis"
+    )
 
 
 class MCPToolCallRequest(BaseModel):
     """Modelo para requisição de tools/call."""
 
     name: str = Field(..., description="Nome da ferramenta a executar", min_length=1)
-    arguments: Dict[str, Any] = Field(default_factory=dict, description="Argumentos para a ferramenta")
+    arguments: Dict[str, Any] = Field(
+        default_factory=dict, description="Argumentos para a ferramenta"
+    )
 
 
 class MCPContentItem(BaseModel):
@@ -81,8 +87,12 @@ class MCPContentItem(BaseModel):
 class MCPToolCallResponse(BaseModel):
     """Modelo para resposta de tools/call."""
 
-    content: List[MCPContentItem] = Field(default_factory=list, description="Lista de items de conteúdo")
-    structuredContent: Optional[Dict[str, Any]] = Field(default=None, description="Conteúdo estruturado")
+    content: List[MCPContentItem] = Field(
+        default_factory=list, description="Lista de items de conteúdo"
+    )
+    structuredContent: Optional[Dict[str, Any]] = Field(
+        default=None, description="Conteúdo estruturado"
+    )
     isError: bool = Field(default=False, description="Indica se a execução resultou em erro")
 
 
@@ -117,4 +127,6 @@ class MCPPrompt(BaseModel):
 
     name: str = Field(..., description="Nome do prompt")
     description: Optional[str] = Field(default=None, description="Descrição do prompt")
-    arguments: Optional[List[MCPPromptArgument]] = Field(default=None, description="Argumentos do prompt")
+    arguments: Optional[List[MCPPromptArgument]] = Field(
+        default=None, description="Argumentos do prompt"
+    )

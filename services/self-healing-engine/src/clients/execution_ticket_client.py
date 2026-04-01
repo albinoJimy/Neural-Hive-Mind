@@ -6,14 +6,15 @@ for automated remediation workflows.
 """
 
 import asyncio
-from datetime import datetime
-from typing import Dict, List, Any, Optional
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
 import httpx
 import structlog
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 from prometheus_client import Counter, Histogram
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
+
 from neural_hive_observability import get_tracer
 
 logger = structlog.get_logger(__name__)
@@ -21,26 +22,27 @@ tracer = get_tracer()
 
 # Prometheus Metrics
 TICKET_REALLOCATION_TOTAL = Counter(
-    'self_healing_ticket_reallocation_total',
-    'Total ticket reallocations by self-healing engine',
-    ['status', 'reason']
+    "self_healing_ticket_reallocation_total",
+    "Total ticket reallocations by self-healing engine",
+    ["status", "reason"],
 )
 
 TICKET_REALLOCATION_DURATION = Histogram(
-    'self_healing_ticket_reallocation_duration_seconds',
-    'Duration of ticket reallocation operations',
-    buckets=[0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0]
+    "self_healing_ticket_reallocation_duration_seconds",
+    "Duration of ticket reallocation operations",
+    buckets=[0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0],
 )
 
 TICKET_STATUS_UPDATE_TOTAL = Counter(
-    'self_healing_ticket_status_update_total',
-    'Total ticket status updates by self-healing engine',
-    ['status', 'new_status']
+    "self_healing_ticket_status_update_total",
+    "Total ticket status updates by self-healing engine",
+    ["status", "new_status"],
 )
 
 
 class CircuitBreakerOpen(Exception):
     """Circuit breaker is open, refusing requests."""
+
     pass
 
 
@@ -57,12 +59,12 @@ class SelfHealingTicketClient:
 
     def __init__(
         self,
-        base_url: str = 'http://execution-ticket-service.neural-hive.svc.cluster.local:8000',
+        base_url: str = "http://execution-ticket-service.neural-hive.svc.cluster.local:8000",
         timeout: int = 30,
         circuit_breaker_threshold: int = 5,
         circuit_breaker_reset_seconds: int = 60,
     ):
-        self.base_url = base_url.rstrip('/')
+        self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self.client: Optional[httpx.AsyncClient] = None
 
@@ -74,10 +76,10 @@ class SelfHealingTicketClient:
         self._circuit_opened_at: Optional[datetime] = None
 
         logger.info(
-            'self_healing_ticket_client.initialized',
+            "self_healing_ticket_client.initialized",
             base_url=base_url,
             timeout=timeout,
-            circuit_breaker_threshold=circuit_breaker_threshold
+            circuit_breaker_threshold=circuit_breaker_threshold,
         )
 
     async def initialize(self):
@@ -85,16 +87,16 @@ class SelfHealingTicketClient:
         self.client = httpx.AsyncClient(
             base_url=self.base_url,
             timeout=self.timeout,
-            limits=httpx.Limits(max_connections=100, max_keepalive_connections=20)
+            limits=httpx.Limits(max_connections=100, max_keepalive_connections=20),
         )
-        logger.info('self_healing_ticket_client.http_client_initialized')
+        logger.info("self_healing_ticket_client.http_client_initialized")
 
     async def close(self):
         """Close HTTP client gracefully."""
         if self.client:
             await self.client.aclose()
             self.client = None
-            logger.info('self_healing_ticket_client.closed')
+            logger.info("self_healing_ticket_client.closed")
 
     def _check_circuit_breaker(self):
         """Check if circuit breaker allows request."""
@@ -107,16 +109,13 @@ class SelfHealingTicketClient:
             if elapsed >= self._circuit_breaker_reset_seconds:
                 # Half-open: allow one request
                 logger.info(
-                    'self_healing_ticket_client.circuit_breaker_half_open',
-                    elapsed_seconds=elapsed
+                    "self_healing_ticket_client.circuit_breaker_half_open", elapsed_seconds=elapsed
                 )
                 self._circuit_open = False
                 self._failure_count = 0
                 return
 
-        raise CircuitBreakerOpen(
-            f'Circuit breaker open after {self._failure_count} failures'
-        )
+        raise CircuitBreakerOpen(f"Circuit breaker open after {self._failure_count} failures")
 
     def _record_success(self):
         """Record successful request."""
@@ -124,7 +123,7 @@ class SelfHealingTicketClient:
         if self._circuit_open:
             self._circuit_open = False
             self._circuit_opened_at = None
-            logger.info('self_healing_ticket_client.circuit_breaker_closed')
+            logger.info("self_healing_ticket_client.circuit_breaker_closed")
 
     def _record_failure(self):
         """Record failed request and potentially open circuit breaker."""
@@ -133,39 +132,30 @@ class SelfHealingTicketClient:
             self._circuit_open = True
             self._circuit_opened_at = datetime.now()
             logger.warning(
-                'self_healing_ticket_client.circuit_breaker_opened',
-                failure_count=self._failure_count
+                "self_healing_ticket_client.circuit_breaker_opened",
+                failure_count=self._failure_count,
             )
 
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
-        retry=retry_if_exception_type((httpx.HTTPError, asyncio.TimeoutError))
+        retry=retry_if_exception_type((httpx.HTTPError, asyncio.TimeoutError)),
     )
     async def _make_request(
-        self,
-        method: str,
-        path: str,
-        json: Optional[Dict] = None,
-        params: Optional[Dict] = None
+        self, method: str, path: str, json: Optional[Dict] = None, params: Optional[Dict] = None
     ) -> httpx.Response:
         """Make HTTP request with retry and circuit breaker."""
         self._check_circuit_breaker()
 
         if not self.client:
-            raise RuntimeError('Client not initialized. Call initialize() first.')
+            raise RuntimeError("Client not initialized. Call initialize() first.")
 
         try:
-            response = await self.client.request(
-                method=method,
-                url=path,
-                json=json,
-                params=params
-            )
+            response = await self.client.request(method=method, url=path, json=json, params=params)
             response.raise_for_status()
             self._record_success()
             return response
-        except (httpx.HTTPError, asyncio.TimeoutError) as e:
+        except (httpx.HTTPError, asyncio.TimeoutError):
             self._record_failure()
             raise
 
@@ -179,10 +169,10 @@ class SelfHealingTicketClient:
         Returns:
             Ticket data dictionary
         """
-        with tracer.start_as_current_span('self_healing.get_ticket') as span:
-            span.set_attribute('ticket.id', ticket_id)
+        with tracer.start_as_current_span("self_healing.get_ticket") as span:
+            span.set_attribute("ticket.id", ticket_id)
 
-            response = await self._make_request('GET', f'/api/v1/tickets/{ticket_id}')
+            response = await self._make_request("GET", f"/api/v1/tickets/{ticket_id}")
             return response.json()
 
     async def update_ticket_status(
@@ -191,7 +181,7 @@ class SelfHealingTicketClient:
         status: str,
         result: Optional[Dict[str, Any]] = None,
         assigned_worker: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Update ticket status.
@@ -206,57 +196,42 @@ class SelfHealingTicketClient:
         Returns:
             Updated ticket data
         """
-        with tracer.start_as_current_span('self_healing.update_ticket_status') as span:
-            span.set_attribute('ticket.id', ticket_id)
-            span.set_attribute('ticket.status', status)
+        with tracer.start_as_current_span("self_healing.update_ticket_status") as span:
+            span.set_attribute("ticket.id", ticket_id)
+            span.set_attribute("ticket.status", status)
 
-            payload: Dict[str, Any] = {'status': status}
+            payload: Dict[str, Any] = {"status": status}
             if result is not None:
-                payload['result'] = result
+                payload["result"] = result
             if assigned_worker is not None:
-                payload['assigned_worker'] = assigned_worker
+                payload["assigned_worker"] = assigned_worker
             if metadata:
-                payload['metadata'] = metadata
+                payload["metadata"] = metadata
 
             logger.info(
-                'self_healing_ticket_client.updating_status',
-                ticket_id=ticket_id,
-                status=status
+                "self_healing_ticket_client.updating_status", ticket_id=ticket_id, status=status
             )
 
-            start_time = datetime.now()
+            datetime.now()
             try:
                 response = await self._make_request(
-                    'PATCH',
-                    f'/api/v1/tickets/{ticket_id}',
-                    json=payload
+                    "PATCH", f"/api/v1/tickets/{ticket_id}", json=payload
                 )
 
-                TICKET_STATUS_UPDATE_TOTAL.labels(
-                    status='success',
-                    new_status=status
-                ).inc()
+                TICKET_STATUS_UPDATE_TOTAL.labels(status="success", new_status=status).inc()
 
                 logger.info(
-                    'self_healing_ticket_client.status_updated',
-                    ticket_id=ticket_id,
-                    status=status
+                    "self_healing_ticket_client.status_updated", ticket_id=ticket_id, status=status
                 )
 
                 return response.json()
 
-            except Exception as e:
-                TICKET_STATUS_UPDATE_TOTAL.labels(
-                    status='error',
-                    new_status=status
-                ).inc()
+            except Exception:
+                TICKET_STATUS_UPDATE_TOTAL.labels(status="error", new_status=status).inc()
                 raise
 
     async def reallocate_ticket(
-        self,
-        ticket_id: str,
-        reason: str,
-        metadata: Optional[Dict[str, Any]] = None
+        self, ticket_id: str, reason: str, metadata: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
         Reallocate a single ticket for re-execution.
@@ -274,42 +249,42 @@ class SelfHealingTicketClient:
         Returns:
             Updated ticket data
         """
-        with tracer.start_as_current_span('self_healing.reallocate_ticket') as span:
-            span.set_attribute('ticket.id', ticket_id)
-            span.set_attribute('reallocation.reason', reason)
+        with tracer.start_as_current_span("self_healing.reallocate_ticket") as span:
+            span.set_attribute("ticket.id", ticket_id)
+            span.set_attribute("reallocation.reason", reason)
 
             reallocation_id = str(uuid4())
-            span.set_attribute('reallocation.id', reallocation_id)
+            span.set_attribute("reallocation.id", reallocation_id)
 
             # Build reallocation metadata
             reallocation_metadata = {
-                'reallocation_id': reallocation_id,
-                'reallocation_reason': reason,
-                'reallocation_timestamp': datetime.utcnow().isoformat(),
-                'reallocation_source': 'self-healing-engine',
-                **(metadata or {})
+                "reallocation_id": reallocation_id,
+                "reallocation_reason": reason,
+                "reallocation_timestamp": datetime.now(timezone.utc).isoformat(),
+                "reallocation_source": "self-healing-engine",
+                **(metadata or {}),
             }
 
             # Get current ticket to capture previous worker
             try:
                 current_ticket = await self.get_ticket(ticket_id)
-                previous_worker = current_ticket.get('assigned_worker')
+                previous_worker = current_ticket.get("assigned_worker")
                 if previous_worker:
-                    reallocation_metadata['previous_worker'] = previous_worker
+                    reallocation_metadata["previous_worker"] = previous_worker
             except Exception as e:
                 logger.warning(
-                    'self_healing_ticket_client.get_ticket_failed',
+                    "self_healing_ticket_client.get_ticket_failed",
                     ticket_id=ticket_id,
-                    error=str(e)
+                    error=str(e),
                 )
                 previous_worker = None
 
             logger.info(
-                'self_healing_ticket_client.reallocating_ticket',
+                "self_healing_ticket_client.reallocating_ticket",
                 ticket_id=ticket_id,
                 reason=reason,
                 reallocation_id=reallocation_id,
-                previous_worker=previous_worker
+                previous_worker=previous_worker,
             )
 
             start_time = datetime.now()
@@ -317,52 +292,43 @@ class SelfHealingTicketClient:
                 # Update ticket: set to PENDING and remove assigned_worker
                 result = await self.update_ticket_status(
                     ticket_id=ticket_id,
-                    status='pending',
+                    status="pending",
                     assigned_worker=None,  # Explicit None to unassign
-                    metadata=reallocation_metadata
+                    metadata=reallocation_metadata,
                 )
 
                 duration = (datetime.now() - start_time).total_seconds()
                 TICKET_REALLOCATION_DURATION.observe(duration)
-                TICKET_REALLOCATION_TOTAL.labels(
-                    status='success',
-                    reason=reason
-                ).inc()
+                TICKET_REALLOCATION_TOTAL.labels(status="success", reason=reason).inc()
 
                 logger.info(
-                    'self_healing_ticket_client.ticket_reallocated',
+                    "self_healing_ticket_client.ticket_reallocated",
                     ticket_id=ticket_id,
                     reallocation_id=reallocation_id,
-                    duration_seconds=duration
+                    duration_seconds=duration,
                 )
 
                 return {
                     **result,
-                    'reallocation_id': reallocation_id,
-                    'previous_worker': previous_worker,
-                    'reallocated': True
+                    "reallocation_id": reallocation_id,
+                    "previous_worker": previous_worker,
+                    "reallocated": True,
                 }
 
             except Exception as e:
                 duration = (datetime.now() - start_time).total_seconds()
                 TICKET_REALLOCATION_DURATION.observe(duration)
-                TICKET_REALLOCATION_TOTAL.labels(
-                    status='error',
-                    reason=reason
-                ).inc()
+                TICKET_REALLOCATION_TOTAL.labels(status="error", reason=reason).inc()
 
                 logger.error(
-                    'self_healing_ticket_client.reallocation_failed',
+                    "self_healing_ticket_client.reallocation_failed",
                     ticket_id=ticket_id,
-                    error=str(e)
+                    error=str(e),
                 )
                 raise
 
     async def reallocate_multiple_tickets(
-        self,
-        ticket_ids: List[str],
-        reason: str,
-        metadata: Optional[Dict[str, Any]] = None
+        self, ticket_ids: List[str], reason: str, metadata: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
         Reallocate multiple tickets in batch.
@@ -377,18 +343,18 @@ class SelfHealingTicketClient:
         Returns:
             Summary of reallocation results
         """
-        with tracer.start_as_current_span('self_healing.reallocate_multiple_tickets') as span:
-            span.set_attribute('tickets.count', len(ticket_ids))
-            span.set_attribute('reallocation.reason', reason)
+        with tracer.start_as_current_span("self_healing.reallocate_multiple_tickets") as span:
+            span.set_attribute("tickets.count", len(ticket_ids))
+            span.set_attribute("reallocation.reason", reason)
 
             batch_id = str(uuid4())
-            span.set_attribute('batch.id', batch_id)
+            span.set_attribute("batch.id", batch_id)
 
             logger.info(
-                'self_healing_ticket_client.reallocating_batch',
+                "self_healing_ticket_client.reallocating_batch",
                 batch_id=batch_id,
                 ticket_count=len(ticket_ids),
-                reason=reason
+                reason=reason,
             )
 
             start_time = datetime.now()
@@ -402,49 +368,43 @@ class SelfHealingTicketClient:
                         result = await self.reallocate_ticket(
                             ticket_id=ticket_id,
                             reason=reason,
-                            metadata={
-                                **(metadata or {}),
-                                'batch_id': batch_id
-                            }
+                            metadata={**(metadata or {}), "batch_id": batch_id},
                         )
-                        return {'ticket_id': ticket_id, 'success': True, 'result': result}
+                        return {"ticket_id": ticket_id, "success": True, "result": result}
                     except Exception as e:
-                        return {'ticket_id': ticket_id, 'success': False, 'error': str(e)}
+                        return {"ticket_id": ticket_id, "success": False, "error": str(e)}
 
             # Execute all reallocations concurrently
             results = await asyncio.gather(
-                *[reallocate_with_semaphore(tid) for tid in ticket_ids],
-                return_exceptions=False
+                *[reallocate_with_semaphore(tid) for tid in ticket_ids], return_exceptions=False
             )
 
             duration = (datetime.now() - start_time).total_seconds()
 
             # Summarize results
-            successful = [r for r in results if r['success']]
-            failed = [r for r in results if not r['success']]
+            successful = [r for r in results if r["success"]]
+            failed = [r for r in results if not r["success"]]
 
             logger.info(
-                'self_healing_ticket_client.batch_reallocation_complete',
+                "self_healing_ticket_client.batch_reallocation_complete",
                 batch_id=batch_id,
                 total=len(ticket_ids),
                 successful=len(successful),
                 failed=len(failed),
-                duration_seconds=duration
+                duration_seconds=duration,
             )
 
             return {
-                'batch_id': batch_id,
-                'total': len(ticket_ids),
-                'successful': len(successful),
-                'failed': len(failed),
-                'duration_seconds': duration,
-                'results': results
+                "batch_id": batch_id,
+                "total": len(ticket_ids),
+                "successful": len(successful),
+                "failed": len(failed),
+                "duration_seconds": duration,
+                "results": results,
             }
 
     async def list_tickets_by_worker(
-        self,
-        worker_id: str,
-        status: Optional[str] = None
+        self, worker_id: str, status: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """
         List all tickets assigned to a specific worker.
@@ -456,26 +416,22 @@ class SelfHealingTicketClient:
         Returns:
             List of tickets
         """
-        with tracer.start_as_current_span('self_healing.list_tickets_by_worker') as span:
-            span.set_attribute('worker.id', worker_id)
+        with tracer.start_as_current_span("self_healing.list_tickets_by_worker") as span:
+            span.set_attribute("worker.id", worker_id)
             if status:
-                span.set_attribute('filter.status', status)
+                span.set_attribute("filter.status", status)
 
-            params = {'assigned_worker': worker_id}
+            params = {"assigned_worker": worker_id}
             if status:
-                params['status'] = status
+                params["status"] = status
 
-            response = await self._make_request(
-                'GET',
-                '/api/v1/tickets',
-                params=params
-            )
+            response = await self._make_request("GET", "/api/v1/tickets", params=params)
 
             tickets = response.json()
             logger.info(
-                'self_healing_ticket_client.tickets_listed',
+                "self_healing_ticket_client.tickets_listed",
                 worker_id=worker_id,
-                ticket_count=len(tickets)
+                ticket_count=len(tickets),
             )
 
             return tickets
@@ -488,13 +444,10 @@ class SelfHealingTicketClient:
             True if service is healthy, False otherwise
         """
         try:
-            response = await self._make_request('GET', '/health')
+            response = await self._make_request("GET", "/health")
             return response.status_code == 200
         except Exception as e:
-            logger.warning(
-                'self_healing_ticket_client.health_check_failed',
-                error=str(e)
-            )
+            logger.warning("self_healing_ticket_client.health_check_failed", error=str(e))
             return False
 
     def get_circuit_breaker_state(self) -> Dict[str, Any]:
@@ -505,8 +458,8 @@ class SelfHealingTicketClient:
             Circuit breaker status information
         """
         return {
-            'open': self._circuit_open,
-            'failure_count': self._failure_count,
-            'threshold': self._circuit_breaker_threshold,
-            'opened_at': self._circuit_opened_at.isoformat() if self._circuit_opened_at else None
+            "open": self._circuit_open,
+            "failure_count": self._failure_count,
+            "threshold": self._circuit_breaker_threshold,
+            "opened_at": self._circuit_opened_at.isoformat() if self._circuit_opened_at else None,
         }

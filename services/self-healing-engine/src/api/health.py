@@ -1,5 +1,6 @@
-from datetime import datetime
-from fastapi import APIRouter, status, Response
+from datetime import datetime, timezone
+
+from fastapi import APIRouter, Response, status
 from pydantic import BaseModel
 
 from src.config.settings import get_settings
@@ -19,9 +20,7 @@ class HealthResponse(BaseModel):
 async def health() -> HealthResponse:
     """Health check endpoint"""
     return HealthResponse(
-        status="healthy",
-        timestamp=datetime.utcnow(),
-        version=settings.service_version
+        status="healthy", timestamp=datetime.now(timezone.utc), version=settings.service_version
     )
 
 
@@ -29,14 +28,14 @@ async def health() -> HealthResponse:
 @router.get("/health/live", status_code=status.HTTP_200_OK)
 async def liveness() -> dict:
     """Liveness probe"""
-    return {"status": "healthy", "timestamp": datetime.utcnow()}
+    return {"status": "healthy", "timestamp": datetime.now(timezone.utc)}
 
 
 @router.get("/health/readiness", status_code=status.HTTP_200_OK)
 @router.get("/health/ready", status_code=status.HTTP_200_OK)
 async def readiness() -> dict:
     """Readiness probe"""
-    return {"status": "healthy", "timestamp": datetime.utcnow()}
+    return {"status": "healthy", "timestamp": datetime.now(timezone.utc)}
 
 
 @router.get("/metrics", status_code=status.HTTP_200_OK)
@@ -50,5 +49,5 @@ async def metrics() -> Response:
     return Response(
         content=metrics_text,
         media_type="text/plain",
-        headers={"Content-Type": "text/plain; version=0.0.4"}
+        headers={"Content-Type": "text/plain; version=0.0.4"},
     )

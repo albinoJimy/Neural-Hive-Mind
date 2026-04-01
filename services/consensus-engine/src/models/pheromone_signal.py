@@ -1,45 +1,48 @@
 import uuid
+from datetime import datetime, timezone
 from enum import Enum
-from typing import Dict, Any, Optional
-from datetime import datetime
-from pydantic import BaseModel, Field, field_validator, ConfigDict
+from typing import Any, Dict, Optional
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from neural_hive_domain import DomainMapper, UnifiedDomain
 
 
 class PheromoneType(str, Enum):
-    '''Tipo de feromônio digital'''
-    SUCCESS = 'success'
-    FAILURE = 'failure'
-    WARNING = 'warning'
+    """Tipo de feromônio digital"""
+
+    SUCCESS = "success"
+    FAILURE = "failure"
+    WARNING = "warning"
 
 
 class PheromoneSignal(BaseModel):
-    '''Sinalização de feromônio digital para coordenação de enxame'''
-    signal_id: str = Field(default_factory=lambda: str(uuid.uuid4()), description='ID do sinal')
-    specialist_type: str = Field(..., description='Tipo do especialista')
-    domain: UnifiedDomain = Field(..., description='Domínio unificado da avaliação')
-    pheromone_type: PheromoneType = Field(..., description='Tipo de feromônio')
+    """Sinalização de feromônio digital para coordenação de enxame"""
+
+    signal_id: str = Field(default_factory=lambda: str(uuid.uuid4()), description="ID do sinal")
+    specialist_type: str = Field(..., description="Tipo do especialista")
+    domain: UnifiedDomain = Field(..., description="Domínio unificado da avaliação")
+    pheromone_type: PheromoneType = Field(..., description="Tipo de feromônio")
 
     # Força do feromônio
-    strength: float = Field(..., ge=0.0, le=1.0, description='Força do feromônio')
+    strength: float = Field(..., ge=0.0, le=1.0, description="Força do feromônio")
 
     # Contexto
-    plan_id: str = Field(..., description='ID do plano')
-    intent_id: str = Field(..., description='ID da intenção')
-    decision_id: Optional[str] = Field(default=None, description='ID da decisão')
+    plan_id: str = Field(..., description="ID do plano")
+    intent_id: str = Field(..., description="ID da intenção")
+    decision_id: Optional[str] = Field(default=None, description="ID da decisão")
 
     # Metadados
-    created_at: datetime = Field(default_factory=datetime.utcnow, description='Data de criação')
-    expires_at: datetime = Field(..., description='Expiração do feromônio')
-    decay_rate: float = Field(default=0.1, description='Taxa de decay por hora', ge=0.0, le=1.0)
+    created_at: datetime = Field(default_factory=datetime.utcnow, description="Data de criação")
+    expires_at: datetime = Field(..., description="Expiração do feromônio")
+    decay_rate: float = Field(default=0.1, description="Taxa de decay por hora", ge=0.0, le=1.0)
 
-    metadata: Dict[str, Any] = Field(default_factory=dict, description='Metadados adicionais')
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="Metadados adicionais")
 
-    @field_validator('pheromone_type', mode='before')
+    @field_validator("pheromone_type", mode="before")
     @classmethod
     def coerce_pheromone_type(cls, v):
-        '''Garante que pheromone_type seja sempre um PheromoneType enum.'''
+        """Garante que pheromone_type seja sempre um PheromoneType enum."""
         if isinstance(v, str):
             try:
                 return PheromoneType(v)
@@ -47,31 +50,31 @@ class PheromoneSignal(BaseModel):
                 return PheromoneType[v.upper()]
         return v
 
-    @field_validator('domain', mode='before')
+    @field_validator("domain", mode="before")
     @classmethod
     def coerce_domain(cls, v):
-        '''Garante que domain seja sempre UnifiedDomain'''
+        """Garante que domain seja sempre UnifiedDomain"""
         if isinstance(v, str):
-            return DomainMapper.normalize(v, 'intent_envelope')
+            return DomainMapper.normalize(v, "intent_envelope")
         return v
 
     def get_redis_key(self) -> str:
-        '''Gera chave Redis padronizada para o feromônio via DomainMapper'''
+        """Gera chave Redis padronizada para o feromônio via DomainMapper"""
         return DomainMapper.to_pheromone_key(
             domain=self.domain,
-            layer='consensus',
+            layer="consensus",
             pheromone_type=self.pheromone_type.value,
-            id=self.signal_id
+            id=self.signal_id,
         )
 
     def calculate_current_strength(self) -> float:
-        '''Calcula força atual considerando decay temporal'''
-        elapsed_hours = (datetime.utcnow() - self.created_at).total_seconds() / 3600
+        """Calcula força atual considerando decay temporal"""
+        elapsed_hours = (datetime.now(timezone.utc) - self.created_at).total_seconds() / 3600
         decayed_strength = self.strength * ((1 - self.decay_rate) ** elapsed_hours)
         return max(0.0, decayed_strength)
 
     model_config = ConfigDict(
         # NÃO usar use_enum_values - manter pheromone_type como enum
         validate_assignment=True,
-        json_encoders={datetime: lambda v: v.isoformat()}
+        json_encoders={datetime: lambda v: v.isoformat()},
     )

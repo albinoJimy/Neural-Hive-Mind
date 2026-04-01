@@ -8,16 +8,16 @@ Este módulo implementa previsão de carga e otimização de agendamento usando:
 - Engenharia de features e registro de modelos via MLflow
 """
 
-from .load_predictor import LoadPredictor
-from .scheduling_optimizer import SchedulingOptimizer
 from .feature_engineering import FeatureEngineering
+from .load_predictor import LoadPredictor
 from .model_registry import ModelRegistry
+from .scheduling_optimizer import SchedulingOptimizer
 from .training_pipeline import TrainingPipeline
 
 __all__ = [
-    'LoadPredictor',
-    'SchedulingOptimizer',
-    'FeatureEngineering',
-    'ModelRegistry',
-    'TrainingPipeline',
+    "LoadPredictor",
+    "SchedulingOptimizer",
+    "FeatureEngineering",
+    "ModelRegistry",
+    "TrainingPipeline",
 ]

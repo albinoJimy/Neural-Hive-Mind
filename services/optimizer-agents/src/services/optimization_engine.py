@@ -1,14 +1,12 @@
 import random
 import uuid
 from collections import defaultdict
-from datetime import datetime
-from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import structlog
 
 from src.config.settings import get_settings
-from src.models.optimization_event import Adjustment, CausalAnalysis, OptimizationType
+from src.models.optimization_event import Adjustment, OptimizationType
 from src.models.optimization_hypothesis import OptimizationHypothesis
 
 logger = structlog.get_logger()
@@ -29,7 +27,7 @@ class OptimizationEngine:
         mongodb_client=None,
         redis_client=None,
         consensus_engine_client=None,
-        queen_agent_client=None
+        queen_agent_client=None,
     ):
         self.settings = settings or get_settings()
         self.load_predictor = load_predictor
@@ -39,10 +37,10 @@ class OptimizationEngine:
         self.queen_agent_client = queen_agent_client
 
         # Q-table: dict[state_hash][action] -> Q-value
-        self.q_table: Dict[str, Dict[str, float]] = defaultdict(lambda: defaultdict(float))
+        self.q_table: dict[str, dict[str, float]] = defaultdict(lambda: defaultdict(float))
 
         # Reward history
-        self.reward_history: List[Tuple[str, str, float]] = []
+        self.reward_history: list[tuple[str, str, float]] = []
 
         # Hyperparameters RL
         self.learning_rate = self.settings.learning_rate
@@ -62,10 +60,10 @@ class OptimizationEngine:
             learning_rate=self.learning_rate,
             exploration_rate=self.exploration_rate,
             discount_factor=self.discount_factor,
-            load_predictor_enabled=self.load_predictor is not None
+            load_predictor_enabled=self.load_predictor is not None,
         )
 
-    async def analyze_opportunity(self, insight: Dict) -> List[OptimizationHypothesis]:
+    async def analyze_opportunity(self, insight: dict) -> list[OptimizationHypothesis]:
         """
         Analisar insight e identificar oportunidades de otimização.
 
@@ -90,7 +88,7 @@ class OptimizationEngine:
             if self.load_predictor:
                 state = await self._incorporate_load_forecast(state)
 
-            state_hash = self._hash_state(state)
+            self._hash_state(state)
 
             # Identificar ações candidatas baseado no tipo de insight
             insight_type = insight.get("insight_type", "")
@@ -102,7 +100,10 @@ class OptimizationEngine:
                 ]
             elif "STRATEGIC" in insight_type:
                 # Para insights estratégicos, considerar mudanças de política
-                candidate_actions = [OptimizationType.POLICY_CHANGE, OptimizationType.HEURISTIC_UPDATE]
+                candidate_actions = [
+                    OptimizationType.POLICY_CHANGE,
+                    OptimizationType.HEURISTIC_UPDATE,
+                ]
             else:
                 # Default: considerar todos
                 candidate_actions = self.action_space
@@ -123,12 +124,14 @@ class OptimizationEngine:
             return hypotheses
 
         except Exception as e:
-            logger.error("opportunity_analysis_failed", insight_id=insight.get("insight_id"), error=str(e))
+            logger.error(
+                "opportunity_analysis_failed", insight_id=insight.get("insight_id"), error=str(e)
+            )
             return []
 
     def generate_hypothesis(
-        self, state: Dict, action: OptimizationType, component: str, metrics: Dict, context: Dict
-    ) -> Optional[OptimizationHypothesis]:
+        self, state: dict, action: OptimizationType, component: str, metrics: dict, context: dict
+    ) -> OptimizationHypothesis | None:
         """
         Gerar hipótese de otimização usando RL.
 
@@ -164,7 +167,9 @@ class OptimizationEngine:
             target_metrics = self._calculate_target_metrics(metrics, expected_improvement)
 
             # Gerar texto da hipótese
-            hypothesis_text = self._generate_hypothesis_text(action, component, expected_improvement)
+            hypothesis_text = self._generate_hypothesis_text(
+                action, component, expected_improvement
+            )
 
             # Criar hipótese
             hypothesis = OptimizationHypothesis(
@@ -179,7 +184,8 @@ class OptimizationEngine:
                 baseline_metrics=metrics,
                 target_metrics=target_metrics,
                 priority=self._calculate_priority(expected_improvement, risk_score),
-                requires_experiment=risk_score > 0.3,  # Experimentos para mudanças de risco médio/alto
+                requires_experiment=risk_score
+                > 0.3,  # Experimentos para mudanças de risco médio/alto
                 metadata={
                     "state_hash": state_hash,
                     "q_value": q_value,
@@ -198,10 +204,15 @@ class OptimizationEngine:
             return hypothesis
 
         except Exception as e:
-            logger.error("hypothesis_generation_failed", action=action.value, component=component, error=str(e))
+            logger.error(
+                "hypothesis_generation_failed",
+                action=action.value,
+                component=component,
+                error=str(e),
+            )
             return None
 
-    def select_action(self, state: Dict) -> OptimizationType:
+    def select_action(self, state: dict) -> OptimizationType:
         """
         Selecionar ação usando política epsilon-greedy.
 
@@ -216,7 +227,9 @@ class OptimizationEngine:
         # Epsilon-greedy: com probabilidade epsilon, explorar (ação aleatória)
         if random.random() < self.exploration_rate:
             action = random.choice(self.action_space)
-            logger.debug("action_selected_exploration", action=action.value, epsilon=self.exploration_rate)
+            logger.debug(
+                "action_selected_exploration", action=action.value, epsilon=self.exploration_rate
+            )
         else:
             # Exploitar: selecionar ação com maior Q-value
             q_values = self.q_table[state_hash]
@@ -231,7 +244,7 @@ class OptimizationEngine:
 
         return action
 
-    def calculate_reward(self, optimization_event, post_metrics: Dict) -> float:
+    def calculate_reward(self, optimization_event, post_metrics: dict) -> float:
         """
         Calcular recompensa baseado em melhoria observada.
 
@@ -246,7 +259,9 @@ class OptimizationEngine:
         """
         try:
             improvement = optimization_event.improvement_percentage
-            risk = optimization_event.causal_analysis.confidence  # Usar inverso da confiança como penalização
+            risk = (
+                optimization_event.causal_analysis.confidence
+            )  # Usar inverso da confiança como penalização
 
             # Penalidade por risco
             penalty_factor = 0.2
@@ -272,11 +287,15 @@ class OptimizationEngine:
 
         except Exception as e:
             logger.error(
-                "reward_calculation_failed", optimization_id=optimization_event.optimization_id, error=str(e)
+                "reward_calculation_failed",
+                optimization_id=optimization_event.optimization_id,
+                error=str(e),
             )
             return 0.0
 
-    def update_q_table(self, state: Dict, action: OptimizationType, reward: float, next_state: Dict):
+    def update_q_table(
+        self, state: dict, action: OptimizationType, reward: float, next_state: dict
+    ):
         """
         Atualizar Q-table usando Q-learning.
 
@@ -300,7 +319,9 @@ class OptimizationEngine:
             max_next_q = max(next_q_values.values()) if next_q_values else 0.0
 
             # Q-learning update
-            new_q = current_q + self.learning_rate * (reward + self.discount_factor * max_next_q - current_q)
+            new_q = current_q + self.learning_rate * (
+                reward + self.discount_factor * max_next_q - current_q
+            )
 
             self.q_table[state_hash][action.value] = new_q
 
@@ -321,7 +342,7 @@ class OptimizationEngine:
 
     # Helper methods
 
-    def _extract_state(self, metrics: Dict) -> Dict:
+    def _extract_state(self, metrics: dict) -> dict:
         """Extrair features de estado relevantes."""
         return {
             "divergence": metrics.get("divergence", 0.0),
@@ -331,7 +352,7 @@ class OptimizationEngine:
             "slo_compliance": metrics.get("slo_compliance", 1.0),
         }
 
-    def _hash_state(self, state: Dict) -> str:
+    def _hash_state(self, state: dict) -> str:
         """Gerar hash do estado para indexação na Q-table."""
         # Discretizar métricas contínuas em bins
         discretized = []
@@ -360,13 +381,17 @@ class OptimizationEngine:
 
     def _calculate_confidence(self, state_hash: str, action: OptimizationType) -> float:
         """Calcular confiança baseado em número de observações."""
-        observations = sum(1 for s, a, r in self.reward_history if s == state_hash and a == action.value)
+        observations = sum(
+            1 for s, a, r in self.reward_history if s == state_hash and a == action.value
+        )
 
         # Função sigmoide para mapear observações para confiança
         confidence = 1.0 / (1.0 + np.exp(-0.1 * (observations - 10)))
         return confidence
 
-    def _generate_adjustments(self, action: OptimizationType, component: str, metrics: Dict) -> List[Adjustment]:
+    def _generate_adjustments(
+        self, action: OptimizationType, component: str, metrics: dict
+    ) -> list[Adjustment]:
         """Gerar ajustes propostos baseado no tipo de otimização."""
         adjustments = []
 
@@ -395,7 +420,7 @@ class OptimizationEngine:
 
         return adjustments
 
-    def _calculate_target_metrics(self, baseline: Dict, improvement: float) -> Dict:
+    def _calculate_target_metrics(self, baseline: dict, improvement: float) -> dict:
         """Calcular métricas alvo baseado em melhoria esperada."""
         target = {}
         for key, value in baseline.items():
@@ -426,18 +451,24 @@ class OptimizationEngine:
         else:
             return 1  # Muito baixo
 
-    def _generate_hypothesis_text(self, action: OptimizationType, component: str, improvement: float) -> str:
+    def _generate_hypothesis_text(
+        self, action: OptimizationType, component: str, improvement: float
+    ) -> str:
         """Gerar texto descritivo da hipótese."""
         improvement_pct = improvement * 100
 
         if action == OptimizationType.WEIGHT_RECALIBRATION:
-            return f"Recalibrar pesos do {component} pode melhorar consenso em {improvement_pct:.1f}%"
+            return (
+                f"Recalibrar pesos do {component} pode melhorar consenso em {improvement_pct:.1f}%"
+            )
         elif action == OptimizationType.SLO_ADJUSTMENT:
             return f"Ajustar SLOs do {component} pode melhorar compliance em {improvement_pct:.1f}%"
         elif action == OptimizationType.HEURISTIC_UPDATE:
             return f"Atualizar heurísticas do {component} pode melhorar performance em {improvement_pct:.1f}%"
         elif action == OptimizationType.POLICY_CHANGE:
-            return f"Mudar política do {component} pode melhorar eficiência em {improvement_pct:.1f}%"
+            return (
+                f"Mudar política do {component} pode melhorar eficiência em {improvement_pct:.1f}%"
+            )
         else:
             return f"Otimizar {component} pode melhorar métricas em {improvement_pct:.1f}%"
 
@@ -455,7 +486,7 @@ class OptimizationEngine:
         # Mínimo de 5% de exploração
         self.exploration_rate = max(self.exploration_rate, 0.05)
 
-    async def _incorporate_load_forecast(self, state: Dict) -> Dict:
+    async def _incorporate_load_forecast(self, state: dict) -> dict:
         """
         Enriquece estado com previsão de carga do sistema.
 
@@ -468,46 +499,42 @@ class OptimizationEngine:
         try:
             # Obtém forecast para 6 horas (360 minutos)
             forecast = await self.load_predictor.predict_load(
-                horizon_minutes=360,
-                include_confidence=True
+                horizon_minutes=360, include_confidence=True
             )
 
-            if 'error' not in forecast:
+            if "error" not in forecast:
                 # Calcula tendência média
-                load_values = forecast.get('forecast', [])
+                load_values = forecast.get("forecast", [])
                 if load_values:
                     avg_load = sum(load_values) / len(load_values)
-                    current_load = state.get('current_load', 0.5)
+                    current_load = state.get("current_load", 0.5)
 
                     # Determina tendência
                     if avg_load > current_load * 1.2:
-                        load_trend = 'increasing'
+                        load_trend = "increasing"
                         trend_strength = min((avg_load - current_load) / current_load, 1.0)
                     elif avg_load < current_load * 0.8:
-                        load_trend = 'decreasing'
+                        load_trend = "decreasing"
                         trend_strength = min((current_load - avg_load) / current_load, 1.0)
                     else:
-                        load_trend = 'stable'
+                        load_trend = "stable"
                         trend_strength = 0.0
 
-                    state['load_forecast'] = {
-                        'avg_predicted_load': avg_load,
-                        'trend': load_trend,
-                        'trend_strength': trend_strength,
-                        'horizon_minutes': 360
+                    state["load_forecast"] = {
+                        "avg_predicted_load": avg_load,
+                        "trend": load_trend,
+                        "trend_strength": trend_strength,
+                        "horizon_minutes": 360,
                     }
 
                     logger.debug(
                         "load_forecast_incorporated",
                         avg_load=avg_load,
                         trend=load_trend,
-                        trend_strength=trend_strength
+                        trend_strength=trend_strength,
                     )
 
         except Exception as e:
-            logger.warning(
-                "load_forecast_incorporation_failed",
-                error=str(e)
-            )
+            logger.warning("load_forecast_incorporation_failed", error=str(e))
 
         return state

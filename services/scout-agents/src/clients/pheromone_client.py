@@ -1,14 +1,15 @@
 """Cliente para publicação de feromônios digitais"""
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
-import structlog
+
 import redis.asyncio as redis
+import structlog
 
-from neural_hive_domain import DomainMapper, UnifiedDomain
+from neural_hive_domain import DomainMapper
 
-from ..models.scout_signal import ScoutSignal
 from ..config import get_settings
+from ..models.scout_signal import ScoutSignal
 
 logger = structlog.get_logger()
 
@@ -32,9 +33,7 @@ class PheromoneClient:
         try:
             # Conecta ao Redis usando configuração
             self.redis_client = await redis.from_url(
-                self.settings.pheromone.redis_url,
-                encoding="utf-8",
-                decode_responses=True
+                self.settings.pheromone.redis_url, encoding="utf-8", decode_responses=True
             )
             await self.redis_client.ping()
             logger.info("pheromone_client_started")
@@ -63,69 +62,55 @@ class PheromoneClient:
 
         try:
             # Calcula intensidade inicial baseada em prioridade e curiosidade
-            initial_intensity = (
-                signal.calculate_priority() * 0.6 +
-                signal.curiosity_score * 0.4
-            )
+            initial_intensity = signal.calculate_priority() * 0.6 + signal.curiosity_score * 0.4
 
             # Cria entrada de feromônio
             pheromone_data = {
-                'signal_id': signal.signal_id,
-                'scout_agent_id': signal.scout_agent_id,
-                'domain': signal.exploration_domain.value,
-                'channel': signal.source.channel.value,
-                'signal_type': signal.signal_type.value,
-                'intensity': initial_intensity,
-                'decay_rate': self.decay_rate,
-                'created_at': datetime.utcnow().isoformat(),
-                'updated_at': datetime.utcnow().isoformat(),
-                'metadata': {
-                    'curiosity_score': signal.curiosity_score,
-                    'confidence': signal.confidence,
-                    'relevance_score': signal.relevance_score,
-                    'risk_score': signal.risk_score
-                }
+                "signal_id": signal.signal_id,
+                "scout_agent_id": signal.scout_agent_id,
+                "domain": signal.exploration_domain.value,
+                "channel": signal.source.channel.value,
+                "signal_type": signal.signal_type.value,
+                "intensity": initial_intensity,
+                "decay_rate": self.decay_rate,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+                "metadata": {
+                    "curiosity_score": signal.curiosity_score,
+                    "confidence": signal.confidence,
+                    "relevance_score": signal.relevance_score,
+                    "risk_score": signal.risk_score,
+                },
             }
 
             # Chave Redis padronizada via DomainMapper
             # Formato: pheromone:exploration:{domain}:{signal_type}:{signal_id}
             redis_key = DomainMapper.to_pheromone_key(
                 domain=signal.exploration_domain,  # Já é UnifiedDomain
-                layer='exploration',
+                layer="exploration",
                 pheromone_type=signal.signal_type.value,
-                id=signal.signal_id
+                id=signal.signal_id,
             )
 
             # Armazena com TTL
-            await self.redis_client.setex(
-                redis_key,
-                self.ttl,
-                json.dumps(pheromone_data)
-            )
+            await self.redis_client.setex(redis_key, self.ttl, json.dumps(pheromone_data))
 
             logger.debug(
                 "pheromone_published",
                 signal_id=signal.signal_id,
                 redis_key=redis_key,
                 intensity=initial_intensity,
-                ttl=self.ttl
+                ttl=self.ttl,
             )
 
             return True
 
         except Exception as e:
-            logger.error(
-                "pheromone_publish_failed",
-                signal_id=signal.signal_id,
-                error=str(e)
-            )
+            logger.error("pheromone_publish_failed", signal_id=signal.signal_id, error=str(e))
             return False
 
     async def get_pheromone_intensity(
-        self,
-        domain: str,
-        signal_type: str,
-        signal_id: str
+        self, domain: str, signal_type: str, signal_id: str
     ) -> Optional[float]:
         """
         Obtém intensidade atual de um feromônio com decay aplicado
@@ -143,12 +128,12 @@ class PheromoneClient:
 
         try:
             # Normalizar domain para UnifiedDomain e gerar chave padronizada
-            normalized_domain = DomainMapper.normalize(domain, 'scout_signal')
+            normalized_domain = DomainMapper.normalize(domain, "scout_signal")
             redis_key = DomainMapper.to_pheromone_key(
                 domain=normalized_domain,
-                layer='exploration',
+                layer="exploration",
                 pheromone_type=signal_type,
-                id=signal_id
+                id=signal_id,
             )
             data_str = await self.redis_client.get(redis_key)
 
@@ -158,21 +143,15 @@ class PheromoneClient:
             data = json.loads(data_str)
 
             # Calcula decay baseado no tempo decorrido
-            created_at = datetime.fromisoformat(data['created_at'])
-            elapsed_hours = (datetime.utcnow() - created_at).total_seconds() / 3600
+            created_at = datetime.fromisoformat(data["created_at"])
+            elapsed_hours = (datetime.now(timezone.utc) - created_at).total_seconds() / 3600
 
             # Aplicar decay exponencial
-            initial_intensity = data['intensity']
-            current_intensity = initial_intensity * (
-                (1 - self.decay_rate) ** elapsed_hours
-            )
+            initial_intensity = data["intensity"]
+            current_intensity = initial_intensity * ((1 - self.decay_rate) ** elapsed_hours)
 
             return max(current_intensity, 0.0)
 
         except Exception as e:
-            logger.error(
-                "pheromone_read_failed",
-                signal_id=signal_id,
-                error=str(e)
-            )
+            logger.error("pheromone_read_failed", signal_id=signal_id, error=str(e))
             return None

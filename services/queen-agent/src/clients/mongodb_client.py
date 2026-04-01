@@ -1,19 +1,19 @@
+from datetime import datetime, timedelta
+from typing import Any
+
 import structlog
 from motor.motor_asyncio import (
     AsyncIOMotorClient,
-    AsyncIOMotorDatabase,
     AsyncIOMotorCollection,
+    AsyncIOMotorDatabase,
 )
-from typing import Dict, List, Optional, Any
-from datetime import datetime, timedelta
 
 from neural_hive_resilience.circuit_breaker import (
-    MonitoredCircuitBreaker,
     CircuitBreakerError,
+    MonitoredCircuitBreaker,
 )
-from ..config import Settings
-from ..models import StrategicDecision, ExceptionApproval, ApprovalStatus
-
+from src.config import Settings
+from src.models import ApprovalStatus, ExceptionApproval, StrategicDecision
 
 logger = structlog.get_logger()
 
@@ -23,15 +23,13 @@ class MongoDBClient:
 
     def __init__(self, settings: Settings):
         self.settings = settings
-        self.client: Optional[AsyncIOMotorClient] = None
-        self.db: Optional[AsyncIOMotorDatabase] = None
-        self.ledger_collection: Optional[AsyncIOMotorCollection] = None
-        self.exceptions_collection: Optional[AsyncIOMotorCollection] = None
-        self.ledger_breaker: Optional[MonitoredCircuitBreaker] = None
-        self.exceptions_breaker: Optional[MonitoredCircuitBreaker] = None
-        self.circuit_breaker_enabled: bool = getattr(
-            settings, "CIRCUIT_BREAKER_ENABLED", False
-        )
+        self.client: AsyncIOMotorClient | None = None
+        self.db: AsyncIOMotorDatabase | None = None
+        self.ledger_collection: AsyncIOMotorCollection | None = None
+        self.exceptions_collection: AsyncIOMotorCollection | None = None
+        self.ledger_breaker: MonitoredCircuitBreaker | None = None
+        self.exceptions_breaker: MonitoredCircuitBreaker | None = None
+        self.circuit_breaker_enabled: bool = getattr(settings, "CIRCUIT_BREAKER_ENABLED", False)
 
     async def initialize(self) -> None:
         """Conectar ao MongoDB e criar índices"""
@@ -43,9 +41,7 @@ class MongoDBClient:
             )
             self.db = self.client[self.settings.MONGODB_DATABASE]
             self.ledger_collection = self.db[self.settings.MONGODB_COLLECTION_LEDGER]
-            self.exceptions_collection = self.db[
-                self.settings.MONGODB_COLLECTION_EXCEPTIONS
-            ]
+            self.exceptions_collection = self.db[self.settings.MONGODB_COLLECTION_EXCEPTIONS]
 
             if self.circuit_breaker_enabled:
                 self.ledger_breaker = MonitoredCircuitBreaker(
@@ -70,9 +66,7 @@ class MongoDBClient:
             await self.ledger_collection.create_index("decision_type")
             await self.ledger_collection.create_index([("created_at", -1)])
             await self.ledger_collection.create_index("triggered_by.source_id")
-            await self.ledger_collection.create_index(
-                [("decision_type", 1), ("created_at", -1)]
-            )
+            await self.ledger_collection.create_index([("decision_type", 1), ("created_at", -1)])
 
             # Criar índices para exceptions
             await self.exceptions_collection.create_index("exception_id", unique=True)
@@ -83,7 +77,7 @@ class MongoDBClient:
             logger.info("mongodb_initialized", database=self.settings.MONGODB_DATABASE)
 
         except Exception as e:
-            logger.error("mongodb_initialization_failed", error=str(e))
+            logger.exception("mongodb_initialization_failed", error=str(e))
             raise
 
     async def close(self) -> None:
@@ -112,63 +106,49 @@ class MongoDBClient:
             )
 
         except Exception as e:
-            logger.error(
+            logger.exception(
                 "strategic_decision_save_failed",
                 decision_id=decision.decision_id,
                 error=str(e),
             )
             raise
         except CircuitBreakerError:
-            logger.warning(
-                "strategic_decision_circuit_open", decision_id=decision.decision_id
-            )
+            logger.warning("strategic_decision_circuit_open", decision_id=decision.decision_id)
             raise
 
-    async def get_strategic_decision(
-        self, decision_id: str
-    ) -> Optional[Dict[str, Any]]:
+    async def get_strategic_decision(self, decision_id: str) -> dict[str, Any] | None:
         """Buscar decisão por ID"""
         try:
-            decision = await self.ledger_collection.find_one(
-                {"decision_id": decision_id}
-            )
-            return decision
+            return await self.ledger_collection.find_one({"decision_id": decision_id})
 
         except Exception as e:
-            logger.error(
-                "strategic_decision_get_failed", decision_id=decision_id, error=str(e)
-            )
+            logger.exception("strategic_decision_get_failed", decision_id=decision_id, error=str(e))
             return None
 
     async def list_strategic_decisions(
-        self, filters: Dict[str, Any], limit: int = 50, skip: int = 0
-    ) -> List[Dict[str, Any]]:
+        self, filters: dict[str, Any], limit: int = 50, skip: int = 0
+    ) -> list[dict[str, Any]]:
         """Listar decisões com filtros"""
         try:
             cursor = (
-                self.ledger_collection.find(filters)
-                .sort("created_at", -1)
-                .skip(skip)
-                .limit(limit)
+                self.ledger_collection.find(filters).sort("created_at", -1).skip(skip).limit(limit)
             )
-            decisions = await cursor.to_list(length=limit)
-            return decisions
+            return await cursor.to_list(length=limit)
 
         except Exception as e:
-            logger.error("strategic_decisions_list_failed", error=str(e))
+            logger.exception("strategic_decisions_list_failed", error=str(e))
             return []
 
-    async def count_strategic_decisions(self, filters: Dict[str, Any]) -> int:
+    async def count_strategic_decisions(self, filters: dict[str, Any]) -> int:
         """Contar total de decisões com filtros para suporte a paginação"""
         try:
-            count = await self.ledger_collection.count_documents(filters)
-            return count
+            return await self.ledger_collection.count_documents(filters)
 
         except Exception as e:
-            logger.error("strategic_decisions_count_failed", error=str(e))
+            logger.exception("strategic_decisions_count_failed", error=str(e))
             return 0
 
-    async def get_recent_decisions(self, hours: int = 24) -> List[Dict[str, Any]]:
+    async def get_recent_decisions(self, hours: int = 24) -> list[dict[str, Any]]:
         """Buscar decisões recentes"""
         cutoff_time = datetime.now() - timedelta(hours=hours)
         cutoff_ts = int(cutoff_time.timestamp() * 1000)
@@ -194,37 +174,26 @@ class MongoDBClient:
             )
 
         except Exception as e:
-            logger.error(
+            logger.exception(
                 "exception_approval_save_failed",
                 exception_id=approval.exception_id,
                 error=str(e),
             )
             raise
         except CircuitBreakerError:
-            logger.warning(
-                "exception_approval_circuit_open", exception_id=approval.exception_id
-            )
+            logger.warning("exception_approval_circuit_open", exception_id=approval.exception_id)
             raise
 
-    async def get_exception_approval(
-        self, exception_id: str
-    ) -> Optional[Dict[str, Any]]:
+    async def get_exception_approval(self, exception_id: str) -> dict[str, Any] | None:
         """Buscar aprovação de exceção"""
         try:
-            exception = await self.exceptions_collection.find_one(
-                {"exception_id": exception_id}
-            )
-            return exception
+            return await self.exceptions_collection.find_one({"exception_id": exception_id})
 
         except Exception as e:
-            logger.error(
-                "exception_approval_get_failed", exception_id=exception_id, error=str(e)
-            )
+            logger.exception("exception_approval_get_failed", exception_id=exception_id, error=str(e))
             return None
 
-    async def update_exception_status(
-        self, exception_id: str, status: ApprovalStatus
-    ) -> bool:
+    async def update_exception_status(self, exception_id: str, status: ApprovalStatus) -> bool:
         """Atualizar status de exceção"""
         try:
             result = await self.exceptions_collection.update_one(
@@ -240,7 +209,7 @@ class MongoDBClient:
             return result.modified_count > 0
 
         except Exception as e:
-            logger.error(
+            logger.exception(
                 "exception_status_update_failed",
                 exception_id=exception_id,
                 error=str(e),
@@ -248,8 +217,8 @@ class MongoDBClient:
             return False
 
     async def list_exception_approvals(
-        self, filters: Dict[str, Any], limit: int = 50, skip: int = 0
-    ) -> List[Dict[str, Any]]:
+        self, filters: dict[str, Any], limit: int = 50, skip: int = 0
+    ) -> list[dict[str, Any]]:
         """Listar aprovações de exceções com filtros"""
         try:
             cursor = (
@@ -258,15 +227,14 @@ class MongoDBClient:
                 .skip(skip)
                 .limit(limit)
             )
-            exceptions = await cursor.to_list(length=limit)
-            return exceptions
+            return await cursor.to_list(length=limit)
 
         except Exception as e:
-            logger.error("exception_approvals_list_failed", error=str(e))
+            logger.exception("exception_approvals_list_failed", error=str(e))
             return []
 
     async def _execute_with_breaker(
-        self, breaker: Optional[MonitoredCircuitBreaker], func, *args, **kwargs
+        self, breaker: MonitoredCircuitBreaker | None, func, *args, **kwargs
     ):
         """Executa operação MongoDB protegida por circuit breaker quando habilitado."""
         if not self.circuit_breaker_enabled or breaker is None:

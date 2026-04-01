@@ -85,13 +85,10 @@ class MCPToolCatalogClient:
             True se enviado com sucesso, False caso contrário
         """
         try:
-            tool_id = feedback.get('tool_id')
-            response = await self.client.post(
-                f"/api/v1/tools/{tool_id}/feedback",
-                json=feedback
-            )
+            tool_id = feedback.get("tool_id")
+            response = await self.client.post(f"/api/v1/tools/{tool_id}/feedback", json=feedback)
             response.raise_for_status()
-            logger.info("tool_feedback_sent", tool_id=tool_id, success=feedback.get('success'))
+            logger.info("tool_feedback_sent", tool_id=tool_id, success=feedback.get("success"))
             return True
         except httpx.HTTPError as e:
             logger.warning("tool_feedback_failed", error=str(e), tool_id=tool_id)

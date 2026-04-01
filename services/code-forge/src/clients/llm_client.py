@@ -1,8 +1,7 @@
 """LLM client for code generation (OpenAI, Anthropic, local models)."""
-import json
-from enum import Enum
 import inspect
-from typing import AsyncGenerator, Dict, List, Optional
+from enum import Enum
+from typing import Dict, Optional
 
 import httpx
 import structlog
@@ -171,7 +170,9 @@ Return ONLY valid code without markdown formatting or explanations unless reques
 
         return prompt
 
-    async def _call_ollama(self, system_prompt: str, user_prompt: str, temperature: float) -> Optional[Dict]:
+    async def _call_ollama(
+        self, system_prompt: str, user_prompt: str, temperature: float
+    ) -> Optional[Dict]:
         """Call Ollama local LLM."""
         try:
             payload = {

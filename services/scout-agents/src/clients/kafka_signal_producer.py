@@ -2,12 +2,13 @@
 import asyncio
 import json
 from typing import List, Optional
+
+import structlog
 from aiokafka import AIOKafkaProducer
 from aiokafka.errors import KafkaError
-import structlog
 
-from ..models.scout_signal import ScoutSignal
 from ..config import get_settings
+from ..models.scout_signal import ScoutSignal
 
 logger = structlog.get_logger()
 
@@ -25,17 +26,16 @@ class KafkaSignalProducer:
         try:
             self.producer = AIOKafkaProducer(
                 bootstrap_servers=self.settings.kafka.bootstrap_servers,
-                value_serializer=lambda v: json.dumps(v).encode('utf-8'),
-                compression_type='gzip',
-                acks='all',
-                enable_idempotence=True  # Handles retries automatically
+                value_serializer=lambda v: json.dumps(v).encode("utf-8"),
+                compression_type="gzip",
+                acks="all",
+                enable_idempotence=True,  # Handles retries automatically
             )
 
             await self.producer.start()
             self._is_running = True
             logger.info(
-                "kafka_producer_started",
-                bootstrap_servers=self.settings.kafka.bootstrap_servers
+                "kafka_producer_started", bootstrap_servers=self.settings.kafka.bootstrap_servers
             )
         except Exception as e:
             logger.error("kafka_producer_start_failed", error=str(e))
@@ -70,13 +70,11 @@ class KafkaSignalProducer:
             signal_dict = signal.to_avro_dict()
 
             # Partition by exploration domain for better distribution
-            partition_key = signal.exploration_domain.value.encode('utf-8')
+            partition_key = signal.exploration_domain.value.encode("utf-8")
 
             # Send message
             future = await self.producer.send(
-                self.settings.kafka.topics_signals,
-                value=signal_dict,
-                key=partition_key
+                self.settings.kafka.topics_signals, value=signal_dict, key=partition_key
             )
 
             # Wait for acknowledgment
@@ -89,7 +87,7 @@ class KafkaSignalProducer:
                 domain=signal.exploration_domain.value,
                 topic=record_metadata.topic,
                 partition=record_metadata.partition,
-                offset=record_metadata.offset
+                offset=record_metadata.offset,
             )
 
             return True
@@ -99,7 +97,7 @@ class KafkaSignalProducer:
                 "kafka_publish_failed",
                 signal_id=signal.signal_id,
                 error=str(e),
-                error_type="kafka_error"
+                error_type="kafka_error",
             )
             return False
         except Exception as e:
@@ -107,7 +105,7 @@ class KafkaSignalProducer:
                 "signal_publish_failed",
                 signal_id=signal.signal_id,
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
             return False
 
@@ -127,12 +125,10 @@ class KafkaSignalProducer:
 
         try:
             signal_dict = signal.to_avro_dict()
-            partition_key = signal.exploration_domain.value.encode('utf-8')
+            partition_key = signal.exploration_domain.value.encode("utf-8")
 
             future = await self.producer.send(
-                self.settings.kafka.topics_opportunities,
-                value=signal_dict,
-                key=partition_key
+                self.settings.kafka.topics_opportunities, value=signal_dict, key=partition_key
             )
 
             record_metadata = await future
@@ -143,17 +139,13 @@ class KafkaSignalProducer:
                 domain=signal.exploration_domain.value,
                 topic=record_metadata.topic,
                 partition=record_metadata.partition,
-                offset=record_metadata.offset
+                offset=record_metadata.offset,
             )
 
             return True
 
         except Exception as e:
-            logger.error(
-                "opportunity_publish_failed",
-                signal_id=signal.signal_id,
-                error=str(e)
-            )
+            logger.error("opportunity_publish_failed", signal_id=signal.signal_id, error=str(e))
             return False
 
     async def publish_batch(self, signals: List[ScoutSignal]) -> int:
@@ -181,7 +173,7 @@ class KafkaSignalProducer:
             "batch_publish_completed",
             total_signals=len(signals),
             successful=success_count,
-            failed=len(signals) - success_count
+            failed=len(signals) - success_count,
         )
 
         return success_count

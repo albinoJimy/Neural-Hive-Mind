@@ -1,12 +1,11 @@
+from typing import Any
+
 import structlog
-from typing import List, Dict, Any, Optional, Tuple
 
 from neural_hive_domain import UnifiedDomain
-
-from ..config import Settings
-from ..models import Conflict, ConflictResolution
-from ..clients import Neo4jClient
-
+from src.clients import Neo4jClient
+from src.config import Settings
+from src.models import Conflict, ConflictResolution
 
 logger = structlog.get_logger()
 
@@ -26,7 +25,7 @@ class ConflictArbitrator:
         self.neo4j_client = neo4j_client
         self.settings = settings
 
-    async def detect_conflicts(self, decisions: List[Dict[str, Any]]) -> List[Conflict]:
+    async def detect_conflicts(self, decisions: list[dict[str, Any]]) -> list[Conflict]:
         """Detectar conflitos entre decisões de múltiplos planos"""
         conflicts = []
 
@@ -37,9 +36,7 @@ class ConflictArbitrator:
             # Comparar pares de decisões
             for i in range(len(decisions)):
                 for j in range(i + 1, len(decisions)):
-                    conflict = await self._check_conflict_between(
-                        decisions[i], decisions[j]
-                    )
+                    conflict = await self._check_conflict_between(decisions[i], decisions[j])
                     if conflict:
                         conflicts.append(conflict)
 
@@ -47,11 +44,11 @@ class ConflictArbitrator:
             return conflicts
 
         except Exception as e:
-            logger.error("detect_conflicts_failed", error=str(e))
+            logger.exception("detect_conflicts_failed", error=str(e))
             return []
 
     async def _check_conflict_between(
-        self, decision1: Dict[str, Any], decision2: Dict[str, Any]
+        self, decision1: dict[str, Any], decision2: dict[str, Any]
     ) -> Conflict | None:
         """Verificar se há conflito entre duas decisões"""
         try:
@@ -83,12 +80,12 @@ class ConflictArbitrator:
             return None
 
         except Exception as e:
-            logger.error("check_conflict_failed", error=str(e))
+            logger.exception("check_conflict_failed", error=str(e))
             return None
 
     def _map_to_unified_domains(
         self, domain1: str, domain2: str
-    ) -> Optional[Tuple[UnifiedDomain, UnifiedDomain]]:
+    ) -> tuple[UnifiedDomain, UnifiedDomain] | None:
         """Mapear par de domínios para UnifiedDomain"""
         # Mapping from specialist types to UnifiedDomain
         domain_mapping = {
@@ -119,7 +116,7 @@ class ConflictArbitrator:
         """Resolver um conflito específico"""
         try:
             # Consultar histórico de resoluções similares
-            historical = await self.neo4j_client.get_domain_conflicts(
+            await self.neo4j_client.get_domain_conflicts(
                 [conflict.left_domain.value, conflict.right_domain.value]
             )
 
@@ -128,36 +125,30 @@ class ConflictArbitrator:
 
             # Aplicar estratégia
             if strategy == "PRIORITIZE_SECURITY":
-                chosen_entity = self._choose_entity_by_domain(
-                    conflict.entities, "security"
-                )
+                chosen_entity = self._choose_entity_by_domain(conflict.entities, "security")
                 rationale = "Segurança priorizada devido à severidade do conflito"
                 confidence = 0.9
 
             elif strategy == "PRIORITIZE_BUSINESS":
-                chosen_entity = self._choose_entity_by_domain(
-                    conflict.entities, "business"
-                )
+                chosen_entity = self._choose_entity_by_domain(conflict.entities, "business")
                 rationale = "Objetivos de negócio priorizados devido à baixa severidade"
                 confidence = 0.8
 
             elif strategy == "PRIORITIZE_COMPLIANCE":
-                chosen_entity = self._choose_entity_by_domain(
-                    conflict.entities, "compliance"
-                )
+                chosen_entity = self._choose_entity_by_domain(conflict.entities, "compliance")
                 rationale = "Compliance priorizado por requisitos regulatórios"
                 confidence = 0.9
 
             elif strategy == "PRIORITIZE_RELIABILITY":
-                chosen_entity = self._choose_entity_by_domain(
-                    conflict.entities, "infrastructure"
-                )
+                chosen_entity = self._choose_entity_by_domain(conflict.entities, "infrastructure")
                 rationale = "Confiabilidade priorizada para estabilidade do sistema"
                 confidence = 0.85
 
             elif strategy == "COMPROMISE":
                 chosen_entity = None
-                rationale = "Solução de compromisso necessária - implementar com controles adicionais"
+                rationale = (
+                    "Solução de compromisso necessária - implementar com controles adicionais"
+                )
                 confidence = 0.7
 
             else:  # ESCALATE_HUMAN
@@ -183,16 +174,16 @@ class ConflictArbitrator:
             return resolution
 
         except Exception as e:
-            logger.error("resolve_conflict_failed", error=str(e))
+            logger.exception("resolve_conflict_failed", error=str(e))
             return ConflictResolution(
                 conflict_id=conflict.conflict_id,
                 resolution_strategy="ESCALATE_HUMAN",
-                rationale=f"Erro ao resolver conflito: {str(e)}",
+                rationale=f"Erro ao resolver conflito: {e!s}",
                 confidence=0.0,
             )
 
     def _choose_entity_by_domain(
-        self, entities: List[Dict[str, Any]], preferred_domain: str
+        self, entities: list[dict[str, Any]], preferred_domain: str
     ) -> str | None:
         """Escolher entidade baseado em domínio preferido"""
         for entity in entities:

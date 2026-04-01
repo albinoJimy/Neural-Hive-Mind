@@ -1,24 +1,24 @@
 """Playbook executor service for Self-Healing Engine"""
 import asyncio
-import yaml
-from datetime import datetime
 from pathlib import Path
 from time import perf_counter
-from typing import Optional, Callable, List, Dict, Any
+from typing import Any, Callable, Dict, List, Optional
+
 import structlog
+import yaml
 from kubernetes import client, config
 from prometheus_client import Counter, Histogram
-from neural_hive_observability import get_tracer
 
+from neural_hive_observability import get_tracer
 from src.services.circuit_breaker import CircuitBreaker, CircuitBreakerOpenError
 
 logger = structlog.get_logger()
 
 # OPA validation metrics
 OPA_VALIDATION_TOTAL = Counter(
-    'self_healing_opa_validation_total',
-    'Total OPA policy validations for self-healing actions',
-    ['action', 'result']
+    "self_healing_opa_validation_total",
+    "Total OPA policy validations for self-healing actions",
+    ["action", "result"],
 )
 
 
@@ -57,20 +57,20 @@ class PlaybookExecutor:
         self._circuit_breakers: Dict[str, CircuitBreaker] = {}
         if circuit_breaker_enabled:
             self._circuit_breakers = {
-                'execution_ticket_service': CircuitBreaker(
-                    service_name='execution_ticket_service',
+                "execution_ticket_service": CircuitBreaker(
+                    service_name="execution_ticket_service",
                     failure_threshold=circuit_breaker_failure_threshold,
-                    timeout_seconds=circuit_breaker_timeout_seconds
+                    timeout_seconds=circuit_breaker_timeout_seconds,
                 ),
-                'orchestrator': CircuitBreaker(
-                    service_name='orchestrator',
+                "orchestrator": CircuitBreaker(
+                    service_name="orchestrator",
                     failure_threshold=circuit_breaker_failure_threshold,
-                    timeout_seconds=circuit_breaker_timeout_seconds
+                    timeout_seconds=circuit_breaker_timeout_seconds,
                 ),
-                'opa': CircuitBreaker(
-                    service_name='opa',
+                "opa": CircuitBreaker(
+                    service_name="opa",
                     failure_threshold=circuit_breaker_failure_threshold,
-                    timeout_seconds=circuit_breaker_timeout_seconds
+                    timeout_seconds=circuit_breaker_timeout_seconds,
                 ),
             }
 
@@ -78,21 +78,21 @@ class PlaybookExecutor:
         self.playbook_execution_total = Counter(
             "self_healing_playbook_execution_total",
             "Total de execuções de playbook",
-            ["playbook", "status"]
+            ["playbook", "status"],
         )
         self.playbook_execution_duration_seconds = Histogram(
             "self_healing_playbook_execution_duration_seconds",
             "Duração da execução de playbooks",
             ["playbook"],
-            buckets=[0.1, 0.5, 1, 2, 5, 10, 30, 60, 120, 300, 600]
+            buckets=[0.1, 0.5, 1, 2, 5, 10, 30, 60, 120, 300, 600],
         )
 
         # Actions that require OPA validation
         self._opa_validated_actions = {
-            'reallocate_ticket',
-            'restart_workflow',
-            'update_ticket_status',
-            'trigger_replanning',
+            "reallocate_ticket",
+            "restart_workflow",
+            "update_ticket_status",
+            "trigger_replanning",
         }
 
     async def initialize(self):
@@ -138,7 +138,7 @@ class PlaybookExecutor:
         context: dict,
         on_action_completed: Optional[Callable[[dict], Any]] = None,
         on_playbook_completed: Optional[Callable[[dict], Any]] = None,
-        timeout_seconds: Optional[int] = None
+        timeout_seconds: Optional[int] = None,
     ) -> dict:
         """Execute a remediation playbook com callbacks e timeout."""
         playbook_path = self.playbooks_dir / f"{playbook_name}.yaml"
@@ -159,7 +159,7 @@ class PlaybookExecutor:
             playbook=playbook_name,
             context=context,
             total_actions=total_actions,
-            timeout_seconds=timeout
+            timeout_seconds=timeout,
         )
 
         tracer = get_tracer()
@@ -173,20 +173,16 @@ class PlaybookExecutor:
 
             try:
                 execution_result = await asyncio.wait_for(
-                    self._execute_actions(actions, context, on_action_completed),
-                    timeout=timeout
+                    self._execute_actions(actions, context, on_action_completed), timeout=timeout
                 )
-                result = {
-                    **execution_result,
-                    "total_actions": total_actions
-                }
+                result = {**execution_result, "total_actions": total_actions}
             except asyncio.TimeoutError:
                 status_label = "timeout"
                 result = {
                     "success": False,
                     "error": "Playbook timeout",
                     "status": "TIMEOUT",
-                    "total_actions": total_actions
+                    "total_actions": total_actions,
                 }
             except Exception as e:  # noqa: BLE001
                 status_label = "error"
@@ -194,23 +190,31 @@ class PlaybookExecutor:
                     "success": False,
                     "error": str(e),
                     "status": "FAILED",
-                    "total_actions": total_actions
+                    "total_actions": total_actions,
                 }
-                logger.error("playbook_executor.execution_failed", playbook=playbook_name, error=str(e))
+                logger.error(
+                    "playbook_executor.execution_failed", playbook=playbook_name, error=str(e)
+                )
 
             duration = perf_counter() - start_time
-            status_label = status_label if status_label in ["timeout", "error"] else ("success" if result.get("success") else "failed")
+            status_label = (
+                status_label
+                if status_label in ["timeout", "error"]
+                else ("success" if result.get("success") else "failed")
+            )
             span.set_attribute("neural.hive.execution_status", status_label)
             self._record_metrics(playbook_name, status_label, duration)
 
             if on_playbook_completed:
-                await self._maybe_call_callback(on_playbook_completed, {**result, "duration_seconds": duration})
+                await self._maybe_call_callback(
+                    on_playbook_completed, {**result, "duration_seconds": duration}
+                )
 
             logger.info(
                 "playbook_executor.completed",
                 playbook=playbook_name,
                 success=result.get("success"),
-                duration_seconds=round(duration, 4)
+                duration_seconds=round(duration, 4),
             )
             return result
 
@@ -218,7 +222,7 @@ class PlaybookExecutor:
         self,
         actions: list,
         context: dict,
-        on_action_completed: Optional[Callable[[dict], Any]] = None
+        on_action_completed: Optional[Callable[[dict], Any]] = None,
     ) -> dict:
         """Execute playbook actions sequencialmente."""
         results = []
@@ -229,19 +233,25 @@ class PlaybookExecutor:
             handler = self._get_action_handler(action_type)
 
             if handler is None:
-                result = {"success": False, "error": f"Unknown action type: {action_type}", "action": action_type}
+                result = {
+                    "success": False,
+                    "error": f"Unknown action type: {action_type}",
+                    "action": action_type,
+                }
             else:
                 merged_context = {**context, **normalized_action}
 
                 # Validate action with OPA if required
                 if action_type in self._opa_validated_actions:
-                    opa_allowed = await self._validate_action_with_opa(normalized_action, merged_context)
+                    opa_allowed = await self._validate_action_with_opa(
+                        normalized_action, merged_context
+                    )
                     if not opa_allowed:
                         result = {
                             "success": False,
                             "error": "Action blocked by OPA policy",
                             "action": action_type,
-                            "opa_denied": True
+                            "opa_denied": True,
                         }
                         results.append(result)
                         if on_action_completed:
@@ -275,84 +285,78 @@ class PlaybookExecutor:
         if not self.opa_client:
             if self.opa_fail_open:
                 logger.warning(
-                    'playbook_executor.opa_client_unavailable',
-                    action=action.get('type'),
-                    fail_open=True
+                    "playbook_executor.opa_client_unavailable",
+                    action=action.get("type"),
+                    fail_open=True,
                 )
                 return True
             else:
                 logger.error(
-                    'playbook_executor.opa_client_unavailable',
-                    action=action.get('type'),
-                    fail_open=False
+                    "playbook_executor.opa_client_unavailable",
+                    action=action.get("type"),
+                    fail_open=False,
                 )
                 return False
 
-        action_type = action.get('type', 'unknown')
+        action_type = action.get("type", "unknown")
 
         try:
             # Build OPA input
             # Resolve ticket_id: use explicit ticket_id or first element from affected_tickets
-            affected_tickets = action.get('affected_tickets') or context.get('affected_tickets') or []
-            ticket_id = action.get('ticket_id') or context.get('ticket_id', '')
+            affected_tickets = (
+                action.get("affected_tickets") or context.get("affected_tickets") or []
+            )
+            ticket_id = action.get("ticket_id") or context.get("ticket_id", "")
             if not ticket_id and affected_tickets:
                 ticket_id = affected_tickets[0]
 
             opa_input = {
-                'input': {
-                    'resource': {
-                        'action': action_type,
-                        'ticket_id': ticket_id,
-                        'workflow_id': action.get('workflow_id') or context.get('workflow_id', ''),
-                        'reason': action.get('reason') or context.get('reason', 'self_healing'),
-                        'plan_id': action.get('plan_id') or context.get('plan_id', ''),
-                        'affected_tickets': affected_tickets,
+                "input": {
+                    "resource": {
+                        "action": action_type,
+                        "ticket_id": ticket_id,
+                        "workflow_id": action.get("workflow_id") or context.get("workflow_id", ""),
+                        "reason": action.get("reason") or context.get("reason", "self_healing"),
+                        "plan_id": action.get("plan_id") or context.get("plan_id", ""),
+                        "affected_tickets": affected_tickets,
                     },
-                    'context': {
-                        'last_reallocation_timestamp': context.get('last_reallocation_timestamp', 0),
-                        'workflow_state': context.get('workflow_state', ''),
-                        'incident_id': context.get('incident_id', ''),
-                        'playbook_name': context.get('playbook_name', ''),
-                    }
+                    "context": {
+                        "last_reallocation_timestamp": context.get(
+                            "last_reallocation_timestamp", 0
+                        ),
+                        "workflow_state": context.get("workflow_state", ""),
+                        "incident_id": context.get("incident_id", ""),
+                        "playbook_name": context.get("playbook_name", ""),
+                    },
                 }
             }
 
             # Evaluate policy
-            policy_path = 'neuralhive/self_healing/playbook_validation'
+            policy_path = "neuralhive/self_healing/playbook_validation"
             result = await self.opa_client.evaluate_policy(policy_path, opa_input)
 
             # Check for violations
-            violations = result.get('result', {}).get('violations', [])
+            violations = result.get("result", {}).get("violations", [])
 
             if violations:
-                OPA_VALIDATION_TOTAL.labels(action=action_type, result='denied').inc()
+                OPA_VALIDATION_TOTAL.labels(action=action_type, result="denied").inc()
                 logger.warning(
-                    'playbook_executor.opa_validation_denied',
+                    "playbook_executor.opa_validation_denied",
                     action=action_type,
-                    violations=violations
+                    violations=violations,
                 )
                 return False
 
-            OPA_VALIDATION_TOTAL.labels(action=action_type, result='allowed').inc()
-            logger.info(
-                'playbook_executor.opa_validation_allowed',
-                action=action_type
-            )
+            OPA_VALIDATION_TOTAL.labels(action=action_type, result="allowed").inc()
+            logger.info("playbook_executor.opa_validation_allowed", action=action_type)
             return True
 
         except Exception as e:
-            OPA_VALIDATION_TOTAL.labels(action=action_type, result='error').inc()
-            logger.error(
-                'playbook_executor.opa_validation_error',
-                action=action_type,
-                error=str(e)
-            )
+            OPA_VALIDATION_TOTAL.labels(action=action_type, result="error").inc()
+            logger.error("playbook_executor.opa_validation_error", action=action_type, error=str(e))
 
             if self.opa_fail_open:
-                logger.warning(
-                    'playbook_executor.opa_fail_open_allowing',
-                    action=action_type
-                )
+                logger.warning("playbook_executor.opa_fail_open_allowing", action=action_type)
                 return True
             else:
                 return False
@@ -395,7 +399,11 @@ class PlaybookExecutor:
 
     def _resolve_placeholder(self, value, context: dict):
         """Resolve placeholders simples no formato {{ key }} usando o contexto."""
-        if isinstance(value, str) and value.strip().startswith("{{") and value.strip().endswith("}}"):
+        if (
+            isinstance(value, str)
+            and value.strip().startswith("{{")
+            and value.strip().endswith("}}")
+        ):
             key = value.strip().strip("{{").strip("}}").strip()
             return context.get(key)
         return value
@@ -425,9 +433,16 @@ class PlaybookExecutor:
             deployment.spec.replicas = replicas
             self.apps_v1.patch_namespaced_deployment_scale(deployment_name, namespace, deployment)
 
-            logger.info("playbook_executor.deployment_scaled", deployment=deployment_name, replicas=replicas)
+            logger.info(
+                "playbook_executor.deployment_scaled", deployment=deployment_name, replicas=replicas
+            )
 
-            return {"success": True, "action": "scale_deployment", "deployment": deployment_name, "replicas": replicas}
+            return {
+                "success": True,
+                "action": "scale_deployment",
+                "deployment": deployment_name,
+                "replicas": replicas,
+            }
         except Exception as e:  # noqa: BLE001
             logger.error("playbook_executor.scale_deployment_failed", error=str(e))
             return {"success": False, "action": "scale_deployment", "error": str(e)}
@@ -456,25 +471,25 @@ class PlaybookExecutor:
                         "playbook_executor.update_policy",
                         policy_type=policy_type,
                         policy_name=policy_name,
-                        note="no_policy_spec_provided"
+                        note="no_policy_spec_provided",
                     )
                     return {
                         "success": True,
                         "action": "update_policy",
                         "policy_name": policy_name,
-                        "note": "Policy update simulated (no spec provided)"
+                        "note": "Policy update simulated (no spec provided)",
                     }
                 return {
                     "success": False,
                     "action": "update_policy",
-                    "error": "policy_spec is required"
+                    "error": "policy_spec is required",
                 }
 
             logger.info(
                 "playbook_executor.update_policy",
                 policy_type=policy_type,
                 namespace=namespace,
-                policy_name=policy_name
+                policy_name=policy_name,
             )
 
             if not self.core_v1 or not self.apps_v1:
@@ -482,31 +497,29 @@ class PlaybookExecutor:
                 return {
                     "success": False,
                     "action": "update_policy",
-                    "error": "Kubernetes clients not available"
+                    "error": "Kubernetes clients not available",
                 }
 
             # Import Kubernetes dynamic client for generic resources
             from kubernetes import dynamic
 
-            dynamic_client = dynamic.DynamicClient(
-                self.core_v1.api_client
-            )
+            dynamic_client = dynamic.DynamicClient(self.core_v1.api_client)
 
             # Determinar API version e kind baseado no policy_type
             policy_mapping = {
                 "NETWORK_POLICY": ("networking.k8s.io/v1", "NetworkPolicy"),
                 "ISTIO_PEER_AUTHENTICATION": ("security.istio.io/v1beta1", "PeerAuthentication"),
                 "ISTIO_AUTHORIZATION_POLICY": ("security.istio.io/v1beta1", "AuthorizationPolicy"),
-                "ISTIO_REQUEST_AUTHENTICATION": ("security.istio.io/v1beta1", "RequestAuthentication"),
+                "ISTIO_REQUEST_AUTHENTICATION": (
+                    "security.istio.io/v1beta1",
+                    "RequestAuthentication",
+                ),
                 "POD_DISRUPTION_BUDGET": ("policy/v1", "PodDisruptionBudget"),
                 "RESOURCE_QUOTA": ("v1", "ResourceQuota"),
                 "LIMIT_RANGE": ("v1", "LimitRange"),
             }
 
-            api_version, kind = policy_mapping.get(
-                policy_type,
-                ("v1", "ConfigMap")
-            )
+            api_version, kind = policy_mapping.get(policy_type, ("v1", "ConfigMap"))
 
             # Criar ou atualizar o recurso
             api = dynamic_client.resources.get(api_version=api_version, kind=kind)
@@ -516,26 +529,15 @@ class PlaybookExecutor:
                 existing = api.get(name=policy_name, namespace=namespace)
                 # Atualizar recurso existente
                 policy_spec["metadata"]["resourceVersion"] = existing["metadata"]["resourceVersion"]
-                result = api.patch(
-                    body=policy_spec,
-                    name=policy_name,
-                    namespace=namespace
-                )
+                api.patch(body=policy_spec, name=policy_name, namespace=namespace)
                 logger.info(
-                    "playbook_executor.policy_updated",
-                    policy_type=policy_type,
-                    name=policy_name
+                    "playbook_executor.policy_updated", policy_type=policy_type, name=policy_name
                 )
             except Exception:
                 # Criar novo recurso
-                result = api.create(
-                    body=policy_spec,
-                    namespace=namespace
-                )
+                api.create(body=policy_spec, namespace=namespace)
                 logger.info(
-                    "playbook_executor.policy_created",
-                    policy_type=policy_type,
-                    name=policy_name
+                    "playbook_executor.policy_created", policy_type=policy_type, name=policy_name
                 )
 
             return {
@@ -543,16 +545,12 @@ class PlaybookExecutor:
                 "action": "update_policy",
                 "policy_type": policy_type,
                 "policy_name": policy_name,
-                "namespace": namespace
+                "namespace": namespace,
             }
 
         except Exception as e:
             logger.error("playbook_executor.update_policy_failed", error=str(e))
-            return {
-                "success": False,
-                "action": "update_policy",
-                "error": str(e)
-            }
+            return {"success": False, "action": "update_policy", "error": str(e)}
 
     async def _apply_policy(self, action: dict, context: dict) -> dict:
         """
@@ -579,37 +577,37 @@ class PlaybookExecutor:
             tickets=affected_tickets,
             previous_worker=previous_worker,
             workflow_id=workflow_id,
-            reason=reason
+            reason=reason,
         )
 
         # Fail-safe: if client is not available, return success with warning
         if not self.execution_ticket_client:
             logger.warning(
-                'playbook_executor.execution_ticket_client_unavailable',
+                "playbook_executor.execution_ticket_client_unavailable",
                 tickets=affected_tickets,
-                action='reallocate_ticket'
+                action="reallocate_ticket",
             )
             return {
                 "success": True,
                 "action": "reallocate_ticket",
                 "tickets": affected_tickets,
                 "previous_worker": previous_worker,
-                "warning": "Execution Ticket Service unavailable, action skipped"
+                "warning": "Execution Ticket Service unavailable, action skipped",
             }
 
         try:
             # Use Circuit Breaker para Execution Ticket Service
-            ets_breaker = self._circuit_breakers.get('execution_ticket_service')
+            ets_breaker = self._circuit_breakers.get("execution_ticket_service")
 
             async def _reallocate_single():
                 return await self.execution_ticket_client.reallocate_ticket(
                     ticket_id=affected_tickets[0],
                     reason=reason,
                     metadata={
-                        'workflow_id': workflow_id,
-                        'previous_worker': previous_worker,
-                        'incident_id': context.get('incident_id'),
-                    }
+                        "workflow_id": workflow_id,
+                        "previous_worker": previous_worker,
+                        "incident_id": context.get("incident_id"),
+                    },
                 )
 
             async def _reallocate_batch():
@@ -617,10 +615,10 @@ class PlaybookExecutor:
                     ticket_ids=affected_tickets,
                     reason=reason,
                     metadata={
-                        'workflow_id': workflow_id,
-                        'previous_worker': previous_worker,
-                        'incident_id': context.get('incident_id'),
-                    }
+                        "workflow_id": workflow_id,
+                        "previous_worker": previous_worker,
+                        "incident_id": context.get("incident_id"),
+                    },
                 )
 
             if len(affected_tickets) == 1:
@@ -630,9 +628,9 @@ class PlaybookExecutor:
                 else:
                     result = await _reallocate_single()
                 logger.info(
-                    'playbook_executor.ticket_reallocated',
+                    "playbook_executor.ticket_reallocated",
                     ticket_id=affected_tickets[0],
-                    reallocation_id=result.get('reallocation_id')
+                    reallocation_id=result.get("reallocation_id"),
                 )
                 return {
                     "success": True,
@@ -640,7 +638,7 @@ class PlaybookExecutor:
                     "tickets": affected_tickets,
                     "previous_worker": previous_worker,
                     "reallocated": True,
-                    "reallocation_id": result.get('reallocation_id')
+                    "reallocation_id": result.get("reallocation_id"),
                 }
             else:
                 # Batch reallocation
@@ -649,47 +647,45 @@ class PlaybookExecutor:
                 else:
                     result = await _reallocate_batch()
                 logger.info(
-                    'playbook_executor.tickets_reallocated_batch',
-                    batch_id=result.get('batch_id'),
-                    total=result.get('total'),
-                    successful=result.get('successful'),
-                    failed=result.get('failed')
+                    "playbook_executor.tickets_reallocated_batch",
+                    batch_id=result.get("batch_id"),
+                    total=result.get("total"),
+                    successful=result.get("successful"),
+                    failed=result.get("failed"),
                 )
                 return {
-                    "success": result.get('failed', 0) == 0,
+                    "success": result.get("failed", 0) == 0,
                     "action": "reallocate_ticket",
                     "tickets": affected_tickets,
                     "previous_worker": previous_worker,
                     "reallocated": True,
-                    "batch_id": result.get('batch_id'),
-                    "successful_count": result.get('successful'),
-                    "failed_count": result.get('failed')
+                    "batch_id": result.get("batch_id"),
+                    "successful_count": result.get("successful"),
+                    "failed_count": result.get("failed"),
                 }
 
-        except CircuitBreakerOpenError as e:
+        except CircuitBreakerOpenError:
             logger.error(
-                'playbook_executor.circuit_breaker_open',
-                service='execution_ticket_service',
-                tickets=affected_tickets
+                "playbook_executor.circuit_breaker_open",
+                service="execution_ticket_service",
+                tickets=affected_tickets,
             )
             return {
                 "success": False,
                 "action": "reallocate_ticket",
                 "tickets": affected_tickets,
                 "error": "Circuit breaker is OPEN - service temporarily unavailable",
-                "circuit_breaker_open": True
+                "circuit_breaker_open": True,
             }
         except Exception as e:
             logger.error(
-                'playbook_executor.reallocate_ticket_failed',
-                tickets=affected_tickets,
-                error=str(e)
+                "playbook_executor.reallocate_ticket_failed", tickets=affected_tickets, error=str(e)
             )
             return {
                 "success": False,
                 "action": "reallocate_ticket",
                 "tickets": affected_tickets,
-                "error": str(e)
+                "error": str(e),
             }
 
     async def _notify_agent(self, action: dict, context: dict) -> dict:
@@ -704,7 +700,7 @@ class PlaybookExecutor:
             agent_id=agent_id,
             notification_type=notification_type,
             message=message,
-            metadata=metadata
+            metadata=metadata,
         )
 
         sent = False
@@ -714,15 +710,15 @@ class PlaybookExecutor:
                 notification={
                     "notification_type": notification_type,
                     "message": message,
-                    "metadata": metadata
-                }
+                    "metadata": metadata,
+                },
             )
 
         return {
             "success": True if sent or not self.service_registry_client else False,
             "action": "notify_agent",
             "agent_id": agent_id,
-            "notification_type": notification_type
+            "notification_type": notification_type,
         }
 
     async def _update_ticket_status(self, action: dict, context: dict) -> dict:
@@ -736,40 +732,38 @@ class PlaybookExecutor:
             "playbook_executor.update_ticket_status",
             ticket_id=ticket_id,
             workflow_id=workflow_id,
-            status=status
+            status=status,
         )
 
         # Fail-safe: if client is not available, return success with warning
         if not self.execution_ticket_client:
             logger.warning(
-                'playbook_executor.execution_ticket_client_unavailable',
+                "playbook_executor.execution_ticket_client_unavailable",
                 ticket_id=ticket_id,
-                action='update_ticket_status'
+                action="update_ticket_status",
             )
             return {
                 "success": True,
                 "action": "update_ticket_status",
                 "ticket_id": ticket_id,
                 "status": status,
-                "warning": "Execution Ticket Service unavailable, action skipped"
+                "warning": "Execution Ticket Service unavailable, action skipped",
             }
 
         try:
-            result = await self.execution_ticket_client.update_ticket_status(
+            await self.execution_ticket_client.update_ticket_status(
                 ticket_id=ticket_id,
                 status=status,
                 result=result_data,
                 metadata={
-                    'workflow_id': workflow_id,
-                    'updated_by': 'self-healing-engine',
-                    'incident_id': context.get('incident_id'),
-                }
+                    "workflow_id": workflow_id,
+                    "updated_by": "self-healing-engine",
+                    "incident_id": context.get("incident_id"),
+                },
             )
 
             logger.info(
-                'playbook_executor.ticket_status_updated',
-                ticket_id=ticket_id,
-                status=status
+                "playbook_executor.ticket_status_updated", ticket_id=ticket_id, status=status
             )
 
             return {
@@ -777,22 +771,22 @@ class PlaybookExecutor:
                 "action": "update_ticket_status",
                 "ticket_id": ticket_id,
                 "status": status,
-                "updated": True
+                "updated": True,
             }
 
         except Exception as e:
             logger.error(
-                'playbook_executor.update_ticket_status_failed',
+                "playbook_executor.update_ticket_status_failed",
                 ticket_id=ticket_id,
                 status=status,
-                error=str(e)
+                error=str(e),
             )
             return {
                 "success": False,
                 "action": "update_ticket_status",
                 "ticket_id": ticket_id,
                 "status": status,
-                "error": str(e)
+                "error": str(e),
             }
 
     async def _restart_workflow(self, action: dict, context: dict) -> dict:
@@ -800,39 +794,33 @@ class PlaybookExecutor:
         workflow_id = action.get("workflow_id") or context.get("workflow_id")
         reason = action.get("reason") or context.get("reason", "self_healing_restart")
 
-        logger.info(
-            "playbook_executor.restart_workflow",
-            workflow_id=workflow_id,
-            reason=reason
-        )
+        logger.info("playbook_executor.restart_workflow", workflow_id=workflow_id, reason=reason)
 
         # Fail-safe: if client is not available, return success with warning
         if not self.orchestrator_client:
             logger.warning(
-                'playbook_executor.orchestrator_client_unavailable',
+                "playbook_executor.orchestrator_client_unavailable",
                 workflow_id=workflow_id,
-                action='restart_workflow'
+                action="restart_workflow",
             )
             return {
                 "success": True,
                 "action": "restart_workflow",
                 "workflow_id": workflow_id,
-                "warning": "Orchestrator unavailable, action skipped"
+                "warning": "Orchestrator unavailable, action skipped",
             }
 
         try:
-            orchestrator_breaker = self._circuit_breakers.get('orchestrator')
+            orchestrator_breaker = self._circuit_breakers.get("orchestrator")
 
             async def _get_status():
                 return await self.orchestrator_client.get_workflow_status(
-                    workflow_id=workflow_id,
-                    include_tickets=False
+                    workflow_id=workflow_id, include_tickets=False
                 )
 
             async def _resume():
                 return await self.orchestrator_client.resume_workflow(
-                    workflow_id=workflow_id,
-                    reason=reason
+                    workflow_id=workflow_id, reason=reason
                 )
 
             # First, get workflow status to check if it's paused
@@ -841,9 +829,9 @@ class PlaybookExecutor:
             else:
                 status = await _get_status()
 
-            workflow_state = status.get('state', 'UNKNOWN')
+            workflow_state = status.get("state", "UNKNOWN")
 
-            if workflow_state == 'PAUSED':
+            if workflow_state == "PAUSED":
                 # Resume the paused workflow
                 if orchestrator_breaker:
                     result = await orchestrator_breaker.call_async(_resume)
@@ -851,75 +839,73 @@ class PlaybookExecutor:
                     result = await _resume()
 
                 logger.info(
-                    'playbook_executor.workflow_resumed',
+                    "playbook_executor.workflow_resumed",
                     workflow_id=workflow_id,
-                    success=result.get('success'),
-                    pause_duration_seconds=result.get('pause_duration_seconds')
+                    success=result.get("success"),
+                    pause_duration_seconds=result.get("pause_duration_seconds"),
                 )
 
                 return {
-                    "success": result.get('success', False),
+                    "success": result.get("success", False),
                     "action": "restart_workflow",
                     "workflow_id": workflow_id,
                     "previous_state": workflow_state,
                     "resumed": True,
-                    "pause_duration_seconds": result.get('pause_duration_seconds')
+                    "pause_duration_seconds": result.get("pause_duration_seconds"),
                 }
 
-            elif workflow_state in ('COMPLETED', 'FAILED', 'CANCELLED'):
+            elif workflow_state in ("COMPLETED", "FAILED", "CANCELLED"):
                 logger.warning(
-                    'playbook_executor.workflow_in_terminal_state',
+                    "playbook_executor.workflow_in_terminal_state",
                     workflow_id=workflow_id,
-                    state=workflow_state
+                    state=workflow_state,
                 )
                 return {
                     "success": False,
                     "action": "restart_workflow",
                     "workflow_id": workflow_id,
                     "state": workflow_state,
-                    "error": f"Workflow in terminal state: {workflow_state}"
+                    "error": f"Workflow in terminal state: {workflow_state}",
                 }
 
             else:
                 # Workflow is running or in another non-paused state
                 logger.info(
-                    'playbook_executor.workflow_not_paused',
+                    "playbook_executor.workflow_not_paused",
                     workflow_id=workflow_id,
-                    state=workflow_state
+                    state=workflow_state,
                 )
                 return {
                     "success": True,
                     "action": "restart_workflow",
                     "workflow_id": workflow_id,
                     "state": workflow_state,
-                    "note": "Workflow not paused, no action taken"
+                    "note": "Workflow not paused, no action taken",
                 }
 
         except CircuitBreakerOpenError:
             logger.error(
-                'playbook_executor.circuit_breaker_open',
-                service='orchestrator',
+                "playbook_executor.circuit_breaker_open",
+                service="orchestrator",
                 workflow_id=workflow_id,
-                action='restart_workflow'
+                action="restart_workflow",
             )
             return {
                 "success": False,
                 "action": "restart_workflow",
                 "workflow_id": workflow_id,
                 "error": "Circuit breaker is OPEN - orchestrator temporarily unavailable",
-                "circuit_breaker_open": True
+                "circuit_breaker_open": True,
             }
         except Exception as e:
             logger.error(
-                'playbook_executor.restart_workflow_failed',
-                workflow_id=workflow_id,
-                error=str(e)
+                "playbook_executor.restart_workflow_failed", workflow_id=workflow_id, error=str(e)
             )
             return {
                 "success": False,
                 "action": "restart_workflow",
                 "workflow_id": workflow_id,
-                "error": str(e)
+                "error": str(e),
             }
 
     async def _pause_workflow(self, action: dict, context: dict) -> dict:
@@ -932,30 +918,28 @@ class PlaybookExecutor:
             "playbook_executor.pause_workflow",
             workflow_id=workflow_id,
             reason=reason,
-            duration_seconds=duration_seconds
+            duration_seconds=duration_seconds,
         )
 
         if not self.orchestrator_client:
             logger.warning(
-                'playbook_executor.orchestrator_client_unavailable',
+                "playbook_executor.orchestrator_client_unavailable",
                 workflow_id=workflow_id,
-                action='pause_workflow'
+                action="pause_workflow",
             )
             return {
                 "success": True,
                 "action": "pause_workflow",
                 "workflow_id": workflow_id,
-                "warning": "Orchestrator unavailable, action skipped"
+                "warning": "Orchestrator unavailable, action skipped",
             }
 
         try:
-            orchestrator_breaker = self._circuit_breakers.get('orchestrator')
+            orchestrator_breaker = self._circuit_breakers.get("orchestrator")
 
             async def _pause_workflow_call():
                 return await self.orchestrator_client.pause_workflow(
-                    workflow_id=workflow_id,
-                    reason=reason,
-                    duration_seconds=duration_seconds
+                    workflow_id=workflow_id, reason=reason, duration_seconds=duration_seconds
                 )
 
             if orchestrator_breaker:
@@ -964,45 +948,43 @@ class PlaybookExecutor:
                 result = await _pause_workflow_call()
 
             logger.info(
-                'playbook_executor.workflow_paused',
+                "playbook_executor.workflow_paused",
                 workflow_id=workflow_id,
-                success=result.get('success')
+                success=result.get("success"),
             )
 
             return {
-                "success": result.get('success', False),
+                "success": result.get("success", False),
                 "action": "pause_workflow",
                 "workflow_id": workflow_id,
                 "paused": True,
-                "paused_at": result.get('paused_at'),
-                "scheduled_resume_at": result.get('scheduled_resume_at')
+                "paused_at": result.get("paused_at"),
+                "scheduled_resume_at": result.get("scheduled_resume_at"),
             }
 
-        except CircuitBreakerOpenError as e:
+        except CircuitBreakerOpenError:
             logger.error(
-                'playbook_executor.circuit_breaker_open',
-                service='orchestrator',
+                "playbook_executor.circuit_breaker_open",
+                service="orchestrator",
                 workflow_id=workflow_id,
-                action='pause_workflow'
+                action="pause_workflow",
             )
             return {
                 "success": False,
                 "action": "pause_workflow",
                 "workflow_id": workflow_id,
                 "error": "Circuit breaker is OPEN - orchestrator temporarily unavailable",
-                "circuit_breaker_open": True
+                "circuit_breaker_open": True,
             }
         except Exception as e:
             logger.error(
-                'playbook_executor.pause_workflow_failed',
-                workflow_id=workflow_id,
-                error=str(e)
+                "playbook_executor.pause_workflow_failed", workflow_id=workflow_id, error=str(e)
             )
             return {
                 "success": False,
                 "action": "pause_workflow",
                 "workflow_id": workflow_id,
-                "error": str(e)
+                "error": str(e),
             }
 
     async def _trigger_replanning(self, action: dict, context: dict) -> dict:
@@ -1016,20 +998,20 @@ class PlaybookExecutor:
             "playbook_executor.trigger_replanning",
             plan_id=plan_id,
             reason=reason,
-            trigger_type=trigger_type
+            trigger_type=trigger_type,
         )
 
         if not self.orchestrator_client:
             logger.warning(
-                'playbook_executor.orchestrator_client_unavailable',
+                "playbook_executor.orchestrator_client_unavailable",
                 plan_id=plan_id,
-                action='trigger_replanning'
+                action="trigger_replanning",
             )
             return {
                 "success": True,
                 "action": "trigger_replanning",
                 "plan_id": plan_id,
-                "warning": "Orchestrator unavailable, action skipped"
+                "warning": "Orchestrator unavailable, action skipped",
             }
 
         try:
@@ -1039,37 +1021,35 @@ class PlaybookExecutor:
                 trigger_type=trigger_type,
                 preserve_progress=preserve_progress,
                 context={
-                    'incident_id': context.get('incident_id', ''),
-                    'triggered_by': 'self-healing-engine',
-                }
+                    "incident_id": context.get("incident_id", ""),
+                    "triggered_by": "self-healing-engine",
+                },
             )
 
             logger.info(
-                'playbook_executor.replanning_triggered',
+                "playbook_executor.replanning_triggered",
                 plan_id=plan_id,
-                replanning_id=result.get('replanning_id'),
-                success=result.get('success')
+                replanning_id=result.get("replanning_id"),
+                success=result.get("success"),
             )
 
             return {
-                "success": result.get('success', False),
+                "success": result.get("success", False),
                 "action": "trigger_replanning",
                 "plan_id": plan_id,
-                "replanning_id": result.get('replanning_id'),
-                "triggered_at": result.get('triggered_at')
+                "replanning_id": result.get("replanning_id"),
+                "triggered_at": result.get("triggered_at"),
             }
 
         except Exception as e:
             logger.error(
-                'playbook_executor.trigger_replanning_failed',
-                plan_id=plan_id,
-                error=str(e)
+                "playbook_executor.trigger_replanning_failed", plan_id=plan_id, error=str(e)
             )
             return {
                 "success": False,
                 "action": "trigger_replanning",
                 "plan_id": plan_id,
-                "error": str(e)
+                "error": str(e),
             }
 
     async def _get_workflow_status(self, action: dict, context: dict) -> dict:
@@ -1077,53 +1057,49 @@ class PlaybookExecutor:
         workflow_id = action.get("workflow_id") or context.get("workflow_id")
         include_tickets = action.get("include_tickets", True)
 
-        logger.info(
-            "playbook_executor.get_workflow_status",
-            workflow_id=workflow_id
-        )
+        logger.info("playbook_executor.get_workflow_status", workflow_id=workflow_id)
 
         if not self.orchestrator_client:
             logger.warning(
-                'playbook_executor.orchestrator_client_unavailable',
+                "playbook_executor.orchestrator_client_unavailable",
                 workflow_id=workflow_id,
-                action='get_workflow_status'
+                action="get_workflow_status",
             )
             return {
                 "success": True,
                 "action": "get_workflow_status",
                 "workflow_id": workflow_id,
-                "warning": "Orchestrator unavailable"
+                "warning": "Orchestrator unavailable",
             }
 
         try:
             result = await self.orchestrator_client.get_workflow_status(
-                workflow_id=workflow_id,
-                include_tickets=include_tickets
+                workflow_id=workflow_id, include_tickets=include_tickets
             )
 
             # Update context with workflow state for subsequent actions
-            context['workflow_state'] = result.get('state')
+            context["workflow_state"] = result.get("state")
 
             return {
                 "success": True,
                 "action": "get_workflow_status",
                 "workflow_id": workflow_id,
-                "state": result.get('state'),
-                "progress_percent": result.get('progress_percent'),
-                "tickets": result.get('tickets')
+                "state": result.get("state"),
+                "progress_percent": result.get("progress_percent"),
+                "tickets": result.get("tickets"),
             }
 
         except Exception as e:
             logger.error(
-                'playbook_executor.get_workflow_status_failed',
+                "playbook_executor.get_workflow_status_failed",
                 workflow_id=workflow_id,
-                error=str(e)
+                error=str(e),
             )
             return {
                 "success": False,
                 "action": "get_workflow_status",
                 "workflow_id": workflow_id,
-                "error": str(e)
+                "error": str(e),
             }
 
     async def _check_worker_health(self, action: dict, context: dict) -> dict:
@@ -1132,9 +1108,7 @@ class PlaybookExecutor:
         namespace = action.get("namespace") or context.get("namespace")
 
         logger.info(
-            "playbook_executor.check_worker_health",
-            worker_id=worker_id,
-            namespace=namespace
+            "playbook_executor.check_worker_health", worker_id=worker_id, namespace=namespace
         )
 
         healthy = True
@@ -1143,7 +1117,12 @@ class PlaybookExecutor:
             if agent_info and agent_info.get("status") not in [1]:  # 1 = HEALTHY
                 healthy = False
         context["worker_unhealthy"] = not healthy
-        return {"success": True, "action": "check_worker_health", "worker_id": worker_id, "healthy": healthy}
+        return {
+            "success": True,
+            "action": "check_worker_health",
+            "worker_id": worker_id,
+            "healthy": healthy,
+        }
 
     async def _check_consumer_lag(self, action: dict, context: dict) -> dict:
         """Checa lag do consumer group (stub)."""
@@ -1155,7 +1134,7 @@ class PlaybookExecutor:
             "playbook_executor.check_consumer_lag",
             consumer_group=consumer_group,
             topic=topic,
-            lag_threshold=lag_threshold
+            lag_threshold=lag_threshold,
         )
         context["consumer_lag_checked"] = True
         return {"success": True, "action": "check_consumer_lag", "lag_below_threshold": True}
@@ -1184,14 +1163,12 @@ class PlaybookExecutor:
             topic=topic,
             partition=partition,
             offset=offset,
-            poison_message_identifier=poison_message_identifier
+            poison_message_identifier=poison_message_identifier,
         )
 
         # Nota: A remoção real de mensagens requer administração do Kafka
         # Esta é uma implementação de sinalização/recomendação
         try:
-            from kubernetes import client
-
             if topic and offset:
                 # Sinalizar para administradores sobre mensagem poison
                 # Na prática, pode usar Kafka Admin API para seek ou deletar
@@ -1200,7 +1177,7 @@ class PlaybookExecutor:
                     topic=topic,
                     partition=partition,
                     offset=offset,
-                    action_required="manual_intervention_or_kafka_admin_seek"
+                    action_required="manual_intervention_or_kafka_admin_seek",
                 )
 
                 return {
@@ -1209,22 +1186,14 @@ class PlaybookExecutor:
                     "topic": topic,
                     "note": "Poison message identified. Manual cleanup or seek required.",
                     "partition": partition,
-                    "offset": offset
+                    "offset": offset,
                 }
 
-            return {
-                "success": True,
-                "action": "cleanup_poison_messages",
-                "topic": topic
-            }
+            return {"success": True, "action": "cleanup_poison_messages", "topic": topic}
 
         except Exception as e:
             logger.error("playbook_executor.cleanup_poison_messages_failed", error=str(e))
-            return {
-                "success": False,
-                "action": "cleanup_poison_messages",
-                "error": str(e)
-            }
+            return {"success": False, "action": "cleanup_poison_messages", "error": str(e)}
 
     async def _wait(self, action: dict, context: dict) -> dict:
         """
@@ -1238,11 +1207,7 @@ class PlaybookExecutor:
 
         await asyncio.sleep(seconds)
 
-        return {
-            "success": True,
-            "action": "wait",
-            "waited_seconds": seconds
-        }
+        return {"success": True, "action": "wait", "waited_seconds": seconds}
 
     async def _delete_pod(self, action: dict, context: dict) -> dict:
         """
@@ -1277,36 +1242,28 @@ class PlaybookExecutor:
                 return {
                     "success": False,
                     "action": "patch_deployment",
-                    "error": "patch specification is required"
+                    "error": "patch specification is required",
                 }
 
-            from kubernetes import client
-
             self.apps_v1.patch_namespaced_deployment(
-                name=deployment_name,
-                namespace=namespace,
-                body=patch
+                name=deployment_name, namespace=namespace, body=patch
             )
 
             logger.info(
                 "playbook_executor.deployment_patched",
                 deployment=deployment_name,
-                namespace=namespace
+                namespace=namespace,
             )
 
             return {
                 "success": True,
                 "action": "patch_deployment",
                 "deployment": deployment_name,
-                "namespace": namespace
+                "namespace": namespace,
             }
         except Exception as e:
             logger.error("playbook_executor.patch_deployment_failed", error=str(e))
-            return {
-                "success": False,
-                "action": "patch_deployment",
-                "error": str(e)
-            }
+            return {"success": False, "action": "patch_deployment", "error": str(e)}
 
     async def _maybe_call_callback(self, callback: Callable, payload: dict):
         """Executa callback síncrono ou assíncrono (fail-open)."""
@@ -1322,6 +1279,8 @@ class PlaybookExecutor:
         """Atualiza métricas de execução de playbook."""
         try:
             self.playbook_execution_total.labels(playbook=playbook_name, status=status).inc()
-            self.playbook_execution_duration_seconds.labels(playbook=playbook_name).observe(duration_seconds)
+            self.playbook_execution_duration_seconds.labels(playbook=playbook_name).observe(
+                duration_seconds
+            )
         except Exception as e:  # noqa: BLE001
             logger.warning("playbook_executor.metrics_failed", error=str(e))

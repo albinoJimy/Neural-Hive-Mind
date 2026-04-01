@@ -1,6 +1,7 @@
-from typing import List, Optional
 import threading
-from pydantic import Field, validator, model_validator, PrivateAttr
+from typing import Optional
+
+from pydantic import Field, PrivateAttr, field_validator, model_validator
 from pydantic_settings import BaseSettings
 
 from neural_hive_security.cors import CORSConfig
@@ -18,9 +19,9 @@ class Settings(BaseSettings):
     is_public_api: bool = Field(default=True, description="API pública requer CORS")
 
     # Override de CORS (opcional, para casos especiais)
-    cors_origins_override: Optional[List[str]] = Field(
+    cors_origins_override: list[str] | None = Field(
         default=None,
-        description="Override manual de CORS origins (None = usar configuração automática)"
+        description="Override manual de CORS origins (None = usar configuração automática)",
     )
 
     # Kafka
@@ -38,42 +39,34 @@ class Settings(BaseSettings):
     schema_registry_tls_verify: bool = Field(
         default=True, description="Verificar certificado TLS do Schema Registry"
     )
-    schema_registry_ssl_ca_location: Optional[str] = Field(
+    schema_registry_ssl_ca_location: str | None = Field(
         default="/etc/ssl/certs/schema-registry-ca.crt",
         description="Caminho para CA do Schema Registry",
     )
-    schema_registry_ca_bundle: Optional[str] = Field(
+    schema_registry_ca_bundle: str | None = Field(
         default=None, description="Caminho para CA bundle do Schema Registry (legado)"
     )
 
     # Kafka Security
-    kafka_security_protocol: str = Field(
-        default="PLAINTEXT"
-    )  # PLAINTEXT, SASL_SSL, SSL
+    kafka_security_protocol: str = Field(default="PLAINTEXT")  # PLAINTEXT, SASL_SSL, SSL
     kafka_sasl_mechanism: str = Field(
         default="SCRAM-SHA-512"
     )  # PLAIN, SCRAM-SHA-256, SCRAM-SHA-512
-    kafka_sasl_username: Optional[str] = Field(default=None)
-    kafka_sasl_password: Optional[str] = Field(default=None)
-    kafka_ssl_ca_location: Optional[str] = Field(default=None)
-    kafka_ssl_certificate_location: Optional[str] = Field(default=None)
-    kafka_ssl_key_location: Optional[str] = Field(default=None)
+    kafka_sasl_username: str | None = Field(default=None)
+    kafka_sasl_password: str | None = Field(default=None)
+    kafka_ssl_ca_location: str | None = Field(default=None)
+    kafka_ssl_certificate_location: str | None = Field(default=None)
+    kafka_ssl_key_location: str | None = Field(default=None)
 
     # Kafka Performance
     kafka_batch_size: int = Field(default=16384)  # bytes
     kafka_linger_ms: int = Field(default=10)  # milliseconds
-    kafka_compression_type: str = Field(
-        default="snappy"
-    )  # none, gzip, snappy, lz4, zstd
+    kafka_compression_type: str = Field(default="snappy")  # none, gzip, snappy, lz4, zstd
     kafka_acks: str = Field(
         default="all"
     )  # 0, 1, all (use 'all' for exactly-once, '1' for lower latency)
-    kafka_enable_idempotence: bool = Field(
-        default=True
-    )  # Habilitar idempotência para exactly-once
-    kafka_max_in_flight: int = Field(
-        default=5
-    )  # Máximo de requisições em voo por conexão
+    kafka_enable_idempotence: bool = Field(default=True)  # Habilitar idempotência para exactly-once
+    kafka_max_in_flight: int = Field(default=5)  # Máximo de requisições em voo por conexão
 
     # Fast Producer Control (exactly-once vs latency)
     kafka_enable_fast_producer: bool = Field(
@@ -136,8 +129,8 @@ class Settings(BaseSettings):
     redis_cluster_nodes: str = Field(
         default="neural-hive-cache.redis-cluster.svc.cluster.local:6379"
     )
-    redis_password: Optional[str] = Field(default=None)
-    redis_ca_cert_path: Optional[str] = Field(default=None)
+    redis_password: str | None = Field(default=None)
+    redis_ca_cert_path: str | None = Field(default=None)
     redis_default_ttl: int = Field(default=600)  # 10 minutos
     redis_max_connections: int = Field(default=100)
     redis_pool_size: int = Field(default=10)
@@ -146,9 +139,9 @@ class Settings(BaseSettings):
     # Redis Security
     redis_ssl_enabled: bool = Field(default=False)
     redis_ssl_cert_reqs: str = Field(default="required")  # none, optional, required
-    redis_ssl_ca_certs: Optional[str] = Field(default=None)
-    redis_ssl_certfile: Optional[str] = Field(default=None)
-    redis_ssl_keyfile: Optional[str] = Field(default=None)
+    redis_ssl_ca_certs: str | None = Field(default=None)
+    redis_ssl_certfile: str | None = Field(default=None)
+    redis_ssl_keyfile: str | None = Field(default=None)
 
     # Redis Performance
     redis_connection_pool_max_connections: int = Field(default=50)
@@ -158,7 +151,7 @@ class Settings(BaseSettings):
     keycloak_url: str = Field(default="https://keycloak.neural-hive.local")
     keycloak_realm: str = Field(default="neural-hive")
     keycloak_client_id: str = Field(default="gateway-intencoes")
-    keycloak_client_secret: Optional[str] = Field(default=None)
+    keycloak_client_secret: str | None = Field(default=None)
     jwks_uri: str = Field(
         default="https://keycloak.neural-hive.local/auth/realms/neural-hive/protocol/openid-connect/certs"
     )
@@ -210,48 +203,39 @@ class Settings(BaseSettings):
     # Segurança (OBRIGATÓRIO em production)
     # Nota: jwt_secret_key agora é opcional pois pode vir do Vault
     # Em produção, use Vault ou defina JWT_SECRET environment variable
-    jwt_secret_key: Optional[str] = Field(
+    jwt_secret_key: str | None = Field(
         default=None,
-        description="JWT secret key (Opcional - usa Vault se disponível, senão este valor)"
+        description="JWT secret key (Opcional - usa Vault se disponível, senão este valor)",
     )
     jwt_algorithm: str = Field(default="HS256")
 
     # Vault integration
     vault_enabled: bool = Field(
-        default=False,
-        description="Habilitar integração com HashiCorp Vault para secrets"
+        default=False, description="Habilitar integração com HashiCorp Vault para secrets"
     )
-    vault_addr: Optional[str] = Field(
+    vault_addr: str | None = Field(default=None, description="Endereço do servidor Vault")
+    vault_token: str | None = Field(
         default=None,
-        description="Endereço do servidor Vault"
-    )
-    vault_token: Optional[str] = Field(
-        default=None,
-        description="Token para autenticação no Vault (opcional, usa Kubernetes auth se não fornecido)"
+        description="Token para autenticação no Vault (opcional, usa Kubernetes auth se não fornecido)",
     )
     vault_role: str = Field(
-        default="neural-hive-gateway",
-        description="Role para autenticação Kubernetes no Vault"
+        default="neural-hive-gateway", description="Role para autenticação Kubernetes no Vault"
     )
-    vault_mount_point: str = Field(
-        default="neural-hive",
-        description="Mount point KV v2 no Vault"
-    )
+    vault_mount_point: str = Field(default="neural-hive", description="Mount point KV v2 no Vault")
 
     # Private attributes for Vault client and cached secrets
     _vault_client: Optional["VaultClient"] = PrivateAttr(default=None)
-    _jwt_secret_cached: Optional[str] = PrivateAttr(default=None)
-    _secret_key_cached: Optional[str] = PrivateAttr(default=None)
+    _jwt_secret_cached: str | None = PrivateAttr(default=None)
+    _secret_key_cached: str | None = PrivateAttr(default=None)
     _vault_lock: threading.Lock = PrivateAttr(default_factory=threading.Lock)
 
     # CORS e hosts (usa biblioteca neural_hive_security)
-    allowed_hosts: List[str] = Field(
-        default=[],
-        description="Allowed hosts for TrustedHostMiddleware (configurado via property)"
+    allowed_hosts: list[str] = Field(
+        default=[], description="Allowed hosts for TrustedHostMiddleware (configurado via property)"
     )
 
     @property
-    def allowed_hosts_property(self) -> List[str]:
+    def allowed_hosts_property(self) -> list[str]:
         """
         Retorna hosts permitidos por ambiente.
 
@@ -265,13 +249,13 @@ class Settings(BaseSettings):
         # Defaults por ambiente (sem wildcard em produção)
         if self.environment == "production":
             return ["api.neural-hive.com", "gateway.neural-hive.com", "neural-hive.com"]
-        elif self.environment == "staging":
+        if self.environment == "staging":
             return ["api.staging.neural-hive.com", "gateway.staging.neural-hive.com"]
-        else:  # development
-            return ["localhost", "127.0.0.1", "neural-hive.local", "*.neural-hive.local"]
+        # development
+        return ["localhost", "127.0.0.1", "neural-hive.local", "*.neural-hive.local"]
 
     @property
-    def allowed_origins(self) -> List[str]:
+    def allowed_origins(self) -> list[str]:
         """
         CORS origins dinâmicas por ambiente.
 
@@ -284,8 +268,7 @@ class Settings(BaseSettings):
 
         # Caso contrário, usa configuração automática
         return CORSConfig.get_origins_for_environment(
-            self.environment,
-            is_public_api=self.is_public_api
+            self.environment, is_public_api=self.is_public_api
         )
 
     # Observabilidade - OpenTelemetry Collector OTLP endpoint
@@ -299,7 +282,7 @@ class Settings(BaseSettings):
     otel_tls_verify: bool = Field(
         default=True, description="Verificar certificado TLS do OTEL Collector"
     )
-    otel_ca_bundle: Optional[str] = Field(
+    otel_ca_bundle: str | None = Field(
         default=None, description="Caminho para CA bundle do OTEL Collector"
     )
     prometheus_port: int = Field(default=8080)
@@ -314,66 +297,77 @@ class Settings(BaseSettings):
     circuit_breaker_enabled: bool = Field(default=True)
     distributed_cache_enabled: bool = Field(default=True)
 
-    @validator("kafka_security_protocol")
-    def validate_kafka_security_protocol(cls, v):
+    @field_validator("kafka_security_protocol")
+    @classmethod
+    def validate_kafka_security_protocol(cls, v: str) -> str:
         allowed = ["PLAINTEXT", "SASL_SSL", "SSL", "SASL_PLAINTEXT"]
         if v not in allowed:
             raise ValueError(f"kafka_security_protocol must be one of {allowed}")
         return v
 
-    @validator("kafka_sasl_mechanism")
-    def validate_kafka_sasl_mechanism(cls, v):
+    @field_validator("kafka_sasl_mechanism")
+    @classmethod
+    def validate_kafka_sasl_mechanism(cls, v: str) -> str:
         allowed = ["PLAIN", "SCRAM-SHA-256", "SCRAM-SHA-512", "GSSAPI"]
         if v not in allowed:
             raise ValueError(f"kafka_sasl_mechanism must be one of {allowed}")
         return v
 
-    @validator("redis_ssl_cert_reqs")
-    def validate_redis_ssl_cert_reqs(cls, v):
+    @field_validator("redis_ssl_cert_reqs")
+    @classmethod
+    def validate_redis_ssl_cert_reqs(cls, v: str) -> str:
         allowed = ["none", "optional", "required"]
         if v not in allowed:
             raise ValueError(f"redis_ssl_cert_reqs must be one of {allowed}")
         return v
 
-    @validator("environment")
-    def validate_environment_security(cls, v, values):
-        if v == "prod":
+    @model_validator(mode="before")
+    @classmethod
+    def validate_environment_security(cls, data: dict) -> dict:
+        environment = data.get("environment")
+        if environment == "prod":
             # Em produção, alguns recursos de segurança são obrigatórios
-            if not values.get("token_validation_enabled", True):
+            if not data.get("token_validation_enabled", True):
                 raise ValueError("token_validation_enabled must be True in production")
-        return v
+        return data
 
-    @validator("allowed_hosts")
-    def validate_allowed_hosts(cls, v, values):
+    @model_validator(mode="before")
+    @classmethod
+    def validate_allowed_hosts(cls, data: dict) -> dict:
         """Bloqueia wildcard ou lista vazia de allowed_hosts em produção."""
-        env = values.get("environment", "development")
+        allowed_hosts = data.get("allowed_hosts", [])
+        env = data.get("environment", "development")
         env_lower = env.lower() if env else "development"
 
         if env_lower in ("production", "prod"):
-            if "*" in v or not v:
+            if "*" in allowed_hosts or not allowed_hosts:
                 raise ValueError(
                     "allowed_hosts nao pode ser wildcard ou vazio em producao. "
                     "Configure hosts explicitos ou use a propriedade allowed_hosts_property."
                 )
-        return v
+        return data
 
-    @validator("pii_masking_strategy")
-    def validate_pii_masking_strategy(cls, v):
+    @field_validator("pii_masking_strategy")
+    @classmethod
+    def validate_pii_masking_strategy(cls, v: str) -> str:
         allowed = ["partial", "redact", "full"]
         if v not in allowed:
             raise ValueError(f"pii_masking_strategy must be one of {allowed}")
         return v
 
-    @validator("nlu_routing_threshold_low")
-    def validate_routing_thresholds(cls, v, values):
-        high_threshold = values.get("nlu_routing_threshold_high", 0.5)
-        if v >= high_threshold:
+    @model_validator(mode="before")
+    @classmethod
+    def validate_routing_thresholds(cls, data: dict) -> dict:
+        low_threshold = data.get("nlu_routing_threshold_low")
+        high_threshold = data.get("nlu_routing_threshold_high", 0.5)
+        if low_threshold is not None and low_threshold >= high_threshold:
             raise ValueError(
-                f"nlu_routing_threshold_low ({v}) must be < nlu_routing_threshold_high ({high_threshold})"
+                f"nlu_routing_threshold_low ({low_threshold}) must be < nlu_routing_threshold_high ({high_threshold})"
             )
-        return v
+        return data
 
-    @validator("cors_origins_override", pre=True)
+    @field_validator("cors_origins_override", mode="before")
+    @classmethod
     def parse_cors_origins_override(cls, v):
         """Parse CORS_ORIGINS from comma-separated string to list."""
         if v is None:
@@ -444,10 +438,11 @@ class Settings(BaseSettings):
                 if self._vault_client is None:
                     try:
                         # Import correto usando path relativo ao src
-                        from ..clients.vault_client import VaultClient
-
                         # Configurar environment para VaultClient
                         import os
+
+                        from src.clients.vault_client import VaultClient
+
                         if self.vault_addr:
                             os.environ["VAULT_ADDR"] = self.vault_addr
                         if self.vault_token:
@@ -459,8 +454,11 @@ class Settings(BaseSettings):
                     except Exception as e:
                         # Vault não disponível, usar fallback
                         from structlog import get_logger
+
                         logger = get_logger()
-                        logger.warning("vault_init_failed", error=str(e), fallback="using_env_or_config")
+                        logger.warning(
+                            "vault_init_failed", error=str(e), fallback="using_env_or_config"
+                        )
                         self._vault_client = False  # Marcador para não tentar novamente
 
         return self._vault_client if self._vault_client is not False else None
@@ -501,6 +499,7 @@ class Settings(BaseSettings):
 
         # Fallback para environment variable
         import os
+
         env_secret = os.getenv("JWT_SECRET")
         if env_secret:
             return env_secret
@@ -523,7 +522,7 @@ class Settings(BaseSettings):
         case_sensitive = False
 
 
-_settings: Optional[Settings] = None
+_settings: Settings | None = None
 
 
 def get_settings() -> Settings:

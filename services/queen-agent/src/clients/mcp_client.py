@@ -4,10 +4,9 @@ Cliente MCP (Model Context Protocol) para comunicação com MCP Servers.
 Implementa cliente JSON-RPC 2.0 para comunicação com servidores MCP
 que seguem o protocolo da Anthropic.
 """
-import json
-import asyncio
-from typing import Any, Optional
+import contextlib
 from dataclasses import dataclass
+from typing import Any
 
 import httpx
 from structlog import get_logger
@@ -38,19 +37,16 @@ class MCPServerInfo:
 class MCPClientError(Exception):
     """Erro base do cliente MCP."""
 
-    pass
 
 
 class MCPConnectionError(MCPClientError):
     """Erro de conexão com servidor MCP."""
 
-    pass
 
 
 class MCPToolExecutionError(MCPClientError):
     """Erro na execução de ferramenta MCP."""
 
-    pass
 
 
 class MCPClient:
@@ -65,7 +61,7 @@ class MCPClient:
         self,
         server_url: str,
         timeout: float = 30.0,
-        circuit_breaker: Optional[MonitoredCircuitBreaker] = None,
+        circuit_breaker: MonitoredCircuitBreaker | None = None,
     ):
         """
         Inicializa o cliente MCP.
@@ -77,9 +73,9 @@ class MCPClient:
         """
         self.server_url = server_url.rstrip("/")
         self.timeout = timeout
-        self._client: Optional[httpx.AsyncClient] = None
+        self._client: httpx.AsyncClient | None = None
         self._circuit_breaker = circuit_breaker
-        self._server_info: Optional[MCPServerInfo] = None
+        self._server_info: MCPServerInfo | None = None
         self._tools: dict[str, MCPTool] = {}
         self._request_id = 0
 
@@ -120,9 +116,7 @@ class MCPClient:
         self._server_info = MCPServerInfo(
             name=server_info.get("name", "unknown"),
             version=server_info.get("version", "0.0.0"),
-            protocol_version=response.get("result", {}).get(
-                "protocolVersion", "2024-11-05"
-            ),
+            protocol_version=response.get("result", {}).get("protocolVersion", "2024-11-05"),
         )
 
         # Carregar ferramentas disponíveis
@@ -147,10 +141,8 @@ class MCPClient:
     async def close(self) -> None:
         """Fecha a conexão com o servidor MCP."""
         if self._client:
-            try:
+            with contextlib.suppress(Exception):
                 await self._client.aclose()
-            except Exception:
-                pass
             self._client = None
             logger.info("mcp_client_closed", server=self.server_url)
 
@@ -219,9 +211,7 @@ class MCPClient:
 
             result = response.get("result")
             if result is None:
-                raise MCPToolExecutionError(
-                    f"Tool execution returned no result: {response}"
-                )
+                raise MCPToolExecutionError(f"Tool execution returned no result: {response}")
 
             # Verificar se há erro no resultado
             if isinstance(result, dict) and result.get("__error"):
@@ -236,14 +226,14 @@ class MCPClient:
             return result
 
         except httpx.HTTPStatusError as e:
-            logger.error(
+            logger.exception(
                 "mcp_tool_http_error",
                 tool=tool_name,
                 status_code=e.response.status_code,
             )
             raise MCPToolExecutionError(f"HTTP error: {e.response.status_code}") from e
         except Exception as e:
-            logger.error(
+            logger.exception(
                 "mcp_tool_execution_failed",
                 tool=tool_name,
                 error=str(e),
@@ -297,7 +287,7 @@ class MCPClient:
             return result
 
         except httpx.HTTPStatusError as e:
-            logger.error(
+            logger.exception(
                 "mcp_http_error",
                 method=method,
                 status_code=e.response.status_code,
@@ -305,7 +295,7 @@ class MCPClient:
             )
             raise MCPConnectionError(f"HTTP error: {e.response.status_code}") from e
         except Exception as e:
-            logger.error(
+            logger.exception(
                 "mcp_request_failed",
                 method=method,
                 error=str(e),
@@ -313,7 +303,7 @@ class MCPClient:
             raise MCPConnectionError(f"Request failed: {e}") from e
 
     @property
-    def server_info(self) -> Optional[MCPServerInfo]:
+    def server_info(self) -> MCPServerInfo | None:
         """Informações do servidor conectado."""
         return self._server_info
 
@@ -322,7 +312,7 @@ class MCPClient:
         """Número de ferramentas disponíveis."""
         return len(self._tools)
 
-    def get_tool(self, tool_name: str) -> Optional[MCPTool]:
+    def get_tool(self, tool_name: str) -> MCPTool | None:
         """
         Obtém informações de uma ferramenta específica.
 
@@ -401,7 +391,7 @@ class HTTPMCPClient:
         self,
         server_url: str,
         timeout: float = 30.0,
-        circuit_breaker: Optional[MonitoredCircuitBreaker] = None,
+        circuit_breaker: MonitoredCircuitBreaker | None = None,
     ):
         """
         Inicializa o cliente HTTP MCP.
@@ -413,9 +403,9 @@ class HTTPMCPClient:
         """
         self.server_url = server_url.rstrip("/")
         self.timeout = timeout
-        self._client: Optional[httpx.AsyncClient] = None
+        self._client: httpx.AsyncClient | None = None
         self._circuit_breaker = circuit_breaker
-        self._server_info: Optional[MCPServerInfo] = None
+        self._server_info: MCPServerInfo | None = None
         self._tools: dict[str, MCPTool] = {}
 
     async def connect(self) -> None:
@@ -473,10 +463,8 @@ class HTTPMCPClient:
     async def close(self) -> None:
         """Fecha a conexão com o servidor HTTP."""
         if self._client:
-            try:
+            with contextlib.suppress(Exception):
                 await self._client.aclose()
-            except Exception:
-                pass
             self._client = None
             logger.info("http_mcp_client_closed", server=self.server_url)
 
@@ -562,14 +550,14 @@ class HTTPMCPClient:
             return result
 
         except httpx.HTTPStatusError as e:
-            logger.error(
+            logger.exception(
                 "http_mcp_tool_http_error",
                 tool=tool_name,
                 status_code=e.response.status_code,
             )
             raise MCPToolExecutionError(f"HTTP error: {e.response.status_code}") from e
         except Exception as e:
-            logger.error(
+            logger.exception(
                 "http_mcp_tool_execution_failed",
                 tool=tool_name,
                 error=str(e),
@@ -577,7 +565,7 @@ class HTTPMCPClient:
             raise MCPToolExecutionError(f"Tool execution failed: {e}") from e
 
     @property
-    def server_info(self) -> Optional[MCPServerInfo]:
+    def server_info(self) -> MCPServerInfo | None:
         """Informações do servidor conectado."""
         return self._server_info
 
@@ -586,7 +574,7 @@ class HTTPMCPClient:
         """Número de ferramentas disponíveis."""
         return len(self._tools)
 
-    def get_tool(self, tool_name: str) -> Optional[MCPTool]:
+    def get_tool(self, tool_name: str) -> MCPTool | None:
         """
         Obtém informações de uma ferramenta específica.
 

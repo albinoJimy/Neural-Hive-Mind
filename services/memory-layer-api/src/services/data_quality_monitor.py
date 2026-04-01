@@ -2,25 +2,23 @@
 Data Quality Monitor
 """
 import statistics
-import structlog
-from datetime import datetime, timedelta
-from typing import Dict, List, Tuple, Any, Optional
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, List, Optional, Tuple
 
+import structlog
 from prometheus_client import Counter, Gauge
 
 logger = structlog.get_logger(__name__)
 
 # Métricas Prometheus
 ANOMALIES_DETECTED = Counter(
-    'memory_data_quality_anomalies_detected_total',
-    'Total de anomalias detectadas em métricas de qualidade',
-    ['data_type', 'metric', 'severity']
+    "memory_data_quality_anomalies_detected_total",
+    "Total de anomalias detectadas em métricas de qualidade",
+    ["data_type", "metric", "severity"],
 )
 
 QUALITY_SCORE_GAUGE = Gauge(
-    'neural_hive_data_quality_score',
-    'Score geral de qualidade de dados (0-1)',
-    ['data_type']
+    "neural_hive_data_quality_score", "Score geral de qualidade de dados (0-1)", ["data_type"]
 )
 
 
@@ -33,9 +31,7 @@ class DataQualityMonitor:
         self.clickhouse = clickhouse_client
 
     async def validate_data(
-        self,
-        data: Dict[str, Any],
-        schema: Dict[str, Any]
+        self, data: Dict[str, Any], schema: Dict[str, Any]
     ) -> Tuple[bool, List[str]]:
         """
         Validate data against schema
@@ -45,19 +41,19 @@ class DataQualityMonitor:
         violations = []
 
         # Completeness check
-        required_fields = schema.get('required', [])
+        required_fields = schema.get("required", [])
         for field in required_fields:
             if field not in data or data[field] is None:
                 violations.append(f"Missing required field: {field}")
 
         # Type validation
-        field_types = schema.get('types', {})
+        field_types = schema.get("types", {})
         for field, expected_type in field_types.items():
             if field in data and not isinstance(data[field], expected_type):
                 violations.append(f"Invalid type for {field}: expected {expected_type}")
 
         # Range validation
-        field_ranges = schema.get('ranges', {})
+        field_ranges = schema.get("ranges", {})
         for field, (min_val, max_val) in field_ranges.items():
             if field in data:
                 value = data[field]
@@ -65,10 +61,10 @@ class DataQualityMonitor:
                     violations.append(f"Value out of range for {field}: {value}")
 
         # Timestamp validation
-        if 'created_at' in data:
+        if "created_at" in data:
             try:
-                if isinstance(data['created_at'], str):
-                    datetime.fromisoformat(data['created_at'])
+                if isinstance(data["created_at"], str):
+                    datetime.fromisoformat(data["created_at"])
             except ValueError:
                 violations.append("Invalid timestamp format for created_at")
 
@@ -76,9 +72,7 @@ class DataQualityMonitor:
         return is_valid, violations
 
     async def calculate_quality_score(
-        self,
-        data_type: str,
-        sample_size: int = 1000
+        self, data_type: str, sample_size: int = 1000
     ) -> Dict[str, float]:
         """
         Calculate quality scores by dimension
@@ -90,8 +84,8 @@ class DataQualityMonitor:
             collection = self.settings.mongodb_context_collection
             sample = await self.mongodb.find(
                 collection=collection,
-                filter={'data_type': data_type} if data_type else {},
-                limit=sample_size
+                filter={"data_type": data_type} if data_type else {},
+                limit=sample_size,
             )
 
             if not sample:
@@ -107,20 +101,20 @@ class DataQualityMonitor:
 
             # Overall score (weighted average)
             overall = (
-                completeness * 0.25 +
-                accuracy * 0.25 +
-                timeliness * 0.20 +
-                uniqueness * 0.15 +
-                consistency * 0.15
+                completeness * 0.25
+                + accuracy * 0.25
+                + timeliness * 0.20
+                + uniqueness * 0.15
+                + consistency * 0.15
             )
 
             scores = {
-                'completeness_score': completeness,
-                'accuracy_score': accuracy,
-                'timeliness_score': timeliness,
-                'uniqueness_score': uniqueness,
-                'consistency_score': consistency,
-                'overall_score': overall
+                "completeness_score": completeness,
+                "accuracy_score": accuracy,
+                "timeliness_score": timeliness,
+                "uniqueness_score": uniqueness,
+                "consistency_score": consistency,
+                "overall_score": overall,
             }
 
             logger.info("Quality scores calculated", data_type=data_type, overall=overall)
@@ -140,9 +134,9 @@ class DataQualityMonitor:
 
         for doc in sample:
             for key, value in doc.items():
-                if key not in ['_id', 'created_at']:  # Exclude system fields
+                if key not in ["_id", "created_at"]:  # Exclude system fields
                     total_fields += 1
-                    if value is not None and value != '':
+                    if value is not None and value != "":
                         non_null_fields += 1
 
         return (non_null_fields / total_fields * 100) if total_fields > 0 else 0.0
@@ -158,14 +152,14 @@ class DataQualityMonitor:
             is_valid = True
 
             # Check for required fields
-            if not doc.get('entity_id'):
+            if not doc.get("entity_id"):
                 is_valid = False
 
             # Check timestamp format
-            if 'created_at' in doc:
+            if "created_at" in doc:
                 try:
-                    if isinstance(doc['created_at'], str):
-                        datetime.fromisoformat(doc['created_at'])
+                    if isinstance(doc["created_at"], str):
+                        datetime.fromisoformat(doc["created_at"])
                 except (ValueError, TypeError):
                     is_valid = False
 
@@ -179,11 +173,13 @@ class DataQualityMonitor:
         if not sample:
             return 0.0
 
-        threshold = datetime.utcnow() - timedelta(hours=self.settings.freshness_threshold_hours)
+        threshold = datetime.now(timezone.utc) - timedelta(
+            hours=self.settings.freshness_threshold_hours
+        )
         fresh_records = 0
 
         for doc in sample:
-            created_at = doc.get('created_at')
+            created_at = doc.get("created_at")
             if created_at:
                 if isinstance(created_at, str):
                     try:
@@ -200,7 +196,7 @@ class DataQualityMonitor:
         if not sample:
             return 0.0
 
-        entity_ids = [doc.get('entity_id') for doc in sample if doc.get('entity_id')]
+        entity_ids = [doc.get("entity_id") for doc in sample if doc.get("entity_id")]
         unique_ids = set(entity_ids)
 
         return (len(unique_ids) / len(entity_ids) * 100) if entity_ids else 0.0
@@ -225,20 +221,16 @@ class DataQualityMonitor:
     def _empty_scores(self) -> Dict[str, float]:
         """Return empty scores"""
         return {
-            'completeness_score': 0.0,
-            'accuracy_score': 0.0,
-            'timeliness_score': 0.0,
-            'uniqueness_score': 0.0,
-            'consistency_score': 0.0,
-            'overall_score': 0.0
+            "completeness_score": 0.0,
+            "accuracy_score": 0.0,
+            "timeliness_score": 0.0,
+            "uniqueness_score": 0.0,
+            "consistency_score": 0.0,
+            "overall_score": 0.0,
         }
 
     async def detect_anomalies(
-        self,
-        data_type: str,
-        metric: str,
-        window_hours: int = 24,
-        baseline_days: int = 7
+        self, data_type: str, metric: str, window_hours: int = 24, baseline_days: int = 7
     ) -> List[Dict]:
         """
         Detecta anomalias usando método estatístico (mean ± 3*std)
@@ -256,7 +248,7 @@ class DataQualityMonitor:
             Lista de anomalias detectadas com timestamp, valor, z_score e severidade
         """
         try:
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
             baseline_start = now - timedelta(days=baseline_days)
             window_start = now - timedelta(hours=window_hours)
 
@@ -275,7 +267,7 @@ class DataQualityMonitor:
                 logger.info(
                     "Dados de baseline insuficientes para detecção de anomalias",
                     data_type=data_type,
-                    metric=metric
+                    metric=metric,
                 )
                 return []
 
@@ -285,25 +277,22 @@ class DataQualityMonitor:
                 logger.info(
                     "Desvio padrão zero, não é possível calcular Z-score",
                     data_type=data_type,
-                    metric=metric
+                    metric=metric,
                 )
                 return []
 
             # Query dados da janela atual do MongoDB
             current_data = await self.mongodb.find(
                 collection=self.settings.mongodb_quality_collection,
-                filter={
-                    'collection': data_type,
-                    'timestamp': {'$gte': window_start}
-                },
-                sort=[('timestamp', 1)],
-                limit=1000
+                filter={"collection": data_type, "timestamp": {"$gte": window_start}},
+                sort=[("timestamp", 1)],
+                limit=1000,
             )
 
             anomalies = []
             for doc in current_data:
-                metrics = doc.get('metrics', {})
-                metric_category = metric.replace('_score', '')
+                metrics = doc.get("metrics", {})
+                metric_category = metric.replace("_score", "")
                 if metric_category in metrics:
                     score = metrics[metric_category].get(metric, 0.0)
                     if score > 0:
@@ -314,29 +303,27 @@ class DataQualityMonitor:
                         if abs(z_score) > 3:
                             # Classifica severidade
                             if abs(z_score) > 5:
-                                severity = 'high'
+                                severity = "high"
                             elif abs(z_score) > 4:
-                                severity = 'medium'
+                                severity = "medium"
                             else:
-                                severity = 'low'
+                                severity = "low"
 
                             anomaly = {
-                                'timestamp': doc.get('timestamp'),
-                                'value': score,
-                                'z_score': round(z_score, 3),
-                                'severity': severity,
-                                'metric': metric,
-                                'data_type': data_type,
-                                'baseline_mean': round(mean_val, 3),
-                                'baseline_std': round(std_val, 3)
+                                "timestamp": doc.get("timestamp"),
+                                "value": score,
+                                "z_score": round(z_score, 3),
+                                "severity": severity,
+                                "metric": metric,
+                                "data_type": data_type,
+                                "baseline_mean": round(mean_val, 3),
+                                "baseline_std": round(std_val, 3),
                             }
                             anomalies.append(anomaly)
 
                             # Incrementa métrica Prometheus
                             ANOMALIES_DETECTED.labels(
-                                data_type=data_type,
-                                metric=metric,
-                                severity=severity
+                                data_type=data_type, metric=metric, severity=severity
                             ).inc()
 
                             logger.warning(
@@ -346,33 +333,26 @@ class DataQualityMonitor:
                                 z_score=z_score,
                                 severity=severity,
                                 value=score,
-                                baseline_mean=mean_val
+                                baseline_mean=mean_val,
                             )
 
             logger.info(
                 "Detecção de anomalias concluída",
                 data_type=data_type,
                 metric=metric,
-                anomalies_found=len(anomalies)
+                anomalies_found=len(anomalies),
             )
 
             return anomalies
 
         except Exception as e:
             logger.error(
-                "Erro na detecção de anomalias",
-                error=str(e),
-                data_type=data_type,
-                metric=metric
+                "Erro na detecção de anomalias", error=str(e), data_type=data_type, metric=metric
             )
             return []
 
     async def _get_baseline_from_clickhouse(
-        self,
-        data_type: str,
-        metric: str,
-        baseline_start: datetime,
-        window_start: datetime
+        self, data_type: str, metric: str, baseline_start: datetime, window_start: datetime
     ) -> Optional[tuple]:
         """
         Busca estatísticas de baseline do ClickHouse.
@@ -380,7 +360,11 @@ class DataQualityMonitor:
         Returns:
             Tuple (mean, std, count) ou None se falhar
         """
-        if not self.clickhouse or not hasattr(self.clickhouse, 'client') or not self.clickhouse.client:
+        if (
+            not self.clickhouse
+            or not hasattr(self.clickhouse, "client")
+            or not self.clickhouse.client
+        ):
             logger.debug("ClickHouse não disponível, usando fallback MongoDB")
             return None
 
@@ -403,10 +387,10 @@ class DataQualityMonitor:
             result = self.clickhouse.client.query(
                 query,
                 parameters={
-                    'data_type': data_type,
-                    'baseline_start': baseline_start,
-                    'window_start': window_start
-                }
+                    "data_type": data_type,
+                    "baseline_start": baseline_start,
+                    "window_start": window_start,
+                },
             )
 
             if result.result_rows and len(result.result_rows) > 0:
@@ -420,15 +404,11 @@ class DataQualityMonitor:
                         metric=metric,
                         mean=mean_val,
                         std=std_val,
-                        count=count
+                        count=count,
                     )
                     return (float(mean_val), float(std_val or 0), int(count))
 
-            logger.info(
-                "Dados insuficientes no ClickHouse",
-                data_type=data_type,
-                metric=metric
-            )
+            logger.info("Dados insuficientes no ClickHouse", data_type=data_type, metric=metric)
             return None
 
         except Exception as e:
@@ -436,16 +416,12 @@ class DataQualityMonitor:
                 "Falha ao buscar baseline do ClickHouse, usando fallback MongoDB",
                 error=str(e),
                 data_type=data_type,
-                metric=metric
+                metric=metric,
             )
             return None
 
     async def _get_baseline_from_mongodb(
-        self,
-        data_type: str,
-        metric: str,
-        baseline_start: datetime,
-        window_start: datetime
+        self, data_type: str, metric: str, baseline_start: datetime, window_start: datetime
     ) -> Optional[tuple]:
         """
         Busca estatísticas de baseline do MongoDB (fallback).
@@ -457,11 +433,11 @@ class DataQualityMonitor:
             historical_data = await self.mongodb.find(
                 collection=self.settings.mongodb_quality_collection,
                 filter={
-                    'collection': data_type,
-                    'timestamp': {'$gte': baseline_start, '$lt': window_start}
+                    "collection": data_type,
+                    "timestamp": {"$gte": baseline_start, "$lt": window_start},
                 },
-                sort=[('timestamp', 1)],
-                limit=10000
+                sort=[("timestamp", 1)],
+                limit=10000,
             )
 
             if len(historical_data) < 10:
@@ -469,15 +445,15 @@ class DataQualityMonitor:
                     "Dados históricos insuficientes no MongoDB",
                     data_type=data_type,
                     metric=metric,
-                    count=len(historical_data)
+                    count=len(historical_data),
                 )
                 return None
 
             # Extrai valores da métrica do histórico
             baseline_values = []
             for doc in historical_data:
-                metrics = doc.get('metrics', {})
-                metric_category = metric.replace('_score', '')
+                metrics = doc.get("metrics", {})
+                metric_category = metric.replace("_score", "")
                 if metric_category in metrics:
                     score = metrics[metric_category].get(metric, 0.0)
                     if score > 0:
@@ -488,7 +464,7 @@ class DataQualityMonitor:
                     "Valores de baseline insuficientes no MongoDB",
                     data_type=data_type,
                     metric=metric,
-                    count=len(baseline_values)
+                    count=len(baseline_values),
                 )
                 return None
 
@@ -501,7 +477,7 @@ class DataQualityMonitor:
                 metric=metric,
                 mean=mean_val,
                 std=std_val,
-                count=len(baseline_values)
+                count=len(baseline_values),
             )
 
             return (mean_val, std_val, len(baseline_values))
@@ -511,22 +487,22 @@ class DataQualityMonitor:
                 "Falha ao buscar baseline do MongoDB",
                 error=str(e),
                 data_type=data_type,
-                metric=metric
+                metric=metric,
             )
             return None
 
     def _map_metric_to_column(self, metric: str) -> str:
         """Mapeia nome da métrica para coluna do ClickHouse"""
         metric_mapping = {
-            'completeness_score': 'completeness_score',
-            'accuracy_score': 'accuracy_score',
-            'freshness_score': 'freshness_score',
-            'timeliness_score': 'timeliness_score',
-            'uniqueness_score': 'uniqueness_score',
-            'consistency_score': 'consistency_score',
-            'overall_score': 'overall_score'
+            "completeness_score": "completeness_score",
+            "accuracy_score": "accuracy_score",
+            "freshness_score": "freshness_score",
+            "timeliness_score": "timeliness_score",
+            "uniqueness_score": "uniqueness_score",
+            "consistency_score": "consistency_score",
+            "overall_score": "overall_score",
         }
-        return metric_mapping.get(metric, 'overall_score')
+        return metric_mapping.get(metric, "overall_score")
 
     async def check_freshness(self, data_type: str) -> Dict[str, Any]:
         """Check data freshness"""
@@ -535,80 +511,75 @@ class DataQualityMonitor:
             collection = self.settings.mongodb_context_collection
             latest = await self.mongodb.find_one(
                 collection=collection,
-                filter={'data_type': data_type} if data_type else {},
-                sort=[('created_at', -1)]
+                filter={"data_type": data_type} if data_type else {},
+                sort=[("created_at", -1)],
             )
 
             if not latest:
-                return {'status': 'no_data', 'age_hours': None}
+                return {"status": "no_data", "age_hours": None}
 
-            created_at = latest.get('created_at')
+            created_at = latest.get("created_at")
             if isinstance(created_at, str):
                 created_at = datetime.fromisoformat(created_at)
 
-            age = datetime.utcnow() - created_at
+            age = datetime.now(timezone.utc) - created_at
             age_hours = age.total_seconds() / 3600
 
-            status = 'fresh'
+            status = "fresh"
             if age_hours > self.settings.freshness_threshold_hours:
-                status = 'stale'
+                status = "stale"
 
             return {
-                'status': status,
-                'age_hours': age_hours,
-                'latest_timestamp': created_at.isoformat()
+                "status": status,
+                "age_hours": age_hours,
+                "latest_timestamp": created_at.isoformat(),
             }
 
         except Exception as e:
             logger.error("Freshness check failed", error=str(e))
-            return {'status': 'error', 'age_hours': None}
+            return {"status": "error", "age_hours": None}
 
     async def persist_quality_metrics(
         self,
         data_type: str,
         quality_scores: Dict[str, float],
         anomalies: List[Dict],
-        freshness: Dict[str, Any]
+        freshness: Dict[str, Any],
     ):
         """Persist quality metrics to MongoDB"""
         try:
             document = {
-                'data_type': data_type,
-                'timestamp': datetime.utcnow(),
-                'quality_scores': quality_scores,
-                'anomalies': anomalies,
-                'freshness': freshness,
-                'overall_score': quality_scores.get('overall_score', 0.0)
+                "data_type": data_type,
+                "timestamp": datetime.now(timezone.utc),
+                "quality_scores": quality_scores,
+                "anomalies": anomalies,
+                "freshness": freshness,
+                "overall_score": quality_scores.get("overall_score", 0.0),
             }
 
             await self.mongodb.insert_one(
-                collection=self.settings.mongodb_quality_collection,
-                document=document
+                collection=self.settings.mongodb_quality_collection, document=document
             )
 
-            logger.info("Quality metrics persisted", data_type=data_type,
-                       overall_score=quality_scores.get('overall_score'))
+            logger.info(
+                "Quality metrics persisted",
+                data_type=data_type,
+                overall_score=quality_scores.get("overall_score"),
+            )
 
         except Exception as e:
             logger.error("Failed to persist quality metrics", error=str(e))
 
-    async def get_quality_trends(
-        self,
-        data_type: str,
-        days: int = 7
-    ) -> List[Dict]:
+    async def get_quality_trends(self, data_type: str, days: int = 7) -> List[Dict]:
         """Get quality trends over time"""
         try:
-            start_date = datetime.utcnow() - timedelta(days=days)
+            start_date = datetime.now(timezone.utc) - timedelta(days=days)
 
             trends = await self.mongodb.find(
                 collection=self.settings.mongodb_quality_collection,
-                filter={
-                    'data_type': data_type,
-                    'timestamp': {'$gte': start_date}
-                },
-                sort=[('timestamp', 1)],
-                limit=1000
+                filter={"data_type": data_type, "timestamp": {"$gte": start_date}},
+                sort=[("timestamp", 1)],
+                limit=1000,
             )
 
             return trends

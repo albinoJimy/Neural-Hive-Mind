@@ -1,19 +1,19 @@
 from .mongodb_client import MongoDBClient
-from .redis_client import RedisClient
 from .neo4j_client import Neo4jClient
-from .prometheus_client import PrometheusClient
-from .orchestrator_client import OrchestratorClient
-from .service_registry_client import ServiceRegistryClient
-from .pheromone_client import PheromoneClient
 from .opa_client import OPAClient
+from .orchestrator_client import OrchestratorClient
+from .pheromone_client import PheromoneClient
+from .prometheus_client import PrometheusClient
+from .redis_client import RedisClient
+from .service_registry_client import ServiceRegistryClient
 
 __all__ = [
     "MongoDBClient",
-    "RedisClient",
     "Neo4jClient",
-    "PrometheusClient",
-    "OrchestratorClient",
-    "ServiceRegistryClient",
-    "PheromoneClient",
     "OPAClient",
+    "OrchestratorClient",
+    "PheromoneClient",
+    "PrometheusClient",
+    "RedisClient",
+    "ServiceRegistryClient",
 ]

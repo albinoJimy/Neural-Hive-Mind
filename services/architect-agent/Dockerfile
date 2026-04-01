@@ -20,16 +20,25 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
+# Create non-root user
+RUN groupadd -r architect && useradd -r -g architect -u 1000 architect
+
+# Create directories and set permissions
+RUN mkdir -p /app/logs /app/tmp && chown -R architect:architect /app
+
 # Copy Python packages from builder
-COPY --from=builder /root/.local /root/.local
+COPY --from=builder --chown=architect:architect /root/.local /home/architect/.local
 
 # Copy source code
-COPY src/ ./src/
+COPY --chown=architect:architect src/ ./src/
 
 # Set environment
-ENV PATH=/root/.local/bin:$PATH
+ENV PATH=/home/architect/.local/bin:$PATH
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app
+
+# Switch to non-root user
+USER architect
 
 EXPOSE 8008 9098
 

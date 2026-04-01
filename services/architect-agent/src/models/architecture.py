@@ -2,9 +2,9 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ArchitectureType(str, Enum):
@@ -28,9 +28,7 @@ class Component(BaseModel):
     stack: str = Field(..., description="Stack tecnológica (ex: python/fastapi)")
     replicas: int = Field(default=1, ge=1, description="Número de réplicas")
     ha: bool = Field(default=False, description="High availability")
-    resources: Dict[str, Any] = Field(
-        default_factory=dict, description="CPU/memory limits"
-    )
+    resources: Dict[str, Any] = Field(default_factory=dict, description="CPU/memory limits")
 
 
 class Pattern(str, Enum):
@@ -74,23 +72,13 @@ class ArchitecturePlan(BaseModel):
     )
 
     plan_id: str = Field(..., description="ID único do plano")
-    cognitive_plan_id: Optional[str] = Field(
-        None, description="ID do CognitivePlan de origem"
-    )
-    architecture_type: ArchitectureType = Field(
-        ..., description="Tipo de arquitetura proposta"
-    )
-    components: List[Component] = Field(
-        ..., description="Lista de componentes da arquitetura"
-    )
-    patterns: List[Pattern] = Field(
-        ..., description="Padrões arquiteturais aplicados"
-    )
+    cognitive_plan_id: Optional[str] = Field(None, description="ID do CognitivePlan de origem")
+    architecture_type: ArchitectureType = Field(..., description="Tipo de arquitetura proposta")
+    components: List[Component] = Field(..., description="Lista de componentes da arquitetura")
+    patterns: List[Pattern] = Field(..., description="Padrões arquiteturais aplicados")
     rationale: str = Field(..., description="Justificativa das decisões")
     requirements: Dict[str, Any] = Field(
         default_factory=dict, description="Requisitos não-funcionais"
     )
-    created_at: datetime = Field(
-        default_factory=datetime.utcnow, description="Data de criação"
-    )
+    created_at: datetime = Field(default_factory=datetime.utcnow, description="Data de criação")
     updated_at: Optional[datetime] = Field(None, description="Data da última atualização")

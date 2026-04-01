@@ -1,10 +1,10 @@
 import json
+from typing import Any
+
 import structlog
 from redis.asyncio import Redis
-from typing import Any, Dict, Optional
 
-from ..config import Settings
-
+from src.config import Settings
 
 logger = structlog.get_logger()
 
@@ -14,7 +14,7 @@ class RedisClient:
 
     def __init__(self, settings: Settings):
         self.settings = settings
-        self.client: Optional[Redis] = None
+        self.client: Redis | None = None
 
     async def initialize(self) -> None:
         """Conectar ao Redis Cluster"""
@@ -26,9 +26,7 @@ class RedisClient:
             self.client = Redis(
                 host=nodes[0].split(":")[0],
                 port=int(nodes[0].split(":")[1]) if ":" in nodes[0] else 6379,
-                password=self.settings.REDIS_PASSWORD
-                if self.settings.REDIS_PASSWORD
-                else None,
+                password=self.settings.REDIS_PASSWORD if self.settings.REDIS_PASSWORD else None,
                 ssl=self.settings.REDIS_SSL_ENABLED,
                 decode_responses=True,
             )
@@ -38,7 +36,7 @@ class RedisClient:
             logger.info("redis_initialized")
 
         except Exception as e:
-            logger.error("redis_initialization_failed", error=str(e))
+            logger.exception("redis_initialization_failed", error=str(e))
             raise
 
     async def close(self) -> None:
@@ -48,7 +46,7 @@ class RedisClient:
             logger.info("redis_closed")
 
     async def cache_strategic_context(
-        self, key: str, data: Dict[str, Any], ttl_seconds: int
+        self, key: str, data: dict[str, Any], ttl_seconds: int
     ) -> None:
         """Cachear contexto estratégico"""
         try:
@@ -57,9 +55,9 @@ class RedisClient:
             logger.debug("context_cached", key=key, ttl=ttl_seconds)
 
         except Exception as e:
-            logger.error("context_cache_failed", key=key, error=str(e))
+            logger.exception("context_cache_failed", key=key, error=str(e))
 
-    async def get_cached_context(self, key: str) -> Optional[Dict[str, Any]]:
+    async def get_cached_context(self, key: str) -> dict[str, Any] | None:
         """Recuperar contexto cacheado"""
         try:
             data = await self.client.get(key)
@@ -68,7 +66,7 @@ class RedisClient:
             return None
 
         except Exception as e:
-            logger.error("context_get_failed", key=key, error=str(e))
+            logger.exception("context_get_failed", key=key, error=str(e))
             return None
 
     async def set_decision_lock(self, decision_type: str, ttl_seconds: int) -> bool:
@@ -79,9 +77,7 @@ class RedisClient:
             return result is not None
 
         except Exception as e:
-            logger.error(
-                "decision_lock_failed", decision_type=decision_type, error=str(e)
-            )
+            logger.exception("decision_lock_failed", decision_type=decision_type, error=str(e))
             return False
 
     async def release_decision_lock(self, decision_type: str) -> None:
@@ -91,7 +87,7 @@ class RedisClient:
             await self.client.delete(lock_key)
 
         except Exception as e:
-            logger.error(
+            logger.exception(
                 "decision_lock_release_failed",
                 decision_type=decision_type,
                 error=str(e),
@@ -101,18 +97,17 @@ class RedisClient:
         """Incrementar contador de decisões por tipo"""
         try:
             counter_key = f"decision:counter:{decision_type}"
-            count = await self.client.incr(counter_key)
-            return count
+            return await self.client.incr(counter_key)
 
         except Exception as e:
-            logger.error(
+            logger.exception(
                 "decision_counter_increment_failed",
                 decision_type=decision_type,
                 error=str(e),
             )
             return 0
 
-    async def get_decision_stats(self) -> Dict[str, int]:
+    async def get_decision_stats(self) -> dict[str, int]:
         """Obter estatísticas de decisões"""
         try:
             stats = {}
@@ -126,5 +121,5 @@ class RedisClient:
             return stats
 
         except Exception as e:
-            logger.error("decision_stats_failed", error=str(e))
+            logger.exception("decision_stats_failed", error=str(e))
             return {}

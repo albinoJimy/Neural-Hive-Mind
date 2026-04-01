@@ -7,16 +7,17 @@ Responsável por:
 - Sincronizar descobertas
 - Gerenciar locks para evitar trabalho duplicado
 """
-import asyncio
 import json
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Set, Any
+from datetime import datetime
+from typing import Dict, List, Optional
+
 import structlog
 
 logger = structlog.get_logger()
 
 try:
     import redis.asyncio as aioredis
+
     REDIS_AVAILABLE = True
 except ImportError:
     REDIS_AVAILABLE = False
@@ -30,7 +31,7 @@ class RedisStateStore:
         self,
         redis_url: str = "redis://localhost:6379",
         key_prefix: str = "scout_agents:",
-        ttl: int = 3600
+        ttl: int = 3600,
     ):
         """
         Inicializa RedisStateStore.
@@ -53,9 +54,7 @@ class RedisStateStore:
 
         try:
             self._redis = await aioredis.from_url(
-                self.redis_url,
-                encoding="utf-8",
-                decode_responses=True
+                self.redis_url, encoding="utf-8", decode_responses=True
             )
             await self._redis.ping()
 
@@ -74,17 +73,12 @@ class RedisStateStore:
     def _make_key(self, *parts: str) -> str:
         """Cria chave Redis com prefixo."""
         # Garantir separador adequado
-        if self.key_prefix.endswith(':'):
+        if self.key_prefix.endswith(":"):
             return self.key_prefix + ":".join(parts)
         else:
             return self.key_prefix + ":" + ":".join(parts)
 
-    async def set_task_progress(
-        self,
-        scout_id: str,
-        task_id: str,
-        progress: Dict
-    ):
+    async def set_task_progress(self, scout_id: str, task_id: str, progress: Dict):
         """
         Armazena progresso de tarefa.
 
@@ -95,17 +89,13 @@ class RedisStateStore:
         """
         key = self._make_key("task", task_id)
         data = {
-            'scout_id': scout_id,
-            'progress': progress,
-            'updated_at': datetime.now().isoformat()
+            "scout_id": scout_id,
+            "progress": progress,
+            "updated_at": datetime.now().isoformat(),
         }
 
         if self._redis:
-            await self._redis.setex(
-                key,
-                self.ttl,
-                json.dumps(data)
-            )
+            await self._redis.setex(key, self.ttl, json.dumps(data))
 
         logger.debug("task_progress_stored", task_id=task_id)
 
@@ -128,12 +118,7 @@ class RedisStateStore:
 
         return None
 
-    async def mark_file_explored(
-        self,
-        filepath: str,
-        scout_id: str,
-        exploration_id: str
-    ):
+    async def mark_file_explored(self, filepath: str, scout_id: str, exploration_id: str):
         """
         Marca arquivo como explorado.
 
@@ -144,9 +129,9 @@ class RedisStateStore:
         """
         key = self._make_key("explored", exploration_id)
         data = {
-            'filepath': filepath,
-            'scout_id': scout_id,
-            'explored_at': datetime.now().isoformat()
+            "filepath": filepath,
+            "scout_id": scout_id,
+            "explored_at": datetime.now().isoformat(),
         }
 
         if self._redis:
@@ -155,11 +140,7 @@ class RedisStateStore:
 
         logger.debug("file_marked_explored", filepath=filepath)
 
-    async def is_file_explored(
-        self,
-        filepath: str,
-        exploration_id: str
-    ) -> bool:
+    async def is_file_explored(self, filepath: str, exploration_id: str) -> bool:
         """
         Verifica se arquivo foi explorado.
 
@@ -177,12 +158,7 @@ class RedisStateStore:
 
         return False
 
-    async def acquire_lock(
-        self,
-        resource: str,
-        scout_id: str,
-        ttl: int = 60
-    ) -> bool:
+    async def acquire_lock(self, resource: str, scout_id: str, ttl: int = 60) -> bool:
         """
         Tenta adquirir lock para recurso.
 
@@ -227,11 +203,7 @@ class RedisStateStore:
                 await self._redis.delete(key)
                 logger.debug("lock_released", resource=resource, scout_id=scout_id)
 
-    async def publish_discovery(
-        self,
-        exploration_id: str,
-        discovery: Dict
-    ):
+    async def publish_discovery(self, exploration_id: str, discovery: Dict):
         """
         Publica descoberta para outros scouts.
 
@@ -240,10 +212,7 @@ class RedisStateStore:
             discovery: Dict da descoberta
         """
         key = self._make_key("discoveries", exploration_id)
-        data = {
-            'discovery': discovery,
-            'published_at': datetime.now().isoformat()
-        }
+        data = {"discovery": discovery, "published_at": datetime.now().isoformat()}
 
         if self._redis:
             # Adicionar a lista
@@ -254,11 +223,7 @@ class RedisStateStore:
 
         logger.debug("discovery_published", exploration_id=exploration_id)
 
-    async def get_discoveries(
-        self,
-        exploration_id: str,
-        limit: int = 100
-    ) -> List[Dict]:
+    async def get_discoveries(self, exploration_id: str, limit: int = 100) -> List[Dict]:
         """
         Recupera descobertas de uma exploração.
 
@@ -277,11 +242,7 @@ class RedisStateStore:
 
         return []
 
-    async def set_scout_state(
-        self,
-        scout_id: str,
-        state: Dict
-    ):
+    async def set_scout_state(self, scout_id: str, state: Dict):
         """
         Armazena estado de um scout.
 
@@ -290,14 +251,10 @@ class RedisStateStore:
             state: Dict de estado
         """
         key = self._make_key("scout_state", scout_id)
-        state['updated_at'] = datetime.now().isoformat()
+        state["updated_at"] = datetime.now().isoformat()
 
         if self._redis:
-            await self._redis.setex(
-                key,
-                self.ttl,
-                json.dumps(state)
-            )
+            await self._redis.setex(key, self.ttl, json.dumps(state))
 
         logger.debug("scout_state_stored", scout_id=scout_id)
 
@@ -345,11 +302,7 @@ class RedisStateStore:
 
         return states
 
-    async def increment_counter(
-        self,
-        name: str,
-        delta: int = 1
-    ) -> int:
+    async def increment_counter(self, name: str, delta: int = 1) -> int:
         """
         Incrementa contador compartilhado.
 

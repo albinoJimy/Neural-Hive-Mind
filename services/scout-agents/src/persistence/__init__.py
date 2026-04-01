@@ -2,4 +2,4 @@
 
 from .scout_ledger import ScoutLedger
 
-__all__ = ['ScoutLedger']
+__all__ = ["ScoutLedger"]

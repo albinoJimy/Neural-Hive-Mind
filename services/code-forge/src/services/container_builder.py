@@ -10,25 +10,25 @@ Suporta:
 """
 
 import asyncio
-import subprocess
-import json
 from dataclasses import dataclass, field
-from typing import Optional, List, Dict
 from enum import Enum
-import structlog
+from typing import Dict, List, Optional
 
+import structlog
 
 logger = structlog.get_logger()
 
 
 class BuilderType(str, Enum):
     """Tipos de builder suportados."""
+
     DOCKER = "docker"
     KANIKO = "kaniko"
 
 
 class Platform(str, Enum):
     """Plataformas suportadas para multi-arch builds."""
+
     LINUX_AMD64 = "linux/amd64"
     LINUX_ARM64 = "linux/arm64"
     LINUX_ARM_V7 = "linux/arm/v7"
@@ -82,6 +82,7 @@ def _get_qemu_binaries(platforms: Optional[List[str]]) -> List[str]:
 @dataclass
 class BuildResult:
     """Resultado de uma operacao de build."""
+
     success: bool
     image_digest: Optional[str] = None
     image_tag: Optional[str] = None
@@ -178,9 +179,7 @@ class ContainerBuilder:
         return normalized
 
     def _build_init_containers(
-        self,
-        needs_qemu: bool = False,
-        qemu_binaries: Optional[List[str]] = None
+        self, needs_qemu: bool = False, qemu_binaries: Optional[List[str]] = None
     ) -> List[dict]:
         """
         Constrói a lista de initContainers para o pod Kaniko.
@@ -198,64 +197,68 @@ class ContainerBuilder:
         # Init container para QEMU (se necessário para multi-arch)
         if needs_qemu and qemu_binaries:
             qemu_packages = " ".join(qemu_binaries)
-            init_containers.append({
-                "name": "qemu-setup",
-                "image": "alpine:latest",
+            init_containers.append(
+                {
+                    "name": "qemu-setup",
+                    "image": "alpine:latest",
+                    "command": ["/bin/sh", "-c"],
+                    "args": [
+                        f"apk add --no-cache {qemu_packages} && "
+                        "cp /usr/bin/qemu-* /usr/local/bin/ 2>/dev/null || true && "
+                        "ls -la /usr/local/bin/qemu-* || echo 'QEMU binaries copied'"
+                    ],
+                    "volumeMounts": [
+                        {
+                            "name": "qemu",
+                            "mountPath": "/usr/local/bin",
+                        }
+                    ],
+                }
+            )
+
+        # Init container para setup do contexto
+        init_containers.append(
+            {
+                "name": "setup",
+                "image": "busybox:latest",
                 "command": ["/bin/sh", "-c"],
                 "args": [
-                    f"apk add --no-cache {qemu_packages} && "
-                    "cp /usr/bin/qemu-* /usr/local/bin/ 2>/dev/null || true && "
-                    "ls -la /usr/local/bin/qemu-* || echo 'QEMU binaries copied'"
+                    # Copiar Dockerfile do ConfigMap para o workspace
+                    "cp /dockerfile/Dockerfile /workspace/Dockerfile && "
+                    # Extrair tarball do contexto se existir
+                    "if [ -f /dockerfile/context.tar.gz64 ]; then "
+                    "  echo 'Extracting context tarball...' && "
+                    "  base64 -d /dockerfile/context.tar.gz64 | gunzip > /tmp/context.tar && "
+                    "  tar xf /tmp/context.tar -C /workspace/ && "
+                    "  rm /tmp/context.tar && "
+                    "  echo 'Context extracted:' && ls -la /workspace/; "
+                    "elif [ -f /dockerfile/context.tar.bz64 ]; then "
+                    "  echo 'Extracting context tarball (old format)...' && "
+                    "  base64 -d /dockerfile/context.tar.bz64 | bunzip2 > /tmp/context.tar && "
+                    "  tar xf /tmp/context.tar -C /workspace/ && "
+                    "  rm /tmp/context.tar && "
+                    "  echo 'Context extracted:' && ls -la /workspace/; "
+                    "else "
+                    "  echo 'No context tarball found, copying Dockerfile only'; "
+                    "  ls -la /workspace/; "
+                    "fi"
                 ],
                 "volumeMounts": [
                     {
-                        "name": "qemu",
-                        "mountPath": "/usr/local/bin",
-                    }
-                ]
-            })
-
-        # Init container para setup do contexto
-        init_containers.append({
-            "name": "setup",
-            "image": "busybox:latest",
-            "command": ["/bin/sh", "-c"],
-            "args": [
-                # Copiar Dockerfile do ConfigMap para o workspace
-                "cp /dockerfile/Dockerfile /workspace/Dockerfile && "
-                # Extrair tarball do contexto se existir
-                "if [ -f /dockerfile/context.tar.gz64 ]; then "
-                "  echo 'Extracting context tarball...' && "
-                "  base64 -d /dockerfile/context.tar.gz64 | gunzip > /tmp/context.tar && "
-                "  tar xf /tmp/context.tar -C /workspace/ && "
-                "  rm /tmp/context.tar && "
-                "  echo 'Context extracted:' && ls -la /workspace/; "
-                "elif [ -f /dockerfile/context.tar.bz64 ]; then "
-                "  echo 'Extracting context tarball (old format)...' && "
-                "  base64 -d /dockerfile/context.tar.bz64 | bunzip2 > /tmp/context.tar && "
-                "  tar xf /tmp/context.tar -C /workspace/ && "
-                "  rm /tmp/context.tar && "
-                "  echo 'Context extracted:' && ls -la /workspace/; "
-                "else "
-                "  echo 'No context tarball found, copying Dockerfile only'; "
-                "  ls -la /workspace/; "
-                "fi"
-            ],
-            "volumeMounts": [
-                {
-                    "name": "workspace",
-                    "mountPath": "/workspace",
-                },
-                {
-                    "name": "dockerfile",
-                    "mountPath": "/dockerfile",
-                },
-                {
-                    "name": "context",
-                    "mountPath": "/context",
-                }
-            ]
-        })
+                        "name": "workspace",
+                        "mountPath": "/workspace",
+                    },
+                    {
+                        "name": "dockerfile",
+                        "mountPath": "/dockerfile",
+                    },
+                    {
+                        "name": "context",
+                        "mountPath": "/context",
+                    },
+                ],
+            }
+        )
 
         return init_containers
 
@@ -277,18 +280,16 @@ class ContainerBuilder:
         ]
 
         if needs_qemu:
-            mounts.append({
-                "name": "qemu",
-                "mountPath": "/usr/local/bin",
-            })
+            mounts.append(
+                {
+                    "name": "qemu",
+                    "mountPath": "/usr/local/bin",
+                }
+            )
 
         return mounts
 
-    def _build_pod_volumes(
-        self,
-        configmap_name: str,
-        needs_qemu: bool = False
-    ) -> List[dict]:
+    def _build_pod_volumes(self, configmap_name: str, needs_qemu: bool = False) -> List[dict]:
         """
         Constrói a lista de volumes para o pod.
 
@@ -304,23 +305,20 @@ class ContainerBuilder:
                 "name": "workspace",
                 "emptyDir": {},
             },
-            {
-                "name": "dockerfile",
-                "configMap": {
-                    "name": configmap_name
-                }
-            },
+            {"name": "dockerfile", "configMap": {"name": configmap_name}},
             {
                 "name": "context",
                 "emptyDir": {},
-            }
+            },
         ]
 
         if needs_qemu:
-            volumes.append({
-                "name": "qemu",
-                "emptyDir": {},
-            })
+            volumes.append(
+                {
+                    "name": "qemu",
+                    "emptyDir": {},
+                }
+            )
 
         return volumes
 
@@ -336,6 +334,7 @@ class ContainerBuilder:
 
         if self._metrics_collector is None:
             from src.services.build_metrics import BuildMetricsCollector
+
             self._metrics_collector = BuildMetricsCollector()
 
         return self._metrics_collector
@@ -434,9 +433,7 @@ class ContainerBuilder:
         # Log de multi-arch
         if normalized_platforms:
             logger.info(
-                "multi_arch_build",
-                platforms=normalized_platforms,
-                count=len(normalized_platforms)
+                "multi_arch_build", platforms=normalized_platforms, count=len(normalized_platforms)
             )
 
         # Extrair metadados do Dockerfile para métricas
@@ -444,19 +441,32 @@ class ContainerBuilder:
 
         # Executar build e medir tempo
         import time
-        start_time = time.time()
+
+        time.time()
 
         if self.builder_type == BuilderType.DOCKER:
             result = await self._build_with_docker(
-                dockerfile_path, build_context, image_tag,
-                build_args, target_stage, normalized_platforms,
-                use_cache, use_cache_repo, no_push,
+                dockerfile_path,
+                build_context,
+                image_tag,
+                build_args,
+                target_stage,
+                normalized_platforms,
+                use_cache,
+                use_cache_repo,
+                no_push,
             )
         else:
             result = await self._build_with_kaniko(
-                dockerfile_path, build_context, image_tag,
-                build_args, target_stage, normalized_platforms,
-                use_cache, use_cache_repo, no_push,
+                dockerfile_path,
+                build_context,
+                image_tag,
+                build_args,
+                target_stage,
+                normalized_platforms,
+                use_cache,
+                use_cache_repo,
+                no_push,
             )
 
         # Coletar métricas se habilitado
@@ -465,13 +475,17 @@ class ContainerBuilder:
             if collector:
                 try:
                     # Determinar plataforma principal
-                    primary_platform = normalized_platforms[0] if normalized_platforms else "linux/amd64"
+                    primary_platform = (
+                        normalized_platforms[0] if normalized_platforms else "linux/amd64"
+                    )
 
                     # Detectar se teve cache hit (heurística baseada em logs)
                     cache_hit = result.cache_hit or (
-                        result.build_logs and
-                        any("cached" in log.lower() or "cache hit" in log.lower()
-                            for log in result.build_logs)
+                        result.build_logs
+                        and any(
+                            "cached" in log.lower() or "cache hit" in log.lower()
+                            for log in result.build_logs
+                        )
                     )
 
                     # Detectar tipo de erro se houver
@@ -733,8 +747,8 @@ class ContainerBuilder:
         multipliers = {
             "B": 1,
             "KB": 1024,
-            "MB": 1024 ** 2,
-            "GB": 1024 ** 3,
+            "MB": 1024**2,
+            "GB": 1024**3,
         }
 
         for suffix, mult in multipliers.items():
@@ -747,7 +761,9 @@ class ContainerBuilder:
 
         return 0
 
-    def _create_context_tarball(self, build_context: str, exclude_patterns: Optional[List[str]] = None) -> bytes:
+    def _create_context_tarball(
+        self, build_context: str, exclude_patterns: Optional[List[str]] = None
+    ) -> bytes:
         """
         Cria um tarball do contexto de build.
 
@@ -758,13 +774,20 @@ class ContainerBuilder:
         Returns:
             Tarball como bytes
         """
-        import tarfile
         import io
+        import tarfile
         from pathlib import Path
 
         exclude_patterns = exclude_patterns or [
-            ".git", ".gitignore", "__pycache__", "*.pyc",
-            ".pytest_cache", ".coverage", "node_modules", ".venv", "venv"
+            ".git",
+            ".gitignore",
+            "__pycache__",
+            "*.pyc",
+            ".pytest_cache",
+            ".coverage",
+            "node_modules",
+            ".venv",
+            "venv",
         ]
 
         tar_buffer = io.BytesIO()
@@ -823,10 +846,9 @@ class ContainerBuilder:
         Returns:
             BuildResult com digest e metadados
         """
-        from kubernetes import client, config
-        import tempfile
         import base64
-        import yaml
+
+        from kubernetes import client, config
 
         logger.info(
             "kaniko_build_started",
@@ -855,7 +877,7 @@ class ContainerBuilder:
             # Converter build_args para formato Kaniko
             kaniko_args = [
                 "--dockerfile=Dockerfile",
-                f"--context=dir:///workspace",
+                "--context=dir:///workspace",
             ]
 
             # Adicionar destino ou no-push com tar-path
@@ -878,7 +900,9 @@ class ContainerBuilder:
                     tag_parts = image_tag.split("/")
                     if len(tag_parts) > 1:
                         # Usar o registry/repo sem a tag
-                        cache_location = ":".join(image_tag.split(":")[:-1]) if ":" in image_tag else image_tag
+                        cache_location = (
+                            ":".join(image_tag.split(":")[:-1]) if ":" in image_tag else image_tag
+                        )
                         kaniko_args.append(f"--cache-repo={cache_location}-cache")
 
             if build_args:
@@ -899,6 +923,7 @@ class ContainerBuilder:
 
             # Criar nome único para o pod
             import uuid
+
             pod_name = f"kaniko-{uuid.uuid4().hex[:8]}"
             configmap_name = f"kaniko-context-{uuid.uuid4().hex[:8]}"
 
@@ -912,13 +937,16 @@ class ContainerBuilder:
 
             # Comprimir tarball com gzip antes de base64
             import gzip
+
             tarball_gzipped = gzip.compress(context_tarball)
             context_tarball_b64 = base64.b64encode(tarball_gzipped).decode("utf-8")
 
             # Verificar tamanho do tarball (ConfigMap tem limite de ~1MB)
             tarball_size_mb = len(context_tarball) / (1024 * 1024)
             compressed_size_mb = len(tarball_gzipped) / (1024 * 1024)
-            logger.info("context_tarball_size", size_mb=tarball_size_mb, compressed_mb=compressed_size_mb)
+            logger.info(
+                "context_tarball_size", size_mb=tarball_size_mb, compressed_mb=compressed_size_mb
+            )
 
             if compressed_size_mb > 0.9:  # Deixar margem para overhead
                 return BuildResult(
@@ -929,7 +957,7 @@ class ContainerBuilder:
                         "Considere usar um PersistentVolumeClaim ou simplificar o contexto."
                     ),
                     duration_seconds=0,
-                    build_logs=[f"Context too large: {compressed_size_mb:.2f}MB compressed"]
+                    build_logs=[f"Context too large: {compressed_size_mb:.2f}MB compressed"],
                 )
 
             # Criar ConfigMap com Dockerfile e tarball do contexto
@@ -944,15 +972,14 @@ class ContainerBuilder:
                 "data": {
                     "Dockerfile": dockerfile_content,
                     "context.tar.gz64": context_tarball_b64,  # Base64 manual
-                }
+                },
             }
 
             try:
-                k8s.create_namespaced_config_map(
-                    namespace=namespace,
-                    body=configmap
+                k8s.create_namespaced_config_map(namespace=namespace, body=configmap)
+                logger.info(
+                    "configmap_created", name=configmap_name, size_kb=len(context_tarball) / 1024
                 )
-                logger.info("configmap_created", name=configmap_name, size_kb=len(context_tarball) / 1024)
             except Exception as e:
                 logger.warning("configmap_create_failed", error=str(e))
                 return BuildResult(
@@ -973,38 +1000,33 @@ class ContainerBuilder:
                     "namespace": namespace,
                     "labels": {
                         "app": "kaniko",
-                        "build": image_tag.replace(":", "-").replace("/", "-")
-                    }
+                        "build": image_tag.replace(":", "-").replace("/", "-"),
+                    },
                 },
                 "spec": {
                     "restartPolicy": "Never",
                     "initContainers": self._build_init_containers(
-                        needs_qemu=needs_qemu,
-                        qemu_binaries=qemu_binaries
+                        needs_qemu=needs_qemu, qemu_binaries=qemu_binaries
                     ),
-                    "containers": [{
-                        "name": "kaniko",
-                        "image": "gcr.io/kaniko-project/executor:latest",
-                        "args": kaniko_args,
-                        "volumeMounts": self._build_container_volume_mounts(needs_qemu=needs_qemu),
-                    }],
+                    "containers": [
+                        {
+                            "name": "kaniko",
+                            "image": "gcr.io/kaniko-project/executor:latest",
+                            "args": kaniko_args,
+                            "volumeMounts": self._build_container_volume_mounts(
+                                needs_qemu=needs_qemu
+                            ),
+                        }
+                    ],
                     "volumes": self._build_pod_volumes(
-                        configmap_name=configmap_name,
-                        needs_qemu=needs_qemu
+                        configmap_name=configmap_name, needs_qemu=needs_qemu
                     ),
-                    "tolerations": [{
-                        "key": "key",
-                        "operator": "Exists",
-                        "effect": "NoSchedule"
-                    }]
-                }
+                    "tolerations": [{"key": "key", "operator": "Exists", "effect": "NoSchedule"}],
+                },
             }
 
             # Criar e executar o pod
-            pod = k8s.create_namespaced_pod(
-                namespace=namespace,
-                body=pod_manifest
-            )
+            k8s.create_namespaced_pod(namespace=namespace, body=pod_manifest)
 
             logger.info("kaniko_pod_created", pod_name=pod_name)
 
@@ -1012,10 +1034,7 @@ class ContainerBuilder:
             start_time = asyncio.get_event_loop().time()
 
             while True:
-                pod_status = k8s.read_namespaced_pod(
-                    name=pod_name,
-                    namespace=namespace
-                )
+                pod_status = k8s.read_namespaced_pod(name=pod_name, namespace=namespace)
 
                 phase = pod_status.status.phase
 
@@ -1024,10 +1043,7 @@ class ContainerBuilder:
 
                     # Obter logs para extrair digest
                     try:
-                        logs = k8s.read_namespaced_pod_log(
-                            name=pod_name,
-                            namespace=namespace
-                        )
+                        logs = k8s.read_namespaced_pod_log(name=pod_name, namespace=namespace)
                     except Exception as e:
                         logger.warning("kaniko_logs_read_failed", error=str(e))
                         logs = ""
@@ -1042,11 +1058,7 @@ class ContainerBuilder:
                             # Executar comando no pod para ler o digest file
                             from kubernetes.stream import stream
 
-                            exec_command = [
-                                '/bin/sh',
-                                '-c',
-                                'cat /workspace/digest.txt'
-                            ]
+                            exec_command = ["/bin/sh", "-c", "cat /workspace/digest.txt"]
 
                             # Executa comando e captura saída
                             result = stream(
@@ -1057,13 +1069,13 @@ class ContainerBuilder:
                                 stderr=False,
                                 stdin=False,
                                 stdout=True,
-                                tty=False
+                                tty=False,
                             )
 
                             digest_content = ""
                             for line in result:
                                 if line:
-                                    digest_content += line.decode('utf-8').strip()
+                                    digest_content += line.decode("utf-8").strip()
 
                             if digest_content:
                                 digest = digest_content
@@ -1080,14 +1092,10 @@ class ContainerBuilder:
 
                     # Cleanup do pod e configmap se configurado
                     if self.cleanup_pods:
-                        k8s.delete_namespaced_pod(
-                            name=pod_name,
-                            namespace=namespace
-                        )
+                        k8s.delete_namespaced_pod(name=pod_name, namespace=namespace)
                         try:
                             k8s.delete_namespaced_config_map(
-                                name=configmap_name,
-                                namespace=namespace
+                                name=configmap_name, namespace=namespace
                             )
                         except Exception:
                             pass
@@ -1095,7 +1103,7 @@ class ContainerBuilder:
                         logger.info(
                             "kaniko_pod_preserved_for_debug",
                             pod_name=pod_name,
-                            configmap_name=configmap_name
+                            configmap_name=configmap_name,
                         )
 
                     return BuildResult(
@@ -1109,10 +1117,7 @@ class ContainerBuilder:
                 elif phase == "Failed":
                     # Obter logs de erro
                     try:
-                        logs = k8s.read_namespaced_pod_log(
-                            name=pod_name,
-                            namespace=namespace
-                        )
+                        logs = k8s.read_namespaced_pod_log(name=pod_name, namespace=namespace)
                         error_msg = logs[-500:] if len(logs) > 500 else logs
                     except Exception:
                         logs = ""
@@ -1121,10 +1126,7 @@ class ContainerBuilder:
                 elif phase == "Failed":
                     # Obter logs de erro
                     try:
-                        logs = k8s.read_namespaced_pod_log(
-                            name=pod_name,
-                            namespace=namespace
-                        )
+                        logs = k8s.read_namespaced_pod_log(name=pod_name, namespace=namespace)
                         error_msg = logs[-500:] if len(logs) > 500 else logs
                     except Exception:
                         error_msg = "Kaniko pod failed"
@@ -1138,27 +1140,25 @@ class ContainerBuilder:
                     # Cleanup do pod e configmap se configurado
                     if self.cleanup_pods:
                         try:
-                            k8s.delete_namespaced_pod(
-                                name=pod_name,
-                                namespace=namespace
-                            )
+                            k8s.delete_namespaced_pod(name=pod_name, namespace=namespace)
                             logger.info("kaniko_pod_deleted", pod_name=pod_name)
                         except Exception as cleanup_error:
                             logger.warning("kaniko_pod_cleanup_failed", error=str(cleanup_error))
 
                         try:
                             k8s.delete_namespaced_config_map(
-                                name=configmap_name,
-                                namespace=namespace
+                                name=configmap_name, namespace=namespace
                             )
                             logger.info("kaniko_configmap_deleted", configmap_name=configmap_name)
                         except Exception as cleanup_error:
-                            logger.warning("kaniko_configmap_cleanup_failed", error=str(cleanup_error))
+                            logger.warning(
+                                "kaniko_configmap_cleanup_failed", error=str(cleanup_error)
+                            )
                     else:
                         logger.info(
                             "kaniko_pod_preserved_for_debug",
                             pod_name=pod_name,
-                            configmap_name=configmap_name
+                            configmap_name=configmap_name,
                         )
 
                     return BuildResult(
@@ -1173,10 +1173,7 @@ class ContainerBuilder:
                     logger.error("kaniko_build_timeout", pod_name=pod_name)
                     if self.cleanup_pods:
                         try:
-                            k8s.delete_namespaced_pod(
-                                name=pod_name,
-                                namespace=namespace
-                            )
+                            k8s.delete_namespaced_pod(name=pod_name, namespace=namespace)
                             logger.info("kaniko_pod_deleted_timeout", pod_name=pod_name)
                         except Exception as cleanup_error:
                             logger.warning("kaniko_pod_cleanup_failed", error=str(cleanup_error))

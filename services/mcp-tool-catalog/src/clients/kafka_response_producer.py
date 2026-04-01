@@ -1,6 +1,5 @@
 """Kafka producer for tool selection responses."""
 import asyncio
-import json
 from typing import Optional
 
 import structlog
@@ -88,7 +87,7 @@ class KafkaResponseProducer:
         try:
             # Serialize usando AvroCodec (com fallback JSON)
             response_data = response.to_avro()
-            message = self.avro_codec.serialize(response_data, 'response')
+            message = self.avro_codec.serialize(response_data, "response")
             key = response.request_id.encode("utf-8")
 
             await self.producer.send_and_wait(self.topic, value=message, key=key)
@@ -100,7 +99,9 @@ class KafkaResponseProducer:
             )
 
         except Exception as e:
-            logger.error("response_publication_failed", error=str(e), request_id=response.request_id)
+            logger.error(
+                "response_publication_failed", error=str(e), request_id=response.request_id
+            )
             raise
 
     async def flush(self):

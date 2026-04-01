@@ -7,7 +7,8 @@ sensibilidade da decisão a mudanças nos multiplicadores hierárquicos.
 Explainability API v3 - Task 4
 """
 
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional
+
 import structlog
 
 # Importar modelos de senioridade locais (sincronizados com consensus-engine)
@@ -69,9 +70,7 @@ class CounterfactualAnalyzer:
         """Inicializa o analyzer contrafactual."""
         self.logger = logger
 
-    def analyze_equal_weights(
-        self, votes: List[Dict[str, Any]]
-    ) -> CounterfactualResult:
+    def analyze_equal_weights(self, votes: List[Dict[str, Any]]) -> CounterfactualResult:
         """
         Analisa cenário onde todos os especialistas têm peso igual (1.0x).
 
@@ -150,8 +149,7 @@ class CounterfactualAnalyzer:
         non_trainee_votes = [
             v
             for v in votes
-            if v.get("seniority_level", SeniorityLevel.MID_LEVEL)
-            != SeniorityLevel.TRAINEE
+            if v.get("seniority_level", SeniorityLevel.MID_LEVEL) != SeniorityLevel.TRAINEE
         ]
 
         if not non_trainee_votes:
@@ -202,9 +200,7 @@ class CounterfactualAnalyzer:
             breakdown=breakdown,
         )
 
-    def analyze_seniority_inversion(
-        self, votes: List[Dict[str, Any]]
-    ) -> CounterfactualResult:
+    def analyze_seniority_inversion(self, votes: List[Dict[str, Any]]) -> CounterfactualResult:
         """
         Analisa cenário com multiplicadores de senioridade invertidos.
 
@@ -393,3 +389,34 @@ class CounterfactualAnalyzer:
                 )
 
         return {"is_robust": robust, "decision_flips": flips, "flip_count": len(flips)}
+
+    def generate_counterfactual(
+        self, explanation: Dict[str, Any], target_outcome: str
+    ) -> Dict[str, Any]:
+        """
+        Gera análise contrafactual para um outcome específico.
+
+        Args:
+            explanation: Dicionário com explicação atual
+            target_outcome: Outcome desejado (ex: "reject")
+
+        Returns:
+            Dicionário com análise contrafactual
+        """
+        # Extrair feature_values da explicação
+        feature_values = explanation.get("feature_values", {})
+        original_outcome = explanation.get("prediction", "approve")
+
+        # Simular mudanças para atingir outcome alvo
+        counterfactual_changes = {}
+
+        for feature, value in feature_values.items():
+            # Inverter valor para tentar mudar outcome
+            counterfactual_changes[feature] = -value
+
+        return {
+            "original_outcome": original_outcome,
+            "target_outcome": target_outcome,
+            "counterfactual_changes": counterfactual_changes,
+            "scenario": "single_feature_flip",
+        }

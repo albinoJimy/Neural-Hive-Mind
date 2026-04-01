@@ -1,11 +1,11 @@
 """Aplicação FastAPI para Architect Agent."""
 
+import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.api.routers import architecture, validation
 from src.config.settings import get_settings
-import structlog
 
 logger = structlog.get_logger(__name__)
 

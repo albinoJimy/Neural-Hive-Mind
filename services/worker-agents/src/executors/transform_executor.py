@@ -8,15 +8,18 @@ Suporta execução de transformações em:
 - Formatação (data, números, strings)
 """
 
-import asyncio
-import json
-import time
+import contextlib
 import csv as csv_lib
 import io
-from typing import Any, Dict, List, Optional
+import json
+import time
 from datetime import datetime
+from typing import Any
+
 import structlog
+
 from neural_hive_observability import get_tracer
+
 from .base_executor import BaseTaskExecutor
 
 logger = structlog.get_logger()
@@ -31,9 +34,9 @@ class TransformExecutor(BaseTaskExecutor):
 
     def get_task_type(self) -> str:
         # Retorna uppercase - registry normaliza para uppercase na busca
-        return 'TRANSFORM'
+        return "TRANSFORM"
 
-    def validate_ticket(self, ticket: Dict[str, Any]) -> None:
+    def validate_ticket(self, ticket: dict[str, Any]) -> None:
         """
         Valida ticket TRANSFORM e parâmetros obrigatórios.
 
@@ -47,17 +50,13 @@ class TransformExecutor(BaseTaskExecutor):
         super().validate_ticket(ticket)
 
         # Validar parâmetros específicos de TRANSFORM
-        ticket_id = ticket.get('ticket_id')
-        parameters = ticket.get('parameters', {})
+        ticket_id = ticket.get("ticket_id")
+        parameters = ticket.get("parameters", {})
 
         # input_data é obrigatório para transformações JSON
-        transform_type = parameters.get('transform_type', 'json')
-        if transform_type == 'json':
-            self.validate_required_parameters(
-                ticket_id,
-                parameters,
-                required=['input_data']
-            )
+        transform_type = parameters.get("transform_type", "json")
+        if transform_type == "json":
+            self.validate_required_parameters(ticket_id, parameters, required=["input_data"])
 
     def __init__(
         self,
@@ -66,7 +65,7 @@ class TransformExecutor(BaseTaskExecutor):
         code_forge_client=None,
         metrics=None,
         mongodb_client=None,
-        redis_client=None
+        redis_client=None,
     ):
         """
         Inicializa TransformExecutor com clientes de fontes de dados.
@@ -79,11 +78,13 @@ class TransformExecutor(BaseTaskExecutor):
             mongodb_client: Cliente MongoDB para dados
             redis_client: Cliente Redis para cache
         """
-        super().__init__(config, vault_client=vault_client, code_forge_client=code_forge_client, metrics=metrics)
+        super().__init__(
+            config, vault_client=vault_client, code_forge_client=code_forge_client, metrics=metrics
+        )
         self.mongodb_client = mongodb_client
         self.redis_client = redis_client
 
-    async def execute(self, ticket: Dict[str, Any]) -> Dict[str, Any]:
+    async def execute(self, ticket: dict[str, Any]) -> dict[str, Any]:
         """
         Executar tarefa TRANSFORM com dispatch baseado em transform_type.
 
@@ -95,41 +96,41 @@ class TransformExecutor(BaseTaskExecutor):
         """
         self.validate_ticket(ticket)
 
-        ticket_id = ticket.get('ticket_id')
-        parameters = ticket.get('parameters', {})
-        transform_type = parameters.get('transform_type', 'json')
+        ticket_id = ticket.get("ticket_id")
+        parameters = ticket.get("parameters", {})
+        transform_type = parameters.get("transform_type", "json")
 
         tracer = get_tracer()
-        span_context = tracer.start_as_current_span('task_execution') if tracer else None
+        span_context = tracer.start_as_current_span("task_execution") if tracer else None
         with span_context as span:
             if span:
-                span.set_attribute('neural.hive.task_id', ticket_id)
-                span.set_attribute('neural.hive.task_type', self.get_task_type())
-                span.set_attribute('neural.hive.executor', self.__class__.__name__)
-                span.set_attribute('neural.hive.transform_type', transform_type)
+                span.set_attribute("neural.hive.task_id", ticket_id)
+                span.set_attribute("neural.hive.task_type", self.get_task_type())
+                span.set_attribute("neural.hive.executor", self.__class__.__name__)
+                span.set_attribute("neural.hive.transform_type", transform_type)
 
             self.log_execution(
                 ticket_id,
-                'transform_execution_started',
+                "transform_execution_started",
                 transform_type=transform_type,
-                parameters=parameters
+                parameters=parameters,
             )
 
             try:
                 start_time = time.monotonic()
 
                 # Dispatch baseado em transform_type
-                if transform_type == 'json':
+                if transform_type == "json":
                     result = await self._execute_json_transform(ticket_id, parameters, span)
-                elif transform_type == 'csv':
+                elif transform_type == "csv":
                     result = await self._execute_csv_transform(ticket_id, parameters, span)
-                elif transform_type == 'aggregate':
+                elif transform_type == "aggregate":
                     result = await self._execute_aggregate_transform(ticket_id, parameters, span)
-                elif transform_type == 'format':
+                elif transform_type == "format":
                     result = await self._execute_format_transform(ticket_id, parameters, span)
-                elif transform_type == 'mongodb_query_transform':
+                elif transform_type == "mongodb_query_transform":
                     result = await self._execute_mongodb_transform(ticket_id, parameters, span)
-                elif transform_type == 'filter':
+                elif transform_type == "filter":
                     result = await self._execute_filter_transform(ticket_id, parameters, span)
                 else:
                     raise ValueError(f"Unsupported transform_type: {transform_type}")
@@ -137,195 +138,190 @@ class TransformExecutor(BaseTaskExecutor):
                 elapsed_seconds = time.monotonic() - start_time
 
                 # Registrar métricas de duração
-                if self.metrics and hasattr(self.metrics, 'transform_duration_seconds'):
-                    self.metrics.transform_duration_seconds.labels(transform_type=transform_type).observe(elapsed_seconds)
+                if self.metrics and hasattr(self.metrics, "transform_duration_seconds"):
+                    self.metrics.transform_duration_seconds.labels(
+                        transform_type=transform_type
+                    ).observe(elapsed_seconds)
 
                 # Registrar métricas de sucesso
-                if self.metrics and hasattr(self.metrics, 'transform_executed_total'):
-                    status = 'success' if result.get('success') else 'failed'
-                    self.metrics.transform_executed_total.labels(status=status, transform_type=transform_type).inc()
+                if self.metrics and hasattr(self.metrics, "transform_executed_total"):
+                    status = "success" if result.get("success") else "failed"
+                    self.metrics.transform_executed_total.labels(
+                        status=status, transform_type=transform_type
+                    ).inc()
 
                 if span:
-                    span.set_attribute('neural.hive.execution_status', 'success' if result.get('success') else 'failed')
-                    span.set_attribute('neural.hive.duration_seconds', elapsed_seconds)
+                    span.set_attribute(
+                        "neural.hive.execution_status",
+                        "success" if result.get("success") else "failed",
+                    )
+                    span.set_attribute("neural.hive.duration_seconds", elapsed_seconds)
 
                 return result
 
             except Exception as e:
                 self.log_execution(
                     ticket_id,
-                    'transform_execution_failed',
-                    level='error',
+                    "transform_execution_failed",
+                    level="error",
                     transform_type=transform_type,
-                    error=str(e)
+                    error=str(e),
                 )
 
-                if self.metrics and hasattr(self.metrics, 'transform_executed_total'):
-                    self.metrics.transform_executed_total.labels(status='failed', transform_type=transform_type).inc()
+                if self.metrics and hasattr(self.metrics, "transform_executed_total"):
+                    self.metrics.transform_executed_total.labels(
+                        status="failed", transform_type=transform_type
+                    ).inc()
 
                 return {
-                    'success': False,
-                    'output': None,
-                    'metadata': {
-                        'executor': 'TransformExecutor',
-                        'transform_type': transform_type,
-                        'error': str(e)
+                    "success": False,
+                    "output": None,
+                    "metadata": {
+                        "executor": "TransformExecutor",
+                        "transform_type": transform_type,
+                        "error": str(e),
                     },
-                    'logs': [
-                        f'Transform execution failed: {str(e)}'
-                    ]
+                    "logs": [f"Transform execution failed: {e!s}"],
                 }
 
-    async def _execute_json_transform(self, ticket_id: str, parameters: Dict[str, Any], span) -> Dict[str, Any]:
+    async def _execute_json_transform(
+        self, ticket_id: str, parameters: dict[str, Any], span
+    ) -> dict[str, Any]:
         """Executa transformação em JSON."""
         try:
-            input_data = parameters.get('input_data')
+            input_data = parameters.get("input_data")
             if not input_data:
                 raise ValueError("Missing 'input_data' parameter for JSON transform")
 
-            operations = parameters.get('operations', [])
+            operations = parameters.get("operations", [])
             if not operations:
                 # Se nenhuma operação especificada, apenas validar JSON
                 if isinstance(input_data, str):
                     json.loads(input_data)  # Validate JSON
                     return self._success_result(
-                        {'validated': True, 'input_type': 'json_string'},
-                        input_data[:200] + '...' if len(input_data) > 200 else input_data
+                        {"validated": True, "input_type": "json_string"},
+                        input_data[:200] + "..." if len(input_data) > 200 else input_data,
                     )
 
             result = input_data
             for operation in operations:
-                op_type = operation.get('type')
-                if op_type == 'map':
+                op_type = operation.get("type")
+                if op_type == "map":
                     result = self._apply_map(result, operation)
-                elif op_type == 'filter':
+                elif op_type == "filter":
                     result = self._apply_filter(result, operation)
-                elif op_type == 'aggregate':
+                elif op_type == "aggregate":
                     result = self._apply_aggregate(result, operation)
-                elif op_type == 'rename_keys':
+                elif op_type == "rename_keys":
                     result = self._rename_keys(result, operation)
-                elif op_type == 'select_keys':
+                elif op_type == "select_keys":
                     result = self._select_keys(result, operation)
-                elif op_type == 'sort':
+                elif op_type == "sort":
                     result = self._sort(result, operation)
                 else:
                     raise ValueError(f"Unsupported operation type: {op_type}")
 
             self.log_execution(
-                ticket_id,
-                'json_transform_completed',
-                operations_count=len(operations)
+                ticket_id, "json_transform_completed", operations_count=len(operations)
             )
 
             return {
-                'success': True,
-                'output': {
-                    'transformed_data': result
+                "success": True,
+                "output": {"transformed_data": result},
+                "metadata": {
+                    "executor": "TransformExecutor",
+                    "transform_type": "json",
+                    "operations_applied": len(operations),
                 },
-                'metadata': {
-                    'executor': 'TransformExecutor',
-                    'transform_type': 'json',
-                    'operations_applied': len(operations)
-                },
-                'logs': [
-                    f'JSON transform completed with {len(operations)} operations',
-                    'Transform completed successfully'
-                ]
+                "logs": [
+                    f"JSON transform completed with {len(operations)} operations",
+                    "Transform completed successfully",
+                ],
             }
 
         except Exception as e:
-            self.log_execution(
-                ticket_id,
-                'json_transform_failed',
-                level='error',
-                error=str(e)
-            )
+            self.log_execution(ticket_id, "json_transform_failed", level="error", error=str(e))
             return {
-                'success': False,
-                'output': None,
-                'metadata': {
-                    'executor': 'TransformExecutor',
-                    'transform_type': 'json',
-                    'error': str(e)
+                "success": False,
+                "output": None,
+                "metadata": {
+                    "executor": "TransformExecutor",
+                    "transform_type": "json",
+                    "error": str(e),
                 },
-                'logs': [
-                    f'JSON transform failed: {str(e)}'
-                ]
+                "logs": [f"JSON transform failed: {e!s}"],
             }
 
-    async def _execute_csv_transform(self, ticket_id: str, parameters: Dict[str, Any], span) -> Dict[str, Any]:
+    async def _execute_csv_transform(
+        self, ticket_id: str, parameters: dict[str, Any], span
+    ) -> dict[str, Any]:
         """Executa parse/transform de CSV."""
         try:
-            csv_data = parameters.get('csv_data')
+            csv_data = parameters.get("csv_data")
             if not csv_data:
                 raise ValueError("Missing 'csv_data' parameter for CSV transform")
 
-            delimiter = parameters.get('delimiter', ',')
-            output_format = parameters.get('output_format', 'json')
+            delimiter = parameters.get("delimiter", ",")
+            output_format = parameters.get("output_format", "json")
 
             # Parse CSV
             reader = csv_lib.DictReader(io.StringIO(csv_data), delimiter=delimiter)
             rows = list(reader)
 
-            if output_format == 'json':
-                result = {'rows': rows, 'count': len(rows)}
-            elif output_format == 'list':
+            if output_format == "json":
+                result = {"rows": rows, "count": len(rows)}
+            elif output_format == "list":
                 result = rows
             else:
                 raise ValueError(f"Unsupported output_format: {output_format}")
 
             self.log_execution(
                 ticket_id,
-                'csv_transform_completed',
+                "csv_transform_completed",
                 rows_count=len(rows),
-                output_format=output_format
+                output_format=output_format,
             )
 
             return {
-                'success': True,
-                'output': result,
-                'metadata': {
-                    'executor': 'TransformExecutor',
-                    'transform_type': 'csv',
-                    'rows_count': len(rows),
-                    'delimiter': delimiter
+                "success": True,
+                "output": result,
+                "metadata": {
+                    "executor": "TransformExecutor",
+                    "transform_type": "csv",
+                    "rows_count": len(rows),
+                    "delimiter": delimiter,
                 },
-                'logs': [
-                    f'CSV transform completed with {len(rows)} rows',
-                    f'Delimiter: {delimiter}',
-                    'Transform completed successfully'
-                ]
+                "logs": [
+                    f"CSV transform completed with {len(rows)} rows",
+                    f"Delimiter: {delimiter}",
+                    "Transform completed successfully",
+                ],
             }
 
         except Exception as e:
-            self.log_execution(
-                ticket_id,
-                'csv_transform_failed',
-                level='error',
-                error=str(e)
-            )
+            self.log_execution(ticket_id, "csv_transform_failed", level="error", error=str(e))
             return {
-                'success': False,
-                'output': None,
-                'metadata': {
-                    'executor': 'TransformExecutor',
-                    'transform_type': 'csv',
-                    'error': str(e)
+                "success": False,
+                "output": None,
+                "metadata": {
+                    "executor": "TransformExecutor",
+                    "transform_type": "csv",
+                    "error": str(e),
                 },
-                'logs': [
-                    f'CSV transform failed: {str(e)}'
-                ]
+                "logs": [f"CSV transform failed: {e!s}"],
             }
 
-    async def _execute_aggregate_transform(self, ticket_id: str, parameters: Dict[str, Any], span) -> Dict[str, Any]:
+    async def _execute_aggregate_transform(
+        self, ticket_id: str, parameters: dict[str, Any], span
+    ) -> dict[str, Any]:
         """Executa agregação de dados."""
         try:
-            data = parameters.get('data')
+            data = parameters.get("data")
             if not data:
                 raise ValueError("Missing 'data' parameter for aggregate transform")
 
-            group_by = parameters.get('group_by', [])
-            operations = parameters.get('operations', [])
+            group_by = parameters.get("group_by", [])
+            operations = parameters.get("operations", [])
 
             if not isinstance(data, list):
                 raise ValueError("'data' parameter must be a list for aggregation")
@@ -333,7 +329,11 @@ class TransformExecutor(BaseTaskExecutor):
             # Group data
             groups = {}
             for item in data:
-                key = tuple(str(item.get(field, '')) for field in group_by) if group_by else ('default',)
+                key = (
+                    tuple(str(item.get(field, "")) for field in group_by)
+                    if group_by
+                    else ("default",)
+                )
                 if key not in groups:
                     groups[key] = []
                 groups[key].append(item)
@@ -341,89 +341,84 @@ class TransformExecutor(BaseTaskExecutor):
             # Apply operations per group
             result = []
             for key, items in groups.items():
-                group_result = {'_group': key if len(key) > 1 else key[0]}
+                group_result = {"_group": key if len(key) > 1 else key[0]}
 
                 for operation in operations:
-                    op_type = operation.get('op')
-                    field = operation.get('field')
-                    alias = operation.get('alias', field)
+                    op_type = operation.get("op")
+                    field = operation.get("field")
+                    alias = operation.get("alias", field)
 
-                    if op_type == 'count':
+                    if op_type == "count":
                         group_result[alias] = len(items)
-                    elif op_type == 'sum':
+                    elif op_type == "sum":
                         group_result[alias] = sum(float(item.get(field, 0)) for item in items)
-                    elif op_type == 'avg':
-                        group_result[alias] = sum(float(item.get(field, 0)) for item in items) / len(items)
-                    elif op_type == 'min':
+                    elif op_type == "avg":
+                        group_result[alias] = sum(
+                            float(item.get(field, 0)) for item in items
+                        ) / len(items)
+                    elif op_type == "min":
                         group_result[alias] = min(item.get(field) for item in items)
-                    elif op_type == 'max':
+                    elif op_type == "max":
                         group_result[alias] = max(item.get(field) for item in items)
-                    elif op_type == 'first':
+                    elif op_type == "first":
                         group_result[alias] = items[0].get(field) if items else None
-                    elif op_type == 'last':
+                    elif op_type == "last":
                         group_result[alias] = items[-1].get(field) if items else None
 
                 result.append(group_result)
 
             self.log_execution(
                 ticket_id,
-                'aggregate_transform_completed',
+                "aggregate_transform_completed",
                 groups_count=len(groups),
-                operations_count=len(operations)
+                operations_count=len(operations),
             )
 
             return {
-                'success': True,
-                'output': {
-                    'aggregated_data': result
+                "success": True,
+                "output": {"aggregated_data": result},
+                "metadata": {
+                    "executor": "TransformExecutor",
+                    "transform_type": "aggregate",
+                    "groups_count": len(groups),
+                    "operations_count": len(operations),
                 },
-                'metadata': {
-                    'executor': 'TransformExecutor',
-                    'transform_type': 'aggregate',
-                    'groups_count': len(groups),
-                    'operations_count': len(operations)
-                },
-                'logs': [
-                    f'Aggregate transform completed with {len(groups)} groups',
-                    f'{len(operations)} operations applied',
-                    'Transform completed successfully'
-                ]
+                "logs": [
+                    f"Aggregate transform completed with {len(groups)} groups",
+                    f"{len(operations)} operations applied",
+                    "Transform completed successfully",
+                ],
             }
 
         except Exception as e:
-            self.log_execution(
-                ticket_id,
-                'aggregate_transform_failed',
-                level='error',
-                error=str(e)
-            )
+            self.log_execution(ticket_id, "aggregate_transform_failed", level="error", error=str(e))
             return {
-                'success': False,
-                'output': None,
-                'metadata': {
-                    'executor': 'TransformExecutor',
-                    'transform_type': 'aggregate',
-                    'error': str(e)
+                "success": False,
+                "output": None,
+                "metadata": {
+                    "executor": "TransformExecutor",
+                    "transform_type": "aggregate",
+                    "error": str(e),
                 },
-                'logs': [
-                    f'Aggregate transform failed: {str(e)}'
-                ]
+                "logs": [f"Aggregate transform failed: {e!s}"],
             }
 
-    async def _execute_format_transform(self, ticket_id: str, parameters: Dict[str, Any], span) -> Dict[str, Any]:
+    async def _execute_format_transform(
+        self, ticket_id: str, parameters: dict[str, Any], span
+    ) -> dict[str, Any]:
         """Executa formatação de dados."""
         try:
-            data = parameters.get('data')
+            data = parameters.get("data")
             if not data:
                 raise ValueError("Missing 'data' parameter for format transform")
 
-            format_rules = parameters.get('format_rules', [])
+            format_rules = parameters.get("format_rules", [])
             result = data
 
             for rule in format_rules:
-                field = rule.get('field')
-                rule_type = rule.get('type')
-                value = rule.get('value')
+                field = rule.get("field")
+                rule_type = rule.get("type")
+                value = rule.get("value")
 
                 # Apply format to nested fields using dot notation
                 def apply_format(obj, field_parts, format_rule):
@@ -432,7 +427,7 @@ class TransformExecutor(BaseTaskExecutor):
                         old_value = obj.get(field_name)
                         new_value = old_value
 
-                        if rule_type == 'date':
+                        if rule_type == "date":
                             if old_value:
                                 try:
                                     if isinstance(old_value, (int, float)):
@@ -445,84 +440,72 @@ class TransformExecutor(BaseTaskExecutor):
                                 except:
                                     pass
                             obj[field_name] = new_value
-                        elif rule_type == 'number':
+                        elif rule_type == "number":
                             if old_value is not None:
-                                try:
+                                with contextlib.suppress(BaseException):
                                     obj[field_name] = float(old_value)
-                                except:
-                                    pass
-                        elif rule_type == 'string':
+                        elif rule_type == "string":
                             obj[field_name] = str(old_value)
-                        elif rule_type == 'uppercase':
+                        elif rule_type == "uppercase":
                             obj[field_name] = str(old_value).upper() if old_value else old_value
-                        elif rule_type == 'lowercase':
+                        elif rule_type == "lowercase":
                             obj[field_name] = str(old_value).lower() if old_value else old_value
-                        elif rule_type == 'trim':
+                        elif rule_type == "trim":
                             obj[field_name] = str(old_value).strip() if old_value else old_value
-                    else:
-                        # Nested field
-                        if field_name in obj and isinstance(obj[field_name], dict):
-                            apply_format(obj[field_name], field_parts[1:], format_rule)
+                    # Nested field
+                    elif field_name in obj and isinstance(obj[field_name], dict):
+                        apply_format(obj[field_name], field_parts[1:], format_rule)
 
-                apply_format(result, field.split('.'), rule)
+                apply_format(result, field.split("."), rule)
 
             self.log_execution(
-                ticket_id,
-                'format_transform_completed',
-                rules_count=len(format_rules)
+                ticket_id, "format_transform_completed", rules_count=len(format_rules)
             )
 
             return {
-                'success': True,
-                'output': {
-                    'formatted_data': result
+                "success": True,
+                "output": {"formatted_data": result},
+                "metadata": {
+                    "executor": "TransformExecutor",
+                    "transform_type": "format",
+                    "rules_count": len(format_rules),
                 },
-                'metadata': {
-                    'executor': 'TransformExecutor',
-                    'transform_type': 'format',
-                    'rules_count': len(format_rules)
-                },
-                'logs': [
-                    f'Format transform completed with {len(format_rules)} rules',
-                    'Transform completed successfully'
-                ]
+                "logs": [
+                    f"Format transform completed with {len(format_rules)} rules",
+                    "Transform completed successfully",
+                ],
             }
 
         except Exception as e:
-            self.log_execution(
-                ticket_id,
-                'format_transform_failed',
-                level='error',
-                error=str(e)
-            )
+            self.log_execution(ticket_id, "format_transform_failed", level="error", error=str(e))
             return {
-                'success': False,
-                'output': None,
-                'metadata': {
-                    'executor': 'TransformExecutor',
-                    'transform_type': 'format',
-                    'error': str(e)
+                "success": False,
+                "output": None,
+                "metadata": {
+                    "executor": "TransformExecutor",
+                    "transform_type": "format",
+                    "error": str(e),
                 },
-                'logs': [
-                    f'Format transform failed: {str(e)}'
-                ]
+                "logs": [f"Format transform failed: {e!s}"],
             }
 
-    async def _execute_mongodb_transform(self, ticket_id: str, parameters: Dict[str, Any], span) -> Dict[str, Any]:
+    async def _execute_mongodb_transform(
+        self, ticket_id: str, parameters: dict[str, Any], span
+    ) -> dict[str, Any]:
         """Executa transformação em dados MongoDB."""
         if not self.mongodb_client:
-            return self._error_result('MongoDB client not available', 'mongodb')
+            return self._error_result("MongoDB client not available", "mongodb")
 
         # Nota: Validacao de .db removida para evitar erro de Motor 3.x
         # Motor 3.x proibe verificacao de truthiness em objetos Database
         # Acessamos diretamente via client[db_name] para evitar o problema
 
         try:
-            collection_name = parameters.get('collection')
+            collection_name = parameters.get("collection")
             if not collection_name:
                 raise ValueError("Missing 'collection' parameter for MongoDB transform")
 
-            pipeline = parameters.get('pipeline', [])
+            pipeline = parameters.get("pipeline", [])
             if not pipeline:
                 raise ValueError("Missing 'pipeline' parameter for MongoDB transform")
 
@@ -538,57 +521,52 @@ class TransformExecutor(BaseTaskExecutor):
 
             self.log_execution(
                 ticket_id,
-                'mongodb_transform_completed',
+                "mongodb_transform_completed",
                 collection=collection_name,
-                result_count=len(serialized_results)
+                result_count=len(serialized_results),
             )
 
             return {
-                'success': True,
-                'output': {
-                    'transformed_data': serialized_results,
-                    'count': len(serialized_results)
+                "success": True,
+                "output": {
+                    "transformed_data": serialized_results,
+                    "count": len(serialized_results),
                 },
-                'metadata': {
-                    'executor': 'TransformExecutor',
-                    'transform_type': 'mongodb_query_transform',
-                    'collection': collection_name
+                "metadata": {
+                    "executor": "TransformExecutor",
+                    "transform_type": "mongodb_query_transform",
+                    "collection": collection_name,
                 },
-                'logs': [
-                    f'MongoDB transform completed on {collection_name}',
-                    f'Pipeline returned {len(serialized_results)} results',
-                    'Transform completed successfully'
-                ]
+                "logs": [
+                    f"MongoDB transform completed on {collection_name}",
+                    f"Pipeline returned {len(serialized_results)} results",
+                    "Transform completed successfully",
+                ],
             }
 
         except Exception as e:
-            self.log_execution(
-                ticket_id,
-                'mongodb_transform_failed',
-                level='error',
-                error=str(e)
-            )
+            self.log_execution(ticket_id, "mongodb_transform_failed", level="error", error=str(e))
             return {
-                'success': False,
-                'output': None,
-                'metadata': {
-                    'executor': 'TransformExecutor',
-                    'transform_type': 'mongodb_query_transform',
-                    'error': str(e)
+                "success": False,
+                "output": None,
+                "metadata": {
+                    "executor": "TransformExecutor",
+                    "transform_type": "mongodb_query_transform",
+                    "error": str(e),
                 },
-                'logs': [
-                    f'MongoDB transform failed: {str(e)}'
-                ]
+                "logs": [f"MongoDB transform failed: {e!s}"],
             }
 
-    async def _execute_filter_transform(self, ticket_id: str, parameters: Dict[str, Any], span) -> Dict[str, Any]:
+    async def _execute_filter_transform(
+        self, ticket_id: str, parameters: dict[str, Any], span
+    ) -> dict[str, Any]:
         """Executa filtragem de dados."""
         try:
-            data = parameters.get('data')
+            data = parameters.get("data")
             if not data:
                 raise ValueError("Missing 'data' parameter for filter transform")
 
-            filters = parameters.get('filters', [])
+            filters = parameters.get("filters", [])
             if not filters:
                 raise ValueError("Missing 'filters' parameter for filter transform")
 
@@ -598,86 +576,79 @@ class TransformExecutor(BaseTaskExecutor):
             # Apply filters
             result = data
             for filter_rule in filters:
-                field = filter_rule.get('field')
-                operator = filter_rule.get('operator', 'eq')
-                value = filter_rule.get('value')
+                field = filter_rule.get("field")
+                operator = filter_rule.get("operator", "eq")
+                value = filter_rule.get("value")
 
-                if operator == 'eq':
+                if operator == "eq":
                     result = [item for item in result if item.get(field) == value]
-                elif operator == 'ne':
+                elif operator == "ne":
                     result = [item for item in result if item.get(field) != value]
-                elif operator == 'gt':
+                elif operator == "gt":
                     result = [item for item in result if item.get(field, 0) > value]
-                elif operator == 'lt':
+                elif operator == "lt":
                     result = [item for item in result if item.get(field, 0) < value]
-                elif operator == 'gte':
+                elif operator == "gte":
                     result = [item for item in result if item.get(field, 0) >= value]
-                elif operator == 'lte':
+                elif operator == "lte":
                     result = [item for item in result if item.get(field, 0) <= value]
-                elif operator == 'in':
+                elif operator == "in":
                     result = [item for item in result if item.get(field) in value]
-                elif operator == 'contains':
-                    result = [item for item in result if value in item.get(field, '')]
-                elif operator == 'exists':
+                elif operator == "contains":
+                    result = [item for item in result if value in item.get(field, "")]
+                elif operator == "exists":
                     result = [item for item in result if item.get(field) is not None]
-                elif operator == 'regex':
+                elif operator == "regex":
                     import re
+
                     pattern = value
-                    result = [item for item in result if re.search(pattern, str(item.get(field, '')))]
+                    result = [
+                        item for item in result if re.search(pattern, str(item.get(field, "")))
+                    ]
                 else:
                     raise ValueError(f"Unsupported filter operator: {operator}")
 
             self.log_execution(
                 ticket_id,
-                'filter_transform_completed',
+                "filter_transform_completed",
                 input_count=len(data),
                 output_count=len(result),
-                filters_count=len(filters)
+                filters_count=len(filters),
             )
 
             return {
-                'success': True,
-                'output': {
-                    'filtered_data': result,
-                    'count': len(result)
+                "success": True,
+                "output": {"filtered_data": result, "count": len(result)},
+                "metadata": {
+                    "executor": "TransformExecutor",
+                    "transform_type": "filter",
+                    "input_count": len(data),
+                    "output_count": len(result),
                 },
-                'metadata': {
-                    'executor': 'TransformExecutor',
-                    'transform_type': 'filter',
-                    'input_count': len(data),
-                    'output_count': len(result)
-                },
-                'logs': [
-                    f'Filter transform completed: {len(data)} -> {len(result)} records',
-                    f'{len(filters)} filters applied',
-                    'Transform completed successfully'
-                ]
+                "logs": [
+                    f"Filter transform completed: {len(data)} -> {len(result)} records",
+                    f"{len(filters)} filters applied",
+                    "Transform completed successfully",
+                ],
             }
 
         except Exception as e:
-            self.log_execution(
-                ticket_id,
-                'filter_transform_failed',
-                level='error',
-                error=str(e)
-            )
+            self.log_execution(ticket_id, "filter_transform_failed", level="error", error=str(e))
             return {
-                'success': False,
-                'output': None,
-                'metadata': {
-                    'executor': 'TransformExecutor',
-                    'transform_type': 'filter',
-                    'error': str(e)
+                "success": False,
+                "output": None,
+                "metadata": {
+                    "executor": "TransformExecutor",
+                    "transform_type": "filter",
+                    "error": str(e),
                 },
-                'logs': [
-                    f'Filter transform failed: {str(e)}'
-                ]
+                "logs": [f"Filter transform failed: {e!s}"],
             }
 
-    def _apply_map(self, data: Any, operation: Dict) -> Any:
+    def _apply_map(self, data: Any, operation: dict) -> Any:
         """Aplica operação de map."""
-        field = operation.get('field')
-        mapping = operation.get('mapping', {})
+        field = operation.get("field")
+        mapping = operation.get("mapping", {})
         new_data = []
 
         if isinstance(data, list):
@@ -691,84 +662,81 @@ class TransformExecutor(BaseTaskExecutor):
             return new_data
         return data
 
-    def _apply_filter(self, data: Any, operation: Dict) -> Any:
+    def _apply_filter(self, data: Any, operation: dict) -> Any:
         """Aplica operação de filter."""
-        field = operation.get('field')
-        operator = operation.get('operator', 'eq')
-        value = operation.get('value')
+        field = operation.get("field")
+        operator = operation.get("operator", "eq")
+        value = operation.get("value")
 
         if isinstance(data, list):
-            if operator == 'eq':
+            if operator == "eq":
                 return [item for item in data if item.get(field) == value]
-            elif operator == 'ne':
+            if operator == "ne":
                 return [item for item in data if item.get(field) != value]
-            elif operator == 'gt':
+            if operator == "gt":
                 return [item for item in data if item.get(field, 0) > value]
-            elif operator == 'lt':
+            if operator == "lt":
                 return [item for item in data if item.get(field, 0) < value]
-            elif operator == 'in':
+            if operator == "in":
                 return [item for item in data if item.get(field) in value]
         return data
 
-    def _apply_aggregate(self, data: Any, operation: Dict) -> Any:
+    def _apply_aggregate(self, data: Any, operation: dict) -> Any:
         """Aplica operação de aggregate."""
         # Simplificada - implementação completa em _execute_aggregate_transform
         return data
 
-    def _rename_keys(self, data: Any, operation: Dict) -> Any:
+    def _rename_keys(self, data: Any, operation: dict) -> Any:
         """Renomeia chaves em objetos."""
-        mapping = operation.get('mapping', {})
+        mapping = operation.get("mapping", {})
         if isinstance(data, list):
             return [{mapping.get(k, k): v for k, v in item.items()} for item in data]
         return data
 
-    def _select_keys(self, data: Any, operation: Dict) -> Any:
+    def _select_keys(self, data: Any, operation: dict) -> Any:
         """Seleciona chaves específicas."""
-        keys = operation.get('keys', [])
+        keys = operation.get("keys", [])
         if isinstance(data, list):
             return [{k: v for k, v in item.items() if k in keys} for item in data]
         return data
 
-    def _sort(self, data: Any, operation: Dict) -> Any:
+    def _sort(self, data: Any, operation: dict) -> Any:
         """Ordena dados."""
-        field = operation.get('field')
-        reverse = operation.get('reverse', False)
+        field = operation.get("field")
+        reverse = operation.get("reverse", False)
         if isinstance(data, list):
-            return sorted(data, key=lambda x: x.get(field, ''), reverse=reverse)
+            return sorted(data, key=lambda x: x.get(field, ""), reverse=reverse)
         return data
 
-    def _serialize_doc(self, doc: Dict[str, Any]) -> Dict[str, Any]:
+    def _serialize_doc(self, doc: dict[str, Any]) -> dict[str, Any]:
         """Serializa documento MongoDB para JSON."""
-        if '_id' in doc:
+        if "_id" in doc:
             doc = dict(doc)
-            doc['_id'] = str(doc['_id'])
+            doc["_id"] = str(doc["_id"])
         return doc
 
-    def _success_result(self, output_data: Any, metadata: Dict[str, Any] = None) -> Dict[str, Any]:
+    def _success_result(self, output_data: Any, metadata: dict[str, Any] | None = None) -> dict[str, Any]:
         """Retorna resultado de sucesso padronizado."""
-        base_metadata = {
-            'executor': 'TransformExecutor',
-            'success': True
-        }
+        base_metadata = {"executor": "TransformExecutor", "success": True}
         if metadata:
             base_metadata.update(metadata)
 
         return {
-            'success': True,
-            'output': output_data,
-            'metadata': base_metadata,
-            'logs': ['Transform completed successfully']
+            "success": True,
+            "output": output_data,
+            "metadata": base_metadata,
+            "logs": ["Transform completed successfully"],
         }
 
-    def _error_result(self, message: str, transform_type: str) -> Dict[str, Any]:
+    def _error_result(self, message: str, transform_type: str) -> dict[str, Any]:
         """Retorna resultado de erro padronizado."""
         return {
-            'success': False,
-            'output': None,
-            'metadata': {
-                'executor': 'TransformExecutor',
-                'transform_type': transform_type,
-                'error': message
+            "success": False,
+            "output": None,
+            "metadata": {
+                "executor": "TransformExecutor",
+                "transform_type": transform_type,
+                "error": message,
             },
-            'logs': [message]
+            "logs": [message],
         }

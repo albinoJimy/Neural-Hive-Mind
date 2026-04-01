@@ -1,11 +1,11 @@
-import structlog
-from typing import Dict, List, Any
 import statistics
 from datetime import datetime
+from typing import Any
 
-from ..config import Settings
-from ..clients import PrometheusClient, RedisClient
+import structlog
 
+from src.clients import PrometheusClient, RedisClient
+from src.config import Settings
 
 logger = structlog.get_logger()
 
@@ -23,7 +23,7 @@ class TelemetryAggregator:
         self.redis_client = redis_client
         self.settings = settings
 
-    async def aggregate_system_health(self) -> Dict[str, Any]:
+    async def aggregate_system_health(self) -> dict[str, Any]:
         """Agregar saúde geral do sistema"""
         try:
             # Buscar cache primeiro
@@ -55,12 +55,10 @@ class TelemetryAggregator:
             return health
 
         except Exception as e:
-            logger.error("aggregate_system_health_failed", error=str(e))
+            logger.exception("aggregate_system_health_failed", error=str(e))
             return {}
 
-    async def aggregate_workflow_metrics(
-        self, workflow_ids: List[str]
-    ) -> Dict[str, Any]:
+    async def aggregate_workflow_metrics(self, workflow_ids: list[str]) -> dict[str, Any]:
         """Agregar métricas de workflows específicos"""
         metrics = {}
 
@@ -72,10 +70,10 @@ class TelemetryAggregator:
             return metrics
 
         except Exception as e:
-            logger.error("aggregate_workflow_metrics_failed", error=str(e))
+            logger.exception("aggregate_workflow_metrics_failed", error=str(e))
             return {}
 
-    async def detect_anomalies(self) -> List[Dict[str, Any]]:
+    async def detect_anomalies(self) -> list[dict[str, Any]]:
         """Detectar anomalias em métricas (threshold-based MVP)"""
         anomalies = []
 
@@ -116,7 +114,7 @@ class TelemetryAggregator:
             return anomalies
 
         except Exception as e:
-            logger.error("detect_anomalies_failed", error=str(e))
+            logger.exception("detect_anomalies_failed", error=str(e))
             return []
 
     async def calculate_system_score(self) -> float:
@@ -150,7 +148,7 @@ class TelemetryAggregator:
             return max(0.0, min(1.0, score))
 
         except Exception as e:
-            logger.error("calculate_system_score_failed", error=str(e))
+            logger.exception("calculate_system_score_failed", error=str(e))
             return 0.5
 
     async def _get_workflow_success_rate(self) -> float:
@@ -169,9 +167,7 @@ class TelemetryAggregator:
 
             result = await self.prometheus_client.query(query)
 
-            if result.get("status") == "success" and result.get("data", {}).get(
-                "result"
-            ):
+            if result.get("status") == "success" and result.get("data", {}).get("result"):
                 value = result["data"]["result"][0].get("value", [])
                 if len(value) > 1:
                     success_rate = float(value[1])
@@ -189,17 +185,15 @@ class TelemetryAggregator:
 
             fallback_result = await self.prometheus_client.query(fallback_query)
 
-            if fallback_result.get("status") == "success" and fallback_result.get(
-                "data", {}
-            ).get("result"):
+            if fallback_result.get("status") == "success" and fallback_result.get("data", {}).get(
+                "result"
+            ):
                 value = fallback_result["data"]["result"][0].get("value", [])
                 if len(value) > 1:
                     success_rate = float(value[1])
                     if success_rate != success_rate:  # NaN check
                         return 0.95
-                    logger.debug(
-                        "workflow_success_rate_calculated_fallback", rate=success_rate
-                    )
+                    logger.debug("workflow_success_rate_calculated_fallback", rate=success_rate)
                     return success_rate
 
             # Se não há dados, assumir taxa otimista
@@ -207,10 +201,10 @@ class TelemetryAggregator:
             return 0.95
 
         except Exception as e:
-            logger.error("get_workflow_success_rate_failed", error=str(e))
+            logger.exception("get_workflow_success_rate_failed", error=str(e))
             return 0.95
 
-    async def cache_telemetry_snapshot(self, snapshot: Dict[str, Any]) -> None:
+    async def cache_telemetry_snapshot(self, snapshot: dict[str, Any]) -> None:
         """Cachear snapshot de telemetria no Redis"""
         try:
             cache_key = "telemetry:snapshot:latest"
@@ -219,16 +213,16 @@ class TelemetryAggregator:
             )
 
         except Exception as e:
-            logger.error("cache_telemetry_snapshot_failed", error=str(e))
+            logger.exception("cache_telemetry_snapshot_failed", error=str(e))
 
-    async def get_cached_snapshot(self) -> Dict[str, Any] | None:
+    async def get_cached_snapshot(self) -> dict[str, Any] | None:
         """Recuperar snapshot cacheado"""
         try:
             cache_key = "telemetry:snapshot:latest"
             return await self.redis_client.get_cached_context(cache_key)
 
         except Exception as e:
-            logger.error("get_cached_snapshot_failed", error=str(e))
+            logger.exception("get_cached_snapshot_failed", error=str(e))
             return None
 
     async def _get_overall_sla_compliance(self) -> float:
@@ -239,15 +233,13 @@ class TelemetryAggregator:
                 'avg(rate(http_requests_total{status=~"2.."}[5m])) / avg(rate(http_requests_total[5m]))'
             )
 
-            if result.get("status") == "success" and result.get("data", {}).get(
-                "result"
-            ):
+            if result.get("status") == "success" and result.get("data", {}).get("result"):
                 return float(result["data"]["result"][0]["value"][1])
 
             return 0.95  # Default otimista
 
         except Exception as e:
-            logger.error("get_overall_sla_compliance_failed", error=str(e))
+            logger.exception("get_overall_sla_compliance_failed", error=str(e))
             return 0.95
 
     async def _get_overall_error_rate(self) -> float:
@@ -257,15 +249,13 @@ class TelemetryAggregator:
                 'avg(rate(http_requests_total{status=~"5.."}[5m]))'
             )
 
-            if result.get("status") == "success" and result.get("data", {}).get(
-                "result"
-            ):
+            if result.get("status") == "success" and result.get("data", {}).get("result"):
                 return float(result["data"]["result"][0]["value"][1])
 
             return 0.0
 
         except Exception as e:
-            logger.error("get_overall_error_rate_failed", error=str(e))
+            logger.exception("get_overall_error_rate_failed", error=str(e))
             return 0.0
 
     async def _get_resource_saturation(self) -> float:
@@ -278,5 +268,5 @@ class TelemetryAggregator:
             return 0.0
 
         except Exception as e:
-            logger.error("get_resource_saturation_failed", error=str(e))
+            logger.exception("get_resource_saturation_failed", error=str(e))
             return 0.0

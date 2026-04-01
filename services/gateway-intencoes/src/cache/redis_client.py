@@ -8,20 +8,19 @@ import json
 import logging
 import ssl
 from contextlib import asynccontextmanager
-from typing import Any, Dict, List, Optional, Union
-
-from redis.asyncio import Redis
-from redis.asyncio.cluster import RedisCluster, ClusterNode
-from redis.exceptions import (
-    ConnectionError,
-    TimeoutError,
-    RedisError,
-    RedisClusterException,
-)
-from opentelemetry import trace
-from prometheus_client import Counter, Histogram, Gauge
+from typing import Any
 
 from config.settings import get_settings
+from opentelemetry import trace
+from prometheus_client import Counter, Gauge, Histogram
+from redis.asyncio import Redis
+from redis.asyncio.cluster import ClusterNode, RedisCluster
+from redis.exceptions import (
+    ConnectionError,
+    RedisClusterException,
+    RedisError,
+    TimeoutError,
+)
 
 # Importar gateway_cache_errors_total se disponível
 try:
@@ -67,8 +66,6 @@ redis_cluster_topology_changes = Counter(
 class CircuitBreakerError(Exception):
     """Erro quando circuit breaker está aberto"""
 
-    pass
-
 
 class CircuitBreaker:
     """Circuit breaker simples para Redis operations"""
@@ -96,9 +93,9 @@ class CircuitBreaker:
                 if self.state == "HALF_OPEN":
                     self.reset()
                 return result
-            except Exception as e:
+            except Exception:
                 self.record_failure()
-                raise e
+                raise
 
         return wrapper
 
@@ -124,7 +121,7 @@ class RedisClient:
 
     def __init__(self):
         self.settings = get_settings()
-        self.redis: Optional[Union[RedisCluster, Redis]] = None
+        self.redis: RedisCluster | Redis | None = None
         self.is_cluster_mode = False  # Track if we're using cluster or standalone
         self.circuit_breaker = CircuitBreaker()
         self.hit_count = 0
@@ -142,11 +139,7 @@ class RedisClient:
             # Determinar se devemos usar cluster mode
             # 1. Se temos múltiplos nodes, tentar cluster
             # 2. Se variável de ambiente REDIS_MODE=standalone, usar standalone
-            redis_mode = (
-                self.settings.redis_mode
-                if hasattr(self.settings, "redis_mode")
-                else None
-            )
+            redis_mode = self.settings.redis_mode if hasattr(self.settings, "redis_mode") else None
             force_standalone = redis_mode == "standalone"
             use_cluster_mode = len(nodes) > 1 and not force_standalone
 
@@ -168,9 +161,7 @@ class RedisClient:
 
                 # Carregar CA certificates
                 if self.settings.redis_ssl_ca_certs:
-                    ssl_context.load_verify_locations(
-                        cafile=self.settings.redis_ssl_ca_certs
-                    )
+                    ssl_context.load_verify_locations(cafile=self.settings.redis_ssl_ca_certs)
 
                 # Carregar certificado cliente se fornecido
                 if self.settings.redis_ssl_certfile and self.settings.redis_ssl_keyfile:
@@ -204,9 +195,7 @@ class RedisClient:
                     logger.info(
                         f"Tentando conectar em Redis Cluster mode com {len(nodes)} nodes..."
                     )
-                    cluster_nodes = [
-                        ClusterNode(host=n["host"], port=n["port"]) for n in nodes
-                    ]
+                    cluster_nodes = [ClusterNode(host=n["host"], port=n["port"]) for n in nodes]
 
                     self.redis = RedisCluster(
                         startup_nodes=cluster_nodes,
@@ -230,9 +219,7 @@ class RedisClient:
 
                 except RedisClusterException as e:
                     if "Cluster mode is not enabled" in str(e):
-                        logger.warning(
-                            f"Redis Cluster mode não habilitado no servidor: {e}"
-                        )
+                        logger.warning(f"Redis Cluster mode não habilitado no servidor: {e}")
                         logger.info("Tentando conectar em modo standalone...")
                         use_cluster_mode = False
                     else:
@@ -240,7 +227,7 @@ class RedisClient:
 
             # Usar standalone mode
             if not use_cluster_mode:
-                logger.info(f"Conectando em Redis standalone mode...")
+                logger.info("Conectando em Redis standalone mode...")
                 first_node = nodes[0]
 
                 self.redis = Redis(
@@ -271,7 +258,7 @@ class RedisClient:
                 redis_ssl_connections.labels(status="plaintext").inc()
 
         except Exception as e:
-            logger.error(f"Erro ao conectar ao Redis: {e}")
+            logger.exception(f"Erro ao conectar ao Redis: {e}")
             raise
 
     async def close(self):
@@ -291,7 +278,7 @@ class RedisClient:
             logger.warning(f"Redis ping falhou: {e}")
             return False
 
-    async def health_check(self) -> Dict[str, Any]:
+    async def health_check(self) -> dict[str, Any]:
         """Verificar saúde do Redis (cluster ou standalone)"""
         try:
             start_time = asyncio.get_event_loop().time()
@@ -322,9 +309,7 @@ class RedisClient:
 
                 duration = asyncio.get_event_loop().time() - start_time
                 healthy_nodes = sum(
-                    1
-                    for result in ping_results.values()
-                    if result["status"] == "healthy"
+                    1 for result in ping_results.values() if result["status"] == "healthy"
                 )
                 total_nodes = len(ping_results)
 
@@ -338,21 +323,20 @@ class RedisClient:
                     "ssl_enabled": self.settings.redis_ssl_enabled,
                     "circuit_breaker_state": self.circuit_breaker.state,
                 }
-            else:
-                # Standalone mode - simple ping
-                await self.redis.ping()
-                duration = asyncio.get_event_loop().time() - start_time
+            # Standalone mode - simple ping
+            await self.redis.ping()
+            duration = asyncio.get_event_loop().time() - start_time
 
-                return {
-                    "status": "healthy",
-                    "mode": "standalone",
-                    "check_duration_seconds": duration,
-                    "ssl_enabled": self.settings.redis_ssl_enabled,
-                    "circuit_breaker_state": self.circuit_breaker.state,
-                }
+            return {
+                "status": "healthy",
+                "mode": "standalone",
+                "check_duration_seconds": duration,
+                "ssl_enabled": self.settings.redis_ssl_enabled,
+                "circuit_breaker_state": self.circuit_breaker.state,
+            }
 
         except Exception as e:
-            logger.error(f"Erro no health check do Redis: {e}")
+            logger.exception(f"Erro no health check do Redis: {e}")
             return {
                 "status": "unhealthy",
                 "mode": "cluster" if self.is_cluster_mode else "standalone",
@@ -360,7 +344,7 @@ class RedisClient:
                 "circuit_breaker_state": self.circuit_breaker.state,
             }
 
-    async def get_cluster_topology(self) -> Dict[str, Any]:
+    async def get_cluster_topology(self) -> dict[str, Any]:
         """Obter topologia do Redis (cluster ou standalone)"""
         try:
             if not self.is_cluster_mode:
@@ -409,7 +393,7 @@ class RedisClient:
             }
 
         except Exception as e:
-            logger.error(f"Erro ao obter topologia: {e}")
+            logger.exception(f"Erro ao obter topologia: {e}")
             return {
                 "mode": "cluster" if self.is_cluster_mode else "standalone",
                 "error": str(e),
@@ -417,8 +401,8 @@ class RedisClient:
             }
 
     async def pipeline_with_retry(
-        self, operations: List[Dict[str, Any]], max_retries: int = 3
-    ) -> List[Any]:
+        self, operations: list[dict[str, Any]], max_retries: int = 3
+    ) -> list[Any]:
         """Pipeline com retry automático em caso de falha de rede"""
         retry_count = 0
         last_error = None
@@ -437,7 +421,7 @@ class RedisClient:
                     )
                     await asyncio.sleep(wait_time)
                 else:
-                    logger.error(f"Pipeline falhou após {max_retries} tentativas: {e}")
+                    logger.exception(f"Pipeline falhou após {max_retries} tentativas: {e}")
                     raise last_error
 
         raise last_error
@@ -461,11 +445,11 @@ class RedisClient:
             if self.circuit_breaker.state == "HALF_OPEN":
                 self.circuit_breaker.reset()
             return result
-        except Exception as e:
+        except Exception:
             self.circuit_breaker.record_failure()
-            raise e
+            raise
 
-    async def get(self, key: str, intent_type: str = "unknown") -> Optional[Any]:
+    async def get(self, key: str, intent_type: str = "unknown") -> Any | None:
         """Obter valor do cache com deserialização automática
 
         Otimização: Adiciona validação de tipo e limpa entries corrompidos.
@@ -519,7 +503,7 @@ class RedisClient:
             if GATEWAY_CACHE_METRICS_AVAILABLE:
                 error_type = "timeout" if isinstance(e, TimeoutError) else "connection"
                 gateway_cache_errors_total.labels(error_type=error_type).inc()
-            logger.error(f"Erro ao obter chave {key}: {e}")
+            logger.exception(f"Erro ao obter chave {key}: {e}")
             return None
         finally:
             self._update_hit_ratio()
@@ -528,7 +512,7 @@ class RedisClient:
         self,
         key: str,
         value: Any,
-        ttl: Optional[int] = None,
+        ttl: int | None = None,
         intent_type: str = "unknown",
     ) -> bool:
         """Definir valor no cache com serialização automática"""
@@ -569,7 +553,7 @@ class RedisClient:
             if GATEWAY_CACHE_METRICS_AVAILABLE:
                 error_type = "timeout" if isinstance(e, TimeoutError) else "connection"
                 gateway_cache_errors_total.labels(error_type=error_type).inc()
-            logger.error(f"Erro ao definir chave {key}: {e}")
+            logger.exception(f"Erro ao definir chave {key}: {e}")
             return False
 
     async def delete(self, key: str, intent_type: str = "unknown") -> bool:
@@ -601,7 +585,7 @@ class RedisClient:
             if GATEWAY_CACHE_METRICS_AVAILABLE:
                 error_type = "timeout" if isinstance(e, TimeoutError) else "connection"
                 gateway_cache_errors_total.labels(error_type=error_type).inc()
-            logger.error(f"Erro ao deletar chave {key}: {e}")
+            logger.exception(f"Erro ao deletar chave {key}: {e}")
             return False
 
     async def exists(self, key: str) -> bool:
@@ -615,10 +599,10 @@ class RedisClient:
             result = await self._with_circuit_breaker("exists", _exists_operation)
             return bool(result)
         except (ConnectionError, TimeoutError, RedisError, RedisClusterException) as e:
-            logger.error(f"Erro ao verificar existência da chave {key}: {e}")
+            logger.exception(f"Erro ao verificar existência da chave {key}: {e}")
             return False
 
-    def _extract_key(self, args: tuple, kwargs: dict) -> Optional[str]:
+    def _extract_key(self, args: tuple, kwargs: dict) -> str | None:
         """
         Extract the key from operation arguments.
 
@@ -633,13 +617,13 @@ class RedisClient:
         if args and isinstance(args[0], str):
             return args[0]
         # Check kwargs for 'key' or 'name' parameters
-        elif "key" in kwargs:
+        if "key" in kwargs:
             return kwargs["key"]
-        elif "name" in kwargs:
+        if "name" in kwargs:
             return kwargs["name"]
         return None
 
-    async def pipeline_operations(self, operations: List[Dict[str, Any]]) -> List[Any]:
+    async def pipeline_operations(self, operations: list[dict[str, Any]]) -> list[Any]:
         """
         Execute multiple operations in pipeline, respecting Redis Cluster constraints.
 
@@ -668,9 +652,7 @@ class RedisClient:
 
         # In standalone mode, all operations can be in same pipeline
         if not self.is_cluster_mode:
-            logger.debug(
-                f"Standalone mode: All {len(operations)} operations in single pipeline"
-            )
+            logger.debug(f"Standalone mode: All {len(operations)} operations in single pipeline")
 
             async def _single_pipeline():
                 with tracer.start_as_current_span(
@@ -707,12 +689,11 @@ class RedisClient:
                 redis_operations_total.labels(
                     operation="pipeline", status="error", intent_type="batch"
                 ).inc()
-                logger.error(f"Pipeline error (standalone): {e}")
+                logger.exception(f"Pipeline error (standalone): {e}")
                 return []
 
         # Cluster mode - Group operations by hash slot
         slot_groups = {}
-        operation_indices = []  # Track original indices for result ordering
         keyless_ops = []
         keyless_indices = []
 
@@ -741,10 +722,8 @@ class RedisClient:
 
         # Check if all operations are in the same slot (fast path)
         if len(slot_groups) == 1 and len(keyless_ops) == 0:
-            slot = list(slot_groups.keys())[0]
-            logger.debug(
-                f"Fast path: All {len(operations)} operations in same slot {slot}"
-            )
+            slot = next(iter(slot_groups.keys()))
+            logger.debug(f"Fast path: All {len(operations)} operations in same slot {slot}")
 
             async def _single_pipeline():
                 with tracer.start_as_current_span(
@@ -781,7 +760,7 @@ class RedisClient:
                 redis_operations_total.labels(
                     operation="pipeline", status="error", intent_type="batch"
                 ).inc()
-                logger.error(f"Pipeline error (single slot): {e}")
+                logger.exception(f"Pipeline error (single slot): {e}")
                 return []
 
         # Multi-slot path: execute separate pipelines per slot
@@ -797,9 +776,7 @@ class RedisClient:
             group_ops = group_data["operations"]
             group_indices = group_data["indices"]
 
-            logger.debug(
-                f"Executing pipeline for slot {slot} with {len(group_ops)} operations"
-            )
+            logger.debug(f"Executing pipeline for slot {slot} with {len(group_ops)} operations")
 
             async def _slot_pipeline():
                 with tracer.start_as_current_span(
@@ -820,7 +797,7 @@ class RedisClient:
                 )
 
                 # Place results in correct positions
-                for idx, result in zip(group_indices, slot_results):
+                for idx, result in zip(group_indices, slot_results, strict=False):
                     results[idx] = result
 
                 redis_operations_total.labels(
@@ -833,7 +810,7 @@ class RedisClient:
                 RedisError,
                 RedisClusterException,
             ) as e:
-                logger.error(f"Pipeline error for slot {slot}: {e}")
+                logger.exception(f"Pipeline error for slot {slot}: {e}")
                 redis_operations_total.labels(
                     operation="pipeline_slot", status="error", intent_type="batch"
                 ).inc()
@@ -861,7 +838,7 @@ class RedisClient:
                 )
 
                 # Place results in correct positions
-                for idx, result in zip(keyless_indices, keyless_results):
+                for idx, result in zip(keyless_indices, keyless_results, strict=False):
                     results[idx] = result
 
             except (
@@ -870,7 +847,7 @@ class RedisClient:
                 RedisError,
                 RedisClusterException,
             ) as e:
-                logger.error(f"Pipeline error for keyless operations: {e}")
+                logger.exception(f"Pipeline error for keyless operations: {e}")
 
         # Log final metrics
         duration = asyncio.get_event_loop().time() - start_time
@@ -890,7 +867,7 @@ class RedisClient:
 
         return results
 
-    async def get_cache_stats(self) -> Dict[str, Any]:
+    async def get_cache_stats(self) -> dict[str, Any]:
         """Obter estatísticas do cache"""
         try:
             stats = {
@@ -925,7 +902,7 @@ class RedisClient:
 
             return stats
         except Exception as e:
-            logger.error(f"Erro ao obter estatísticas: {e}")
+            logger.exception(f"Erro ao obter estatísticas: {e}")
             return {
                 "hit_ratio": 0,
                 "hits": self.hit_count,
@@ -944,24 +921,18 @@ class RedisClient:
             redis_hit_ratio.set(ratio)
 
     @asynccontextmanager
-    async def acquire_lock(
-        self, lock_key: str, timeout: int = 10, wait_timeout: int = 5
-    ):
+    async def acquire_lock(self, lock_key: str, timeout: int = 10, wait_timeout: int = 5):
         """Context manager para locks distribuídos"""
         lock_acquired = False
         try:
             # Tentar adquirir lock
-            lock_acquired = await self.redis.set(
-                lock_key, "locked", nx=True, ex=timeout
-            )
+            lock_acquired = await self.redis.set(lock_key, "locked", nx=True, ex=timeout)
 
             if not lock_acquired:
                 # Aguardar release do lock
                 for _ in range(wait_timeout):
                     await asyncio.sleep(1)
-                    lock_acquired = await self.redis.set(
-                        lock_key, "locked", nx=True, ex=timeout
-                    )
+                    lock_acquired = await self.redis.set(lock_key, "locked", nx=True, ex=timeout)
                     if lock_acquired:
                         break
 
@@ -976,7 +947,7 @@ class RedisClient:
 
 
 # Cliente global singleton
-_redis_client: Optional[RedisClient] = None
+_redis_client: RedisClient | None = None
 
 
 async def get_redis_client() -> RedisClient:

@@ -1,11 +1,9 @@
 import asyncio
-from typing import Optional
 
 import structlog
 from confluent_kafka import Consumer, KafkaError, KafkaException
 
 from src.config.settings import get_settings
-from src.services.experiment_manager import ExperimentManager
 
 logger = structlog.get_logger()
 
@@ -17,12 +15,14 @@ class InsightsConsumer:
     Consome insights analíticos e identifica oportunidades de otimização.
     """
 
-    def __init__(self, settings=None, optimization_engine=None, experiment_manager=None, metrics=None):
+    def __init__(
+        self, settings=None, optimization_engine=None, experiment_manager=None, metrics=None
+    ):
         self.settings = settings or get_settings()
         self.optimization_engine = optimization_engine
         self.experiment_manager = experiment_manager
         self.metrics = metrics
-        self.consumer: Optional[Consumer] = None
+        self.consumer: Consumer | None = None
         self.running = False
 
     def start(self):
@@ -111,7 +111,9 @@ class InsightsConsumer:
 
             # Filtrar insights por relevância (apenas HIGH e CRITICAL)
             if priority not in ["HIGH", "CRITICAL"]:
-                logger.debug("insight_filtered_low_priority", insight_id=insight_id, priority=priority)
+                logger.debug(
+                    "insight_filtered_low_priority", insight_id=insight_id, priority=priority
+                )
                 return
 
             # Passar para OptimizationEngine
@@ -138,7 +140,9 @@ class InsightsConsumer:
                         # Submeter experimento se ExperimentManager disponível
                         if self.experiment_manager:
                             try:
-                                experiment_id = await self.experiment_manager.submit_experiment(hypothesis)
+                                experiment_id = await self.experiment_manager.submit_experiment(
+                                    hypothesis
+                                )
                                 if experiment_id:
                                     logger.info(
                                         "hypothesis_submitted_for_validation",
@@ -164,7 +168,9 @@ class InsightsConsumer:
                             )
 
                         if self.metrics:
-                            self.metrics.record_hypothesis_generated(hypothesis.optimization_type.value)
+                            self.metrics.record_hypothesis_generated(
+                                hypothesis.optimization_type.value
+                            )
 
         except json.JSONDecodeError as e:
             logger.error("insight_deserialization_failed", error=str(e))

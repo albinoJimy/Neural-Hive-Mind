@@ -18,7 +18,7 @@ import logging
 import os
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, Optional
 import structlog
 
@@ -314,7 +314,7 @@ def main():
         )
 
     print("🔄 Neural Hive - Retraining Trigger Checker")
-    print(f"⏰ Execution time: {datetime.utcnow().isoformat()}")
+    print(f"⏰ Execution time: {datetime.now(timezone.utc).isoformat()}")
     print()
 
     # Carregar configuração

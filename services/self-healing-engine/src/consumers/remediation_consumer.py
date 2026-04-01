@@ -1,9 +1,10 @@
 """Kafka consumer for remediation actions"""
-import json
 import asyncio
-from typing import Optional, TYPE_CHECKING
-from aiokafka import AIOKafkaConsumer
+import json
+from typing import TYPE_CHECKING, Optional
+
 import structlog
+from aiokafka import AIOKafkaConsumer
 
 if TYPE_CHECKING:
     from src.services.playbook_executor import PlaybookExecutor
@@ -19,7 +20,7 @@ class RemediationConsumer:
         bootstrap_servers: str,
         group_id: str,
         topic: str,
-        playbook_executor: "PlaybookExecutor"
+        playbook_executor: "PlaybookExecutor",
     ):
         self.bootstrap_servers = bootstrap_servers
         self.group_id = group_id
@@ -38,7 +39,7 @@ class RemediationConsumer:
                 bootstrap_servers=self.bootstrap_servers,
                 group_id=self.group_id,
                 auto_offset_reset="earliest",
-                enable_auto_commit=False
+                enable_auto_commit=False,
             )
             await self.consumer.start()
 
@@ -58,12 +59,12 @@ class RemediationConsumer:
                     break
 
                 try:
-                    remediation_action = json.loads(msg.value.decode('utf-8'))
+                    remediation_action = json.loads(msg.value.decode("utf-8"))
 
                     logger.info(
                         "remediation_consumer.action_received",
                         action_id=remediation_action.get("action_id"),
-                        playbook=remediation_action.get("playbook")
+                        playbook=remediation_action.get("playbook"),
                     )
 
                     # Execute playbook
@@ -75,7 +76,7 @@ class RemediationConsumer:
                     logger.info(
                         "remediation_consumer.action_completed",
                         action_id=remediation_action.get("action_id"),
-                        result=result
+                        result=result,
                     )
 
                     await self.consumer.commit()

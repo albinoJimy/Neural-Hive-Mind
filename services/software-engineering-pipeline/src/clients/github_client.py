@@ -83,9 +83,7 @@ class GitHubClient:
             await self._client.aclose()
             self._client = None
 
-    async def trigger_workflow(
-        self, request: WorkflowDispatchRequest
-    ) -> WorkflowDispatchResponse:
+    async def trigger_workflow(self, request: WorkflowDispatchRequest) -> WorkflowDispatchResponse:
         """
         Dispara um workflow do GitHub Actions.
 
@@ -108,8 +106,7 @@ class GitHubClient:
 
         if request.inputs:
             payload["inputs"] = {
-                k: str(v) if not isinstance(v, bool) else v
-                for k, v in request.inputs.items()
+                k: str(v) if not isinstance(v, bool) else v for k, v in request.inputs.items()
             }
 
         response = await client.post(url, json=payload)
@@ -168,7 +165,6 @@ class GitHubClient:
         client = await self._get_client()
 
         url = f"/repos/{owner}/{repo}/contents/{path}"
-        params = {"ref": branch}
 
         response = await client.get(url)
 

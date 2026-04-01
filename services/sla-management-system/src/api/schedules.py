@@ -4,20 +4,16 @@ API REST para gerenciamento de schedules.
 Endpoints para criar, listar, pausar, retomar e disparar schedules.
 """
 from typing import Optional
-from fastapi import APIRouter, HTTPException, Depends, Query
+
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from src.models.schedule import (
     Schedule,
-    ScheduleType,
-    ScheduleStatus,
-    ScheduleTrigger,
-    SchedulePriority,
     ScheduleCreateRequest,
     ScheduleTriggerResponse,
 )
 from src.services.scheduler import ScheduleManager
-
 
 router = APIRouter(prefix="/api/v1/schedules", tags=["Schedules"])
 
@@ -32,9 +28,7 @@ class ScheduleCreateResponse(BaseModel):
 class ScheduleListResponse(BaseModel):
     """Response para listagem de schedules."""
 
-    schedules: list[Schedule] = Field(
-        default_factory=list, description="Lista de schedules"
-    )
+    schedules: list[Schedule] = Field(default_factory=list, description="Lista de schedules")
     total: int = Field(..., description="Total de schedules")
     page: int = Field(default=1, description="Página atual")
     page_size: int = Field(default=50, description="Tamanho da página")
@@ -234,9 +228,7 @@ async def pause_schedule(
     """
     try:
         result = await manager.pause_schedule(schedule_id)
-        return SchedulePauseResponse(
-            schedule_id=result["schedule_id"], status=result["status"]
-        )
+        return SchedulePauseResponse(schedule_id=result["schedule_id"], status=result["status"])
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
@@ -259,9 +251,7 @@ async def resume_schedule(
     """
     try:
         result = await manager.resume_schedule(schedule_id)
-        return ScheduleResumeResponse(
-            schedule_id=result["schedule_id"], status=result["status"]
-        )
+        return ScheduleResumeResponse(schedule_id=result["schedule_id"], status=result["status"])
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
@@ -284,9 +274,7 @@ async def delete_schedule(
     """
     try:
         result = await manager.delete_schedule(schedule_id)
-        return ScheduleDeleteResponse(
-            schedule_id=result["schedule_id"], deleted=result["deleted"]
-        )
+        return ScheduleDeleteResponse(schedule_id=result["schedule_id"], deleted=result["deleted"])
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
@@ -309,7 +297,6 @@ async def list_schedule_executions(
 
     Retorna histórico de execuções com status, timestamps e erros se houver.
     """
-    from src.models.schedule import ScheduleExecution
 
     executions = await manager.list_schedule_executions(
         schedule_id=schedule_id, limit=limit, offset=offset

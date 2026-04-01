@@ -6,20 +6,20 @@ Integra com PatternMatcher para usar templates de decomposicao conhecidos.
 """
 
 import time
-import structlog
-from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
+from typing import Any
 
+import structlog
 from src.config.settings import Settings
 from src.models.cognitive_plan import TaskNode
-from src.services.pattern_matcher import PatternMatcher, PatternMatch
 from src.observability.metrics import (
-    tasks_split_total,
     subtasks_generated_total,
-    task_splitting_depth,
     task_complexity_score,
-    task_splitting_duration_seconds
+    task_splitting_depth,
+    task_splitting_duration_seconds,
+    tasks_split_total,
 )
+from src.services.pattern_matcher import PatternMatcher
 
 logger = structlog.get_logger()
 
@@ -27,9 +27,10 @@ logger = structlog.get_logger()
 @dataclass
 class ComplexityAnalysis:
     """Resultado da analise de complexidade de uma task"""
+
     score: float  # 0.0 a 1.0
     should_split: bool
-    factors: Dict[str, float]  # Fatores que contribuiram para o score
+    factors: dict[str, float]  # Fatores que contribuiram para o score
     reason: str  # Razao para splitting ou nao
 
 
@@ -48,11 +49,7 @@ class TaskSplitter:
     - Presenca de multiplos verbos de acao na descricao
     """
 
-    def __init__(
-        self,
-        settings: Settings,
-        pattern_matcher: Optional[PatternMatcher] = None
-    ):
+    def __init__(self, settings: Settings, pattern_matcher: PatternMatcher | None = None):
         """
         Inicializa TaskSplitter.
 
@@ -62,21 +59,36 @@ class TaskSplitter:
         """
         self.settings = settings
         self.pattern_matcher = pattern_matcher
-        self.logger = structlog.get_logger().bind(component='task_splitter')
+        self.logger = structlog.get_logger().bind(component="task_splitter")
 
         # Verbos de acao que indicam multiplas operacoes
         self.ACTION_VERBS = [
-            'create', 'criar', 'update', 'atualizar', 'delete', 'deletar',
-            'query', 'consultar', 'transform', 'transformar', 'validate', 'validar',
-            'send', 'enviar', 'process', 'processar', 'generate', 'gerar'
+            "create",
+            "criar",
+            "update",
+            "atualizar",
+            "delete",
+            "deletar",
+            "query",
+            "consultar",
+            "transform",
+            "transformar",
+            "validate",
+            "validar",
+            "send",
+            "enviar",
+            "process",
+            "processar",
+            "generate",
+            "gerar",
         ]
 
     def split(
         self,
         task: TaskNode,
-        intermediate_repr: Optional[Dict[str, Any]] = None,
-        current_depth: int = 0
-    ) -> List[TaskNode]:
+        intermediate_repr: dict[str, Any] | None = None,
+        current_depth: int = 0,
+    ) -> list[TaskNode]:
         """
         Decompoe task complexa em subtasks atomicas recursivamente.
 
@@ -97,22 +109,22 @@ class TaskSplitter:
 
         # Early return se splitting desabilitado
         if not self.settings.task_splitting_enabled:
-            self.logger.debug('Task splitting desabilitado', task_id=task.task_id)
+            self.logger.debug("Task splitting desabilitado", task_id=task.task_id)
             return [task]
 
         # Early return se max_depth atingido
         if current_depth >= self.settings.task_splitting_max_depth:
             self.logger.info(
-                'Max depth atingido, nao dividindo task',
+                "Max depth atingido, nao dividindo task",
                 task_id=task.task_id,
                 current_depth=current_depth,
-                max_depth=self.settings.task_splitting_max_depth
+                max_depth=self.settings.task_splitting_max_depth,
             )
             return [task]
 
         # Verificar se task deve ser dividida
         if not self.should_split(task):
-            self.logger.debug('Task nao requer splitting', task_id=task.task_id)
+            self.logger.debug("Task nao requer splitting", task_id=task.task_id)
             return [task]
 
         # Tentar splitting baseado em padrao primeiro
@@ -121,12 +133,10 @@ class TaskSplitter:
             if pattern_subtasks:
                 # Aplicar splitting recursivo nas subtasks geradas
                 final_subtasks = self._apply_recursive_splitting(
-                    pattern_subtasks,
-                    intermediate_repr,
-                    current_depth
+                    pattern_subtasks, intermediate_repr, current_depth
                 )
                 duration = time.time() - start_time
-                task_splitting_duration_seconds.labels(split_type='pattern_based').observe(duration)
+                task_splitting_duration_seconds.labels(split_type="pattern_based").observe(duration)
                 return final_subtasks
 
         # Fallback: splitting heuristico
@@ -134,13 +144,11 @@ class TaskSplitter:
 
         # Aplicar splitting recursivo nas subtasks geradas
         final_subtasks = self._apply_recursive_splitting(
-            heuristic_subtasks,
-            intermediate_repr,
-            current_depth
+            heuristic_subtasks, intermediate_repr, current_depth
         )
 
         duration = time.time() - start_time
-        task_splitting_duration_seconds.labels(split_type='heuristic_based').observe(duration)
+        task_splitting_duration_seconds.labels(split_type="heuristic_based").observe(duration)
 
         return final_subtasks
 
@@ -160,12 +168,12 @@ class TaskSplitter:
         task_complexity_score.labels(task_type=task.task_type).observe(analysis.score)
 
         self.logger.info(
-            'Analise de complexidade',
+            "Analise de complexidade",
             task_id=task.task_id,
             complexity_score=analysis.score,
             should_split=analysis.should_split,
             reason=analysis.reason,
-            factors=analysis.factors
+            factors=analysis.factors,
         )
 
         return analysis.should_split
@@ -191,22 +199,22 @@ class TaskSplitter:
         # Fator 1: Comprimento da descricao (peso 0.3)
         desc_length = len(task.description) if task.description else 0
         threshold = self.settings.task_splitting_description_length_threshold
-        factors['description_length'] = min(desc_length / threshold, 1.0) * 0.3
+        factors["description_length"] = min(desc_length / threshold, 1.0) * 0.3
 
         # Fator 2: Numero de entidades (peso 0.3)
-        entities = task.parameters.get('entities', [])
+        entities = task.parameters.get("entities", [])
         entity_count = len(entities) if isinstance(entities, list) else 0
         min_entities = self.settings.task_splitting_min_entities_for_split
-        factors['entity_count'] = min(entity_count / max(min_entities, 1), 1.0) * 0.3
+        factors["entity_count"] = min(entity_count / max(min_entities, 1), 1.0) * 0.3
 
         # Fator 3: Numero de dependencias (peso 0.2)
         dep_count = len(task.dependencies)
-        factors['dependency_count'] = min(dep_count / 3.0, 1.0) * 0.2
+        factors["dependency_count"] = min(dep_count / 3.0, 1.0) * 0.2
 
         # Fator 4: Multiplos verbos de acao (peso 0.2)
-        description_lower = task.description.lower() if task.description else ''
+        description_lower = task.description.lower() if task.description else ""
         action_count = sum(1 for verb in self.ACTION_VERBS if verb in description_lower)
-        factors['action_verb_count'] = min(action_count / 3.0, 1.0) * 0.2
+        factors["action_verb_count"] = min(action_count / 3.0, 1.0) * 0.2
 
         # Score agregado
         score = sum(factors.values())
@@ -220,18 +228,12 @@ class TaskSplitter:
         )
 
         return ComplexityAnalysis(
-            score=score,
-            should_split=should_split,
-            factors=factors,
-            reason=reason
+            score=score, should_split=should_split, factors=factors, reason=reason
         )
 
     def _split_by_pattern(
-        self,
-        task: TaskNode,
-        intermediate_repr: Dict[str, Any],
-        current_depth: int
-    ) -> Optional[List[TaskNode]]:
+        self, task: TaskNode, intermediate_repr: dict[str, Any], current_depth: int
+    ) -> list[TaskNode] | None:
         """
         Tenta dividir task usando template de padrao detectado.
 
@@ -246,47 +248,37 @@ class TaskSplitter:
         matches = self.pattern_matcher.match(intermediate_repr)
 
         if not matches:
-            self.logger.debug('Nenhum padrao detectado', task_id=task.task_id)
+            self.logger.debug("Nenhum padrao detectado", task_id=task.task_id)
             return None
 
         # Usar padrao com maior confianca
         best_match = matches[0]
 
         self.logger.info(
-            'Padrao detectado para splitting',
+            "Padrao detectado para splitting",
             task_id=task.task_id,
             pattern_id=best_match.pattern_id,
             pattern_name=best_match.pattern_name,
-            confidence=best_match.confidence
+            confidence=best_match.confidence,
         )
 
         # Gerar subtasks do template
         subtasks = self._generate_subtasks_from_template(
-            parent_task=task,
-            template=best_match.template,
-            current_depth=current_depth
+            parent_task=task, template=best_match.template, current_depth=current_depth
         )
 
         # Registrar metricas
-        tasks_split_total.labels(
-            split_reason='pattern_match',
-            depth_level=str(current_depth)
-        ).inc()
+        tasks_split_total.labels(split_reason="pattern_match", depth_level=str(current_depth)).inc()
 
-        subtasks_generated_total.labels(
-            parent_task_type=task.task_type
-        ).inc(len(subtasks))
+        subtasks_generated_total.labels(parent_task_type=task.task_type).inc(len(subtasks))
 
         task_splitting_depth.observe(current_depth + 1)
 
         return subtasks
 
     def _generate_subtasks_from_template(
-        self,
-        parent_task: TaskNode,
-        template: Dict[str, Any],
-        current_depth: int
-    ) -> List[TaskNode]:
+        self, parent_task: TaskNode, template: dict[str, Any], current_depth: int
+    ) -> list[TaskNode]:
         """
         Gera subtasks a partir de template de padrao.
 
@@ -299,55 +291,50 @@ class TaskSplitter:
             Lista de TaskNode geradas do template
         """
         subtasks = []
-        subtask_definitions = template.get('subtasks', [])
+        subtask_definitions = template.get("subtasks", [])
 
         for idx, subtask_def in enumerate(subtask_definitions):
             subtask_id = f"{parent_task.task_id}_sub{idx}"
 
             # Mapear dependencias do template para IDs reais
-            template_deps = subtask_def.get('dependencies', [])
+            template_deps = subtask_def.get("dependencies", [])
             real_deps = []
             for dep in template_deps:
                 # Encontrar indice da subtask dependencia no template
                 dep_idx = next(
-                    (i for i, s in enumerate(subtask_definitions) if s['id'] == dep),
-                    None
+                    (i for i, s in enumerate(subtask_definitions) if s["id"] == dep), None
                 )
                 if dep_idx is not None:
                     real_deps.append(f"{parent_task.task_id}_sub{dep_idx}")
 
             subtask = TaskNode(
                 task_id=subtask_id,
-                task_type=subtask_def.get('type', 'query'),
-                description=subtask_def.get('description', ''),
+                task_type=subtask_def.get("type", "query"),
+                description=subtask_def.get("description", ""),
                 dependencies=real_deps,
-                estimated_duration_ms=subtask_def.get('estimated_duration_ms', 500),
-                required_capabilities=subtask_def.get('required_capabilities', []),
+                estimated_duration_ms=subtask_def.get("estimated_duration_ms", 500),
+                required_capabilities=subtask_def.get("required_capabilities", []),
                 parameters=parent_task.parameters.copy(),
                 metadata={
-                    'parent_task_id': parent_task.task_id,
-                    'split_depth': current_depth + 1,
-                    'split_method': 'pattern_based',
-                    'pattern_subtask_id': subtask_def['id']
-                }
+                    "parent_task_id": parent_task.task_id,
+                    "split_depth": current_depth + 1,
+                    "split_method": "pattern_based",
+                    "pattern_subtask_id": subtask_def["id"],
+                },
             )
 
             subtasks.append(subtask)
 
         self.logger.info(
-            'Subtasks geradas do template',
+            "Subtasks geradas do template",
             parent_task_id=parent_task.task_id,
             num_subtasks=len(subtasks),
-            depth=current_depth + 1
+            depth=current_depth + 1,
         )
 
         return subtasks
 
-    def _split_by_heuristics(
-        self,
-        task: TaskNode,
-        current_depth: int
-    ) -> List[TaskNode]:
+    def _split_by_heuristics(self, task: TaskNode, current_depth: int) -> list[TaskNode]:
         """
         Divide task usando heuristicas quando nenhum padrao detectado.
 
@@ -366,18 +353,18 @@ class TaskSplitter:
         # Subtask 1: Validation
         validation_task = TaskNode(
             task_id=f"{task.task_id}_validate",
-            task_type='validate',
+            task_type="validate",
             description=f"Validate preconditions for {task.task_type} operation",
             dependencies=[],
             estimated_duration_ms=300,
-            required_capabilities=['read'],
+            required_capabilities=["read"],
             parameters=task.parameters.copy(),
             metadata={
-                'parent_task_id': task.task_id,
-                'split_depth': current_depth + 1,
-                'split_method': 'heuristic_based',
-                'subtask_role': 'validation'
-            }
+                "parent_task_id": task.task_id,
+                "split_depth": current_depth + 1,
+                "split_method": "heuristic_based",
+                "subtask_role": "validation",
+            },
         )
         subtasks.append(validation_task)
 
@@ -391,59 +378,54 @@ class TaskSplitter:
             required_capabilities=task.required_capabilities,
             parameters=task.parameters.copy(),
             metadata={
-                'parent_task_id': task.task_id,
-                'split_depth': current_depth + 1,
-                'split_method': 'heuristic_based',
-                'subtask_role': 'main_operation'
-            }
+                "parent_task_id": task.task_id,
+                "split_depth": current_depth + 1,
+                "split_method": "heuristic_based",
+                "subtask_role": "main_operation",
+            },
         )
         subtasks.append(main_task)
 
         # Subtask 3: Verification
         verification_task = TaskNode(
             task_id=f"{task.task_id}_verify",
-            task_type='validate',
+            task_type="validate",
             description=f"Verify results of {task.task_type} operation",
             dependencies=[main_task.task_id],
             estimated_duration_ms=200,
-            required_capabilities=['read'],
+            required_capabilities=["read"],
             parameters=task.parameters.copy(),
             metadata={
-                'parent_task_id': task.task_id,
-                'split_depth': current_depth + 1,
-                'split_method': 'heuristic_based',
-                'subtask_role': 'verification'
-            }
+                "parent_task_id": task.task_id,
+                "split_depth": current_depth + 1,
+                "split_method": "heuristic_based",
+                "subtask_role": "verification",
+            },
         )
         subtasks.append(verification_task)
 
         # Registrar metricas
-        tasks_split_total.labels(
-            split_reason='heuristic',
-            depth_level=str(current_depth)
-        ).inc()
+        tasks_split_total.labels(split_reason="heuristic", depth_level=str(current_depth)).inc()
 
-        subtasks_generated_total.labels(
-            parent_task_type=task.task_type
-        ).inc(len(subtasks))
+        subtasks_generated_total.labels(parent_task_type=task.task_type).inc(len(subtasks))
 
         task_splitting_depth.observe(current_depth + 1)
 
         self.logger.info(
-            'Subtasks geradas heuristicamente',
+            "Subtasks geradas heuristicamente",
             parent_task_id=task.task_id,
             num_subtasks=len(subtasks),
-            depth=current_depth + 1
+            depth=current_depth + 1,
         )
 
         return subtasks
 
     def _apply_recursive_splitting(
         self,
-        subtasks: List[TaskNode],
-        intermediate_repr: Optional[Dict[str, Any]],
-        current_depth: int
-    ) -> List[TaskNode]:
+        subtasks: list[TaskNode],
+        intermediate_repr: dict[str, Any] | None,
+        current_depth: int,
+    ) -> list[TaskNode]:
         """
         Aplica splitting recursivo nas subtasks geradas.
 
@@ -465,9 +447,7 @@ class TaskSplitter:
             # Tentar dividir recursivamente cada subtask
             # O metodo split() ja verifica max_depth internamente
             recursive_result = self.split(
-                task=subtask,
-                intermediate_repr=intermediate_repr,
-                current_depth=next_depth
+                task=subtask, intermediate_repr=intermediate_repr, current_depth=next_depth
             )
 
             # Se a subtask foi dividida, adicionar suas sub-subtasks
@@ -476,10 +456,10 @@ class TaskSplitter:
 
         if len(final_subtasks) > len(subtasks):
             self.logger.info(
-                'Splitting recursivo expandiu subtasks',
+                "Splitting recursivo expandiu subtasks",
                 original_count=len(subtasks),
                 final_count=len(final_subtasks),
-                depth=next_depth
+                depth=next_depth,
             )
 
         return final_subtasks

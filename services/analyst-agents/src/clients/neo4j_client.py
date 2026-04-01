@@ -1,6 +1,7 @@
+from typing import List
+
 import structlog
 from neo4j import AsyncGraphDatabase
-from typing import List, Dict, Optional
 
 logger = structlog.get_logger()
 
@@ -18,16 +19,16 @@ class Neo4jClient:
         try:
             self.driver = AsyncGraphDatabase.driver(self.uri, auth=(self.user, self.password))
             await self.driver.verify_connectivity()
-            logger.info('neo4j_client_initialized', uri=self.uri)
+            logger.info("neo4j_client_initialized", uri=self.uri)
         except Exception as e:
-            logger.error('neo4j_client_initialization_failed', error=str(e))
+            logger.error("neo4j_client_initialization_failed", error=str(e))
             raise
 
     async def close(self):
         """Fechar conexão"""
         if self.driver:
             await self.driver.close()
-            logger.info('neo4j_client_closed')
+            logger.info("neo4j_client_closed")
 
     async def query_patterns(self, cypher_query: str, parameters: dict = None) -> List[dict]:
         """Executar consulta Cypher customizada"""
@@ -37,18 +38,20 @@ class Neo4jClient:
                 records = await result.data()
                 return records
         except Exception as e:
-            logger.error('neo4j_query_failed', error=str(e))
+            logger.error("neo4j_query_failed", error=str(e))
             return []
 
-    async def find_related_entities(self, entity_id: str, relationship_type: str = None, depth: int = 2) -> List[dict]:
+    async def find_related_entities(
+        self, entity_id: str, relationship_type: str = None, depth: int = 2
+    ) -> List[dict]:
         """Encontrar entidades relacionadas"""
-        rel_filter = f'[:{relationship_type}*1..{depth}]' if relationship_type else f'[*1..{depth}]'
+        rel_filter = f"[:{relationship_type}*1..{depth}]" if relationship_type else f"[*1..{depth}]"
         query = f"""
         MATCH (source {{entity_id: $entity_id}})-{rel_filter}-(related)
         RETURN DISTINCT related
         LIMIT 100
         """
-        return await self.query_patterns(query, {'entity_id': entity_id})
+        return await self.query_patterns(query, {"entity_id": entity_id})
 
     async def analyze_intent_flow(self, intent_id: str) -> List[dict]:
         """Analisar fluxo completo de uma intenção"""
@@ -57,7 +60,7 @@ class Neo4jClient:
                     -[:RESULTED_IN]->(d:Decision)-[:EXECUTED_AS]->(e:Execution)
         RETURN path
         """
-        return await self.query_patterns(query, {'intent_id': intent_id})
+        return await self.query_patterns(query, {"intent_id": intent_id})
 
     async def find_bottlenecks(self, threshold: float = 1000.0) -> List[dict]:
         """Identificar gargalos no grafo de execução"""
@@ -68,7 +71,7 @@ class Neo4jClient:
         ORDER BY r.duration DESC
         LIMIT 50
         """
-        return await self.query_patterns(query, {'threshold': threshold})
+        return await self.query_patterns(query, {"threshold": threshold})
 
     async def get_entity_centrality(self, entity_type: str, limit: int = 10) -> List[dict]:
         """Calcular centralidade de entidades"""
@@ -79,9 +82,11 @@ class Neo4jClient:
         ORDER BY degree DESC
         LIMIT $limit
         """
-        return await self.query_patterns(query, {'limit': limit})
+        return await self.query_patterns(query, {"limit": limit})
 
-    async def find_causal_chains(self, source_entity: str, target_entity: str, max_depth: int = 5) -> List[dict]:
+    async def find_causal_chains(
+        self, source_entity: str, target_entity: str, max_depth: int = 5
+    ) -> List[dict]:
         """Encontrar cadeias causais entre entidades"""
         query = """
         MATCH path = shortestPath(
@@ -89,8 +94,6 @@ class Neo4jClient:
         )
         RETURN path
         """
-        return await self.query_patterns(query, {
-            'source': source_entity,
-            'target': target_entity,
-            'max_depth': max_depth
-        })
+        return await self.query_patterns(
+            query, {"source": source_entity, "target": target_entity, "max_depth": max_depth}
+        )

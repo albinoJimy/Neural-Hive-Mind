@@ -6,68 +6,73 @@ monitorar status e coletar resultados de testes/coverage.
 """
 
 import asyncio
+import contextlib
 import os
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 import httpx
 import structlog
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
-
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 logger = structlog.get_logger()
 
 
 class GitLabCIAPIError(Exception):
     """Erro de chamada a API do GitLab CI."""
-    def __init__(self, message: str, status_code: Optional[int] = None):
+
+    def __init__(self, message: str, status_code: int | None = None):
         super().__init__(message)
         self.status_code = status_code
 
 
 class GitLabCITimeoutError(Exception):
     """Timeout aguardando pipeline do GitLab CI."""
-    pass
+
 
 
 @dataclass
 class PipelineStatus:
     """Representa status de um pipeline GitLab CI."""
+
     pipeline_id: str
     status: str  # 'running', 'success', 'failed', 'canceled', 'pending'
     tests_passed: int = 0
     tests_failed: int = 0
     tests_skipped: int = 0
     tests_errors: int = 0
-    coverage: Optional[float] = None
-    duration_seconds: Optional[float] = None
-    logs: Optional[List[str]] = field(default_factory=list)
-    web_url: Optional[str] = None
-    ref: Optional[str] = None
+    coverage: float | None = None
+    duration_seconds: float | None = None
+    logs: list[str] | None = field(default_factory=list)
+    web_url: str | None = None
+    ref: str | None = None
 
     @property
     def success(self) -> bool:
-        return self.status == 'success'
+        return self.status == "success"
 
     @property
     def completed(self) -> bool:
-        return self.status in ('success', 'failed', 'canceled', 'skipped')
+        return self.status in ("success", "failed", "canceled", "skipped")
 
 
 @dataclass
 class TestCase:
     """Representa um caso de teste individual."""
+
     name: str
     classname: str
     execution_time: float
     status: str  # 'passed', 'failed', 'skipped', 'error'
-    message: Optional[str] = None
-    stack_trace: Optional[str] = None
-    system_output: Optional[str] = None
+    message: str | None = None
+    stack_trace: str | None = None
+    system_output: str | None = None
 
 
 @dataclass
 class TestSuiteReport:
     """Representa um relatorio de suite de testes."""
+
     name: str
     total_tests: int
     passed: int
@@ -75,7 +80,7 @@ class TestSuiteReport:
     skipped: int
     errors: int
     total_time: float
-    test_cases: List[TestCase] = field(default_factory=list)
+    test_cases: list[TestCase] = field(default_factory=list)
 
 
 class GitLabCIClient:
@@ -93,9 +98,9 @@ class GitLabCIClient:
     def __init__(
         self,
         token: str,
-        base_url: str = 'https://gitlab.com',
+        base_url: str = "https://gitlab.com",
         timeout: int = 900,
-        verify_ssl: bool = True
+        verify_ssl: bool = True,
     ):
         """
         Inicializa cliente GitLab CI.
@@ -107,14 +112,14 @@ class GitLabCIClient:
             verify_ssl: Verificar certificado SSL
         """
         self.token = token
-        self.base_url = base_url.rstrip('/')
+        self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self.verify_ssl = verify_ssl
-        self._client: Optional[httpx.AsyncClient] = None
-        self.logger = logger.bind(service='gitlab_ci_client')
+        self._client: httpx.AsyncClient | None = None
+        self.logger = logger.bind(service="gitlab_ci_client")
 
     @classmethod
-    def from_env(cls, config=None) -> 'GitLabCIClient':
+    def from_env(cls, config=None) -> "GitLabCIClient":
         """
         Cria cliente a partir de variaveis de ambiente.
 
@@ -131,13 +136,13 @@ class GitLabCIClient:
         Raises:
             ValueError: Se token nao estiver configurado
         """
-        token = os.getenv('GITLAB_TOKEN') or getattr(config, 'gitlab_token', None)
+        token = os.getenv("GITLAB_TOKEN") or getattr(config, "gitlab_token", None)
         if not token:
-            raise ValueError('GitLab token not configured (GITLAB_TOKEN or config.gitlab_token)')
+            raise ValueError("GitLab token not configured (GITLAB_TOKEN or config.gitlab_token)")
 
-        base_url = os.getenv('GITLAB_URL') or getattr(config, 'gitlab_url', 'https://gitlab.com')
-        timeout = getattr(config, 'gitlab_timeout_seconds', 900)
-        verify_ssl = getattr(config, 'gitlab_tls_verify', True)
+        base_url = os.getenv("GITLAB_URL") or getattr(config, "gitlab_url", "https://gitlab.com")
+        timeout = getattr(config, "gitlab_timeout_seconds", 900)
+        verify_ssl = getattr(config, "gitlab_tls_verify", True)
 
         return cls(token, base_url=base_url, timeout=timeout, verify_ssl=verify_ssl)
 
@@ -145,45 +150,39 @@ class GitLabCIClient:
         """Inicializa cliente HTTP assincrono."""
         if self._client is None:
             self._client = httpx.AsyncClient(
-                headers={
-                    'PRIVATE-TOKEN': self.token,
-                    'Content-Type': 'application/json'
-                },
+                headers={"PRIVATE-TOKEN": self.token, "Content-Type": "application/json"},
                 timeout=httpx.Timeout(60.0, connect=10.0),
-                verify=self.verify_ssl
+                verify=self.verify_ssl,
             )
-            self.logger.info('gitlab_ci_client_started', base_url=self.base_url)
+            self.logger.info("gitlab_ci_client_started", base_url=self.base_url)
 
     async def close(self):
         """Fecha cliente HTTP."""
         if self._client:
             await self._client.aclose()
             self._client = None
-            self.logger.info('gitlab_ci_client_closed')
+            self.logger.info("gitlab_ci_client_closed")
 
     @property
     def client(self) -> httpx.AsyncClient:
         """Retorna cliente HTTP, inicializando se necessario."""
         if self._client is None:
-            raise RuntimeError('GitLabCIClient not started. Call start() first.')
+            raise RuntimeError("GitLabCIClient not started. Call start() first.")
         return self._client
 
     def _encode_project_id(self, project_id: str) -> str:
         """Codifica project_id para URL (namespace/project -> namespace%2Fproject)."""
-        if '/' in project_id and not '%2F' in project_id:
-            return project_id.replace('/', '%2F')
+        if "/" in project_id and "%2F" not in project_id:
+            return project_id.replace("/", "%2F")
         return project_id
 
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=2, min=2, max=60),
-        retry=retry_if_exception_type((httpx.TransportError, httpx.TimeoutException))
+        retry=retry_if_exception_type((httpx.TransportError, httpx.TimeoutException)),
     )
     async def trigger_pipeline(
-        self,
-        project_id: str,
-        ref: str = 'main',
-        variables: Optional[Dict[str, str]] = None
+        self, project_id: str, ref: str = "main", variables: dict[str, str] | None = None
     ) -> str:
         """
         Dispara um novo pipeline no GitLab CI.
@@ -201,19 +200,17 @@ class GitLabCIClient:
             GitLabCITimeoutError: Timeout na requisicao
         """
         encoded_project = self._encode_project_id(project_id)
-        url = f'{self.base_url}/api/v4/projects/{encoded_project}/pipeline'
+        url = f"{self.base_url}/api/v4/projects/{encoded_project}/pipeline"
 
-        payload: Dict[str, Any] = {'ref': ref}
+        payload: dict[str, Any] = {"ref": ref}
         if variables:
-            payload['variables'] = [
-                {'key': k, 'value': v} for k, v in variables.items()
-            ]
+            payload["variables"] = [{"key": k, "value": v} for k, v in variables.items()]
 
         self.logger.info(
-            'gitlab_trigger_pipeline',
+            "gitlab_trigger_pipeline",
             project_id=project_id,
             ref=ref,
-            variables_count=len(variables) if variables else 0
+            variables_count=len(variables) if variables else 0,
         )
 
         try:
@@ -221,43 +218,39 @@ class GitLabCIClient:
             response.raise_for_status()
 
             data = response.json()
-            pipeline_id = str(data.get('id'))
+            pipeline_id = str(data.get("id"))
 
             self.logger.info(
-                'gitlab_pipeline_triggered',
+                "gitlab_pipeline_triggered",
                 project_id=project_id,
                 pipeline_id=pipeline_id,
                 ref=ref,
-                web_url=data.get('web_url')
+                web_url=data.get("web_url"),
             )
 
             return pipeline_id
 
         except httpx.HTTPStatusError as e:
-            self.logger.error(
-                'gitlab_trigger_pipeline_failed',
+            self.logger.exception(
+                "gitlab_trigger_pipeline_failed",
                 project_id=project_id,
                 status_code=e.response.status_code,
-                error=e.response.text
+                error=e.response.text,
             )
             raise GitLabCIAPIError(
-                f'Failed to trigger pipeline for {project_id}: {e.response.text}',
-                status_code=e.response.status_code
+                f"Failed to trigger pipeline for {project_id}: {e.response.text}",
+                status_code=e.response.status_code,
             )
-        except httpx.TimeoutException as e:
-            self.logger.error('gitlab_trigger_pipeline_timeout', project_id=project_id)
-            raise GitLabCITimeoutError(f'Timeout triggering pipeline for {project_id}')
+        except httpx.TimeoutException:
+            self.logger.exception("gitlab_trigger_pipeline_timeout", project_id=project_id)
+            raise GitLabCITimeoutError(f"Timeout triggering pipeline for {project_id}")
 
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=2, min=2, max=60),
-        retry=retry_if_exception_type((httpx.TransportError, httpx.TimeoutException))
+        retry=retry_if_exception_type((httpx.TransportError, httpx.TimeoutException)),
     )
-    async def get_pipeline_status(
-        self,
-        project_id: str,
-        pipeline_id: str
-    ) -> PipelineStatus:
+    async def get_pipeline_status(self, project_id: str, pipeline_id: str) -> PipelineStatus:
         """
         Obtem status atual de um pipeline.
 
@@ -272,7 +265,7 @@ class GitLabCIClient:
             GitLabCIAPIError: Erro na API
         """
         encoded_project = self._encode_project_id(project_id)
-        url = f'{self.base_url}/api/v4/projects/{encoded_project}/pipelines/{pipeline_id}'
+        url = f"{self.base_url}/api/v4/projects/{encoded_project}/pipelines/{pipeline_id}"
 
         try:
             response = await self.client.get(url)
@@ -281,24 +274,24 @@ class GitLabCIClient:
             data = response.json()
 
             return PipelineStatus(
-                pipeline_id=str(data.get('id')),
-                status=data.get('status', 'unknown'),
-                coverage=float(data.get('coverage')) if data.get('coverage') else None,
-                duration_seconds=float(data.get('duration')) if data.get('duration') else None,
-                web_url=data.get('web_url'),
-                ref=data.get('ref')
+                pipeline_id=str(data.get("id")),
+                status=data.get("status", "unknown"),
+                coverage=float(data.get("coverage")) if data.get("coverage") else None,
+                duration_seconds=float(data.get("duration")) if data.get("duration") else None,
+                web_url=data.get("web_url"),
+                ref=data.get("ref"),
             )
 
         except httpx.HTTPStatusError as e:
-            self.logger.error(
-                'gitlab_get_pipeline_status_failed',
+            self.logger.exception(
+                "gitlab_get_pipeline_status_failed",
                 project_id=project_id,
                 pipeline_id=pipeline_id,
-                status_code=e.response.status_code
+                status_code=e.response.status_code,
             )
             raise GitLabCIAPIError(
-                f'Failed to get pipeline status: {e.response.text}',
-                status_code=e.response.status_code
+                f"Failed to get pipeline status: {e.response.text}",
+                status_code=e.response.status_code,
             )
 
     async def wait_for_pipeline(
@@ -306,7 +299,7 @@ class GitLabCIClient:
         project_id: str,
         pipeline_id: str,
         poll_interval: int = 15,
-        timeout: Optional[int] = None
+        timeout: int | None = None,
     ) -> PipelineStatus:
         """
         Aguarda pipeline completar via polling.
@@ -327,57 +320,55 @@ class GitLabCIClient:
         start_time = asyncio.get_event_loop().time()
 
         self.logger.info(
-            'gitlab_waiting_for_pipeline',
+            "gitlab_waiting_for_pipeline",
             project_id=project_id,
             pipeline_id=pipeline_id,
-            timeout=timeout
+            timeout=timeout,
         )
 
         while True:
             status = await self.get_pipeline_status(project_id, pipeline_id)
 
-            self.logger.debug(
-                'gitlab_pipeline_poll',
-                pipeline_id=pipeline_id,
-                status=status.status
-            )
+            self.logger.debug("gitlab_pipeline_poll", pipeline_id=pipeline_id, status=status.status)
 
             if status.completed:
                 # Tentar obter test report se pipeline completou
                 try:
                     test_report = await self.get_test_report(project_id, pipeline_id)
-                    status.tests_passed = test_report.get('total_count', 0) - test_report.get('failed_count', 0) - test_report.get('error_count', 0)
-                    status.tests_failed = test_report.get('failed_count', 0)
-                    status.tests_errors = test_report.get('error_count', 0)
-                    status.tests_skipped = test_report.get('skipped_count', 0)
+                    status.tests_passed = (
+                        test_report.get("total_count", 0)
+                        - test_report.get("failed_count", 0)
+                        - test_report.get("error_count", 0)
+                    )
+                    status.tests_failed = test_report.get("failed_count", 0)
+                    status.tests_errors = test_report.get("error_count", 0)
+                    status.tests_skipped = test_report.get("skipped_count", 0)
                 except Exception as e:
                     self.logger.warning(
-                        'gitlab_test_report_fetch_failed',
-                        pipeline_id=pipeline_id,
-                        error=str(e)
+                        "gitlab_test_report_fetch_failed", pipeline_id=pipeline_id, error=str(e)
                     )
 
                 self.logger.info(
-                    'gitlab_pipeline_completed',
+                    "gitlab_pipeline_completed",
                     pipeline_id=pipeline_id,
                     status=status.status,
                     duration=status.duration_seconds,
                     tests_passed=status.tests_passed,
-                    tests_failed=status.tests_failed
+                    tests_failed=status.tests_failed,
                 )
                 return status
 
             elapsed = asyncio.get_event_loop().time() - start_time
             if elapsed > timeout:
                 self.logger.warning(
-                    'gitlab_pipeline_timeout',
+                    "gitlab_pipeline_timeout",
                     pipeline_id=pipeline_id,
                     last_status=status.status,
-                    elapsed=elapsed
+                    elapsed=elapsed,
                 )
                 raise GitLabCITimeoutError(
-                    f'Timeout waiting for pipeline {pipeline_id} '
-                    f'(last status: {status.status}, elapsed: {elapsed:.1f}s)'
+                    f"Timeout waiting for pipeline {pipeline_id} "
+                    f"(last status: {status.status}, elapsed: {elapsed:.1f}s)"
                 )
 
             await asyncio.sleep(poll_interval)
@@ -385,13 +376,9 @@ class GitLabCIClient:
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=2, min=2, max=60),
-        retry=retry_if_exception_type((httpx.TransportError, httpx.TimeoutException))
+        retry=retry_if_exception_type((httpx.TransportError, httpx.TimeoutException)),
     )
-    async def get_test_report(
-        self,
-        project_id: str,
-        pipeline_id: str
-    ) -> Dict[str, Any]:
+    async def get_test_report(self, project_id: str, pipeline_id: str) -> dict[str, Any]:
         """
         Obtem relatorio de testes do pipeline (JUnit XML agregado).
 
@@ -406,7 +393,9 @@ class GitLabCIClient:
             GitLabCIAPIError: Erro na API ou report nao disponivel
         """
         encoded_project = self._encode_project_id(project_id)
-        url = f'{self.base_url}/api/v4/projects/{encoded_project}/pipelines/{pipeline_id}/test_report'
+        url = (
+            f"{self.base_url}/api/v4/projects/{encoded_project}/pipelines/{pipeline_id}/test_report"
+        )
 
         try:
             response = await self.client.get(url)
@@ -416,33 +405,26 @@ class GitLabCIClient:
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
                 self.logger.warning(
-                    'gitlab_test_report_not_found',
-                    project_id=project_id,
-                    pipeline_id=pipeline_id
+                    "gitlab_test_report_not_found", project_id=project_id, pipeline_id=pipeline_id
                 )
                 return {
-                    'total_count': 0,
-                    'success_count': 0,
-                    'failed_count': 0,
-                    'error_count': 0,
-                    'skipped_count': 0,
-                    'test_suites': []
+                    "total_count": 0,
+                    "success_count": 0,
+                    "failed_count": 0,
+                    "error_count": 0,
+                    "skipped_count": 0,
+                    "test_suites": [],
                 }
             raise GitLabCIAPIError(
-                f'Failed to get test report: {e.response.text}',
-                status_code=e.response.status_code
+                f"Failed to get test report: {e.response.text}", status_code=e.response.status_code
             )
 
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=2, min=2, max=60),
-        retry=retry_if_exception_type((httpx.TransportError, httpx.TimeoutException))
+        retry=retry_if_exception_type((httpx.TransportError, httpx.TimeoutException)),
     )
-    async def get_test_report_summary(
-        self,
-        project_id: str,
-        pipeline_id: str
-    ) -> Dict[str, Any]:
+    async def get_test_report_summary(self, project_id: str, pipeline_id: str) -> dict[str, Any]:
         """
         Obtem resumo do relatorio de testes.
 
@@ -457,7 +439,7 @@ class GitLabCIClient:
             GitLabCIAPIError: Erro na API
         """
         encoded_project = self._encode_project_id(project_id)
-        url = f'{self.base_url}/api/v4/projects/{encoded_project}/pipelines/{pipeline_id}/test_report_summary'
+        url = f"{self.base_url}/api/v4/projects/{encoded_project}/pipelines/{pipeline_id}/test_report_summary"
 
         try:
             response = await self.client.get(url)
@@ -467,24 +449,20 @@ class GitLabCIClient:
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
                 return {
-                    'total': {'count': 0, 'success': 0, 'failed': 0, 'skipped': 0, 'error': 0},
-                    'test_suites': []
+                    "total": {"count": 0, "success": 0, "failed": 0, "skipped": 0, "error": 0},
+                    "test_suites": [],
                 }
             raise GitLabCIAPIError(
-                f'Failed to get test report summary: {e.response.text}',
-                status_code=e.response.status_code
+                f"Failed to get test report summary: {e.response.text}",
+                status_code=e.response.status_code,
             )
 
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=2, min=2, max=60),
-        retry=retry_if_exception_type((httpx.TransportError, httpx.TimeoutException))
+        retry=retry_if_exception_type((httpx.TransportError, httpx.TimeoutException)),
     )
-    async def get_pipeline_jobs(
-        self,
-        project_id: str,
-        pipeline_id: str
-    ) -> List[Dict[str, Any]]:
+    async def get_pipeline_jobs(self, project_id: str, pipeline_id: str) -> list[dict[str, Any]]:
         """
         Lista jobs de um pipeline.
 
@@ -496,7 +474,7 @@ class GitLabCIClient:
             Lista de jobs
         """
         encoded_project = self._encode_project_id(project_id)
-        url = f'{self.base_url}/api/v4/projects/{encoded_project}/pipelines/{pipeline_id}/jobs'
+        url = f"{self.base_url}/api/v4/projects/{encoded_project}/pipelines/{pipeline_id}/jobs"
 
         try:
             response = await self.client.get(url)
@@ -505,20 +483,17 @@ class GitLabCIClient:
 
         except httpx.HTTPStatusError as e:
             raise GitLabCIAPIError(
-                f'Failed to get pipeline jobs: {e.response.text}',
-                status_code=e.response.status_code
+                f"Failed to get pipeline jobs: {e.response.text}",
+                status_code=e.response.status_code,
             )
 
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=2, min=2, max=60),
-        retry=retry_if_exception_type((httpx.TransportError, httpx.TimeoutException))
+        retry=retry_if_exception_type((httpx.TransportError, httpx.TimeoutException)),
     )
     async def get_job_artifacts(
-        self,
-        project_id: str,
-        job_id: str,
-        artifact_path: Optional[str] = None
+        self, project_id: str, job_id: str, artifact_path: str | None = None
     ) -> bytes:
         """
         Baixa artifacts de um job.
@@ -537,9 +512,9 @@ class GitLabCIClient:
         encoded_project = self._encode_project_id(project_id)
 
         if artifact_path:
-            url = f'{self.base_url}/api/v4/projects/{encoded_project}/jobs/{job_id}/artifacts/{artifact_path}'
+            url = f"{self.base_url}/api/v4/projects/{encoded_project}/jobs/{job_id}/artifacts/{artifact_path}"
         else:
-            url = f'{self.base_url}/api/v4/projects/{encoded_project}/jobs/{job_id}/artifacts'
+            url = f"{self.base_url}/api/v4/projects/{encoded_project}/jobs/{job_id}/artifacts"
 
         try:
             response = await self.client.get(url)
@@ -548,15 +523,11 @@ class GitLabCIClient:
 
         except httpx.HTTPStatusError as e:
             raise GitLabCIAPIError(
-                f'Failed to get job artifacts: {e.response.text}',
-                status_code=e.response.status_code
+                f"Failed to get job artifacts: {e.response.text}",
+                status_code=e.response.status_code,
             )
 
-    async def get_job_trace(
-        self,
-        project_id: str,
-        job_id: str
-    ) -> str:
+    async def get_job_trace(self, project_id: str, job_id: str) -> str:
         """
         Obtem log de execucao de um job.
 
@@ -568,7 +539,7 @@ class GitLabCIClient:
             Log do job em texto
         """
         encoded_project = self._encode_project_id(project_id)
-        url = f'{self.base_url}/api/v4/projects/{encoded_project}/jobs/{job_id}/trace'
+        url = f"{self.base_url}/api/v4/projects/{encoded_project}/jobs/{job_id}/trace"
 
         try:
             response = await self.client.get(url)
@@ -576,20 +547,16 @@ class GitLabCIClient:
             return response.text
 
         except httpx.HTTPStatusError as e:
-            self.logger.warning(
-                'gitlab_get_job_trace_failed',
-                job_id=job_id,
-                error=str(e)
-            )
-            return ''
+            self.logger.warning("gitlab_get_job_trace_failed", job_id=job_id, error=str(e))
+            return ""
 
     async def download_and_parse_artifacts(
         self,
         project_id: str,
         pipeline_id: str,
-        junit_artifact_paths: Optional[List[str]] = None,
-        coverage_artifact_paths: Optional[List[str]] = None
-    ) -> Dict[str, Any]:
+        junit_artifact_paths: list[str] | None = None,
+        coverage_artifact_paths: list[str] | None = None,
+    ) -> dict[str, Any]:
         """
         Baixa e parseia artifacts de jobs do pipeline para extrair test e coverage reports.
 
@@ -611,26 +578,32 @@ class GitLabCIClient:
                 'coverage': float or None
             }
         """
-        import io
-        import zipfile
 
         results = {
-            'tests_passed': 0,
-            'tests_failed': 0,
-            'tests_skipped': 0,
-            'tests_errors': 0,
-            'coverage': None
+            "tests_passed": 0,
+            "tests_failed": 0,
+            "tests_skipped": 0,
+            "tests_errors": 0,
+            "coverage": None,
         }
 
         # Paths padrao para procurar
         default_junit_paths = junit_artifact_paths or [
-            'junit.xml', 'report.xml', 'test-results.xml',
-            'results/junit.xml', 'test-reports/junit.xml',
-            'reports/junit.xml', 'target/surefire-reports/*.xml'
+            "junit.xml",
+            "report.xml",
+            "test-results.xml",
+            "results/junit.xml",
+            "test-reports/junit.xml",
+            "reports/junit.xml",
+            "target/surefire-reports/*.xml",
         ]
         default_coverage_paths = coverage_artifact_paths or [
-            'coverage.xml', 'cobertura.xml', 'coverage/cobertura.xml',
-            'coverage.info', 'lcov.info', 'coverage/lcov.info'
+            "coverage.xml",
+            "cobertura.xml",
+            "coverage/cobertura.xml",
+            "coverage.info",
+            "lcov.info",
+            "coverage/lcov.info",
         ]
 
         try:
@@ -638,18 +611,18 @@ class GitLabCIClient:
             jobs = await self.get_pipeline_jobs(project_id, pipeline_id)
 
             for job in jobs:
-                job_id = str(job.get('id'))
-                job_name = job.get('name', '')
-                has_artifacts = job.get('artifacts', [])
+                job_id = str(job.get("id"))
+                job_name = job.get("name", "")
+                has_artifacts = job.get("artifacts", [])
 
                 if not has_artifacts:
                     continue
 
                 self.logger.debug(
-                    'gitlab_checking_job_artifacts',
+                    "gitlab_checking_job_artifacts",
                     pipeline_id=pipeline_id,
                     job_id=job_id,
-                    job_name=job_name
+                    job_name=job_name,
                 )
 
                 try:
@@ -658,51 +631,40 @@ class GitLabCIClient:
 
                     # Parsear conteudo do ZIP
                     parsed = self._parse_artifact_zip(
-                        artifact_content,
-                        default_junit_paths,
-                        default_coverage_paths
+                        artifact_content, default_junit_paths, default_coverage_paths
                     )
 
                     # Agregar resultados
-                    results['tests_passed'] += parsed.get('tests_passed', 0)
-                    results['tests_failed'] += parsed.get('tests_failed', 0)
-                    results['tests_skipped'] += parsed.get('tests_skipped', 0)
-                    results['tests_errors'] += parsed.get('tests_errors', 0)
+                    results["tests_passed"] += parsed.get("tests_passed", 0)
+                    results["tests_failed"] += parsed.get("tests_failed", 0)
+                    results["tests_skipped"] += parsed.get("tests_skipped", 0)
+                    results["tests_errors"] += parsed.get("tests_errors", 0)
 
-                    if parsed.get('coverage') is not None and results['coverage'] is None:
-                        results['coverage'] = parsed['coverage']
+                    if parsed.get("coverage") is not None and results["coverage"] is None:
+                        results["coverage"] = parsed["coverage"]
 
                 except Exception as e:
-                    self.logger.warning(
-                        'gitlab_artifact_parse_failed',
-                        job_id=job_id,
-                        error=str(e)
-                    )
+                    self.logger.warning("gitlab_artifact_parse_failed", job_id=job_id, error=str(e))
                     continue
 
             self.logger.info(
-                'gitlab_artifacts_parsed',
+                "gitlab_artifacts_parsed",
                 pipeline_id=pipeline_id,
-                tests_passed=results['tests_passed'],
-                tests_failed=results['tests_failed'],
-                coverage=results['coverage']
+                tests_passed=results["tests_passed"],
+                tests_failed=results["tests_failed"],
+                coverage=results["coverage"],
             )
 
         except Exception as e:
             self.logger.warning(
-                'gitlab_download_artifacts_failed',
-                pipeline_id=pipeline_id,
-                error=str(e)
+                "gitlab_download_artifacts_failed", pipeline_id=pipeline_id, error=str(e)
             )
 
         return results
 
     def _parse_artifact_zip(
-        self,
-        zip_content: bytes,
-        junit_paths: List[str],
-        coverage_paths: List[str]
-    ) -> Dict[str, Any]:
+        self, zip_content: bytes, junit_paths: list[str], coverage_paths: list[str]
+    ) -> dict[str, Any]:
         """
         Parseia conteudo de um ZIP de artifacts.
 
@@ -714,16 +676,16 @@ class GitLabCIClient:
         Returns:
             Resultados parseados
         """
+        import fnmatch
         import io
         import zipfile
-        import fnmatch
 
         results = {
-            'tests_passed': 0,
-            'tests_failed': 0,
-            'tests_skipped': 0,
-            'tests_errors': 0,
-            'coverage': None
+            "tests_passed": 0,
+            "tests_failed": 0,
+            "tests_skipped": 0,
+            "tests_errors": 0,
+            "coverage": None,
         }
 
         try:
@@ -731,43 +693,45 @@ class GitLabCIClient:
                 for filename in zf.namelist():
                     # Verificar se e JUnit XML
                     is_junit = any(
-                        fnmatch.fnmatch(filename, pattern) or filename.endswith(pattern.split('/')[-1])
+                        fnmatch.fnmatch(filename, pattern)
+                        or filename.endswith(pattern.split("/")[-1])
                         for pattern in junit_paths
                     )
 
-                    if is_junit and filename.endswith('.xml'):
+                    if is_junit and filename.endswith(".xml"):
                         try:
-                            content = zf.read(filename).decode('utf-8', errors='replace')
-                            if '<testsuite' in content or '<testsuites' in content:
+                            content = zf.read(filename).decode("utf-8", errors="replace")
+                            if "<testsuite" in content or "<testsuites" in content:
                                 parsed = self._parse_junit_xml(content)
-                                results['tests_passed'] += parsed.get('passed', 0)
-                                results['tests_failed'] += parsed.get('failed', 0)
-                                results['tests_skipped'] += parsed.get('skipped', 0)
-                                results['tests_errors'] += parsed.get('errors', 0)
+                                results["tests_passed"] += parsed.get("passed", 0)
+                                results["tests_failed"] += parsed.get("failed", 0)
+                                results["tests_skipped"] += parsed.get("skipped", 0)
+                                results["tests_errors"] += parsed.get("errors", 0)
                         except Exception:
                             pass
 
                     # Verificar se e coverage report
                     is_coverage = any(
-                        fnmatch.fnmatch(filename, pattern) or filename.endswith(pattern.split('/')[-1])
+                        fnmatch.fnmatch(filename, pattern)
+                        or filename.endswith(pattern.split("/")[-1])
                         for pattern in coverage_paths
                     )
 
-                    if is_coverage and results['coverage'] is None:
+                    if is_coverage and results["coverage"] is None:
                         try:
-                            content = zf.read(filename).decode('utf-8', errors='replace')
+                            content = zf.read(filename).decode("utf-8", errors="replace")
                             coverage = self._parse_coverage_report(content, filename)
                             if coverage is not None:
-                                results['coverage'] = coverage
+                                results["coverage"] = coverage
                         except Exception:
                             pass
 
         except Exception as e:
-            self.logger.warning('gitlab_parse_zip_failed', error=str(e))
+            self.logger.warning("gitlab_parse_zip_failed", error=str(e))
 
         return results
 
-    def _parse_junit_xml(self, content: str) -> Dict[str, int]:
+    def _parse_junit_xml(self, content: str) -> dict[str, int]:
         """
         Parseia conteudo JUnit XML.
 
@@ -779,36 +743,36 @@ class GitLabCIClient:
         """
         import xml.etree.ElementTree as ET
 
-        results = {'passed': 0, 'failed': 0, 'skipped': 0, 'errors': 0}
+        results = {"passed": 0, "failed": 0, "skipped": 0, "errors": 0}
 
         try:
             root = ET.fromstring(content)
 
             # Handle both <testsuites> e <testsuite> como root
-            if root.tag == 'testsuites':
-                suites = root.findall('testsuite')
-            elif root.tag == 'testsuite':
+            if root.tag == "testsuites":
+                suites = root.findall("testsuite")
+            elif root.tag == "testsuite":
                 suites = [root]
             else:
                 return results
 
             for suite in suites:
-                tests = int(suite.get('tests', 0))
-                failures = int(suite.get('failures', 0))
-                errors = int(suite.get('errors', 0))
-                skipped = int(suite.get('skipped', 0))
+                tests = int(suite.get("tests", 0))
+                failures = int(suite.get("failures", 0))
+                errors = int(suite.get("errors", 0))
+                skipped = int(suite.get("skipped", 0))
 
-                results['failed'] += failures
-                results['errors'] += errors
-                results['skipped'] += skipped
-                results['passed'] += max(0, tests - failures - errors - skipped)
+                results["failed"] += failures
+                results["errors"] += errors
+                results["skipped"] += skipped
+                results["passed"] += max(0, tests - failures - errors - skipped)
 
         except Exception:
             pass
 
         return results
 
-    def _parse_coverage_report(self, content: str, filename: str) -> Optional[float]:
+    def _parse_coverage_report(self, content: str, filename: str) -> float | None:
         """
         Parseia relatorio de coverage (Cobertura XML ou LCOV).
 
@@ -820,39 +784,36 @@ class GitLabCIClient:
             Percentual de line coverage ou None
         """
         import xml.etree.ElementTree as ET
-        import re
 
         try:
             # Detectar formato Cobertura XML
-            if '<coverage' in content and '<?xml' in content:
+            if "<coverage" in content and "<?xml" in content:
                 root = ET.fromstring(content)
-                line_rate = root.get('line-rate')
+                line_rate = root.get("line-rate")
                 if line_rate:
                     return float(line_rate) * 100
 
                 # Fallback: calcular de packages
-                lines_valid = int(root.get('lines-valid', 0))
-                lines_covered = int(root.get('lines-covered', 0))
+                lines_valid = int(root.get("lines-valid", 0))
+                lines_covered = int(root.get("lines-covered", 0))
                 if lines_valid > 0:
                     return (lines_covered / lines_valid) * 100
 
             # Detectar formato LCOV
-            elif content.startswith('TN:') or content.startswith('SF:') or 'end_of_record' in content:
+            elif (
+                content.startswith(("TN:", "SF:")) or "end_of_record" in content
+            ):
                 lines_found = 0
                 lines_hit = 0
 
-                for line in content.split('\n'):
+                for line in content.split("\n"):
                     line = line.strip()
-                    if line.startswith('LF:'):
-                        try:
+                    if line.startswith("LF:"):
+                        with contextlib.suppress(ValueError):
                             lines_found += int(line[3:])
-                        except ValueError:
-                            pass
-                    elif line.startswith('LH:'):
-                        try:
+                    elif line.startswith("LH:"):
+                        with contextlib.suppress(ValueError):
                             lines_hit += int(line[3:])
-                        except ValueError:
-                            pass
 
                 if lines_found > 0:
                     return (lines_hit / lines_found) * 100
@@ -865,13 +826,9 @@ class GitLabCIClient:
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=2, min=2, max=60),
-        retry=retry_if_exception_type((httpx.TransportError, httpx.TimeoutException))
+        retry=retry_if_exception_type((httpx.TransportError, httpx.TimeoutException)),
     )
-    async def cancel_pipeline(
-        self,
-        project_id: str,
-        pipeline_id: str
-    ) -> bool:
+    async def cancel_pipeline(self, project_id: str, pipeline_id: str) -> bool:
         """
         Cancela um pipeline em execucao.
 
@@ -883,35 +840,30 @@ class GitLabCIClient:
             True se cancelado com sucesso
         """
         encoded_project = self._encode_project_id(project_id)
-        url = f'{self.base_url}/api/v4/projects/{encoded_project}/pipelines/{pipeline_id}/cancel'
+        url = f"{self.base_url}/api/v4/projects/{encoded_project}/pipelines/{pipeline_id}/cancel"
 
         try:
             response = await self.client.post(url)
             response.raise_for_status()
-            self.logger.info('gitlab_pipeline_cancelled', pipeline_id=pipeline_id)
+            self.logger.info("gitlab_pipeline_cancelled", pipeline_id=pipeline_id)
             return True
 
         except httpx.HTTPStatusError as e:
-            self.logger.error(
-                'gitlab_cancel_pipeline_failed',
+            self.logger.exception(
+                "gitlab_cancel_pipeline_failed",
                 pipeline_id=pipeline_id,
-                status_code=e.response.status_code
+                status_code=e.response.status_code,
             )
             raise GitLabCIAPIError(
-                f'Failed to cancel pipeline: {e.response.text}',
-                status_code=e.response.status_code
+                f"Failed to cancel pipeline: {e.response.text}", status_code=e.response.status_code
             )
 
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=2, min=2, max=60),
-        retry=retry_if_exception_type((httpx.TransportError, httpx.TimeoutException))
+        retry=retry_if_exception_type((httpx.TransportError, httpx.TimeoutException)),
     )
-    async def retry_pipeline(
-        self,
-        project_id: str,
-        pipeline_id: str
-    ) -> str:
+    async def retry_pipeline(self, project_id: str, pipeline_id: str) -> str:
         """
         Retenta um pipeline falhado.
 
@@ -923,22 +875,21 @@ class GitLabCIClient:
             ID do novo pipeline
         """
         encoded_project = self._encode_project_id(project_id)
-        url = f'{self.base_url}/api/v4/projects/{encoded_project}/pipelines/{pipeline_id}/retry'
+        url = f"{self.base_url}/api/v4/projects/{encoded_project}/pipelines/{pipeline_id}/retry"
 
         try:
             response = await self.client.post(url)
             response.raise_for_status()
             data = response.json()
-            new_pipeline_id = str(data.get('id'))
+            new_pipeline_id = str(data.get("id"))
             self.logger.info(
-                'gitlab_pipeline_retried',
+                "gitlab_pipeline_retried",
                 old_pipeline_id=pipeline_id,
-                new_pipeline_id=new_pipeline_id
+                new_pipeline_id=new_pipeline_id,
             )
             return new_pipeline_id
 
         except httpx.HTTPStatusError as e:
             raise GitLabCIAPIError(
-                f'Failed to retry pipeline: {e.response.text}',
-                status_code=e.response.status_code
+                f"Failed to retry pipeline: {e.response.text}", status_code=e.response.status_code
             )

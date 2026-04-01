@@ -6,23 +6,20 @@ para detectar licenças problemáticas que possam violar políticas
 de compliance da organização.
 """
 
-import json
 from datetime import datetime
-from typing import Dict, List, Optional, Set
 from enum import Enum
+from typing import Dict, List, Optional, Set
+
 import structlog
 
-from ..models.artifact import (
-    ValidationResult,
-    ValidationType,
-    ValidationStatus
-)
+from ..models.artifact import ValidationResult, ValidationStatus, ValidationType
 
 logger = structlog.get_logger()
 
 
 class LicenseRisk(str, Enum):
     """Níveis de risco para licenças de software."""
+
     PERMISSIVE = "permissive"  # MIT, Apache, BSD - baixo risco
     WEAK_COPYLEFT = "weak_copyleft"  # LGPL, MPL - médio risco
     STRONG_COPYLEFT = "strong_copyleft"  # GPL, AGPL - alto risco
@@ -109,7 +106,7 @@ class LicenseValidator:
         self,
         allowed_licenses: Optional[Set[str]] = None,
         prohibited_licenses: Optional[Set[str]] = None,
-        require_sbom: bool = True
+        require_sbom: bool = True,
     ):
         """
         Inicializa o validador de licenças.
@@ -124,10 +121,7 @@ class LicenseValidator:
         self.require_sbom = require_sbom
 
     async def validate_licenses(
-        self,
-        sbom_data: Optional[Dict],
-        artifact_id: str,
-        ticket_id: str
+        self, sbom_data: Optional[Dict], artifact_id: str, ticket_id: str
     ) -> ValidationResult:
         """
         Valida licenças no SBOM de um artefato.
@@ -143,23 +137,21 @@ class LicenseValidator:
         start_time = datetime.now()
 
         logger.info(
-            'license_validation_started',
+            "license_validation_started",
             artifact_id=artifact_id,
             ticket_id=ticket_id,
-            has_sbom=sbom_data is not None
+            has_sbom=sbom_data is not None,
         )
 
         if not sbom_data:
             if self.require_sbom:
                 logger.warning(
-                    'sbom_not_required_but_missing',
-                    artifact_id=artifact_id,
-                    ticket_id=ticket_id
+                    "sbom_not_required_but_missing", artifact_id=artifact_id, ticket_id=ticket_id
                 )
                 return ValidationResult(
                     validation_type=ValidationType.LICENSE_CHECK,
-                    tool_name='license-validator',
-                    tool_version='1.0.0',
+                    tool_name="license-validator",
+                    tool_version="1.0.0",
                     status=ValidationStatus.WARNING,
                     score=0.5,
                     issues_count=1,
@@ -171,16 +163,16 @@ class LicenseValidator:
                     duration_ms=0,
                     report_uri=None,
                     metadata={
-                        'message': 'SBOM não disponível para validação de licenças',
-                        'licenses_found': []
-                    }
+                        "message": "SBOM não disponível para validação de licenças",
+                        "licenses_found": [],
+                    },
                 )
             else:
                 # SBOM opcional não disponível - retorna WARNING
                 return ValidationResult(
                     validation_type=ValidationType.LICENSE_CHECK,
-                    tool_name='license-validator',
-                    tool_version='1.0.0',
+                    tool_name="license-validator",
+                    tool_version="1.0.0",
                     status=ValidationStatus.WARNING,
                     score=0.7,
                     issues_count=0,
@@ -192,28 +184,28 @@ class LicenseValidator:
                     duration_ms=0,
                     report_uri=None,
                     metadata={
-                        'message': 'SBOM não disponível (validação opcional)',
-                        'licenses_found': []
-                    }
+                        "message": "SBOM não disponível (validação opcional)",
+                        "licenses_found": [],
+                    },
                 )
 
         # Detectar formato do SBOM (SPDX ou CycloneDX)
         sbom_format = self._detect_sbom_format(sbom_data)
-        logger.debug('sbom_format_detected', format=sbom_format)
+        logger.debug("sbom_format_detected", format=sbom_format)
 
         # Extrair licenças baseado no formato
-        if sbom_format == 'spdx':
+        if sbom_format == "spdx":
             licenses = self._extract_licenses_spdx(sbom_data)
-        elif sbom_format == 'cyclonedx':
+        elif sbom_format == "cyclonedx":
             licenses = self._extract_licenses_cyclonedx(sbom_data)
         else:
             licenses = self._extract_licenses_generic(sbom_data)
 
         logger.info(
-            'licenses_extracted',
+            "licenses_extracted",
             artifact_id=artifact_id,
             count=len(licenses),
-            licenses=list(licenses)[:10]  # Log primeiras 10
+            licenses=list(licenses)[:10],  # Log primeiras 10
         )
 
         # Classificar licenças por risco
@@ -225,44 +217,44 @@ class LicenseValidator:
         duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
 
         # Determinar status baseado nas licenças problemáticas
-        if license_analysis['prohibited']:
+        if license_analysis["prohibited"]:
             status = ValidationStatus.FAILED
-        elif license_analysis['strong_copyleft']:
+        elif license_analysis["strong_copyleft"]:
             status = ValidationStatus.FAILED
-        elif license_analysis['weak_copyleft']:
+        elif license_analysis["weak_copyleft"]:
             status = ValidationStatus.WARNING
         else:
             status = ValidationStatus.PASSED
 
         result = ValidationResult(
             validation_type=ValidationType.LICENSE_CHECK,
-            tool_name='license-validator',
-            tool_version='1.0.0',
+            tool_name="license-validator",
+            tool_version="1.0.0",
             status=status,
             score=score,
             issues_count=issues,
-            critical_issues=len(license_analysis['prohibited']),
-            high_issues=len(license_analysis['strong_copyleft']),
-            medium_issues=len(license_analysis['weak_copyleft']),
+            critical_issues=len(license_analysis["prohibited"]),
+            high_issues=len(license_analysis["strong_copyleft"]),
+            medium_issues=len(license_analysis["weak_copyleft"]),
             low_issues=0,
             executed_at=start_time,
             duration_ms=duration_ms,
             report_uri=None,
             metadata={
-                'sbom_format': sbom_format,
-                'licenses_found': list(licenses),
-                'license_analysis': license_analysis,
-                'total_components': sbom_data.get('count', 0) if sbom_data else 0
-            }
+                "sbom_format": sbom_format,
+                "licenses_found": list(licenses),
+                "license_analysis": license_analysis,
+                "total_components": sbom_data.get("count", 0) if sbom_data else 0,
+            },
         )
 
         logger.info(
-            'license_validation_completed',
+            "license_validation_completed",
             artifact_id=artifact_id,
             ticket_id=ticket_id,
             status=status,
             score=score,
-            issues=issues
+            issues=issues,
         )
 
         return result
@@ -270,37 +262,37 @@ class LicenseValidator:
     def _detect_sbom_format(self, sbom_data: Dict) -> str:
         """Detecta o formato do SBOM (SPDX, CycloneDX ou genérico)."""
         if not sbom_data:
-            return 'unknown'
+            return "unknown"
 
         # SPDX tem campos específicos
-        if 'spdxVersion' in sbom_data or 'spdxVersion' in str(sbom_data.get('$schema', '')):
-            return 'spdx'
+        if "spdxVersion" in sbom_data or "spdxVersion" in str(sbom_data.get("$schema", "")):
+            return "spdx"
 
         # CycloneDX tem campo bomFormat
-        if 'bomFormat' in sbom_data or 'component' in sbom_data:
-            return 'cyclonedx'
+        if "bomFormat" in sbom_data or "component" in sbom_data:
+            return "cyclonedx"
 
-        return 'generic'
+        return "generic"
 
     def _extract_licenses_spdx(self, sbom_data: Dict) -> Set[str]:
         """Extrai licenças de um SBOM no formato SPDX."""
         licenses = set()
 
         # SPDX packages têm declaredLicense
-        packages = sbom_data.get('packages', [])
+        packages = sbom_data.get("packages", [])
         for package in packages:
-            license_data = package.get('licenseDeclared', {})
+            license_data = package.get("licenseDeclared", {})
             if isinstance(license_data, dict):
-                license_id = license_data.get('licenseId')
-                if license_id and license_id != 'NOASSERTION':
+                license_id = license_data.get("licenseId")
+                if license_id and license_id != "NOASSERTION":
                     licenses.add(license_id)
             elif isinstance(license_data, str):
-                if license_data != 'NOASSERTION':
+                if license_data != "NOASSERTION":
                     licenses.add(license_data)
 
             # Verificar extractedTexts
-            extracted_text = package.get('extractedText', '')
-            if extracted_text and 'license' in extracted_text.lower():
+            extracted_text = package.get("extractedText", "")
+            if extracted_text and "license" in extracted_text.lower():
                 # Tentar extrair nome da licença do texto
                 for lic in PERMISSIVE_LICENSES | WEAK_COPYLEFT_LICENSES | STRONG_COPYLEFT_LICENSES:
                     if lic.lower() in extracted_text.lower():
@@ -313,24 +305,24 @@ class LicenseValidator:
         licenses = set()
 
         # CycloneDX components têm licenses
-        components = sbom_data.get('components', [])
+        components = sbom_data.get("components", [])
         for component in components:
-            licenses_data = component.get('licenses', [])
+            licenses_data = component.get("licenses", [])
             for lic in licenses_data:
                 if isinstance(lic, dict):
                     # Pode ter id ou expression
-                    license_id = lic.get('id') or lic.get('expression')
-                    if license_id and license_id != 'NOASSERTION':
+                    license_id = lic.get("id") or lic.get("expression")
+                    if license_id and license_id != "NOASSERTION":
                         licenses.add(license_id)
 
         # Verificar metadata também
-        metadata = sbom_data.get('metadata', {})
-        component_metadata = metadata.get('component', {})
+        metadata = sbom_data.get("metadata", {})
+        component_metadata = metadata.get("component", {})
         if component_metadata:
-            licenses_data = component_metadata.get('licenses', [])
+            licenses_data = component_metadata.get("licenses", [])
             for lic in licenses_data:
                 if isinstance(lic, dict):
-                    license_id = lic.get('id') or lic.get('expression')
+                    license_id = lic.get("id") or lic.get("expression")
                     if license_id:
                         licenses.add(license_id)
 
@@ -341,13 +333,13 @@ class LicenseValidator:
         licenses = set()
 
         # Tentar encontrar campos comuns
-        for key in ['licenses', 'license', 'licenseId', 'licenseID']:
+        for key in ["licenses", "license", "licenseId", "licenseID"]:
             if key in sbom_data:
                 value = sbom_data[key]
                 if isinstance(value, list):
                     for lic in value:
                         if isinstance(lic, dict):
-                            lic_id = lic.get('id', lic.get('name', ''))
+                            lic_id = lic.get("id", lic.get("name", ""))
                             if lic_id:
                                 licenses.add(lic_id)
                         elif isinstance(lic, str):
@@ -355,12 +347,12 @@ class LicenseValidator:
                 elif isinstance(value, str):
                     licenses.add(value)
                 elif isinstance(value, dict):
-                    lic_id = value.get('id', value.get('name', ''))
+                    lic_id = value.get("id", value.get("name", ""))
                     if lic_id:
                         licenses.add(lic_id)
 
         # Buscar recursivamente em components/packages
-        for key in ['components', 'packages', 'dependencies']:
+        for key in ["components", "packages", "dependencies"]:
             if key in sbom_data:
                 items = sbom_data[key]
                 if isinstance(items, list):
@@ -372,26 +364,26 @@ class LicenseValidator:
     def _classify_licenses(self, licenses: Set[str]) -> Dict[str, List[str]]:
         """Classifica licenças por categoria de risco."""
         analysis = {
-            'permissive': [],
-            'weak_copyleft': [],
-            'strong_copyleft': [],
-            'prohibited': [],
-            'unknown': []
+            "permissive": [],
+            "weak_copyleft": [],
+            "strong_copyleft": [],
+            "prohibited": [],
+            "unknown": [],
         }
 
         for lic in licenses:
             lic_normalized = self._normalize_license_name(lic)
 
             if lic_normalized in PROHIBITED_LICENSES or lic in self.prohibited_licenses:
-                analysis['prohibited'].append(lic)
+                analysis["prohibited"].append(lic)
             elif lic_normalized in STRONG_COPYLEFT_LICENSES:
-                analysis['strong_copyleft'].append(lic)
+                analysis["strong_copyleft"].append(lic)
             elif lic_normalized in WEAK_COPYLEFT_LICENSES:
-                analysis['weak_copyleft'].append(lic)
+                analysis["weak_copyleft"].append(lic)
             elif lic_normalized in PERMISSIVE_LICENSES or lic in self.allowed_licenses:
-                analysis['permissive'].append(lic)
+                analysis["permissive"].append(lic)
             else:
-                analysis['unknown'].append(lic)
+                analysis["unknown"].append(lic)
 
         return analysis
 
@@ -401,28 +393,28 @@ class LicenseValidator:
         normalized = license_name.strip().upper()
 
         # Remover sufixos comuns
-        for suffix in ['-ONLY', '-OR-LATER', '+', ' WITH EXCEPTIONS']:
+        for suffix in ["-ONLY", "-OR-LATER", "+", " WITH EXCEPTIONS"]:
             if normalized.endswith(suffix):
-                normalized = normalized[:-len(suffix)]
+                normalized = normalized[: -len(suffix)]
 
         # Mapear variações comuns
         mappings = {
-            'APACHE LICENSE 2.0': 'APACHE-2.0',
-            'APACHE 2.0': 'APACHE-2.0',
-            'BSD 2-CLAUSE': 'BSD-2-CLAUSE',
-            'BSD 3-CLAUSE': 'BSD-3-CLAUSE',
-            'LESSER GPL V2': 'LGPL-2.1',
-            'LESSER GPL V3': 'LGPL-3.0',
-            'LESSER GENERAL PUBLIC LICENSE V2': 'LGPL-2.1',
-            'LESSER GENERAL PUBLIC LICENSE V3': 'LGPL-3.0',
-            'GNU LESSER GENERAL PUBLIC LICENSE V2': 'LGPL-2.1',
-            'GNU LESSER GENERAL PUBLIC LICENSE V3': 'LGPL-3.0',
-            'GPL V2': 'GPL-2.0',
-            'GPL V3': 'GPL-3.0',
-            'GNU GENERAL PUBLIC LICENSE V2': 'GPL-2.0',
-            'GNU GENERAL PUBLIC LICENSE V3': 'GPL-3.0',
-            'AFFERO GPL': 'AGPL-3.0',
-            'GNU AFFERO GENERAL PUBLIC LICENSE': 'AGPL-3.0',
+            "APACHE LICENSE 2.0": "APACHE-2.0",
+            "APACHE 2.0": "APACHE-2.0",
+            "BSD 2-CLAUSE": "BSD-2-CLAUSE",
+            "BSD 3-CLAUSE": "BSD-3-CLAUSE",
+            "LESSER GPL V2": "LGPL-2.1",
+            "LESSER GPL V3": "LGPL-3.0",
+            "LESSER GENERAL PUBLIC LICENSE V2": "LGPL-2.1",
+            "LESSER GENERAL PUBLIC LICENSE V3": "LGPL-3.0",
+            "GNU LESSER GENERAL PUBLIC LICENSE V2": "LGPL-2.1",
+            "GNU LESSER GENERAL PUBLIC LICENSE V3": "LGPL-3.0",
+            "GPL V2": "GPL-2.0",
+            "GPL V3": "GPL-3.0",
+            "GNU GENERAL PUBLIC LICENSE V2": "GPL-2.0",
+            "GNU GENERAL PUBLIC LICENSE V3": "GPL-3.0",
+            "AFFERO GPL": "AGPL-3.0",
+            "GNU AFFERO GENERAL PUBLIC LICENSE": "AGPL-3.0",
         }
 
         return mappings.get(normalized, normalized)
@@ -434,11 +426,11 @@ class LicenseValidator:
         Returns:
             Tupla (score, issues_count)
         """
-        prohibited_count = len(analysis['prohibited'])
-        strong_copyleft_count = len(analysis['strong_copyleft'])
-        weak_copyleft_count = len(analysis['weak_copyleft'])
-        permissive_count = len(analysis['permissive'])
-        unknown_count = len(analysis['unknown'])
+        prohibited_count = len(analysis["prohibited"])
+        strong_copyleft_count = len(analysis["strong_copyleft"])
+        weak_copyleft_count = len(analysis["weak_copyleft"])
+        len(analysis["permissive"])
+        unknown_count = len(analysis["unknown"])
 
         # Base score é 1.0 (todas permissivas)
         score = 1.0
@@ -472,7 +464,7 @@ class LicenseValidator:
     def get_license_policy(self) -> Dict:
         """Retorna a política de licenças configurada."""
         return {
-            'allowed_licenses': list(self.allowed_licenses),
-            'prohibited_licenses': list(self.prohibited_licenses),
-            'require_sbom': self.require_sbom
+            "allowed_licenses": list(self.allowed_licenses),
+            "prohibited_licenses": list(self.prohibited_licenses),
+            "require_sbom": self.require_sbom,
         }

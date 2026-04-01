@@ -5,65 +5,57 @@ Define os modelos Pydantic para Planos Cognitivos (artefato central do Fluxo B).
 """
 
 import uuid
-import json
-from datetime import datetime, timedelta
-from typing import List, Dict, Any, Optional
-from enum import Enum
-from pydantic import BaseModel, Field, validator
+from datetime import datetime
+from enum import StrEnum
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic.functional_serializers import field_serializer
 
 
-class RiskBand(str, Enum):
+class RiskBand(StrEnum):
     """Risk classification bands"""
-    LOW = 'low'
-    MEDIUM = 'medium'
-    HIGH = 'high'
-    CRITICAL = 'critical'
+
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
 
 
-class PlanStatus(str, Enum):
+class PlanStatus(StrEnum):
     """Plan status"""
-    DRAFT = 'draft'
-    VALIDATED = 'validated'
-    APPROVED = 'approved'
-    REJECTED = 'rejected'
+
+    DRAFT = "draft"
+    VALIDATED = "validated"
+    APPROVED = "approved"
+    REJECTED = "rejected"
 
 
-class ApprovalStatus(str, Enum):
+class ApprovalStatus(StrEnum):
     """Approval status for cognitive plans"""
-    PENDING = 'pending'
-    APPROVED = 'approved'
-    REJECTED = 'rejected'
+
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
 
 
 class TaskNode(BaseModel):
     """Individual task node in the DAG"""
 
-    task_id: str = Field(..., description='Unique task ID')
-    task_type: str = Field(..., description='Task type (query, transform, validate, etc.)')
-    description: str = Field(..., description='Task description')
-    dependencies: List[str] = Field(
-        default_factory=list,
-        description='IDs of predecessor tasks'
+    task_id: str = Field(..., description="Unique task ID")
+    task_type: str = Field(..., description="Task type (query, transform, validate, etc.)")
+    description: str = Field(..., description="Task description")
+    dependencies: list[str] = Field(default_factory=list, description="IDs of predecessor tasks")
+    estimated_duration_ms: int | None = Field(
+        None, description="Estimated duration in milliseconds"
     )
-    estimated_duration_ms: Optional[int] = Field(
-        None,
-        description='Estimated duration in milliseconds'
+    required_capabilities: list[str] = Field(
+        default_factory=list, description="Required capabilities"
     )
-    required_capabilities: List[str] = Field(
-        default_factory=list,
-        description='Required capabilities'
-    )
-    parameters: Dict[str, Any] = Field(
-        default_factory=dict,
-        description='Task parameters'
-    )
-    metadata: Dict[str, Any] = Field(
-        default_factory=dict,
-        description='Additional metadata'
-    )
+    parameters: dict[str, Any] = Field(default_factory=dict, description="Task parameters")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
 
-    class Config:
-        use_enum_values = True
+    model_config = ConfigDict(use_enum_values=True)
 
 
 class CognitivePlan(BaseModel):
@@ -78,98 +70,71 @@ class CognitivePlan(BaseModel):
     """
 
     # Plan identification
-    plan_id: str = Field(
-        default_factory=lambda: str(uuid.uuid4()),
-        description='Unique plan ID'
+    plan_id: str = Field(default_factory=lambda: str(uuid.uuid4()), description="Unique plan ID")
+    version: str = Field(default="1.0.0", description="Plan version")
+    intent_id: str = Field(..., description="Originating intent ID")
+    original_intent_text: str | None = Field(
+        None, description="Original intent text for ML feedback analysis"
     )
-    version: str = Field(default='1.0.0', description='Plan version')
-    intent_id: str = Field(..., description='Originating intent ID')
-    original_intent_text: Optional[str] = Field(
-        None,
-        description='Original intent text for ML feedback analysis'
-    )
-    correlation_id: Optional[str] = Field(None, description='Correlation ID')
-    trace_id: Optional[str] = Field(None, description='OpenTelemetry trace ID')
-    span_id: Optional[str] = Field(None, description='OpenTelemetry span ID')
+    correlation_id: str | None = Field(None, description="Correlation ID")
+    trace_id: str | None = Field(None, description="OpenTelemetry trace ID")
+    span_id: str | None = Field(None, description="OpenTelemetry span ID")
 
     # DAG of tasks
-    tasks: List[TaskNode] = Field(..., description='List of tasks in the plan')
-    execution_order: List[str] = Field(..., description='Topological execution order')
+    tasks: list[TaskNode] = Field(..., description="List of tasks in the plan")
+    execution_order: list[str] = Field(..., description="Topological execution order")
 
     # Risk assessment
-    risk_score: float = Field(
-        ...,
-        ge=0.0,
-        le=1.0,
-        description='Risk score (0-1)'
-    )
-    risk_band: RiskBand = Field(..., description='Risk classification')
-    risk_factors: Dict[str, float] = Field(
-        default_factory=dict,
-        description='Individual risk factors'
+    risk_score: float = Field(..., ge=0.0, le=1.0, description="Risk score (0-1)")
+    risk_band: RiskBand = Field(..., description="Risk classification")
+    risk_factors: dict[str, float] = Field(
+        default_factory=dict, description="Individual risk factors"
     )
 
     # Explainability
-    explainability_token: str = Field(..., description='Token for detailed explanation')
-    reasoning_summary: str = Field(..., description='Reasoning summary')
+    explainability_token: str = Field(..., description="Token for detailed explanation")
+    reasoning_summary: str = Field(..., description="Reasoning summary")
 
     # Metadata
-    status: PlanStatus = Field(default=PlanStatus.DRAFT, description='Plan status')
-    created_at: datetime = Field(
-        default_factory=datetime.utcnow,
-        description='Creation timestamp'
-    )
-    valid_until: Optional[datetime] = Field(None, description='Plan validity')
-    estimated_total_duration_ms: Optional[int] = Field(
-        None,
-        description='Total estimated duration'
-    )
-    complexity_score: float = Field(..., ge=0.0, description='Complexity score')
+    status: PlanStatus = Field(default=PlanStatus.DRAFT, description="Plan status")
+    created_at: datetime = Field(default_factory=datetime.utcnow, description="Creation timestamp")
+    valid_until: datetime | None = Field(None, description="Plan validity")
+    estimated_total_duration_ms: int | None = Field(None, description="Total estimated duration")
+    complexity_score: float = Field(..., ge=0.0, description="Complexity score")
 
     # Original context
-    original_domain: str = Field(..., description='Original intent domain')
-    original_priority: str = Field(..., description='Original priority')
-    original_security_level: str = Field(..., description='Original security level')
+    original_domain: str = Field(..., description="Original intent domain")
+    original_priority: str = Field(..., description="Original priority")
+    original_security_level: str = Field(..., description="Original security level")
 
-    metadata: Dict[str, Any] = Field(
-        default_factory=dict,
-        description='Additional metadata'
-    )
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
 
     # Approval workflow fields
     requires_approval: bool = Field(
-        default=False,
-        description='Whether this plan requires human approval before execution'
+        default=False, description="Whether this plan requires human approval before execution"
     )
-    approval_status: Optional[ApprovalStatus] = Field(
-        None,
-        description='Current approval status (pending/approved/rejected)'
+    approval_status: ApprovalStatus | None = Field(
+        None, description="Current approval status (pending/approved/rejected)"
     )
-    approved_by: Optional[str] = Field(
-        None,
-        description='User ID or system identifier who approved the plan'
+    approved_by: str | None = Field(
+        None, description="User ID or system identifier who approved the plan"
     )
-    approved_at: Optional[datetime] = Field(
-        None,
-        description='Timestamp when the plan was approved'
-    )
+    approved_at: datetime | None = Field(None, description="Timestamp when the plan was approved")
 
     # Destructive operation analysis fields
     is_destructive: bool = Field(
-        default=False,
-        description='Whether this plan contains destructive operations'
+        default=False, description="Whether this plan contains destructive operations"
     )
-    destructive_tasks: List[str] = Field(
-        default_factory=list,
-        description='List of task IDs identified as destructive operations'
+    destructive_tasks: list[str] = Field(
+        default_factory=list, description="List of task IDs identified as destructive operations"
     )
-    risk_matrix: Optional[Dict[str, float]] = Field(
-        None,
-        description='Multi-domain risk scores (BUSINESS, SECURITY, OPERATIONAL, etc.)'
+    risk_matrix: dict[str, float] | None = Field(
+        None, description="Multi-domain risk scores (BUSINESS, SECURITY, OPERATIONAL, etc.)"
     )
 
-    @validator('tasks')
-    def validate_dag_acyclic(cls, v):
+    @field_validator("tasks")
+    @classmethod
+    def validate_dag_acyclic(cls, v: list) -> list:
         """Validate that the DAG is acyclic"""
         import networkx as nx
 
@@ -186,94 +151,105 @@ class CognitivePlan(BaseModel):
         # Check for cycles
         if not nx.is_directed_acyclic_graph(G):
             cycles = list(nx.simple_cycles(G))
-            raise ValueError(f'DAG contains cycles: {cycles}')
+            raise ValueError(f"DAG contains cycles: {cycles}")
 
         return v
 
-    @validator('execution_order')
-    def validate_execution_order(cls, v, values):
+    @model_validator(mode="after")
+    def validate_execution_order(self) -> "CognitivePlan":
         """Validate execution order matches tasks"""
-        if 'tasks' not in values:
-            return v
+        if not self.tasks:
+            return self
 
-        task_ids = {task.task_id for task in values['tasks']}
-        order_ids = set(v)
+        task_ids = {task.task_id for task in self.tasks}
+        order_ids = set(self.execution_order)
 
         if task_ids != order_ids:
             missing = task_ids - order_ids
             extra = order_ids - task_ids
-            raise ValueError(
-                f'Execution order mismatch. Missing: {missing}, Extra: {extra}'
-            )
+            raise ValueError(f"Execution order mismatch. Missing: {missing}, Extra: {extra}")
 
-        return v
+        return self
 
-    def to_avro_dict(self) -> Dict[str, Any]:
+    def to_avro_dict(self) -> dict[str, Any]:
         """Convert to Avro-compatible dictionary"""
         return {
-            'plan_id': self.plan_id,
-            'version': self.version,
-            'intent_id': self.intent_id,
-            'original_intent_text': self.original_intent_text,
-            'correlation_id': self.correlation_id,
-            'trace_id': self.trace_id,
-            'span_id': self.span_id,
-            'tasks': [
+            "plan_id": self.plan_id,
+            "version": self.version,
+            "intent_id": self.intent_id,
+            "original_intent_text": self.original_intent_text,
+            "correlation_id": self.correlation_id,
+            "trace_id": self.trace_id,
+            "span_id": self.span_id,
+            "tasks": [
                 {
-                    'task_id': task.task_id,
-                    'task_type': task.task_type,
-                    'description': task.description,
-                    'dependencies': task.dependencies,
-                    'estimated_duration_ms': task.estimated_duration_ms,
-                    'required_capabilities': task.required_capabilities,
-                    'parameters': {k: str(v) for k, v in task.parameters.items()} if isinstance(task.parameters, dict) else {},
-                    'metadata': {k: str(v) for k, v in task.metadata.items()} if isinstance(task.metadata, dict) else {}
+                    "task_id": task.task_id,
+                    "task_type": task.task_type,
+                    "description": task.description,
+                    "dependencies": task.dependencies,
+                    "estimated_duration_ms": task.estimated_duration_ms,
+                    "required_capabilities": task.required_capabilities,
+                    "parameters": {k: str(v) for k, v in task.parameters.items()}
+                    if isinstance(task.parameters, dict)
+                    else {},
+                    "metadata": {k: str(v) for k, v in task.metadata.items()}
+                    if isinstance(task.metadata, dict)
+                    else {},
                 }
                 for task in self.tasks
             ],
-            'execution_order': self.execution_order,
-            'risk_score': self.risk_score,
-            'risk_band': self.risk_band.value if hasattr(self.risk_band, 'value') else self.risk_band,
-            'risk_factors': self.risk_factors,
-            'explainability_token': self.explainability_token,
-            'reasoning_summary': self.reasoning_summary,
-            'status': self.status.value if hasattr(self.status, 'value') else self.status,
-            'created_at': int(self.created_at.timestamp() * 1000),
-            'valid_until': int(self.valid_until.timestamp() * 1000) if self.valid_until else None,
-            'estimated_total_duration_ms': self.estimated_total_duration_ms,
-            'complexity_score': self.complexity_score,
-            'original_domain': self.original_domain,
-            'original_priority': self.original_priority,
-            'original_security_level': self.original_security_level,
-            'metadata': {k: str(v) for k, v in self.metadata.items()} if isinstance(self.metadata, dict) else {},
-            'requires_approval': self.requires_approval,
-            'approval_status': self.approval_status.value if self.approval_status and hasattr(self.approval_status, 'value') else self.approval_status,
-            'approved_by': self.approved_by,
-            'approved_at': int(self.approved_at.timestamp() * 1000) if self.approved_at else None,
-            'is_destructive': self.is_destructive,
-            'destructive_tasks': self.destructive_tasks,
-            'risk_matrix': self.risk_matrix if self.risk_matrix is not None else None,
-            'schema_version': 1
+            "execution_order": self.execution_order,
+            "risk_score": self.risk_score,
+            "risk_band": self.risk_band.value
+            if hasattr(self.risk_band, "value")
+            else self.risk_band,
+            "risk_factors": self.risk_factors,
+            "explainability_token": self.explainability_token,
+            "reasoning_summary": self.reasoning_summary,
+            "status": self.status.value if hasattr(self.status, "value") else self.status,
+            "created_at": int(self.created_at.timestamp() * 1000),
+            "valid_until": int(self.valid_until.timestamp() * 1000) if self.valid_until else None,
+            "estimated_total_duration_ms": self.estimated_total_duration_ms,
+            "complexity_score": self.complexity_score,
+            "original_domain": self.original_domain,
+            "original_priority": self.original_priority,
+            "original_security_level": self.original_security_level,
+            "metadata": {k: str(v) for k, v in self.metadata.items()}
+            if isinstance(self.metadata, dict)
+            else {},
+            "requires_approval": self.requires_approval,
+            "approval_status": self.approval_status.value
+            if self.approval_status and hasattr(self.approval_status, "value")
+            else self.approval_status,
+            "approved_by": self.approved_by,
+            "approved_at": int(self.approved_at.timestamp() * 1000) if self.approved_at else None,
+            "is_destructive": self.is_destructive,
+            "destructive_tasks": self.destructive_tasks,
+            "risk_matrix": self.risk_matrix if self.risk_matrix is not None else None,
+            "schema_version": 1,
         }
 
     def get_partition_key(self) -> str:
         """Get partition key for Kafka (by domain)"""
         return self.original_domain
 
-    def to_cache_dict(self) -> Dict[str, Any]:
+    def to_cache_dict(self) -> dict[str, Any]:
         """Compact version for Redis cache"""
         return {
-            'plan_id': self.plan_id,
-            'intent_id': self.intent_id,
-            'risk_band': self.risk_band.value if hasattr(self.risk_band, 'value') else self.risk_band,
-            'status': self.status.value if hasattr(self.status, 'value') else self.status,
-            'num_tasks': len(self.tasks),
-            'created_at': self.created_at.isoformat()
+            "plan_id": self.plan_id,
+            "intent_id": self.intent_id,
+            "risk_band": self.risk_band.value
+            if hasattr(self.risk_band, "value")
+            else self.risk_band,
+            "status": self.status.value if hasattr(self.status, "value") else self.status,
+            "num_tasks": len(self.tasks),
+            "created_at": self.created_at.isoformat(),
         }
 
-    class Config:
-        use_enum_values = True
-        validate_assignment = True
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }
+    model_config = ConfigDict(use_enum_values=True, validate_assignment=True)
+
+    @field_serializer("created_at", "valid_until", "approved_at")
+    @classmethod
+    def serialize_datetime(cls, dt: datetime) -> str:
+        """Serialize datetime to ISO format"""
+        return dt.isoformat() if dt else None

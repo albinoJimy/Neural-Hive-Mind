@@ -3,7 +3,7 @@ Testes unitários para FeedbackCollector.
 """
 
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import Mock, MagicMock, patch
 from neural_hive_specialists.feedback import FeedbackCollector, FeedbackDocument
 from neural_hive_specialists.config import SpecialistConfig
@@ -201,7 +201,7 @@ class TestFeedbackCollector:
             "human_recommendation": "approve",
             "feedback_notes": "test",
             "submitted_by": "test",
-            "submitted_at": datetime.utcnow(),
+            "submitted_at": datetime.now(timezone.utc),
             "feedback_source": "human_expert",
             "metadata": {},
             "schema_version": "1.0.0",

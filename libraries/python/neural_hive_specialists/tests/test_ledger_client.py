@@ -284,7 +284,7 @@ class TestBuffer:
         )
 
         # Adicionar pareceres ao buffer com estrutura correta para flush
-        from datetime import datetime
+        from datetime import datetime, timezone
         for i in range(2):
             opinion_data = {
                 "opinion_id": f"opinion-{i}",
@@ -293,7 +293,7 @@ class TestBuffer:
                 "specialist_type": "business",
                 "correlation_id": f"corr-{i}",
                 "opinion_data": sample_opinion,  # nome correto: opinion_data
-                "timestamp": datetime.utcnow(),  # campo obrigatório para hash
+                "timestamp": datetime.now(timezone.utc),  # campo obrigatório para hash
                 "buffered": True,
             }
             ledger_client._buffer_opinion(opinion_data)

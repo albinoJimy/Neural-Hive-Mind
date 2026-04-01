@@ -1,20 +1,21 @@
-from pydantic_settings import BaseSettings
-from pydantic import Field, model_validator
-from typing import List, Optional
 from functools import lru_cache
+from typing import List, Optional
+
+from pydantic import Field, model_validator
+from pydantic_settings import BaseSettings
 
 from neural_hive_security.cors import CORSConfig
 
 
 class Settings(BaseSettings):
     # Service
-    SERVICE_NAME: str = 'analyst-agents'
-    SERVICE_VERSION: str = '1.0.0'
-    ENVIRONMENT: str = 'development'
-    LOG_LEVEL: str = 'INFO'
+    SERVICE_NAME: str = "analyst-agents"
+    SERVICE_VERSION: str = "1.0.0"
+    ENVIRONMENT: str = "development"
+    LOG_LEVEL: str = "INFO"
 
     # FastAPI
-    FASTAPI_HOST: str = '0.0.0.0'
+    FASTAPI_HOST: str = "0.0.0.0"
     FASTAPI_PORT: int = 8000
 
     # CORS - Serviço interno (gRPC/Kafka), sem CORS
@@ -24,82 +25,92 @@ class Settings(BaseSettings):
     def CORS_ORIGINS(self) -> List[str]:
         """CORS origins dinâmicas por ambiente."""
         return CORSConfig.get_origins_for_environment(
-            self.ENVIRONMENT,
-            is_public_api=self.IS_PUBLIC_API
+            self.ENVIRONMENT, is_public_api=self.IS_PUBLIC_API
         )
 
     # gRPC
     GRPC_ENABLED: bool = True
-    GRPC_HOST: str = '0.0.0.0'
+    GRPC_HOST: str = "0.0.0.0"
     GRPC_PORT: int = 50051
     GRPC_MAX_WORKERS: int = 10
 
     # Kafka
     KAFKA_BOOTSTRAP_SERVERS: str
-    KAFKA_CONSUMER_GROUP: str = 'analyst-agents-group'
-    KAFKA_TOPICS_TELEMETRY: str = 'telemetry.aggregated'
-    KAFKA_TOPICS_CONSENSUS: str = 'plans.consensus'
-    KAFKA_TOPICS_EXECUTION: str = 'execution.results'
-    KAFKA_TOPICS_PHEROMONES: str = 'pheromones.signals'
-    KAFKA_TOPICS_INSIGHTS: str = 'insights.analyzed'
-    KAFKA_AUTO_OFFSET_RESET: str = 'earliest'
+    KAFKA_CONSUMER_GROUP: str = "analyst-agents-group"
+    KAFKA_TOPICS_TELEMETRY: str = "telemetry.aggregated"
+    KAFKA_TOPICS_CONSENSUS: str = "plans.consensus"
+    KAFKA_TOPICS_EXECUTION: str = "execution.results"
+    KAFKA_TOPICS_PHEROMONES: str = "pheromones.signals"
+    KAFKA_TOPICS_INSIGHTS: str = "insights.analyzed"
+    KAFKA_AUTO_OFFSET_RESET: str = "earliest"
     KAFKA_ENABLE_AUTO_COMMIT: bool = False
 
     # MongoDB
     MONGODB_URI: str
-    MONGODB_DATABASE: str = 'neural_hive'
-    MONGODB_COLLECTION_INSIGHTS: str = 'analyst_insights'
+    MONGODB_DATABASE: str = "neural_hive"
+    MONGODB_COLLECTION_INSIGHTS: str = "analyst_insights"
     MONGODB_MAX_POOL_SIZE: int = 100
     MONGODB_MIN_POOL_SIZE: int = 10
 
     # Redis
-    REDIS_HOST: str = 'localhost'
+    REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379
     REDIS_PASSWORD: Optional[str] = None
     REDIS_DB: int = 0
     REDIS_INSIGHTS_TTL: int = 3600
 
     # Neo4j
-    NEO4J_URI: str = 'bolt://localhost:7687'
-    NEO4J_USER: str = 'neo4j'
+    NEO4J_URI: str = "bolt://localhost:7687"
+    NEO4J_USER: str = "neo4j"
     NEO4J_PASSWORD: Optional[str] = None
-    NEO4J_DATABASE: str = 'neo4j'
+    NEO4J_DATABASE: str = "neo4j"
 
     # ClickHouse
-    CLICKHOUSE_HOST: str = 'localhost'
+    CLICKHOUSE_HOST: str = "localhost"
     CLICKHOUSE_PORT: int = 9000
-    CLICKHOUSE_USER: str = 'default'
+    CLICKHOUSE_USER: str = "default"
     CLICKHOUSE_PASSWORD: Optional[str] = None
-    CLICKHOUSE_DATABASE: str = 'neural_hive'
+    CLICKHOUSE_DATABASE: str = "neural_hive"
+
+    # PostgreSQL
+    POSTGRESQL_HOST: str = "localhost"
+    POSTGRESQL_PORT: int = 5432
+    POSTGRESQL_USER: str = "postgres"
+    POSTGRESQL_PASSWORD: Optional[str] = None
+    POSTGRESQL_DATABASE: str = "neural_hive"
+    POSTGRESQL_MIN_POOL_SIZE: int = 10
+    POSTGRESQL_MAX_POOL_SIZE: int = 100
 
     # Elasticsearch
-    ELASTICSEARCH_HOSTS: List[str] = Field(default=['http://localhost:9200'])
+    ELASTICSEARCH_HOSTS: List[str] = Field(default=["http://localhost:9200"])
     ELASTICSEARCH_USER: Optional[str] = None
     ELASTICSEARCH_PASSWORD: Optional[str] = None
 
     # Prometheus
-    PROMETHEUS_URL: str = 'http://localhost:9090'
+    PROMETHEUS_URL: str = "http://localhost:9090"
 
     # Memory Layer API
-    MEMORY_LAYER_API_URL: str = 'http://memory-layer-api:8000'
+    MEMORY_LAYER_API_URL: str = "http://memory-layer-api:8000"
 
     # Queen Agent gRPC
-    QUEEN_AGENT_GRPC_HOST: str = 'queen-agent'
+    QUEEN_AGENT_GRPC_HOST: str = "queen-agent"
     QUEEN_AGENT_GRPC_PORT: int = 50051
 
     # SPIFFE/SPIRE mTLS
     SPIFFE_ENABLED: bool = False
-    SPIFFE_SOCKET_PATH: str = 'unix:///run/spire/sockets/agent.sock'
-    SPIFFE_TRUST_DOMAIN: str = 'neural-hive.local'
+    SPIFFE_SOCKET_PATH: str = "unix:///run/spire/sockets/agent.sock"
+    SPIFFE_TRUST_DOMAIN: str = "neural-hive.local"
     SPIFFE_ENABLE_X509: bool = False
 
     # Service Registry
-    SERVICE_REGISTRY_GRPC_HOST: str = 'service-registry'
+    SERVICE_REGISTRY_GRPC_HOST: str = "service-registry"
     SERVICE_REGISTRY_GRPC_PORT: int = 50051
 
     # OpenTelemetry
-    OTEL_EXPORTER_OTLP_ENDPOINT: str = 'https://opentelemetry-collector.observability.svc.cluster.local:4317'
-    OTEL_SERVICE_NAME: str = 'analyst-agents'
+    OTEL_EXPORTER_OTLP_ENDPOINT: str = (
+        "https://opentelemetry-collector.observability.svc.cluster.local:4317"
+    )
+    OTEL_SERVICE_NAME: str = "analyst-agents"
 
     # Analytics
     ANALYTICS_BATCH_SIZE: int = 1000
@@ -108,7 +119,7 @@ class Settings(BaseSettings):
     ANALYTICS_ENABLE_SPARK: bool = False
 
     # Embeddings
-    EMBEDDINGS_MODEL: str = 'sentence-transformers/all-MiniLM-L6-v2'
+    EMBEDDINGS_MODEL: str = "sentence-transformers/all-MiniLM-L6-v2"
     EMBEDDINGS_DIMENSION: int = 384
 
     @model_validator(mode="after")
@@ -131,7 +142,7 @@ class Settings(BaseSettings):
         return self
 
     class Config:
-        env_file = '.env'
+        env_file = ".env"
         case_sensitive = True
 
 

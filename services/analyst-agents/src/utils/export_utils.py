@@ -2,10 +2,9 @@
 Export utilities for insights.
 Supports JSON, CSV, and text-based PDF export.
 """
-from datetime import datetime
-from typing import Dict, Any, List
 import csv
 import io
+from datetime import datetime, timezone
 
 from ..models.insight_extended import InsightResponse
 
@@ -13,8 +12,9 @@ from ..models.insight_extended import InsightResponse
 def export_to_json(insight: InsightResponse) -> str:
     """Export insight to JSON string."""
     import json
+
     # Support both Pydantic v1 and v2
-    if hasattr(insight, 'model_dump'):
+    if hasattr(insight, "model_dump"):
         data = insight.model_dump()
     else:
         data = insight.dict()
@@ -26,7 +26,7 @@ def export_to_csv(insight: InsightResponse) -> str:
     output = io.StringIO()
 
     # Handle Pydantic v2 model_dump for accessing values
-    if hasattr(insight, 'model_dump'):
+    if hasattr(insight, "model_dump"):
         data = insight.model_dump()
     else:
         data = insight.dict()
@@ -42,7 +42,12 @@ def export_to_csv(insight: InsightResponse) -> str:
 
     created_at = data.get("created_at")
     if created_at:
-        writer.writerow(["Created At", created_at.isoformat() if hasattr(created_at, 'isoformat') else str(created_at)])
+        writer.writerow(
+            [
+                "Created At",
+                created_at.isoformat() if hasattr(created_at, "isoformat") else str(created_at),
+            ]
+        )
 
     metadata = data.get("metadata", {})
     if isinstance(metadata, dict):
@@ -92,7 +97,7 @@ def export_to_pdf_text(insight: InsightResponse) -> bytes:
     Returns bytes that can be served as application/pdf.
     """
     # Handle Pydantic v2 model_dump
-    if hasattr(insight, 'model_dump'):
+    if hasattr(insight, "model_dump"):
         data = insight.model_dump()
     else:
         data = insight.dict()
@@ -108,7 +113,13 @@ def export_to_pdf_text(insight: InsightResponse) -> bytes:
     insight_data = data.get("data", {})
 
     created_at = data.get("created_at")
-    created_str = created_at.isoformat() if hasattr(created_at, 'isoformat') else str(created_at) if created_at else ""
+    created_str = (
+        created_at.isoformat()
+        if hasattr(created_at, "isoformat")
+        else str(created_at)
+        if created_at
+        else ""
+    )
 
     lines = [
         "=" * 70,
@@ -143,12 +154,14 @@ def export_to_pdf_text(insight: InsightResponse) -> bytes:
     else:
         lines.append("(none)")
 
-    lines.extend([
-        "",
-        "-" * 70,
-        "DATA",
-        "-" * 70,
-    ])
+    lines.extend(
+        [
+            "",
+            "-" * 70,
+            "DATA",
+            "-" * 70,
+        ]
+    )
 
     for key, value in insight_data.items():
         if isinstance(value, (str, int, float, bool)):
@@ -160,13 +173,15 @@ def export_to_pdf_text(insight: InsightResponse) -> bytes:
         else:
             lines.append(f"{key}: ({type(value).__name__})")
 
-    lines.extend([
-        "",
-        "-" * 70,
-        f"Generated: {datetime.utcnow().isoformat()}",
-        "Neural Hive Mind - Analyst Agents",
-        "=" * 70,
-    ])
+    lines.extend(
+        [
+            "",
+            "-" * 70,
+            f"Generated: {datetime.now(timezone.utc).isoformat()}",
+            "Neural Hive Mind - Analyst Agents",
+            "=" * 70,
+        ]
+    )
 
     text_content = "\n".join(lines)
 

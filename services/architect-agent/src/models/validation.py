@@ -2,9 +2,9 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import List, Dict, Any, Optional, Literal
+from typing import Any, Dict, List, Literal, Optional
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class Severity(str, Enum):
@@ -45,9 +45,7 @@ class Violation(BaseModel):
 
     type: ViolationType = Field(..., description="Tipo da violação")
     severity: Severity = Field(..., description="Nível de severidade")
-    location: str = Field(
-        ..., description="Localização no código (ex: file.py:linha)"
-    )
+    location: str = Field(..., description="Localização no código (ex: file.py:linha)")
     description: str = Field(..., description="Descrição da violação")
     suggestion: Optional[str] = Field(None, description="Sugestão de correção")
 
@@ -57,9 +55,7 @@ class Suggestion(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    priority: int = Field(
-        ..., ge=1, le=5, description="Prioridade 1-5 (1 mais alta)"
-    )
+    priority: int = Field(..., ge=1, le=5, description="Prioridade 1-5 (1 mais alta)")
     description: str = Field(..., description="Descrição da sugestão")
     effort: Literal["XS", "S", "M", "L", "XL"] = Field(
         default="M",
@@ -117,9 +113,7 @@ class ValidationReport(BaseModel):
     repo_url: str = Field(..., description="URL do repositório")
     branch: str = Field(default="main", description="Branch analisada")
     commit_sha: Optional[str] = Field(None, description="SHA do commit analisado")
-    health_score: int = Field(
-        ..., ge=0, le=100, description="Score de saúde 0-100"
-    )
+    health_score: int = Field(..., ge=0, le=100, description="Score de saúde 0-100")
     trend: Trend = Field(default=Trend.STABLE, description="Tendência de evolução")
     violations: List[Violation] = Field(
         default_factory=list, description="Lista de violações detectadas"
@@ -127,9 +121,5 @@ class ValidationReport(BaseModel):
     suggestions: List[Suggestion] = Field(
         default_factory=list, description="Lista de sugestões de melhoria"
     )
-    metrics: Dict[str, Any] = Field(
-        default_factory=dict, description="Métricas adicionais"
-    )
-    created_at: datetime = Field(
-        default_factory=datetime.utcnow, description="Data de criação"
-    )
+    metrics: Dict[str, Any] = Field(default_factory=dict, description="Métricas adicionais")
+    created_at: datetime = Field(default_factory=datetime.utcnow, description="Data de criação")

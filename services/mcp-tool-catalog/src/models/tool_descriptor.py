@@ -2,9 +2,9 @@
 from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional
-from uuid import UUID, uuid4
+from uuid import uuid4
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class ToolCategory(str, Enum):
@@ -106,8 +106,4 @@ class ToolDescriptor(BaseModel):
         avro_data["updated_at"] = datetime.fromtimestamp(avro_data["updated_at"] / 1000.0)
         return cls(**avro_data)
 
-    class Config:
-        """Pydantic configuration."""
-
-        use_enum_values = False
-        json_encoders = {datetime: lambda v: int(v.timestamp() * 1000)}
+    model_config = ConfigDict(use_enum_values=False)

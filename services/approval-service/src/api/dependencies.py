@@ -5,11 +5,8 @@ Dependencias injetaveis para os endpoints da API.
 """
 
 from typing import Optional
-from fastapi import Depends
 
-from src.config.settings import Settings, get_settings
 from src.services.approval_service import ApprovalService
-
 
 # Referencia global para o servico
 _approval_service: Optional[ApprovalService] = None

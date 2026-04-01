@@ -4,7 +4,7 @@ Cliente MongoDB simples para persistência de DLQ no Worker Agents.
 Responsável por armazenar tickets falhos para análise forense.
 """
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Any
 
 import structlog
 
@@ -31,15 +31,15 @@ class MongoDBClient:
         from motor.motor_asyncio import AsyncIOMotorClient
 
         mongodb_uri = self.config.mongodb_uri
-        max_pool_size = getattr(self.config, 'mongodb_max_pool_size', 10)
-        server_timeout = getattr(self.config, 'mongodb_server_selection_timeout_ms', 5000)
+        max_pool_size = getattr(self.config, "mongodb_max_pool_size", 10)
+        server_timeout = getattr(self.config, "mongodb_server_selection_timeout_ms", 5000)
 
         self.client = AsyncIOMotorClient(
             mongodb_uri,
             maxPoolSize=max_pool_size,
             serverSelectionTimeoutMS=server_timeout,
             retryWrites=True,
-            w='majority'
+            w="majority",
         )
 
         self.db = self.client[self.config.mongodb_database]
@@ -49,25 +49,25 @@ class MongoDBClient:
         await self._create_indexes()
 
         # Verificar conectividade
-        await self.client.admin.command('ping')
+        await self.client.admin.command("ping")
 
         logger.info(
-            'mongodb_client_initialized',
+            "mongodb_client_initialized",
             database=self.config.mongodb_database,
-            collection=self.config.mongodb_dlq_collection
+            collection=self.config.mongodb_dlq_collection,
         )
 
     async def _create_indexes(self):
         """Criar índices necessários para a coleção DLQ."""
         # Índice único para ticket_id
-        await self.dlq_collection.create_index('ticket_id')
-        await self.dlq_collection.create_index('processed_at')
-        await self.dlq_collection.create_index('task_type')
-        await self.dlq_collection.create_index([('processed_at', -1)])
+        await self.dlq_collection.create_index("ticket_id")
+        await self.dlq_collection.create_index("processed_at")
+        await self.dlq_collection.create_index("task_type")
+        await self.dlq_collection.create_index([("processed_at", -1)])
 
-        logger.debug('mongodb_dlq_indexes_created')
+        logger.debug("mongodb_dlq_indexes_created")
 
-    async def save_dlq_message(self, dlq_message: Dict[str, Any]) -> bool:
+    async def save_dlq_message(self, dlq_message: dict[str, Any]) -> bool:
         """
         Persistir mensagem DLQ no MongoDB.
 
@@ -80,23 +80,18 @@ class MongoDBClient:
         try:
             document = {
                 **dlq_message,
-                'processed_at': datetime.now(),
-                'processed_at_ms': int(datetime.now().timestamp() * 1000)
+                "processed_at": datetime.now(),
+                "processed_at_ms": int(datetime.now().timestamp() * 1000),
             }
 
             await self.dlq_collection.insert_one(document)
 
-            logger.info(
-                'dlq_message_persisted',
-                ticket_id=dlq_message.get('ticket_id')
-            )
+            logger.info("dlq_message_persisted", ticket_id=dlq_message.get("ticket_id"))
             return True
 
         except Exception as e:
-            logger.error(
-                'dlq_persistence_failed',
-                ticket_id=dlq_message.get('ticket_id'),
-                error=str(e)
+            logger.exception(
+                "dlq_persistence_failed", ticket_id=dlq_message.get("ticket_id"), error=str(e)
             )
             return False
 
@@ -104,4 +99,4 @@ class MongoDBClient:
         """Fechar cliente MongoDB."""
         if self.client:
             self.client.close()
-            logger.info('mongodb_client_closed')
+            logger.info("mongodb_client_closed")

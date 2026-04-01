@@ -1,6 +1,5 @@
 import time
-from datetime import datetime
-from typing import Optional
+from datetime import UTC, datetime
 
 import grpc
 import structlog
@@ -18,28 +17,29 @@ logger = structlog.get_logger()
 
 # Metricas Prometheus para gRPC
 GRPC_REQUESTS_TOTAL = Counter(
-    'optimizer_grpc_requests_total',
-    'Total de requisicoes gRPC',
-    ['method', 'status']
+    "optimizer_grpc_requests_total", "Total de requisicoes gRPC", ["method", "status"]
 )
 
 GRPC_REQUEST_DURATION_SECONDS = Histogram(
-    'optimizer_grpc_request_duration_seconds',
-    'Duracao das requisicoes gRPC em segundos',
-    ['method'],
-    buckets=(0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0)
+    "optimizer_grpc_request_duration_seconds",
+    "Duracao das requisicoes gRPC em segundos",
+    ["method"],
+    buckets=(0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0),
 )
 
 # Proto imports - will be available after `make proto` compilation
 try:
     from src.proto import optimizer_agent_pb2, optimizer_agent_pb2_grpc
+
     PROTO_AVAILABLE = True
 except ImportError:
     PROTO_AVAILABLE = False
     logger.warning("proto_not_compiled", message="Run 'make proto' to compile protocol buffers")
 
 
-class OptimizerServicer(optimizer_agent_pb2_grpc.OptimizerAgentServicer if PROTO_AVAILABLE else object):
+class OptimizerServicer(
+    optimizer_agent_pb2_grpc.OptimizerAgentServicer if PROTO_AVAILABLE else object
+):
     """
     gRPC servicer para Optimizer Agent.
 
@@ -48,11 +48,11 @@ class OptimizerServicer(optimizer_agent_pb2_grpc.OptimizerAgentServicer if PROTO
 
     def __init__(
         self,
-        optimization_engine: Optional[OptimizationEngine] = None,
-        experiment_manager: Optional[ExperimentManager] = None,
-        weight_recalibrator: Optional[WeightRecalibrator] = None,
-        slo_adjuster: Optional[SLOAdjuster] = None,
-        mongodb_client: Optional[MongoDBClient] = None,
+        optimization_engine: OptimizationEngine | None = None,
+        experiment_manager: ExperimentManager | None = None,
+        weight_recalibrator: WeightRecalibrator | None = None,
+        slo_adjuster: SLOAdjuster | None = None,
+        mongodb_client: MongoDBClient | None = None,
         load_predictor=None,
         scheduling_optimizer=None,
         settings=None,
@@ -78,7 +78,7 @@ class OptimizerServicer(optimizer_agent_pb2_grpc.OptimizerAgentServicer if PROTO
             TriggerOptimizationResponse
         """
         start_time = time.time()
-        method = 'TriggerOptimization'
+        method = "TriggerOptimization"
         try:
             logger.info(
                 "trigger_optimization_requested",
@@ -91,8 +91,8 @@ class OptimizerServicer(optimizer_agent_pb2_grpc.OptimizerAgentServicer if PROTO
                 hypothesis_id=f"grpc-{request.component}-{request.optimization_type}",
                 optimization_type=OptimizationType(request.optimization_type),
                 target_component=request.component,
-                hypothesis_text=request.context.get('justification', 'Manual trigger via gRPC'),
-                rationale=request.context.get('justification', 'Manual trigger via gRPC'),
+                hypothesis_text=request.context.get("justification", "Manual trigger via gRPC"),
+                rationale=request.context.get("justification", "Manual trigger via gRPC"),
                 proposed_adjustments=[],
                 baseline_metrics={},
                 expected_improvement=0.1,
@@ -105,35 +105,39 @@ class OptimizerServicer(optimizer_agent_pb2_grpc.OptimizerAgentServicer if PROTO
 
             if request.optimization_type == "WEIGHT_RECALIBRATION":
                 if self.weight_recalibrator is None:
-                    GRPC_REQUESTS_TOTAL.labels(method=method, status='error').inc()
+                    GRPC_REQUESTS_TOTAL.labels(method=method, status="error").inc()
                     context.abort(grpc.StatusCode.UNAVAILABLE, "WeightRecalibrator not initialized")
-                optimization_event = await self.weight_recalibrator.apply_weight_recalibration(hypothesis)
+                optimization_event = await self.weight_recalibrator.apply_weight_recalibration(
+                    hypothesis
+                )
             elif request.optimization_type == "SLO_ADJUSTMENT":
                 if self.slo_adjuster is None:
-                    GRPC_REQUESTS_TOTAL.labels(method=method, status='error').inc()
+                    GRPC_REQUESTS_TOTAL.labels(method=method, status="error").inc()
                     context.abort(grpc.StatusCode.UNAVAILABLE, "SLOAdjuster not initialized")
                 optimization_event = await self.slo_adjuster.apply_slo_adjustment(hypothesis)
 
             if not optimization_event:
-                GRPC_REQUESTS_TOTAL.labels(method=method, status='error').inc()
+                GRPC_REQUESTS_TOTAL.labels(method=method, status="error").inc()
                 context.abort(grpc.StatusCode.INTERNAL, "Failed to apply optimization")
 
-            logger.info("optimization_triggered", optimization_id=optimization_event.optimization_id)
-            GRPC_REQUESTS_TOTAL.labels(method=method, status='success').inc()
+            logger.info(
+                "optimization_triggered", optimization_id=optimization_event.optimization_id
+            )
+            GRPC_REQUESTS_TOTAL.labels(method=method, status="success").inc()
 
             # Return proto response when available
             if PROTO_AVAILABLE:
                 return optimizer_agent_pb2.TriggerOptimizationResponse(
                     experiment_id=optimization_event.optimization_id,
                     status="APPLIED",
-                    message="Optimization applied successfully"
+                    message="Optimization applied successfully",
                 )
             else:
                 return {"experiment_id": optimization_event.optimization_id, "status": "APPLIED"}
 
         except Exception as e:
             logger.error("trigger_optimization_failed", error=str(e))
-            GRPC_REQUESTS_TOTAL.labels(method=method, status='error').inc()
+            GRPC_REQUESTS_TOTAL.labels(method=method, status="error").inc()
             context.abort(grpc.StatusCode.INTERNAL, f"Failed to trigger optimization: {str(e)}")
         finally:
             GRPC_REQUEST_DURATION_SECONDS.labels(method=method).observe(time.time() - start_time)
@@ -150,21 +154,25 @@ class OptimizerServicer(optimizer_agent_pb2_grpc.OptimizerAgentServicer if PROTO
             GetOptimizationStatusResponse
         """
         start_time = time.time()
-        method = 'GetOptimizationStatus'
+        method = "GetOptimizationStatus"
         try:
-            logger.info("get_optimization_status_requested", optimization_id=request.optimization_id)
+            logger.info(
+                "get_optimization_status_requested", optimization_id=request.optimization_id
+            )
 
             if not self.mongodb_client:
-                GRPC_REQUESTS_TOTAL.labels(method=method, status='error').inc()
+                GRPC_REQUESTS_TOTAL.labels(method=method, status="error").inc()
                 context.abort(grpc.StatusCode.UNAVAILABLE, "MongoDB client not available")
 
             optimization = await self.mongodb_client.get_optimization(request.optimization_id)
 
             if not optimization:
-                GRPC_REQUESTS_TOTAL.labels(method=method, status='not_found').inc()
-                context.abort(grpc.StatusCode.NOT_FOUND, f"Optimization {request.optimization_id} not found")
+                GRPC_REQUESTS_TOTAL.labels(method=method, status="not_found").inc()
+                context.abort(
+                    grpc.StatusCode.NOT_FOUND, f"Optimization {request.optimization_id} not found"
+                )
 
-            GRPC_REQUESTS_TOTAL.labels(method=method, status='success').inc()
+            GRPC_REQUESTS_TOTAL.labels(method=method, status="success").inc()
 
             if PROTO_AVAILABLE:
                 # Extrair métricas do documento MongoDB
@@ -178,14 +186,14 @@ class OptimizerServicer(optimizer_agent_pb2_grpc.OptimizerAgentServicer if PROTO
                     optimization_id=optimization.get("optimization_id", ""),
                     status=optimization.get("approval_status", "UNKNOWN"),
                     improvement_percentage=optimization.get("improvement_percentage", 0.0),
-                    metrics=metrics
+                    metrics=metrics,
                 )
             else:
                 return optimization
 
         except Exception as e:
             logger.error("get_optimization_status_failed", error=str(e))
-            GRPC_REQUESTS_TOTAL.labels(method=method, status='error').inc()
+            GRPC_REQUESTS_TOTAL.labels(method=method, status="error").inc()
             context.abort(grpc.StatusCode.INTERNAL, f"Failed to get optimization status: {str(e)}")
         finally:
             GRPC_REQUEST_DURATION_SECONDS.labels(method=method).observe(time.time() - start_time)
@@ -202,12 +210,12 @@ class OptimizerServicer(optimizer_agent_pb2_grpc.OptimizerAgentServicer if PROTO
             ListOptimizationsResponse (stream)
         """
         start_time = time.time()
-        method = 'ListOptimizations'
+        method = "ListOptimizations"
         try:
             logger.info("list_optimizations_requested", page_size=request.page_size)
 
             if not self.mongodb_client:
-                GRPC_REQUESTS_TOTAL.labels(method=method, status='error').inc()
+                GRPC_REQUESTS_TOTAL.labels(method=method, status="error").inc()
                 context.abort(grpc.StatusCode.UNAVAILABLE, "MongoDB client not available")
 
             # Construir filtros
@@ -223,29 +231,30 @@ class OptimizerServicer(optimizer_agent_pb2_grpc.OptimizerAgentServicer if PROTO
             )
 
             logger.info("optimizations_listed", count=len(optimizations))
-            GRPC_REQUESTS_TOTAL.labels(method=method, status='success').inc()
+            GRPC_REQUESTS_TOTAL.labels(method=method, status="success").inc()
 
             if PROTO_AVAILABLE:
                 summaries = []
                 for opt in optimizations:
-                    summaries.append(optimizer_agent_pb2.OptimizationSummary(
-                        optimization_id=opt.get("optimization_id", ""),
-                        optimization_type=opt.get("optimization_type", ""),
-                        component=opt.get("target_component", ""),
-                        improvement_percentage=opt.get("improvement_percentage", 0.0),
-                        applied_at=opt.get("applied_at", 0),
-                        status=opt.get("approval_status", "UNKNOWN")
-                    ))
+                    summaries.append(
+                        optimizer_agent_pb2.OptimizationSummary(
+                            optimization_id=opt.get("optimization_id", ""),
+                            optimization_type=opt.get("optimization_type", ""),
+                            component=opt.get("target_component", ""),
+                            improvement_percentage=opt.get("improvement_percentage", 0.0),
+                            applied_at=opt.get("applied_at", 0),
+                            status=opt.get("approval_status", "UNKNOWN"),
+                        )
+                    )
                 return optimizer_agent_pb2.ListOptimizationsResponse(
-                    optimizations=summaries,
-                    total=len(optimizations)
+                    optimizations=summaries, total=len(optimizations)
                 )
             else:
                 return {"optimizations": optimizations, "total": len(optimizations)}
 
         except Exception as e:
             logger.error("list_optimizations_failed", error=str(e))
-            GRPC_REQUESTS_TOTAL.labels(method=method, status='error').inc()
+            GRPC_REQUESTS_TOTAL.labels(method=method, status="error").inc()
             context.abort(grpc.StatusCode.INTERNAL, f"Failed to list optimizations: {str(e)}")
         finally:
             GRPC_REQUEST_DURATION_SECONDS.labels(method=method).observe(time.time() - start_time)
@@ -262,20 +271,22 @@ class OptimizerServicer(optimizer_agent_pb2_grpc.OptimizerAgentServicer if PROTO
             RollbackOptimizationResponse
         """
         start_time = time.time()
-        method = 'RollbackOptimization'
+        method = "RollbackOptimization"
         try:
             logger.info("rollback_optimization_requested", optimization_id=request.optimization_id)
 
             if not self.mongodb_client:
-                GRPC_REQUESTS_TOTAL.labels(method=method, status='error').inc()
+                GRPC_REQUESTS_TOTAL.labels(method=method, status="error").inc()
                 context.abort(grpc.StatusCode.UNAVAILABLE, "MongoDB client not available")
 
             # Obter otimização
             optimization = await self.mongodb_client.get_optimization(request.optimization_id)
 
             if not optimization:
-                GRPC_REQUESTS_TOTAL.labels(method=method, status='not_found').inc()
-                context.abort(grpc.StatusCode.NOT_FOUND, f"Optimization {request.optimization_id} not found")
+                GRPC_REQUESTS_TOTAL.labels(method=method, status="not_found").inc()
+                context.abort(
+                    grpc.StatusCode.NOT_FOUND, f"Optimization {request.optimization_id} not found"
+                )
 
             optimization_type = OptimizationType(optimization.get("optimization_type"))
 
@@ -284,33 +295,34 @@ class OptimizerServicer(optimizer_agent_pb2_grpc.OptimizerAgentServicer if PROTO
 
             if optimization_type == OptimizationType.WEIGHT_RECALIBRATION:
                 if self.weight_recalibrator is None:
-                    GRPC_REQUESTS_TOTAL.labels(method=method, status='error').inc()
+                    GRPC_REQUESTS_TOTAL.labels(method=method, status="error").inc()
                     context.abort(grpc.StatusCode.UNAVAILABLE, "WeightRecalibrator not initialized")
-                success = await self.weight_recalibrator.rollback_weight_recalibration(request.optimization_id)
+                success = await self.weight_recalibrator.rollback_weight_recalibration(
+                    request.optimization_id
+                )
             elif optimization_type == OptimizationType.SLO_ADJUSTMENT:
                 if self.slo_adjuster is None:
-                    GRPC_REQUESTS_TOTAL.labels(method=method, status='error').inc()
+                    GRPC_REQUESTS_TOTAL.labels(method=method, status="error").inc()
                     context.abort(grpc.StatusCode.UNAVAILABLE, "SLOAdjuster not initialized")
                 success = await self.slo_adjuster.rollback_slo_adjustment(request.optimization_id)
 
             if not success:
-                GRPC_REQUESTS_TOTAL.labels(method=method, status='error').inc()
+                GRPC_REQUESTS_TOTAL.labels(method=method, status="error").inc()
                 context.abort(grpc.StatusCode.INTERNAL, "Failed to rollback optimization")
 
             logger.info("optimization_rolled_back", optimization_id=request.optimization_id)
-            GRPC_REQUESTS_TOTAL.labels(method=method, status='success').inc()
+            GRPC_REQUESTS_TOTAL.labels(method=method, status="success").inc()
 
             if PROTO_AVAILABLE:
                 return optimizer_agent_pb2.RollbackOptimizationResponse(
-                    status="ROLLED_BACK",
-                    message="Optimization rolled back successfully"
+                    status="ROLLED_BACK", message="Optimization rolled back successfully"
                 )
             else:
                 return {"status": "ROLLED_BACK", "message": "Rolled back successfully"}
 
         except Exception as e:
             logger.error("rollback_optimization_failed", error=str(e))
-            GRPC_REQUESTS_TOTAL.labels(method=method, status='error').inc()
+            GRPC_REQUESTS_TOTAL.labels(method=method, status="error").inc()
             context.abort(grpc.StatusCode.INTERNAL, f"Failed to rollback optimization: {str(e)}")
         finally:
             GRPC_REQUEST_DURATION_SECONDS.labels(method=method).observe(time.time() - start_time)
@@ -327,19 +339,23 @@ class OptimizerServicer(optimizer_agent_pb2_grpc.OptimizerAgentServicer if PROTO
             GetStatisticsResponse
         """
         start_time = time.time()
-        method = 'GetStatistics'
+        method = "GetStatistics"
         try:
             logger.info("get_statistics_requested")
 
             if not self.mongodb_client:
-                GRPC_REQUESTS_TOTAL.labels(method=method, status='error').inc()
+                GRPC_REQUESTS_TOTAL.labels(method=method, status="error").inc()
                 context.abort(grpc.StatusCode.UNAVAILABLE, "MongoDB client not available")
 
             # Buscar todas otimizações
-            all_optimizations = await self.mongodb_client.list_optimizations(filters={}, skip=0, limit=1000)
+            all_optimizations = await self.mongodb_client.list_optimizations(
+                filters={}, skip=0, limit=1000
+            )
 
             total = len(all_optimizations)
-            success_count = sum(1 for opt in all_optimizations if opt.get("improvement_percentage", 0) >= 0)
+            success_count = sum(
+                1 for opt in all_optimizations if opt.get("improvement_percentage", 0) >= 0
+            )
             success_rate = success_count / total if total > 0 else 0.0
 
             improvements = [opt.get("improvement_percentage", 0) for opt in all_optimizations]
@@ -358,7 +374,7 @@ class OptimizerServicer(optimizer_agent_pb2_grpc.OptimizerAgentServicer if PROTO
                 by_component[component] = by_component.get(component, 0) + 1
 
             logger.info("statistics_retrieved", total=total, success_rate=success_rate)
-            GRPC_REQUESTS_TOTAL.labels(method=method, status='success').inc()
+            GRPC_REQUESTS_TOTAL.labels(method=method, status="success").inc()
 
             if PROTO_AVAILABLE:
                 return optimizer_agent_pb2.GetStatisticsResponse(
@@ -366,7 +382,7 @@ class OptimizerServicer(optimizer_agent_pb2_grpc.OptimizerAgentServicer if PROTO
                     success_rate=success_rate,
                     average_improvement=average_improvement,
                     by_type=by_type,
-                    by_component=by_component
+                    by_component=by_component,
                 )
             else:
                 return {
@@ -374,12 +390,12 @@ class OptimizerServicer(optimizer_agent_pb2_grpc.OptimizerAgentServicer if PROTO
                     "success_rate": success_rate,
                     "average_improvement": average_improvement,
                     "by_type": by_type,
-                    "by_component": by_component
+                    "by_component": by_component,
                 }
 
         except Exception as e:
             logger.error("get_statistics_failed", error=str(e))
-            GRPC_REQUESTS_TOTAL.labels(method=method, status='error').inc()
+            GRPC_REQUESTS_TOTAL.labels(method=method, status="error").inc()
             context.abort(grpc.StatusCode.INTERNAL, f"Failed to get statistics: {str(e)}")
         finally:
             GRPC_REQUEST_DURATION_SECONDS.labels(method=method).observe(time.time() - start_time)
@@ -396,7 +412,7 @@ class OptimizerServicer(optimizer_agent_pb2_grpc.OptimizerAgentServicer if PROTO
             HealthCheckResponse
         """
         start_time = time.time()
-        method = 'HealthCheck'
+        method = "HealthCheck"
         try:
             # Verificar componentes críticos
             healthy = True
@@ -409,20 +425,19 @@ class OptimizerServicer(optimizer_agent_pb2_grpc.OptimizerAgentServicer if PROTO
                 healthy = False
                 message = "MongoDB client not initialized"
 
-            status = 'healthy' if healthy else 'unhealthy'
+            status = "healthy" if healthy else "unhealthy"
             GRPC_REQUESTS_TOTAL.labels(method=method, status=status).inc()
 
             if PROTO_AVAILABLE:
                 return optimizer_agent_pb2.HealthCheckResponse(
-                    status="HEALTHY" if healthy else "UNHEALTHY",
-                    version="1.0.0"
+                    status="HEALTHY" if healthy else "UNHEALTHY", version="1.0.0"
                 )
             else:
                 return {"healthy": healthy, "message": message, "version": "1.0.0"}
 
         except Exception as e:
             logger.error("health_check_failed", error=str(e))
-            GRPC_REQUESTS_TOTAL.labels(method=method, status='error').inc()
+            GRPC_REQUESTS_TOTAL.labels(method=method, status="error").inc()
             context.abort(grpc.StatusCode.INTERNAL, f"Health check failed: {str(e)}")
         finally:
             GRPC_REQUEST_DURATION_SECONDS.labels(method=method).observe(time.time() - start_time)
@@ -439,24 +454,25 @@ class OptimizerServicer(optimizer_agent_pb2_grpc.OptimizerAgentServicer if PROTO
             LoadForecastResponse com forecast e metadata
         """
         start_time = time.time()
-        method = 'GetLoadForecast'
+        method = "GetLoadForecast"
         try:
             if not self.load_predictor:
-                GRPC_REQUESTS_TOTAL.labels(method=method, status='error').inc()
+                GRPC_REQUESTS_TOTAL.labels(method=method, status="error").inc()
                 context.abort(grpc.StatusCode.UNAVAILABLE, "LoadPredictor não inicializado")
 
             horizon_minutes = request.horizon_minutes
             include_ci = request.include_confidence_intervals
 
-            logger.info("get_load_forecast_request", horizon_minutes=horizon_minutes, include_ci=include_ci)
+            logger.info(
+                "get_load_forecast_request", horizon_minutes=horizon_minutes, include_ci=include_ci
+            )
 
             # Gerar forecast
             forecast_data = await self.load_predictor.predict_load(
-                horizon_minutes=horizon_minutes,
-                include_confidence_intervals=include_ci
+                horizon_minutes=horizon_minutes, include_confidence_intervals=include_ci
             )
 
-            GRPC_REQUESTS_TOTAL.labels(method=method, status='success').inc()
+            GRPC_REQUESTS_TOTAL.labels(method=method, status="success").inc()
 
             if PROTO_AVAILABLE:
                 forecast_points = []
@@ -476,16 +492,18 @@ class OptimizerServicer(optimizer_agent_pb2_grpc.OptimizerAgentServicer if PROTO
                     # Criar ResourceDemand (estimativa baseada na carga)
                     resource_demand = optimizer_agent_pb2.ResourceDemand(
                         cpu_cores=round(ticket_count * 0.1, 2),  # Estimativa: 0.1 core por ticket
-                        memory_mb=ticket_count * 50  # Estimativa: 50MB por ticket
+                        memory_mb=ticket_count * 50,  # Estimativa: 50MB por ticket
                     )
 
-                    forecast_points.append(optimizer_agent_pb2.ForecastPoint(
-                        timestamp=timestamp_str,
-                        ticket_count=ticket_count,
-                        resource_demand=resource_demand,
-                        confidence_lower=confidence_lower,
-                        confidence_upper=confidence_upper
-                    ))
+                    forecast_points.append(
+                        optimizer_agent_pb2.ForecastPoint(
+                            timestamp=timestamp_str,
+                            ticket_count=ticket_count,
+                            resource_demand=resource_demand,
+                            confidence_lower=confidence_lower,
+                            confidence_upper=confidence_upper,
+                        )
+                    )
 
                 metadata = forecast_data.get("metadata", {})
                 return optimizer_agent_pb2.LoadForecastResponse(
@@ -493,24 +511,24 @@ class OptimizerServicer(optimizer_agent_pb2_grpc.OptimizerAgentServicer if PROTO
                     metadata=optimizer_agent_pb2.ForecastMetadata(
                         model_horizon=metadata.get("model_horizon", horizon_minutes),
                         horizon_requested=horizon_minutes,
-                        forecast_generated_at=datetime.utcnow().isoformat(),
+                        forecast_generated_at=datetime.now(UTC).isoformat(),
                         data_points_used=metadata.get("data_points_used", len(forecast_points)),
-                        confidence_level=metadata.get("confidence_level", 0.95)
-                    )
+                        confidence_level=metadata.get("confidence_level", 0.95),
+                    ),
                 )
             else:
                 return {
                     "forecast": forecast_data.get("forecast", []),
-                    "metadata": forecast_data.get("metadata", {})
+                    "metadata": forecast_data.get("metadata", {}),
                 }
 
         except ValueError as e:
             logger.warning("invalid_forecast_request", error=str(e))
-            GRPC_REQUESTS_TOTAL.labels(method=method, status='invalid_argument').inc()
+            GRPC_REQUESTS_TOTAL.labels(method=method, status="invalid_argument").inc()
             context.abort(grpc.StatusCode.INVALID_ARGUMENT, str(e))
         except Exception as e:
             logger.error("get_load_forecast_failed", error=str(e))
-            GRPC_REQUESTS_TOTAL.labels(method=method, status='error').inc()
+            GRPC_REQUESTS_TOTAL.labels(method=method, status="error").inc()
             context.abort(grpc.StatusCode.INTERNAL, f"Forecast failed: {str(e)}")
         finally:
             GRPC_REQUEST_DURATION_SECONDS.labels(method=method).observe(time.time() - start_time)
@@ -527,10 +545,10 @@ class OptimizerServicer(optimizer_agent_pb2_grpc.OptimizerAgentServicer if PROTO
             SchedulingRecommendationResponse com ação e justificativa
         """
         start_time = time.time()
-        method = 'GetSchedulingRecommendation'
+        method = "GetSchedulingRecommendation"
         try:
             if not self.scheduling_optimizer:
-                GRPC_REQUESTS_TOTAL.labels(method=method, status='error').inc()
+                GRPC_REQUESTS_TOTAL.labels(method=method, status="error").inc()
                 context.abort(grpc.StatusCode.UNAVAILABLE, "SchedulingOptimizer não inicializado")
 
             # Construir estado atual
@@ -548,18 +566,16 @@ class OptimizerServicer(optimizer_agent_pb2_grpc.OptimizerAgentServicer if PROTO
             if self.load_predictor:
                 try:
                     load_forecast = await self.load_predictor.predict_load(
-                        horizon_minutes=60,
-                        include_confidence_intervals=False
+                        horizon_minutes=60, include_confidence_intervals=False
                     )
                 except Exception as e:
                     logger.warning("forecast_for_recommendation_failed", error=str(e))
 
             recommendation = await self.scheduling_optimizer.optimize_scheduling(
-                current_state=current_state,
-                load_forecast=load_forecast
+                current_state=current_state, load_forecast=load_forecast
             )
 
-            GRPC_REQUESTS_TOTAL.labels(method=method, status='success').inc()
+            GRPC_REQUESTS_TOTAL.labels(method=method, status="success").inc()
 
             if PROTO_AVAILABLE:
                 return optimizer_agent_pb2.SchedulingRecommendationResponse(
@@ -567,7 +583,7 @@ class OptimizerServicer(optimizer_agent_pb2_grpc.OptimizerAgentServicer if PROTO
                     justification=recommendation.get("justification", ""),
                     expected_improvement=recommendation.get("expected_improvement", 0.0),
                     risk_score=recommendation.get("risk_score", 0.0),
-                    confidence=recommendation.get("confidence", 0.0)
+                    confidence=recommendation.get("confidence", 0.0),
                 )
             else:
                 return {
@@ -580,11 +596,11 @@ class OptimizerServicer(optimizer_agent_pb2_grpc.OptimizerAgentServicer if PROTO
 
         except ValueError as e:
             logger.warning("invalid_scheduling_request", error=str(e))
-            GRPC_REQUESTS_TOTAL.labels(method=method, status='invalid_argument').inc()
+            GRPC_REQUESTS_TOTAL.labels(method=method, status="invalid_argument").inc()
             context.abort(grpc.StatusCode.INVALID_ARGUMENT, str(e))
         except Exception as e:
             logger.error("get_scheduling_recommendation_failed", error=str(e))
-            GRPC_REQUESTS_TOTAL.labels(method=method, status='error').inc()
+            GRPC_REQUESTS_TOTAL.labels(method=method, status="error").inc()
             context.abort(grpc.StatusCode.INTERNAL, f"Recommendation failed: {str(e)}")
         finally:
             GRPC_REQUEST_DURATION_SECONDS.labels(method=method).observe(time.time() - start_time)
@@ -601,10 +617,10 @@ class OptimizerServicer(optimizer_agent_pb2_grpc.OptimizerAgentServicer if PROTO
             SchedulingMetricsResponse com métricas agregadas
         """
         start_time = time.time()
-        method = 'GetSchedulingMetrics'
+        method = "GetSchedulingMetrics"
         try:
             if not self.scheduling_optimizer:
-                GRPC_REQUESTS_TOTAL.labels(method=method, status='error').inc()
+                GRPC_REQUESTS_TOTAL.labels(method=method, status="error").inc()
                 context.abort(grpc.StatusCode.UNAVAILABLE, "SchedulingOptimizer não inicializado")
 
             time_range_hours = request.time_range_hours or 24
@@ -631,14 +647,14 @@ class OptimizerServicer(optimizer_agent_pb2_grpc.OptimizerAgentServicer if PROTO
 
             states_explored = len(self.scheduling_optimizer.q_table)
 
-            GRPC_REQUESTS_TOTAL.labels(method=method, status='success').inc()
+            GRPC_REQUESTS_TOTAL.labels(method=method, status="success").inc()
 
             if PROTO_AVAILABLE:
                 return optimizer_agent_pb2.SchedulingMetricsResponse(
                     average_reward=average_reward,
                     policy_success_rate=success_rate,
                     action_counts=action_counts,
-                    states_explored=states_explored
+                    states_explored=states_explored,
                 )
             else:
                 return {
@@ -650,7 +666,7 @@ class OptimizerServicer(optimizer_agent_pb2_grpc.OptimizerAgentServicer if PROTO
 
         except Exception as e:
             logger.error("get_scheduling_metrics_failed", error=str(e))
-            GRPC_REQUESTS_TOTAL.labels(method=method, status='error').inc()
+            GRPC_REQUESTS_TOTAL.labels(method=method, status="error").inc()
             context.abort(grpc.StatusCode.INTERNAL, f"Metrics failed: {str(e)}")
         finally:
             GRPC_REQUEST_DURATION_SECONDS.labels(method=method).observe(time.time() - start_time)

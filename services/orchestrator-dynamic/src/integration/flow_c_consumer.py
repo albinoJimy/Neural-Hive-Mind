@@ -9,28 +9,30 @@ por config injetada em produção.
 """
 
 import asyncio
-import time
-import structlog
+import io
 import json
 import os
-import io
-from typing import Optional
+import time
+
+import structlog
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
 from prometheus_client import Counter
+
 from neural_hive_observability import (
+    get_config,
     get_tracer,
-    trace_plan,
     instrument_kafka_consumer,
     instrument_kafka_producer,
-    get_config
+    trace_plan,
 )
 from neural_hive_observability.context import extract_context_from_headers, set_baggage
 
 # Avro support
 try:
+    import fastavro
     from confluent_kafka.schema_registry import SchemaRegistryClient
     from confluent_kafka.schema_registry.avro import AvroDeserializer
-    import fastavro
+
     AVRO_AVAILABLE = True
 except ImportError:
     AVRO_AVAILABLE = False
@@ -40,6 +42,7 @@ from neural_hive_integration.orchestration.flow_c_orchestrator import FlowCOrche
 # Snappy decompression support
 try:
     import snappy
+
     HAS_SNAPPY = True
 except ImportError:
     HAS_SNAPPY = False
@@ -63,7 +66,7 @@ consumer_lag = Counter(
 )
 
 
-def _deserialize_avro_message(raw_bytes: bytes, schema_registry_url: str = None) -> dict:
+def _deserialize_avro_message(raw_bytes: bytes, schema_registry_url: str | None = None) -> dict:
     """
     Deserialize Avro message with Confluent wire format.
 
@@ -77,16 +80,18 @@ def _deserialize_avro_message(raw_bytes: bytes, schema_registry_url: str = None)
         "avro_deserialization_attempt",
         raw_bytes_hex=raw_bytes[:100].hex() if len(raw_bytes) >= 100 else raw_bytes.hex(),
         bytes_length=len(raw_bytes),
-        first_bytes=list(raw_bytes[:20])
+        first_bytes=list(raw_bytes[:20]),
     )
 
     if len(raw_bytes) < 5:
         # Too short for Avro wire format, try JSON
         logger.debug("message_too_short_for_avro", trying_json=True)
         try:
-            return json.loads(raw_bytes.decode('utf-8'))
+            return json.loads(raw_bytes.decode("utf-8"))
         except json.JSONDecodeError as e:
-            logger.error("json_deserialization_failed", error=str(e), raw_bytes_preview=raw_bytes[:100])
+            logger.exception(
+                "json_deserialization_failed", error=str(e), raw_bytes_preview=raw_bytes[:100]
+            )
             raise ValueError(f"Failed to deserialize as JSON: {e}") from e
 
     magic_byte = raw_bytes[0]
@@ -94,20 +99,22 @@ def _deserialize_avro_message(raw_bytes: bytes, schema_registry_url: str = None)
         # Not Avro wire format, try JSON
         logger.debug("invalid_magic_byte", magic_byte=magic_byte, trying_json=True)
         try:
-            return json.loads(raw_bytes.decode('utf-8'))
+            return json.loads(raw_bytes.decode("utf-8"))
         except json.JSONDecodeError as e:
-            logger.error("json_deserialization_failed", error=str(e), raw_bytes_preview=raw_bytes[:100])
+            logger.exception(
+                "json_deserialization_failed", error=str(e), raw_bytes_preview=raw_bytes[:100]
+            )
             raise ValueError(f"Failed to deserialize as JSON: {e}") from e
 
     # Extract schema ID and Avro payload
-    schema_id = int.from_bytes(raw_bytes[1:5], byteorder='big')
+    schema_id = int.from_bytes(raw_bytes[1:5], byteorder="big")
     avro_payload = raw_bytes[5:]
 
     logger.debug(
         "avro_wire_format_detected",
         schema_id=schema_id,
         payload_size=len(avro_payload),
-        payload_hex=avro_payload[:50].hex() if len(avro_payload) >= 50 else avro_payload.hex()
+        payload_hex=avro_payload[:50].hex() if len(avro_payload) >= 50 else avro_payload.hex(),
     )
 
     # Use fastavro to deserialize without schema (schemaless reader)
@@ -115,44 +122,53 @@ def _deserialize_avro_message(raw_bytes: bytes, schema_registry_url: str = None)
     if AVRO_AVAILABLE:
         try:
             # Configurar conf para Schema Registry com suporte SSL
-            conf = {'url': schema_registry_url}
-            if schema_registry_url.startswith('https://'):
+            conf = {"url": schema_registry_url}
+            if schema_registry_url.startswith("https://"):
                 # Adicionar configuração SSL para HTTPS
                 # Desabilitar verificação de certificado para ambientes internos
-                conf['ssl.ca.location'] = '/etc/ssl/certs/ca-bundle.crt'
-                conf['ssl.check.hostname'] = 'false'
-                conf['ssl.endpoint.identification.algorithm'] = 'none'
+                conf["ssl.ca.location"] = "/etc/ssl/certs/ca-bundle.crt"
+                conf["ssl.check.hostname"] = "false"
+                conf["ssl.endpoint.identification.algorithm"] = "none"
                 logger.debug("using_ssl_for_schema_registry", url=schema_registry_url)
 
             client = SchemaRegistryClient(conf)
             schema = client.get_schema(schema_id)
-            logger.debug("schema_retrieved", schema_id=schema_id, schema_schema_str=schema.schema_str[:200])
+            logger.debug(
+                "schema_retrieved", schema_id=schema_id, schema_schema_str=schema.schema_str[:200]
+            )
             writer_schema = fastavro.parse_schema(json.loads(schema.schema_str))
             reader = io.BytesIO(avro_payload)
             # schemaless_reader pode retornar um generator ou um dict diretamente
             avro_result = fastavro.schemaless_reader(reader, writer_schema)
             # Converter para dict se necessário (pode vir como dict ou como generator)
-            result = dict(avro_result) if isinstance(avro_result, dict) or not isinstance(avro_result, dict) and hasattr(avro_result, '__iter__') else avro_result
-            logger.info("avro_deserialization_success", schema_id=schema_id, result_type=type(result).__name__)
+            result = (
+                dict(avro_result)
+                if isinstance(avro_result, dict)
+                or (not isinstance(avro_result, dict) and hasattr(avro_result, "__iter__"))
+                else avro_result
+            )
+            logger.info(
+                "avro_deserialization_success",
+                schema_id=schema_id,
+                result_type=type(result).__name__,
+            )
             return result
         except Exception as e:
-            logger.error(
+            logger.exception(
                 "avro_deserialization_failed",
                 schema_id=schema_id,
                 error=str(e),
                 error_type=type(e).__name__,
-                payload_preview=avro_payload[:100].hex()
+                payload_preview=avro_payload[:100].hex(),
             )
             # Tentar JSON como fallback
             try:
-                json_result = json.loads(avro_payload.decode('utf-8'))
+                json_result = json.loads(avro_payload.decode("utf-8"))
                 logger.warning("avro_failed_json_success", schema_id=schema_id)
                 return json_result
             except (json.JSONDecodeError, UnicodeDecodeError) as json_err:
-                logger.error(
-                    "json_fallback_also_failed",
-                    json_error=str(json_err),
-                    avro_error=str(e)
+                logger.exception(
+                    "json_fallback_also_failed", json_error=str(json_err), avro_error=str(e)
                 )
                 raise ValueError(
                     f"Failed to deserialize Avro message: {e}. JSON fallback also failed: {json_err}"
@@ -167,10 +183,10 @@ class FlowCConsumer:
     def __init__(
         self,
         config=None,  # OrchestratorSettings - preferido
-        kafka_bootstrap_servers: Optional[str] = None,
-        input_topic: Optional[str] = None,
-        incident_topic: Optional[str] = None,
-        group_id: Optional[str] = None,
+        kafka_bootstrap_servers: str | None = None,
+        input_topic: str | None = None,
+        incident_topic: str | None = None,
+        group_id: str | None = None,
     ):
         """
         Initialize FlowCConsumer.
@@ -191,7 +207,9 @@ class FlowCConsumer:
             self.config = config
         else:
             # Fallback para defaults (deprecated - apenas para testes)
-            self.kafka_servers = kafka_bootstrap_servers or "kafka-bootstrap.kafka.svc.cluster.local:9092"
+            self.kafka_servers = (
+                kafka_bootstrap_servers or "kafka-bootstrap.kafka.svc.cluster.local:9092"
+            )
             self.input_topic = input_topic or "plans.consensus"
             self.incident_topic = incident_topic or "orchestration.incidents"
             self.group_id = group_id or "flow-c-orchestrator"
@@ -202,8 +220,8 @@ class FlowCConsumer:
         self.orchestrator: FlowCOrchestrator = None
         self.running = False
         self.schema_registry_url = os.getenv(
-            'SCHEMA_REGISTRY_URL',
-            'http://schema-registry.kafka.svc.cluster.local:8080/apis/ccompat/v6'
+            "SCHEMA_REGISTRY_URL",
+            "http://schema-registry.kafka.svc.cluster.local:8080/apis/ccompat/v6",
         )
         self.logger = logger.bind(service="flow_c_consumer")
 
@@ -224,25 +242,27 @@ class FlowCConsumer:
         # NOTA: Não usar value_deserializer - vamos deserializar manualmente
         # para suportar tanto Avro (Confluent wire format) quanto JSON
         consumer_config = {
-            'bootstrap_servers': self.kafka_servers,
-            'group_id': self.group_id,
-            'auto_offset_reset': 'earliest',
-            'enable_auto_commit': False,
+            "bootstrap_servers": self.kafka_servers,
+            "group_id": self.group_id,
+            "auto_offset_reset": "earliest",
+            "enable_auto_commit": False,
             # P3-003: Aumentar max.poll.interval.ms para acomodar execuções longas do Flow C
             # Flow C pode levar até 4+ horas, então definimos 6 horas de margem
-            'max_poll_interval_ms': 21600000,  # 6 horas em milissegundos
-            'session_timeout_ms': 30000,  # 30 segundos - broker max é geralmente 30-60s
+            "max_poll_interval_ms": 21600000,  # 6 horas em milissegundos
+            "session_timeout_ms": 30000,  # 30 segundos - broker max é geralmente 30-60s
             # Não definir value_deserializer - recebemos bytes crus
         }
 
         # Adicionar SASL se configurado
-        if self.config and self.config.kafka_security_protocol != 'PLAINTEXT':
-            consumer_config.update({
-                'security_protocol': self.config.kafka_security_protocol,
-                'sasl_mechanism': 'PLAIN',
-                'sasl_plain_username': self.config.kafka_sasl_username,
-                'sasl_plain_password': self.config.kafka_sasl_password,
-            })
+        if self.config and self.config.kafka_security_protocol != "PLAINTEXT":
+            consumer_config.update(
+                {
+                    "security_protocol": self.config.kafka_security_protocol,
+                    "sasl_mechanism": "PLAIN",
+                    "sasl_plain_username": self.config.kafka_sasl_username,
+                    "sasl_plain_password": self.config.kafka_sasl_password,
+                }
+            )
 
         # Initialize consumer
         self.consumer = instrument_kafka_consumer(
@@ -252,18 +272,20 @@ class FlowCConsumer:
 
         # Construir config do producer
         producer_config = {
-            'bootstrap_servers': self.kafka_servers,
-            'value_serializer': lambda v: json.dumps(v).encode(),
+            "bootstrap_servers": self.kafka_servers,
+            "value_serializer": lambda v: json.dumps(v).encode(),
         }
 
         # Adicionar SASL se configurado
-        if self.config and self.config.kafka_security_protocol != 'PLAINTEXT':
-            producer_config.update({
-                'security_protocol': self.config.kafka_security_protocol,
-                'sasl_mechanism': 'PLAIN',
-                'sasl_plain_username': self.config.kafka_sasl_username,
-                'sasl_plain_password': self.config.kafka_sasl_password,
-            })
+        if self.config and self.config.kafka_security_protocol != "PLAINTEXT":
+            producer_config.update(
+                {
+                    "security_protocol": self.config.kafka_security_protocol,
+                    "sasl_mechanism": "PLAIN",
+                    "sasl_plain_username": self.config.kafka_sasl_username,
+                    "sasl_plain_password": self.config.kafka_sasl_password,
+                }
+            )
 
         # Initialize producer for incidents
         try:
@@ -276,13 +298,11 @@ class FlowCConsumer:
                 self.producer = AIOKafkaProducer(**producer_config)
             else:
                 self.producer = instrument_kafka_producer(
-                    AIOKafkaProducer(**producer_config),
-                    obs_config
+                    AIOKafkaProducer(**producer_config), obs_config
                 )
         except Exception as e:
             logger.warning(
-                'Falha ao instrumentar Kafka producer, continuando sem tracing',
-                error=str(e)
+                "Falha ao instrumentar Kafka producer, continuando sem tracing", error=str(e)
             )
             self.producer = AIOKafkaProducer(**producer_config)
         await self.producer.start()
@@ -315,7 +335,7 @@ class FlowCConsumer:
                 # Fetch messages
                 data = await self.consumer.getmany(timeout_ms=1000, max_records=10)
 
-                for tp, messages in data.items():
+                for _tp, messages in data.items():
                     for message in messages:
                         await self._process_message(message)
 
@@ -324,7 +344,7 @@ class FlowCConsumer:
 
             except Exception as e:
                 consumer_errors.labels(error_type="consumption").inc()
-                self.logger.error("consumption_error", error=str(e))
+                self.logger.exception("consumption_error", error=str(e))
                 await asyncio.sleep(5)
 
     @trace_plan()
@@ -338,38 +358,36 @@ class FlowCConsumer:
             extract_context_from_headers(message.headers or [])
 
             business_headers = {}
-            for key, value in (message.headers or []):
-                if key in ('x-neural-hive-intent-id', 'x-neural-hive-plan-id'):
+            for key, value in message.headers or []:
+                if key in ("x-neural-hive-intent-id", "x-neural-hive-plan-id"):
                     if isinstance(value, bytes):
                         try:
-                            business_headers[key] = value.decode('utf-8')
+                            business_headers[key] = value.decode("utf-8")
                         except Exception:
                             continue
                     elif value is not None:
                         business_headers[key] = str(value)
 
-            intent_id = business_headers.get('x-neural-hive-intent-id')
-            plan_id = business_headers.get('x-neural-hive-plan-id')
+            intent_id = business_headers.get("x-neural-hive-intent-id")
+            plan_id = business_headers.get("x-neural-hive-plan-id")
             if intent_id:
-                set_baggage('intent_id', intent_id)
+                set_baggage("intent_id", intent_id)
             if plan_id:
-                set_baggage('plan_id', plan_id)
+                set_baggage("plan_id", plan_id)
 
             # Deserializar mensagem (suporta Avro e JSON)
             raw_value = message.value
             if isinstance(raw_value, bytes):
                 try:
                     consolidated_decision = _deserialize_avro_message(
-                        raw_value,
-                        self.schema_registry_url
+                        raw_value, self.schema_registry_url
                     )
                 except Exception as deser_err:
                     self.logger.warning(
-                        "avro_deserialization_failed_trying_json",
-                        error=str(deser_err)
+                        "avro_deserialization_failed_trying_json", error=str(deser_err)
                     )
                     # Fallback para JSON
-                    consolidated_decision = json.loads(raw_value.decode('utf-8'))
+                    consolidated_decision = json.loads(raw_value.decode("utf-8"))
             else:
                 consolidated_decision = raw_value
 
@@ -379,9 +397,7 @@ class FlowCConsumer:
                 try:
                     consolidated_decision["cognitive_plan"] = json.loads(cognitive_plan)
                 except json.JSONDecodeError as e:
-                    raise ValueError(
-                        f"Invalid cognitive_plan JSON: {e}"
-                    ) from e
+                    raise ValueError(f"Invalid cognitive_plan JSON: {e}") from e
 
             self.logger.info(
                 "processing_consolidated_decision",
@@ -390,6 +406,7 @@ class FlowCConsumer:
                 decision_id=consolidated_decision.get("decision_id"),
             )
             from opentelemetry import trace
+
             span = trace.get_current_span()
             span.set_attribute("neural.hive.intent.id", consolidated_decision.get("intent_id"))
             span.set_attribute("neural.hive.plan.id", consolidated_decision.get("plan_id"))
@@ -413,7 +430,7 @@ class FlowCConsumer:
 
         except Exception as e:
             consumer_errors.labels(error_type="processing").inc()
-            self.logger.error("message_processing_error", error=str(e))
+            self.logger.exception("message_processing_error", error=str(e))
 
             # Publish incident
             safe_decision = consolidated_decision or self._coerce_decision_dict(message.value)
@@ -444,10 +461,10 @@ class FlowCConsumer:
                 return _deserialize_avro_message(value, self.schema_registry_url)
             except Exception as deser_err:
                 try:
-                    return json.loads(value.decode('utf-8'))
+                    return json.loads(value.decode("utf-8"))
                 except Exception as json_err:
                     return {
-                        "raw_decision": value.decode('utf-8', errors='ignore'),
+                        "raw_decision": value.decode("utf-8", errors="ignore"),
                         "deserialization_error": str(deser_err),
                         "json_error": str(json_err),
                     }
@@ -465,9 +482,9 @@ class FlowCApprovalResponseConsumer:
     def __init__(
         self,
         config=None,
-        kafka_bootstrap_servers: Optional[str] = None,
-        approval_responses_topic: Optional[str] = None,
-        group_id: Optional[str] = None,
+        kafka_bootstrap_servers: str | None = None,
+        approval_responses_topic: str | None = None,
+        group_id: str | None = None,
     ):
         """
         Initialize FlowCApprovalResponseConsumer.
@@ -480,20 +497,18 @@ class FlowCApprovalResponseConsumer:
         """
         if config:
             self.kafka_servers = kafka_bootstrap_servers or config.kafka_bootstrap_servers
-            self.approval_responses_topic = (
-                approval_responses_topic or
-                os.getenv('APPROVAL_RESPONSES_TOPIC', 'cognitive-plans-approval-responses')
+            self.approval_responses_topic = approval_responses_topic or os.getenv(
+                "APPROVAL_RESPONSES_TOPIC", "cognitive-plans-approval-responses"
             )
             self.group_id = group_id or f"{config.kafka_consumer_group_id}-approval-responses"
             self.config = config
         else:
             self.kafka_servers = kafka_bootstrap_servers or os.getenv(
-                'KAFKA_BOOTSTRAP_SERVERS',
-                'neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092'
+                "KAFKA_BOOTSTRAP_SERVERS",
+                "neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092",
             )
-            self.approval_responses_topic = (
-                approval_responses_topic or
-                os.getenv('APPROVAL_RESPONSES_TOPIC', 'cognitive-plans-approval-responses')
+            self.approval_responses_topic = approval_responses_topic or os.getenv(
+                "APPROVAL_RESPONSES_TOPIC", "cognitive-plans-approval-responses"
             )
             self.group_id = group_id or "orchestrator-approval-responses"
             self.config = None
@@ -514,32 +529,31 @@ class FlowCApprovalResponseConsumer:
 
         # Consumer config
         consumer_config = {
-            'bootstrap_servers': self.kafka_servers,
-            'group_id': self.group_id,
-            'auto_offset_reset': 'earliest',
-            'enable_auto_commit': False,
-            'max_poll_interval_ms': 3600000,  # 1 hora
-            'session_timeout_ms': 30000,
+            "bootstrap_servers": self.kafka_servers,
+            "group_id": self.group_id,
+            "auto_offset_reset": "earliest",
+            "enable_auto_commit": False,
+            "max_poll_interval_ms": 3600000,  # 1 hora
+            "session_timeout_ms": 30000,
             # Não usar value_deserializer - receber bytes crus para
             # evitar erro de codec snappy (mensagens do Approval Service)
             # Importante: não definir compression_type para permitir detectar automaticamente
             # mas tratar decompressão manualmente se necessário
-            'check_crcs': False,  # Otimização
+            "check_crcs": False,  # Otimização
         }
 
         # Add SASL if configured
-        if self.config and self.config.kafka_security_protocol != 'PLAINTEXT':
-            consumer_config.update({
-                'security_protocol': self.config.kafka_security_protocol,
-                'sasl_mechanism': 'PLAIN',
-                'sasl_plain_username': self.config.kafka_sasl_username,
-                'sasl_plain_password': self.config.kafka_sasl_password,
-            })
+        if self.config and self.config.kafka_security_protocol != "PLAINTEXT":
+            consumer_config.update(
+                {
+                    "security_protocol": self.config.kafka_security_protocol,
+                    "sasl_mechanism": "PLAIN",
+                    "sasl_plain_username": self.config.kafka_sasl_username,
+                    "sasl_plain_password": self.config.kafka_sasl_password,
+                }
+            )
 
-        self.consumer = AIOKafkaConsumer(
-            self.approval_responses_topic,
-            **consumer_config
-        )
+        self.consumer = AIOKafkaConsumer(self.approval_responses_topic, **consumer_config)
         await self.consumer.start()
 
         # Initialize orchestrator
@@ -570,7 +584,9 @@ class FlowCApprovalResponseConsumer:
                 data = await self.consumer.getmany(timeout_ms=1000, max_records=10)
 
                 if data:
-                    self.logger.debug("approval_response_messages_fetched", topics_partitions=list(data.keys()))
+                    self.logger.debug(
+                        "approval_response_messages_fetched", topics_partitions=list(data.keys())
+                    )
 
                 for tp, messages in data.items():
                     for message in messages:
@@ -579,8 +595,8 @@ class FlowCApprovalResponseConsumer:
                             topic=tp.topic,
                             partition=tp.partition,
                             offset=message.offset,
-                            key=message.key.decode('utf-8') if message.key else None,
-                            value_preview=str(message.value)[:200] if message.value else None
+                            key=message.key.decode("utf-8") if message.key else None,
+                            value_preview=str(message.value)[:200] if message.value else None,
                         )
                         await self._process_approval_response(message)
 
@@ -588,7 +604,9 @@ class FlowCApprovalResponseConsumer:
                         await self.consumer.commit()
 
             except Exception as e:
-                self.logger.error("approval_response_consumption_error", error=str(e), exc_info=True)
+                self.logger.error(
+                    "approval_response_consumption_error", error=str(e), exc_info=True
+                )
                 await asyncio.sleep(5)
 
     async def _process_approval_response(self, message):
@@ -603,7 +621,7 @@ class FlowCApprovalResponseConsumer:
             topic=message.topic,
             partition=message.partition,
             offset=message.offset,
-            key=message.key.decode('utf-8') if message.key else None,
+            key=message.key.decode("utf-8") if message.key else None,
             value_length=len(message.value) if message.value else 0,
             timestamp=message.timestamp,
         )
@@ -621,21 +639,21 @@ class FlowCApprovalResponseConsumer:
             # Parse JSON baseado no tipo do valor
             try:
                 if isinstance(raw_value, bytes):
-                    approval_response = json.loads(raw_value.decode('utf-8'))
+                    approval_response = json.loads(raw_value.decode("utf-8"))
                 elif isinstance(raw_value, str):
                     approval_response = json.loads(raw_value)
                 else:
                     self.logger.error(
                         "approval_response_invalid_type",
                         type=type(raw_value).__name__,
-                        value=str(raw_value)[:200]
+                        value=str(raw_value)[:200],
                     )
                     return
             except json.JSONDecodeError as e:
-                self.logger.error(
+                self.logger.exception(
                     "approval_response_json_decode_error",
                     error=str(e),
-                    raw_value=str(raw_value)[:500]
+                    raw_value=str(raw_value)[:500],
                 )
                 return
 
@@ -644,7 +662,7 @@ class FlowCApprovalResponseConsumer:
                 self.logger.error(
                     "approval_response_not_dict",
                     type=type(approval_response).__name__,
-                    value=str(approval_response)[:200]
+                    value=str(approval_response)[:200],
                 )
                 return
 
@@ -658,7 +676,7 @@ class FlowCApprovalResponseConsumer:
                 intent_id=intent_id,
                 decision=decision,
                 has_cognitive_plan=bool(approval_response.get("cognitive_plan")),
-                has_cognitive_plan_json=bool(approval_response.get("cognitive_plan_json"))
+                has_cognitive_plan_json=bool(approval_response.get("cognitive_plan_json")),
             )
 
             # FIX 1: Extrair e desserializar cognitive_plan_json
@@ -695,9 +713,7 @@ class FlowCApprovalResponseConsumer:
             )
 
             # Resume Flow C execution
-            result = await self.orchestrator.resume_flow_c_after_approval(
-                approval_response
-            )
+            result = await self.orchestrator.resume_flow_c_after_approval(approval_response)
 
             self.logger.info(
                 "flow_c_resumed_after_approval",
@@ -709,8 +725,10 @@ class FlowCApprovalResponseConsumer:
             )
 
         except Exception as e:
-            self.logger.error(
+            self.logger.exception(
                 "approval_response_processing_error",
                 error=str(e),
-                plan_id=approval_response.get("plan_id") if 'approval_response' in locals() else None,
+                plan_id=approval_response.get("plan_id")
+                if "approval_response" in locals()
+                else None,
             )

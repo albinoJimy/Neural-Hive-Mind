@@ -1,18 +1,16 @@
-
 """
 Activities Temporal para geração de Execution Tickets (Etapa C2).
 """
-import uuid
 import json
+import uuid
 from datetime import datetime
-from typing import Dict, Any, List, Optional
+from typing import Any
 
-from temporalio import activity
 import structlog
-from neural_hive_resilience.circuit_breaker import CircuitBreakerError
 from pymongo.errors import PyMongoError
+from temporalio import activity
 
-from src.scheduler import IntelligentScheduler
+from neural_hive_resilience.circuit_breaker import CircuitBreakerError
 
 logger = structlog.get_logger()
 
@@ -28,7 +26,17 @@ _scheduling_optimizer = None
 _redis_client = None
 
 
-def set_activity_dependencies(kafka_producer, mongodb_client, registry_client=None, intelligent_scheduler=None, policy_validator=None, config=None, ml_predictor=None, scheduling_optimizer=None, redis_client=None):
+def set_activity_dependencies(
+    kafka_producer,
+    mongodb_client,
+    registry_client=None,
+    intelligent_scheduler=None,
+    policy_validator=None,
+    config=None,
+    ml_predictor=None,
+    scheduling_optimizer=None,
+    redis_client=None,
+):
     """
     Injeta dependências globais nas activities.
 
@@ -57,9 +65,8 @@ def set_activity_dependencies(kafka_producer, mongodb_client, registry_client=No
 
 @activity.defn
 async def generate_execution_tickets(
-    cognitive_plan: Dict[str, Any],
-    consolidated_decision: Optional[Dict[str, Any]] = None
-) -> List[Dict[str, Any]]:
+    cognitive_plan: dict[str, Any], consolidated_decision: dict[str, Any] | None = None
+) -> list[dict[str, Any]]:
     """
     Gera Execution Tickets a partir de um Cognitive Plan.
 
@@ -71,27 +78,28 @@ async def generate_execution_tickets(
         Lista de tickets ordenada topologicamente
     """
     logger.info(
-        'generate_execution_tickets_called',
-        plan_id=cognitive_plan.get('plan_id', 'MISSING'),
-        intent_id=cognitive_plan.get('intent_id', 'MISSING'),
-        has_tasks='tasks' in cognitive_plan,
-        tasks_count=len(cognitive_plan.get('tasks', [])),
-        cognitive_plan_keys=list(cognitive_plan.keys()) if isinstance(cognitive_plan, dict) else 'NOT_A_DICT',
-        consolidated_decision_keys=list(consolidated_decision.keys()) if isinstance(consolidated_decision, dict) else 'NOT_A_DICT'
+        "generate_execution_tickets_called",
+        plan_id=cognitive_plan.get("plan_id", "MISSING"),
+        intent_id=cognitive_plan.get("intent_id", "MISSING"),
+        has_tasks="tasks" in cognitive_plan,
+        tasks_count=len(cognitive_plan.get("tasks", [])),
+        cognitive_plan_keys=list(cognitive_plan.keys())
+        if isinstance(cognitive_plan, dict)
+        else "NOT_A_DICT",
+        consolidated_decision_keys=list(consolidated_decision.keys())
+        if isinstance(consolidated_decision, dict)
+        else "NOT_A_DICT",
     )
 
     # F1: Validar e garantir correlation_id no cognitive_plan
-    correlation_id = (
-        cognitive_plan.get('correlation_id') or
-        cognitive_plan.get('correlationId')
-    )
+    correlation_id = cognitive_plan.get("correlation_id") or cognitive_plan.get("correlationId")
     if not correlation_id:
         correlation_id = str(uuid.uuid4())
         logger.warning(
-            'F1: correlation_id ausente no cognitive_plan - UUID gerado no Orchestrator',
-            plan_id=cognitive_plan.get('plan_id', 'MISSING'),
+            "F1: correlation_id ausente no cognitive_plan - UUID gerado no Orchestrator",
+            plan_id=cognitive_plan.get("plan_id", "MISSING"),
             generated_correlation_id=correlation_id,
-            action_required='Verificar propagação de correlation_id upstream (Gateway, STE, Consensus)'
+            action_required="Verificar propagação de correlation_id upstream (Gateway, STE, Consensus)",
         )
 
     try:
@@ -99,31 +107,31 @@ async def generate_execution_tickets(
         # Se cognitive_plan está aninhado (cognitive_plan.cognitive_plan),
         # extrair o plano interno para acessar tasks corretamente
         plan_data = cognitive_plan
-        if 'cognitive_plan' in plan_data and isinstance(plan_data.get('cognitive_plan'), dict):
+        if "cognitive_plan" in plan_data and isinstance(plan_data.get("cognitive_plan"), dict):
             # Estrutura aninhada detectada
             logger.warning(
-                'cognitive_plan_aninhado_detectado_no_orchestrator',
-                plan_id=plan_data.get('plan_id', 'UNKNOWN'),
-                has_tasks_nivel1='tasks' in plan_data,
-                has_tasks_nivel2='tasks' in plan_data.get('cognitive_plan', {}),
-                action='achatando estrutura'
+                "cognitive_plan_aninhado_detectado_no_orchestrator",
+                plan_id=plan_data.get("plan_id", "UNKNOWN"),
+                has_tasks_nivel1="tasks" in plan_data,
+                has_tasks_nivel2="tasks" in plan_data.get("cognitive_plan", {}),
+                action="achatando estrutura",
             )
-            plan_data = plan_data['cognitive_plan']
+            plan_data = plan_data["cognitive_plan"]
 
-        tasks = plan_data.get('tasks', [])
-        plan_id = cognitive_plan['plan_id']
-        intent_id = cognitive_plan['intent_id']
+        tasks = plan_data.get("tasks", [])
+        plan_id = cognitive_plan["plan_id"]
+        intent_id = cognitive_plan["intent_id"]
         # Para plans diretos do STE, consolidated_decision pode ser None
-        decision_id = consolidated_decision['decision_id'] if consolidated_decision else None
-        risk_band = cognitive_plan.get('risk_band', 'medium')
+        decision_id = consolidated_decision["decision_id"] if consolidated_decision else None
+        risk_band = cognitive_plan.get("risk_band", "medium")
 
         logger.info(
-            'ticket_generation_vars_extracted',
+            "ticket_generation_vars_extracted",
             plan_id=plan_id,
             intent_id=intent_id,
             decision_id=decision_id,
             risk_band=risk_band,
-            tasks_count=len(tasks)
+            tasks_count=len(tasks),
         )
 
         # Mapeamento de task_id para ticket_id
@@ -133,7 +141,7 @@ async def generate_execution_tickets(
         # Gerar um ticket para cada task
         for task in tasks:
             ticket_id = str(uuid.uuid4())
-            task_id = task['task_id']
+            task_id = task["task_id"]
             task_to_ticket_map[task_id] = ticket_id
 
             # ============================================================================
@@ -153,7 +161,7 @@ async def generate_execution_tickets(
             #   - 60s mínimo: Acomoda overhead de inicialização de workers e rede
             #   - 3.0x buffer: Margem para variabilidade de carga e recursos
             # ============================================================================
-            estimated_duration_ms = task.get('estimated_duration_ms', 60000)
+            estimated_duration_ms = task.get("estimated_duration_ms", 60000)
 
             # Usar valores configuráveis de timeout (via environment variables)
             # - min_timeout_ms: Timeout mínimo absoluto (default 60s)
@@ -165,10 +173,10 @@ async def generate_execution_tickets(
             timeout_ms = max(min_timeout_ms, int(estimated_duration_ms * buffer_multiplier))
             deadline = int((datetime.now().timestamp() + timeout_ms / 1000) * 1000)
 
-# CACHE_BUST_1771283833
+            # CACHE_BUST_1771283833
             # Log detalhado do cálculo de timeout para auditoria e debugging
             logger.info(
-                'sla_timeout_calculated',
+                "sla_timeout_calculated",
                 ticket_id=ticket_id,
                 task_id=task_id,
                 estimated_duration_ms=estimated_duration_ms,
@@ -178,116 +186,110 @@ async def generate_execution_tickets(
                 final_timeout_ms=timeout_ms,
                 timeout_seconds=timeout_ms / 1000,
                 risk_band=risk_band,
-                config_source='injected' if _config else 'defaults'
+                config_source="injected" if _config else "defaults",
             )
 
             # Validação: garantir que timeout nunca seja menor que o mínimo configurado
             if timeout_ms < min_timeout_ms:
                 logger.error(
-                    'sla_timeout_below_minimum',
+                    "sla_timeout_below_minimum",
                     ticket_id=ticket_id,
                     timeout_ms=timeout_ms,
                     min_timeout_ms=min_timeout_ms,
-                    estimated_duration_ms=estimated_duration_ms
+                    estimated_duration_ms=estimated_duration_ms,
                 )
                 raise RuntimeError(
-                    f'Timeout calculado ({timeout_ms}ms) está abaixo do mínimo configurado ({min_timeout_ms}ms). '
-                    f'Isso indica um bug na fórmula de cálculo.'
+                    f"Timeout calculado ({timeout_ms}ms) está abaixo do mínimo configurado ({min_timeout_ms}ms). "
+                    f"Isso indica um bug na fórmula de cálculo."
                 )
 
             # Mapear max_retries baseado em risk_band
-            retry_map = {'critical': 5, 'high': 3, 'medium': 2, 'low': 1}
+            retry_map = {"critical": 5, "high": 3, "medium": 2, "low": 1}
             max_retries = retry_map.get(risk_band, 2)
 
             # Definir QoS baseado em risk_band
-            if risk_band in ['critical', 'high']:
-                delivery_mode = 'EXACTLY_ONCE'
-                consistency = 'STRONG'
+            if risk_band in ["critical", "high"]:
+                delivery_mode = "EXACTLY_ONCE"
+                consistency = "STRONG"
             else:
-                delivery_mode = 'AT_LEAST_ONCE'
-                consistency = 'EVENTUAL'
+                delivery_mode = "AT_LEAST_ONCE"
+                consistency = "EVENTUAL"
 
             ticket = {
-                'ticket_id': ticket_id,
-                'plan_id': plan_id,
-                'intent_id': intent_id,
-                'decision_id': decision_id,
+                "ticket_id": ticket_id,
+                "plan_id": plan_id,
+                "intent_id": intent_id,
+                "decision_id": decision_id,
                 # F1: Usar correlation_id validado/gerado no início da função
-                'correlation_id': correlation_id,
-                'trace_id': (consolidated_decision or cognitive_plan).get('trace_id'),
-                'span_id': (consolidated_decision or cognitive_plan).get('span_id'),
-                'task_id': task_id,
-                'task_type': task.get('task_type', 'EXECUTE'),
-                'description': task.get('description', ''),
-                'dependencies': [],  # Será preenchido após mapeamento
-                'status': 'PENDING',
-                'priority': cognitive_plan.get('priority', 'NORMAL'),
-                'risk_band': risk_band,
-                'sla': {
-                    'deadline': deadline,
-                    'timeout_ms': timeout_ms,
-                    'max_retries': max_retries
+                "correlation_id": correlation_id,
+                "trace_id": (consolidated_decision or cognitive_plan).get("trace_id"),
+                "span_id": (consolidated_decision or cognitive_plan).get("span_id"),
+                "task_id": task_id,
+                "task_type": task.get("task_type", "EXECUTE"),
+                "description": task.get("description", ""),
+                "dependencies": [],  # Será preenchido após mapeamento
+                "status": "PENDING",
+                "priority": cognitive_plan.get("priority", "NORMAL"),
+                "risk_band": risk_band,
+                "sla": {"deadline": deadline, "timeout_ms": timeout_ms, "max_retries": max_retries},
+                "qos": {
+                    "delivery_mode": delivery_mode,
+                    "consistency": consistency,
+                    "durability": "PERSISTENT",
                 },
-                'qos': {
-                    'delivery_mode': delivery_mode,
-                    'consistency': consistency,
-                    'durability': 'PERSISTENT'
+                "parameters": task.get("parameters", {}),
+                "required_capabilities": task.get("required_capabilities", []),
+                "security_level": cognitive_plan.get("security_level", "INTERNAL"),
+                "created_at": int(datetime.now().timestamp() * 1000),
+                "started_at": None,
+                "completed_at": None,
+                "estimated_duration_ms": estimated_duration_ms,
+                "actual_duration_ms": None,
+                "retry_count": 0,
+                "error_message": None,
+                "compensation_ticket_id": None,
+                "metadata": {
+                    "workflow_id": activity.info().workflow_id,
+                    "generated_by": "orchestrator-dynamic",
                 },
-                'parameters': task.get('parameters', {}),
-                'required_capabilities': task.get('required_capabilities', []),
-                'security_level': cognitive_plan.get('security_level', 'INTERNAL'),
-                'created_at': int(datetime.now().timestamp() * 1000),
-                'started_at': None,
-                'completed_at': None,
-                'estimated_duration_ms': estimated_duration_ms,
-                'actual_duration_ms': None,
-                'retry_count': 0,
-                'error_message': None,
-                'compensation_ticket_id': None,
-                'metadata': {
-                    'workflow_id': activity.info().workflow_id,
-                    'generated_by': 'orchestrator-dynamic'
-                },
-                'schema_version': 1
+                "schema_version": 1,
             }
 
             tickets.append(ticket)
 
         # Mapear dependencies de task_ids para ticket_ids
         for i, task in enumerate(tasks):
-            task_dependencies = task.get('dependencies', [])
-            ticket_dependencies = [task_to_ticket_map[dep] for dep in task_dependencies if dep in task_to_ticket_map]
-            tickets[i]['dependencies'] = ticket_dependencies
+            task_dependencies = task.get("dependencies", [])
+            ticket_dependencies = [
+                task_to_ticket_map[dep] for dep in task_dependencies if dep in task_to_ticket_map
+            ]
+            tickets[i]["dependencies"] = ticket_dependencies
 
         # Ordenar tickets topologicamente usando execution_order
         # FIX: Usar plan_data (achatado) em vez de cognitive_plan (pode estar aninhado)
-        execution_order = plan_data.get('execution_order', [task['task_id'] for task in tasks])
+        execution_order = plan_data.get("execution_order", [task["task_id"] for task in tasks])
         ordered_tickets = []
         for task_id in execution_order:
             if task_id in task_to_ticket_map:
                 ticket_id = task_to_ticket_map[task_id]
-                ticket = next((t for t in tickets if t['ticket_id'] == ticket_id), None)
+                ticket = next((t for t in tickets if t["ticket_id"] == ticket_id), None)
                 if ticket:
                     ordered_tickets.append(ticket)
 
         logger.info(
-            f'Gerados {len(ordered_tickets)} execution tickets',
+            f"Gerados {len(ordered_tickets)} execution tickets",
             plan_id=plan_id,
-            risk_band=risk_band
+            risk_band=risk_band,
         )
 
         return ordered_tickets
 
     except Exception as e:
-        logger.error(f'Erro ao gerar execution tickets: {e}', exc_info=True)
+        logger.error(f"Erro ao gerar execution tickets: {e}", exc_info=True)
         raise
 
 
-async def cache_workflow_mapping(
-    ticket_id: str,
-    workflow_id: str,
-    redis_client
-) -> None:
+async def cache_workflow_mapping(ticket_id: str, workflow_id: str, redis_client) -> None:
     """
     Cache mapeamento ticket_id → workflow_id no Redis.
 
@@ -301,36 +303,26 @@ async def cache_workflow_mapping(
     """
     if not redis_client:
         logger.warning(
-            'redis_client_unavailable_for_workflow_cache',
+            "redis_client_unavailable_for_workflow_cache",
             ticket_id=ticket_id,
-            workflow_id=workflow_id
+            workflow_id=workflow_id,
         )
         return
 
     try:
         cache_key = f"workflow:by:ticket:{ticket_id}"
-        await redis_client.setex(
-            cache_key,
-            86400,  # 24h TTL
-            workflow_id
-        )
+        await redis_client.setex(cache_key, 86400, workflow_id)  # 24h TTL
         logger.debug(
-            'workflow_mapping_cached',
-            ticket_id=ticket_id,
-            workflow_id=workflow_id,
-            ttl=86400
+            "workflow_mapping_cached", ticket_id=ticket_id, workflow_id=workflow_id, ttl=86400
         )
     except Exception as e:
-        logger.error(
-            'workflow_cache_set_error',
-            ticket_id=ticket_id,
-            workflow_id=workflow_id,
-            error=str(e)
+        logger.exception(
+            "workflow_cache_set_error", ticket_id=ticket_id, workflow_id=workflow_id, error=str(e)
         )
         # Fail-open: não propagar erro de cache
 
 
-async def _get_available_workers() -> List[Dict[str, Any]]:
+async def _get_available_workers() -> list[dict[str, Any]]:
     """
     F2: Busca workers disponíveis do Service Registry.
 
@@ -340,8 +332,8 @@ async def _get_available_workers() -> List[Dict[str, Any]]:
     """
     if not _registry_client:
         logger.warning(
-            'F2_registry_client_unavailable',
-            message='Service Registry client não injetado - fallback round-robin não disponível'
+            "F2_registry_client_unavailable",
+            message="Service Registry client não injetado - fallback round-robin não disponível",
         )
         return []
 
@@ -349,36 +341,33 @@ async def _get_available_workers() -> List[Dict[str, Any]]:
         # Buscar agentes do tipo WORKER com status HEALTHY
         workers = await _registry_client.discover_agents(
             capabilities=[],  # Sem filtro de capabilities específicas
-            filters={
-                'status': 'HEALTHY',
-                'namespace': _config.namespace if _config else 'default'
-            },
-            max_results=50  # Buscar até 50 workers
+            filters={"status": "HEALTHY", "namespace": _config.namespace if _config else "default"},
+            max_results=50,  # Buscar até 50 workers
         )
 
         # Filtrar apenas WORKERs
-        workers = [w for w in workers if w.get('agent_type') == 'WORKER']
+        workers = [w for w in workers if w.get("agent_type") == "WORKER"]
 
         logger.info(
-            'F2_workers_discovered',
+            "F2_workers_discovered",
             count=len(workers),
-            workers=[w.get('agent_id') for w in workers[:5]]  # Log primeiros 5
+            workers=[w.get("agent_id") for w in workers[:5]],  # Log primeiros 5
         )
 
         return workers
 
     except Exception as e:
         logger.warning(
-            'F2_worker_discovery_failed',
+            "F2_worker_discovery_failed",
             error=str(e),
             error_type=type(e).__name__,
-            message='Falha ao buscar workers do Service Registry - retornando lista vazia'
+            message="Falha ao buscar workers do Service Registry - retornando lista vazia",
         )
         return []
 
 
 @activity.defn
-async def allocate_resources(ticket: Dict[str, Any]) -> Dict[str, Any]:
+async def allocate_resources(ticket: dict[str, Any]) -> dict[str, Any]:
     """
     Aloca recursos para um ticket usando Intelligent Scheduler.
     Enriquece allocation_metadata com dados de predições ML para feedback loop.
@@ -389,8 +378,8 @@ async def allocate_resources(ticket: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Ticket atualizado com allocation_metadata
     """
-    ticket_id = ticket.get('ticket_id', 'unknown')
-    logger.info(f'Alocando recursos para ticket {ticket_id}')
+    ticket_id = ticket.get("ticket_id", "unknown")
+    logger.info(f"Alocando recursos para ticket {ticket_id}")
 
     try:
         # Validar políticas OPA antes de alocar recursos
@@ -401,34 +390,35 @@ async def allocate_resources(ticket: Dict[str, Any]) -> Dict[str, Any]:
 
                 if not policy_result.valid:
                     # Rejeitar alocação se políticas forem violadas
-                    violation_msgs = [f'{v.policy_name}/{v.rule}: {v.message}' for v in policy_result.violations]
+                    violation_msgs = [
+                        f"{v.policy_name}/{v.rule}: {v.message}" for v in policy_result.violations
+                    ]
                     logger.error(
-                        f'Ticket {ticket_id} rejeitado por políticas OPA',
-                        violations=violation_msgs
+                        f"Ticket {ticket_id} rejeitado por políticas OPA", violations=violation_msgs
                     )
-                    raise RuntimeError(f'Ticket rejeitado por políticas: {violation_msgs}')
+                    raise RuntimeError(f"Ticket rejeitado por políticas: {violation_msgs}")
 
                 # Logar warnings mas não bloquear
                 if policy_result.warnings:
-                    warning_msgs = [f'{w.policy_name}/{w.rule}: {w.message}' for w in policy_result.warnings]
+                    warning_msgs = [
+                        f"{w.policy_name}/{w.rule}: {w.message}" for w in policy_result.warnings
+                    ]
                     logger.warning(
-                        f'Ticket {ticket_id} tem warnings de políticas',
-                        warnings=warning_msgs
+                        f"Ticket {ticket_id} tem warnings de políticas", warnings=warning_msgs
                     )
 
                 # Obter feature flags das decisões de políticas
-                feature_flags = policy_result.policy_decisions.get('feature_flags', {})
+                feature_flags = policy_result.policy_decisions.get("feature_flags", {})
 
                 # Adicionar policy_decisions ao ticket metadata
-                if 'metadata' not in ticket:
-                    ticket['metadata'] = {}
+                if "metadata" not in ticket:
+                    ticket["metadata"] = {}
                 # FIX: Serializar policy_decisions como string JSON para compatibilidade com Avro (map<string, string>)
-                ticket['metadata']['policy_decisions'] = json.dumps(policy_result.policy_decisions)
-                ticket['metadata']['policy_validated_at'] = policy_result.evaluated_at.isoformat()
+                ticket["metadata"]["policy_decisions"] = json.dumps(policy_result.policy_decisions)
+                ticket["metadata"]["policy_validated_at"] = policy_result.evaluated_at.isoformat()
 
                 logger.info(
-                    f'Ticket {ticket_id} validado por políticas OPA',
-                    feature_flags=feature_flags
+                    f"Ticket {ticket_id} validado por políticas OPA", feature_flags=feature_flags
                 )
 
             except RuntimeError:
@@ -436,9 +426,9 @@ async def allocate_resources(ticket: Dict[str, Any]) -> Dict[str, Any]:
                 raise
             except Exception as e:
                 # Erro na validação OPA
-                logger.error(f'Erro ao validar políticas OPA: {e}', exc_info=True)
+                logger.error(f"Erro ao validar políticas OPA: {e}", exc_info=True)
                 if not _config.opa_fail_open:
-                    raise RuntimeError(f'Falha na validação de políticas: {str(e)}')
+                    raise RuntimeError(f"Falha na validação de políticas: {e!s}")
 
         # ML Predictions: enriquece ticket com predições antes do scheduler
         predicted_duration_ms = None
@@ -446,25 +436,26 @@ async def allocate_resources(ticket: Dict[str, Any]) -> Dict[str, Any]:
             try:
                 ticket = await _ml_predictor.predict_and_enrich(ticket)
                 # Extrair predicted_duration_ms para usar em allocation_metadata
-                predictions = ticket.get('predictions', {})
-                predicted_duration_ms = predictions.get('duration_ms')
+                predictions = ticket.get("predictions", {})
+                predicted_duration_ms = predictions.get("duration_ms")
                 logger.info(
-                    f'ML predictions adicionadas ao ticket {ticket_id}',
-                    predictions=ticket.get('predictions')
+                    f"ML predictions adicionadas ao ticket {ticket_id}",
+                    predictions=ticket.get("predictions"),
                 )
             except Exception as e:
                 logger.warning(
-                    f'ML prediction falhou para ticket {ticket_id}, continuando sem predições: {e}'
+                    f"ML prediction falhou para ticket {ticket_id}, continuando sem predições: {e}"
                 )
 
         # Decidir se usar IntelligentScheduler baseado em feature flags
-        use_intelligent_scheduler = feature_flags.get('enable_intelligent_scheduler', True) if _policy_validator else True
+        use_intelligent_scheduler = (
+            feature_flags.get("enable_intelligent_scheduler", True) if _policy_validator else True
+        )
 
         # Tentar usar Intelligent Scheduler se disponível e habilitado
         if _intelligent_scheduler and use_intelligent_scheduler:
             logger.info(
-                f'Usando Intelligent Scheduler para ticket {ticket_id}',
-                scheduler_enabled=True
+                f"Usando Intelligent Scheduler para ticket {ticket_id}", scheduler_enabled=True
             )
 
             try:
@@ -475,88 +466,123 @@ async def allocate_resources(ticket: Dict[str, Any]) -> Dict[str, Any]:
                 # Usado para ML error tracking e feedback loop
                 # Fix: Verificar se allocation_metadata existe e não é None
                 if predicted_duration_ms is not None:
-                    if 'allocation_metadata' not in ticket or ticket.get('allocation_metadata') is None:
-                        ticket['allocation_metadata'] = {}
-                    ticket['allocation_metadata']['predicted_duration_ms'] = predicted_duration_ms
+                    if (
+                        "allocation_metadata" not in ticket
+                        or ticket.get("allocation_metadata") is None
+                    ):
+                        ticket["allocation_metadata"] = {}
+                    ticket["allocation_metadata"]["predicted_duration_ms"] = predicted_duration_ms
 
-                allocation_metadata = ticket.get('allocation_metadata') or {}
-                if 'predicted_queue_ms' in allocation_metadata:
-                    ticket['allocation_metadata']['predicted_queue_ms'] = allocation_metadata.get('predicted_queue_ms')
-                if 'predicted_load_pct' in allocation_metadata:
-                    ticket['allocation_metadata']['predicted_load_pct'] = allocation_metadata.get('predicted_load_pct')
-                if 'ml_enriched' in allocation_metadata or 'ml_scheduling_enriched' in allocation_metadata:
-                    ticket['allocation_metadata']['ml_enriched'] = allocation_metadata.get('ml_enriched', allocation_metadata.get('ml_scheduling_enriched', False))
+                allocation_metadata = ticket.get("allocation_metadata") or {}
+                if "predicted_queue_ms" in allocation_metadata:
+                    ticket["allocation_metadata"]["predicted_queue_ms"] = allocation_metadata.get(
+                        "predicted_queue_ms"
+                    )
+                if "predicted_load_pct" in allocation_metadata:
+                    ticket["allocation_metadata"]["predicted_load_pct"] = allocation_metadata.get(
+                        "predicted_load_pct"
+                    )
+                if (
+                    "ml_enriched" in allocation_metadata
+                    or "ml_scheduling_enriched" in allocation_metadata
+                ):
+                    ticket["allocation_metadata"]["ml_enriched"] = allocation_metadata.get(
+                        "ml_enriched", allocation_metadata.get("ml_scheduling_enriched", False)
+                    )
 
                 # Validação OPA da alocação de recursos (C3)
                 if _policy_validator and _config and _config.opa_enabled:
-                    allocation_metadata = ticket.get('allocation_metadata') or {}
+                    allocation_metadata = ticket.get("allocation_metadata") or {}
                     agent_info = {
-                        'agent_id': allocation_metadata.get('agent_id'),
-                        'agent_type': allocation_metadata.get('agent_type'),
-                        'capacity': allocation_metadata.get('capacity') or allocation_metadata.get('resources', {})
+                        "agent_id": allocation_metadata.get("agent_id"),
+                        "agent_type": allocation_metadata.get("agent_type"),
+                        "capacity": allocation_metadata.get("capacity")
+                        or allocation_metadata.get("resources", {}),
                     }
 
                     try:
                         # Ausência de allocation_metadata.agent_id é tratada como erro fatal (sem fallback)
-                        if agent_info['agent_id'] is None:
-                            raise RuntimeError('allocation_metadata.agent_id ausente para validação de recursos')
+                        if agent_info["agent_id"] is None:
+                            raise RuntimeError(
+                                "allocation_metadata.agent_id ausente para validação de recursos"
+                            )
 
-                        policy_result = await _policy_validator.validate_resource_allocation(ticket, agent_info)
+                        policy_result = await _policy_validator.validate_resource_allocation(
+                            ticket, agent_info
+                        )
 
                         if not policy_result.valid:
-                            violation_msgs = [f'{v.policy_name}/{v.rule}: {v.message}' for v in policy_result.violations]
+                            violation_msgs = [
+                                f"{v.policy_name}/{v.rule}: {v.message}"
+                                for v in policy_result.violations
+                            ]
                             logger.error(
-                                f'Alocação rejeitada por políticas OPA para ticket {ticket_id}',
+                                f"Alocação rejeitada por políticas OPA para ticket {ticket_id}",
                                 violations=violation_msgs,
-                                agent_id=agent_info.get('agent_id')
+                                agent_id=agent_info.get("agent_id"),
                             )
-                            raise RuntimeError(f'Alocação rejeitada por políticas: {violation_msgs}')
+                            raise RuntimeError(
+                                f"Alocação rejeitada por políticas: {violation_msgs}"
+                            )
 
                         if policy_result.warnings:
-                            warning_msgs = [f'{w.policy_name}/{w.rule}: {w.message}' for w in policy_result.warnings]
+                            warning_msgs = [
+                                f"{w.policy_name}/{w.rule}: {w.message}"
+                                for w in policy_result.warnings
+                            ]
                             logger.warning(
-                                f'Alocação com warnings de políticas OPA para ticket {ticket_id}',
+                                f"Alocação com warnings de políticas OPA para ticket {ticket_id}",
                                 warnings=warning_msgs,
-                                agent_id=agent_info.get('agent_id')
+                                agent_id=agent_info.get("agent_id"),
                             )
 
-                        if 'metadata' not in ticket:
-                            ticket['metadata'] = {}
+                        if "metadata" not in ticket:
+                            ticket["metadata"] = {}
 
                         # FIX: Serializar policy_decisions como string JSON para compatibilidade com Avro (map<string, string>)
-                        existing_decisions_str = ticket['metadata'].get('policy_decisions', '{}')
+                        existing_decisions_str = ticket["metadata"].get("policy_decisions", "{}")
                         try:
-                            existing_decisions = json.loads(existing_decisions_str) if isinstance(existing_decisions_str, str) else existing_decisions_str
+                            existing_decisions = (
+                                json.loads(existing_decisions_str)
+                                if isinstance(existing_decisions_str, str)
+                                else existing_decisions_str
+                            )
                         except (json.JSONDecodeError, TypeError):
                             existing_decisions = {}
 
                         if isinstance(existing_decisions, dict):
                             existing_decisions.update(policy_result.policy_decisions)
-                            ticket['metadata']['policy_decisions'] = json.dumps(existing_decisions)
+                            ticket["metadata"]["policy_decisions"] = json.dumps(existing_decisions)
                         else:
-                            ticket['metadata']['policy_decisions'] = json.dumps(policy_result.policy_decisions)
-                        ticket['metadata']['policy_validated_at'] = policy_result.evaluated_at.isoformat()
+                            ticket["metadata"]["policy_decisions"] = json.dumps(
+                                policy_result.policy_decisions
+                            )
+                        ticket["metadata"][
+                            "policy_validated_at"
+                        ] = policy_result.evaluated_at.isoformat()
 
                         logger.info(
-                            f'Validação OPA de alocação concluída para ticket {ticket_id}',
-                            agent_id=agent_info.get('agent_id'),
-                            agent_type=agent_info.get('agent_type')
+                            f"Validação OPA de alocação concluída para ticket {ticket_id}",
+                            agent_id=agent_info.get("agent_id"),
+                            agent_type=agent_info.get("agent_type"),
                         )
                     except RuntimeError:
                         raise
                     except Exception as e:
                         logger.warning(
-                            f'Erro ao validar alocação via OPA para ticket {ticket_id}: {e}',
-                            agent_id=agent_info.get('agent_id')
+                            f"Erro ao validar alocação via OPA para ticket {ticket_id}: {e}",
+                            agent_id=agent_info.get("agent_id"),
                         )
                         if not _config.opa_fail_open:
-                            raise RuntimeError(f'Falha na validação de alocação: {str(e)}')
+                            raise RuntimeError(f"Falha na validação de alocação: {e!s}")
 
                 logger.info(
-                    f'Recursos alocados via Intelligent Scheduler para ticket {ticket_id}',
-                    allocation_method=ticket.get('allocation_metadata', {}).get('allocation_method'),
-                    priority_score=ticket.get('allocation_metadata', {}).get('priority_score'),
-                    agent_id=ticket.get('allocation_metadata', {}).get('agent_id')
+                    f"Recursos alocados via Intelligent Scheduler para ticket {ticket_id}",
+                    allocation_method=ticket.get("allocation_metadata", {}).get(
+                        "allocation_method"
+                    ),
+                    priority_score=ticket.get("allocation_metadata", {}).get("priority_score"),
+                    agent_id=ticket.get("allocation_metadata", {}).get("agent_id"),
                 )
 
                 return ticket
@@ -578,44 +604,47 @@ async def allocate_resources(ticket: Dict[str, Any]) -> Dict[str, Any]:
                 if not can_use_fallback:
                     # PRODUÇÃO: Propagar exceção para retry do Temporal
                     logger.error(
-                        'intelligent_scheduler_failed_propagating_exception',
+                        "intelligent_scheduler_failed_propagating_exception",
                         ticket_id=ticket_id,
                         error=str(e),
                         error_type=type(e).__name__,
                         error_message=str(e),
-                        environment=_config.environment if _config else 'unknown',
+                        environment=_config.environment if _config else "unknown",
                         fallback_stub_enabled=False,
-                        exc_info=True
+                        exc_info=True,
                     )
                     raise RuntimeError(
-                        f'Intelligent Scheduler falhou para ticket {ticket_id}: {str(e)}. '
+                        f"Intelligent Scheduler falhou para ticket {ticket_id}: {e!s}. "
                         f'Fallback stub desabilitado (ambiente: {_config.environment if _config else "unknown"}). '
-                        f'Corrija o problema do Scheduler ou habilite SCHEDULER_FALLBACK_STUB_ENABLED '
-                        f'apenas em ambientes de desenvolvimento.'
+                        f"Corrija o problema do Scheduler ou habilite SCHEDULER_FALLBACK_STUB_ENABLED "
+                        f"apenas em ambientes de desenvolvimento."
                     ) from e
 
                 # DESENVOLVIMENTO: Usar stub com WARNING claro
                 logger.warning(
-                    'scheduler_fallback_stub_activated',
+                    "scheduler_fallback_stub_activated",
                     ticket_id=ticket_id,
                     error=str(e),
                     error_type=type(e).__name__,
-                    environment=_config.environment if _config else 'unknown',
+                    environment=_config.environment if _config else "unknown",
                     fallback_stub_enabled=True,
-                    message='FALLBACK STUB ATIVADO: Alocação stub é apenas para desenvolvimento. '
-                           'Em produção, esta exceção seria propagada para retry do Temporal.'
+                    message="FALLBACK STUB ATIVADO: Alocação stub é apenas para desenvolvimento. "
+                    "Em produção, esta exceção seria propagada para retry do Temporal.",
                 )
 
                 # Registrar métrica de ativação do fallback_stub
                 try:
                     from src.observability.metrics import get_metrics
+
                     metrics = get_metrics()
-                    metrics.record_fallback_stub_activation(f'scheduler_exception:{type(e).__name__}')
+                    metrics.record_fallback_stub_activation(
+                        f"scheduler_exception:{type(e).__name__}"
+                    )
                 except Exception:
                     pass  # Não falhar se métricas não estiverem disponíveis
 
                 # Continuar para alocação stub abaixo
-                fallback_reason = 'scheduler_exception'
+                fallback_reason = "scheduler_exception"
 
         # ============================================================================
         # F2: Fallback Round-Robin Real (substitui stub antigo)
@@ -625,21 +654,24 @@ async def allocate_resources(ticket: Dict[str, Any]) -> Dict[str, Any]:
         # ============================================================================
         if not _intelligent_scheduler or (_config and _config.scheduler_fallback_stub_enabled):
             if not _intelligent_scheduler:
-                fallback_reason = 'scheduler_unavailable'
+                fallback_reason = "scheduler_unavailable"
             else:
-                fallback_reason = fallback_reason if 'fallback_reason' in locals() else 'scheduler_failed'
+                fallback_reason = (
+                    fallback_reason if "fallback_reason" in locals() else "scheduler_failed"
+                )
 
             logger.warning(
-                'F2_scheduler_fallback_round_robin',
+                "F2_scheduler_fallback_round_robin",
                 ticket_id=ticket_id,
                 reason=fallback_reason,
-                environment=_config.environment if _config else 'unknown',
-                message='Usando fallback round-robin real (substituindo stub antigo)'
+                environment=_config.environment if _config else "unknown",
+                message="Usando fallback round-robin real (substituindo stub antigo)",
             )
 
             # Registrar métrica de ativação do fallback
             try:
                 from src.observability.metrics import get_metrics
+
                 metrics = get_metrics()
                 metrics.record_fallback_stub_activation(fallback_reason)
             except Exception:
@@ -650,80 +682,78 @@ async def allocate_resources(ticket: Dict[str, Any]) -> Dict[str, Any]:
 
             if not workers:
                 logger.error(
-                    'F2_no_workers_available',
+                    "F2_no_workers_available",
                     ticket_id=ticket_id,
-                    message='Nenhum worker disponível no Service Registry'
+                    message="Nenhum worker disponível no Service Registry",
                 )
                 raise RuntimeError(
-                    f'Nenhum worker disponível para alocar ticket {ticket_id}. '
-                    f'Verifique se os Worker Agents estão registrados no Service Registry.'
+                    f"Nenhum worker disponível para alocar ticket {ticket_id}. "
+                    f"Verifique se os Worker Agents estão registrados no Service Registry."
                 )
 
             # Seleção round-robin baseada em hash do ticket_id
             import hashlib
+
             worker_index = int(hashlib.sha256(ticket_id.encode()).hexdigest(), 16) % len(workers)
             selected_worker = workers[worker_index]
 
             # Calcular priority score baseado em risk_band
-            risk_band = ticket.get('risk_band', 'normal')
-            priority_weights = {'critical': 1.0, 'high': 0.7, 'normal': 0.5, 'low': 0.3}
+            risk_band = ticket.get("risk_band", "normal")
+            priority_weights = {"critical": 1.0, "high": 0.7, "normal": 0.5, "low": 0.3}
             priority_score = priority_weights.get(risk_band, 0.5)
 
             # Metadata de alocação real (com worker_id válido)
             allocation_metadata = {
-                'allocated_at': int(datetime.now().timestamp() * 1000),
-                'agent_id': selected_worker['agent_id'],
-                'agent_type': selected_worker.get('agent_type', 'WORKER'),
-                'priority_score': priority_score,
-                'agent_score': 0.5,  # Score fixo para fallback
-                'composite_score': 0.5,
-                'allocation_method': 'round_robin_fallback',
-                'workers_evaluated': len(workers),
-                'worker_index': worker_index,
-                'worker_status': selected_worker.get('status', 'UNKNOWN')
+                "allocated_at": int(datetime.now().timestamp() * 1000),
+                "agent_id": selected_worker["agent_id"],
+                "agent_type": selected_worker.get("agent_type", "WORKER"),
+                "priority_score": priority_score,
+                "agent_score": 0.5,  # Score fixo para fallback
+                "composite_score": 0.5,
+                "allocation_method": "round_robin_fallback",
+                "workers_evaluated": len(workers),
+                "worker_index": worker_index,
+                "worker_status": selected_worker.get("status", "UNKNOWN"),
             }
 
-            ticket['allocation_metadata'] = allocation_metadata
+            ticket["allocation_metadata"] = allocation_metadata
 
             # Adicionar predições ML placeholders
             if predicted_duration_ms is not None:
-                ticket['allocation_metadata']['predicted_duration_ms'] = predicted_duration_ms
-            ticket['allocation_metadata']['predicted_queue_ms'] = 2000.0
-            ticket['allocation_metadata']['predicted_load_pct'] = 0.5
-            ticket['allocation_metadata']['ml_enriched'] = False
+                ticket["allocation_metadata"]["predicted_duration_ms"] = predicted_duration_ms
+            ticket["allocation_metadata"]["predicted_queue_ms"] = 2000.0
+            ticket["allocation_metadata"]["predicted_load_pct"] = 0.5
+            ticket["allocation_metadata"]["ml_enriched"] = False
 
             logger.info(
-                'F2_recursos_alocados_round_robin',
+                "F2_recursos_alocados_round_robin",
                 ticket_id=ticket_id,
-                agent_id=selected_worker['agent_id'],
+                agent_id=selected_worker["agent_id"],
                 worker_index=worker_index,
                 workers_count=len(workers),
-                allocation_method='round_robin_fallback',
-                priority_score=priority_score
+                allocation_method="round_robin_fallback",
+                priority_score=priority_score,
             )
 
             return ticket
 
         # Se chegou aqui, scheduler falhou mas fallback não está habilitado (não deveria acontecer)
         logger.error(
-            'scheduler_failed_without_fallback_configured',
+            "scheduler_failed_without_fallback_configured",
             ticket_id=ticket_id,
-            fallback_stub_enabled=_config.scheduler_fallback_stub_enabled if _config else False
+            fallback_stub_enabled=_config.scheduler_fallback_stub_enabled if _config else False,
         )
         raise RuntimeError(
-            f'Intelligent Scheduler falhou para ticket {ticket_id} e fallback não está configurado.'
+            f"Intelligent Scheduler falhou para ticket {ticket_id} e fallback não está configurado."
         )
 
     except Exception as e:
-        logger.error(
-            f'Erro ao alocar recursos para ticket {ticket_id}: {e}',
-            exc_info=True
-        )
+        logger.error(f"Erro ao alocar recursos para ticket {ticket_id}: {e}", exc_info=True)
         raise
 
 
 @activity.defn
-async def publish_ticket_to_kafka(ticket: Dict[str, Any]) -> Dict[str, Any]:
+async def publish_ticket_to_kafka(ticket: dict[str, Any]) -> dict[str, Any]:
     """
     Publica Execution Ticket no tópico Kafka execution.tickets.
 
@@ -740,128 +770,131 @@ async def publish_ticket_to_kafka(ticket: Dict[str, Any]) -> Dict[str, Any]:
     Raises:
         RuntimeError: Se dependências não foram injetadas ou persistência falhar (fail-closed)
     """
-    ticket_id = ticket['ticket_id']
+    ticket_id = ticket["ticket_id"]
 
     # === Validar dependências injetadas no início ===
     if _config is None:
         raise RuntimeError(
-            'Config não foi injetado nas activities. '
-            'Verifique se set_activity_dependencies() foi chamado no worker.'
+            "Config não foi injetado nas activities. "
+            "Verifique se set_activity_dependencies() foi chamado no worker."
         )
 
     logger.info(
-        'publishing_ticket_to_kafka',
+        "publishing_ticket_to_kafka",
         ticket_id=ticket_id,
-        plan_id=ticket.get('plan_id'),
-        fail_open_enabled=_config.MONGODB_FAIL_OPEN_EXECUTION_TICKETS
+        plan_id=ticket.get("plan_id"),
+        fail_open_enabled=_config.MONGODB_FAIL_OPEN_EXECUTION_TICKETS,
     )
 
     try:
         # === Gate: Verificar se ticket foi rejeitado pelo scheduler ===
-        allocation_metadata = ticket.get('allocation_metadata')
-        allocation_method = allocation_metadata.get('allocation_method') if allocation_metadata else None
+        allocation_metadata = ticket.get("allocation_metadata")
+        allocation_method = (
+            allocation_metadata.get("allocation_method") if allocation_metadata else None
+        )
 
         # Tickets com fallback_stub não devem ser publicados (apenas para desenvolvimento)
-        if allocation_method == 'fallback_stub':
+        if allocation_method == "fallback_stub":
             logger.error(
-                'ticket_with_fallback_stub_not_published',
+                "ticket_with_fallback_stub_not_published",
                 ticket_id=ticket_id,
                 allocation_method=allocation_method,
-                plan_id=ticket.get('plan_id'),
-                environment=_config.environment if _config else 'unknown',
+                plan_id=ticket.get("plan_id"),
+                environment=_config.environment if _config else "unknown",
                 fallback_stub_enabled=_config.scheduler_fallback_stub_enabled if _config else False,
-                message='Ticket com allocation_method=fallback_stub NÃO será publicado no Kafka. '
-                       'Este método indica falha no Intelligent Scheduler que deve ser corrigida. '
-                       'Em produção, fallback_stub deve estar desabilitado.'
+                message="Ticket com allocation_method=fallback_stub NÃO será publicado no Kafka. "
+                "Este método indica falha no Intelligent Scheduler que deve ser corrigida. "
+                "Em produção, fallback_stub deve estar desabilitado.",
             )
 
             # Persistir ticket com fallback_stub no MongoDB para auditoria
             if _mongodb_client is not None:
                 try:
-                    ticket['status'] = 'rejected'
-                    ticket['rejection_metadata'] = {
-                        'rejection_reason': 'fallback_stub_not_allowed',
-                        'rejection_message': (
-                            'Ticket alocado com fallback_stub (scheduler falhou). '
-                            'Tickets com fallback_stub não são publicados em produção.'
-                        )
+                    ticket["status"] = "rejected"
+                    ticket["rejection_metadata"] = {
+                        "rejection_reason": "fallback_stub_not_allowed",
+                        "rejection_message": (
+                            "Ticket alocado com fallback_stub (scheduler falhou). "
+                            "Tickets com fallback_stub não são publicados em produção."
+                        ),
                     }
                     await _mongodb_client.save_execution_ticket(ticket)
                     logger.info(
-                        f'Ticket com fallback_stub {ticket_id} persistido no MongoDB para auditoria',
-                        plan_id=ticket.get('plan_id')
+                        f"Ticket com fallback_stub {ticket_id} persistido no MongoDB para auditoria",
+                        plan_id=ticket.get("plan_id"),
                     )
                 except Exception as db_error:
                     logger.warning(
-                        f'Erro ao persistir ticket fallback_stub no MongoDB: {db_error}',
-                        ticket_id=ticket_id
+                        f"Erro ao persistir ticket fallback_stub no MongoDB: {db_error}",
+                        ticket_id=ticket_id,
                     )
 
             return {
-                'published': False,
-                'ticket_id': ticket_id,
-                'rejected': True,
-                'rejection_reason': 'fallback_stub_not_allowed',
-                'rejection_message': 'Ticket com allocation_method=fallback_stub não é publicado em produção',
-                'ticket': ticket
+                "published": False,
+                "ticket_id": ticket_id,
+                "rejected": True,
+                "rejection_reason": "fallback_stub_not_allowed",
+                "rejection_message": "Ticket com allocation_method=fallback_stub não é publicado em produção",
+                "ticket": ticket,
             }
 
-        if ticket.get('status') == 'rejected' or allocation_metadata is None:
-            rejection_metadata = ticket.get('rejection_metadata', {})
-            rejection_reason = rejection_metadata.get('rejection_reason', 'unknown')
-            rejection_message = rejection_metadata.get('rejection_message', 'Ticket rejeitado sem motivo especificado')
+        if ticket.get("status") == "rejected" or allocation_metadata is None:
+            rejection_metadata = ticket.get("rejection_metadata", {})
+            rejection_reason = rejection_metadata.get("rejection_reason", "unknown")
+            rejection_message = rejection_metadata.get(
+                "rejection_message", "Ticket rejeitado sem motivo especificado"
+            )
 
             logger.error(
-                'ticket_rejected_not_published',
+                "ticket_rejected_not_published",
                 ticket_id=ticket_id,
                 rejection_reason=rejection_reason,
                 rejection_message=rejection_message,
-                plan_id=ticket.get('plan_id')
+                plan_id=ticket.get("plan_id"),
             )
 
             # Persistir ticket rejeitado no MongoDB para auditoria
             if _mongodb_client is not None:
                 try:
-                    ticket['status'] = 'rejected'
+                    ticket["status"] = "rejected"
                     await _mongodb_client.save_execution_ticket(ticket)
                     logger.info(
-                        f'Ticket rejeitado {ticket_id} persistido no MongoDB para auditoria',
-                        plan_id=ticket.get('plan_id')
+                        f"Ticket rejeitado {ticket_id} persistido no MongoDB para auditoria",
+                        plan_id=ticket.get("plan_id"),
                     )
                 except Exception as db_error:
                     logger.warning(
-                        f'Erro ao persistir ticket rejeitado no MongoDB: {db_error}',
-                        ticket_id=ticket_id
+                        f"Erro ao persistir ticket rejeitado no MongoDB: {db_error}",
+                        ticket_id=ticket_id,
                     )
 
             return {
-                'published': False,
-                'ticket_id': ticket_id,
-                'rejected': True,
-                'rejection_reason': rejection_reason,
-                'rejection_message': rejection_message,
-                'ticket': ticket
+                "published": False,
+                "ticket_id": ticket_id,
+                "rejected": True,
+                "rejection_reason": rejection_reason,
+                "rejection_message": rejection_message,
+                "ticket": ticket,
             }
 
         # Verificar se dependências foram injetadas
         if _kafka_producer is None:
-            raise RuntimeError('Kafka producer não foi injetado nas activities')
+            raise RuntimeError("Kafka producer não foi injetado nas activities")
         if _mongodb_client is None:
-            raise RuntimeError('MongoDB client não foi injetado nas activities')
+            raise RuntimeError("MongoDB client não foi injetado nas activities")
 
         # ML Error Tracking: se ticket está sendo atualizado para COMPLETED, rastrear erro
-        if ticket.get('status') == 'COMPLETED' and ticket.get('actual_duration_ms') is not None:
+        if ticket.get("status") == "COMPLETED" and ticket.get("actual_duration_ms") is not None:
             try:
-                from src.observability.metrics import get_metrics
                 from src.activities.result_consolidation import compute_and_record_ml_error
+                from src.observability.metrics import get_metrics
+
                 metrics = get_metrics()
                 compute_and_record_ml_error(ticket, metrics)
             except Exception as e:
                 # Fail-open: não bloqueia publicação
                 logger.warning(
-                    'ml_error_tracking_failed_in_publish',
-                    ticket_id=ticket_id,
-                    error=str(e)
+                    "ml_error_tracking_failed_in_publish", ticket_id=ticket_id, error=str(e)
                 )
 
         # IMPORTANTE: O ticket deve ser publicado com status 'PENDING'.
@@ -872,77 +905,76 @@ async def publish_ticket_to_kafka(ticket: Dict[str, Any]) -> Dict[str, Any]:
         kafka_result = await _kafka_producer.publish_ticket(ticket)
 
         logger.info(
-            f'Ticket {ticket_id} publicado no Kafka. Será processado pelo Execution Ticket Service',
-            plan_id=ticket['plan_id'],
-            topic=kafka_result['topic'],
-            partition=kafka_result['partition'],
-            offset=kafka_result['offset'],
-            webhook_url=ticket.get('metadata', {}).get('webhook_url')
+            f"Ticket {ticket_id} publicado no Kafka. Será processado pelo Execution Ticket Service",
+            plan_id=ticket["plan_id"],
+            topic=kafka_result["topic"],
+            partition=kafka_result["partition"],
+            offset=kafka_result["offset"],
+            webhook_url=ticket.get("metadata", {}).get("webhook_url"),
         )
 
         # Cache mapeamento ticket_id → workflow_id para ExecutionResultConsumer
         # Isso permite que o consumer recupere o workflow_id ao receber execution.results
-        workflow_id = ticket.get('metadata', {}).get('workflow_id')
+        workflow_id = ticket.get("metadata", {}).get("workflow_id")
         if workflow_id and _redis_client:
             try:
                 await cache_workflow_mapping(ticket_id, workflow_id, _redis_client)
                 logger.debug(
-                    'workflow_mapping_cached_after_publish',
+                    "workflow_mapping_cached_after_publish",
                     ticket_id=ticket_id,
-                    workflow_id=workflow_id
+                    workflow_id=workflow_id,
                 )
             except Exception as cache_error:
                 logger.warning(
-                    'workflow_cache_failed_after_publish',
+                    "workflow_cache_failed_after_publish",
                     ticket_id=ticket_id,
-                    error=str(cache_error)
+                    error=str(cache_error),
                 )
 
         # Persistir ticket no MongoDB para auditoria
         try:
             await _mongodb_client.save_execution_ticket(ticket)
             logger.info(
-                'ticket_persisted_successfully',
-                ticket_id=ticket_id,
-                plan_id=ticket['plan_id']
+                "ticket_persisted_successfully", ticket_id=ticket_id, plan_id=ticket["plan_id"]
             )
         except CircuitBreakerError:
             # Circuit breaker aberto - problema sistêmico, sempre propagar
-            logger.error(
-                'execution_ticket_persist_circuit_open',
+            logger.exception(
+                "execution_ticket_persist_circuit_open",
                 ticket_id=ticket_id,
-                plan_id=ticket.get('plan_id'),
-                circuit_state='open'
+                plan_id=ticket.get("plan_id"),
+                circuit_state="open",
             )
             # Circuit breaker indica problema sistêmico - propagar para retry
             raise RuntimeError(
-                f'Circuit breaker aberto para persistência do ticket {ticket_id}. '
-                'Problema sistêmico detectado no MongoDB.'
+                f"Circuit breaker aberto para persistência do ticket {ticket_id}. "
+                "Problema sistêmico detectado no MongoDB."
             )
 
         except PyMongoError as db_error:
             # Erro de MongoDB - verificar política de fail-open
-            logger.error(
-                'execution_ticket_persist_failed',
+            logger.exception(
+                "execution_ticket_persist_failed",
                 ticket_id=ticket_id,
-                plan_id=ticket.get('plan_id'),
+                plan_id=ticket.get("plan_id"),
                 error=str(db_error),
                 error_type=type(db_error).__name__,
-                fail_open_enabled=_config.MONGODB_FAIL_OPEN_EXECUTION_TICKETS
+                fail_open_enabled=_config.MONGODB_FAIL_OPEN_EXECUTION_TICKETS,
             )
 
             # Verificar política de fail-open configurável
             if _config.MONGODB_FAIL_OPEN_EXECUTION_TICKETS:
                 logger.warning(
-                    'execution_ticket_persist_fail_open_activated',
+                    "execution_ticket_persist_fail_open_activated",
                     ticket_id=ticket_id,
-                    plan_id=ticket.get('plan_id')
+                    plan_id=ticket.get("plan_id"),
                 )
                 # Registrar métrica de fail-open
                 try:
                     from src.observability.metrics import get_metrics
+
                     metrics = get_metrics()
-                    metrics.record_mongodb_persistence_fail_open('execution_tickets')
+                    metrics.record_mongodb_persistence_fail_open("execution_tickets")
                 except Exception:
                     pass  # Não falhar por causa de métricas
                 # Continuar sem persistência
@@ -950,64 +982,58 @@ async def publish_ticket_to_kafka(ticket: Dict[str, Any]) -> Dict[str, Any]:
                 # Fail-closed: propagar erro para retry do Temporal
                 # Auditoria é crítica para compliance
                 raise RuntimeError(
-                    f'Falha crítica na persistência do ticket {ticket_id}: {str(db_error)}'
+                    f"Falha crítica na persistência do ticket {ticket_id}: {db_error!s}"
                 )
 
         except Exception as e:
             # Erro inesperado - logar e verificar política
             logger.error(
-                'execution_ticket_persist_unexpected_error',
+                "execution_ticket_persist_unexpected_error",
                 ticket_id=ticket_id,
-                plan_id=ticket.get('plan_id'),
+                plan_id=ticket.get("plan_id"),
                 error=str(e),
                 error_type=type(e).__name__,
                 fail_open_enabled=_config.MONGODB_FAIL_OPEN_EXECUTION_TICKETS,
-                exc_info=True
+                exc_info=True,
             )
 
             if _config.MONGODB_FAIL_OPEN_EXECUTION_TICKETS:
                 logger.warning(
-                    'execution_ticket_persist_fail_open_activated',
+                    "execution_ticket_persist_fail_open_activated",
                     ticket_id=ticket_id,
-                    plan_id=ticket.get('plan_id'),
-                    error_type='unexpected'
+                    plan_id=ticket.get("plan_id"),
+                    error_type="unexpected",
                 )
                 # Registrar métrica de fail-open
                 try:
                     from src.observability.metrics import get_metrics
+
                     metrics = get_metrics()
-                    metrics.record_mongodb_persistence_fail_open('execution_tickets')
+                    metrics.record_mongodb_persistence_fail_open("execution_tickets")
                 except Exception:
                     pass  # Não falhar por causa de métricas
             else:
-                raise RuntimeError(
-                    f'Erro inesperado na persistência do ticket {ticket_id}: {str(e)}'
-                )
+                raise RuntimeError(f"Erro inesperado na persistência do ticket {ticket_id}: {e!s}")
 
         # Construir resultado com informações do Kafka
-        result = {
-            'published': True,
-            'ticket_id': ticket_id,
-            'topic': kafka_result['topic'],
-            'partition': kafka_result['partition'],
-            'kafka_offset': kafka_result['offset'],
-            'timestamp': kafka_result['timestamp'],
-            'ticket': ticket
+        return {
+            "published": True,
+            "ticket_id": ticket_id,
+            "topic": kafka_result["topic"],
+            "partition": kafka_result["partition"],
+            "kafka_offset": kafka_result["offset"],
+            "timestamp": kafka_result["timestamp"],
+            "ticket": ticket,
         }
-
-        return result
 
     except RuntimeError as e:
         # Erro de configuração - não retry
-        logger.error(
-            f'Erro de configuração ao publicar ticket {ticket_id}: {e}',
-            exc_info=True
-        )
+        logger.error(f"Erro de configuração ao publicar ticket {ticket_id}: {e}", exc_info=True)
         raise
 
     except Exception as e:
         # Erro na publicação - permite retry pelo Temporal
-        logger.error(
+        logger.exception(
             f'Erro ao publicar ticket {ticket_id} (plan_id={ticket.get("plan_id")}): {e}'
         )
         raise

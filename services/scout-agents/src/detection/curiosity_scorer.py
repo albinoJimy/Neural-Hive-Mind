@@ -1,10 +1,12 @@
 """Adaptive curiosity scorer for signal prioritization"""
 from typing import Dict, List
+
 import numpy as np
 import structlog
 
-from ..models.raw_event import RawEvent
 from neural_hive_domain import UnifiedDomain
+
+from ..models.raw_event import RawEvent
 
 logger = structlog.get_logger()
 
@@ -16,10 +18,10 @@ class CuriosityScorer:
         # Adaptive weights per domain
         self.weights: Dict[str, Dict[str, float]] = {
             domain.value: {
-                'novelty': 0.4,
-                'relevance': 0.3,
-                'information_gain': 0.2,
-                'uncertainty': 0.1
+                "novelty": 0.4,
+                "relevance": 0.3,
+                "information_gain": 0.2,
+                "uncertainty": 0.1,
             }
             for domain in UnifiedDomain
         }
@@ -31,15 +33,11 @@ class CuriosityScorer:
 
         # Validation feedback tracking
         self.validation_stats: Dict[str, Dict[str, int]] = {
-            domain.value: {'validated': 0, 'rejected': 0}
-            for domain in UnifiedDomain
+            domain.value: {"validated": 0, "rejected": 0} for domain in UnifiedDomain
         }
 
     def calculate_score(
-        self,
-        event: RawEvent,
-        domain: UnifiedDomain,
-        context: Dict = None
+        self, event: RawEvent, domain: UnifiedDomain, context: Dict = None
     ) -> float:
         """
         Calculate adaptive curiosity score
@@ -64,10 +62,10 @@ class CuriosityScorer:
 
             # Weighted sum
             curiosity_score = (
-                novelty * weights['novelty'] +
-                relevance * weights['relevance'] +
-                info_gain * weights['information_gain'] +
-                uncertainty * weights['uncertainty']
+                novelty * weights["novelty"]
+                + relevance * weights["relevance"]
+                + info_gain * weights["information_gain"]
+                + uncertainty * weights["uncertainty"]
             )
 
             # Ensure score is in [0, 1]
@@ -80,7 +78,7 @@ class CuriosityScorer:
                 relevance=relevance,
                 information_gain=info_gain,
                 uncertainty=uncertainty,
-                final_score=curiosity_score
+                final_score=curiosity_score,
             )
 
             # Store features for future novelty calculations
@@ -88,16 +86,14 @@ class CuriosityScorer:
 
             # Limit history size
             if len(self.historical_features[domain.value]) > 1000:
-                self.historical_features[domain.value] = self.historical_features[domain.value][-1000:]
+                self.historical_features[domain.value] = self.historical_features[domain.value][
+                    -1000:
+                ]
 
             return curiosity_score
 
         except Exception as e:
-            logger.error(
-                "curiosity_scoring_failed",
-                domain=domain.value,
-                error=str(e)
-            )
+            logger.error("curiosity_scoring_failed", domain=domain.value, error=str(e))
             return 0.5  # Default moderate curiosity
 
     def calculate_novelty(self, features: np.ndarray, domain: UnifiedDomain) -> float:
@@ -137,10 +133,7 @@ class CuriosityScorer:
         return float(novelty)
 
     def calculate_relevance(
-        self,
-        event: RawEvent,
-        domain: UnifiedDomain,
-        context: Dict = None
+        self, event: RawEvent, domain: UnifiedDomain, context: Dict = None
     ) -> float:
         """
         Calculate relevance score based on domain and context
@@ -159,29 +152,20 @@ class CuriosityScorer:
             UnifiedDomain.SECURITY: 0.95,
             UnifiedDomain.TECHNICAL: 0.7,
             UnifiedDomain.BEHAVIOR: 0.8,
-            UnifiedDomain.INFRASTRUCTURE: 0.75
+            UnifiedDomain.INFRASTRUCTURE: 0.75,
         }
 
         base_score = domain_relevance.get(domain, 0.5)
 
         # Adjust based on event type
-        event_type_boost = {
-            'user_action': 0.1,
-            'system_event': 0.05,
-            'metric': 0.08,
-            'trace': 0.03
-        }
+        event_type_boost = {"user_action": 0.1, "system_event": 0.05, "metric": 0.08, "trace": 0.03}
 
         boost = event_type_boost.get(event.event_type, 0.0)
         relevance = min(base_score + boost, 1.0)
 
         return relevance
 
-    def calculate_information_gain(
-        self,
-        features: np.ndarray,
-        domain: UnifiedDomain
-    ) -> float:
+    def calculate_information_gain(self, features: np.ndarray, domain: UnifiedDomain) -> float:
         """
         Calculate potential information gain from this signal
 
@@ -213,11 +197,7 @@ class CuriosityScorer:
             return float(info_gain)
 
         except Exception as e:
-            logger.warning(
-                "information_gain_calculation_failed",
-                domain=domain.value,
-                error=str(e)
-            )
+            logger.warning("information_gain_calculation_failed", domain=domain.value, error=str(e))
             return 0.5
 
     def calculate_uncertainty(self, features: np.ndarray) -> float:
@@ -257,46 +237,40 @@ class CuriosityScorer:
         """
         if feedback_score >= 0.7:
             # Signal was validated - reinforce current weights
-            self.validation_stats[domain.value]['validated'] += 1
+            self.validation_stats[domain.value]["validated"] += 1
         else:
             # Signal was rejected - adjust weights
-            self.validation_stats[domain.value]['rejected'] += 1
+            self.validation_stats[domain.value]["rejected"] += 1
 
         total_samples = sum(self.validation_stats[domain.value].values())
 
         if total_samples > 0 and total_samples % 50 == 0:
             # Recalculate weights every 50 samples
-            validation_rate = (
-                self.validation_stats[domain.value]['validated'] / total_samples
-            )
+            validation_rate = self.validation_stats[domain.value]["validated"] / total_samples
 
             # Adjust weights based on validation rate
             if validation_rate < 0.5:
                 # Low validation rate - increase novelty weight
-                self.weights[domain.value]['novelty'] = min(
-                    self.weights[domain.value]['novelty'] + 0.05,
-                    0.6
+                self.weights[domain.value]["novelty"] = min(
+                    self.weights[domain.value]["novelty"] + 0.05, 0.6
                 )
-                self.weights[domain.value]['relevance'] = max(
-                    self.weights[domain.value]['relevance'] - 0.05,
-                    0.2
+                self.weights[domain.value]["relevance"] = max(
+                    self.weights[domain.value]["relevance"] - 0.05, 0.2
                 )
             elif validation_rate > 0.8:
                 # High validation rate - increase relevance weight
-                self.weights[domain.value]['relevance'] = min(
-                    self.weights[domain.value]['relevance'] + 0.05,
-                    0.5
+                self.weights[domain.value]["relevance"] = min(
+                    self.weights[domain.value]["relevance"] + 0.05, 0.5
                 )
-                self.weights[domain.value]['novelty'] = max(
-                    self.weights[domain.value]['novelty'] - 0.05,
-                    0.2
+                self.weights[domain.value]["novelty"] = max(
+                    self.weights[domain.value]["novelty"] - 0.05, 0.2
                 )
 
             logger.info(
                 "weights_adapted",
                 domain=domain.value,
                 validation_rate=validation_rate,
-                new_weights=self.weights[domain.value]
+                new_weights=self.weights[domain.value],
             )
 
     def get_score_distribution(self, domain: UnifiedDomain) -> Dict[str, float]:
@@ -314,13 +288,13 @@ class CuriosityScorer:
 
         if total == 0:
             return {
-                'validation_rate': 0.0,
-                'total_samples': 0,
-                'weights': self.weights[domain.value]
+                "validation_rate": 0.0,
+                "total_samples": 0,
+                "weights": self.weights[domain.value],
             }
 
         return {
-            'validation_rate': stats['validated'] / total,
-            'total_samples': total,
-            'weights': self.weights[domain.value]
+            "validation_rate": stats["validated"] / total,
+            "total_samples": total,
+            "weights": self.weights[domain.value],
         }

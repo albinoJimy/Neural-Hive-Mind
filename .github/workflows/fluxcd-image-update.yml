@@ -1,0 +1,120 @@
+name: FluxCD Image Automation
+
+# Este workflow é disparado quando uma nova imagem é pushada para GHCR
+# Ele notifica o FluxCD para verificar novas tags
+
+on:
+  workflow_call:
+    inputs:
+      image_name:
+        required: true
+        type: string
+      image_tag:
+        required: true
+        type: string
+      environment:
+        required: false
+        type: string
+        default: 'development'
+
+  workflow_dispatch:
+    inputs:
+      image_name:
+        description: 'Nome da imagem (ex: gateway-intencoes)'
+        required: true
+        type: string
+      image_tag:
+        description: 'Tag da imagem (ex: v1.0.0)'
+        required: true
+        type: string
+      environment:
+        description: 'Ambiente de destino'
+        required: false
+        type: choice
+        options:
+          - development
+          - production
+        default: 'development'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  FLUX_VERSION: 'v0.41.2'
+
+jobs:
+  flux-image-update:
+    name: Notify FluxCD of Image Update
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flux CLI
+        uses: fluxcd/flux2/action@main
+        with:
+          version: ${{ env.FLUX_VERSION }}
+
+      - name: Notify FluxCD (Prod)
+        if: inputs.environment == 'production' || github.ref == 'refs/heads/main'
+        run: |
+          echo "Notificando FluxCD (Prod) sobre nova imagem: ${{ inputs.image_name }}:${{ inputs.image_tag }}"
+          # Nota: O FluxCD detecta automaticamente novas tags via ImageRepository
+          # Este job pode ser usado para acelerar a detecção se necessário
+          echo "ImageRepository: ${{ inputs.image_name }}"
+          echo "ImageTag: ${{ inputs.image_tag }}"
+          echo "Cluster: neural-hive-prod"
+
+      - name: Notify FluxCD (Dev)
+        if: inputs.environment == 'development' || github.ref == 'refs/heads/develop'
+        run: |
+          echo "Notificando FluxCD (Dev) sobre nova imagem: ${{ inputs.image_name }}:${{ inputs.image_tag }}"
+          echo "ImageRepository: ${{ inputs.image_name }}"
+          echo "ImageTag: ${{ inputs.image_tag }}"
+          echo "Cluster: neural-hive-dev"
+
+      - name: Create PR for Image Update (Optional)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          echo "Criando PR para atualização manual de imagem se necessário"
+          # Este step pode ser habilitado se quiser criar PRs para aprovação manual
+
+  reconcile-flux:
+    name: Trigger FluxCD Reconciliation
+    runs-on: ubuntu-latest
+    needs: flux-image-update
+    if: github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.28.0'
+
+      - name: Configure kubeconfig
+        if: inputs.environment == 'production'
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBECONFIG_PROD }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Configure kubeconfig (Dev)
+        if: inputs.environment == 'development'
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBECONFIG_DEV }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Trigger FluxCD Reconciliation
+        run: |
+          echo "Disparando reconciliação do FluxCD..."
+          # Nota: Em produção, o FluxCD reconcilia automaticamente
+          # Este comando força uma reconciliação imediata
+          kubectl annotate --overwrite gitrepository neural-hive-mind -n flux-system \
+            reconciled.at="$(date +%s)"

@@ -137,7 +137,7 @@ class TestFeedbackAPI:
     ):
         """Teste de busca de feedbacks por opinião."""
         from neural_hive_specialists.feedback import FeedbackDocument
-        from datetime import datetime
+        from datetime import datetime, timezone
 
         mock_feedbacks = [
             FeedbackDocument(
@@ -235,7 +235,7 @@ class TestFeedbackAPIAuthentication:
         payload = {
             "sub": "test@example.com",
             "role": "human_expert",
-            "exp": datetime.utcnow() + timedelta(hours=1),
+            "exp": datetime.now(timezone.utc) + timedelta(hours=1),
         }
         token = jwt.encode(
             payload, "test-secret-key-minimum-32-chars-long", algorithm="HS256"
@@ -300,7 +300,7 @@ class TestFeedbackAPIAuthentication:
         payload = {
             "sub": "unauthorized@example.com",
             "role": "unauthorized_role",
-            "exp": datetime.utcnow() + timedelta(hours=1),
+            "exp": datetime.now(timezone.utc) + timedelta(hours=1),
         }
         token = jwt.encode(
             payload, "test-secret-key-minimum-32-chars-long", algorithm="HS256"
@@ -335,7 +335,7 @@ class TestFeedbackAPIAuthentication:
         payload = {
             "sub": "test@example.com",
             "role": "human_expert",
-            "exp": datetime.utcnow() - timedelta(hours=1),  # Expirado há 1 hora
+            "exp": datetime.now(timezone.utc) - timedelta(hours=1),  # Expirado há 1 hora
         }
         token = jwt.encode(
             payload, "test-secret-key-minimum-32-chars-long", algorithm="HS256"

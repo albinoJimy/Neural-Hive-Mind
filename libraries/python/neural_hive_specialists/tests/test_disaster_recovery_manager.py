@@ -914,7 +914,7 @@ class TestIncrementalBackup:
         # Simular snapshot JSON
         snapshot_data = {
             "snapshot_id": "snapshot-20250211-120000",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "specialist_type": "technical",
             "tenant_id": None,
             "component_refs": {
@@ -1194,7 +1194,7 @@ class TestBackwardCompatibility:
                 backup_id="test-backup",
                 specialist_type="technical",
                 tenant_id=None,
-                backup_timestamp=datetime.utcnow(),
+                backup_timestamp=datetime.now(timezone.utc),
                 compression_level=6,
                 metadata={},
             )

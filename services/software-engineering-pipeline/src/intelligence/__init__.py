@@ -1,6 +1,6 @@
 from src.intelligence.anomaly_detector import (
-    AnomalyDetector,
     AnomalyDetectionConfig,
+    AnomalyDetector,
     AnomalyPattern,
 )
 from src.intelligence.flaky_test_detector import (
@@ -8,8 +8,8 @@ from src.intelligence.flaky_test_detector import (
     TestHistory,
 )
 from src.intelligence.insights_generator import (
-    InsightsGenerator,
     InsightConfig,
+    InsightsGenerator,
 )
 
 __all__ = [

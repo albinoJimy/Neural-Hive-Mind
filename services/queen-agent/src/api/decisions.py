@@ -1,11 +1,12 @@
+from typing import Any
+
 from fastapi import APIRouter, HTTPException, Query, Request
-from typing import List, Dict, Any, Optional
 
 router = APIRouter(prefix="/api/v1/decisions", tags=["decisions"])
 
 
 @router.get("/{decision_id}")
-async def get_decision(decision_id: str, request: Request) -> Dict[str, Any]:
+async def get_decision(decision_id: str, request: Request) -> dict[str, Any]:
     """Buscar decisão estratégica por ID"""
     mongodb_client = request.app.state.app_state.mongodb_client
 
@@ -21,12 +22,12 @@ async def get_decision(decision_id: str, request: Request) -> Dict[str, Any]:
 @router.get("")
 async def list_decisions(
     request: Request,
-    decision_type: Optional[str] = Query(None),
-    start_date: Optional[int] = Query(None),
-    end_date: Optional[int] = Query(None),
+    decision_type: str | None = Query(None),
+    start_date: int | None = Query(None),
+    end_date: int | None = Query(None),
     limit: int = Query(50, le=100),
     offset: int = Query(0),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Listar decisões com filtros"""
     mongodb_client = request.app.state.app_state.mongodb_client
 
@@ -41,9 +42,7 @@ async def list_decisions(
         if end_date:
             filters["created_at"]["$lte"] = end_date
 
-    decisions = await mongodb_client.list_strategic_decisions(
-        filters, limit=limit, skip=offset
-    )
+    decisions = await mongodb_client.list_strategic_decisions(filters, limit=limit, skip=offset)
 
     # Remover _id do MongoDB
     for decision in decisions:
@@ -58,9 +57,7 @@ async def list_decisions(
 
 
 @router.get("/recent")
-async def get_recent_decisions(
-    request: Request, hours: int = Query(24)
-) -> List[Dict[str, Any]]:
+async def get_recent_decisions(request: Request, hours: int = Query(24)) -> list[dict[str, Any]]:
     """Buscar decisões recentes"""
     mongodb_client = request.app.state.app_state.mongodb_client
 
@@ -74,7 +71,7 @@ async def get_recent_decisions(
 
 
 @router.get("/stats")
-async def get_decision_stats(request: Request) -> Dict[str, Any]:
+async def get_decision_stats(request: Request) -> dict[str, Any]:
     """Estatísticas de decisões"""
     mongodb_client = request.app.state.app_state.mongodb_client
 

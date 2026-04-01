@@ -1,15 +1,16 @@
 """Cliente HTTP para integração com Optimizer MCP Server."""
 
 import asyncio
-from typing import Any, Optional
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any
 
 import httpx
 
 
 class Severity(Enum):
     """Níveis de severidade de problemas."""
+
     INFO = "info"
     LOW = "low"
     MEDIUM = "medium"
@@ -20,18 +21,20 @@ class Severity(Enum):
 @dataclass
 class OptimizationIssue:
     """Representa um problema encontrado."""
+
     file: str
     line: int
     column: int
     severity: str
     category: str
     message: str
-    suggestion: Optional[str] = None
+    suggestion: str | None = None
 
 
 @dataclass
 class FileMetrics:
     """Métricas de um arquivo."""
+
     total_lines: int = 0
     code_lines: int = 0
     comment_lines: int = 0
@@ -46,6 +49,7 @@ class FileMetrics:
 @dataclass
 class FileAnalysisResult:
     """Resultado de análise de arquivo."""
+
     file_path: str
     metrics: FileMetrics
     issues: list[OptimizationIssue]
@@ -56,6 +60,7 @@ class FileAnalysisResult:
 @dataclass
 class DirectoryAnalysisResult:
     """Resultado de análise de diretório."""
+
     summary: dict[str, Any]
     severity_breakdown: dict[str, int]
     category_breakdown: dict[str, int]
@@ -66,6 +71,7 @@ class DirectoryAnalysisResult:
 @dataclass
 class OptimizationRecommendation:
     """Recomendação de otimização."""
+
     priority: str
     category: str
     title: str
@@ -76,6 +82,7 @@ class OptimizationRecommendation:
 @dataclass
 class RecommendationsResult:
     """Resultado de recomendações."""
+
     path: str
     recommendations: list[OptimizationRecommendation]
     total_recommendations: int
@@ -84,6 +91,7 @@ class RecommendationsResult:
 
 class OptimizerMCPClientError(Exception):
     """Erro de comunicação com Optimizer MCP Server."""
+
     pass
 
 
@@ -114,7 +122,7 @@ class OptimizerMCPClient:
         """
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
-        self._client: Optional[httpx.AsyncClient] = None
+        self._client: httpx.AsyncClient | None = None
 
     async def _get_client(self) -> httpx.AsyncClient:
         """Retorna cliente HTTP (lazy initialization)."""
@@ -193,7 +201,7 @@ class OptimizerMCPClient:
     async def analyze_directory(
         self,
         path: str = ".",
-        exclude_dirs: Optional[list[str]] = None,
+        exclude_dirs: list[str] | None = None,
     ) -> DirectoryAnalysisResult:
         """
         Analisa diretório completo.
@@ -383,12 +391,10 @@ class SyncOptimizerMCPClient:
     def analyze_directory(
         self,
         path: str = ".",
-        exclude_dirs: Optional[list[str]] = None,
+        exclude_dirs: list[str] | None = None,
     ) -> DirectoryAnalysisResult:
         """Analisa diretório completo."""
-        return asyncio.run(
-            self._async_client.analyze_directory(path, exclude_dirs)
-        )
+        return asyncio.run(self._async_client.analyze_directory(path, exclude_dirs))
 
     def get_recommendations(self, path: str = ".") -> RecommendationsResult:
         """Obtém recomendações de otimização."""

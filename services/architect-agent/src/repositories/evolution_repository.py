@@ -1,12 +1,13 @@
 """Repositório para histórico de evolução."""
 
-from typing import List
 from datetime import datetime, timezone
+from typing import List
+
 from pymongo.errors import DuplicateKeyError
 
+from src.config.settings import get_settings
 from src.models.evolution import EvolutionHistory
 from src.repositories.base import BaseRepository
-from src.config.settings import get_settings
 
 
 class EvolutionRepository(BaseRepository[EvolutionHistory]):
@@ -37,15 +38,9 @@ class EvolutionRepository(BaseRepository[EvolutionHistory]):
         except DuplicateKeyError as e:
             raise ValueError(f"História com ID {history.history_id} já existe") from e
 
-    async def get_by_plan_id(
-        self, plan_id: str, limit: int = 10
-    ) -> List[EvolutionHistory]:
+    async def get_by_plan_id(self, plan_id: str, limit: int = 10) -> List[EvolutionHistory]:
         """Busca histórico de um plano."""
-        cursor = (
-            self.collection.find({"plan_id": plan_id})
-            .sort("created_at", -1)
-            .limit(limit)
-        )
+        cursor = self.collection.find({"plan_id": plan_id}).sort("created_at", -1).limit(limit)
         docs = await cursor.to_list(length=limit)
         return [self._doc_to_model(doc) for doc in docs]
 

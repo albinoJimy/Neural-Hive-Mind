@@ -5,12 +5,12 @@ Fornece interface assíncrona ao Redis Cluster para cache de alta performance.
 """
 
 import json
-import structlog
-from typing import Dict, Optional, List, Union
-from redis.asyncio import RedisCluster, Redis
-from redis.asyncio.cluster import ClusterNode
-from redis.exceptions import RedisError, RedisClusterException
+from typing import Dict, Optional, Union
 
+import structlog
+from redis.asyncio import Redis, RedisCluster
+from redis.asyncio.cluster import ClusterNode
+from redis.exceptions import RedisClusterException, RedisError
 
 logger = structlog.get_logger()
 
@@ -18,7 +18,13 @@ logger = structlog.get_logger()
 class RedisClient:
     """Cliente Redis assíncrono para operações de cache"""
 
-    def __init__(self, cluster_nodes: str, password: Optional[str] = None, ssl_enabled: bool = False, cluster_enabled: bool = True):
+    def __init__(
+        self,
+        cluster_nodes: str,
+        password: Optional[str] = None,
+        ssl_enabled: bool = False,
+        cluster_enabled: bool = True,
+    ):
         """
         Inicializa o cliente Redis
 
@@ -39,8 +45,8 @@ class RedisClient:
         if self.cluster_enabled:
             # Modo cluster
             startup_nodes = [
-                ClusterNode(host=node.split(':')[0], port=int(node.split(':')[1]))
-                for node in self.cluster_nodes.split(',')
+                ClusterNode(host=node.split(":")[0], port=int(node.split(":")[1]))
+                for node in self.cluster_nodes.split(",")
             ]
 
             try:
@@ -48,40 +54,36 @@ class RedisClient:
                     startup_nodes=startup_nodes,
                     password=self.password if self.password else None,
                     ssl=self.ssl_enabled,
-                    decode_responses=True
+                    decode_responses=True,
                 )
                 await self.client.ping()
                 logger.info(
-                    'Redis Cluster client inicializado',
+                    "Redis Cluster client inicializado",
                     nodes=self.cluster_nodes,
-                    ssl=self.ssl_enabled
+                    ssl=self.ssl_enabled,
                 )
             except RedisClusterException as e:
                 logger.warning(
-                    'Falha ao conectar em modo cluster, tentando standalone',
-                    error=str(e)
+                    "Falha ao conectar em modo cluster, tentando standalone", error=str(e)
                 )
                 # Fallback para standalone
                 self.cluster_enabled = False
 
         if not self.cluster_enabled:
             # Modo standalone
-            node = self.cluster_nodes.split(',')[0]  # Usa primeiro nó
-            host, port = node.split(':')
+            node = self.cluster_nodes.split(",")[0]  # Usa primeiro nó
+            host, port = node.split(":")
 
             self.client = Redis(
                 host=host,
                 port=int(port),
                 password=self.password if self.password else None,
                 ssl=self.ssl_enabled,
-                decode_responses=True
+                decode_responses=True,
             )
             await self.client.ping()
             logger.info(
-                'Redis standalone client inicializado',
-                host=host,
-                port=port,
-                ssl=self.ssl_enabled
+                "Redis standalone client inicializado", host=host, port=port, ssl=self.ssl_enabled
             )
 
     async def get(self, key: str) -> Optional[str]:
@@ -97,14 +99,14 @@ class RedisClient:
         try:
             value = await self.client.get(key)
             if value:
-                logger.debug('Cache hit', key=key)
+                logger.debug("Cache hit", key=key)
                 return value
             else:
-                logger.debug('Cache miss', key=key)
+                logger.debug("Cache miss", key=key)
                 return None
 
         except RedisError as e:
-            logger.warning('Redis get error', key=key, error=str(e))
+            logger.warning("Redis get error", key=key, error=str(e))
             return None
 
     async def set(self, key: str, value: str, ttl: Optional[int] = None):
@@ -122,10 +124,10 @@ class RedisClient:
             else:
                 await self.client.set(key, value)
 
-            logger.debug('Valor armazenado no cache', key=key, ttl=ttl)
+            logger.debug("Valor armazenado no cache", key=key, ttl=ttl)
 
         except RedisError as e:
-            logger.warning('Redis set error', key=key, error=str(e))
+            logger.warning("Redis set error", key=key, error=str(e))
 
     async def get_json(self, key: str) -> Optional[Dict]:
         """
@@ -142,7 +144,7 @@ class RedisClient:
             try:
                 return json.loads(value)
             except json.JSONDecodeError as e:
-                logger.warning('JSON decode error', key=key, error=str(e))
+                logger.warning("JSON decode error", key=key, error=str(e))
                 return None
         return None
 
@@ -159,7 +161,7 @@ class RedisClient:
             json_str = json.dumps(value, default=str)
             await self.set(key, json_str, ttl)
         except (TypeError, ValueError) as e:
-            logger.warning('JSON encode error', key=key, error=str(e))
+            logger.warning("JSON encode error", key=key, error=str(e))
 
     async def delete(self, *keys: str) -> int:
         """
@@ -173,10 +175,10 @@ class RedisClient:
         """
         try:
             count = await self.client.delete(*keys)
-            logger.debug('Chaves removidas', count=count)
+            logger.debug("Chaves removidas", count=count)
             return count
         except RedisError as e:
-            logger.warning('Redis delete error', error=str(e))
+            logger.warning("Redis delete error", error=str(e))
             return 0
 
     async def invalidate_cache(self, pattern: str) -> int:
@@ -194,11 +196,7 @@ class RedisClient:
             deleted = 0
 
             while True:
-                cursor, keys = await self.client.scan(
-                    cursor=cursor,
-                    match=pattern,
-                    count=100
-                )
+                cursor, keys = await self.client.scan(cursor=cursor, match=pattern, count=100)
 
                 if keys:
                     await self.client.delete(*keys)
@@ -207,11 +205,11 @@ class RedisClient:
                 if cursor == 0:
                     break
 
-            logger.info('Cache invalidado', pattern=pattern, deleted=deleted)
+            logger.info("Cache invalidado", pattern=pattern, deleted=deleted)
             return deleted
 
         except RedisError as e:
-            logger.warning('Redis invalidate error', pattern=pattern, error=str(e))
+            logger.warning("Redis invalidate error", pattern=pattern, error=str(e))
             return 0
 
     async def exists(self, *keys: str) -> int:
@@ -227,11 +225,11 @@ class RedisClient:
         try:
             return await self.client.exists(*keys)
         except RedisError as e:
-            logger.warning('Redis exists error', error=str(e))
+            logger.warning("Redis exists error", error=str(e))
             return 0
 
     async def close(self):
         """Fecha conexão com Redis"""
         if self.client:
             await self.client.close()
-            logger.info('Redis client fechado')
+            logger.info("Redis client fechado")

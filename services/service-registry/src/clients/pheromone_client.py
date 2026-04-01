@@ -1,8 +1,8 @@
+from typing import Dict, Optional
+
 import redis
 import structlog
-from typing import Dict, Optional
 from src.models import AgentType
-
 
 logger = structlog.get_logger()
 
@@ -21,10 +21,7 @@ class PheromoneClient:
             # Parse first node
             host, port = self.cluster_nodes[0].split(":")
             self.redis_client = redis.Redis(
-                host=host,
-                port=int(port),
-                password=self.password,
-                decode_responses=True
+                host=host, port=int(port), password=self.password, decode_responses=True
             )
 
             # Test connection
@@ -42,10 +39,7 @@ class PheromoneClient:
             logger.info("pheromone_client_closed")
 
     async def get_agent_pheromone_score(
-        self,
-        agent_id: str,
-        agent_type: AgentType,
-        domain: str = "default"
+        self, agent_id: str, agent_type: AgentType, domain: str = "default"
     ) -> float:
         """
         Calcula score de feromônio normalizado [0.0-1.0] para o agente.
@@ -78,17 +72,13 @@ class PheromoneClient:
                 success=success,
                 failure=failure,
                 warning=warning,
-                score=weighted_score
+                score=weighted_score,
             )
 
             return weighted_score
 
         except Exception as e:
-            logger.error(
-                "get_pheromone_score_failed",
-                agent_id=agent_id,
-                error=str(e)
-            )
+            logger.error("get_pheromone_score_failed", agent_id=agent_id, error=str(e))
             # Retornar score neutro em caso de erro
             return 0.5
 
@@ -98,7 +88,7 @@ class PheromoneClient:
         agent_type: AgentType,
         pheromone_type: str,  # "success", "failure", "warning"
         strength: float = 1.0,
-        domain: str = "default"
+        domain: str = "default",
     ) -> bool:
         """
         Publica feromônio para o agente após execução.
@@ -124,23 +114,17 @@ class PheromoneClient:
                 agent_id=agent_id,
                 agent_type=agent_type.value,
                 pheromone_type=pheromone_type,
-                strength=strength
+                strength=strength,
             )
 
             return True
 
         except Exception as e:
-            logger.error(
-                "publish_pheromone_failed",
-                agent_id=agent_id,
-                error=str(e)
-            )
+            logger.error("publish_pheromone_failed", agent_id=agent_id, error=str(e))
             return False
 
     async def get_aggregated_pheromones(
-        self,
-        agent_type: AgentType,
-        domain: str = "default"
+        self, agent_type: AgentType, domain: str = "default"
     ) -> Dict[str, float]:
         """
         Retorna feromônios agregados para todos os agentes de um tipo.
@@ -157,25 +141,17 @@ class PheromoneClient:
                 parts = key.split(":")
                 if len(parts) >= 4:
                     agent_id = parts[3]
-                    score = await self.get_agent_pheromone_score(
-                        agent_id,
-                        agent_type,
-                        domain
-                    )
+                    score = await self.get_agent_pheromone_score(agent_id, agent_type, domain)
                     scores[agent_id] = score
 
             logger.info(
-                "aggregated_pheromones_retrieved",
-                agent_type=agent_type.value,
-                count=len(scores)
+                "aggregated_pheromones_retrieved", agent_type=agent_type.value, count=len(scores)
             )
 
             return scores
 
         except Exception as e:
             logger.error(
-                "get_aggregated_pheromones_failed",
-                agent_type=agent_type.value,
-                error=str(e)
+                "get_aggregated_pheromones_failed", agent_type=agent_type.value, error=str(e)
             )
             return {}

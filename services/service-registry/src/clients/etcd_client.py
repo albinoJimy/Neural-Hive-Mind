@@ -1,11 +1,11 @@
-import json
 import asyncio
-from typing import Dict, List, Optional, Callable
+import json
+from typing import Callable, Dict, List, Optional
 from uuid import UUID
+
 import etcd3
 import structlog
 from src.models import AgentInfo, AgentType
-
 
 logger = structlog.get_logger()
 
@@ -59,16 +59,12 @@ class EtcdClient:
                 "agent_stored_in_etcd",
                 agent_id=str(agent_info.agent_id),
                 agent_type=agent_info.agent_type.value,
-                key=key
+                key=key,
             )
             return True
 
         except Exception as e:
-            logger.error(
-                "etcd_put_agent_failed",
-                agent_id=str(agent_info.agent_id),
-                error=str(e)
-            )
+            logger.error("etcd_put_agent_failed", agent_id=str(agent_info.agent_id), error=str(e))
             raise
 
     async def get_agent(self, agent_id: UUID) -> Optional[AgentInfo]:
@@ -80,7 +76,7 @@ class EtcdClient:
                 value, _ = await asyncio.to_thread(self.client.get, key)
 
                 if value:
-                    data = json.loads(value.decode('utf-8'))
+                    data = json.loads(value.decode("utf-8"))
                     return AgentInfo.from_proto_dict(data)
 
             logger.warning("agent_not_found_in_etcd", agent_id=str(agent_id))
@@ -103,7 +99,7 @@ class EtcdClient:
                     logger.info(
                         "agent_deleted_from_etcd",
                         agent_id=str(agent_id),
-                        agent_type=agent_type.value
+                        agent_type=agent_type.value,
                     )
 
             return deleted
@@ -113,9 +109,7 @@ class EtcdClient:
             raise
 
     async def list_agents(
-        self,
-        agent_type: Optional[AgentType] = None,
-        filters: Optional[Dict[str, str]] = None
+        self, agent_type: Optional[AgentType] = None, filters: Optional[Dict[str, str]] = None
     ) -> List[AgentInfo]:
         """Lista agentes com filtros opcionais"""
         try:
@@ -129,13 +123,10 @@ class EtcdClient:
 
             # Scan each prefix
             for prefix in prefixes:
-                items = await asyncio.to_thread(
-                    self.client.get_prefix,
-                    prefix
-                )
+                items = await asyncio.to_thread(self.client.get_prefix, prefix)
 
                 for value, _ in items:
-                    data = json.loads(value.decode('utf-8'))
+                    data = json.loads(value.decode("utf-8"))
                     agent = AgentInfo.from_proto_dict(data)
 
                     # Apply filters
@@ -148,7 +139,7 @@ class EtcdClient:
             logger.info(
                 "agents_listed_from_etcd",
                 count=len(agents),
-                agent_type=agent_type.value if agent_type else "all"
+                agent_type=agent_type.value if agent_type else "all",
             )
             return agents
 
@@ -197,9 +188,7 @@ class EtcdClient:
         """Observa mudanças em agentes usando watch API do etcd"""
         try:
             watch_id = await asyncio.to_thread(
-                self.client.add_watch_prefix_callback,
-                self.prefix,
-                callback
+                self.client.add_watch_prefix_callback, self.prefix, callback
             )
             logger.info("etcd_watch_started", prefix=self.prefix, watch_id=watch_id)
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Estrategias de randomizacao para testes A/B.
 
@@ -11,24 +10,25 @@ Implementa tres estrategias de randomizacao:
 import hashlib
 import json
 from abc import ABC, abstractmethod
-from datetime import datetime
-from enum import Enum
-from typing import Dict, List, Optional, Tuple
+from datetime import UTC, datetime
+from enum import StrEnum
 
 import structlog
 
 logger = structlog.get_logger()
 
 
-class RandomizationStrategyType(str, Enum):
+class RandomizationStrategyType(StrEnum):
     """Tipos de estrategia de randomizacao."""
+
     RANDOM = "RANDOM"
     STRATIFIED = "STRATIFIED"
     BLOCKED = "BLOCKED"
 
 
-class Group(str, Enum):
+class Group(StrEnum):
     """Grupos de experimento."""
+
     CONTROL = "control"
     TREATMENT = "treatment"
 
@@ -60,7 +60,7 @@ class BaseRandomizer(ABC):
         """
         pass
 
-    async def _get_cached_assignment(self, experiment_id: str, entity_id: str) -> Optional[Group]:
+    async def _get_cached_assignment(self, experiment_id: str, entity_id: str) -> Group | None:
         """Recuperar atribuicao cacheada do Redis."""
         if not self.redis_client:
             return None
@@ -90,7 +90,7 @@ class BaseRandomizer(ABC):
         key = f"ab_test:{experiment_id}:assignments:{entity_id}"
         data = {
             "group": group.value,
-            "assigned_at": datetime.utcnow().isoformat(),
+            "assigned_at": datetime.now(UTC).isoformat(),
         }
 
         try:
@@ -213,7 +213,7 @@ class StratifiedRandomizer(BaseRandomizer):
 
         return group
 
-    async def _get_strata_counts(self, experiment_id: str, strata_key: str) -> Tuple[int, int]:
+    async def _get_strata_counts(self, experiment_id: str, strata_key: str) -> tuple[int, int]:
         """Obter contadores do estrato."""
         if not self.redis_client:
             return 0, 0
@@ -233,7 +233,9 @@ class StratifiedRandomizer(BaseRandomizer):
             logger.warning("failed_to_get_strata_counts", error=str(e))
             return 0, 0
 
-    async def _increment_strata_count(self, experiment_id: str, strata_key: str, group: Group) -> None:
+    async def _increment_strata_count(
+        self, experiment_id: str, strata_key: str, group: Group
+    ) -> None:
         """Incrementar contador do estrato."""
         if not self.redis_client:
             return
@@ -298,7 +300,7 @@ class BlockedRandomizer(BaseRandomizer):
         experiment_id: str,
         block_size: int,
         traffic_split: float,
-    ) -> List[Group]:
+    ) -> list[Group]:
         """Obter ou criar bloco de atribuicoes."""
         if not self.redis_client:
             # Sem Redis, criar bloco novo
@@ -321,24 +323,21 @@ class BlockedRandomizer(BaseRandomizer):
 
         return new_block
 
-    def _create_shuffled_block(self, block_size: int, traffic_split: float) -> List[Group]:
+    def _create_shuffled_block(self, block_size: int, traffic_split: float) -> list[Group]:
         """Criar bloco embaralhado."""
         import random
 
         treatment_count = int(block_size * traffic_split)
         control_count = block_size - treatment_count
 
-        block = (
-            [Group.TREATMENT] * treatment_count +
-            [Group.CONTROL] * control_count
-        )
+        block = [Group.TREATMENT] * treatment_count + [Group.CONTROL] * control_count
 
         # Embaralhar usando seed baseado em timestamp para variabilidade
         random.shuffle(block)
 
         return block
 
-    async def _get_next_slot(self, experiment_id: str, block: List[Group]) -> Group:
+    async def _get_next_slot(self, experiment_id: str, block: list[Group]) -> Group:
         """Obter proximo slot do bloco."""
         if not block:
             return Group.CONTROL
@@ -350,7 +349,7 @@ class BlockedRandomizer(BaseRandomizer):
 
         return group
 
-    async def _save_block(self, experiment_id: str, block: List[Group]) -> None:
+    async def _save_block(self, experiment_id: str, block: list[Group]) -> None:
         """Salvar bloco no Redis."""
         if not self.redis_client:
             return

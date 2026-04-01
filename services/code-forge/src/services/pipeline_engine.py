@@ -1,20 +1,21 @@
 import asyncio
-import uuid
 import os
+import uuid
 from datetime import datetime
-from typing import Dict, Any, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict, Optional
+
 import structlog
 
+from ..clients.execution_ticket_client import ExecutionTicketClient
+from ..clients.kafka_result_producer import KafkaResultProducer
+from ..clients.mongodb_client import MongoDBClient
+from ..clients.postgres_client import PostgresClient
+from ..models.artifact import PipelineResult, PipelineStage, StageStatus
 from ..models.execution_ticket import ExecutionTicket, TicketStatus
 from ..models.pipeline_context import PipelineContext
-from ..models.artifact import PipelineResult, PipelineStage, StageStatus
-from ..clients.kafka_result_producer import KafkaResultProducer
-from ..clients.execution_ticket_client import ExecutionTicketClient
-from ..clients.postgres_client import PostgresClient
-from ..clients.mongodb_client import MongoDBClient
-from ..types.artifact_types import CodeLanguage, ArtifactSubtype, ArtifactCategory
+from ..types.artifact_types import ArtifactCategory, ArtifactSubtype, CodeLanguage
+from .container_builder import BuilderType, ContainerBuilder
 from .dockerfile_generator import DockerfileGenerator
-from .container_builder import ContainerBuilder, BuilderType
 
 if TYPE_CHECKING:
     from ..observability.metrics import CodeForgeMetrics
@@ -53,7 +54,7 @@ class PipelineEngine:
         pipeline_timeout: int = 3600,
         auto_approval_threshold: float = 0.9,
         min_quality_score: float = 0.5,
-        metrics: Optional['CodeForgeMetrics'] = None,
+        metrics: Optional["CodeForgeMetrics"] = None,
         build_timeout: int = 3600,
         enable_container_build: bool = True,
     ):
@@ -103,66 +104,63 @@ class PipelineEngine:
 
             # Criar contexto do pipeline
             # Extrair generation_method dos parâmetros do ticket se presente
-            generation_method = ticket.parameters.get('generation_method') if ticket.parameters else None
+            generation_method = (
+                ticket.parameters.get("generation_method") if ticket.parameters else None
+            )
 
             context = PipelineContext(
                 pipeline_id=pipeline_id,
                 ticket=ticket,
                 trace_id=trace_id,
                 span_id=span_id,
-                generation_method=generation_method
+                generation_method=generation_method,
             )
 
             self._active_pipelines[pipeline_id] = context
 
             try:
                 logger.info(
-                    'pipeline_started',
+                    "pipeline_started",
                     pipeline_id=pipeline_id,
                     ticket_id=ticket.ticket_id,
-                    trace_id=trace_id
+                    trace_id=trace_id,
                 )
 
                 # Validar ticket
                 if not ticket.is_build_task():
-                    raise ValueError(f'Ticket não é do tipo BUILD: {ticket.task_type}')
+                    raise ValueError(f"Ticket não é do tipo BUILD: {ticket.task_type}")
 
                 # Atualizar status do ticket para RUNNING
                 await self.ticket_client.update_status(
-                    ticket.ticket_id,
-                    TicketStatus.RUNNING,
-                    {'pipeline_id': pipeline_id}
+                    ticket.ticket_id, TicketStatus.RUNNING, {"pipeline_id": pipeline_id}
                 )
 
                 # Executar 8 subpipelines sequencialmente
-                await self._execute_stage(context, 'template_selection', self.template_selector.select)
-                await self._execute_stage(context, 'code_composition', self.code_composer.compose)
+                await self._execute_stage(
+                    context, "template_selection", self.template_selector.select
+                )
+                await self._execute_stage(context, "code_composition", self.code_composer.compose)
 
                 # Novos stages para builds de container reais
                 if self.enable_container_build:
                     await self._execute_stage(
-                        context,
-                        'dockerfile_generation',
-                        self._generate_dockerfile
+                        context, "dockerfile_generation", self._generate_dockerfile
                     )
-                    await self._execute_stage(
-                        context,
-                        'container_build',
-                        self._build_container
-                    )
+                    await self._execute_stage(context, "container_build", self._build_container)
 
-                await self._execute_stage(context, 'validation', self.validator.validate)
-                await self._execute_stage(context, 'testing', self.test_runner.run_tests)
-                await self._execute_stage(context, 'packaging', self.packager.package)
-                await self._execute_stage(context, 'approval_gate', self.approval_gate.check_approval)
+                await self._execute_stage(context, "validation", self.validator.validate)
+                await self._execute_stage(context, "testing", self.test_runner.run_tests)
+                await self._execute_stage(context, "packaging", self.packager.package)
+                await self._execute_stage(
+                    context, "approval_gate", self.approval_gate.check_approval
+                )
 
                 # Pipeline completado
                 context.completed_at = datetime.now()
 
                 # Converter para PipelineResult
                 pipeline_result = context.to_pipeline_result(
-                    self.auto_approval_threshold,
-                    self.min_quality_score
+                    self.auto_approval_threshold, self.min_quality_score
                 )
 
                 # Persistir resultado
@@ -172,9 +170,9 @@ class PipelineEngine:
                 await self.kafka_producer.publish_result(pipeline_result)
 
                 # Atualizar status do ticket baseado no status do pipeline
-                if pipeline_result.status == 'COMPLETED':
+                if pipeline_result.status == "COMPLETED":
                     final_status = TicketStatus.COMPLETED
-                elif pipeline_result.status in ('REQUIRES_REVIEW', 'PARTIAL'):
+                elif pipeline_result.status in ("REQUIRES_REVIEW", "PARTIAL"):
                     # Tickets que requerem revisão permanecem em RUNNING
                     final_status = TicketStatus.RUNNING
                 else:
@@ -183,24 +181,21 @@ class PipelineEngine:
                 await self.ticket_client.update_status(
                     ticket.ticket_id,
                     final_status,
-                    {'pipeline_id': pipeline_id, 'status': pipeline_result.status}
+                    {"pipeline_id": pipeline_id, "status": pipeline_result.status},
                 )
 
                 logger.info(
-                    'pipeline_completed',
+                    "pipeline_completed",
                     pipeline_id=pipeline_id,
                     status=pipeline_result.status,
-                    duration_ms=pipeline_result.total_duration_ms
+                    duration_ms=pipeline_result.total_duration_ms,
                 )
 
                 return pipeline_result
 
             except Exception as e:
                 logger.error(
-                    'pipeline_failed',
-                    pipeline_id=pipeline_id,
-                    error=str(e),
-                    exc_info=True
+                    "pipeline_failed", pipeline_id=pipeline_id, error=str(e), exc_info=True
                 )
 
                 context.error = e
@@ -209,23 +204,21 @@ class PipelineEngine:
                 # Criar ticket de compensação
                 try:
                     await self.ticket_client.create_compensation_ticket(
-                        ticket.ticket_id,
-                        f'Pipeline falhou: {str(e)}'
+                        ticket.ticket_id, f"Pipeline falhou: {str(e)}"
                     )
                 except Exception as comp_error:
-                    logger.error('compensation_ticket_failed', error=str(comp_error))
+                    logger.error("compensation_ticket_failed", error=str(comp_error))
 
                 # Atualizar status do ticket
                 await self.ticket_client.update_status(
                     ticket.ticket_id,
                     TicketStatus.FAILED,
-                    {'pipeline_id': pipeline_id, 'error': str(e)}
+                    {"pipeline_id": pipeline_id, "error": str(e)},
                 )
 
                 # Criar PipelineResult com erro
                 pipeline_result = context.to_pipeline_result(
-                    self.auto_approval_threshold,
-                    self.min_quality_score
+                    self.auto_approval_threshold, self.min_quality_score
                 )
 
                 # Publicar resultado de falha
@@ -250,41 +243,44 @@ class PipelineEngine:
             stage_name=stage_name,
             status=StageStatus.RUNNING,
             started_at=datetime.now(),
-            duration_ms=0
+            duration_ms=0,
         )
         context.add_stage(stage)
 
         start_time = datetime.now()
 
         try:
-            logger.info('stage_started', stage=stage_name, pipeline_id=context.pipeline_id)
+            logger.info("stage_started", stage=stage_name, pipeline_id=context.pipeline_id)
 
             # Executar stage com timeout
-            await asyncio.wait_for(
-                stage_func(context),
-                timeout=self.pipeline_timeout
-            )
+            await asyncio.wait_for(stage_func(context), timeout=self.pipeline_timeout)
 
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
             context.mark_stage_completed(stage_name, duration_ms)
 
             # Emitir métrica de duração do stage
             if self.metrics:
-                self.metrics.stage_duration_seconds.labels(stage=stage_name).observe(duration_ms / 1000.0)
+                self.metrics.stage_duration_seconds.labels(stage=stage_name).observe(
+                    duration_ms / 1000.0
+                )
 
-            logger.info('stage_completed', stage=stage_name, duration_ms=duration_ms)
+            logger.info("stage_completed", stage=stage_name, duration_ms=duration_ms)
 
         except asyncio.TimeoutError:
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
-            error_msg = f'Stage {stage_name} timeout após {self.pipeline_timeout}s'
+            error_msg = f"Stage {stage_name} timeout após {self.pipeline_timeout}s"
             context.mark_stage_failed(stage_name, error_msg, duration_ms)
 
             # Emitir métricas de falha
             if self.metrics:
-                self.metrics.stage_duration_seconds.labels(stage=stage_name).observe(duration_ms / 1000.0)
-                self.metrics.stage_failures_total.labels(stage=stage_name, error_type='TimeoutError').inc()
+                self.metrics.stage_duration_seconds.labels(stage=stage_name).observe(
+                    duration_ms / 1000.0
+                )
+                self.metrics.stage_failures_total.labels(
+                    stage=stage_name, error_type="TimeoutError"
+                ).inc()
 
-            logger.error('stage_timeout', stage=stage_name)
+            logger.error("stage_timeout", stage=stage_name)
             raise
 
         except Exception as e:
@@ -293,10 +289,14 @@ class PipelineEngine:
 
             # Emitir métricas de falha
             if self.metrics:
-                self.metrics.stage_duration_seconds.labels(stage=stage_name).observe(duration_ms / 1000.0)
-                self.metrics.stage_failures_total.labels(stage=stage_name, error_type=type(e).__name__).inc()
+                self.metrics.stage_duration_seconds.labels(stage=stage_name).observe(
+                    duration_ms / 1000.0
+                )
+                self.metrics.stage_failures_total.labels(
+                    stage=stage_name, error_type=type(e).__name__
+                ).inc()
 
-            logger.error('stage_failed', stage=stage_name, error=str(e))
+            logger.error("stage_failed", stage=stage_name, error=str(e))
             raise
 
     async def _generate_dockerfile(self, context: PipelineContext) -> PipelineContext:
@@ -388,8 +388,7 @@ class PipelineEngine:
 
             # Definir tag da imagem
             artifact_name = context.ticket.parameters.get(
-                "service_name",
-                f"service-{context.ticket.ticket_id[:8]}"
+                "service_name", f"service-{context.ticket.ticket_id[:8]}"
             )
             version = context.ticket.parameters.get("version", "latest")
             image_tag = f"{artifact_name}:{version}"
@@ -463,10 +462,7 @@ class PipelineEngine:
 
     def _map_artifact_type(self, context: PipelineContext) -> ArtifactSubtype:
         """Mapeia o tipo de artefato do ticket para ArtifactSubtype."""
-        artifact_type_str = context.ticket.parameters.get(
-            "artifact_type",
-            "microservice"
-        ).lower()
+        artifact_type_str = context.ticket.parameters.get("artifact_type", "microservice").lower()
 
         type_map = {
             "microservice": ArtifactSubtype.MICROSERVICE,
@@ -612,14 +608,14 @@ class PipelineEngine:
                                 logger.info(
                                     "code_fetched_from_mongodb",
                                     artifact_id=artifact_id,
-                                    ticket_id=context.ticket.ticket_id
+                                    ticket_id=context.ticket.ticket_id,
                                 )
                                 return content
                     except Exception as e:
                         logger.warning(
                             "mongodb_fetch_failed_using_default",
                             artifact_id=artifact.artifact_id,
-                            error=str(e)
+                            error=str(e),
                         )
                 break
         return ""
@@ -639,11 +635,13 @@ class PipelineEngine:
         if framework == "fastapi":
             return "\n".join(base_requirements)
         elif framework == "flask":
-            return "\n".join([
-                "Flask>=3.0.0",
-                "gunicorn>=21.2.0",
-                "structlog>=23.2.0",
-            ])
+            return "\n".join(
+                [
+                    "Flask>=3.0.0",
+                    "gunicorn>=21.2.0",
+                    "structlog>=23.2.0",
+                ]
+            )
         else:
             return "\n".join(base_requirements)
 
@@ -653,7 +651,7 @@ class PipelineEngine:
         framework = context.ticket.parameters.get("framework", "fastapi")
 
         if framework == "fastapi":
-            return f'''from fastapi import FastAPI
+            return f"""from fastapi import FastAPI
 from pydantic import BaseModel
 import structlog
 
@@ -674,7 +672,7 @@ async def health():
 @app.get("/")
 async def root():
     return {{"message": "Welcome to {service_name}"}}
-'''
+"""
         else:
             return f'''#!/usr/bin/env python3
 """
@@ -698,7 +696,7 @@ if __name__ == "__main__":
     def _get_nodejs_package_json(self, context: PipelineContext) -> str:
         """Retorna package.json para Node.js."""
         service_name = context.ticket.parameters.get("service_name", "my-service")
-        return f'''{{
+        return f"""{{
   "name": "{service_name}",
   "version": "1.0.0",
   "description": "Generated by Neural Code Forge",
@@ -712,12 +710,12 @@ if __name__ == "__main__":
     "helmet": "^7.1.0"
   }}
 }}
-'''
+"""
 
     def _get_default_nodejs_code(self, context: PipelineContext) -> str:
         """Retorna código Node.js padrão."""
         service_name = context.ticket.parameters.get("service_name", "my-service")
-        return f'''const express = require('express');
+        return f"""const express = require('express');
 const helmet = require('helmet');
 
 const app = express();
@@ -741,12 +739,12 @@ if (require.main === module) {{
 }}
 
 module.exports = app;
-'''
+"""
 
     def _get_typescript_package_json(self, context: PipelineContext) -> str:
         """Retorna package.json para TypeScript."""
         service_name = context.ticket.parameters.get("service_name", "my-service")
-        return f'''{{
+        return f"""{{
   "name": "{service_name}",
   "version": "1.0.0",
   "description": "Generated by Neural Code Forge",
@@ -767,11 +765,11 @@ module.exports = app;
     "ts-node": "^10.9.2"
   }}
 }}
-'''
+"""
 
     def _get_tsconfig_json(self) -> str:
         """Retorna tsconfig.json padrão."""
-        return '''{{
+        return """{{
   "compilerOptions": {{
     "target": "ES2022",
     "module": "commonjs",
@@ -788,12 +786,12 @@ module.exports = app;
   "include": ["*.ts"],
   "exclude": ["node_modules"]
 }}
-'''
+"""
 
     def _get_default_typescript_code(self, context: PipelineContext) -> str:
         """Retorna código TypeScript padrão."""
         service_name = context.ticket.parameters.get("service_name", "my-service")
-        return f'''import express, {{ Request, Response, Application }} from 'express';
+        return f"""import express, {{ Request, Response, Application }} from 'express';
 import helmet from 'helmet';
 
 const PORT = process.env.PORT || 3000;
@@ -827,25 +825,25 @@ if (require.main === module) {{
 }}
 
 export default app;
-'''
+"""
 
     def _get_go_mod(self, context: PipelineContext) -> str:
         """Retorna go.mod."""
         service_name = context.ticket.parameters.get("service_name", "my-service")
         module_name = service_name.replace("-", "_")
-        return f'''module {module_name}
+        return f"""module {module_name}
 
 go 1.21
 
 require (
     github.com/gorilla/mux v1.8.1
 )
-'''
+"""
 
     def _get_default_go_code(self, context: PipelineContext) -> str:
         """Retorna código Go padrão."""
         service_name = context.ticket.parameters.get("service_name", "my-service")
-        return f'''// Package main - {service_name}
+        return f"""// Package main - {service_name}
 // Generated by Neural Code Forge
 
 package main
@@ -893,13 +891,13 @@ func main() {{
         log.Fatalf("Failed to start server: %v", err)
     }}
 }}
-'''
+"""
 
     def _get_maven_pom(self, context: PipelineContext) -> str:
         """Retorna pom.xml para Maven."""
         service_name = context.ticket.parameters.get("service_name", "my-service")
         artifact_id = service_name.replace("-", "")
-        return f'''<?xml version="1.0" encoding="UTF-8"?>
+        return f"""<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
@@ -941,13 +939,13 @@ func main() {{
         </plugins>
     </build>
 </project>
-'''
+"""
 
     def _get_default_java_code(self, context: PipelineContext) -> str:
         """Retorna código Java padrão."""
         service_name = context.ticket.parameters.get("service_name", "my-service")
         class_name = "".join(word.title() for word in service_name.replace("-", " ").split())
-        return f'''package com.neuralhive;
+        return f"""package com.neuralhive;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -980,7 +978,7 @@ public class {class_name}Application {{
         return ResponseEntity.ok(response);
     }}
 }}
-'''
+"""
 
     def get_active_pipelines_count(self) -> int:
         """Retorna número de pipelines ativos"""

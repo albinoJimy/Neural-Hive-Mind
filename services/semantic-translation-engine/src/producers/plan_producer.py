@@ -4,18 +4,17 @@ Plan Producer - Kafka transactional producer for Cognitive Plans
 Publishes Cognitive Plans to Kafka with exactly-once semantics.
 """
 
-import os
-import structlog
 import json
-from typing import Optional
-from confluent_kafka import Producer, KafkaError
-from confluent_kafka.serialization import SerializationContext, MessageField
+import os
+
+import structlog
+from confluent_kafka import Producer
 from confluent_kafka.schema_registry import SchemaRegistryClient
 from confluent_kafka.schema_registry.avro import AvroSerializer
-
+from confluent_kafka.serialization import MessageField, SerializationContext
 from src.config.settings import Settings
+
 from neural_hive_observability.context import ContextManager
-from neural_hive_observability.tracing import get_current_trace_id, get_current_span_id
 
 logger = structlog.get_logger()
 
@@ -23,100 +22,109 @@ logger = structlog.get_logger()
 class KafkaPlanProducer:
     """Kafka producer for Cognitive Plans"""
 
-    def __init__(self, settings: Settings, context_manager: Optional[ContextManager] = None):
+    def __init__(self, settings: Settings, context_manager: ContextManager | None = None):
         self.settings = settings
-        self.producer: Optional[Producer] = None
-        self.schema_registry_client: Optional[SchemaRegistryClient] = None
-        self.avro_serializer: Optional[AvroSerializer] = None
+        self.producer: Producer | None = None
+        self.schema_registry_client: SchemaRegistryClient | None = None
+        self.avro_serializer: AvroSerializer | None = None
         self._transactional_id = self._generate_transactional_id()
         self.context_manager = context_manager
 
     def _generate_transactional_id(self) -> str:
         """Gera ID transacional estável por pod"""
-        hostname = os.environ.get('HOSTNAME', 'local')
-        pod_uid = os.environ.get('POD_UID', '0')
-        return f'semantic-translation-engine-{hostname}-{pod_uid}'
+        hostname = os.environ.get("HOSTNAME", "local")
+        pod_uid = os.environ.get("POD_UID", "0")
+        return f"semantic-translation-engine-{hostname}-{pod_uid}"
 
     async def initialize(self):
         """Inicializa producer Kafka com suporte a Schema Registry"""
         producer_config = {
-            'bootstrap.servers': self.settings.kafka_bootstrap_servers,
-            'enable.idempotence': self.settings.kafka_enable_idempotence,
-            'transactional.id': self._transactional_id,
-            'acks': 'all',
-            'max.in.flight.requests.per.connection': 5,
+            "bootstrap.servers": self.settings.kafka_bootstrap_servers,
+            "enable.idempotence": self.settings.kafka_enable_idempotence,
+            "transactional.id": self._transactional_id,
+            "acks": "all",
+            "max.in.flight.requests.per.connection": 5,
         }
 
         # Add security configuration
-        if self.settings.kafka_security_protocol != 'PLAINTEXT':
-            producer_config.update({
-                'security.protocol': self.settings.kafka_security_protocol,
-                'sasl.mechanism': self.settings.kafka_sasl_mechanism,
-                'sasl.username': self.settings.kafka_sasl_username,
-                'sasl.password': self.settings.kafka_sasl_password,
-            })
+        if self.settings.kafka_security_protocol != "PLAINTEXT":
+            producer_config.update(
+                {
+                    "security.protocol": self.settings.kafka_security_protocol,
+                    "sasl.mechanism": self.settings.kafka_sasl_mechanism,
+                    "sasl.username": self.settings.kafka_sasl_username,
+                    "sasl.password": self.settings.kafka_sasl_password,
+                }
+            )
 
         self.producer = Producer(producer_config)
 
         # Initialize Schema Registry client (optional for dev)
         if self.settings.schema_registry_url and self.settings.schema_registry_url.strip():
-            schema_path = '/app/schemas/cognitive-plan/cognitive-plan.avsc'
+            schema_path = "/app/schemas/cognitive-plan/cognitive-plan.avsc"
             logger.info(
-                'Inicializando Schema Registry para producer',
+                "Inicializando Schema Registry para producer",
                 url=self.settings.schema_registry_url,
-                schema_path=schema_path
+                schema_path=schema_path,
             )
 
             if os.path.exists(schema_path):
-                logger.info('Schema Avro encontrado', path=schema_path, size_bytes=os.path.getsize(schema_path))
+                logger.info(
+                    "Schema Avro encontrado",
+                    path=schema_path,
+                    size_bytes=os.path.getsize(schema_path),
+                )
 
                 # Configure Schema Registry client with TLS settings
-                sr_conf = {'url': self.settings.schema_registry_url}
+                sr_conf = {"url": self.settings.schema_registry_url}
 
                 # Configure SSL verification based on settings
                 # When TLS is enabled but verify is False, set ssl.ca.location to empty
-                if (hasattr(self.settings, 'schema_registry_tls_enabled')
-                        and self.settings.schema_registry_tls_enabled
-                        and hasattr(self.settings, 'schema_registry_tls_verify')
-                        and not self.settings.schema_registry_tls_verify):
-                    sr_conf['ssl.ca.location'] = ''
+                if (
+                    hasattr(self.settings, "schema_registry_tls_enabled")
+                    and self.settings.schema_registry_tls_enabled
+                    and hasattr(self.settings, "schema_registry_tls_verify")
+                    and not self.settings.schema_registry_tls_verify
+                ):
+                    sr_conf["ssl.ca.location"] = ""
                     logger.debug(
-                        'Schema Registry TLS verification disabled for producer',
-                        url=self.settings.schema_registry_url
+                        "Schema Registry TLS verification disabled for producer",
+                        url=self.settings.schema_registry_url,
                     )
 
                 self.schema_registry_client = SchemaRegistryClient(sr_conf)
 
                 # Load Avro schema
-                with open(schema_path, 'r') as f:
+                with open(schema_path) as f:
                     schema_str = f.read()
 
-                self.avro_serializer = AvroSerializer(
-                    self.schema_registry_client,
-                    schema_str
-                )
+                self.avro_serializer = AvroSerializer(self.schema_registry_client, schema_str)
                 logger.info(
-                    'Schema Registry habilitado para producer',
+                    "Schema Registry habilitado para producer",
                     url=self.settings.schema_registry_url,
                     schema_path=schema_path,
-                    serializer_type='AvroSerializer'
+                    serializer_type="AvroSerializer",
                 )
             else:
                 logger.error(
-                    'Schema Avro não encontrado - fallback para JSON',
+                    "Schema Avro não encontrado - fallback para JSON",
                     path=schema_path,
-                    expected_location='/app/schemas/cognitive-plan/cognitive-plan.avsc',
+                    expected_location="/app/schemas/cognitive-plan/cognitive-plan.avsc",
                     current_directory=os.getcwd(),
-                    schemas_directory_exists=os.path.exists('/app/schemas'),
-                    schemas_directory_contents=os.listdir('/app/schemas') if os.path.exists('/app/schemas') else []
+                    schemas_directory_exists=os.path.exists("/app/schemas"),
+                    schemas_directory_contents=os.listdir("/app/schemas")
+                    if os.path.exists("/app/schemas")
+                    else [],
                 )
                 self.schema_registry_client = None
                 self.avro_serializer = None
         else:
             logger.warning(
-                'Schema Registry desabilitado - usando serialização JSON para dev',
+                "Schema Registry desabilitado - usando serialização JSON para dev",
                 schema_registry_url=self.settings.schema_registry_url,
-                environment=self.settings.environment if hasattr(self.settings, 'environment') else 'unknown'
+                environment=self.settings.environment
+                if hasattr(self.settings, "environment")
+                else "unknown",
             )
             self.schema_registry_client = None
             self.avro_serializer = None
@@ -125,16 +133,12 @@ class KafkaPlanProducer:
         self.producer.init_transactions()
 
         logger.info(
-            'Plan producer inicializado',
+            "Plan producer inicializado",
             transactional_id=self._transactional_id,
-            topic=self.settings.kafka_plans_topic
+            topic=self.settings.kafka_plans_topic,
         )
 
-    async def send_plan(
-        self,
-        cognitive_plan,
-        topic_override: Optional[str] = None
-    ):
+    async def send_plan(self, cognitive_plan, topic_override: str | None = None):
         """
         Envia Cognitive Plan para Kafka com serialização Avro
 
@@ -157,22 +161,21 @@ class KafkaPlanProducer:
                 avro_data = cognitive_plan.to_avro_dict()
                 serialization_context = SerializationContext(topic, MessageField.VALUE)
                 value = self.avro_serializer(avro_data, serialization_context)
-                content_type = 'application/avro'
+                content_type = "application/avro"
             else:
                 # Fallback para JSON quando Schema Registry não disponível
-                value = json.dumps(
-                    cognitive_plan.to_avro_dict(),
-                    default=str
-                ).encode('utf-8')
-                content_type = 'application/json'
+                value = json.dumps(cognitive_plan.to_avro_dict(), default=str).encode("utf-8")
+                content_type = "application/json"
 
             # Prepare headers with W3C traceparent propagation
             headers = {
-                'plan-id': cognitive_plan.plan_id,
-                'intent-id': cognitive_plan.intent_id,
-                'risk-band': cognitive_plan.risk_band.value if hasattr(cognitive_plan.risk_band, 'value') else cognitive_plan.risk_band,
-                'schema-version': '1',
-                'content-type': content_type,
+                "plan-id": cognitive_plan.plan_id,
+                "intent-id": cognitive_plan.intent_id,
+                "risk-band": cognitive_plan.risk_band.value
+                if hasattr(cognitive_plan.risk_band, "value")
+                else cognitive_plan.risk_band,
+                "schema-version": "1",
+                "content-type": content_type,
             }
 
             # Adicionar correlation_id do plano ou do contexto atual
@@ -180,21 +183,24 @@ class KafkaPlanProducer:
             if not correlation_id and self.context_manager:
                 correlation_id = self.context_manager.get_intent_id()
             if correlation_id:
-                headers['correlation-id'] = correlation_id
+                headers["correlation-id"] = correlation_id
 
             # F5: Injetar contexto OpenTelemetry W3C traceparent via ContextManager
             if self.context_manager:
                 headers_dict = self.context_manager.inject_http_headers(headers)
                 # Converter de volta para formato lista de tuplas do confluent-kafka
-                headers = [(k, v.encode('utf-8') if isinstance(v, str) else v)
-                          for k, v in headers_dict.items()]
+                headers = [
+                    (k, v.encode("utf-8") if isinstance(v, str) else v)
+                    for k, v in headers_dict.items()
+                ]
             else:
                 # Fallback: injeção manual sem ContextManager
-                headers = [(k, v.encode('utf-8') if isinstance(v, str) else v)
-                          for k, v in headers.items()]
+                headers = [
+                    (k, v.encode("utf-8") if isinstance(v, str) else v) for k, v in headers.items()
+                ]
 
             # Partition key by domain
-            key = cognitive_plan.get_partition_key().encode('utf-8')
+            key = cognitive_plan.get_partition_key().encode("utf-8")
 
             # Produce message
             self.producer.produce(
@@ -202,7 +208,7 @@ class KafkaPlanProducer:
                 key=key,
                 value=value,
                 headers=headers,
-                on_delivery=self._delivery_callback
+                on_delivery=self._delivery_callback,
             )
 
             # Flush
@@ -212,21 +218,19 @@ class KafkaPlanProducer:
             self.producer.commit_transaction()
 
             logger.info(
-                'Plan publicado',
+                "Plan publicado",
                 plan_id=cognitive_plan.plan_id,
                 intent_id=cognitive_plan.intent_id,
                 topic=topic,
-                risk_band=cognitive_plan.risk_band.value if hasattr(cognitive_plan.risk_band, 'value') else cognitive_plan.risk_band,
+                risk_band=cognitive_plan.risk_band.value
+                if hasattr(cognitive_plan.risk_band, "value")
+                else cognitive_plan.risk_band,
                 size_bytes=len(value),
-                format=content_type
+                format=content_type,
             )
 
         except Exception as e:
-            logger.error(
-                'Erro ao publicar plan',
-                plan_id=cognitive_plan.plan_id,
-                error=str(e)
-            )
+            logger.exception("Erro ao publicar plan", plan_id=cognitive_plan.plan_id, error=str(e))
 
             # Abort transaction on error
             self.producer.abort_transaction()
@@ -235,21 +239,14 @@ class KafkaPlanProducer:
     def _delivery_callback(self, err, msg):
         """Callback de entrega de mensagens produzidas"""
         if err:
-            logger.error(
-                'Falha na entrega do plan',
-                error=err,
-                topic=msg.topic()
-            )
+            logger.error("Falha na entrega do plan", error=err, topic=msg.topic())
         else:
             logger.debug(
-                'Plan entregue',
-                topic=msg.topic(),
-                partition=msg.partition(),
-                offset=msg.offset()
+                "Plan entregue", topic=msg.topic(), partition=msg.partition(), offset=msg.offset()
             )
 
     async def close(self):
         """Fecha producer gracefully"""
         if self.producer:
             self.producer.flush()
-            logger.info('Plan producer fechado')
+            logger.info("Plan producer fechado")

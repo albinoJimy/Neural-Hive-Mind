@@ -9,19 +9,16 @@ Responsável por:
 - Persistir validações no MongoDB
 """
 
-from typing import Optional
-import structlog
-import json
 import asyncio
+import json
+from typing import Optional
+
+import structlog
 from aiokafka import AIOKafkaConsumer
 from aiokafka.errors import KafkaError
 
 from neural_hive_observability import instrument_kafka_consumer
-from neural_hive_observability.context import (
-    extract_context_from_headers,
-    set_baggage
-)
-
+from neural_hive_observability.context import extract_context_from_headers, set_baggage
 from src.models.security_validation import ValidationStatus
 
 logger = structlog.get_logger(__name__)
@@ -43,7 +40,7 @@ class TicketConsumer:
         tickets_validated_topic: str,
         tickets_rejected_topic: str,
         tickets_pending_approval_topic: str,
-        queen_agent_client=None
+        queen_agent_client=None,
     ):
         """
         Inicializa o TicketConsumer.
@@ -89,7 +86,7 @@ class TicketConsumer:
                 auto_offset_reset="earliest",
                 enable_auto_commit=False,  # Commit manual
                 max_poll_records=10,  # Processar em batches pequenos
-                value_deserializer=lambda m: json.loads(m.decode('utf-8'))
+                value_deserializer=lambda m: json.loads(m.decode("utf-8")),
             )
 
             self.consumer = instrument_kafka_consumer(self.consumer)
@@ -98,14 +95,11 @@ class TicketConsumer:
             logger.info(
                 "ticket_consumer.connected",
                 bootstrap_servers=self.bootstrap_servers,
-                group_id=self.group_id
+                group_id=self.group_id,
             )
 
         except Exception as e:
-            logger.error(
-                "ticket_consumer.connection_failed",
-                error=str(e)
-            )
+            logger.error("ticket_consumer.connection_failed", error=str(e))
             raise
 
     async def start_consuming(self) -> None:
@@ -150,8 +144,7 @@ class TicketConsumer:
                 try:
                     # Buscar mensagens (timeout 1s)
                     messages = await asyncio.wait_for(
-                        self.consumer.getmany(timeout_ms=1000),
-                        timeout=2.0
+                        self.consumer.getmany(timeout_ms=1000), timeout=2.0
                     )
 
                     # Processar mensagens
@@ -170,7 +163,7 @@ class TicketConsumer:
                                     "ticket_consumer.message_processing_failed",
                                     error=str(e),
                                     partition=tp.partition,
-                                    offset=message.offset
+                                    offset=message.offset,
                                 )
                                 # Não commitar offset em caso de erro
                                 # Mensagem será reprocessada
@@ -180,10 +173,7 @@ class TicketConsumer:
                     continue
 
                 except KafkaError as e:
-                    logger.error(
-                        "ticket_consumer.kafka_error",
-                        error=str(e)
-                    )
+                    logger.error("ticket_consumer.kafka_error", error=str(e))
                     await asyncio.sleep(5)  # Backoff
 
         except asyncio.CancelledError:
@@ -191,10 +181,7 @@ class TicketConsumer:
             raise
 
         except Exception as e:
-            logger.error(
-                "ticket_consumer.consume_loop_error",
-                error=str(e)
-            )
+            logger.error("ticket_consumer.consume_loop_error", error=str(e))
             self._consuming = False
 
     async def handle_ticket(self, ticket: dict) -> None:
@@ -214,7 +201,7 @@ class TicketConsumer:
         logger.info(
             "ticket_consumer.handling_ticket",
             ticket_id=ticket_id,
-            task_type=ticket.get("task_type")
+            task_type=ticket.get("task_type"),
         )
 
         try:
@@ -229,15 +216,15 @@ class TicketConsumer:
                 validation.violations.extend(guardrail_violations)
 
                 # Recalcular risk assessment com novas violations
-                validation.risk_assessment = await self.security_validator._calculate_risk_assessment(
-                    validation.violations,
-                    ticket
+                validation.risk_assessment = (
+                    await self.security_validator._calculate_risk_assessment(
+                        validation.violations, ticket
+                    )
                 )
 
                 # Re-determinar status
                 validation.validation_status = self.security_validator._determine_validation_status(
-                    validation.risk_assessment,
-                    validation.violations
+                    validation.risk_assessment, validation.violations
                 )
 
                 # Recalcular hash após mutações
@@ -254,22 +241,14 @@ class TicketConsumer:
                 ticket_id=ticket_id,
                 status=validation.validation_status.value,
                 violations_count=len(validation.violations),
-                risk_score=validation.risk_assessment.risk_score
+                risk_score=validation.risk_assessment.risk_score,
             )
 
         except Exception as e:
-            logger.error(
-                "ticket_consumer.handle_ticket_failed",
-                ticket_id=ticket_id,
-                error=str(e)
-            )
+            logger.error("ticket_consumer.handle_ticket_failed", ticket_id=ticket_id, error=str(e))
             raise
 
-    async def _publish_validation_result(
-        self,
-        ticket: dict,
-        validation
-    ) -> None:
+    async def _publish_validation_result(self, ticket: dict, validation) -> None:
         """
         Publica resultado da validação no tópico apropriado.
 
@@ -287,16 +266,10 @@ class TicketConsumer:
                 await self.validation_producer.publish_to_topic(
                     topic=self.tickets_validated_topic,
                     key=ticket["ticket_id"],
-                    value={
-                        **ticket,
-                        "validation": validation.to_avro_dict()
-                    }
+                    value={**ticket, "validation": validation.to_avro_dict()},
                 )
 
-                logger.info(
-                    "ticket_consumer.ticket_approved",
-                    ticket_id=ticket["ticket_id"]
-                )
+                logger.info("ticket_consumer.ticket_approved", ticket_id=ticket["ticket_id"])
 
             elif validation.validation_status == ValidationStatus.REJECTED:
                 # Ticket rejeitado: publicar em tópico configurado
@@ -306,14 +279,14 @@ class TicketConsumer:
                     value={
                         "ticket_id": ticket["ticket_id"],
                         "validation": validation.to_avro_dict(),
-                        "violations": [v.to_dict() for v in validation.violations]
-                    }
+                        "violations": [v.to_dict() for v in validation.violations],
+                    },
                 )
 
                 logger.warning(
                     "ticket_consumer.ticket_rejected",
                     ticket_id=ticket["ticket_id"],
-                    violations_count=len(validation.violations)
+                    violations_count=len(validation.violations),
                 )
 
             elif validation.validation_status == ValidationStatus.REQUIRES_APPROVAL:
@@ -324,14 +297,13 @@ class TicketConsumer:
                     value={
                         **ticket,
                         "validation": validation.to_avro_dict(),
-                        "approval_reason": validation.approval_reason
-                    }
+                        "approval_reason": validation.approval_reason,
+                    },
                 )
 
                 # Notificar Queen Agent sobre aprovação pendente
                 if self.queen_agent_client:
                     try:
-                        from neural_hive_integration.clients.queen_agent_client import QueenAgentClient
                         # Usar o cliente injetado ou criar um novo
                         queen_client = self.queen_agent_client
                         # Notificar sobre ticket pendente de aprovação
@@ -342,36 +314,34 @@ class TicketConsumer:
                                 "ticket_id": ticket["ticket_id"],
                                 "approval_reason": validation.approval_reason,
                                 "violations_count": len(validation.violations),
-                                "severity": validation.risk_score
-                            }
+                                "severity": validation.risk_score,
+                            },
                         )
                         logger.info(
-                            "ticket_consumer.queen_agent_notified",
-                            ticket_id=ticket["ticket_id"]
+                            "ticket_consumer.queen_agent_notified", ticket_id=ticket["ticket_id"]
                         )
                     except Exception as e:
                         logger.warning(
                             "ticket_consumer.queen_agent_notification_failed",
                             ticket_id=ticket["ticket_id"],
-                            error=str(e)
+                            error=str(e),
                         )
                 else:
                     logger.debug(
-                        "ticket_consumer.queen_agent_not_available",
-                        ticket_id=ticket["ticket_id"]
+                        "ticket_consumer.queen_agent_not_available", ticket_id=ticket["ticket_id"]
                     )
 
                 logger.info(
                     "ticket_consumer.ticket_requires_approval",
                     ticket_id=ticket["ticket_id"],
-                    approval_reason=validation.approval_reason
+                    approval_reason=validation.approval_reason,
                 )
 
         except Exception as e:
             logger.error(
                 "ticket_consumer.publish_result_failed",
                 ticket_id=ticket.get("ticket_id"),
-                error=str(e)
+                error=str(e),
             )
             raise
 
@@ -384,34 +354,29 @@ class TicketConsumer:
         """
         try:
             from src.observability.metrics import (
-                guard_agent_tickets_validated_total,
-                guard_agent_validation_duration_seconds,
-                guard_agent_violations_detected_total,
-                guard_agent_secrets_detected_total,
                 guard_agent_approvals_pending,
-                guard_agent_approval_rate,
-                guard_agent_risk_score_avg
+                guard_agent_risk_score_avg,
+                guard_agent_secrets_detected_total,
+                guard_agent_tickets_validated_total,
+                guard_agent_violations_detected_total,
             )
 
             # Incrementar tickets validados
             guard_agent_tickets_validated_total.labels(
                 status=validation.validation_status.value,
-                validator_type=validation.validator_type.value
+                validator_type=validation.validator_type.value,
             ).inc()
 
             # Contabilizar violations
             for violation in validation.violations:
                 guard_agent_violations_detected_total.labels(
-                    violation_type=violation.violation_type.value,
-                    severity=violation.severity.value
+                    violation_type=violation.violation_type.value, severity=violation.severity.value
                 ).inc()
 
                 # Secrets detectados
                 if violation.violation_type.value == "SECRET_EXPOSED":
                     secret_type = violation.evidence.get("secret_type", "unknown")
-                    guard_agent_secrets_detected_total.labels(
-                        secret_type=secret_type
-                    ).inc()
+                    guard_agent_secrets_detected_total.labels(secret_type=secret_type).inc()
 
             # Atualizar gauge de aprovações pendentes
             if validation.validation_status == ValidationStatus.REQUIRES_APPROVAL:
@@ -421,7 +386,4 @@ class TicketConsumer:
             guard_agent_risk_score_avg.set(validation.risk_assessment.risk_score)
 
         except Exception as e:
-            logger.warning(
-                "ticket_consumer.update_metrics_failed",
-                error=str(e)
-            )
+            logger.warning("ticket_consumer.update_metrics_failed", error=str(e))

@@ -1,14 +1,19 @@
 """Cliente PostgreSQL para persistência de tickets usando SQLAlchemy async."""
 import asyncio
 import logging
-from typing import Optional, List, Dict
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession, AsyncEngine
-from sqlalchemy import select, update, func
-from sqlalchemy.exc import SQLAlchemyError
+from typing import List, Optional
+
+from sqlalchemy import func, select, update
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
 from ..config.settings import TicketServiceSettings
-from ..models.ticket_orm import TicketORM, Base
 from ..models import ExecutionTicket, TicketStatus
+from ..models.ticket_orm import TicketORM
 
 logger = logging.getLogger(__name__)
 
@@ -37,8 +42,8 @@ class PostgresClient:
                         "host": self.settings.postgres_host,
                         "database": self.settings.postgres_database,
                         "attempt": attempt + 1,
-                        "max_retries": max_retries
-                    }
+                        "max_retries": max_retries,
+                    },
                 )
 
                 await self._connect_internal()
@@ -51,21 +56,24 @@ class PostgresClient:
                 return
 
             except Exception as e:
-                delay = initial_delay * (2 ** attempt)  # Exponential backoff
+                delay = initial_delay * (2**attempt)  # Exponential backoff
                 logger.warning(
                     "postgresql_connection_failed",
                     extra={
                         "error": str(e),
                         "attempt": attempt + 1,
                         "max_retries": max_retries,
-                        "retry_in_seconds": delay
-                    }
+                        "retry_in_seconds": delay,
+                    },
                 )
 
                 if attempt < max_retries - 1:
                     await asyncio.sleep(delay)
                 else:
-                    logger.error("postgresql_connection_exhausted_retries", extra={"max_retries": max_retries})
+                    logger.error(
+                        "postgresql_connection_exhausted_retries",
+                        extra={"max_retries": max_retries},
+                    )
                     raise
 
     async def connect(self):
@@ -83,13 +91,11 @@ class PostgresClient:
             connection_string,
             pool_size=self.settings.postgres_pool_size,
             max_overflow=self.settings.postgres_max_overflow,
-            echo=False
+            echo=False,
         )
 
         self._session_maker = async_sessionmaker(
-            self._engine,
-            class_=AsyncSession,
-            expire_on_commit=False
+            self._engine, class_=AsyncSession, expire_on_commit=False
         )
 
     async def disconnect(self):
@@ -106,7 +112,7 @@ class PostgresClient:
         """Verifica saúde da conexão."""
         try:
             async with self._session_maker() as session:
-                result = await session.execute(select(func.count()).select_from(TicketORM))
+                await session.execute(select(func.count()).select_from(TicketORM))
                 return True
         except Exception as e:
             logger.error(f"PostgreSQL health check failed: {e}")
@@ -119,7 +125,7 @@ class PostgresClient:
             session.add(orm_ticket)
             await session.commit()
             await session.refresh(orm_ticket)
-            logger.info(f"Ticket created", extra={"ticket_id": ticket.ticket_id})
+            logger.info("Ticket created", extra={"ticket_id": ticket.ticket_id})
             return orm_ticket
 
     async def get_ticket_by_id(self, ticket_id: str) -> Optional[TicketORM]:
@@ -133,26 +139,21 @@ class PostgresClient:
     async def get_tickets_by_plan_id(self, plan_id: str) -> List[TicketORM]:
         """Busca tickets por plan_id."""
         async with self._session_maker() as session:
-            result = await session.execute(
-                select(TicketORM).where(TicketORM.plan_id == plan_id)
-            )
+            result = await session.execute(select(TicketORM).where(TicketORM.plan_id == plan_id))
             return list(result.scalars().all())
 
-    async def get_tickets_by_status(self, status: TicketStatus, limit: int = 100) -> List[TicketORM]:
+    async def get_tickets_by_status(
+        self, status: TicketStatus, limit: int = 100
+    ) -> List[TicketORM]:
         """Busca tickets por status."""
         async with self._session_maker() as session:
             result = await session.execute(
-                select(TicketORM)
-                .where(TicketORM.status == status.value)
-                .limit(limit)
+                select(TicketORM).where(TicketORM.status == status.value).limit(limit)
             )
             return list(result.scalars().all())
 
     async def update_ticket_status(
-        self,
-        ticket_id: str,
-        status: TicketStatus,
-        error_message: Optional[str] = None
+        self, ticket_id: str, status: TicketStatus, error_message: Optional[str] = None
     ) -> Optional[TicketORM]:
         """Atualiza status do ticket."""
         async with self._session_maker() as session:
@@ -185,7 +186,7 @@ class PostgresClient:
                     retry_count=TicketORM.retry_count + 1,
                     started_at=None,
                     completed_at=None,
-                    error_message=None
+                    error_message=None,
                 )
                 .returning(TicketORM)
             )
@@ -194,9 +195,7 @@ class PostgresClient:
             updated = result.scalar_one_or_none()
             if updated:
                 logger.info(
-                    'ticket_retry_scheduled',
-                    ticket_id=ticket_id,
-                    retry_count=updated.retry_count
+                    "ticket_retry_scheduled", ticket_id=ticket_id, retry_count=updated.retry_count
                 )
             return updated
 
@@ -220,10 +219,7 @@ class PostgresClient:
             return list(result.scalars().all())
 
     async def update_ticket_compensation(
-        self,
-        ticket_id: str,
-        compensation_ticket_id: str,
-        status: str = 'COMPENSATING'
+        self, ticket_id: str, compensation_ticket_id: str, status: str = "COMPENSATING"
     ) -> Optional[TicketORM]:
         """
         Atualiza ticket original com referencia ao ticket de compensacao.
@@ -237,32 +233,31 @@ class PostgresClient:
             stmt = (
                 update(TicketORM)
                 .where(TicketORM.ticket_id == ticket_id)
-                .values(
-                    compensation_ticket_id=compensation_ticket_id,
-                    status=status
-                )
+                .values(compensation_ticket_id=compensation_ticket_id, status=status)
                 .returning(TicketORM)
             )
             result = await session.execute(stmt)
             await session.commit()
             logger.info(
-                'ticket_compensation_updated',
+                "ticket_compensation_updated",
                 ticket_id=ticket_id,
-                compensation_ticket_id=compensation_ticket_id
+                compensation_ticket_id=compensation_ticket_id,
             )
             return result.scalar_one_or_none()
 
-    async def list_tickets(self, filters: dict, offset: int = 0, limit: int = 100) -> List[TicketORM]:
+    async def list_tickets(
+        self, filters: dict, offset: int = 0, limit: int = 100
+    ) -> List[TicketORM]:
         """Lista tickets com filtros."""
         async with self._session_maker() as session:
             query = select(TicketORM)
 
-            if 'plan_id' in filters:
-                query = query.where(TicketORM.plan_id == filters['plan_id'])
-            if 'status' in filters:
-                query = query.where(TicketORM.status == filters['status'])
-            if 'priority' in filters:
-                query = query.where(TicketORM.priority == filters['priority'])
+            if "plan_id" in filters:
+                query = query.where(TicketORM.plan_id == filters["plan_id"])
+            if "status" in filters:
+                query = query.where(TicketORM.status == filters["status"])
+            if "priority" in filters:
+                query = query.where(TicketORM.priority == filters["priority"])
 
             query = query.offset(offset).limit(limit).order_by(TicketORM.created_at.desc())
 
@@ -274,10 +269,10 @@ class PostgresClient:
         async with self._session_maker() as session:
             query = select(func.count()).select_from(TicketORM)
 
-            if 'plan_id' in filters:
-                query = query.where(TicketORM.plan_id == filters['plan_id'])
-            if 'status' in filters:
-                query = query.where(TicketORM.status == filters['status'])
+            if "plan_id" in filters:
+                query = query.where(TicketORM.plan_id == filters["plan_id"])
+            if "status" in filters:
+                query = query.where(TicketORM.status == filters["status"])
 
             result = await session.execute(query)
             return result.scalar()
@@ -297,6 +292,7 @@ async def get_postgres_client(auto_connect: bool = False) -> PostgresClient:
     global _postgres_client
     if _postgres_client is None:
         from ..config import get_settings
+
         settings = get_settings()
         _postgres_client = PostgresClient(settings)
         if auto_connect:

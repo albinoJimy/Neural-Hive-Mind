@@ -13,76 +13,75 @@ Suporta decomposição avançada através de:
 - Visualização de dependências em formato Mermaid
 """
 
-import time
 import difflib
-import structlog
-import networkx as nx
+import time
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Tuple, Optional, Set, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Optional
 
+import networkx as nx
+import structlog
 from src.models.cognitive_plan import TaskNode
-from src.services.description_validator import DescriptionQualityValidator, get_validator
+from src.services.description_validator import get_validator
 
 if TYPE_CHECKING:
-    from src.services.pattern_matcher import PatternMatcher, PatternMatch
+    from src.services.pattern_matcher import PatternMatch, PatternMatcher
     from src.services.task_splitter import TaskSplitter
 
 # Importar componentes de decomposição baseada em intent
-from src.services.intent_classifier import IntentClassifier, IntentClassification, IntentType
-from src.services.decomposition_templates import DecompositionTemplates
-
 from src.observability.metrics import (
-    dag_generation_pattern_matches_total,
-    dag_generation_parallel_groups_total,
-    dag_generation_entity_dependencies_added,
-    dag_generation_duration_seconds,
     dag_generation_conflicts_detected_total,
     dag_generation_conflicts_resolved_total,
+    dag_generation_duration_seconds,
+    dag_generation_entity_dependencies_added,
     dag_generation_entity_matching_fuzzy_total,
-    dag_generation_visualization_generated_total
+    dag_generation_parallel_groups_total,
+    dag_generation_pattern_matches_total,
+    dag_generation_visualization_generated_total,
 )
+from src.services.decomposition_templates import DecompositionTemplates
+from src.services.intent_classifier import IntentClassifier, IntentType
 
 logger = structlog.get_logger()
 
 
 # Mapping of objectives to descriptive action verb phrases
-OBJECTIVE_ACTION_VERBS: Dict[str, List[str]] = {
-    'create': [
+OBJECTIVE_ACTION_VERBS: dict[str, list[str]] = {
+    "create": [
         "Create and initialize",
         "Provision resources for",
         "Set up configuration for",
         "Establish and configure",
     ],
-    'update': [
+    "update": [
         "Modify and validate",
         "Apply changes to",
         "Synchronize state of",
         "Update and verify",
     ],
-    'query': [
+    "query": [
         "Retrieve and filter",
         "Search and aggregate",
         "Fetch data from",
         "Query and extract",
     ],
-    'validate': [
+    "validate": [
         "Verify integrity of",
         "Check compliance for",
         "Audit security of",
         "Validate constraints on",
     ],
-    'transform': [
+    "transform": [
         "Process and convert",
         "Normalize and enrich",
         "Aggregate and compute",
         "Transform and format",
     ],
-    'delete': [
+    "delete": [
         "Remove and clean up",
         "Decommission and archive",
         "Delete and audit",
     ],
-    'deploy': [
+    "deploy": [
         "Deploy and configure",
         "Provision and activate",
         "Release and monitor",
@@ -90,51 +89,51 @@ OBJECTIVE_ACTION_VERBS: Dict[str, List[str]] = {
 }
 
 # Domain-specific context hints
-DOMAIN_CONTEXT_HINTS: Dict[str, str] = {
-    'security-analysis': "with authentication validation and access control audit",
-    'architecture-review': "following microservice patterns and interface contracts",
-    'performance-optimization': "using indexed queries and connection pooling strategies",
-    'code-quality': "with comprehensive error handling and test coverage",
-    'business-logic': "aligned with workflow policies and business KPI metrics",
+DOMAIN_CONTEXT_HINTS: dict[str, str] = {
+    "security-analysis": "with authentication validation and access control audit",
+    "architecture-review": "following microservice patterns and interface contracts",
+    "performance-optimization": "using indexed queries and connection pooling strategies",
+    "code-quality": "with comprehensive error handling and test coverage",
+    "business-logic": "aligned with workflow policies and business KPI metrics",
 }
 
 # Security level hints
-SECURITY_HINTS: Dict[str, str] = {
-    'confidential': "with authentication and AES-256 encryption",
-    'restricted': "with multi-factor authentication and end-to-end encryption",
-    'internal': "with role-based access control",
-    'public': "",
+SECURITY_HINTS: dict[str, str] = {
+    "confidential": "with authentication and AES-256 encryption",
+    "restricted": "with multi-factor authentication and end-to-end encryption",
+    "internal": "with role-based access control",
+    "public": "",
 }
 
 # Priority hints
-PRIORITY_HINTS: Dict[str, str] = {
-    'critical': "with optimized caching, indexing, and real-time monitoring",
-    'high': "with performance optimization and caching",
-    'normal': "",
-    'low': "",
+PRIORITY_HINTS: dict[str, str] = {
+    "critical": "with optimized caching, indexing, and real-time monitoring",
+    "high": "with performance optimization and caching",
+    "normal": "",
+    "low": "",
 }
 
 # QoS hints para semântica de entrega
-QOS_HINTS: Dict[str, str] = {
-    'exactly_once': "with idempotency guarantees, transaction rollback, and deduplication",
-    'at_least_once': "with retry mechanism and redelivery support",
-    'at_most_once': "with fire-and-forget delivery and best-effort processing",
+QOS_HINTS: dict[str, str] = {
+    "exactly_once": "with idempotency guarantees, transaction rollback, and deduplication",
+    "at_least_once": "with retry mechanism and redelivery support",
+    "at_most_once": "with fire-and-forget delivery and best-effort processing",
 }
 
 # Risk band hints para indicar nível de risco
-RISK_BAND_HINTS: Dict[str, str] = {
-    'critical': "critical risk",
-    'high': "high risk",
-    'medium': "medium risk",
-    'low': "low risk",
+RISK_BAND_HINTS: dict[str, str] = {
+    "critical": "critical risk",
+    "high": "high risk",
+    "medium": "medium risk",
+    "low": "low risk",
 }
 
 # Aliases de entidades para matching semântico
-DEFAULT_ENTITY_ALIASES: Dict[str, Set[str]] = {
-    'user': {'usuario', 'customer', 'client', 'pessoa', 'account'},
-    'order': {'pedido', 'purchase', 'compra', 'transaction'},
-    'product': {'produto', 'item', 'article', 'sku'},
-    'payment': {'pagamento', 'charge', 'billing'},
+DEFAULT_ENTITY_ALIASES: dict[str, set[str]] = {
+    "user": {"usuario", "customer", "client", "pessoa", "account"},
+    "order": {"pedido", "purchase", "compra", "transaction"},
+    "product": {"produto", "item", "article", "sku"},
+    "payment": {"pagamento", "charge", "billing"},
 }
 
 
@@ -146,14 +145,15 @@ class ConflictInfo:
     Conflitos ocorrem quando duas tasks escrevem na mesma entidade
     sem dependência explícita entre elas.
     """
+
     task_a_id: str
     task_b_id: str
-    shared_entities: List[str]
+    shared_entities: list[str]
     conflict_type: str  # 'write-write', 'concurrent-update'
     severity: str  # 'critical', 'high', 'medium', 'low'
-    resolution_strategy: Optional[str] = None
+    resolution_strategy: str | None = None
     resolved: bool = False
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class DAGGenerator:
@@ -179,15 +179,15 @@ class DAGGenerator:
 
     def __init__(
         self,
-        pattern_matcher: Optional['PatternMatcher'] = None,
-        task_splitter: Optional['TaskSplitter'] = None,
+        pattern_matcher: Optional["PatternMatcher"] = None,
+        task_splitter: Optional["TaskSplitter"] = None,
         entity_matching_fuzzy_enabled: bool = True,
         entity_matching_fuzzy_threshold: float = 0.85,
         entity_matching_use_canonical_types: bool = True,
-        entity_aliases: Optional[Dict[str, Set[str]]] = None,
-        conflict_resolution_strategy: str = 'sequential',
+        entity_aliases: dict[str, set[str]] | None = None,
+        conflict_resolution_strategy: str = "sequential",
         intent_decomposition_enabled: bool = True,
-        config: Optional[Dict[str, Any]] = None
+        config: dict[str, Any] | None = None,
     ):
         self.task_templates = self._load_task_templates()
         self.description_validator = get_validator()
@@ -206,11 +206,10 @@ class DAGGenerator:
             try:
                 self.intent_classifier = IntentClassifier(config or {})
                 self.decomposition_templates = DecompositionTemplates()
-                logger.info('IntentClassifier e DecompositionTemplates inicializados')
+                logger.info("IntentClassifier e DecompositionTemplates inicializados")
             except Exception as e:
                 logger.warning(
-                    'Falha ao inicializar decomposição por intent, usando fallback',
-                    error=str(e)
+                    "Falha ao inicializar decomposição por intent, usando fallback", error=str(e)
                 )
                 self.intent_decomposition_enabled = False
 
@@ -225,46 +224,46 @@ class DAGGenerator:
 
         # Log indicando modo de operação
         logger.info(
-            'DAGGenerator inicializado',
+            "DAGGenerator inicializado",
             pattern_matching_enabled=pattern_matcher is not None,
             task_splitting_enabled=task_splitter is not None,
             entity_matching_fuzzy_enabled=entity_matching_fuzzy_enabled,
-            conflict_resolution_strategy=conflict_resolution_strategy
+            conflict_resolution_strategy=conflict_resolution_strategy,
         )
 
-    def _load_task_templates(self) -> Dict[str, Dict]:
+    def _load_task_templates(self) -> dict[str, dict]:
         """Load known task templates"""
         # MVP: Hardcoded templates
         # Future: Load from Knowledge Graph
         return {
-            'create': {
-                'type': 'create',
-                'estimated_duration_ms': 1000,
-                'required_capabilities': ['write']
+            "create": {
+                "type": "create",
+                "estimated_duration_ms": 1000,
+                "required_capabilities": ["write"],
             },
-            'update': {
-                'type': 'update',
-                'estimated_duration_ms': 800,
-                'required_capabilities': ['write']
+            "update": {
+                "type": "update",
+                "estimated_duration_ms": 800,
+                "required_capabilities": ["write"],
             },
-            'query': {
-                'type': 'query',
-                'estimated_duration_ms': 500,
-                'required_capabilities': ['read']
+            "query": {
+                "type": "query",
+                "estimated_duration_ms": 500,
+                "required_capabilities": ["read"],
             },
-            'validate': {
-                'type': 'validate',
-                'estimated_duration_ms': 300,
-                'required_capabilities': ['read']
+            "validate": {
+                "type": "validate",
+                "estimated_duration_ms": 300,
+                "required_capabilities": ["read"],
             },
-            'transform': {
-                'type': 'transform',
-                'estimated_duration_ms': 600,
-                'required_capabilities': ['compute']
-            }
+            "transform": {
+                "type": "transform",
+                "estimated_duration_ms": 600,
+                "required_capabilities": ["compute"],
+            },
         }
 
-    def _extract_entity_identifiers(self, entity: Union[Dict, str]) -> Set[str]:
+    def _extract_entity_identifiers(self, entity: dict | str) -> set[str]:
         """
         Extrai todos os identificadores possíveis para uma entidade.
 
@@ -278,28 +277,22 @@ class DAGGenerator:
         Returns:
             Set de identificadores normalizados
         """
-        identifiers: Set[str] = set()
+        identifiers: set[str] = set()
 
         # Suporte para entidades como string (de templates)
         if isinstance(entity, str):
             normalized = entity.lower().strip()
-            normalized = ''.join(
-                c for c in normalized
-                if c.isalnum() or c == '_'
-            )
+            normalized = "".join(c for c in normalized if c.isalnum() or c == "_")
             if normalized:
                 identifiers.add(normalized)
             return identifiers
 
         # Extrair de campos comuns (entidade como dict)
-        for field in ['name', 'value', 'type', 'canonical_type', 'entity_type']:
-            if field in entity and entity[field]:
+        for field in ["name", "value", "type", "canonical_type", "entity_type"]:
+            if entity.get(field):
                 normalized = str(entity[field]).lower().strip()
                 # Remover caracteres especiais exceto underscore
-                normalized = ''.join(
-                    c for c in normalized
-                    if c.isalnum() or c == '_'
-                )
+                normalized = "".join(c for c in normalized if c.isalnum() or c == "_")
                 if normalized:
                     identifiers.add(normalized)
 
@@ -315,10 +308,8 @@ class DAGGenerator:
         return identifiers
 
     def _entities_match(
-        self,
-        entity_a: Union[Dict, str],
-        entity_b: Union[Dict, str]
-    ) -> Tuple[bool, float, str]:
+        self, entity_a: dict | str, entity_b: dict | str
+    ) -> tuple[bool, float, str]:
         """
         Verifica se duas entidades fazem match.
 
@@ -339,7 +330,7 @@ class DAGGenerator:
         # Match exato (interseção não vazia)
         exact_matches = ids_a & ids_b
         if exact_matches:
-            return True, 1.0, 'exact'
+            return True, 1.0, "exact"
 
         # Fuzzy matching se habilitado
         if self.entity_matching_fuzzy_enabled:
@@ -348,13 +339,21 @@ class DAGGenerator:
                     ratio = difflib.SequenceMatcher(None, id_a, id_b).ratio()
                     if ratio >= self.entity_matching_fuzzy_threshold:
                         dag_generation_entity_matching_fuzzy_total.inc()
-                        return True, ratio, 'fuzzy'
+                        return True, ratio, "fuzzy"
 
         # Matching por tipo canônico se habilitado (somente para dicts)
         if self.entity_matching_use_canonical_types:
             # Extrair tipo apenas de dicts
-            type_a = entity_a.get('type', entity_a.get('entity_type', '')) if isinstance(entity_a, dict) else ''
-            type_b = entity_b.get('type', entity_b.get('entity_type', '')) if isinstance(entity_b, dict) else ''
+            type_a = (
+                entity_a.get("type", entity_a.get("entity_type", ""))
+                if isinstance(entity_a, dict)
+                else ""
+            )
+            type_b = (
+                entity_b.get("type", entity_b.get("entity_type", ""))
+                if isinstance(entity_b, dict)
+                else ""
+            )
 
             if type_a and type_b:
                 # Verificar se são do mesmo tipo canônico
@@ -363,15 +362,11 @@ class DAGGenerator:
 
                 # Match se um contém o outro (ex: user_profile contém user)
                 if type_a_lower in type_b_lower or type_b_lower in type_a_lower:
-                    return True, 0.8, 'canonical_type'
+                    return True, 0.8, "canonical_type"
 
-        return False, 0.0, 'none'
+        return False, 0.0, "none"
 
-    def _classify_conflict_severity(
-        self,
-        task_a_type: str,
-        task_b_type: str
-    ) -> str:
+    def _classify_conflict_severity(self, task_a_type: str, task_b_type: str) -> str:
         """
         Classifica a severidade de um conflito write-write.
 
@@ -383,25 +378,25 @@ class DAGGenerator:
             Severidade: 'critical', 'high', 'medium', 'low'
         """
         # delete-delete é crítico (pode causar integridade referencial)
-        if task_a_type == 'delete' and task_b_type == 'delete':
-            return 'critical'
+        if task_a_type == "delete" and task_b_type == "delete":
+            return "critical"
 
         # delete com qualquer outro write é alto
-        if 'delete' in (task_a_type, task_b_type):
-            return 'high'
+        if "delete" in (task_a_type, task_b_type):
+            return "high"
 
         # update-update é médio (pode causar race condition)
-        if task_a_type == 'update' and task_b_type == 'update':
-            return 'medium'
+        if task_a_type == "update" and task_b_type == "update":
+            return "medium"
 
         # create-create é baixo (duplicação, mas recuperável)
-        if task_a_type == 'create' and task_b_type == 'create':
-            return 'low'
+        if task_a_type == "create" and task_b_type == "create":
+            return "low"
 
         # Outros casos
-        return 'medium'
+        return "medium"
 
-    def generate(self, intermediate_repr: Dict[str, Any]) -> Tuple[List[TaskNode], List[str]]:
+    def generate(self, intermediate_repr: dict[str, Any]) -> tuple[list[TaskNode], list[str]]:
         """
         Gera DAG de tasks com suporte a decomposição avançada.
 
@@ -425,12 +420,12 @@ class DAGGenerator:
             Tuple de (tasks, execution_order)
         """
         start_time = time.time()
-        decomposition_type = 'legacy'
+        decomposition_type = "legacy"
 
-        objectives = intermediate_repr.get('objectives', [])
-        entities = intermediate_repr.get('entities', [])
-        constraints = intermediate_repr.get('constraints', {})
-        intent_text = intermediate_repr.get('original_text', '')
+        objectives = intermediate_repr.get("objectives", [])
+        entities = intermediate_repr.get("entities", [])
+        constraints = intermediate_repr.get("constraints", {})
+        intent_text = intermediate_repr.get("original_text", "")
 
         # Criar grafo NetworkX
         G = nx.DiGraph()
@@ -445,24 +440,24 @@ class DAGGenerator:
             try:
                 # Classificar intent
                 classification = self.intent_classifier.classify(
-                    intent_text,
-                    context={'domain': constraints.get('domain', 'unknown')}
+                    intent_text, context={"domain": constraints.get("domain", "unknown")}
                 )
 
                 # Se classificação tem confiança suficiente, usar template
-                if classification.confidence >= 0.3 and classification.intent_type != IntentType.GENERIC:
+                if (
+                    classification.confidence >= 0.3
+                    and classification.intent_type != IntentType.GENERIC
+                ):
                     logger.info(
-                        'Intent classificado para decomposição por template',
+                        "Intent classificado para decomposição por template",
                         intent_type=classification.intent_type.value,
                         confidence=classification.confidence,
-                        recommended_tasks=classification.recommended_task_count
+                        recommended_tasks=classification.recommended_task_count,
                     )
 
                     # Extrair entidades como lista de nomes
                     entity_names = [
-                        e.get('name', e.get('value', ''))
-                        for e in entities
-                        if isinstance(e, dict)
+                        e.get("name", e.get("value", "")) for e in entities if isinstance(e, dict)
                     ]
 
                     # Gerar tasks do template
@@ -470,11 +465,11 @@ class DAGGenerator:
                         classification=classification,
                         intent_text=intent_text,
                         entities=entity_names,
-                        base_task_id=task_id_counter
+                        base_task_id=task_id_counter,
                     )
 
                     if intent_tasks:
-                        decomposition_type = 'intent_template'
+                        decomposition_type = "intent_template"
                         tasks.extend(intent_tasks)
                         task_id_counter += len(intent_tasks)
 
@@ -488,17 +483,17 @@ class DAGGenerator:
                                     G.add_edge(dep_id, task.task_id)
 
                         logger.info(
-                            'Tasks geradas por template de intent',
+                            "Tasks geradas por template de intent",
                             intent_type=classification.intent_type.value,
                             num_tasks=len(intent_tasks),
-                            semantic_domains=classification.semantic_domains
+                            semantic_domains=classification.semantic_domains,
                         )
 
             except Exception as e:
                 logger.warning(
-                    'Falha na decomposição por intent, usando fallback',
+                    "Falha na decomposição por intent, usando fallback",
                     error=str(e),
-                    intent_text_preview=intent_text[:50] if intent_text else ''
+                    intent_text_preview=intent_text[:50] if intent_text else "",
                 )
                 intent_tasks = None
 
@@ -510,10 +505,10 @@ class DAGGenerator:
             if pattern_matches:
                 best_match = pattern_matches[0]
                 logger.info(
-                    'Padrão detectado para decomposição',
+                    "Padrão detectado para decomposição",
                     pattern_id=best_match.pattern_id,
                     pattern_name=best_match.pattern_name,
-                    confidence=best_match.confidence
+                    confidence=best_match.confidence,
                 )
 
                 # Gerar tasks a partir do template do padrão
@@ -522,11 +517,11 @@ class DAGGenerator:
                     entities=entities,
                     constraints=constraints,
                     intermediate_repr=intermediate_repr,
-                    task_id_counter=task_id_counter
+                    task_id_counter=task_id_counter,
                 )
 
                 if pattern_tasks:
-                    decomposition_type = 'pattern'
+                    decomposition_type = "pattern"
                     tasks.extend(pattern_tasks)
                     for task in pattern_tasks:
                         G.add_node(task.task_id, task=task)
@@ -547,27 +542,21 @@ class DAGGenerator:
             for objective in objectives:
                 # Criar main task com descrição enriquecida
                 main_task = self._create_task_from_objective(
-                    objective,
-                    task_id_counter,
-                    entities,
-                    constraints,
-                    intermediate_repr
+                    objective, task_id_counter, entities, constraints, intermediate_repr
                 )
                 task_id_counter += 1
 
                 # Passo 3: Aplicar task splitting (se disponível)
                 if self.task_splitter and self.task_splitter.should_split(main_task):
-                    decomposition_type = 'heuristic'
+                    decomposition_type = "heuristic"
                     subtasks = self.task_splitter.split(
-                        main_task,
-                        intermediate_repr,
-                        current_depth=0
+                        main_task, intermediate_repr, current_depth=0
                     )
 
                     logger.info(
-                        'Task dividida em subtasks',
+                        "Task dividida em subtasks",
                         original_task_id=main_task.task_id,
-                        num_subtasks=len(subtasks)
+                        num_subtasks=len(subtasks),
                     )
 
                     # Adicionar subtasks ao invés da task original
@@ -575,7 +564,7 @@ class DAGGenerator:
                         tasks.append(subtask)
                         G.add_node(subtask.task_id, task=subtask)
                         # Ajustar task_id_counter se necessário
-                        subtask_num = subtask.task_id.split('_')[-1]
+                        subtask_num = subtask.task_id.split("_")[-1]
                         if subtask_num.isdigit():
                             task_id_counter = max(task_id_counter, int(subtask_num) + 1)
 
@@ -587,16 +576,18 @@ class DAGGenerator:
 
                     # Encontrar subtask principal (main_operation) para associar support tasks
                     main_operation_subtask = next(
-                        (s for s in subtasks if s.metadata and s.metadata.get('subtask_role') == 'main_operation'),
-                        None
+                        (
+                            s
+                            for s in subtasks
+                            if s.metadata and s.metadata.get("subtask_role") == "main_operation"
+                        ),
+                        None,
                     )
 
                     # Gerar support tasks associadas à subtask principal
                     if main_operation_subtask:
                         support_tasks = self._generate_support_tasks(
-                            main_operation_subtask,
-                            task_id_counter,
-                            constraints
+                            main_operation_subtask, task_id_counter, constraints
                         )
 
                         for support_task in support_tasks:
@@ -612,9 +603,7 @@ class DAGGenerator:
 
                     # Adicionar support tasks para task não dividida
                     support_tasks = self._generate_support_tasks(
-                        main_task,
-                        task_id_counter,
-                        constraints
+                        main_task, task_id_counter, constraints
                     )
 
                     for support_task in support_tasks:
@@ -633,8 +622,8 @@ class DAGGenerator:
         # Passo 6: Validar DAG é acíclico
         if not nx.is_directed_acyclic_graph(G):
             cycles = list(nx.simple_cycles(G))
-            logger.error('Ciclos detectados no DAG', cycles=cycles)
-            raise ValueError(f'DAG contém ciclos: {cycles}')
+            logger.error("Ciclos detectados no DAG", cycles=cycles)
+            raise ValueError(f"DAG contém ciclos: {cycles}")
 
         # Passo 7: Detectar paralelismo
         parallel_groups = self._detect_parallel_tasks(G, tasks)
@@ -651,21 +640,22 @@ class DAGGenerator:
         # Passo 10: Gerar visualização de dependências (se há conflitos ou DEBUG)
         visualization = None
         import os
-        debug_enabled = os.environ.get('NEURAL_HIVE_DEBUG', '').lower() in ('true', '1', 'yes')
+
+        debug_enabled = os.environ.get("NEURAL_HIVE_DEBUG", "").lower() in ("true", "1", "yes")
         if conflicts or debug_enabled:
             visualization = self._generate_dependency_visualization(G, tasks, conflicts)
-            dag_generation_visualization_generated_total.labels(format='mermaid').inc()
+            dag_generation_visualization_generated_total.labels(format="mermaid").inc()
 
         # Armazenar conflitos nos metadados das tasks envolvidas
         if conflicts:
             for task in tasks:
                 task_conflicts = [
                     {
-                        'task_a': c.task_a_id,
-                        'task_b': c.task_b_id,
-                        'entities': c.shared_entities,
-                        'severity': c.severity,
-                        'resolved': c.resolved
+                        "task_a": c.task_a_id,
+                        "task_b": c.task_b_id,
+                        "entities": c.shared_entities,
+                        "severity": c.severity,
+                        "resolved": c.resolved,
                     }
                     for c in conflicts
                     if task.task_id in (c.task_a_id, c.task_b_id)
@@ -673,25 +663,25 @@ class DAGGenerator:
                 if task_conflicts:
                     if task.metadata is None:
                         task.metadata = {}
-                    task.metadata['conflicts_in_dag'] = task_conflicts
+                    task.metadata["conflicts_in_dag"] = task_conflicts
 
         # Armazenar visualização apenas na primeira task (evita redundância)
         if visualization and tasks:
             first_task = tasks[0]
             if first_task.metadata is None:
                 first_task.metadata = {}
-            first_task.metadata['dependency_visualization'] = visualization
+            first_task.metadata["dependency_visualization"] = visualization
 
         # Registrar tempo de geração
         generation_duration = time.time() - start_time
 
         # Registrar métrica de duração por tipo de decomposição
-        dag_generation_duration_seconds.labels(
-            decomposition_type=decomposition_type
-        ).observe(generation_duration)
+        dag_generation_duration_seconds.labels(decomposition_type=decomposition_type).observe(
+            generation_duration
+        )
 
         logger.info(
-            'DAG gerado',
+            "DAG gerado",
             num_tasks=len(tasks),
             execution_order=execution_order,
             estimated_duration_ms=total_duration,
@@ -700,19 +690,19 @@ class DAGGenerator:
             num_parallel_groups=len(parallel_groups),
             entity_dependencies_added=entity_deps_added,
             conflicts_detected=len(conflicts),
-            conflicts_resolved=sum(1 for c in conflicts if c.resolved)
+            conflicts_resolved=sum(1 for c in conflicts if c.resolved),
         )
 
         return tasks, execution_order
 
     def _generate_from_pattern(
         self,
-        pattern_match: 'PatternMatch',
-        entities: List[Dict],
-        constraints: Dict,
-        intermediate_repr: Dict[str, Any],
-        task_id_counter: int
-    ) -> Tuple[List[TaskNode], int]:
+        pattern_match: "PatternMatch",
+        entities: list[dict],
+        constraints: dict,
+        intermediate_repr: dict[str, Any],
+        task_id_counter: int,
+    ) -> tuple[list[TaskNode], int]:
         """
         Gera tasks a partir de template de padrão detectado.
 
@@ -727,75 +717,70 @@ class DAGGenerator:
             Tupla (lista de TaskNodes, contador atualizado)
         """
         template = pattern_match.template
-        subtask_definitions = template.get('subtasks', [])
+        subtask_definitions = template.get("subtasks", [])
 
         if not subtask_definitions:
-            logger.warning(
-                'Template de padrão sem subtasks',
-                pattern_id=pattern_match.pattern_id
-            )
+            logger.warning("Template de padrão sem subtasks", pattern_id=pattern_match.pattern_id)
             return [], task_id_counter
 
         tasks = []
         id_mapping = {}  # Mapear IDs simbólicos para IDs reais
 
         for subtask_def in subtask_definitions:
-            symbolic_id = subtask_def.get('id', f'subtask_{task_id_counter}')
-            real_task_id = f'task_{task_id_counter}'
+            symbolic_id = subtask_def.get("id", f"subtask_{task_id_counter}")
+            real_task_id = f"task_{task_id_counter}"
             id_mapping[symbolic_id] = real_task_id
 
             # Mapear dependências do template para IDs reais
-            template_deps = subtask_def.get('dependencies', [])
+            template_deps = subtask_def.get("dependencies", [])
             real_deps = [id_mapping.get(dep, dep) for dep in template_deps if dep in id_mapping]
 
             # Construir descrição enriquecida
             description = self._build_enriched_description(
-                objective=subtask_def.get('type', 'query'),
+                objective=subtask_def.get("type", "query"),
                 entities=entities,
                 constraints=constraints,
-                intermediate_repr=intermediate_repr
+                intermediate_repr=intermediate_repr,
             )
 
             # Sobrescrever com descrição do template se disponível
-            if subtask_def.get('description'):
-                description = subtask_def['description']
+            if subtask_def.get("description"):
+                description = subtask_def["description"]
 
             task = TaskNode(
                 task_id=real_task_id,
-                task_type=subtask_def.get('type', 'query'),
+                task_type=subtask_def.get("type", "query"),
                 description=description,
                 dependencies=real_deps,
-                estimated_duration_ms=subtask_def.get('estimated_duration_ms', 500),
-                required_capabilities=subtask_def.get('required_capabilities', []),
+                estimated_duration_ms=subtask_def.get("estimated_duration_ms", 500),
+                required_capabilities=subtask_def.get("required_capabilities", []),
                 parameters={
-                    'entities': entities,
-                    'constraints': constraints,
-                    'pattern_subtask_id': symbolic_id
+                    "entities": entities,
+                    "constraints": constraints,
+                    "pattern_subtask_id": symbolic_id,
                 },
                 metadata={
-                    'pattern_id': pattern_match.pattern_id,
-                    'pattern_name': pattern_match.pattern_name,
-                    'from_pattern': True,
-                    'pattern_confidence': pattern_match.confidence
-                }
+                    "pattern_id": pattern_match.pattern_id,
+                    "pattern_name": pattern_match.pattern_name,
+                    "from_pattern": True,
+                    "pattern_confidence": pattern_match.confidence,
+                },
             )
 
             tasks.append(task)
             task_id_counter += 1
 
         logger.info(
-            'Tasks geradas do template de padrão',
+            "Tasks geradas do template de padrão",
             pattern_id=pattern_match.pattern_id,
-            num_tasks=len(tasks)
+            num_tasks=len(tasks),
         )
 
         return tasks, task_id_counter
 
     def _analyze_entity_dependencies(
-        self,
-        G: nx.DiGraph,
-        tasks: List[TaskNode]
-    ) -> Tuple[int, List[ConflictInfo]]:
+        self, G: nx.DiGraph, tasks: list[TaskNode]
+    ) -> tuple[int, list[ConflictInfo]]:
         """
         Analisa dependências baseadas em entidades compartilhadas e detecta conflitos.
 
@@ -813,13 +798,13 @@ class DAGGenerator:
             Tupla (dependencies_added, conflicts_detected)
         """
         # Construir mapa de entidades por task usando matching avançado
-        entity_map: Dict[str, List[Dict]] = {}
-        entity_names_map: Dict[str, Set[str]] = {}
-        task_map: Dict[str, TaskNode] = {}
+        entity_map: dict[str, list[dict]] = {}
+        entity_names_map: dict[str, set[str]] = {}
+        task_map: dict[str, TaskNode] = {}
 
         for task in tasks:
             task_map[task.task_id] = task
-            entities = task.parameters.get('entities', [])
+            entities = task.parameters.get("entities", [])
             entity_map[task.task_id] = entities
 
             # Extrair identificadores normalizados para matching rápido
@@ -830,22 +815,22 @@ class DAGGenerator:
             entity_names_map[task.task_id] = entity_names
 
         # Tipos de operação write vs read
-        write_types = {'create', 'update', 'delete'}
-        read_types = {'query', 'validate'}
+        write_types = {"create", "update", "delete"}
+        read_types = {"query", "validate"}
 
         # Ordem temporal de writes
-        write_order = {'create': 1, 'update': 2, 'delete': 3}
+        write_order = {"create": 1, "update": 2, "delete": 3}
 
         dependencies_added = 0
-        conflicts_detected: List[ConflictInfo] = []
+        conflicts_detected: list[ConflictInfo] = []
 
         # Rastrear arestas adicionadas nesta análise para rollback seguro de ciclos
-        edges_added_in_analysis: List[Tuple[str, str]] = []
+        edges_added_in_analysis: list[tuple[str, str]] = []
 
         # Analisar pares de tasks
         task_ids = list(entity_map.keys())
         for i, task_a_id in enumerate(task_ids):
-            for task_b_id in task_ids[i + 1:]:
+            for task_b_id in task_ids[i + 1 :]:
                 entities_a = entity_map.get(task_a_id, [])
                 entities_b = entity_map.get(task_b_id, [])
                 names_a = entity_names_map.get(task_a_id, set())
@@ -856,7 +841,10 @@ class DAGGenerator:
                 if not shared_names:
                     # Tentar matching avançado se fuzzy OU canonical_types habilitado
                     # (Comment 2 fix: _entities_match faz tanto fuzzy quanto canonical)
-                    if self.entity_matching_fuzzy_enabled or self.entity_matching_use_canonical_types:
+                    if (
+                        self.entity_matching_fuzzy_enabled
+                        or self.entity_matching_use_canonical_types
+                    ):
                         for ent_a in entities_a:
                             for ent_b in entities_b:
                                 match, _, _ = self._entities_match(ent_a, ent_b)
@@ -865,7 +853,7 @@ class DAGGenerator:
                                     if isinstance(ent_a, str):
                                         name_a = ent_a
                                     else:
-                                        name_a = ent_a.get('name', ent_a.get('value', 'entity'))
+                                        name_a = ent_a.get("name", ent_a.get("value", "entity"))
                                     shared_names.add(str(name_a).lower())
                                     break
                             if shared_names:
@@ -912,19 +900,17 @@ class DAGGenerator:
                                 if task_a_id not in task_b.dependencies:
                                     task_b.dependencies.append(task_a_id)
                                 dependencies_added += 1
-                        else:
-                            if not G.has_edge(task_b_id, task_a_id):
-                                G.add_edge(task_b_id, task_a_id)
-                                edges_added_in_analysis.append((task_b_id, task_a_id))
-                                if task_b_id not in task_a.dependencies:
-                                    task_a.dependencies.append(task_b_id)
-                                dependencies_added += 1
+                        elif not G.has_edge(task_b_id, task_a_id):
+                            G.add_edge(task_b_id, task_a_id)
+                            edges_added_in_analysis.append((task_b_id, task_a_id))
+                            if task_b_id not in task_a.dependencies:
+                                task_a.dependencies.append(task_b_id)
+                            dependencies_added += 1
                     else:
                         # Mesmo tipo de write: CONFLITO DETECTADO
                         # Verificar se já existe dependência (não é conflito)
-                        has_dependency = (
-                            G.has_edge(task_a_id, task_b_id) or
-                            G.has_edge(task_b_id, task_a_id)
+                        has_dependency = G.has_edge(task_a_id, task_b_id) or G.has_edge(
+                            task_b_id, task_a_id
                         )
 
                         if not has_dependency:
@@ -933,24 +919,18 @@ class DAGGenerator:
                                 task_a_id=task_a_id,
                                 task_b_id=task_b_id,
                                 shared_entities=list(shared_names),
-                                conflict_type='write-write',
+                                conflict_type="write-write",
                                 severity=severity,
-                                metadata={
-                                    'task_a_type': type_a,
-                                    'task_b_type': type_b
-                                }
+                                metadata={"task_a_type": type_a, "task_b_type": type_b},
                             )
 
                             # Registrar métrica de conflito
                             dag_generation_conflicts_detected_total.labels(
-                                conflict_type='write-write',
-                                severity=severity
+                                conflict_type="write-write", severity=severity
                             ).inc()
 
                             # Aplicar estratégia de resolução
-                            resolved = self._resolve_conflict(
-                                G, task_a, task_b, conflict
-                            )
+                            resolved = self._resolve_conflict(G, task_a, task_b, conflict)
 
                             if resolved:
                                 conflict.resolved = True
@@ -959,13 +939,13 @@ class DAGGenerator:
                             conflicts_detected.append(conflict)
 
                             logger.warning(
-                                'Conflito write-write detectado',
+                                "Conflito write-write detectado",
                                 task_a_id=task_a_id,
                                 task_b_id=task_b_id,
                                 shared_entities=list(shared_names),
                                 severity=severity,
                                 resolution_strategy=conflict.resolution_strategy,
-                                resolved=conflict.resolved
+                                resolved=conflict.resolved,
                             )
 
         # Verificar se não criou ciclos
@@ -1001,17 +981,17 @@ class DAGGenerator:
                         target_task.dependencies.remove(source)
 
                     logger.warning(
-                        'Ciclo detectado, removendo dependência adicionada na análise',
-                        removed_edge=f'{source} -> {target}',
-                        cycle=cycle
+                        "Ciclo detectado, removendo dependência adicionada na análise",
+                        removed_edge=f"{source} -> {target}",
+                        cycle=cycle,
                     )
                 else:
                     # Nenhuma aresta do ciclo foi adicionada nesta análise
                     # Não podemos remover arestas que não adicionamos
                     logger.error(
-                        'Ciclo detectado mas nenhuma aresta pode ser removida',
+                        "Ciclo detectado mas nenhuma aresta pode ser removida",
                         cycle=cycle,
-                        edges_added=edges_added_in_analysis
+                        edges_added=edges_added_in_analysis,
                     )
                     break
 
@@ -1020,20 +1000,16 @@ class DAGGenerator:
             dag_generation_entity_dependencies_added.inc(dependencies_added)
 
             logger.info(
-                'Dependências adicionadas por análise de entidades',
+                "Dependências adicionadas por análise de entidades",
                 dependencies_added=dependencies_added,
                 conflicts_detected=len(conflicts_detected),
-                conflicts_resolved=sum(1 for c in conflicts_detected if c.resolved)
+                conflicts_resolved=sum(1 for c in conflicts_detected if c.resolved),
             )
 
         return dependencies_added, conflicts_detected
 
     def _resolve_conflict(
-        self,
-        G: nx.DiGraph,
-        task_a: TaskNode,
-        task_b: TaskNode,
-        conflict: ConflictInfo
+        self, G: nx.DiGraph, task_a: TaskNode, task_b: TaskNode, conflict: ConflictInfo
     ) -> bool:
         """
         Aplica estratégia de resolução de conflito.
@@ -1054,7 +1030,7 @@ class DAGGenerator:
         """
         strategy = self.conflict_resolution_strategy
 
-        if strategy == 'sequential':
+        if strategy == "sequential":
             # Ordenar por task_id (ordem determinística)
             if task_a.task_id < task_b.task_id:
                 first_task, second_task = task_a, task_b
@@ -1067,18 +1043,18 @@ class DAGGenerator:
                 if first_task.task_id not in second_task.dependencies:
                     second_task.dependencies.append(first_task.task_id)
 
-                conflict.resolution_strategy = 'sequential'
+                conflict.resolution_strategy = "sequential"
                 dag_generation_conflicts_resolved_total.labels(
-                    resolution_strategy='sequential'
+                    resolution_strategy="sequential"
                 ).inc()
                 return True
 
-        elif strategy == 'priority_based':
+        elif strategy == "priority_based":
             # Usar prioridade das constraints
-            priority_order = {'critical': 1, 'high': 2, 'normal': 3, 'low': 4}
+            priority_order = {"critical": 1, "high": 2, "normal": 3, "low": 4}
 
-            priority_a = task_a.parameters.get('constraints', {}).get('priority', 'normal')
-            priority_b = task_b.parameters.get('constraints', {}).get('priority', 'normal')
+            priority_a = task_a.parameters.get("constraints", {}).get("priority", "normal")
+            priority_b = task_b.parameters.get("constraints", {}).get("priority", "normal")
 
             order_a = priority_order.get(priority_a, 3)
             order_b = priority_order.get(priority_b, 3)
@@ -1094,30 +1070,26 @@ class DAGGenerator:
                 if first_task.task_id not in second_task.dependencies:
                     second_task.dependencies.append(first_task.task_id)
 
-                conflict.resolution_strategy = 'priority_based'
+                conflict.resolution_strategy = "priority_based"
                 dag_generation_conflicts_resolved_total.labels(
-                    resolution_strategy='priority_based'
+                    resolution_strategy="priority_based"
                 ).inc()
                 return True
 
-        elif strategy == 'notify':
+        elif strategy == "notify":
             # Apenas notificar, não resolver
-            conflict.resolution_strategy = 'notify'
+            conflict.resolution_strategy = "notify"
             logger.warning(
-                'Conflito requer revisão manual',
+                "Conflito requer revisão manual",
                 task_a_id=task_a.task_id,
                 task_b_id=task_b.task_id,
-                severity=conflict.severity
+                severity=conflict.severity,
             )
             return False
 
         return False
 
-    def _detect_parallel_tasks(
-        self,
-        G: nx.DiGraph,
-        tasks: List[TaskNode]
-    ) -> Dict[str, List[str]]:
+    def _detect_parallel_tasks(self, G: nx.DiGraph, tasks: list[TaskNode]) -> dict[str, list[str]]:
         """
         Detecta tasks que podem executar em paralelo.
 
@@ -1131,7 +1103,7 @@ class DAGGenerator:
         Returns:
             Dicionário {parallel_group_id: [task_ids]}
         """
-        parallel_groups: Dict[str, List[str]] = {}
+        parallel_groups: dict[str, list[str]] = {}
         task_map = {task.task_id: task for task in tasks}
 
         # Usar BFS para identificar níveis do DAG
@@ -1149,7 +1121,7 @@ class DAGGenerator:
         while current_level:
             # Tasks no mesmo nível sem dependências entre si podem ser paralelas
             if len(current_level) > 1:
-                group_id = f'parallel_group_{level_num}'
+                group_id = f"parallel_group_{level_num}"
                 parallel_groups[group_id] = current_level.copy()
 
                 # Adicionar metadata de paralelismo às tasks
@@ -1157,8 +1129,8 @@ class DAGGenerator:
                     if task_id in task_map:
                         if task_map[task_id].metadata is None:
                             task_map[task_id].metadata = {}
-                        task_map[task_id].metadata['parallel_group'] = group_id
-                        task_map[task_id].metadata['parallel_level'] = level_num
+                        task_map[task_id].metadata["parallel_group"] = group_id
+                        task_map[task_id].metadata["parallel_level"] = level_num
 
             # Encontrar próximo nível (sucessores das tasks atuais)
             next_level = set()
@@ -1166,9 +1138,9 @@ class DAGGenerator:
                 for successor in G.successors(node):
                     # Verificar se todas as dependências do successor foram processadas
                     predecessors = set(G.predecessors(successor))
-                    processed = set(task_id for task_id in parallel_groups.get(f'parallel_group_{level_num}', []))
+                    processed = set(parallel_groups.get(f"parallel_group_{level_num}", []))
                     for prev_level in range(level_num):
-                        processed.update(parallel_groups.get(f'parallel_group_{prev_level}', []))
+                        processed.update(parallel_groups.get(f"parallel_group_{prev_level}", []))
 
                     # Adicionar ao próximo nível se todas as dependências foram processadas
                     if predecessors.issubset(processed | set(current_level)):
@@ -1179,9 +1151,9 @@ class DAGGenerator:
 
         if parallel_groups:
             logger.info(
-                'Grupos paralelos detectados',
+                "Grupos paralelos detectados",
                 num_groups=len(parallel_groups),
-                total_parallelizable_tasks=sum(len(g) for g in parallel_groups.values())
+                total_parallelizable_tasks=sum(len(g) for g in parallel_groups.values()),
             )
 
         return parallel_groups
@@ -1190,9 +1162,9 @@ class DAGGenerator:
         self,
         objective: str,
         task_id: int,
-        entities: List[Dict],
-        constraints: Dict,
-        intermediate_repr: Optional[Dict[str, Any]] = None
+        entities: list[dict],
+        constraints: dict,
+        intermediate_repr: dict[str, Any] | None = None,
     ) -> TaskNode:
         """
         Create TaskNode from objective with enriched description.
@@ -1203,13 +1175,13 @@ class DAGGenerator:
         - Priority-based optimization hints
         - Entity type summaries
         """
-        template = self.task_templates.get(objective, self.task_templates['query'])
+        template = self.task_templates.get(objective, self.task_templates["query"])
 
         # Extrair qos e risk_band para enriquecimento
-        qos = constraints.get('qos')
-        risk_band = intermediate_repr.get('risk_band') if intermediate_repr else None
+        qos = constraints.get("qos")
+        risk_band = intermediate_repr.get("risk_band") if intermediate_repr else None
         if not risk_band:
-            risk_band = constraints.get('risk_band')
+            risk_band = constraints.get("risk_band")
 
         # Build enriched description
         description = self._build_enriched_description(
@@ -1218,74 +1190,69 @@ class DAGGenerator:
             constraints=constraints,
             intermediate_repr=intermediate_repr,
             qos=qos,
-            risk_band=risk_band
+            risk_band=risk_band,
         )
 
         # Validate description quality
-        domain = intermediate_repr.get('domain', 'code-quality') if intermediate_repr else 'code-quality'
-        security_level = constraints.get('security_level', 'internal')
-        qos = constraints.get('qos')
+        domain = (
+            intermediate_repr.get("domain", "code-quality") if intermediate_repr else "code-quality"
+        )
+        security_level = constraints.get("security_level", "internal")
+        qos = constraints.get("qos")
 
         quality = self.description_validator.validate_description(
-            description=description,
-            domain=domain,
-            security_level=security_level,
-            qos=qos
+            description=description, domain=domain, security_level=security_level, qos=qos
         )
 
-        if quality['score'] < 0.6:
+        if quality["score"] < 0.6:
             logger.warning(
                 "low_quality_task_description",
-                task_id=f'task_{task_id}',
-                score=quality['score'],
-                issues=quality['issues'],
-                original_description=description
+                task_id=f"task_{task_id}",
+                score=quality["score"],
+                issues=quality["issues"],
+                original_description=description,
             )
             # Auto-improve if score is very low
-            if quality['score'] < 0.4:
+            if quality["score"] < 0.4:
                 description = self.description_validator.suggest_improvements(
                     description=description,
                     context={
-                        'domain': domain,
-                        'security_level': security_level,
-                        'priority': constraints.get('priority', 'normal'),
-                        'entities': entities,
-                        'qos': qos
-                    }
+                        "domain": domain,
+                        "security_level": security_level,
+                        "priority": constraints.get("priority", "normal"),
+                        "entities": entities,
+                        "qos": qos,
+                    },
                 )
                 logger.info(
                     "description_auto_improved",
-                    task_id=f'task_{task_id}',
-                    improved_description=description
+                    task_id=f"task_{task_id}",
+                    improved_description=description,
                 )
 
         return TaskNode(
-            task_id=f'task_{task_id}',
-            task_type=template['type'],
+            task_id=f"task_{task_id}",
+            task_type=template["type"],
             description=description,
             dependencies=[],
-            estimated_duration_ms=template['estimated_duration_ms'],
-            required_capabilities=template['required_capabilities'],
-            parameters={
-                'objective': objective,
-                'entities': entities,
-                'constraints': constraints
-            },
+            estimated_duration_ms=template["estimated_duration_ms"],
+            required_capabilities=template["required_capabilities"],
+            parameters={"objective": objective, "entities": entities, "constraints": constraints},
             metadata={
-                'description_quality_score': quality['score'],
-                'domain': domain,
-                'security_level': security_level
-            }
+                "description_quality_score": quality["score"],
+                "domain": domain,
+                "security_level": security_level,
+            },
         )
 
     def _build_enriched_description(
         self,
         objective: str,
-        entities: List[Dict],
-        constraints: Dict,
-        intermediate_repr: Optional[Dict[str, Any]] = None,
-        qos: Optional[str] = None,
-        risk_band: Optional[str] = None
+        entities: list[dict],
+        constraints: dict,
+        intermediate_repr: dict[str, Any] | None = None,
+        qos: str | None = None,
+        risk_band: str | None = None,
     ) -> str:
         """
         Build an enriched task description with domain context.
@@ -1307,7 +1274,9 @@ class DAGGenerator:
         parts = []
 
         # 1. Action verb phrase (rotate through options for variety)
-        action_verbs = OBJECTIVE_ACTION_VERBS.get(objective, [f"{objective.capitalize()} and process"])
+        action_verbs = OBJECTIVE_ACTION_VERBS.get(
+            objective, [f"{objective.capitalize()} and process"]
+        )
         verb_idx = self._action_verb_index % len(action_verbs)
         self._action_verb_index += 1
         action_phrase = action_verbs[verb_idx]
@@ -1321,52 +1290,52 @@ class DAGGenerator:
             parts.append("data resources")
 
         # 3. Security hints (for confidential/restricted)
-        security_level = constraints.get('security_level', 'internal')
-        security_hint = SECURITY_HINTS.get(security_level, '')
+        security_level = constraints.get("security_level", "internal")
+        security_hint = SECURITY_HINTS.get(security_level, "")
         if security_hint:
             parts.append(security_hint)
 
         # 4. Priority hints (for high/critical)
-        priority = constraints.get('priority', 'normal')
-        priority_hint = PRIORITY_HINTS.get(priority, '')
+        priority = constraints.get("priority", "normal")
+        priority_hint = PRIORITY_HINTS.get(priority, "")
         if priority_hint:
             parts.append(priority_hint)
 
         # 5. QoS hints (quando especificado)
         if qos:
-            qos_hint = QOS_HINTS.get(qos, '')
+            qos_hint = QOS_HINTS.get(qos, "")
             if qos_hint:
                 parts.append(qos_hint)
 
         # 6. Domain context hints
-        domain = intermediate_repr.get('domain', 'code-quality') if intermediate_repr else 'code-quality'
-        domain_hint = DOMAIN_CONTEXT_HINTS.get(domain, '')
+        domain = (
+            intermediate_repr.get("domain", "code-quality") if intermediate_repr else "code-quality"
+        )
+        domain_hint = DOMAIN_CONTEXT_HINTS.get(domain, "")
         if domain_hint:
             parts.append(domain_hint)
 
         # 7. Metadata suffix (incluindo risk_band quando disponível)
         metadata_parts = [domain]
-        if security_level and security_level != 'internal':
+        if security_level and security_level != "internal":
             metadata_parts.append(security_level)
-        if priority and priority != 'normal':
+        if priority and priority != "normal":
             metadata_parts.append(f"{priority} priority")
         else:
             metadata_parts.append("normal priority")
 
         # Adicionar risk_band ao metadata quando disponível
         if risk_band:
-            risk_hint = RISK_BAND_HINTS.get(risk_band, '')
+            risk_hint = RISK_BAND_HINTS.get(risk_band, "")
             if risk_hint:
                 metadata_parts.append(risk_hint)
 
         metadata_suffix = f"({', '.join(metadata_parts)})"
 
         # Join all parts
-        description = ' '.join(parts) + ' ' + metadata_suffix
+        return " ".join(parts) + " " + metadata_suffix
 
-        return description
-
-    def _summarize_entities(self, entities: List[Dict]) -> str:
+    def _summarize_entities(self, entities: list[dict]) -> str:
         """
         Summarize entities into a readable context string.
 
@@ -1383,32 +1352,29 @@ class DAGGenerator:
         entity_values = []
 
         for entity in entities[:3]:  # Limit to first 3 for brevity
-            e_type = entity.get('type', entity.get('entity_type', ''))
-            e_value = entity.get('value', entity.get('name', ''))
+            e_type = entity.get("type", entity.get("entity_type", ""))
+            e_value = entity.get("value", entity.get("name", ""))
 
             if e_type:
-                entity_types.append(e_type.lower().replace('_', ' '))
+                entity_types.append(e_type.lower().replace("_", " "))
             if e_value and isinstance(e_value, str):
-                entity_values.append(e_value.lower().replace('_', ' '))
+                entity_values.append(e_value.lower().replace("_", " "))
 
         # Build summary
         if entity_values and entity_types:
             primary_value = entity_values[0]
             primary_type = entity_types[0]
             return f"{primary_value} {primary_type} data"
-        elif entity_types:
+        if entity_types:
             return f"{', '.join(entity_types[:2])} data"
-        elif entity_values:
+        if entity_values:
             return f"{entity_values[0]} resources"
 
         return ""
 
     def _generate_support_tasks(
-        self,
-        main_task: TaskNode,
-        start_id: int,
-        constraints: Dict
-    ) -> List[TaskNode]:
+        self, main_task: TaskNode, start_id: int, constraints: dict
+    ) -> list[TaskNode]:
         """
         Generate support tasks (validation, transformation, monitoring).
 
@@ -1420,11 +1386,11 @@ class DAGGenerator:
         support_tasks = []
         current_id = start_id
 
-        security_level = constraints.get('security_level', 'internal')
-        priority = constraints.get('priority', 'normal')
+        security_level = constraints.get("security_level", "internal")
+        priority = constraints.get("priority", "normal")
 
         # Add validation task for high security levels
-        if security_level in ['confidential', 'restricted']:
+        if security_level in ["confidential", "restricted"]:
             # Build enriched security validation description
             security_desc = (
                 f"Verify security compliance and audit access controls for {main_task.task_type} operation "
@@ -1433,28 +1399,28 @@ class DAGGenerator:
             )
 
             validate_task = TaskNode(
-                task_id=f'task_{current_id}',
-                task_type='validate',
+                task_id=f"task_{current_id}",
+                task_type="validate",
                 description=security_desc,
                 dependencies=[],
                 estimated_duration_ms=300,
-                required_capabilities=['security'],
+                required_capabilities=["security"],
                 parameters={
-                    'validation_type': 'security',
-                    'security_level': security_level,
-                    'main_task_id': main_task.task_id
+                    "validation_type": "security",
+                    "security_level": security_level,
+                    "main_task_id": main_task.task_id,
                 },
                 metadata={
-                    'support_task_type': 'security_validation',
-                    'security_level': security_level
-                }
+                    "support_task_type": "security_validation",
+                    "security_level": security_level,
+                },
             )
             support_tasks.append(validate_task)
             main_task.dependencies.append(validate_task.task_id)
             current_id += 1
 
             # Add audit logging task for restricted data
-            if security_level == 'restricted':
+            if security_level == "restricted":
                 audit_desc = (
                     f"Log audit trail with encryption for compliance and regulatory requirements "
                     f"tracking all access to {main_task.task_type} operation with tamper-proof logging "
@@ -1462,27 +1428,27 @@ class DAGGenerator:
                 )
 
                 audit_task = TaskNode(
-                    task_id=f'task_{current_id}',
-                    task_type='validate',
+                    task_id=f"task_{current_id}",
+                    task_type="validate",
                     description=audit_desc,
                     dependencies=[],
                     estimated_duration_ms=200,
-                    required_capabilities=['logging', 'security'],
+                    required_capabilities=["logging", "security"],
                     parameters={
-                        'validation_type': 'audit_logging',
-                        'security_level': security_level,
-                        'main_task_id': main_task.task_id
+                        "validation_type": "audit_logging",
+                        "security_level": security_level,
+                        "main_task_id": main_task.task_id,
                     },
                     metadata={
-                        'support_task_type': 'audit_logging',
-                        'security_level': security_level
-                    }
+                        "support_task_type": "audit_logging",
+                        "security_level": security_level,
+                    },
                 )
                 support_tasks.append(audit_task)
                 current_id += 1
 
         # Add monitoring task for critical priority
-        if priority == 'critical':
+        if priority == "critical":
             monitoring_desc = (
                 f"Monitor execution metrics and alert on anomalies for {main_task.task_type} operation "
                 f"with real-time performance tracking and SLA compliance verification "
@@ -1490,89 +1456,52 @@ class DAGGenerator:
             )
 
             monitor_task = TaskNode(
-                task_id=f'task_{current_id}',
-                task_type='validate',
+                task_id=f"task_{current_id}",
+                task_type="validate",
                 description=monitoring_desc,
                 dependencies=[],
                 estimated_duration_ms=150,
-                required_capabilities=['monitoring', 'alerting'],
+                required_capabilities=["monitoring", "alerting"],
                 parameters={
-                    'validation_type': 'monitoring',
-                    'priority': priority,
-                    'main_task_id': main_task.task_id
+                    "validation_type": "monitoring",
+                    "priority": priority,
+                    "main_task_id": main_task.task_id,
                 },
-                metadata={
-                    'support_task_type': 'performance_monitoring',
-                    'priority': priority
-                }
+                metadata={"support_task_type": "performance_monitoring", "priority": priority},
             )
             support_tasks.append(monitor_task)
 
         return support_tasks
 
     def _add_inter_task_dependencies(
-        self,
-        G: nx.DiGraph,
-        tasks: List[TaskNode],
-        objectives: List[str]
+        self, G: nx.DiGraph, tasks: list[TaskNode], objectives: list[str]
     ):
         """Add dependencies between main tasks"""
         # Simple heuristic: create -> update -> query
-        task_by_type = {
-            task.task_type: task
-            for task in tasks
-            if task.task_type in objectives
-        }
+        task_by_type = {task.task_type: task for task in tasks if task.task_type in objectives}
 
-        if 'create' in task_by_type and 'update' in task_by_type:
-            G.add_edge(
-                task_by_type['create'].task_id,
-                task_by_type['update'].task_id
-            )
-            task_by_type['update'].dependencies.append(
-                task_by_type['create'].task_id
-            )
+        if "create" in task_by_type and "update" in task_by_type:
+            G.add_edge(task_by_type["create"].task_id, task_by_type["update"].task_id)
+            task_by_type["update"].dependencies.append(task_by_type["create"].task_id)
 
-        if 'update' in task_by_type and 'query' in task_by_type:
-            G.add_edge(
-                task_by_type['update'].task_id,
-                task_by_type['query'].task_id
-            )
-            task_by_type['query'].dependencies.append(
-                task_by_type['update'].task_id
-            )
+        if "update" in task_by_type and "query" in task_by_type:
+            G.add_edge(task_by_type["update"].task_id, task_by_type["query"].task_id)
+            task_by_type["query"].dependencies.append(task_by_type["update"].task_id)
 
-    def _calculate_critical_path(
-        self,
-        G: nx.DiGraph,
-        tasks: List[TaskNode]
-    ) -> int:
+    def _calculate_critical_path(self, G: nx.DiGraph, tasks: list[TaskNode]) -> int:
         """Calculate critical path (total duration)"""
-        task_durations = {
-            task.task_id: task.estimated_duration_ms or 0
-            for task in tasks
-        }
+        task_durations = {task.task_id: task.estimated_duration_ms or 0 for task in tasks}
 
         try:
-            longest_path = nx.dag_longest_path(
-                G,
-                weight=lambda u, v, d: task_durations.get(v, 0)
-            )
-            total_duration = sum(
-                task_durations.get(task_id, 0)
-                for task_id in longest_path
-            )
-            return total_duration
+            longest_path = nx.dag_longest_path(G, weight=lambda u, v, d: task_durations.get(v, 0))
+            return sum(task_durations.get(task_id, 0) for task_id in longest_path)
         except:
             # Fallback: sum all durations
             return sum(task_durations.values())
 
     def _generate_dependency_visualization(
-        self,
-        G: nx.DiGraph,
-        tasks: List[TaskNode],
-        conflicts: List[ConflictInfo]
-    ) -> Dict[str, Any]:
+        self, G: nx.DiGraph, tasks: list[TaskNode], conflicts: list[ConflictInfo]
+    ) -> dict[str, Any]:
         """
         Gera visualização das dependências em formato Mermaid e matriz.
 
@@ -1584,37 +1513,34 @@ class DAGGenerator:
         Returns:
             Dicionário com mermaid_diagram, dependency_matrix, conflict_report
         """
-        task_map = {t.task_id: t for t in tasks}
+        {t.task_id: t for t in tasks}
 
         # Gerar diagrama Mermaid
-        mermaid_lines = ['graph TD']
+        mermaid_lines = ["graph TD"]
 
         # Cores por tipo de task
         type_colors = {
-            'create': '#90EE90',  # light green
-            'update': '#FFD700',  # gold
-            'delete': '#FF6B6B',  # light red
-            'query': '#87CEEB',   # light blue
-            'validate': '#DDA0DD',  # plum
-            'transform': '#F0E68C'  # khaki
+            "create": "#90EE90",  # light green
+            "update": "#FFD700",  # gold
+            "delete": "#FF6B6B",  # light red
+            "query": "#87CEEB",  # light blue
+            "validate": "#DDA0DD",  # plum
+            "transform": "#F0E68C",  # khaki
         }
 
         # Adicionar nós
         for task in tasks:
             # Extrair entidades para label
-            entities = task.parameters.get('entities', [])
-            entity_names = [
-                str(e.get('name', e.get('value', '')))[:15]
-                for e in entities[:2]
-            ]
-            entity_label = ', '.join(entity_names) if entity_names else 'no entities'
+            entities = task.parameters.get("entities", [])
+            entity_names = [str(e.get("name", e.get("value", "")))[:15] for e in entities[:2]]
+            entity_label = ", ".join(entity_names) if entity_names else "no entities"
 
             # Truncar descrição
-            desc = task.description[:30] + '...' if len(task.description) > 30 else task.description
+            desc = task.description[:30] + "..." if len(task.description) > 30 else task.description
             desc = desc.replace('"', "'")
 
             label = f'{task.task_id}["{task.task_type}: {desc}<br/>entities: {entity_label}"]'
-            mermaid_lines.append(f'    {label}')
+            mermaid_lines.append(f"    {label}")
 
         # Adicionar arestas
         conflict_edges = set()
@@ -1628,17 +1554,17 @@ class DAGGenerator:
             source, target = edge
             if (source, target) in conflict_edges:
                 # Aresta de conflito resolvido (estilo diferenciado)
-                mermaid_lines.append(f'    {source} -.->|conflict resolved| {target}')
+                mermaid_lines.append(f"    {source} -.->|conflict resolved| {target}")
             else:
                 # Aresta normal
-                mermaid_lines.append(f'    {source} --> {target}')
+                mermaid_lines.append(f"    {source} --> {target}")
 
         # Adicionar estilos de cor
         for task in tasks:
-            color = type_colors.get(task.task_type, '#FFFFFF')
-            mermaid_lines.append(f'    style {task.task_id} fill:{color}')
+            color = type_colors.get(task.task_type, "#FFFFFF")
+            mermaid_lines.append(f"    style {task.task_id} fill:{color}")
 
-        mermaid_diagram = '\n'.join(mermaid_lines)
+        mermaid_diagram = "\n".join(mermaid_lines)
 
         # Gerar matriz de dependências
         task_ids = [t.task_id for t in tasks]
@@ -1649,25 +1575,22 @@ class DAGGenerator:
                 if G.has_edge(task_id, other_id):
                     # Classificar tipo de dependência
                     if (task_id, other_id) in conflict_edges:
-                        matrix[task_id][other_id] = 'conflict_resolved'
+                        matrix[task_id][other_id] = "conflict_resolved"
                     else:
-                        matrix[task_id][other_id] = 'dependency'
+                        matrix[task_id][other_id] = "dependency"
                 else:
-                    matrix[task_id][other_id] = 'none'
+                    matrix[task_id][other_id] = "none"
 
         # Gerar relatório de conflitos
         conflict_report = self._generate_conflict_report(conflicts)
 
         return {
-            'mermaid_diagram': mermaid_diagram,
-            'dependency_matrix': matrix,
-            'conflict_report': conflict_report
+            "mermaid_diagram": mermaid_diagram,
+            "dependency_matrix": matrix,
+            "conflict_report": conflict_report,
         }
 
-    def _generate_conflict_report(
-        self,
-        conflicts: List[ConflictInfo]
-    ) -> Dict[str, Any]:
+    def _generate_conflict_report(self, conflicts: list[ConflictInfo]) -> dict[str, Any]:
         """
         Gera relatório legível de conflitos detectados.
 
@@ -1679,12 +1602,12 @@ class DAGGenerator:
         """
         if not conflicts:
             return {
-                'summary': 'Nenhum conflito detectado',
-                'total_conflicts': 0,
-                'resolved': 0,
-                'pending': 0,
-                'details': [],
-                'recommendations': []
+                "summary": "Nenhum conflito detectado",
+                "total_conflicts": 0,
+                "resolved": 0,
+                "pending": 0,
+                "details": [],
+                "recommendations": [],
             }
 
         resolved = sum(1 for c in conflicts if c.resolved)
@@ -1695,26 +1618,26 @@ class DAGGenerator:
 
         for conflict in conflicts:
             detail = {
-                'task_a': conflict.task_a_id,
-                'task_b': conflict.task_b_id,
-                'entities': conflict.shared_entities,
-                'type': conflict.conflict_type,
-                'severity': conflict.severity,
-                'resolved': conflict.resolved,
-                'resolution_strategy': conflict.resolution_strategy
+                "task_a": conflict.task_a_id,
+                "task_b": conflict.task_b_id,
+                "entities": conflict.shared_entities,
+                "type": conflict.conflict_type,
+                "severity": conflict.severity,
+                "resolved": conflict.resolved,
+                "resolution_strategy": conflict.resolution_strategy,
             }
             details.append(detail)
 
             if not conflict.resolved:
-                if conflict.severity == 'critical':
+                if conflict.severity == "critical":
                     recommendations.append(
-                        f'CRÍTICO: Revisar manualmente conflito entre {conflict.task_a_id} '
-                        f'e {conflict.task_b_id} em entidades {conflict.shared_entities}'
+                        f"CRÍTICO: Revisar manualmente conflito entre {conflict.task_a_id} "
+                        f"e {conflict.task_b_id} em entidades {conflict.shared_entities}"
                     )
-                elif conflict.severity == 'high':
+                elif conflict.severity == "high":
                     recommendations.append(
-                        f'ALTO: Considerar adicionar dependência explícita entre '
-                        f'{conflict.task_a_id} e {conflict.task_b_id}'
+                        f"ALTO: Considerar adicionar dependência explícita entre "
+                        f"{conflict.task_a_id} e {conflict.task_b_id}"
                     )
 
         severity_counts = {}
@@ -1722,20 +1645,18 @@ class DAGGenerator:
             severity_counts[conflict.severity] = severity_counts.get(conflict.severity, 0) + 1
 
         return {
-            'summary': f'{len(conflicts)} conflito(s) detectado(s), {resolved} resolvido(s)',
-            'total_conflicts': len(conflicts),
-            'resolved': resolved,
-            'pending': pending,
-            'by_severity': severity_counts,
-            'details': details,
-            'recommendations': recommendations
+            "summary": f"{len(conflicts)} conflito(s) detectado(s), {resolved} resolvido(s)",
+            "total_conflicts": len(conflicts),
+            "resolved": resolved,
+            "pending": pending,
+            "by_severity": severity_counts,
+            "details": details,
+            "recommendations": recommendations,
         }
 
     def _generate_dependency_matrix(
-        self,
-        G: nx.DiGraph,
-        tasks: List[TaskNode]
-    ) -> List[Dict[str, Any]]:
+        self, G: nx.DiGraph, tasks: list[TaskNode]
+    ) -> list[dict[str, Any]]:
         """
         Gera matriz de dependências em formato CSV/JSON.
 
@@ -1746,23 +1667,23 @@ class DAGGenerator:
         Returns:
             Lista de dicionários representando linhas da matriz
         """
-        task_map = {t.task_id: t for t in tasks}
+        {t.task_id: t for t in tasks}
         rows = []
 
         for task in tasks:
             row = {
-                'task_id': task.task_id,
-                'task_type': task.task_type,
-                'dependencies': task.dependencies.copy(),
-                'dependents': list(G.successors(task.task_id)),
-                'entities': [
-                    e.get('name', e.get('value', 'unknown'))
-                    for e in task.parameters.get('entities', [])
+                "task_id": task.task_id,
+                "task_type": task.task_type,
+                "dependencies": task.dependencies.copy(),
+                "dependents": list(G.successors(task.task_id)),
+                "entities": [
+                    e.get("name", e.get("value", "unknown"))
+                    for e in task.parameters.get("entities", [])
                 ],
-                'in_degree': G.in_degree(task.task_id),
-                'out_degree': G.out_degree(task.task_id)
+                "in_degree": G.in_degree(task.task_id),
+                "out_degree": G.out_degree(task.task_id),
             }
             rows.append(row)
 
-        dag_generation_visualization_generated_total.labels(format='matrix').inc()
+        dag_generation_visualization_generated_total.labels(format="matrix").inc()
         return rows

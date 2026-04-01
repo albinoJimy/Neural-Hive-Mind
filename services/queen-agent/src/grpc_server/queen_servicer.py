@@ -1,9 +1,10 @@
 """Implementação do gRPC Servicer para Queen Agent"""
+import time
+from datetime import datetime
+from typing import TYPE_CHECKING
+
 import grpc
 import structlog
-import time
-from typing import TYPE_CHECKING
-from datetime import datetime
 
 from neural_hive_observability.context import set_baggage
 from neural_hive_observability.grpc_instrumentation import (
@@ -20,17 +21,13 @@ def extract_grpc_context(servicer_context):
         return {}, None
 
 
-from ..proto import queen_agent_pb2, queen_agent_pb2_grpc
-from ..models import ExceptionApproval, ExceptionType, RiskAssessment
-from ..observability.metrics import QueenAgentMetrics
+from src.models import ExceptionApproval, ExceptionType, RiskAssessment
+from src.observability.metrics import QueenAgentMetrics
+from src.proto import queen_agent_pb2, queen_agent_pb2_grpc
 
 if TYPE_CHECKING:
-    from ..clients import MongoDBClient, Neo4jClient
-    from ..services import (
-        ExceptionApprovalService,
-        TelemetryAggregator,
-        StrategicDecisionEngine,
-    )
+    from src.clients import MongoDBClient, Neo4jClient
+    from src.services import ExceptionApprovalService, StrategicDecisionEngine, TelemetryAggregator
 
 logger = structlog.get_logger()
 metrics = QueenAgentMetrics()
@@ -63,16 +60,12 @@ class QueenAgentServicer(queen_agent_pb2_grpc.QueenAgentServicer):
             if hasattr(request, "plan_id") and request.plan_id:
                 set_baggage("plan_id", request.plan_id)
 
-            decision = await self.mongodb_client.get_strategic_decision(
-                request.decision_id
-            )
+            decision = await self.mongodb_client.get_strategic_decision(request.decision_id)
 
             if not decision:
                 context.set_code(grpc.StatusCode.NOT_FOUND)
                 context.set_details(f"Decision {request.decision_id} not found")
-                metrics.grpc_requests_total.labels(
-                    method=method_name, status="not_found"
-                ).inc()
+                metrics.grpc_requests_total.labels(method=method_name, status="not_found").inc()
                 return queen_agent_pb2.StrategicDecisionResponse()
 
             # Converter para resposta gRPC
@@ -87,13 +80,11 @@ class QueenAgentServicer(queen_agent_pb2_grpc.QueenAgentServicer):
                 action=decision.get("decision", {}).get("action", ""),
             )
 
-            metrics.grpc_requests_total.labels(
-                method=method_name, status="success"
-            ).inc()
+            metrics.grpc_requests_total.labels(method=method_name, status="success").inc()
             return response
 
         except Exception as e:
-            logger.error("grpc_get_strategic_decision_failed", error=str(e))
+            logger.exception("grpc_get_strategic_decision_failed", error=str(e))
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(e))
             metrics.grpc_requests_total.labels(method=method_name, status="error").inc()
@@ -101,9 +92,7 @@ class QueenAgentServicer(queen_agent_pb2_grpc.QueenAgentServicer):
 
         finally:
             duration = time.time() - start_time
-            metrics.grpc_request_duration_seconds.labels(method=method_name).observe(
-                duration
-            )
+            metrics.grpc_request_duration_seconds.labels(method=method_name).observe(duration)
 
     async def ListStrategicDecisions(self, request, context):
         """Listar decisões estratégicas recentes"""
@@ -143,30 +132,24 @@ class QueenAgentServicer(queen_agent_pb2_grpc.QueenAgentServicer):
                         decision_id=decision.get("decision_id", ""),
                         decision_type=decision.get("decision_type", ""),
                         confidence_score=decision.get("confidence_score", 0.0),
-                        risk_score=decision.get("risk_assessment", {}).get(
-                            "risk_score", 0.0
-                        ),
+                        risk_score=decision.get("risk_assessment", {}).get("risk_score", 0.0),
                         reasoning_summary=decision.get("reasoning_summary", ""),
                         created_at=decision.get("created_at", 0),
-                        target_entities=decision.get("decision", {}).get(
-                            "target_entities", []
-                        ),
+                        target_entities=decision.get("decision", {}).get("target_entities", []),
                         action=decision.get("decision", {}).get("action", ""),
                     )
                 )
 
             # Atualizar gauge de decisões ativas
             metrics.active_decisions.set(len(decisions))
-            metrics.grpc_requests_total.labels(
-                method=method_name, status="success"
-            ).inc()
+            metrics.grpc_requests_total.labels(method=method_name, status="success").inc()
 
             return queen_agent_pb2.ListStrategicDecisionsResponse(
                 decisions=decision_responses, total=total_count
             )
 
         except Exception as e:
-            logger.error("grpc_list_strategic_decisions_failed", error=str(e))
+            logger.exception("grpc_list_strategic_decisions_failed", error=str(e))
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(e))
             metrics.grpc_requests_total.labels(method=method_name, status="error").inc()
@@ -174,9 +157,7 @@ class QueenAgentServicer(queen_agent_pb2_grpc.QueenAgentServicer):
 
         finally:
             duration = time.time() - start_time
-            metrics.grpc_request_duration_seconds.labels(method=method_name).observe(
-                duration
-            )
+            metrics.grpc_request_duration_seconds.labels(method=method_name).observe(duration)
 
     async def MakeStrategicDecision(self, request, context):
         """Criar nova decisão estratégica delegando ao StrategicDecisionEngine"""
@@ -191,9 +172,7 @@ class QueenAgentServicer(queen_agent_pb2_grpc.QueenAgentServicer):
             if not self.decision_engine:
                 context.set_code(grpc.StatusCode.UNAVAILABLE)
                 context.set_details("StrategicDecisionEngine não disponível")
-                metrics.grpc_requests_total.labels(
-                    method=method_name, status="unavailable"
-                ).inc()
+                metrics.grpc_requests_total.labels(method=method_name, status="unavailable").inc()
                 return queen_agent_pb2.MakeStrategicDecisionResponse(
                     success=False, message="StrategicDecisionEngine não disponível"
                 )
@@ -208,16 +187,12 @@ class QueenAgentServicer(queen_agent_pb2_grpc.QueenAgentServicer):
             decision = await self.decision_engine.make_strategic_decision(trigger)
 
             if not decision:
-                metrics.grpc_requests_total.labels(
-                    method=method_name, status="no_decision"
-                ).inc()
+                metrics.grpc_requests_total.labels(method=method_name, status="no_decision").inc()
                 return queen_agent_pb2.MakeStrategicDecisionResponse(
                     success=False, message="Não foi possível gerar decisão estratégica"
                 )
 
-            metrics.grpc_requests_total.labels(
-                method=method_name, status="success"
-            ).inc()
+            metrics.grpc_requests_total.labels(method=method_name, status="success").inc()
             return queen_agent_pb2.MakeStrategicDecisionResponse(
                 success=True,
                 decision_id=decision.decision_id,
@@ -229,19 +204,17 @@ class QueenAgentServicer(queen_agent_pb2_grpc.QueenAgentServicer):
             )
 
         except Exception as e:
-            logger.error("grpc_make_strategic_decision_failed", error=str(e))
+            logger.exception("grpc_make_strategic_decision_failed", error=str(e))
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(e))
             metrics.grpc_requests_total.labels(method=method_name, status="error").inc()
             return queen_agent_pb2.MakeStrategicDecisionResponse(
-                success=False, message=f"Erro ao criar decisão: {str(e)}"
+                success=False, message=f"Erro ao criar decisão: {e!s}"
             )
 
         finally:
             duration = time.time() - start_time
-            metrics.grpc_request_duration_seconds.labels(method=method_name).observe(
-                duration
-            )
+            metrics.grpc_request_duration_seconds.labels(method=method_name).observe(duration)
 
     async def GetSystemStatus(self, request, context):
         """Obter status geral do sistema"""
@@ -261,9 +234,7 @@ class QueenAgentServicer(queen_agent_pb2_grpc.QueenAgentServicer):
             metrics.sla_compliance_ratio.set(health.get("sla_compliance", 0.0))
             metrics.active_incidents.set(health.get("active_incidents", 0))
 
-            metrics.grpc_requests_total.labels(
-                method=method_name, status="success"
-            ).inc()
+            metrics.grpc_requests_total.labels(method=method_name, status="success").inc()
 
             return queen_agent_pb2.SystemStatusResponse(
                 system_score=health.get("system_score", 0.0),
@@ -275,7 +246,7 @@ class QueenAgentServicer(queen_agent_pb2_grpc.QueenAgentServicer):
             )
 
         except Exception as e:
-            logger.error("grpc_get_system_status_failed", error=str(e))
+            logger.exception("grpc_get_system_status_failed", error=str(e))
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(e))
             metrics.grpc_requests_total.labels(method=method_name, status="error").inc()
@@ -283,9 +254,7 @@ class QueenAgentServicer(queen_agent_pb2_grpc.QueenAgentServicer):
 
         finally:
             duration = time.time() - start_time
-            metrics.grpc_request_duration_seconds.labels(method=method_name).observe(
-                duration
-            )
+            metrics.grpc_request_duration_seconds.labels(method=method_name).observe(duration)
 
     async def RequestExceptionApproval(self, request, context):
         """Solicitar aprovação de exceção"""
@@ -300,9 +269,7 @@ class QueenAgentServicer(queen_agent_pb2_grpc.QueenAgentServicer):
                 plan_id=request.plan_id,
                 justification=request.justification,
                 guardrails_affected=list(request.guardrails_affected),
-                risk_assessment=RiskAssessment(
-                    risk_score=0.0, risk_factors=[], mitigations=[]
-                ),
+                risk_assessment=RiskAssessment(risk_score=0.0, risk_factors=[], mitigations=[]),
                 expires_at=request.expires_at,
             )
 
@@ -313,7 +280,7 @@ class QueenAgentServicer(queen_agent_pb2_grpc.QueenAgentServicer):
             )
 
         except Exception as e:
-            logger.error("grpc_request_exception_approval_failed", error=str(e))
+            logger.exception("grpc_request_exception_approval_failed", error=str(e))
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(e))
             return queen_agent_pb2.RequestExceptionResponse()
@@ -340,7 +307,7 @@ class QueenAgentServicer(queen_agent_pb2_grpc.QueenAgentServicer):
             context.set_details(str(e))
             return queen_agent_pb2.ApproveExceptionResponse()
         except Exception as e:
-            logger.error("grpc_approve_exception_failed", error=str(e))
+            logger.exception("grpc_approve_exception_failed", error=str(e))
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(e))
             return queen_agent_pb2.ApproveExceptionResponse()
@@ -367,7 +334,7 @@ class QueenAgentServicer(queen_agent_pb2_grpc.QueenAgentServicer):
             context.set_details(str(e))
             return queen_agent_pb2.RejectExceptionResponse()
         except Exception as e:
-            logger.error("grpc_reject_exception_failed", error=str(e))
+            logger.exception("grpc_reject_exception_failed", error=str(e))
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(e))
             return queen_agent_pb2.RejectExceptionResponse()
@@ -395,7 +362,7 @@ class QueenAgentServicer(queen_agent_pb2_grpc.QueenAgentServicer):
             return queen_agent_pb2.GetActiveConflictsResponse(conflicts=conflicts)
 
         except Exception as e:
-            logger.error("grpc_get_active_conflicts_failed", error=str(e))
+            logger.exception("grpc_get_active_conflicts_failed", error=str(e))
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(e))
             return queen_agent_pb2.GetActiveConflictsResponse()
@@ -447,9 +414,7 @@ class QueenAgentServicer(queen_agent_pb2_grpc.QueenAgentServicer):
                     "end_timestamp": request.time_window.end_timestamp,
                 },
                 "created_at": request.created_at,
-                "valid_until": request.valid_until
-                if request.HasField("valid_until")
-                else None,
+                "valid_until": request.valid_until if request.HasField("valid_until") else None,
                 "tags": list(request.tags),
                 "metadata": dict(request.metadata),
                 "hash": request.hash,
@@ -472,9 +437,7 @@ class QueenAgentServicer(queen_agent_pb2_grpc.QueenAgentServicer):
                 priority=request.priority,
                 accepted="true",
             ).inc()
-            metrics.grpc_requests_total.labels(
-                method=method_name, status="success"
-            ).inc()
+            metrics.grpc_requests_total.labels(method=method_name, status="success").inc()
 
             return queen_agent_pb2.SubmitInsightResponse(
                 accepted=True,
@@ -483,7 +446,7 @@ class QueenAgentServicer(queen_agent_pb2_grpc.QueenAgentServicer):
             )
 
         except Exception as e:
-            logger.error(
+            logger.exception(
                 "grpc_submit_insight_failed",
                 error=str(e),
                 insight_id=request.insight_id,
@@ -495,9 +458,7 @@ class QueenAgentServicer(queen_agent_pb2_grpc.QueenAgentServicer):
                 insight_type=request.insight_type
                 if hasattr(request, "insight_type")
                 else "unknown",
-                priority=request.priority
-                if hasattr(request, "priority")
-                else "unknown",
+                priority=request.priority if hasattr(request, "priority") else "unknown",
                 accepted="false",
             ).inc()
             metrics.grpc_requests_total.labels(method=method_name, status="error").inc()
@@ -505,11 +466,9 @@ class QueenAgentServicer(queen_agent_pb2_grpc.QueenAgentServicer):
             return queen_agent_pb2.SubmitInsightResponse(
                 accepted=False,
                 insight_id=request.insight_id,
-                message=f"Erro ao processar insight: {str(e)}",
+                message=f"Erro ao processar insight: {e!s}",
             )
 
         finally:
             duration = time.time() - start_time
-            metrics.grpc_request_duration_seconds.labels(method=method_name).observe(
-                duration
-            )
+            metrics.grpc_request_duration_seconds.labels(method=method_name).observe(duration)

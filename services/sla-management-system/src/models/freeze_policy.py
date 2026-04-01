@@ -2,15 +2,17 @@
 Modelos Pydantic para políticas de congelamento.
 """
 
+import uuid
 from datetime import datetime
 from enum import Enum
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional
+
 from pydantic import BaseModel, Field
-import uuid
 
 
 class FreezeScope(str, Enum):
     """Escopo do freeze."""
+
     NAMESPACE = "NAMESPACE"
     SERVICE = "SERVICE"
     GLOBAL = "GLOBAL"
@@ -22,6 +24,7 @@ PolicyScope = FreezeScope
 
 class FreezeAction(str, Enum):
     """Ação de freeze."""
+
     BLOCK_DEPLOY = "BLOCK_DEPLOY"
     BLOCK_SCALE = "BLOCK_SCALE"
     ALERT_ONLY = "ALERT_ONLY"
@@ -40,15 +43,9 @@ class FreezePolicy(BaseModel):
     scope: FreezeScope = Field(..., description="Escopo do freeze")
     target: str = Field(..., description="Namespace, service ou '*' para global")
     actions: List[FreezeAction] = Field(..., description="Ações a executar")
-    trigger_threshold_percent: float = Field(
-        default=20,
-        description="% de budget para acionar"
-    )
+    trigger_threshold_percent: float = Field(default=20, description="% de budget para acionar")
     auto_unfreeze: bool = Field(default=True)
-    unfreeze_threshold_percent: float = Field(
-        default=50,
-        description="% para descongelar"
-    )
+    unfreeze_threshold_percent: float = Field(default=50, description="% para descongelar")
     enabled: bool = Field(default=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     metadata: Dict[str, Any] = Field(default_factory=dict)
@@ -56,6 +53,7 @@ class FreezePolicy(BaseModel):
     def should_trigger(self, budget) -> bool:
         """Verifica se deve acionar freeze."""
         from .error_budget import ErrorBudget
+
         if not isinstance(budget, ErrorBudget):
             return False
         return budget.error_budget_remaining <= self.trigger_threshold_percent
@@ -63,6 +61,7 @@ class FreezePolicy(BaseModel):
     def should_unfreeze(self, budget) -> bool:
         """Verifica se deve descongelar."""
         from .error_budget import ErrorBudget
+
         if not isinstance(budget, ErrorBudget) or not self.auto_unfreeze:
             return False
         return budget.error_budget_remaining >= self.unfreeze_threshold_percent
@@ -73,7 +72,7 @@ class FreezePolicy(BaseModel):
             "neural-hive.io/sla-freeze": "true",
             "neural-hive.io/freeze-policy-id": self.policy_id,
             "neural-hive.io/freeze-threshold": str(self.trigger_threshold_percent),
-            "neural-hive.io/freeze-actions": ",".join([a.value for a in self.actions])
+            "neural-hive.io/freeze-actions": ",".join([a.value for a in self.actions]),
         }
 
 

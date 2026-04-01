@@ -7,13 +7,14 @@ que é incompatível com protobuf >= 4.0.
 Mantém a mesma interface do EtcdClient para compatibilidade.
 """
 
-import json
 import asyncio
-from typing import Dict, List, Optional, Callable
+import json
+from typing import Callable, Dict, List, Optional
 from uuid import UUID
+
 import redis.asyncio as redis
 import structlog
-from src.models import AgentInfo, AgentType, AgentStatus
+from src.models import AgentInfo, AgentStatus, AgentType
 
 logger = structlog.get_logger()
 
@@ -50,7 +51,9 @@ class RedisRegistryClient:
             try:
                 port = int(port_str)
             except ValueError:
-                raise ValueError(f"Porta inválida no endpoint '{endpoint}': '{port_str}' não é um número")
+                raise ValueError(
+                    f"Porta inválida no endpoint '{endpoint}': '{port_str}' não é um número"
+                )
 
             self.client = redis.Redis(
                 host=host,
@@ -58,12 +61,14 @@ class RedisRegistryClient:
                 password=self.password if self.password else None,
                 decode_responses=True,
                 socket_timeout=self.timeout,
-                socket_connect_timeout=self.timeout
+                socket_connect_timeout=self.timeout,
             )
 
             # Test connection
             await self.client.ping()
-            logger.info("redis_registry_client_initialized", nodes=self.cluster_nodes, host=host, port=port)
+            logger.info(
+                "redis_registry_client_initialized", nodes=self.cluster_nodes, host=host, port=port
+            )
 
         except Exception as e:
             logger.error("redis_registry_client_initialization_failed", error=str(e))
@@ -105,23 +110,19 @@ class RedisRegistryClient:
             # Publicar evento de registro
             await self.client.publish(
                 f"{self.prefix}:events",
-                json.dumps({"event": "registered", "agent_id": str(agent_info.agent_id)})
+                json.dumps({"event": "registered", "agent_id": str(agent_info.agent_id)}),
             )
 
             logger.info(
                 "agent_stored_in_redis",
                 agent_id=str(agent_info.agent_id),
                 agent_type=agent_info.agent_type.value,
-                key=key
+                key=key,
             )
             return True
 
         except Exception as e:
-            logger.error(
-                "redis_put_agent_failed",
-                agent_id=str(agent_info.agent_id),
-                error=str(e)
-            )
+            logger.error("redis_put_agent_failed", agent_id=str(agent_info.agent_id), error=str(e))
             raise
 
     async def get_agent(self, agent_id: UUID) -> Optional[AgentInfo]:
@@ -160,13 +161,13 @@ class RedisRegistryClient:
                     # Publicar evento de desregistro
                     await self.client.publish(
                         f"{self.prefix}:events",
-                        json.dumps({"event": "deregistered", "agent_id": str(agent_id)})
+                        json.dumps({"event": "deregistered", "agent_id": str(agent_id)}),
                     )
 
                     logger.info(
                         "agent_deleted_from_redis",
                         agent_id=str(agent_id),
-                        agent_type=agent_type.value
+                        agent_type=agent_type.value,
                     )
 
             return deleted
@@ -176,9 +177,7 @@ class RedisRegistryClient:
             raise
 
     async def list_agents(
-        self,
-        agent_type: Optional[AgentType] = None,
-        filters: Optional[Dict[str, str]] = None
+        self, agent_type: Optional[AgentType] = None, filters: Optional[Dict[str, str]] = None
     ) -> List[AgentInfo]:
         """Lista agentes com filtros opcionais"""
         try:
@@ -212,7 +211,7 @@ class RedisRegistryClient:
             logger.info(
                 "agents_listed_from_redis",
                 count=len(agents),
-                agent_type=agent_type.value if agent_type else "all"
+                agent_type=agent_type.value if agent_type else "all",
             )
             return agents
 

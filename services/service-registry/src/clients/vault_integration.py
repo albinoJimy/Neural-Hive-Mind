@@ -2,16 +2,20 @@
 Cliente de integração Vault para service-registry
 """
 
-import asyncio
 from typing import Dict, Optional
-from datetime import datetime, timedelta
+
 import structlog
 from prometheus_client import Counter
 
 # Import security library components
 try:
-    from neural_hive_security import VaultClient, VaultConfig
-    from neural_hive_security import VaultConnectionError, VaultAuthenticationError
+    from neural_hive_security import (
+        VaultAuthenticationError,
+        VaultClient,
+        VaultConfig,
+        VaultConnectionError,
+    )
+
     SECURITY_LIB_AVAILABLE = True
 except ImportError:
     SECURITY_LIB_AVAILABLE = False
@@ -26,7 +30,7 @@ logger = structlog.get_logger(__name__)
 vault_credentials_fetched_total = Counter(
     "service_registry_vault_credentials_fetched_total",
     "Total de buscas de credenciais do Vault",
-    ["credential_type", "status"]
+    ["credential_type", "status"],
 )
 
 
@@ -48,20 +52,22 @@ class ServiceRegistryVaultClient:
 
         # Create Vault config
         vault_config = VaultConfig(
-            address=getattr(config, 'VAULT_ADDRESS', 'http://vault.vault.svc.cluster.local:8200'),
-            namespace=getattr(config, 'VAULT_NAMESPACE', ''),
-            auth_method=getattr(config, 'VAULT_AUTH_METHOD', 'kubernetes'),
-            kubernetes_role=getattr(config, 'VAULT_KUBERNETES_ROLE', 'service-registry'),
-            jwt_path=getattr(config, 'VAULT_TOKEN_PATH', '/vault/secrets/token'),
-            mount_path_kv=getattr(config, 'VAULT_MOUNT_KV', 'secret'),
-            timeout_seconds=getattr(config, 'VAULT_TIMEOUT_SECONDS', 5),
-            max_retries=getattr(config, 'VAULT_MAX_RETRIES', 3),
-            fail_open=getattr(config, 'VAULT_FAIL_OPEN', False),
+            address=getattr(config, "VAULT_ADDRESS", "http://vault.vault.svc.cluster.local:8200"),
+            namespace=getattr(config, "VAULT_NAMESPACE", ""),
+            auth_method=getattr(config, "VAULT_AUTH_METHOD", "kubernetes"),
+            kubernetes_role=getattr(config, "VAULT_KUBERNETES_ROLE", "service-registry"),
+            jwt_path=getattr(config, "VAULT_TOKEN_PATH", "/vault/secrets/token"),
+            mount_path_kv=getattr(config, "VAULT_MOUNT_KV", "secret"),
+            timeout_seconds=getattr(config, "VAULT_TIMEOUT_SECONDS", 5),
+            max_retries=getattr(config, "VAULT_MAX_RETRIES", 3),
+            fail_open=getattr(config, "VAULT_FAIL_OPEN", False),
         )
 
-        self.vault_enabled = getattr(config, 'VAULT_ENABLED', False)
-        self.vault_fail_open = getattr(config, 'VAULT_FAIL_OPEN', False)
-        self.vault_client: Optional[VaultClient] = VaultClient(vault_config) if self.vault_enabled else None
+        self.vault_enabled = getattr(config, "VAULT_ENABLED", False)
+        self.vault_fail_open = getattr(config, "VAULT_FAIL_OPEN", False)
+        self.vault_client: Optional[VaultClient] = (
+            VaultClient(vault_config) if self.vault_enabled else None
+        )
 
     async def initialize(self):
         """Inicializa cliente Vault"""
@@ -91,8 +97,8 @@ class ServiceRegistryVaultClient:
         """
         if not self.vault_client or not self.vault_enabled:
             return {
-                "username": getattr(self.config, 'ETCD_USERNAME', ''),
-                "password": getattr(self.config, 'ETCD_PASSWORD', '')
+                "username": getattr(self.config, "ETCD_USERNAME", ""),
+                "password": getattr(self.config, "ETCD_PASSWORD", ""),
             }
 
         try:
@@ -101,16 +107,18 @@ class ServiceRegistryVaultClient:
 
             if secret:
                 self.logger.info("etcd_credentials_fetched")
-                vault_credentials_fetched_total.labels(credential_type="etcd", status="success").inc()
+                vault_credentials_fetched_total.labels(
+                    credential_type="etcd", status="success"
+                ).inc()
                 return {
                     "username": secret.get("username", ""),
-                    "password": secret.get("password", "")
+                    "password": secret.get("password", ""),
                 }
             else:
                 self.logger.warning("etcd_credentials_not_found_in_vault")
                 return {
-                    "username": getattr(self.config, 'ETCD_USERNAME', ''),
-                    "password": getattr(self.config, 'ETCD_PASSWORD', '')
+                    "username": getattr(self.config, "ETCD_USERNAME", ""),
+                    "password": getattr(self.config, "ETCD_PASSWORD", ""),
                 }
 
         except Exception as e:
@@ -118,8 +126,8 @@ class ServiceRegistryVaultClient:
             vault_credentials_fetched_total.labels(credential_type="etcd", status="error").inc()
             if self.vault_fail_open:
                 return {
-                    "username": getattr(self.config, 'ETCD_USERNAME', ''),
-                    "password": getattr(self.config, 'ETCD_PASSWORD', '')
+                    "username": getattr(self.config, "ETCD_USERNAME", ""),
+                    "password": getattr(self.config, "ETCD_PASSWORD", ""),
                 }
             raise
 
@@ -131,7 +139,7 @@ class ServiceRegistryVaultClient:
             Redis password
         """
         if not self.vault_client or not self.vault_enabled:
-            return getattr(self.config, 'REDIS_PASSWORD', None)
+            return getattr(self.config, "REDIS_PASSWORD", None)
 
         try:
             self.logger.debug("fetching_redis_password")
@@ -139,17 +147,19 @@ class ServiceRegistryVaultClient:
 
             if secret and "password" in secret:
                 self.logger.info("redis_password_fetched")
-                vault_credentials_fetched_total.labels(credential_type="redis", status="success").inc()
+                vault_credentials_fetched_total.labels(
+                    credential_type="redis", status="success"
+                ).inc()
                 return secret["password"]
             else:
                 self.logger.warning("redis_password_not_found_in_vault")
-                return getattr(self.config, 'REDIS_PASSWORD', None)
+                return getattr(self.config, "REDIS_PASSWORD", None)
 
         except Exception as e:
             self.logger.error("redis_password_fetch_failed", error=str(e))
             vault_credentials_fetched_total.labels(credential_type="redis", status="error").inc()
             if self.vault_fail_open:
-                return getattr(self.config, 'REDIS_PASSWORD', None)
+                return getattr(self.config, "REDIS_PASSWORD", None)
             raise
 
     async def health_check(self) -> bool:

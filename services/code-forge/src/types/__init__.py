@@ -7,7 +7,7 @@ from .artifact_types import (
 )
 
 __all__ = [
-    'ArtifactCategory',
-    'ArtifactSubtype',
-    'CodeLanguage',
+    "ArtifactCategory",
+    "ArtifactSubtype",
+    "CodeLanguage",
 ]

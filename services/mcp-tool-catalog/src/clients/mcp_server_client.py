@@ -81,8 +81,7 @@ class MCPServerClient:
         """
         if transport not in self.SUPPORTED_TRANSPORTS:
             raise ValueError(
-                f"Transport '{transport}' não suportado. "
-                f"Use um de: {self.SUPPORTED_TRANSPORTS}"
+                f"Transport '{transport}' não suportado. " f"Use um de: {self.SUPPORTED_TRANSPORTS}"
             )
 
         # Para HTTP, rstrip('/') normaliza a URL; para stdio, preservar original
@@ -145,7 +144,7 @@ class MCPServerClient:
         # Parse server_url para extrair comando
         # Formato esperado: "stdio://path/to/server" ou "stdio:///usr/bin/mcp-server"
         if self.server_url.startswith("stdio://"):
-            command = self.server_url[len("stdio://"):]
+            command = self.server_url[len("stdio://") :]
         else:
             command = self.server_url
 
@@ -631,7 +630,7 @@ class MCPServerClient:
 
             # Retry com exponential backoff
             if attempt < self.max_retries:
-                backoff = 2 ** attempt
+                backoff = 2**attempt
                 self._logger.warning(
                     "mcp_request_retry",
                     attempt=attempt,
@@ -824,7 +823,7 @@ class MCPServerClient:
 
             # Retry com exponential backoff
             if attempt < self.max_retries:
-                backoff = 2 ** attempt
+                backoff = 2**attempt
                 self._logger.warning(
                     "mcp_request_retry",
                     attempt=attempt,

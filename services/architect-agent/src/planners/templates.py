@@ -1,7 +1,6 @@
 """Templates de prompts para LLM de arquitetura."""
 
-from typing import Dict, Any
-
+from typing import Any, Dict
 
 SYSTEM_PROMPT = """You are an expert software architect specializing in distributed systems, microservices, and cloud-native applications.
 

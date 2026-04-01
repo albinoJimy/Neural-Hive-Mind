@@ -1,8 +1,8 @@
 """Analyzer para Redis usage patterns."""
 import logging
-from typing import Any, Dict
+from typing import Any
 
-from .base import BaseAnalyzer, AnalysisResult, RecommendationType, Severity, TargetType
+from .base import AnalysisResult, BaseAnalyzer, RecommendationType, Severity, TargetType
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +17,7 @@ class RedisAnalyzer(BaseAnalyzer):
     def supports(self, target_type: str) -> bool:
         return target_type.lower() in ["redis", "cache"]
 
-    async def analyze(self, context: Dict[str, Any]) -> AnalysisResult:
+    async def analyze(self, context: dict[str, Any]) -> AnalysisResult:
         """Analisa padrões de uso Redis."""
         issues = []
         keys = context.get("keys", [])
@@ -26,12 +26,16 @@ class RedisAnalyzer(BaseAnalyzer):
             if isinstance(key_info, dict):
                 ttl = key_info.get("ttl", -1)
                 if ttl == -1:
-                    issues.append({
-                        "type": RecommendationType.TTL_OPTIMIZATION,
-                        "severity": Severity.LOW,
-                        "description": f"Chave '{key_info.get('key')}' sem TTL",
-                        "estimated_improvement_pct": 20.0,
-                        "target_type": TargetType.REDIS,
-                    })
+                    issues.append(
+                        {
+                            "type": RecommendationType.TTL_OPTIMIZATION,
+                            "severity": Severity.LOW,
+                            "description": f"Chave '{key_info.get('key')}' sem TTL",
+                            "estimated_improvement_pct": 20.0,
+                            "target_type": TargetType.REDIS,
+                        }
+                    )
 
-        return AnalysisResult(issues=issues, metrics={"analyzed_keys": len(keys)}, analyzed_at="now")
+        return AnalysisResult(
+            issues=issues, metrics={"analyzed_keys": len(keys)}, analyzed_at="now"
+        )

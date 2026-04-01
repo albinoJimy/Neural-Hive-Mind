@@ -1,12 +1,10 @@
+
 import structlog
-from datetime import datetime
-from typing import List, Optional
 
-from ..config import Settings
-from ..models import ExceptionApproval, ExceptionType, ApprovalStatus
-from ..clients import MongoDBClient
 from neural_hive_resilience.circuit_breaker import CircuitBreakerError
-
+from src.clients import MongoDBClient
+from src.config import Settings
+from src.models import ApprovalStatus, ExceptionApproval, ExceptionType
 
 logger = structlog.get_logger()
 
@@ -52,18 +50,16 @@ class ExceptionApprovalService:
             return exception.exception_id
 
         except Exception as e:
-            logger.error("request_exception_failed", error=str(e))
+            logger.exception("request_exception_failed", error=str(e))
             raise
 
     async def approve_exception(
-        self, exception_id: str, decision_id: str, conditions: List[str]
+        self, exception_id: str, decision_id: str, conditions: list[str]
     ) -> ExceptionApproval:
         """Aprovar exceção"""
         try:
             # Buscar exceção
-            exception_data = await self.mongodb_client.get_exception_approval(
-                exception_id
-            )
+            exception_data = await self.mongodb_client.get_exception_approval(exception_id)
             if not exception_data:
                 raise ValueError(f"Exception {exception_id} not found")
 
@@ -102,19 +98,13 @@ class ExceptionApprovalService:
             return exception
 
         except Exception as e:
-            logger.error(
-                "approve_exception_failed", exception_id=exception_id, error=str(e)
-            )
+            logger.exception("approve_exception_failed", exception_id=exception_id, error=str(e))
             raise
 
-    async def reject_exception(
-        self, exception_id: str, reason: str
-    ) -> ExceptionApproval:
+    async def reject_exception(self, exception_id: str, reason: str) -> ExceptionApproval:
         """Rejeitar exceção"""
         try:
-            exception_data = await self.mongodb_client.get_exception_approval(
-                exception_id
-            )
+            exception_data = await self.mongodb_client.get_exception_approval(exception_id)
             if not exception_data:
                 raise ValueError(f"Exception {exception_id} not found")
 
@@ -141,12 +131,10 @@ class ExceptionApprovalService:
             return exception
 
         except Exception as e:
-            logger.error(
-                "reject_exception_failed", exception_id=exception_id, error=str(e)
-            )
+            logger.exception("reject_exception_failed", exception_id=exception_id, error=str(e))
             raise
 
-    async def get_pending_exceptions(self) -> List[ExceptionApproval]:
+    async def get_pending_exceptions(self) -> list[ExceptionApproval]:
         """Listar exceções pendentes"""
         try:
             # Buscar do MongoDB
@@ -154,18 +142,15 @@ class ExceptionApprovalService:
                 filters={"approval_status": ApprovalStatus.PENDING.value}, limit=50
             )
 
-            exceptions = [ExceptionApproval(**data) for data in pending_data]
-            return exceptions
+            return [ExceptionApproval(**data) for data in pending_data]
 
         except Exception as e:
-            logger.error("get_pending_exceptions_failed", error=str(e))
+            logger.exception("get_pending_exceptions_failed", error=str(e))
             return []
 
-    async def evaluate_exception_risk(
-        self, exception: ExceptionApproval
-    ) -> "RiskAssessment":
+    async def evaluate_exception_risk(self, exception: ExceptionApproval) -> "RiskAssessment":
         """Avaliar risco de uma exceção"""
-        from ..models import RiskAssessment
+        from src.models import RiskAssessment
 
         try:
             risk_factors = []
@@ -204,55 +189,46 @@ class ExceptionApprovalService:
             )
 
         except Exception as e:
-            logger.error("evaluate_exception_risk_failed", error=str(e))
+            logger.exception("evaluate_exception_risk_failed", error=str(e))
             return RiskAssessment(risk_score=0.5, risk_factors=[], mitigations=[])
 
     async def check_exception_validity(self, exception_id: str) -> bool:
         """Verificar se exceção ainda é válida"""
         try:
-            exception_data = await self.mongodb_client.get_exception_approval(
-                exception_id
-            )
+            exception_data = await self.mongodb_client.get_exception_approval(exception_id)
             if not exception_data:
                 return False
 
             exception = ExceptionApproval(**exception_data)
 
             return (
-                exception.approval_status == ApprovalStatus.APPROVED
-                and not exception.is_expired()
+                exception.approval_status == ApprovalStatus.APPROVED and not exception.is_expired()
             )
 
         except Exception as e:
-            logger.error("check_exception_validity_failed", error=str(e))
+            logger.exception("check_exception_validity_failed", error=str(e))
             return False
 
     async def revoke_exception(self, exception_id: str, reason: str) -> bool:
         """Revogar exceção aprovada"""
         try:
-            exception_data = await self.mongodb_client.get_exception_approval(
-                exception_id
-            )
+            exception_data = await self.mongodb_client.get_exception_approval(exception_id)
             if not exception_data:
                 return False
 
             exception = ExceptionApproval(**exception_data)
 
             if exception.approval_status != ApprovalStatus.APPROVED:
-                logger.warning(
-                    "revoke_exception_invalid_status", exception_id=exception_id
-                )
+                logger.warning("revoke_exception_invalid_status", exception_id=exception_id)
                 return False
 
             # Atualizar status para REJECTED com razão de revogação
             exception.reject(f"Revoked: {reason}")
-            await self.mongodb_client.update_exception_status(
-                exception_id, ApprovalStatus.REJECTED
-            )
+            await self.mongodb_client.update_exception_status(exception_id, ApprovalStatus.REJECTED)
 
             logger.info("exception_revoked", exception_id=exception_id, reason=reason)
             return True
 
         except Exception as e:
-            logger.error("revoke_exception_failed", error=str(e))
+            logger.exception("revoke_exception_failed", error=str(e))
             return False

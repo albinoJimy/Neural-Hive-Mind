@@ -1,8 +1,9 @@
-import structlog
 import asyncio
 import uuid
-from typing import Dict, Any, Optional
-from datetime import datetime
+from datetime import UTC, datetime
+from typing import Any
+
+import structlog
 
 from neural_hive_observability import get_tracer
 
@@ -14,14 +15,23 @@ class TaskExecutionError(Exception):
 
 
 class ExecutionEngine:
-    '''Orquestrador principal de execução de tarefas'''
+    """Orquestrador principal de execução de tarefas"""
 
     # TTL para deduplicação de tickets (7 dias - alinhado com retention Kafka)
     DEDUPLICATION_TTL_SECONDS = 604800
     # TTL para chave de processing (10 minutos - tempo máximo esperado de processamento)
     PROCESSING_TTL_SECONDS = 600
 
-    def __init__(self, config, ticket_client, result_producer, dependency_coordinator, executor_registry, redis_client=None, metrics=None):
+    def __init__(
+        self,
+        config,
+        ticket_client,
+        result_producer,
+        dependency_coordinator,
+        executor_registry,
+        redis_client=None,
+        metrics=None,
+    ):
         self.config = config
         self.ticket_client = ticket_client
         self.result_producer = result_producer
@@ -29,10 +39,10 @@ class ExecutionEngine:
         self.executor_registry = executor_registry
         self.redis_client = redis_client
         self.metrics = metrics
-        self.logger = logger.bind(service='execution_engine')
+        self.logger = logger.bind(service="execution_engine")
 
         # Rastrear tarefas em execução
-        self.active_tasks: Dict[str, asyncio.Task] = {}
+        self.active_tasks: dict[str, asyncio.Task] = {}
 
         # Limitar concorrência
         self.task_semaphore = asyncio.Semaphore(config.max_concurrent_tasks)
@@ -62,43 +72,46 @@ class ExecutionEngine:
                 # Fase 1: Verificar se já foi processado com sucesso
                 if await self.redis_client.exists(processed_key):
                     self.logger.info(
-                        'duplicate_ticket_detected',
+                        "duplicate_ticket_detected",
                         ticket_id=ticket_id,
-                        source='redis',
-                        message='Ticket já foi processado com sucesso, ignorando'
+                        source="redis",
+                        message="Ticket já foi processado com sucesso, ignorando",
                     )
-                    if self.metrics and hasattr(self.metrics, 'duplicates_detected_total'):
-                        self.metrics.duplicates_detected_total.labels(component='execution_engine', source='redis').inc()
+                    if self.metrics and hasattr(self.metrics, "duplicates_detected_total"):
+                        self.metrics.duplicates_detected_total.labels(
+                            component="execution_engine", source="redis"
+                        ).inc()
                     return True
 
                 # Fase 2: Tentar marcar como em processamento (SETNX)
                 is_new = await self.redis_client.set(
-                    processing_key,
-                    "1",
-                    ex=self.PROCESSING_TTL_SECONDS,
-                    nx=True
+                    processing_key, "1", ex=self.PROCESSING_TTL_SECONDS, nx=True
                 )
 
                 if not is_new:
                     self.logger.info(
-                        'ticket_already_processing',
+                        "ticket_already_processing",
                         ticket_id=ticket_id,
-                        source='redis',
-                        message='Ticket já está em processamento por outro worker, ignorando'
+                        source="redis",
+                        message="Ticket já está em processamento por outro worker, ignorando",
                     )
-                    if self.metrics and hasattr(self.metrics, 'duplicates_detected_total'):
-                        self.metrics.duplicates_detected_total.labels(component='execution_engine', source='redis').inc()
+                    if self.metrics and hasattr(self.metrics, "duplicates_detected_total"):
+                        self.metrics.duplicates_detected_total.labels(
+                            component="execution_engine", source="redis"
+                        ).inc()
                     return True
 
-                self.logger.debug('ticket_marked_as_processing', ticket_id=ticket_id, source='redis')
+                self.logger.debug(
+                    "ticket_marked_as_processing", ticket_id=ticket_id, source="redis"
+                )
                 return False
 
             except Exception as e:
                 self.logger.warning(
-                    'redis_deduplication_failed',
+                    "redis_deduplication_failed",
                     ticket_id=ticket_id,
                     error=str(e),
-                    message='Tentando fallback MongoDB'
+                    message="Tentando fallback MongoDB",
                 )
 
         # F2: Fallback para MongoDB
@@ -118,9 +131,9 @@ class ExecutionEngine:
         """
         if not self.ticket_client:
             self.logger.warning(
-                'F2_mongodb_client_unavailable',
+                "F2_mongodb_client_unavailable",
                 ticket_id=ticket_id,
-                message='MongoDB client não disponível - fail-open, permitindo processamento'
+                message="MongoDB client não disponível - fail-open, permitindo processamento",
             )
             return False
 
@@ -130,48 +143,54 @@ class ExecutionEngine:
 
             if existing_ticket:
                 # Ticket já existe - verificar status
-                status = existing_ticket.get('status', 'UNKNOWN')
+                status = existing_ticket.get("status", "UNKNOWN")
 
                 # Se status é COMPLETED ou FAILED, é duplicata
-                if status in ('COMPLETED', 'FAILED', 'CANCELLED'):
+                if status in ("COMPLETED", "FAILED", "CANCELLED"):
                     self.logger.info(
-                        'F2_duplicate_ticket_detected_mongodb',
+                        "F2_duplicate_ticket_detected_mongodb",
                         ticket_id=ticket_id,
-                        source='mongodb',
+                        source="mongodb",
                         existing_status=status,
-                        message='Ticket já processado no MongoDB, ignorando'
+                        message="Ticket já processado no MongoDB, ignorando",
                     )
-                    if self.metrics and hasattr(self.metrics, 'duplicates_detected_total'):
-                        self.metrics.duplicates_detected_total.labels(component='execution_engine', source='mongodb').inc()
+                    if self.metrics and hasattr(self.metrics, "duplicates_detected_total"):
+                        self.metrics.duplicates_detected_total.labels(
+                            component="execution_engine", source="mongodb"
+                        ).inc()
                     return True
 
                 # Se status é PENDING ou RUNNING, pode ser reprocessamento (permitir)
                 self.logger.warning(
-                    'F2_ticket_reprocessamento_mongodb',
+                    "F2_ticket_reprocessamento_mongodb",
                     ticket_id=ticket_id,
-                    source='mongodb',
+                    source="mongodb",
                     existing_status=status,
-                    message='Ticket com status não-final no MongoDB - permitindo reprocessamento'
+                    message="Ticket com status não-final no MongoDB - permitindo reprocessamento",
                 )
                 return False
 
             # Ticket não existe no MongoDB - marcar como processamento no MongoDB também
             # Usamos um campo 'processing_started_at' para tracking
-            await self.ticket_client.update_ticket_status(ticket_id, 'PENDING', metadata={
-                'processing_started_at': datetime.utcnow().isoformat(),
-                'dedup_method': 'mongodb_fallback'
-            })
+            await self.ticket_client.update_ticket_status(
+                ticket_id,
+                "PENDING",
+                metadata={
+                    "processing_started_at": datetime.now(UTC).isoformat(),
+                    "dedup_method": "mongodb_fallback",
+                },
+            )
 
-            self.logger.debug('F2_ticket_marked_processing_mongodb', ticket_id=ticket_id)
+            self.logger.debug("F2_ticket_marked_processing_mongodb", ticket_id=ticket_id)
             return False
 
         except Exception as e:
-            self.logger.error(
-                'F2_mongodb_deduplication_failed',
+            self.logger.exception(
+                "F2_mongodb_deduplication_failed",
                 ticket_id=ticket_id,
                 error=str(e),
                 error_type=type(e).__name__,
-                message='Fail-open - permitindo processamento sem deduplicação'
+                message="Fail-open - permitindo processamento sem deduplicação",
             )
             # Fail-open: permitir processamento se ambos Redis e MongoDB falharem
             return False
@@ -194,39 +213,37 @@ class ExecutionEngine:
                 processing_key = f"ticket:processing:{ticket_id}"
 
                 # Marcar como processado com TTL longo
-                await self.redis_client.set(
-                    processed_key,
-                    "1",
-                    ex=self.DEDUPLICATION_TTL_SECONDS
-                )
+                await self.redis_client.set(processed_key, "1", ex=self.DEDUPLICATION_TTL_SECONDS)
 
                 # Remover chave de processing
                 await self.redis_client.delete(processing_key)
 
-                self.logger.debug('ticket_marked_as_processed_redis', ticket_id=ticket_id)
+                self.logger.debug("ticket_marked_as_processed_redis", ticket_id=ticket_id)
                 return  # Sucesso no Redis, não precisa tentar MongoDB
 
             except Exception as e:
                 self.logger.warning(
-                    'redis_mark_processed_failed',
+                    "redis_mark_processed_failed",
                     ticket_id=ticket_id,
                     error=str(e),
-                    message='Tentando fallback MongoDB'
+                    message="Tentando fallback MongoDB",
                 )
 
         # F2: Fallback para MongoDB
         if self.ticket_client:
             try:
-                await self.ticket_client.update_ticket_status(ticket_id, 'COMPLETED', metadata={
-                    'processed_at': datetime.utcnow().isoformat(),
-                    'dedup_method': 'mongodb_fallback'
-                })
-                self.logger.debug('F2_ticket_marked_processed_mongodb', ticket_id=ticket_id)
+                await self.ticket_client.update_ticket_status(
+                    ticket_id,
+                    "COMPLETED",
+                    metadata={
+                        "processed_at": datetime.now(UTC).isoformat(),
+                        "dedup_method": "mongodb_fallback",
+                    },
+                )
+                self.logger.debug("F2_ticket_marked_processed_mongodb", ticket_id=ticket_id)
             except Exception as e:
-                self.logger.error(
-                    'F2_mongodb_mark_processed_failed',
-                    ticket_id=ticket_id,
-                    error=str(e)
+                self.logger.exception(
+                    "F2_mongodb_mark_processed_failed", ticket_id=ticket_id, error=str(e)
                 )
 
     async def _clear_ticket_processing(self, ticket_id: str) -> None:
@@ -245,69 +262,73 @@ class ExecutionEngine:
             try:
                 processing_key = f"ticket:processing:{ticket_id}"
                 await self.redis_client.delete(processing_key)
-                self.logger.debug('ticket_processing_cleared_redis', ticket_id=ticket_id)
+                self.logger.debug("ticket_processing_cleared_redis", ticket_id=ticket_id)
                 return  # Sucesso no Redis
             except Exception as e:
                 self.logger.warning(
-                    'redis_clear_processing_failed',
+                    "redis_clear_processing_failed",
                     ticket_id=ticket_id,
                     error=str(e),
-                    message='Tentando fallback MongoDB'
+                    message="Tentando fallback MongoDB",
                 )
 
         # F2: Fallback para MongoDB (marca como FAILED para permitir reprocessamento)
         if self.ticket_client:
             try:
-                await self.ticket_client.update_ticket_status(ticket_id, 'PENDING', metadata={
-                    'processing_cleared_at': datetime.utcnow().isoformat(),
-                    'dedup_method': 'mongodb_fallback'
-                })
-                self.logger.debug('F2_ticket_processing_cleared_mongodb', ticket_id=ticket_id)
+                await self.ticket_client.update_ticket_status(
+                    ticket_id,
+                    "PENDING",
+                    metadata={
+                        "processing_cleared_at": datetime.now(UTC).isoformat(),
+                        "dedup_method": "mongodb_fallback",
+                    },
+                )
+                self.logger.debug("F2_ticket_processing_cleared_mongodb", ticket_id=ticket_id)
             except Exception as e:
-                self.logger.error(
-                    'F2_mongodb_clear_processing_failed',
-                    ticket_id=ticket_id,
-                    error=str(e)
+                self.logger.exception(
+                    "F2_mongodb_clear_processing_failed", ticket_id=ticket_id, error=str(e)
                 )
 
-    async def process_ticket(self, ticket: Dict[str, Any]):
-        '''Processar ticket de execução'''
-        ticket_id = ticket.get('ticket_id')
+    async def process_ticket(self, ticket: dict[str, Any]):
+        """Processar ticket de execução"""
+        ticket_id = ticket.get("ticket_id")
 
         # Validar que ticket_id está presente e não é vazio
         if not ticket_id:
             self.logger.error(
-                'ticket_id_missing_or_empty',
+                "ticket_id_missing_or_empty",
                 ticket=ticket,
-                message='Ticket inválido: ticket_id ausente ou vazio. Ignorando processamento.'
+                message="Ticket inválido: ticket_id ausente ou vazio. Ignorando processamento.",
             )
-            if self.metrics and hasattr(self.metrics, 'tickets_failed_total'):
-                task_type = ticket.get('task_type', 'unknown')
-                self.metrics.tickets_failed_total.labels(task_type=task_type, error_type='invalid_ticket_id').inc()
+            if self.metrics and hasattr(self.metrics, "tickets_failed_total"):
+                task_type = ticket.get("task_type", "unknown")
+                self.metrics.tickets_failed_total.labels(
+                    task_type=task_type, error_type="invalid_ticket_id"
+                ).inc()
             return
 
         # F1: Validar e garantir correlation_id no ticket
-        correlation_id = ticket.get('correlation_id') or ticket.get('correlationId')
+        correlation_id = ticket.get("correlation_id") or ticket.get("correlationId")
         if not correlation_id:
             correlation_id = str(uuid.uuid4())
-            ticket['correlation_id'] = correlation_id
+            ticket["correlation_id"] = correlation_id
             self.logger.warning(
-                'F1: correlation_id ausente no ticket - UUID gerado no Worker Agent',
+                "F1: correlation_id ausente no ticket - UUID gerado no Worker Agent",
                 ticket_id=ticket_id,
                 generated_correlation_id=correlation_id,
-                action_required='Verificar propagação de correlation_id upstream (Orchestrator Dynamic)'
+                action_required="Verificar propagação de correlation_id upstream (Orchestrator Dynamic)",
             )
 
         # Verificar duplicata via Redis (idempotência)
         if await self._is_duplicate_ticket(ticket_id):
-            self.logger.info('duplicate_ticket_skipped', ticket_id=ticket_id)
-            if self.metrics and hasattr(self.metrics, 'duplicates_detected_total'):
-                self.metrics.duplicates_detected_total.labels(component='execution_engine').inc()
+            self.logger.info("duplicate_ticket_skipped", ticket_id=ticket_id)
+            if self.metrics and hasattr(self.metrics, "duplicates_detected_total"):
+                self.metrics.duplicates_detected_total.labels(component="execution_engine").inc()
             return
 
         # Validar se já está em execução
         if ticket_id in self.active_tasks:
-            self.logger.warning('ticket_already_processing', ticket_id=ticket_id)
+            self.logger.warning("ticket_already_processing", ticket_id=ticket_id)
             return
 
         # Criar task assíncrona
@@ -315,54 +336,53 @@ class ExecutionEngine:
         self.active_tasks[ticket_id] = task
 
         self.logger.info(
-            'ticket_processing_started',
+            "ticket_processing_started",
             ticket_id=ticket_id,
-            task_type=ticket.get('task_type'),
-            active_tasks_count=len(self.active_tasks)
+            task_type=ticket.get("task_type"),
+            active_tasks_count=len(self.active_tasks),
         )
 
         if self.metrics:
-            if hasattr(self.metrics, 'tickets_processing_total'):
-                self.metrics.tickets_processing_total.labels(task_type=ticket.get('task_type')).inc()
-            if hasattr(self.metrics, 'active_tasks'):
+            if hasattr(self.metrics, "tickets_processing_total"):
+                self.metrics.tickets_processing_total.labels(
+                    task_type=ticket.get("task_type")
+                ).inc()
+            if hasattr(self.metrics, "active_tasks"):
                 self.metrics.active_tasks.set(len(self.active_tasks))
 
-    async def _execute_ticket(self, ticket: Dict[str, Any]):
-        '''Executar ticket com coordenação de dependências e retry logic'''
-        ticket_id = ticket.get('ticket_id')
-        task_type = ticket.get('task_type')
+    async def _execute_ticket(self, ticket: dict[str, Any]):
+        """Executar ticket com coordenação de dependências e retry logic"""
+        ticket_id = ticket.get("ticket_id")
+        task_type = ticket.get("task_type")
         start_time = datetime.now()
 
         tracer = get_tracer()
         with tracer.start_as_current_span("ticket_execution") as span:
             span.set_attribute("neural.hive.ticket_id", ticket_id)
             span.set_attribute("neural.hive.task_type", task_type)
-            span.set_attribute("neural.hive.plan_id", ticket.get('plan_id', ''))
-            span.set_attribute("neural.hive.intent_id", ticket.get('intent_id', ''))
+            span.set_attribute("neural.hive.plan_id", ticket.get("plan_id", ""))
+            span.set_attribute("neural.hive.intent_id", ticket.get("intent_id", ""))
 
             try:
                 # Adquirir semaphore (limitar concorrência)
                 async with self.task_semaphore:
-
                     self.logger.info(
-                        'ticket_execution_started',
+                        "ticket_execution_started",
                         ticket_id=ticket_id,
                         task_type=task_type,
-                        plan_id=ticket.get('plan_id'),
-                        intent_id=ticket.get('intent_id')
+                        plan_id=ticket.get("plan_id"),
+                        intent_id=ticket.get("intent_id"),
                     )
 
                     # Atualizar status para RUNNING
-                    await self.ticket_client.update_ticket_status(ticket_id, 'RUNNING')
+                    await self.ticket_client.update_ticket_status(ticket_id, "RUNNING")
 
                     # Verificar dependências
                     try:
                         await self.dependency_coordinator.wait_for_dependencies(ticket)
                     except Exception as dep_error:
-                        self.logger.error(
-                            'dependency_check_failed',
-                            ticket_id=ticket_id,
-                            error=str(dep_error)
+                        self.logger.exception(
+                            "dependency_check_failed", ticket_id=ticket_id, error=str(dep_error)
                         )
                         span.set_attribute("error", True)
                         span.set_attribute("error.type", "dependency")
@@ -373,22 +393,23 @@ class ExecutionEngine:
                         # Marcar como FAILED
                         await self.ticket_client.update_ticket_status(
                             ticket_id,
-                            'FAILED',
-                            error_message=f'Dependency check failed: {str(dep_error)}'
+                            "FAILED",
+                            error_message=f"Dependency check failed: {dep_error!s}",
                         )
                         # Publicar resultado
                         await self.result_producer.publish_result(
-                            ticket_id,
-                            'FAILED',
-                            {'success': False},
-                            error_message=str(dep_error)
+                            ticket_id, "FAILED", {"success": False}, error_message=str(dep_error)
                         )
                         duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
                         if self.metrics:
-                            if hasattr(self.metrics, 'tickets_failed_total'):
-                                self.metrics.tickets_failed_total.labels(task_type=task_type, error_type='dependency').inc()
-                            if hasattr(self.metrics, 'task_duration_seconds'):
-                                self.metrics.task_duration_seconds.labels(task_type=task_type).observe(duration_ms / 1000)
+                            if hasattr(self.metrics, "tickets_failed_total"):
+                                self.metrics.tickets_failed_total.labels(
+                                    task_type=task_type, error_type="dependency"
+                                ).inc()
+                            if hasattr(self.metrics, "task_duration_seconds"):
+                                self.metrics.task_duration_seconds.labels(
+                                    task_type=task_type
+                                ).observe(duration_ms / 1000)
                         return
 
                     # Executar tarefa com retry
@@ -397,39 +418,40 @@ class ExecutionEngine:
                         duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
 
                         # Verificar se a execução foi bem-sucedida
-                        if result.get('success'):
+                        if result.get("success"):
                             # Sucesso - marcar como COMPLETED
                             await self.ticket_client.update_ticket_status(
-                                ticket_id,
-                                'COMPLETED',
-                                actual_duration_ms=duration_ms
+                                ticket_id, "COMPLETED", actual_duration_ms=duration_ms
                             )
 
                             await self.result_producer.publish_result(
-                                ticket_id,
-                                'COMPLETED',
-                                result,
-                                actual_duration_ms=duration_ms
+                                ticket_id, "COMPLETED", result, actual_duration_ms=duration_ms
                             )
 
                             self.logger.info(
-                                'ticket_execution_completed',
+                                "ticket_execution_completed",
                                 ticket_id=ticket_id,
                                 task_type=task_type,
-                                duration_ms=duration_ms
+                                duration_ms=duration_ms,
                             )
 
                             # Marcar ticket como processado com sucesso (two-phase scheme)
                             await self._mark_ticket_processed(ticket_id)
 
                             if self.metrics:
-                                if hasattr(self.metrics, 'tickets_completed_total'):
-                                    self.metrics.tickets_completed_total.labels(task_type=task_type).inc()
-                                if hasattr(self.metrics, 'task_duration_seconds'):
-                                    self.metrics.task_duration_seconds.labels(task_type=task_type).observe(duration_ms / 1000)
+                                if hasattr(self.metrics, "tickets_completed_total"):
+                                    self.metrics.tickets_completed_total.labels(
+                                        task_type=task_type
+                                    ).inc()
+                                if hasattr(self.metrics, "task_duration_seconds"):
+                                    self.metrics.task_duration_seconds.labels(
+                                        task_type=task_type
+                                    ).observe(duration_ms / 1000)
                         else:
                             # Falha na execução mas sem exceção - marcar como FAILED
-                            error_msg = result.get('error', 'Task execution failed without exception')
+                            error_msg = result.get(
+                                "error", "Task execution failed without exception"
+                            )
                             span.set_attribute("error", True)
                             span.set_attribute("error.type", "execution_failed")
 
@@ -438,35 +460,36 @@ class ExecutionEngine:
 
                             await self.ticket_client.update_ticket_status(
                                 ticket_id,
-                                'FAILED',
+                                "FAILED",
                                 error_message=error_msg,
-                                actual_duration_ms=duration_ms
+                                actual_duration_ms=duration_ms,
                             )
 
                             await self.result_producer.publish_result(
                                 ticket_id,
-                                'FAILED',
+                                "FAILED",
                                 result,
                                 error_message=error_msg,
-                                actual_duration_ms=duration_ms
+                                actual_duration_ms=duration_ms,
                             )
 
                             self.logger.warning(
-                                'ticket_execution_failed',
+                                "ticket_execution_failed",
                                 ticket_id=ticket_id,
                                 task_type=task_type,
                                 error=error_msg,
-                                duration_ms=duration_ms
+                                duration_ms=duration_ms,
                             )
 
                             if self.metrics:
-                                if hasattr(self.metrics, 'tickets_failed_total'):
+                                if hasattr(self.metrics, "tickets_failed_total"):
                                     self.metrics.tickets_failed_total.labels(
-                                        task_type=task_type,
-                                        error_type='execution_failed'
+                                        task_type=task_type, error_type="execution_failed"
                                     ).inc()
-                                if hasattr(self.metrics, 'task_duration_seconds'):
-                                    self.metrics.task_duration_seconds.labels(task_type=task_type).observe(duration_ms / 1000)
+                                if hasattr(self.metrics, "task_duration_seconds"):
+                                    self.metrics.task_duration_seconds.labels(
+                                        task_type=task_type
+                                    ).observe(duration_ms / 1000)
 
                     except TaskExecutionError as exec_error:
                         # Falha após todas as tentativas
@@ -479,128 +502,136 @@ class ExecutionEngine:
 
                         await self.ticket_client.update_ticket_status(
                             ticket_id,
-                            'FAILED',
+                            "FAILED",
                             error_message=str(exec_error),
-                            actual_duration_ms=duration_ms
+                            actual_duration_ms=duration_ms,
                         )
 
                         await self.result_producer.publish_result(
                             ticket_id,
-                            'FAILED',
-                            {'success': False},
+                            "FAILED",
+                            {"success": False},
                             error_message=str(exec_error),
-                            actual_duration_ms=duration_ms
+                            actual_duration_ms=duration_ms,
                         )
 
-                        self.logger.error(
-                            'ticket_execution_failed',
+                        self.logger.exception(
+                            "ticket_execution_failed",
                             ticket_id=ticket_id,
                             task_type=task_type,
                             error=str(exec_error),
-                            duration_ms=duration_ms
+                            duration_ms=duration_ms,
                         )
 
                         if self.metrics:
-                            if hasattr(self.metrics, 'tickets_failed_total'):
-                                self.metrics.tickets_failed_total.labels(task_type=task_type, error_type='execution_error').inc()
-                            if hasattr(self.metrics, 'task_duration_seconds'):
-                                self.metrics.task_duration_seconds.labels(task_type=task_type).observe(duration_ms / 1000)
+                            if hasattr(self.metrics, "tickets_failed_total"):
+                                self.metrics.tickets_failed_total.labels(
+                                    task_type=task_type, error_type="execution_error"
+                                ).inc()
+                            if hasattr(self.metrics, "task_duration_seconds"):
+                                self.metrics.task_duration_seconds.labels(
+                                    task_type=task_type
+                                ).observe(duration_ms / 1000)
 
             except asyncio.CancelledError:
                 # Task was cancelled (preemption or graceful shutdown)
                 duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
-                span.set_attribute('error', True)
-                span.set_attribute('error.type', 'cancelled')
+                span.set_attribute("error", True)
+                span.set_attribute("error.type", "cancelled")
                 self.logger.info(
-                    'ticket_execution_cancelled',
-                    ticket_id=ticket_id,
-                    duration_ms=duration_ms
+                    "ticket_execution_cancelled", ticket_id=ticket_id, duration_ms=duration_ms
                 )
                 # Note: Status update and result publish are handled by cancel_active_task
                 # Just clean up and re-raise to signal cancellation
                 raise
 
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
-                span.set_attribute('error', True)
-                span.set_attribute('error.type', 'timeout')
-                self.logger.error('ticket_execution_timeout', ticket_id=ticket_id)
+                span.set_attribute("error", True)
+                span.set_attribute("error.type", "timeout")
+                self.logger.exception("ticket_execution_timeout", ticket_id=ticket_id)
 
                 # Limpar chave de processing para permitir retry (two-phase scheme)
                 await self._clear_ticket_processing(ticket_id)
 
                 await self.ticket_client.update_ticket_status(
                     ticket_id,
-                    'FAILED',
-                    error_message='Execution timeout',
-                    actual_duration_ms=duration_ms
+                    "FAILED",
+                    error_message="Execution timeout",
+                    actual_duration_ms=duration_ms,
                 )
                 try:
                     await self.result_producer.publish_result(
                         ticket_id,
-                        'FAILED',
-                        {'success': False},
-                        error_message='Execution timeout',
-                        actual_duration_ms=duration_ms
+                        "FAILED",
+                        {"success": False},
+                        error_message="Execution timeout",
+                        actual_duration_ms=duration_ms,
                     )
                 except Exception as pub_exc:
-                    self.logger.error('result_publish_failed_timeout', ticket_id=ticket_id, error=str(pub_exc))
+                    self.logger.exception(
+                        "result_publish_failed_timeout", ticket_id=ticket_id, error=str(pub_exc)
+                    )
                 if self.metrics:
-                    if hasattr(self.metrics, 'tickets_failed_total'):
-                        self.metrics.tickets_failed_total.labels(task_type=task_type, error_type='timeout').inc()
-                    if hasattr(self.metrics, 'task_duration_seconds'):
-                        self.metrics.task_duration_seconds.labels(task_type=task_type).observe(duration_ms / 1000)
+                    if hasattr(self.metrics, "tickets_failed_total"):
+                        self.metrics.tickets_failed_total.labels(
+                            task_type=task_type, error_type="timeout"
+                        ).inc()
+                    if hasattr(self.metrics, "task_duration_seconds"):
+                        self.metrics.task_duration_seconds.labels(task_type=task_type).observe(
+                            duration_ms / 1000
+                        )
 
             except Exception as e:
                 duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
-                span.set_attribute('error', True)
-                span.set_attribute('error.type', 'exception')
+                span.set_attribute("error", True)
+                span.set_attribute("error.type", "exception")
                 self.logger.error(
-                    'ticket_execution_error',
-                    ticket_id=ticket_id,
-                    error=str(e),
-                    exc_info=True
+                    "ticket_execution_error", ticket_id=ticket_id, error=str(e), exc_info=True
                 )
 
                 # Limpar chave de processing para permitir retry (two-phase scheme)
                 await self._clear_ticket_processing(ticket_id)
 
                 await self.ticket_client.update_ticket_status(
-                    ticket_id,
-                    'FAILED',
-                    error_message=str(e),
-                    actual_duration_ms=duration_ms
+                    ticket_id, "FAILED", error_message=str(e), actual_duration_ms=duration_ms
                 )
                 try:
                     await self.result_producer.publish_result(
                         ticket_id,
-                        'FAILED',
-                        {'success': False},
+                        "FAILED",
+                        {"success": False},
                         error_message=str(e),
-                        actual_duration_ms=duration_ms
+                        actual_duration_ms=duration_ms,
                     )
                 except Exception as pub_exc:
-                    self.logger.error('result_publish_failed_error', ticket_id=ticket_id, error=str(pub_exc))
+                    self.logger.exception(
+                        "result_publish_failed_error", ticket_id=ticket_id, error=str(pub_exc)
+                    )
                 if self.metrics:
-                    if hasattr(self.metrics, 'tickets_failed_total'):
-                        self.metrics.tickets_failed_total.labels(task_type=task_type, error_type='exception').inc()
-                    if hasattr(self.metrics, 'task_duration_seconds'):
-                        self.metrics.task_duration_seconds.labels(task_type=task_type).observe(duration_ms / 1000)
+                    if hasattr(self.metrics, "tickets_failed_total"):
+                        self.metrics.tickets_failed_total.labels(
+                            task_type=task_type, error_type="exception"
+                        ).inc()
+                    if hasattr(self.metrics, "task_duration_seconds"):
+                        self.metrics.task_duration_seconds.labels(task_type=task_type).observe(
+                            duration_ms / 1000
+                        )
 
             finally:
                 # Remover de active_tasks
                 if ticket_id in self.active_tasks:
                     del self.active_tasks[ticket_id]
-                if self.metrics and hasattr(self.metrics, 'active_tasks'):
+                if self.metrics and hasattr(self.metrics, "active_tasks"):
                     self.metrics.active_tasks.set(len(self.active_tasks))
 
-    async def _execute_task_with_retry(self, ticket: Dict[str, Any]) -> Dict[str, Any]:
-        '''Executar tarefa com retry logic'''
-        task_type = ticket.get('task_type')
-        ticket_id = ticket.get('ticket_id')
-        sla = ticket.get('sla', {})
-        max_retries = sla.get('max_retries', self.config.max_retries_per_ticket)
-        timeout_ms = sla.get('timeout_ms', 60000)
+    async def _execute_task_with_retry(self, ticket: dict[str, Any]) -> dict[str, Any]:
+        """Executar tarefa com retry logic"""
+        task_type = ticket.get("task_type")
+        ticket_id = ticket.get("ticket_id")
+        sla = ticket.get("sla", {})
+        max_retries = sla.get("max_retries", self.config.max_retries_per_ticket)
+        timeout_ms = sla.get("timeout_ms", 60000)
 
         # Calcular timeout
         timeout_seconds = (timeout_ms * self.config.task_timeout_multiplier) / 1000
@@ -613,100 +644,99 @@ class ExecutionEngine:
         for attempt in range(max_retries + 1):
             try:
                 self.logger.debug(
-                    'task_execution_attempt',
+                    "task_execution_attempt",
                     ticket_id=ticket_id,
                     task_type=task_type,
                     attempt=attempt + 1,
-                    max_retries=max_retries
+                    max_retries=max_retries,
                 )
 
                 # Executar com timeout
-                result = await asyncio.wait_for(
-                    executor.execute(ticket),
-                    timeout=timeout_seconds
-                )
+                return await asyncio.wait_for(executor.execute(ticket), timeout=timeout_seconds)
 
-                return result
 
-            except asyncio.TimeoutError as e:
-                last_error = f'Timeout after {timeout_seconds}s'
+            except TimeoutError:
+                last_error = f"Timeout after {timeout_seconds}s"
                 self.logger.warning(
-                    'task_execution_timeout',
+                    "task_execution_timeout",
                     ticket_id=ticket_id,
                     task_type=task_type,
                     attempt=attempt + 1,
-                    timeout_seconds=timeout_seconds
+                    timeout_seconds=timeout_seconds,
                 )
-                if self.metrics and hasattr(self.metrics, 'task_retries_total'):
-                    self.metrics.task_retries_total.labels(task_type=task_type, attempt=str(attempt + 1)).inc()
+                if self.metrics and hasattr(self.metrics, "task_retries_total"):
+                    self.metrics.task_retries_total.labels(
+                        task_type=task_type, attempt=str(attempt + 1)
+                    ).inc()
 
             except Exception as e:
                 last_error = str(e)
                 self.logger.warning(
-                    'task_execution_failed_retry',
+                    "task_execution_failed_retry",
                     ticket_id=ticket_id,
                     task_type=task_type,
                     attempt=attempt + 1,
-                    error=str(e)
+                    error=str(e),
                 )
-                if self.metrics and hasattr(self.metrics, 'task_retries_total'):
-                    self.metrics.task_retries_total.labels(task_type=task_type, attempt=str(attempt + 1)).inc()
+                if self.metrics and hasattr(self.metrics, "task_retries_total"):
+                    self.metrics.task_retries_total.labels(
+                        task_type=task_type, attempt=str(attempt + 1)
+                    ).inc()
 
             # Backoff exponencial
             if attempt < max_retries:
                 backoff = min(
-                    self.config.retry_backoff_base_seconds * (2 ** attempt),
-                    self.config.retry_backoff_max_seconds
+                    self.config.retry_backoff_base_seconds * (2**attempt),
+                    self.config.retry_backoff_max_seconds,
                 )
                 await asyncio.sleep(backoff)
 
         # Todas as tentativas falharam
-        raise TaskExecutionError(f'Task execution failed after {max_retries + 1} attempts: {last_error}')
+        raise TaskExecutionError(
+            f"Task execution failed after {max_retries + 1} attempts: {last_error}"
+        )
 
     async def shutdown(self, timeout_seconds: int = 30):
-        '''Shutdown graceful do execution engine'''
+        """Shutdown graceful do execution engine"""
         if not self.active_tasks:
-            self.logger.info('no_active_tasks_to_shutdown')
+            self.logger.info("no_active_tasks_to_shutdown")
             return
 
         self.logger.info(
-            'shutting_down_execution_engine',
+            "shutting_down_execution_engine",
             active_tasks_count=len(self.active_tasks),
-            timeout_seconds=timeout_seconds
+            timeout_seconds=timeout_seconds,
         )
 
         # Aguardar conclusão de tarefas ativas
         try:
             await asyncio.wait_for(
                 asyncio.gather(*self.active_tasks.values(), return_exceptions=True),
-                timeout=timeout_seconds
+                timeout=timeout_seconds,
             )
-            self.logger.info('all_active_tasks_completed')
+            self.logger.info("all_active_tasks_completed")
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             # Cancelar tarefas que não concluíram
             cancelled_count = 0
             for ticket_id, task in self.active_tasks.items():
                 if not task.done():
                     task.cancel()
                     cancelled_count += 1
-                    self.logger.warning('task_cancelled', ticket_id=ticket_id)
+                    self.logger.warning("task_cancelled", ticket_id=ticket_id)
 
             if self.metrics and cancelled_count > 0:
                 for _ in range(cancelled_count):
                     self.metrics.tasks_cancelled_total.inc()
-            self.logger.warning(
-                'shutdown_timeout_tasks_cancelled',
-                cancelled_count=cancelled_count
-            )
+            self.logger.warning("shutdown_timeout_tasks_cancelled", cancelled_count=cancelled_count)
 
     async def cancel_active_task(
         self,
         ticket_id: str,
-        reason: str = 'preemption',
-        preempted_by: Optional[str] = None,
-        grace_period_seconds: int = 30
-    ) -> Dict[str, Any]:
+        reason: str = "preemption",
+        preempted_by: str | None = None,
+        grace_period_seconds: int = 30,
+    ) -> dict[str, Any]:
         """
         Cancel an active task with optional checkpointing.
 
@@ -722,69 +752,58 @@ class ExecutionEngine:
             Dict with cancellation result
         """
         if ticket_id not in self.active_tasks:
-            self.logger.warning(
-                'cancel_task_not_active',
-                ticket_id=ticket_id
-            )
-            return {
-                'success': False,
-                'message': f'Task {ticket_id} is not active'
-            }
+            self.logger.warning("cancel_task_not_active", ticket_id=ticket_id)
+            return {"success": False, "message": f"Task {ticket_id} is not active"}
 
         task = self.active_tasks[ticket_id]
         checkpoint_saved = False
         checkpoint_key = None
 
         self.logger.info(
-            'cancelling_active_task',
+            "cancelling_active_task",
             ticket_id=ticket_id,
             reason=reason,
             preempted_by=preempted_by,
-            grace_period_seconds=grace_period_seconds
+            grace_period_seconds=grace_period_seconds,
         )
 
         try:
             # Save checkpoint before cancellation if Redis is available
             if self.redis_client:
                 checkpoint_result = await self._save_checkpoint(
-                    ticket_id,
-                    reason=reason,
-                    preempted_by=preempted_by
+                    ticket_id, reason=reason, preempted_by=preempted_by
                 )
-                checkpoint_saved = checkpoint_result.get('success', False)
-                checkpoint_key = checkpoint_result.get('checkpoint_key')
+                checkpoint_saved = checkpoint_result.get("success", False)
+                checkpoint_key = checkpoint_result.get("checkpoint_key")
 
             # Cancel the task
             task.cancel()
 
             # Wait for graceful cancellation with timeout
             try:
-                await asyncio.wait_for(
-                    asyncio.shield(task),
-                    timeout=grace_period_seconds
-                )
+                await asyncio.wait_for(asyncio.shield(task), timeout=grace_period_seconds)
             except asyncio.CancelledError:
                 pass  # Expected
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 self.logger.warning(
-                    'graceful_cancellation_timeout',
+                    "graceful_cancellation_timeout",
                     ticket_id=ticket_id,
-                    grace_period_seconds=grace_period_seconds
+                    grace_period_seconds=grace_period_seconds,
                 )
 
             # Update ticket status to PREEMPTED
-            status = 'PREEMPTED' if reason == 'preemption' else 'CANCELLED'
+            status = "PREEMPTED" if reason == "preemption" else "CANCELLED"
             try:
                 await self.ticket_client.update_ticket_status(
                     ticket_id,
                     status,
-                    error_message=f'Task {reason}: preempted by {preempted_by}' if preempted_by else f'Task {reason}'
+                    error_message=f"Task {reason}: preempted by {preempted_by}"
+                    if preempted_by
+                    else f"Task {reason}",
                 )
             except Exception as status_error:
-                self.logger.error(
-                    'update_status_failed',
-                    ticket_id=ticket_id,
-                    error=str(status_error)
+                self.logger.exception(
+                    "update_status_failed", ticket_id=ticket_id, error=str(status_error)
                 )
 
             # Publish result
@@ -793,18 +812,16 @@ class ExecutionEngine:
                     ticket_id,
                     status,
                     {
-                        'success': False,
-                        'reason': reason,
-                        'preempted_by': preempted_by,
-                        'checkpoint_key': checkpoint_key
+                        "success": False,
+                        "reason": reason,
+                        "preempted_by": preempted_by,
+                        "checkpoint_key": checkpoint_key,
                     },
-                    error_message=f'Task {reason}'
+                    error_message=f"Task {reason}",
                 )
             except Exception as pub_error:
-                self.logger.error(
-                    'publish_result_failed',
-                    ticket_id=ticket_id,
-                    error=str(pub_error)
+                self.logger.exception(
+                    "publish_result_failed", ticket_id=ticket_id, error=str(pub_error)
                 )
 
             # Clear processing key to allow retry
@@ -812,48 +829,41 @@ class ExecutionEngine:
 
             # Record metrics
             if self.metrics:
-                if hasattr(self.metrics, 'tasks_cancelled_total'):
+                if hasattr(self.metrics, "tasks_cancelled_total"):
                     self.metrics.tasks_cancelled_total.labels(reason=reason).inc()
-                if hasattr(self.metrics, 'tasks_preempted_total') and reason == 'preemption':
+                if hasattr(self.metrics, "tasks_preempted_total") and reason == "preemption":
                     self.metrics.tasks_preempted_total.inc()
-                if hasattr(self.metrics, 'checkpoint_saves_total') and checkpoint_saved:
-                    self.metrics.checkpoint_saves_total.labels(success='true').inc()
+                if hasattr(self.metrics, "checkpoint_saves_total") and checkpoint_saved:
+                    self.metrics.checkpoint_saves_total.labels(success="true").inc()
 
             self.logger.info(
-                'task_cancelled_successfully',
+                "task_cancelled_successfully",
                 ticket_id=ticket_id,
                 reason=reason,
                 checkpoint_saved=checkpoint_saved,
-                checkpoint_key=checkpoint_key
+                checkpoint_key=checkpoint_key,
             )
 
             return {
-                'success': True,
-                'ticket_id': ticket_id,
-                'reason': reason,
-                'checkpoint_saved': checkpoint_saved,
-                'checkpoint_key': checkpoint_key,
-                'message': f'Task {ticket_id} cancelled successfully'
+                "success": True,
+                "ticket_id": ticket_id,
+                "reason": reason,
+                "checkpoint_saved": checkpoint_saved,
+                "checkpoint_key": checkpoint_key,
+                "message": f"Task {ticket_id} cancelled successfully",
             }
 
         except Exception as e:
-            self.logger.error(
-                'cancel_task_failed',
-                ticket_id=ticket_id,
-                error=str(e)
-            )
+            self.logger.exception("cancel_task_failed", ticket_id=ticket_id, error=str(e))
             return {
-                'success': False,
-                'ticket_id': ticket_id,
-                'message': f'Failed to cancel task: {str(e)}'
+                "success": False,
+                "ticket_id": ticket_id,
+                "message": f"Failed to cancel task: {e!s}",
             }
 
     async def _save_checkpoint(
-        self,
-        ticket_id: str,
-        reason: str = 'preemption',
-        preempted_by: Optional[str] = None
-    ) -> Dict[str, Any]:
+        self, ticket_id: str, reason: str = "preemption", preempted_by: str | None = None
+    ) -> dict[str, Any]:
         """
         Save task checkpoint to Redis for later retry.
 
@@ -866,47 +876,32 @@ class ExecutionEngine:
             Dict with checkpoint result
         """
         if not self.redis_client:
-            return {'success': False, 'message': 'Redis not available'}
+            return {"success": False, "message": "Redis not available"}
 
         checkpoint_key = f"checkpoint:{ticket_id}"
 
         try:
             import json as json_lib
+
             checkpoint_data = {
-                'ticket_id': ticket_id,
-                'reason': reason,
-                'preempted_by': preempted_by,
-                'timestamp': datetime.now().isoformat(),
-                'worker_id': getattr(self.config, 'agent_id', 'unknown')
+                "ticket_id": ticket_id,
+                "reason": reason,
+                "preempted_by": preempted_by,
+                "timestamp": datetime.now().isoformat(),
+                "worker_id": getattr(self.config, "agent_id", "unknown"),
             }
 
             # Store checkpoint with 24h TTL
             await self.redis_client.set(
-                checkpoint_key,
-                json_lib.dumps(checkpoint_data),
-                ex=86400  # 24 hours
+                checkpoint_key, json_lib.dumps(checkpoint_data), ex=86400  # 24 hours
             )
 
-            self.logger.info(
-                'checkpoint_saved',
-                ticket_id=ticket_id,
-                checkpoint_key=checkpoint_key
-            )
+            self.logger.info("checkpoint_saved", ticket_id=ticket_id, checkpoint_key=checkpoint_key)
 
-            return {
-                'success': True,
-                'checkpoint_key': checkpoint_key
-            }
+            return {"success": True, "checkpoint_key": checkpoint_key}
 
         except Exception as e:
-            self.logger.error(
-                'checkpoint_save_failed',
-                ticket_id=ticket_id,
-                error=str(e)
-            )
-            if self.metrics and hasattr(self.metrics, 'checkpoint_saves_total'):
-                self.metrics.checkpoint_saves_total.labels(success='false').inc()
-            return {
-                'success': False,
-                'message': str(e)
-            }
+            self.logger.exception("checkpoint_save_failed", ticket_id=ticket_id, error=str(e))
+            if self.metrics and hasattr(self.metrics, "checkpoint_saves_total"):
+                self.metrics.checkpoint_saves_total.labels(success="false").inc()
+            return {"success": False, "message": str(e)}

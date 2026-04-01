@@ -1,8 +1,8 @@
 """Analyzer para MongoDB queries e pipelines."""
 import logging
-from typing import Any, Dict
+from typing import Any
 
-from .base import BaseAnalyzer, AnalysisResult, RecommendationType, Severity, TargetType
+from .base import AnalysisResult, BaseAnalyzer, RecommendationType, Severity, TargetType
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +17,7 @@ class MongoDBAnalyzer(BaseAnalyzer):
     def supports(self, target_type: str) -> bool:
         return target_type.lower() in ["mongodb", "mongo"]
 
-    async def analyze(self, context: Dict[str, Any]) -> AnalysisResult:
+    async def analyze(self, context: dict[str, Any]) -> AnalysisResult:
         """Analisa query/pipeline MongoDB."""
         issues = []
         metrics = {"analyzed_elements": 0}
@@ -44,21 +44,25 @@ class MongoDBAnalyzer(BaseAnalyzer):
         for i, stage in enumerate(pipeline):
             if isinstance(stage, dict):
                 if "$lookup" in stage:
-                    issues.append({
-                        "type": RecommendationType.INDEX_SUGGESTION,
-                        "severity": Severity.MEDIUM,
-                        "description": f"$lookup stage em {collection}.{i}: garanta índices",
-                        "estimated_improvement_pct": 40.0,
-                        "target_type": TargetType.MONGODB,
-                    })
+                    issues.append(
+                        {
+                            "type": RecommendationType.INDEX_SUGGESTION,
+                            "severity": Severity.MEDIUM,
+                            "description": f"$lookup stage em {collection}.{i}: garanta índices",
+                            "estimated_improvement_pct": 40.0,
+                            "target_type": TargetType.MONGODB,
+                        }
+                    )
                 if "$sort" in stage:
-                    issues.append({
-                        "type": RecommendationType.INDEX_SUGGESTION,
-                        "severity": Severity.HIGH,
-                        "description": f"$sort em {collection}.{i}: crie índice",
-                        "estimated_improvement_pct": 60.0,
-                        "target_type": TargetType.MONGODB,
-                    })
+                    issues.append(
+                        {
+                            "type": RecommendationType.INDEX_SUGGESTION,
+                            "severity": Severity.HIGH,
+                            "description": f"$sort em {collection}.{i}: crie índice",
+                            "estimated_improvement_pct": 60.0,
+                            "target_type": TargetType.MONGODB,
+                        }
+                    )
 
         return issues
 
@@ -66,11 +70,13 @@ class MongoDBAnalyzer(BaseAnalyzer):
         """Analisa query simples."""
         issues = []
         if isinstance(query, dict) and query:
-            issues.append({
-                "type": RecommendationType.INDEX_SUGGESTION,
-                "severity": Severity.MEDIUM,
-                "description": f"Query em {collection}: verifique índices",
-                "estimated_improvement_pct": 50.0,
-                "target_type": TargetType.MONGODB,
-            })
+            issues.append(
+                {
+                    "type": RecommendationType.INDEX_SUGGESTION,
+                    "severity": Severity.MEDIUM,
+                    "description": f"Query em {collection}: verifique índices",
+                    "estimated_improvement_pct": 50.0,
+                    "target_type": TargetType.MONGODB,
+                }
+            )
         return issues

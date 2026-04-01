@@ -1,5 +1,3 @@
-from typing import Dict, List, Optional
-
 import structlog
 
 from src.clients.mongodb_client import MongoDBClient
@@ -30,10 +28,10 @@ class SLOAdjuster:
     def __init__(
         self,
         settings=None,
-        orchestrator_client: Optional[OrchestratorGrpcClient] = None,
-        mongodb_client: Optional[MongoDBClient] = None,
-        redis_client: Optional[RedisClient] = None,
-        optimization_producer: Optional[OptimizationProducer] = None,
+        orchestrator_client: OrchestratorGrpcClient | None = None,
+        mongodb_client: MongoDBClient | None = None,
+        redis_client: RedisClient | None = None,
+        optimization_producer: OptimizationProducer | None = None,
         metrics=None,
     ):
         self.settings = settings or get_settings()
@@ -43,7 +41,9 @@ class SLOAdjuster:
         self.optimization_producer = optimization_producer
         self.metrics = metrics
 
-    async def apply_slo_adjustment(self, hypothesis: OptimizationHypothesis) -> Optional[OptimizationEvent]:
+    async def apply_slo_adjustment(
+        self, hypothesis: OptimizationHypothesis
+    ) -> OptimizationEvent | None:
         """
         Aplicar ajuste de SLO baseado em hipótese.
 
@@ -65,14 +65,18 @@ class SLOAdjuster:
                 return None
 
             # Obter SLOs atuais
-            current_slos = await self.orchestrator_client.get_current_slos(service=hypothesis.target_component)
+            current_slos = await self.orchestrator_client.get_current_slos(
+                service=hypothesis.target_component
+            )
 
             if not current_slos:
                 logger.error("failed_to_get_current_slos", hypothesis_id=hypothesis.hypothesis_id)
                 return None
 
             # Verificar error budget
-            error_budget = await self.orchestrator_client.get_error_budget(service=hypothesis.target_component)
+            error_budget = await self.orchestrator_client.get_error_budget(
+                service=hypothesis.target_component
+            )
 
             if error_budget and error_budget.get("remaining_budget_percentage", 0) < 0.2:
                 logger.warning(
@@ -89,7 +93,9 @@ class SLOAdjuster:
             )
 
             # Validar ajuste
-            is_valid = await self.orchestrator_client.validate_slo_adjustment({hypothesis.target_component: proposed_slos})
+            is_valid = await self.orchestrator_client.validate_slo_adjustment(
+                {hypothesis.target_component: proposed_slos}
+            )
 
             if not is_valid:
                 logger.warning(
@@ -149,10 +155,12 @@ class SLOAdjuster:
                 await self.redis_client.unlock_component(hypothesis.target_component)
 
         except Exception as e:
-            logger.error("slo_adjustment_failed", hypothesis_id=hypothesis.hypothesis_id, error=str(e))
+            logger.error(
+                "slo_adjustment_failed", hypothesis_id=hypothesis.hypothesis_id, error=str(e)
+            )
             return None
 
-    def _calculate_proposed_slos(self, current_slos: Dict, adjustments: List[Dict]) -> Dict:
+    def _calculate_proposed_slos(self, current_slos: dict, adjustments: list[dict]) -> dict:
         """
         Calcular SLOs propostos baseado em ajustes.
 
@@ -192,8 +200,8 @@ class SLOAdjuster:
     def _create_optimization_event(
         self,
         hypothesis: OptimizationHypothesis,
-        baseline_slos: Dict,
-        optimized_slos: Dict,
+        baseline_slos: dict,
+        optimized_slos: dict,
     ) -> OptimizationEvent:
         """
         Criar evento de otimização.
@@ -282,5 +290,7 @@ class SLOAdjuster:
             return success
 
         except Exception as e:
-            logger.error("slo_adjustment_rollback_failed", optimization_id=optimization_id, error=str(e))
+            logger.error(
+                "slo_adjustment_rollback_failed", optimization_id=optimization_id, error=str(e)
+            )
             return False

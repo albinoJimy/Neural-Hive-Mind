@@ -6,9 +6,9 @@ baseadas no modelo ML treinado com features NLP.
 """
 
 import asyncio
-import logging
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
+
 import structlog
 
 from src.config.settings import Settings
@@ -25,12 +25,7 @@ class MLPredictorService:
     """
 
     # Risco máximo para decisão automática (em ordem crescente)
-    RISK_ORDER = {
-        'low': 1,
-        'medium': 2,
-        'high': 3,
-        'critical': 4
-    }
+    RISK_ORDER = {"low": 1, "medium": 2, "high": 3, "critical": 4}
 
     def __init__(self, settings: Settings):
         """
@@ -58,38 +53,32 @@ class MLPredictorService:
             self.model_info = self.predictor.get_model_info()
 
             logger.info(
-                'ml_predictor_loaded',
-                model_version=self.model_info.get('version'),
+                "ml_predictor_loaded",
+                model_version=self.model_info.get("version"),
                 model_path=self.settings.ml_model_path,
                 auto_approve_threshold=self.settings.ml_auto_approve_threshold,
-                auto_reject_threshold=self.settings.ml_auto_reject_threshold
+                auto_reject_threshold=self.settings.ml_auto_reject_threshold,
             )
 
         except ImportError as e:
             logger.warning(
-                'ml_predictor_library_not_available',
-                error=str(e),
-                note='ML prediction disabled'
+                "ml_predictor_library_not_available", error=str(e), note="ML prediction disabled"
             )
             self.enabled = False
             self.predictor = None
 
         except FileNotFoundError as e:
             logger.warning(
-                'ml_predictor_model_not_found',
+                "ml_predictor_model_not_found",
                 model_path=self.settings.ml_model_path,
                 error=str(e),
-                note='ML prediction disabled'
+                note="ML prediction disabled",
             )
             self.enabled = False
             self.predictor = None
 
         except Exception as e:
-            logger.error(
-                'ml_predictor_load_failed',
-                error=str(e),
-                note='ML prediction disabled'
-            )
+            logger.error("ml_predictor_load_failed", error=str(e), note="ML prediction disabled")
             self.enabled = False
             self.predictor = None
 
@@ -117,9 +106,7 @@ class MLPredictorService:
         return current_risk_level <= max_risk_level
 
     async def predict_from_text(
-        self,
-        intent_text: str,
-        specialist_confidence: float = 0.5
+        self, intent_text: str, specialist_confidence: float = 0.5
     ) -> Optional[Dict[str, Any]]:
         """
         Faz predição a partir do texto da intenção.
@@ -135,41 +122,35 @@ class MLPredictorService:
             return None
 
         if not intent_text:
-            logger.debug('ml_predictor_skip_empty_text')
+            logger.debug("ml_predictor_skip_empty_text")
             return None
 
         try:
             # Executar predição em thread separada para não bloquear
             loop = asyncio.get_event_loop()
             result = await loop.run_in_executor(
-                None,
-                self.predictor.predict_from_text,
-                intent_text,
-                specialist_confidence
+                None, self.predictor.predict_from_text, intent_text, specialist_confidence
             )
 
             logger.debug(
-                'ml_predictor_prediction_made',
-                decision=result['decision'],
-                confidence=result['confidence'],
-                model_version=result.get('model_version')
+                "ml_predictor_prediction_made",
+                decision=result["decision"],
+                confidence=result["confidence"],
+                model_version=result.get("model_version"),
             )
 
             return result
 
         except Exception as e:
             logger.error(
-                'ml_predictor_prediction_failed',
+                "ml_predictor_prediction_failed",
                 error=str(e),
-                intent_text_length=len(intent_text) if intent_text else 0
+                intent_text_length=len(intent_text) if intent_text else 0,
             )
             return None
 
     async def get_auto_decision(
-        self,
-        intent_text: str,
-        risk_band: str,
-        specialist_confidence: float = 0.5
+        self, intent_text: str, risk_band: str, specialist_confidence: float = 0.5
     ) -> Optional[Dict[str, Any]]:
         """
         Tenta obter uma decisão automática baseada em predição ML.
@@ -185,9 +166,9 @@ class MLPredictorService:
         # Verifica se decisão automática é permitida para este nível de risco
         if not self.can_auto_decide(risk_band):
             logger.debug(
-                'ml_predictor_auto_decision_not_allowed',
+                "ml_predictor_auto_decision_not_allowed",
                 risk_band=risk_band,
-                max_risk=self.settings.ml_max_risk_for_auto
+                max_risk=self.settings.ml_max_risk_for_auto,
             )
             return None
 
@@ -196,46 +177,46 @@ class MLPredictorService:
         if not prediction:
             return None
 
-        decision = prediction['decision']
-        confidence = prediction['confidence']
+        decision = prediction["decision"]
+        confidence = prediction["confidence"]
 
         # Verifica thresholds
         approve_threshold = self.settings.ml_auto_approve_threshold
         reject_threshold = self.settings.ml_auto_reject_threshold
 
-        if decision == 'approve' and confidence >= approve_threshold:
+        if decision == "approve" and confidence >= approve_threshold:
             logger.info(
-                'ml_predictor_auto_approve',
+                "ml_predictor_auto_approve",
                 decision=decision,
                 confidence=confidence,
-                threshold=approve_threshold
+                threshold=approve_threshold,
             )
             return {
-                'auto_decision': 'approve',
-                'confidence': confidence,
-                'reason': f'ML prediction with {confidence:.1%} confidence'
+                "auto_decision": "approve",
+                "confidence": confidence,
+                "reason": f"ML prediction with {confidence:.1%} confidence",
             }
 
-        elif decision == 'reject' and confidence >= reject_threshold:
+        elif decision == "reject" and confidence >= reject_threshold:
             logger.info(
-                'ml_predictor_auto_reject',
+                "ml_predictor_auto_reject",
                 decision=decision,
                 confidence=confidence,
-                threshold=reject_threshold
+                threshold=reject_threshold,
             )
             return {
-                'auto_decision': 'reject',
-                'confidence': confidence,
-                'reason': f'ML prediction with {confidence:.1%} confidence'
+                "auto_decision": "reject",
+                "confidence": confidence,
+                "reason": f"ML prediction with {confidence:.1%} confidence",
             }
 
         else:
             logger.debug(
-                'ml_predictor_below_threshold',
+                "ml_predictor_below_threshold",
                 decision=decision,
                 confidence=confidence,
                 approve_threshold=approve_threshold,
-                reject_threshold=reject_threshold
+                reject_threshold=reject_threshold,
             )
             return None
 

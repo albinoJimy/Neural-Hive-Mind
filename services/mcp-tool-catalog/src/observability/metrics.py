@@ -156,7 +156,7 @@ class MCPToolCatalogMetrics:
         duration: float,
         execution_route: str = "adapter",
         adapter_type: str = None,
-        mcp_server: str = None
+        mcp_server: str = None,
     ):
         """
         Registra métricas de execução de ferramenta.
@@ -179,24 +179,24 @@ class MCPToolCatalogMetrics:
 
         if execution_route == "mcp" and mcp_server:
             self.mcp_server_executions_total.labels(
-                tool_id=tool_id,
-                mcp_server=mcp_server,
-                status=status
+                tool_id=tool_id, mcp_server=mcp_server, status=status
             ).inc()
         elif execution_route == "adapter" and adapter_type:
             self.adapter_executions_total.labels(
-                tool_id=tool_id,
-                adapter_type=adapter_type,
-                status=status
+                tool_id=tool_id, adapter_type=adapter_type, status=status
             ).inc()
 
     def record_feedback(self, tool_id: str, success: bool):
         """Record tool feedback."""
         self.tool_feedback_total.labels(tool_id=tool_id, success=str(success)).inc()
 
-    def record_genetic_algorithm(self, converged: bool, timeout: bool, duration: float, generations: int):
+    def record_genetic_algorithm(
+        self, converged: bool, timeout: bool, duration: float, generations: int
+    ):
         """Record genetic algorithm metrics."""
-        self.genetic_algorithm_runs_total.labels(converged=str(converged), timeout=str(timeout)).inc()
+        self.genetic_algorithm_runs_total.labels(
+            converged=str(converged), timeout=str(timeout)
+        ).inc()
         self.genetic_algorithm_duration_seconds.observe(duration)
         self.genetic_algorithm_generations.set(generations)
 

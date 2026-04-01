@@ -1,18 +1,15 @@
 """Main signal detector orchestrating detection pipeline"""
-from typing import Optional, Dict, Any
+from datetime import datetime, timezone
+from typing import Any, Optional
+
 import numpy as np
-from datetime import datetime, timedelta
 import structlog
 
-from ..models.raw_event import RawEvent
-from ..models.scout_signal import (
-    ScoutSignal,
-    SignalType,
-    SignalSource,
-    ChannelType
-)
 from neural_hive_domain import UnifiedDomain
+
 from ..config import get_settings
+from ..models.raw_event import RawEvent
+from ..models.scout_signal import ChannelType, ScoutSignal, SignalSource, SignalType
 from .bayesian_filter import BayesianFilter
 from .curiosity_scorer import CuriosityScorer
 
@@ -29,10 +26,7 @@ class SignalDetector:
         self.curiosity_scorer = CuriosityScorer()
 
     async def detect(
-        self,
-        event: RawEvent,
-        domain: UnifiedDomain,
-        channel: ChannelType = ChannelType.CORE
+        self, event: RawEvent, domain: UnifiedDomain, channel: ChannelType = ChannelType.CORE
     ) -> Optional[ScoutSignal]:
         """
         Main detection pipeline
@@ -54,7 +48,7 @@ class SignalDetector:
                     "event_filtered_out",
                     event_id=event.event_id,
                     domain=domain.value,
-                    posterior=posterior_prob
+                    posterior=posterior_prob,
                 )
                 return None
 
@@ -74,14 +68,14 @@ class SignalDetector:
             signal = ScoutSignal(
                 scout_agent_id=self.scout_agent_id,
                 correlation_id=event.event_id,
-                trace_id=event.metadata.get('trace_id', event.event_id),
-                span_id=event.metadata.get('span_id', event.event_id),
+                trace_id=event.metadata.get("trace_id", event.event_id),
+                span_id=event.metadata.get("span_id", event.event_id),
                 signal_type=signal_type,
                 exploration_domain=domain,
                 source=SignalSource(
                     channel=channel,
-                    device_id=event.metadata.get('device_id'),
-                    geolocation=self._extract_geolocation(event)
+                    device_id=event.metadata.get("device_id"),
+                    geolocation=self._extract_geolocation(event),
                 ),
                 curiosity_score=curiosity_score,
                 confidence=confidence_score,
@@ -91,11 +85,11 @@ class SignalDetector:
                 raw_data={k: str(v) for k, v in event.payload.items()},
                 features=event.extract_features(),
                 metadata={
-                    'event_type': event.event_type,
-                    'source': event.source,
-                    'detection_timestamp': datetime.utcnow().isoformat()
+                    "event_type": event.event_type,
+                    "source": event.source,
+                    "detection_timestamp": datetime.now(timezone.utc).isoformat(),
                 },
-                requires_validation=self.requires_validation(signal_type, confidence_score)
+                requires_validation=self.requires_validation(signal_type, confidence_score),
             )
 
             # Step 5: Check if should publish
@@ -103,7 +97,7 @@ class SignalDetector:
                 self.settings.detection.curiosity_threshold,
                 self.settings.detection.confidence_threshold,
                 self.settings.detection.relevance_threshold,
-                self.settings.detection.risk_threshold
+                self.settings.detection.risk_threshold,
             ):
                 logger.info(
                     "signal_detected",
@@ -111,7 +105,7 @@ class SignalDetector:
                     signal_type=signal_type.value,
                     domain=domain.value,
                     curiosity=curiosity_score,
-                    confidence=confidence_score
+                    confidence=confidence_score,
                 )
                 return signal
 
@@ -119,22 +113,16 @@ class SignalDetector:
                 "signal_below_thresholds",
                 signal_type=signal_type.value,
                 curiosity=curiosity_score,
-                confidence=confidence_score
+                confidence=confidence_score,
             )
             return None
 
         except Exception as e:
-            logger.error(
-                "signal_detection_failed",
-                event_id=event.event_id,
-                error=str(e)
-            )
+            logger.error("signal_detection_failed", event_id=event.event_id, error=str(e))
             return None
 
     def detect_signal_type(
-        self,
-        event: RawEvent,
-        domain: UnifiedDomain
+        self, event: RawEvent, domain: UnifiedDomain
     ) -> tuple[Optional[SignalType], float]:
         """
         Detect signal type using heuristics
@@ -175,22 +163,18 @@ class SignalDetector:
     def _is_positive_anomaly(self, event: RawEvent, domain: UnifiedDomain) -> bool:
         """Determine if anomaly is positive based on domain and event type"""
         # Heuristic: user_action events in BUSINESS domain tend to be positive
-        if domain == UnifiedDomain.BUSINESS and event.event_type == 'user_action':
+        if domain == UnifiedDomain.BUSINESS and event.event_type == "user_action":
             return True
 
         # Metrics above threshold could be positive
-        if event.event_type == 'metric':
+        if event.event_type == "metric":
             values = [v for v in event.payload.values() if isinstance(v, (int, float))]
             if values and np.mean(values) > 0:
                 return True
 
         return False
 
-    def _detect_emerging_pattern(
-        self,
-        features: list[float],
-        domain: UnifiedDomain
-    ) -> bool:
+    def _detect_emerging_pattern(self, features: list[float], domain: UnifiedDomain) -> bool:
         """Detect emerging patterns - MVP heuristic"""
         # Simple pattern: high variance in features
         if not features:
@@ -212,10 +196,7 @@ class SignalDetector:
         return abs(slope) > 0.1
 
     def calculate_confidence(
-        self,
-        event: RawEvent,
-        detection_confidence: float,
-        bayesian_posterior: float
+        self, event: RawEvent, detection_confidence: float, bayesian_posterior: float
     ) -> float:
         """
         Calculate overall confidence in detection
@@ -231,11 +212,7 @@ class SignalDetector:
         # Combine multiple confidence sources
         data_quality = self._assess_data_quality(event)
 
-        confidence = (
-            detection_confidence * 0.5 +
-            bayesian_posterior * 0.3 +
-            data_quality * 0.2
-        )
+        confidence = detection_confidence * 0.5 + bayesian_posterior * 0.3 + data_quality * 0.2
 
         return min(max(confidence, 0.0), 1.0)
 
@@ -281,7 +258,7 @@ class SignalDetector:
             SignalType.OPPORTUNITY: 0.3,
             SignalType.ANOMALY_POSITIVE: 0.2,
             SignalType.PATTERN_EMERGING: 0.5,
-            SignalType.TREND: 0.4
+            SignalType.TREND: 0.4,
         }
 
         base_risk = type_risk.get(signal_type, 0.5)
@@ -292,7 +269,7 @@ class SignalDetector:
             UnifiedDomain.INFRASTRUCTURE: 1.1,
             UnifiedDomain.BUSINESS: 0.9,
             UnifiedDomain.TECHNICAL: 1.0,
-            UnifiedDomain.BEHAVIOR: 0.95
+            UnifiedDomain.BEHAVIOR: 0.95,
         }
 
         risk = base_risk * domain_multiplier.get(domain, 1.0)
@@ -300,10 +277,7 @@ class SignalDetector:
         return min(max(risk, 0.0), 1.0)
 
     def generate_description(
-        self,
-        signal_type: SignalType,
-        event: RawEvent,
-        domain: UnifiedDomain
+        self, signal_type: SignalType, event: RawEvent, domain: UnifiedDomain
     ) -> str:
         """Generate human-readable description of signal"""
         descriptions = {
@@ -312,7 +286,7 @@ class SignalDetector:
             SignalType.PATTERN_EMERGING: f"Padrão emergente identificado em {domain.value}",
             SignalType.OPPORTUNITY: f"Oportunidade detectada em {domain.value}",
             SignalType.THREAT: f"Ameaça potencial identificada em {domain.value}",
-            SignalType.TREND: f"Tendência detectada em {domain.value}"
+            SignalType.TREND: f"Tendência detectada em {domain.value}",
         }
 
         base_desc = descriptions.get(signal_type, f"Sinal detectado em {domain.value}")
@@ -332,7 +306,7 @@ class SignalDetector:
 
         return False
 
-    def _extract_geolocation(self, event: RawEvent) -> Optional['Geolocation']:
+    def _extract_geolocation(self, event: RawEvent) -> Optional["Geolocation"]:
         """
         Extract geolocation from event metadata or payload
 
@@ -345,7 +319,7 @@ class SignalDetector:
         from ..models.scout_signal import Geolocation
 
         # Priority 1: Check metadata for geolocation
-        geo_data = event.metadata.get('geolocation') or event.metadata.get('location')
+        geo_data = event.metadata.get("geolocation") or event.metadata.get("location")
 
         if geo_data:
             geo = self._parse_geolocation_data(geo_data)
@@ -353,14 +327,13 @@ class SignalDetector:
                 return geo
 
         # Priority 2: Check payload for common geolocation fields
-        geo_keys = ['latitude', 'lat', 'longitude', 'lon', 'lng', 'long']
         payload = event.payload
 
         lat = None
         lon = None
 
         # Find latitude
-        for key in ['latitude', 'lat']:
+        for key in ["latitude", "lat"]:
             if key in payload:
                 try:
                     lat = float(payload[key])
@@ -369,7 +342,7 @@ class SignalDetector:
                     continue
 
         # Find longitude
-        for key in ['longitude', 'lon', 'lng', 'long']:
+        for key in ["longitude", "lon", "lng", "long"]:
             if key in payload:
                 try:
                     lon = float(payload[key])
@@ -385,7 +358,7 @@ class SignalDetector:
                 pass  # Invalid coordinates
 
         # Priority 3: Check nested location objects in payload
-        for key in ['location', 'geo', 'position', 'coordinates']:
+        for key in ["location", "geo", "position", "coordinates"]:
             if key in payload and isinstance(payload[key], dict):
                 geo = self._parse_geolocation_data(payload[key])
                 if geo:
@@ -393,7 +366,7 @@ class SignalDetector:
 
         return None
 
-    def _parse_geolocation_data(self, data: Any) -> Optional['Geolocation']:
+    def _parse_geolocation_data(self, data: Any) -> Optional["Geolocation"]:
         """
         Parse geolocation data from various formats
 
@@ -406,8 +379,8 @@ class SignalDetector:
         from ..models.scout_signal import Geolocation
 
         if isinstance(data, dict):
-            lat = data.get('latitude') or data.get('lat')
-            lon = data.get('longitude') or data.get('lon') or data.get('lng') or data.get('long')
+            lat = data.get("latitude") or data.get("lat")
+            lon = data.get("longitude") or data.get("lon") or data.get("lng") or data.get("long")
 
             if lat is not None and lon is not None:
                 try:
@@ -425,7 +398,7 @@ class SignalDetector:
 
         elif isinstance(data, str):
             # Parse string formats like "lat,lon" or "lat lon"
-            parts = data.replace(',', ' ').split()
+            parts = data.replace(",", " ").split()
             if len(parts) >= 2:
                 try:
                     lat, lon = float(parts[0]), float(parts[1])

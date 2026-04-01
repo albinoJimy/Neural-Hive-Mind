@@ -3,20 +3,20 @@ import asyncio
 import json
 import os
 import socket
-from typing import Optional, Dict, Any
-from confluent_kafka import Producer, KafkaError
-from confluent_kafka.serialization import SerializationContext, MessageField
+from typing import Any
+
+import structlog
+from config.settings import get_settings
+from confluent_kafka import Producer
 from confluent_kafka.schema_registry import SchemaRegistryClient
 from confluent_kafka.schema_registry.avro import AvroSerializer
-import structlog
-
+from confluent_kafka.serialization import MessageField, SerializationContext
 from models.intent_envelope import IntentEnvelope
 from observability.metrics import (
-    message_size_histogram,
     message_size_gauge,
+    message_size_histogram,
     record_too_large_counter,
 )
-from config.settings import get_settings
 
 # Otimização: Usar orjson se disponível para serialização JSON mais rápida
 try:
@@ -41,24 +41,22 @@ logger = structlog.get_logger()
 
 
 class KafkaIntentProducer:
-    def __init__(self, bootstrap_servers: str = None, schema_registry_url: str = None):
+    def __init__(
+        self, bootstrap_servers: str | None = None, schema_registry_url: str | None = None
+    ):
         self.settings = get_settings()
-        self.bootstrap_servers = (
-            bootstrap_servers or self.settings.kafka_bootstrap_servers
-        )
-        self.schema_registry_url = (
-            schema_registry_url or self.settings.schema_registry_url
-        )
-        self.producer: Optional[Producer] = None
-        self.schema_registry_client: Optional[SchemaRegistryClient] = None
-        self.avro_serializer: Optional[AvroSerializer] = None
+        self.bootstrap_servers = bootstrap_servers or self.settings.kafka_bootstrap_servers
+        self.schema_registry_url = schema_registry_url or self.settings.schema_registry_url
+        self.producer: Producer | None = None
+        self.schema_registry_client: SchemaRegistryClient | None = None
+        self.avro_serializer: AvroSerializer | None = None
         self._ready = False
         self._transactional_id = self._generate_stable_transactional_id()
         self._cluster_metadata = None
         self._instrumented = False
         # Otimização: Producer não-transacional para intents de baixa prioridade
         # Gateado behind enable_fast_producer setting - disabled by default for exactly-once
-        self._fast_producer: Optional[Producer] = None
+        self._fast_producer: Producer | None = None
         self._fast_producer_ready = False
         self._enable_fast_producer = (
             self.settings.kafka_enable_fast_producer
@@ -97,7 +95,7 @@ class KafkaIntentProducer:
 
         return transactional_id
 
-    def _configure_security(self) -> Dict[str, Any]:
+    def _configure_security(self) -> dict[str, Any]:
         """Configurar autenticação e SSL para Kafka"""
         security_config = {}
 
@@ -123,9 +121,7 @@ class KafkaIntentProducer:
                 ] = self.settings.kafka_ssl_certificate_location
 
             if self.settings.kafka_ssl_key_location:
-                security_config[
-                    "ssl.key.location"
-                ] = self.settings.kafka_ssl_key_location
+                security_config["ssl.key.location"] = self.settings.kafka_ssl_key_location
 
         logger.info(
             "Configuração de segurança aplicada",
@@ -176,12 +172,10 @@ class KafkaIntentProducer:
                 self.schema_registry_client = SchemaRegistryClient(sr_conf)
 
                 # Carregar schema Avro
-                with open("/app/schemas/intent-envelope.avsc", "r") as f:
+                with open("/app/schemas/intent-envelope.avsc") as f:
                     schema_str = f.read()
 
-                self.avro_serializer = AvroSerializer(
-                    self.schema_registry_client, schema_str
-                )
+                self.avro_serializer = AvroSerializer(self.schema_registry_client, schema_str)
                 logger.info("Schema Registry habilitado", url=self.schema_registry_url)
             else:
                 logger.warning(
@@ -206,9 +200,7 @@ class KafkaIntentProducer:
                             "Verifique se init_observability() foi chamado antes de kafka_producer.initialize()"
                         )
                     else:
-                        self.producer = instrument_kafka_producer(
-                            self.producer, obs_config
-                        )
+                        self.producer = instrument_kafka_producer(self.producer, obs_config)
                         self._instrumented = True
                         logger.info(
                             "Instrumentação de Kafka habilitada para propagação de tracing",
@@ -255,10 +247,10 @@ class KafkaIntentProducer:
             logger.info("Producer Kafka inicializado com sucesso")
 
         except Exception as e:
-            logger.error("Erro inicializando producer Kafka", error=str(e))
+            logger.exception("Erro inicializando producer Kafka", error=str(e))
             raise
 
-    async def get_cluster_metadata(self) -> Dict[str, Any]:
+    async def get_cluster_metadata(self) -> dict[str, Any]:
         """Obter metadados do cluster Kafka"""
         if not self.producer:
             raise RuntimeError("Producer não inicializado")
@@ -268,9 +260,7 @@ class KafkaIntentProducer:
 
             brokers = []
             for broker in metadata.brokers.values():
-                brokers.append(
-                    {"id": broker.id, "host": broker.host, "port": broker.port}
-                )
+                brokers.append({"id": broker.id, "host": broker.host, "port": broker.port})
 
             topics = []
             for topic_name, topic_metadata in metadata.topics.items():
@@ -303,7 +293,7 @@ class KafkaIntentProducer:
             }
 
         except Exception as e:
-            logger.error("Erro obtendo metadados do cluster", error=str(e))
+            logger.exception("Erro obtendo metadados do cluster", error=str(e))
             return {"error": str(e)}
 
     def is_ready(self) -> bool:
@@ -312,10 +302,10 @@ class KafkaIntentProducer:
     async def send_intent(
         self,
         intent_envelope: IntentEnvelope,
-        topic_override: Optional[str] = None,
-        confidence_status: Optional[str] = None,
-        requires_validation: Optional[bool] = None,
-        adaptive_threshold_used: Optional[bool] = None,
+        topic_override: str | None = None,
+        confidence_status: str | None = None,
+        requires_validation: bool | None = None,
+        adaptive_threshold_used: bool | None = None,
         use_fast_producer: bool = False,
     ):
         """Enviar intenção para Kafka com exactly-once e metadata de confiança
@@ -341,10 +331,7 @@ class KafkaIntentProducer:
             raise RuntimeError("Producer Kafka não inicializado")
 
         # Calcular topic PRIMEIRO (usado na decisão do fast producer)
-        topic = (
-            topic_override
-            or f"intentions.{intent_envelope.intent.domain.value.lower()}"
-        )
+        topic = topic_override or f"intentions.{intent_envelope.intent.domain.value.lower()}"
 
         # Otimização: Escolher producer baseado em prioridade da intent
         # Default: SEMPRE transactional (exactly-once) para garantir reliability
@@ -385,9 +372,7 @@ class KafkaIntentProducer:
                 f"Fast producer solicitado mas não disponível/permitido: {', '.join(reasons)}. "
                 f"Usando producer transacional (exactly-once)"
             )
-            logger.warning(
-                f"Fast producer solicitado mas não disponível, usando producer padrão"
-            )
+            logger.warning("Fast producer solicitado mas não disponível, usando producer padrão")
         partition_key = intent_envelope.get_partition_key()
         idempotency_key = intent_envelope.get_idempotency_key()
 
@@ -413,9 +398,7 @@ class KafkaIntentProducer:
             if self.avro_serializer:
                 avro_data = intent_envelope.to_avro_dict()
                 serialization_context = SerializationContext(topic, MessageField.VALUE)
-                serialized_value = self.avro_serializer(
-                    avro_data, serialization_context
-                )
+                serialized_value = self.avro_serializer(avro_data, serialization_context)
                 content_type = "application/avro"
             else:
                 # Fallback para JSON quando Schema Registry não disponível
@@ -424,9 +407,7 @@ class KafkaIntentProducer:
                 if USE_ORJSON:
                     serialized_value = orjson.dumps(avro_data)
                 else:
-                    serialized_value = json.dumps(avro_data, ensure_ascii=False).encode(
-                        "utf-8"
-                    )
+                    serialized_value = json.dumps(avro_data, ensure_ascii=False).encode("utf-8")
                 content_type = "application/json"
 
             # Measure message size and emit metrics
@@ -449,20 +430,16 @@ class KafkaIntentProducer:
             # Headers para metadados e auditoria
             headers = {
                 "intent-id": intent_envelope.id.encode("utf-8"),
-                "correlation-id": (intent_envelope.correlation_id or "").encode(
-                    "utf-8"
-                ),
+                "correlation-id": (intent_envelope.correlation_id or "").encode("utf-8"),
                 "idempotency-key": idempotency_key.encode("utf-8"),
-                "schema-version": "1.0.0".encode("utf-8"),
+                "schema-version": b"1.0.0",
                 "content-type": content_type.encode("utf-8"),
                 "message-size": str(message_size).encode("utf-8"),
                 "source-ip": os.getenv("SOURCE_IP", "unknown").encode("utf-8"),
                 "user-id": (
                     intent_envelope.actor.id if intent_envelope.actor else "anonymous"
                 ).encode("utf-8"),
-                "timestamp": str(int(asyncio.get_event_loop().time() * 1000)).encode(
-                    "utf-8"
-                ),
+                "timestamp": str(int(asyncio.get_event_loop().time() * 1000)).encode("utf-8"),
                 "producer-id": self._transactional_id.encode("utf-8"),
                 "confidence-score": str(intent_envelope.confidence).encode("utf-8"),
                 "confidence-status": (confidence_status or "unknown").encode("utf-8"),
@@ -470,21 +447,13 @@ class KafkaIntentProducer:
                     requires_validation if requires_validation is not None else False
                 ).encode("utf-8"),
                 "adaptive-threshold-used": str(
-                    adaptive_threshold_used
-                    if adaptive_threshold_used is not None
-                    else False
+                    adaptive_threshold_used if adaptive_threshold_used is not None else False
                 ).encode("utf-8"),
                 "fast-producer": str(not use_transaction).encode("utf-8"),
             }
-            if (
-                self.settings.otel_enabled
-                and inject_context_to_headers
-                and not self._instrumented
-            ):
+            if self.settings.otel_enabled and inject_context_to_headers and not self._instrumented:
                 normalized_headers = {
-                    key: value.decode("utf-8")
-                    if isinstance(value, (bytes, bytearray))
-                    else value
+                    key: value.decode("utf-8") if isinstance(value, (bytes, bytearray)) else value
                     for key, value in headers.items()
                 }
                 headers_with_context = inject_context_to_headers(normalized_headers)
@@ -496,7 +465,7 @@ class KafkaIntentProducer:
                 headers = list(headers.items())
 
             # Produzir mensagem
-            future = producer_to_use.produce(
+            producer_to_use.produce(
                 topic=topic,
                 key=partition_key.encode("utf-8"),
                 value=serialized_value,
@@ -531,7 +500,7 @@ class KafkaIntentProducer:
             if "RECORD_TOO_LARGE" in error_str or "message size" in error_str.lower():
                 record_too_large_counter.labels(domain=domain_str).inc()
 
-                logger.error(
+                logger.exception(
                     "Intenção rejeitada por exceder limite de tamanho",
                     intent_id=intent_envelope.id,
                     domain=domain_str,
@@ -543,7 +512,7 @@ class KafkaIntentProducer:
                 await self.send_to_dlq(intent_envelope, error_str, message_size)
 
             else:
-                logger.error(
+                logger.exception(
                     "Erro enviando intenção para Kafka",
                     intent_id=intent_envelope.id,
                     domain=domain_str,
@@ -580,7 +549,7 @@ class KafkaIntentProducer:
                 self._ready = False
                 logger.info("Producer Kafka principal fechado")
             except Exception as e:
-                logger.error("Erro fechando producer principal", error=str(e))
+                logger.exception("Erro fechando producer principal", error=str(e))
 
         # Fechar fast producer
         if self._fast_producer:
@@ -590,7 +559,7 @@ class KafkaIntentProducer:
                 self._fast_producer_ready = False
                 logger.info("Fast producer fechado")
             except Exception as e:
-                logger.error("Erro fechando fast producer", error=str(e))
+                logger.exception("Erro fechando fast producer", error=str(e))
 
     async def send_to_dlq(
         self,
@@ -617,10 +586,8 @@ class KafkaIntentProducer:
             dlq_headers = {
                 "error-reason": error_reason.encode("utf-8"),
                 "original-intent-id": intent_envelope.id.encode("utf-8"),
-                "dlq-timestamp": str(
-                    int(asyncio.get_event_loop().time() * 1000)
-                ).encode("utf-8"),
-                "content-type": "application/json".encode("utf-8"),
+                "dlq-timestamp": str(int(asyncio.get_event_loop().time() * 1000)).encode("utf-8"),
+                "content-type": b"application/json",
             }
 
             # Enviar para DLQ - usar SEMPRE producer transacional para reliability
@@ -651,7 +618,7 @@ class KafkaIntentProducer:
             )
 
         except Exception as dlq_error:
-            logger.error(
+            logger.exception(
                 "Erro enviando para DLQ",
                 intent_id=intent_envelope.id,
                 dlq_error=str(dlq_error),

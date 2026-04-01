@@ -3,7 +3,7 @@ Testes para RiskCalculator
 """
 
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import Mock
 
 from neural_hive_risk_scoring import (
@@ -180,7 +180,7 @@ class TestRiskCalculator:
 
     def test_calculate_risk_velocity(self, calculator):
         """Testa cálculo de velocidade de risco."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         historical_scores = [
             (now, 0.3),
             (now + timedelta(hours=1), 0.5),
@@ -196,7 +196,7 @@ class TestRiskCalculator:
 
     def test_calculate_risk_velocity_insufficient_data(self, calculator):
         """Testa velocidade com dados insuficientes."""
-        historical_scores = [(datetime.utcnow(), 0.5)]
+        historical_scores = [(datetime.now(timezone.utc), 0.5)]
 
         velocity = calculator.calculate_risk_velocity(historical_scores)
 
@@ -360,7 +360,7 @@ class TestRiskCalculator:
 
     def test_velocity_stable_trend(self, calculator):
         """Testa velocidade com tendência estável."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         historical_scores = [
             (now, 0.5),
             (now + timedelta(hours=1), 0.501),
@@ -374,7 +374,7 @@ class TestRiskCalculator:
 
     def test_velocity_decreasing_trend(self, calculator):
         """Testa velocidade com tendência decrescente."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         historical_scores = [
             (now, 0.7),
             (now + timedelta(hours=1), 0.5),
@@ -388,7 +388,7 @@ class TestRiskCalculator:
 
     def test_velocity_with_acceleration(self, calculator):
         """Testa cálculo de aceleração."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         historical_scores = [
             (now, 0.5),
             (now + timedelta(hours=1), 0.55),

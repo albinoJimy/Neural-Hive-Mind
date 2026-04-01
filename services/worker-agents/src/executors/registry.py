@@ -1,5 +1,6 @@
+
 import structlog
-from typing import Dict
+
 from .base_executor import BaseTaskExecutor
 
 logger = structlog.get_logger()
@@ -10,47 +11,45 @@ class ExecutorNotFoundError(Exception):
 
 
 class TaskExecutorRegistry:
-    '''Registry de executores de tarefas'''
+    """Registry de executores de tarefas"""
 
     def __init__(self, config, metrics=None):
         self.config = config
         self.metrics = metrics
-        self.executors: Dict[str, BaseTaskExecutor] = {}
-        self.logger = logger.bind(service='task_executor_registry')
+        self.executors: dict[str, BaseTaskExecutor] = {}
+        self.logger = logger.bind(service="task_executor_registry")
 
     def register_executor(self, executor: BaseTaskExecutor):
-        '''Registrar executor por task_type'''
+        """Registrar executor por task_type"""
         task_type = executor.get_task_type().upper()
         self.executors[task_type] = executor
 
         self.logger.info(
-            'executor_registered',
-            task_type=task_type,
-            executor_class=executor.__class__.__name__
+            "executor_registered", task_type=task_type, executor_class=executor.__class__.__name__
         )
 
         if self.metrics:
             self.metrics.executors_registered_total.labels(task_type=task_type).inc()
 
     def get_executor(self, task_type: str) -> BaseTaskExecutor:
-        '''Obter executor por task_type (normaliza para uppercase)'''
+        """Obter executor por task_type (normaliza para uppercase)"""
         executor = self.executors.get(task_type.upper())
 
         if not executor:
-            raise ExecutorNotFoundError(f'No executor found for task_type: {task_type}')
+            raise ExecutorNotFoundError(f"No executor found for task_type: {task_type}")
 
         return executor
 
     def list_supported_task_types(self):
-        '''Listar task_types suportados'''
+        """Listar task_types suportados"""
         return list(self.executors.keys())
 
     def validate_configuration(self):
-        '''Validar que todos os task_types configurados têm executores
+        """Validar que todos os task_types configurados têm executores
 
         Raises:
             RuntimeError: Se houver executores faltando em ambiente de produção/staging
-        '''
+        """
         registered_types = set(self.executors.keys())
         configured_types = set(self.config.supported_task_types)
 
@@ -58,19 +57,19 @@ class TaskExecutorRegistry:
 
         if missing_executors:
             environment = self.config.environment.lower()
-            if environment in ('production', 'staging', 'prod'):
+            if environment in ("production", "staging", "prod"):
                 raise RuntimeError(
-                    f'Executores faltando em ambiente {self.config.environment}: '
-                    f'{list(missing_executors)}. Configure os executores antes de iniciar.'
+                    f"Executores faltando em ambiente {self.config.environment}: "
+                    f"{list(missing_executors)}. Configure os executores antes de iniciar."
                 )
             self.logger.warning(
-                'missing_executors',
+                "missing_executors",
                 task_types=list(missing_executors),
-                environment=self.config.environment
+                environment=self.config.environment,
             )
 
         self.logger.info(
-            'registry_validated',
+            "registry_validated",
             registered_types=list(registered_types),
-            configured_types=list(configured_types)
+            configured_types=list(configured_types),
         )

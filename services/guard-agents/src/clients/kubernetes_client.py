@@ -1,24 +1,25 @@
 """Kubernetes client for Guard Agents"""
-from typing import Optional, Dict, Any, List
+from typing import Any, Dict, List, Optional
+
+import structlog
 from kubernetes import client, config
 from kubernetes.client.rest import ApiException
-import structlog
 from prometheus_client import Counter, Histogram
 
 logger = structlog.get_logger()
 
 # Metricas Prometheus
 kubernetes_operations_total = Counter(
-    'guard_agents_kubernetes_operations_total',
-    'Total de operacoes Kubernetes',
-    ['operation', 'status']
+    "guard_agents_kubernetes_operations_total",
+    "Total de operacoes Kubernetes",
+    ["operation", "status"],
 )
 
 kubernetes_operation_duration = Histogram(
-    'guard_agents_kubernetes_operation_duration_seconds',
-    'Duracao das operacoes Kubernetes',
-    ['operation'],
-    buckets=(0.01, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0, 10.0)
+    "guard_agents_kubernetes_operation_duration_seconds",
+    "Duracao das operacoes Kubernetes",
+    ["operation"],
+    buckets=(0.01, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0, 10.0),
 )
 
 
@@ -46,7 +47,9 @@ class KubernetesClient:
 
             # Testa conexao verificando pods no proprio namespace
             self.core_v1.list_namespaced_pod(self.namespace, limit=1)
-            logger.info("kubernetes.connected", in_cluster=self.in_cluster, namespace=self.namespace)
+            logger.info(
+                "kubernetes.connected", in_cluster=self.in_cluster, namespace=self.namespace
+            )
         except Exception as e:
             logger.error("kubernetes.connection_failed", error=str(e))
             raise
@@ -73,7 +76,7 @@ class KubernetesClient:
         self,
         namespace: Optional[str] = None,
         label_selector: Optional[str] = None,
-        field_selector: Optional[str] = None
+        field_selector: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """
         Lista pods em um namespace com filtros opcionais
@@ -104,7 +107,7 @@ class KubernetesClient:
                     "kubernetes.list_pods_failed",
                     namespace=ns,
                     label_selector=label_selector,
-                    error=str(e)
+                    error=str(e),
                 )
                 return []
 
@@ -131,20 +134,14 @@ class KubernetesClient:
         # Validar replicas
         if replicas < 0 or replicas > 50:
             logger.error(
-                "kubernetes.invalid_replicas",
-                deployment=deployment_name,
-                replicas=replicas
+                "kubernetes.invalid_replicas", deployment=deployment_name, replicas=replicas
             )
             return False
 
         with kubernetes_operation_duration.labels(operation="scale_deployment").time():
             try:
-                scale = client.V1Scale(
-                    spec=client.V1ScaleSpec(replicas=replicas)
-                )
-                self.apps_v1.patch_namespaced_deployment_scale(
-                    deployment_name, ns, scale
-                )
+                scale = client.V1Scale(spec=client.V1ScaleSpec(replicas=replicas))
+                self.apps_v1.patch_namespaced_deployment_scale(deployment_name, ns, scale)
                 kubernetes_operations_total.labels(
                     operation="scale_deployment", status="success"
                 ).inc()
@@ -152,7 +149,7 @@ class KubernetesClient:
                     "kubernetes.deployment_scaled",
                     deployment=deployment_name,
                     replicas=replicas,
-                    namespace=ns
+                    namespace=ns,
                 )
                 return True
             except ApiException as e:
@@ -160,17 +157,12 @@ class KubernetesClient:
                     operation="scale_deployment", status="error"
                 ).inc()
                 logger.error(
-                    "kubernetes.scale_deployment_failed",
-                    deployment=deployment_name,
-                    error=str(e)
+                    "kubernetes.scale_deployment_failed", deployment=deployment_name, error=str(e)
                 )
                 return False
 
     async def rollback_deployment(
-        self,
-        deployment_name: str,
-        revision: Optional[int] = None,
-        namespace: Optional[str] = None
+        self, deployment_name: str, revision: Optional[int] = None, namespace: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Executa rollback de um deployment para revisao anterior
@@ -202,21 +194,18 @@ class KubernetesClient:
                         "spec": {
                             "template": {
                                 "metadata": {
-                                    "annotations": {
-                                        "kubectl.kubernetes.io/restartedAt": ""
-                                    }
+                                    "annotations": {"kubectl.kubernetes.io/restartedAt": ""}
                                 }
                             }
                         },
                         "metadata": {
-                            "annotations": {
-                                "deployment.kubernetes.io/revision": str(revision)
-                            }
-                        }
+                            "annotations": {"deployment.kubernetes.io/revision": str(revision)}
+                        },
                     }
                 else:
                     # Rollback para revisao anterior (trigger rolling update)
                     import datetime
+
                     patch = {
                         "spec": {
                             "template": {
@@ -242,7 +231,7 @@ class KubernetesClient:
                     deployment=deployment_name,
                     previous_revision=current_revision,
                     target_revision=revision or "previous",
-                    namespace=ns
+                    namespace=ns,
                 )
 
                 return {
@@ -250,7 +239,7 @@ class KubernetesClient:
                     "deployment": deployment_name,
                     "previous_revision": current_revision,
                     "target_revision": revision or "previous",
-                    "namespace": ns
+                    "namespace": ns,
                 }
 
             except ApiException as e:
@@ -260,19 +249,12 @@ class KubernetesClient:
                 logger.error(
                     "kubernetes.rollback_deployment_failed",
                     deployment=deployment_name,
-                    error=str(e)
+                    error=str(e),
                 )
-                return {
-                    "success": False,
-                    "deployment": deployment_name,
-                    "error": str(e)
-                }
+                return {"success": False, "deployment": deployment_name, "error": str(e)}
 
     async def apply_network_policy(
-        self,
-        policy_name: str,
-        policy_spec: Dict[str, Any],
-        namespace: Optional[str] = None
+        self, policy_name: str, policy_spec: Dict[str, Any], namespace: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Aplica ou atualiza uma NetworkPolicy
@@ -298,21 +280,19 @@ class KubernetesClient:
                         namespace=ns,
                         labels={
                             "app.kubernetes.io/managed-by": "guard-agents",
-                            "guard-agents/policy-type": policy_spec.get("type", "remediation")
-                        }
+                            "guard-agents/policy-type": policy_spec.get("type", "remediation"),
+                        },
                     ),
-                    spec=self._build_network_policy_spec(policy_spec)
+                    spec=self._build_network_policy_spec(policy_spec),
                 )
 
                 # Tentar criar ou atualizar
                 try:
-                    result = self.networking_v1.create_namespaced_network_policy(
-                        ns, network_policy
-                    )
+                    self.networking_v1.create_namespaced_network_policy(ns, network_policy)
                     action = "created"
                 except ApiException as e:
                     if e.status == 409:  # Conflict - ja existe
-                        result = self.networking_v1.patch_namespaced_network_policy(
+                        self.networking_v1.patch_namespaced_network_policy(
                             policy_name, ns, network_policy
                         )
                         action = "updated"
@@ -327,14 +307,14 @@ class KubernetesClient:
                     "kubernetes.network_policy_applied",
                     policy=policy_name,
                     action=action,
-                    namespace=ns
+                    namespace=ns,
                 )
 
                 return {
                     "success": True,
                     "policy_name": policy_name,
                     "action": action,
-                    "namespace": ns
+                    "namespace": ns,
                 }
 
             except ApiException as e:
@@ -342,19 +322,11 @@ class KubernetesClient:
                     operation="apply_network_policy", status="error"
                 ).inc()
                 logger.error(
-                    "kubernetes.apply_network_policy_failed",
-                    policy=policy_name,
-                    error=str(e)
+                    "kubernetes.apply_network_policy_failed", policy=policy_name, error=str(e)
                 )
-                return {
-                    "success": False,
-                    "policy_name": policy_name,
-                    "error": str(e)
-                }
+                return {"success": False, "policy_name": policy_name, "error": str(e)}
 
-    def _build_network_policy_spec(
-        self, policy_spec: Dict[str, Any]
-    ) -> client.V1NetworkPolicySpec:
+    def _build_network_policy_spec(self, policy_spec: Dict[str, Any]) -> client.V1NetworkPolicySpec:
         """Constroi spec de NetworkPolicy baseado em target"""
         target = policy_spec.get("target", "isolate")
         pod_selector = policy_spec.get("pod_selector", {})
@@ -365,7 +337,7 @@ class KubernetesClient:
                 pod_selector=client.V1LabelSelector(match_labels=pod_selector),
                 policy_types=["Ingress", "Egress"],
                 ingress=[],  # Negar todo ingress
-                egress=[]    # Negar todo egress
+                egress=[],  # Negar todo egress
             )
 
         elif target == "rate_limit":
@@ -383,7 +355,7 @@ class KubernetesClient:
                             )
                         ]
                     )
-                ]
+                ],
             )
 
         elif target == "restore":
@@ -392,7 +364,7 @@ class KubernetesClient:
                 pod_selector=client.V1LabelSelector(match_labels=pod_selector),
                 policy_types=["Ingress", "Egress"],
                 ingress=[client.V1NetworkPolicyIngressRule(from_=[])],
-                egress=[client.V1NetworkPolicyEgressRule(to=[])]
+                egress=[client.V1NetworkPolicyEgressRule(to=[])],
             )
 
         else:
@@ -401,14 +373,11 @@ class KubernetesClient:
                 pod_selector=client.V1LabelSelector(match_labels=pod_selector),
                 policy_types=["Ingress", "Egress"],
                 ingress=[],
-                egress=[]
+                egress=[],
             )
 
     async def patch_pod_labels(
-        self,
-        pod_name: str,
-        labels: Dict[str, str],
-        namespace: Optional[str] = None
+        self, pod_name: str, labels: Dict[str, str], namespace: Optional[str] = None
     ) -> bool:
         """
         Adiciona ou atualiza labels em um pod
@@ -433,10 +402,7 @@ class KubernetesClient:
                 ).inc()
 
                 logger.info(
-                    "kubernetes.pod_labels_patched",
-                    pod=pod_name,
-                    labels=labels,
-                    namespace=ns
+                    "kubernetes.pod_labels_patched", pod=pod_name, labels=labels, namespace=ns
                 )
                 return True
 
@@ -444,17 +410,11 @@ class KubernetesClient:
                 kubernetes_operations_total.labels(
                     operation="patch_pod_labels", status="error"
                 ).inc()
-                logger.error(
-                    "kubernetes.patch_pod_labels_failed",
-                    pod=pod_name,
-                    error=str(e)
-                )
+                logger.error("kubernetes.patch_pod_labels_failed", pod=pod_name, error=str(e))
                 return False
 
     async def get_deployment_revision_history(
-        self,
-        deployment_name: str,
-        namespace: Optional[str] = None
+        self, deployment_name: str, namespace: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """
         Lista historico de revisoes de um deployment
@@ -471,23 +431,23 @@ class KubernetesClient:
         try:
             # Listar ReplicaSets associados ao deployment
             rs_list = self.apps_v1.list_namespaced_replica_set(
-                ns,
-                label_selector=f"app={deployment_name}"
+                ns, label_selector=f"app={deployment_name}"
             )
 
             revisions = []
             for rs in rs_list.items:
-                revision = rs.metadata.annotations.get(
-                    "deployment.kubernetes.io/revision", "0"
+                revision = rs.metadata.annotations.get("deployment.kubernetes.io/revision", "0")
+                revisions.append(
+                    {
+                        "name": rs.metadata.name,
+                        "revision": int(revision),
+                        "replicas": rs.spec.replicas or 0,
+                        "available_replicas": rs.status.available_replicas or 0,
+                        "created_at": rs.metadata.creation_timestamp.isoformat()
+                        if rs.metadata.creation_timestamp
+                        else None,
+                    }
                 )
-                revisions.append({
-                    "name": rs.metadata.name,
-                    "revision": int(revision),
-                    "replicas": rs.spec.replicas or 0,
-                    "available_replicas": rs.status.available_replicas or 0,
-                    "created_at": rs.metadata.creation_timestamp.isoformat()
-                        if rs.metadata.creation_timestamp else None
-                })
 
             # Ordenar por revisao (decrescente)
             revisions.sort(key=lambda x: x["revision"], reverse=True)
@@ -495,23 +455,19 @@ class KubernetesClient:
             logger.debug(
                 "kubernetes.revision_history",
                 deployment=deployment_name,
-                revision_count=len(revisions)
+                revision_count=len(revisions),
             )
 
             return revisions
 
         except ApiException as e:
             logger.error(
-                "kubernetes.get_revision_history_failed",
-                deployment=deployment_name,
-                error=str(e)
+                "kubernetes.get_revision_history_failed", deployment=deployment_name, error=str(e)
             )
             return []
 
     async def delete_network_policy(
-        self,
-        policy_name: str,
-        namespace: Optional[str] = None
+        self, policy_name: str, namespace: Optional[str] = None
     ) -> bool:
         """
         Remove uma NetworkPolicy
@@ -533,28 +489,19 @@ class KubernetesClient:
                     operation="delete_network_policy", status="success"
                 ).inc()
 
-                logger.info(
-                    "kubernetes.network_policy_deleted",
-                    policy=policy_name,
-                    namespace=ns
-                )
+                logger.info("kubernetes.network_policy_deleted", policy=policy_name, namespace=ns)
                 return True
 
             except ApiException as e:
                 if e.status == 404:
                     # Policy nao existe - considerar sucesso
-                    logger.warning(
-                        "kubernetes.network_policy_not_found",
-                        policy=policy_name
-                    )
+                    logger.warning("kubernetes.network_policy_not_found", policy=policy_name)
                     return True
 
                 kubernetes_operations_total.labels(
                     operation="delete_network_policy", status="error"
                 ).inc()
                 logger.error(
-                    "kubernetes.delete_network_policy_failed",
-                    policy=policy_name,
-                    error=str(e)
+                    "kubernetes.delete_network_policy_failed", policy=policy_name, error=str(e)
                 )
                 return False

@@ -1,14 +1,16 @@
-from pydantic import BaseModel, ConfigDict, Field
-from typing import Literal
 from datetime import datetime, timezone
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, Field
+
 from .schemas import (
-    PipelineProvider,
-    PipelineStatus,
-    PipelineStage,
-    GitOpsProvider,
-    Severity,
     AnomalyType,
+    GitOpsProvider,
     InsightType,
+    PipelineProvider,
+    PipelineStage,
+    PipelineStatus,
+    Severity,
 )
 
 
@@ -22,9 +24,7 @@ class PipelineManifest(BaseModel):
     branch: str = Field(description="Branch do repositório")
     provider: PipelineProvider = Field(description="Provider de CI/CD")
     content: str = Field(description="Conteúdo YAML do pipeline")
-    stack: dict[str, str] = Field(
-        default_factory=dict, description="Informações da stack"
-    )
+    stack: dict[str, str] = Field(default_factory=dict, description="Informações da stack")
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
         description="Timestamp de criação",
@@ -56,17 +56,11 @@ class PipelineRun(BaseModel):
         default_factory=lambda: datetime.now(timezone.utc),
         description="Timestamp de início",
     )
-    finished_at: datetime | None = Field(
-        default=None, description="Timestamp de conclusão"
-    )
-    duration_seconds: int | None = Field(
-        default=None, ge=0, description="Duração em segundos"
-    )
+    finished_at: datetime | None = Field(default=None, description="Timestamp de conclusão")
+    duration_seconds: int | None = Field(default=None, ge=0, description="Duração em segundos")
     logs_url: str | None = Field(default=None, description="URL dos logs da execução")
     rollback_reason: str | None = Field(default=None, description="Motivo do rollback")
-    rollback_run_id: str | None = Field(
-        default=None, description="ID da execução de rollback"
-    )
+    rollback_run_id: str | None = Field(default=None, description="ID da execução de rollback")
 
 
 class DeployRequest(BaseModel):
@@ -77,15 +71,11 @@ class DeployRequest(BaseModel):
     repo_url: str = Field(description="URL do repositório")
     git_sha: str = Field(description="SHA do commit para deploy")
     branch: str = Field(default="main", description="Branch do repositório")
-    environment: Literal["staging", "production"] = Field(
-        description="Ambiente de destino"
-    )
+    environment: Literal["staging", "production"] = Field(description="Ambiente de destino")
     provider: PipelineProvider = Field(
         default=PipelineProvider.GITHUB_ACTIONS, description="Provider de CI/CD"
     )
-    gitops_provider: GitOpsProvider | None = Field(
-        default=None, description="Provider de GitOps"
-    )
+    gitops_provider: GitOpsProvider | None = Field(default=None, description="Provider de GitOps")
     timeout_minutes: int = Field(
         default=60, ge=1, le=720, description="Timeout em minutos (max 12h)"
     )
@@ -124,20 +114,14 @@ class Anomaly(BaseModel):
     type: AnomalyType = Field(description="Tipo da anomalia")
     severity: Severity = Field(description="Severidade da anomalia")
     description: str = Field(description="Descrição detalhada")
-    affected_component: str | None = Field(
-        default=None, description="Componente afetado"
-    )
+    affected_component: str | None = Field(default=None, description="Componente afetado")
     detected_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
         description="Timestamp de detecção",
     )
     resolved: bool = Field(default=False, description="Se foi resolvida")
-    resolved_at: datetime | None = Field(
-        default=None, description="Timestamp de resolução"
-    )
-    suggested_action: str | None = Field(
-        default=None, description="Ação sugerida para correção"
-    )
+    resolved_at: datetime | None = Field(default=None, description="Timestamp de resolução")
+    suggested_action: str | None = Field(default=None, description="Ação sugerida para correção")
 
 
 class Insight(BaseModel):
@@ -151,9 +135,7 @@ class Insight(BaseModel):
     title: str = Field(description="Título descritivo do insight")
     description: str = Field(description="Descrição detalhada")
     impact: Severity = Field(description="Impacto da issue ou oportunidade")
-    effort: Literal["S", "M", "L"] = Field(
-        description="Esforço estimado para implementação"
-    )
+    effort: Literal["S", "M", "L"] = Field(description="Esforço estimado para implementação")
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
         description="Timestamp de criação",
@@ -169,12 +151,8 @@ class InsightsReport(BaseModel):
     timeframe_start: datetime = Field(description="Início do período analisado")
     timeframe_end: datetime = Field(description="Fim do período analisado")
     total_runs: int = Field(ge=0, description="Total de execuções no período")
-    success_rate: float = Field(
-        ge=0.0, le=1.0, description="Taxa de sucesso (0.0 a 1.0)"
-    )
-    average_duration_seconds: float = Field(
-        ge=0.0, description="Duração média em segundos"
-    )
+    success_rate: float = Field(ge=0.0, le=1.0, description="Taxa de sucesso (0.0 a 1.0)")
+    average_duration_seconds: float = Field(ge=0.0, description="Duração média em segundos")
     flaky_tests: list[Insight] = Field(
         default_factory=list, description="Testes flaky identificados"
     )

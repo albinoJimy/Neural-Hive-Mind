@@ -2,4 +2,4 @@
 
 from .metrics import TicketServiceMetrics
 
-__all__ = ['TicketServiceMetrics']
+__all__ = ["TicketServiceMetrics"]
