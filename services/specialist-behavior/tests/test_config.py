@@ -11,7 +11,7 @@ from typing import List
 from unittest.mock import patch
 
 # Configurar path para importar código real
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 sys.path.insert(0, '/app/libraries/python')
 
 
@@ -146,24 +146,24 @@ class TestBehaviorSpecialistConfig:
         assert config.usability_threshold_high > config.usability_threshold_low
 
 
-class TestBehaviorSpecialistConfigDomains:
+class TestBehaviorSpecialistConfigBasic:
 
-    def test_config_service_name(self):
+    def test_config_service_name(self, env_vars):
         """Verifica nome do serviço."""
         config = BehaviorSpecialistConfig()
         assert config.service_name == "specialist-behavior"
 
-    def test_config_mlflow_experiment_name(self):
+    def test_config_mlflow_experiment_name(self, env_vars):
         """Verifica nome do experimento MLflow."""
         config = BehaviorSpecialistConfig()
         assert config.mlflow_experiment_name == "behavior-specialist"
 
-    def test_config_mlflow_model_name(self):
+    def test_config_mlflow_model_name(self, env_vars):
         """Verifica nome do modelo MLflow."""
         config = BehaviorSpecialistConfig()
         assert config.mlflow_model_name == "behavior-evaluator"
 
-    def test_config_supported_domains(self):
+    def test_config_supported_domains(self, env_vars):
         """Verifica domínios suportados."""
         config = BehaviorSpecialistConfig()
         expected_domains = [
@@ -175,56 +175,56 @@ class TestBehaviorSpecialistConfigDomains:
         ]
         assert config.supported_domains == expected_domains
 
-    def test_config_supported_domains_type(self):
+    def test_config_supported_domains_type(self, env_vars):
         """Verifica que supported_domains é uma lista."""
         config = BehaviorSpecialistConfig()
         assert isinstance(config.supported_domains, list)
 
-    def test_config_accessibility_wcag_level(self):
+    def test_config_accessibility_wcag_level(self, env_vars):
         """Verifica nível WCAG configurado."""
         config = BehaviorSpecialistConfig()
         assert config.accessibility_wcag_level == "AA"
 
-    def test_config_usability_thresholds(self):
+    def test_config_usability_thresholds(self, env_vars):
         """Verifica thresholds de usabilidade."""
         config = BehaviorSpecialistConfig()
         assert config.usability_threshold_high == 0.8
         assert config.usability_threshold_low == 0.5
 
-    def test_config_response_time_threshold(self):
+    def test_config_response_time_threshold(self, env_vars):
         """Verifica threshold de tempo de resposta."""
         config = BehaviorSpecialistConfig()
         assert config.response_time_threshold_ms == 300
 
-    def test_config_interaction_cost_threshold(self):
+    def test_config_interaction_cost_threshold(self, env_vars):
         """Verifica threshold de custo de interação."""
         config = BehaviorSpecialistConfig()
         assert config.interaction_cost_threshold == 0.7
 
-    def test_config_is_specialist_config_subclass(self):
+    def test_config_is_specialist_config_subclass(self, env_vars):
         """Verifica que BehaviorSpecialistConfig herda de SpecialistConfig."""
         from neural_hive_specialists import SpecialistConfig
         config = BehaviorSpecialistConfig()
         assert isinstance(config, SpecialistConfig)
 
-    def test_config_domains_not_empty(self):
+    def test_config_domains_not_empty(self, env_vars):
         """Verifica que supported_domains não está vazio."""
         config = BehaviorSpecialistConfig()
         assert len(config.supported_domains) > 0
 
-    def test_config_all_domains_are_strings(self):
+    def test_config_all_domains_are_strings(self, env_vars):
         """Verifica que todos os domínios são strings."""
         config = BehaviorSpecialistConfig()
         assert all(isinstance(domain, str) for domain in config.supported_domains)
 
-    def test_config_thresholds_in_valid_range(self):
+    def test_config_thresholds_in_valid_range(self, env_vars):
         """Verifica que thresholds estão entre 0 e 1."""
         config = BehaviorSpecialistConfig()
         assert 0.0 <= config.usability_threshold_high <= 1.0
         assert 0.0 <= config.usability_threshold_low <= 1.0
         assert 0.0 <= config.interaction_cost_threshold <= 1.0
 
-    def test_config_high_threshold_greater_than_low(self):
+    def test_config_high_threshold_greater_than_low(self, env_vars):
         """Verifica que threshold high é maior que low."""
         config = BehaviorSpecialistConfig()
         assert config.usability_threshold_high > config.usability_threshold_low
