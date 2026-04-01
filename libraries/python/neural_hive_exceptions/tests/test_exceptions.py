@@ -8,6 +8,11 @@ from neural_hive_exceptions import (
     ValidationErrorCode,
     ConfigurationError,
     ConfigErrorCode,
+    ConnectionError,
+    TimeoutError,
+    DatabaseError,
+    KafkaError,
+    InfrastructureErrorCode,
     GRPCError,
     grpc_error_to_status,
     error_code,
@@ -159,6 +164,97 @@ class TestGRPCErrorConversion:
         """Test converting ValueError to INVALID_ARGUMENT."""
         status = grpc_error_to_status(ValueError("test"))
         assert status == grpc.StatusCode.INVALID_ARGUMENT
+
+
+class TestConnectionError:
+    """Test connection exception."""
+
+    def test_service_unavailable(self):
+        """Test service unavailable helper."""
+        error = ConnectionError.service_unavailable(
+            service="postgresql",
+            host="localhost",
+            port=5432
+        )
+        assert error.code == InfrastructureErrorCode.CONNECTION_FAILED
+        assert error.details["service"] == "postgresql"
+        assert error.http_status == 503
+
+    def test_connection_error_details(self):
+        """Test connection error includes details."""
+        error = ConnectionError(
+            message="Cannot connect",
+            service="redis",
+            host="localhost",
+            port=6379,
+            reason="Connection refused"
+        )
+        assert error.details["host"] == "localhost"
+        assert error.details["port"] == 6379
+        assert error.details["reason"] == "Connection refused"
+
+
+class TestTimeoutError:
+    """Test timeout exception."""
+
+    def test_operation_timeout(self):
+        """Test operation timeout helper."""
+        error = TimeoutError.operation_timeout(
+            operation="database_query",
+            timeout_seconds=30.0,
+            service="postgresql"
+        )
+        assert error.code == InfrastructureErrorCode.CONNECTION_TIMEOUT
+        assert error.details["operation"] == "database_query"
+        assert error.details["timeout_seconds"] == 30.0
+        assert error.http_status == 504
+
+
+class TestDatabaseError:
+    """Test database exception."""
+
+    def test_query_failed(self):
+        """Test query failed helper."""
+        error = DatabaseError.query_failed(
+            query="SELECT * FROM users",
+            reason="Table does not exist",
+            database="mydb"
+        )
+        assert error.code == InfrastructureErrorCode.DATABASE_ERROR
+        assert "SELECT" in error.details["query"]
+        assert error.details["database"] == "mydb"
+
+    def test_long_query_truncation(self):
+        """Test long queries are truncated in details."""
+        long_query = "SELECT * FROM users WHERE " + " AND ".join([f"field{i} = {i}" for i in range(50)])
+        error = DatabaseError.query_failed(
+            query=long_query,
+            reason="Error"
+        )
+        assert len(error.details["query"]) <= 203  # 200 + "..."
+
+
+class TestKafkaError:
+    """Test Kafka exception."""
+
+    def test_producer_error(self):
+        """Test producer error helper."""
+        error = KafkaError.producer_error(
+            topic="test-topic",
+            reason="Broker not available"
+        )
+        assert error.code == InfrastructureErrorCode.KAFKA_PRODUCER_ERROR
+        assert error.details["topic"] == "test-topic"
+
+    def test_consumer_error(self):
+        """Test consumer error helper."""
+        error = KafkaError.consumer_error(
+            topic="test-topic",
+            reason="Consumer group not found"
+        )
+        assert error.code == InfrastructureErrorCode.KAFKA_CONSUMER_ERROR
+        assert error.details["topic"] == "test-topic"
+
 
     def test_generic_error_conversion(self):
         """Test converting generic error to UNKNOWN."""
