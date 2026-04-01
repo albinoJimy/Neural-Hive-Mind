@@ -9,25 +9,53 @@ Uso:
         NeuralHiveError,
         ValidationError,
         ConfigurationError,
+        ConnectionError,
+        TimeoutError,
+        DatabaseError,
+        KafkaError,
         GRPCError,
         grpc_error_to_status
     )
 """
 
-from .base import NeuralHiveError, error_code
-from .validation import ValidationError, ValidationErrorCode
+from .base import NeuralHiveError, error_code, ErrorContext
+from .validation import ValidationError, ValidationErrorCode, SchemaValidationError
 from .configuration import ConfigurationError, ConfigErrorCode
-from .grpc import GRPCError, grpc_error_to_status
+from .infrastructure import (
+    ConnectionError,
+    TimeoutError,
+    DatabaseError,
+    KafkaError,
+    InfrastructureErrorCode
+)
+from .grpc import GRPCError, grpc_error_to_status, HTTPStatusFromGRPC
 
 __all__ = [
+    # Base
     "NeuralHiveError",
+    "error_code",
+    "ErrorContext",
+
+    # Validation
     "ValidationError",
     "ValidationErrorCode",
+    "SchemaValidationError",
+
+    # Configuration
     "ConfigurationError",
     "ConfigErrorCode",
+
+    # Infrastructure
+    "ConnectionError",
+    "TimeoutError",
+    "DatabaseError",
+    "KafkaError",
+    "InfrastructureErrorCode",
+
+    # gRPC
     "GRPCError",
-    "error_code",
     "grpc_error_to_status",
+    "HTTPStatusFromGRPC",
 ]
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
