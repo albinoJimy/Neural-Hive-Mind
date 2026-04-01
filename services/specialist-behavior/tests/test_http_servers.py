@@ -11,7 +11,7 @@ from unittest.mock import MagicMock, patch, Mock
 from io import BytesIO
 
 # Configurar path para importar código real
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from src.http_server import HealthHandler, create_http_server
 from src.config import BehaviorSpecialistConfig

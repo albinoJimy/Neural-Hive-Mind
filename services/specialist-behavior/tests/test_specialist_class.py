@@ -11,7 +11,7 @@ import pytest
 from unittest.mock import MagicMock, patch
 
 # Configurar path para importar código real
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 # Importar código REAL
 from src.specialist import BehaviorSpecialist
