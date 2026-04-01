@@ -4,23 +4,25 @@ PreemptionManager - Gerencia preempção de tickets em execução.
 Coordena a preempção de tickets de baixa prioridade
 para dar lugar a tickets de alta prioridade.
 """
+from datetime import UTC
+from enum import StrEnum
+from typing import Any
+
 import structlog
-from typing import Dict, Any, Optional, List
-from enum import Enum
 
-from src.scheduler.preemption_rules import PreemptionRules, PreemptionDecision
+from src.scheduler.preemption_rules import PreemptionDecision, PreemptionRules
 from src.scheduler.priority_queues import PriorityLevel
-
 
 logger = structlog.get_logger(__name__)
 
 
-class PreemptionStatus(str, Enum):
+class PreemptionStatus(StrEnum):
     """Status de uma preempção."""
-    SUCCESS = 'SUCCESS'
-    FAILED = 'FAILED'
-    DENIED = 'DENIED'
-    NOT_FOUND = 'NOT_FOUND'
+
+    SUCCESS = "SUCCESS"
+    FAILED = "FAILED"
+    DENIED = "DENIED"
+    NOT_FOUND = "NOT_FOUND"
 
 
 class PreemptionManager:
@@ -34,12 +36,7 @@ class PreemptionManager:
     - Rastrear preempções executadas
     """
 
-    def __init__(
-        self,
-        preemption_rules: PreemptionRules,
-        queue_manager,
-        metrics=None
-    ):
+    def __init__(self, preemption_rules: PreemptionRules, queue_manager, metrics=None):
         """
         Inicializa o gerenciador de preempção.
 
@@ -51,15 +48,13 @@ class PreemptionManager:
         self.preemption_rules = preemption_rules
         self.queue_manager = queue_manager
         self.metrics = metrics
-        self.logger = logger.bind(component='preemption_manager')
+        self.logger = logger.bind(component="preemption_manager")
 
         # Histórico de preempções (para análise)
-        self.preemption_history: List[Dict[str, Any]] = []
+        self.preemption_history: list[dict[str, Any]] = []
 
     def can_preempt(
-        self,
-        high_priority_ticket: Dict[str, Any],
-        low_priority_ticket: Dict[str, Any]
+        self, high_priority_ticket: dict[str, Any], low_priority_ticket: dict[str, Any]
     ) -> PreemptionDecision:
         """
         Verifica se ticket de alta prioridade pode preemptar ticket de baixa prioridade.
@@ -71,25 +66,16 @@ class PreemptionManager:
         Returns:
             PreemptionDecision indicando se permitido
         """
-        decision = self.preemption_rules.can_preempt(
-            high_priority_ticket,
-            low_priority_ticket
-        )
+        decision = self.preemption_rules.can_preempt(high_priority_ticket, low_priority_ticket)
 
         # Registrar verificação
-        self._record_preemption_check(
-            high_priority_ticket,
-            low_priority_ticket,
-            decision
-        )
+        self._record_preemption_check(high_priority_ticket, low_priority_ticket, decision)
 
         return decision
 
     def find_preemptible_ticket(
-        self,
-        priority_level: PriorityLevel,
-        executing_tickets: List[Dict[str, Any]]
-    ) -> Optional[Dict[str, Any]]:
+        self, priority_level: PriorityLevel, executing_tickets: list[dict[str, Any]]
+    ) -> dict[str, Any] | None:
         """
         Encontra um ticket preemptível na lista de tickets em execução.
 
@@ -101,7 +87,7 @@ class PreemptionManager:
             Ticket preemptível ou None
         """
         # Criar ticket de referência para comparar prioridade
-        reference_ticket = {'priority': priority_level.value, 'ticket_id': 'reference'}
+        reference_ticket = {"priority": priority_level.value, "ticket_id": "reference"}
 
         # Buscar em ordem reversa (últimos primeiro)
         for ticket in reversed(executing_tickets):
@@ -109,25 +95,23 @@ class PreemptionManager:
 
             if decision == PreemptionDecision.ALLOWED:
                 self.logger.info(
-                    'preemptible_ticket_found',
-                    ticket_id=ticket.get('ticket_id'),
-                    priority_level=priority_level.value
+                    "preemptible_ticket_found",
+                    ticket_id=ticket.get("ticket_id"),
+                    priority_level=priority_level.value,
                 )
                 return ticket
 
         self.logger.debug(
-            'no_preemptible_ticket_found',
+            "no_preemptible_ticket_found",
             priority_level=priority_level.value,
-            executing_count=len(executing_tickets)
+            executing_count=len(executing_tickets),
         )
 
         return None
 
     async def preempt_ticket(
-        self,
-        low_priority_ticket: Dict[str, Any],
-        reason: str = 'priority_preemption'
-    ) -> Dict[str, Any]:
+        self, low_priority_ticket: dict[str, Any], reason: str = "priority_preemption"
+    ) -> dict[str, Any]:
         """
         Executa preempção de um ticket.
 
@@ -138,13 +122,9 @@ class PreemptionManager:
         Returns:
             Dict com status e detalhes da preempção
         """
-        ticket_id = low_priority_ticket.get('ticket_id', 'unknown')
+        ticket_id = low_priority_ticket.get("ticket_id", "unknown")
 
-        self.logger.info(
-            'ticket_preemption_started',
-            ticket_id=ticket_id,
-            reason=reason
-        )
+        self.logger.info("ticket_preemption_started", ticket_id=ticket_id, reason=reason)
 
         try:
             # 1. Verificar se ticket pode ser preemptado
@@ -152,76 +132,57 @@ class PreemptionManager:
             decision = self._validate_preemption(low_priority_ticket)
 
             if decision != PreemptionDecision.ALLOWED:
-                self._record_preemption_result(
-                    ticket_id,
-                    PreemptionStatus.DENIED,
-                    decision
-                )
+                self._record_preemption_result(ticket_id, PreemptionStatus.DENIED, decision)
                 return {
-                    'ticket_id': ticket_id,
-                    'status': PreemptionStatus.DENIED,
-                    'reason': decision.value
+                    "ticket_id": ticket_id,
+                    "status": PreemptionStatus.DENIED,
+                    "reason": decision.value,
                 }
 
             # 2. Executar compensação do ticket
             compensation_result = await self._compensate_ticket(low_priority_ticket)
 
-            if not compensation_result.get('success', False):
+            if not compensation_result.get("success", False):
                 self._record_preemption_result(
                     ticket_id,
                     PreemptionStatus.FAILED,
-                    compensation_result.get('error', 'compensation_failed')
+                    compensation_result.get("error", "compensation_failed"),
                 )
                 return {
-                    'ticket_id': ticket_id,
-                    'status': PreemptionStatus.FAILED,
-                    'reason': compensation_result.get('error', 'compensation_failed')
+                    "ticket_id": ticket_id,
+                    "status": PreemptionStatus.FAILED,
+                    "reason": compensation_result.get("error", "compensation_failed"),
                 }
 
             # 3. Re-enfileirar ticket (ou marcar para retry)
             requeue_result = await self._requeue_ticket(low_priority_ticket)
 
             # 4. Registrar sucesso
-            self._record_preemption_result(
-                ticket_id,
-                PreemptionStatus.SUCCESS,
-                reason
-            )
+            self._record_preemption_result(ticket_id, PreemptionStatus.SUCCESS, reason)
 
             self.logger.info(
-                'ticket_preemption_completed',
+                "ticket_preemption_completed",
                 ticket_id=ticket_id,
-                compensation_id=compensation_result.get('compensation_ticket_id')
+                compensation_id=compensation_result.get("compensation_ticket_id"),
             )
 
             return {
-                'ticket_id': ticket_id,
-                'status': PreemptionStatus.SUCCESS,
-                'compensation_ticket_id': compensation_result.get('compensation_ticket_id'),
-                'requeued': requeue_result.get('success', False)
+                "ticket_id": ticket_id,
+                "status": PreemptionStatus.SUCCESS,
+                "compensation_ticket_id": compensation_result.get("compensation_ticket_id"),
+                "requeued": requeue_result.get("success", False),
             }
 
         except Exception as e:
             self.logger.error(
-                'ticket_preemption_error',
-                ticket_id=ticket_id,
-                error=str(e),
-                exc_info=True
+                "ticket_preemption_error", ticket_id=ticket_id, error=str(e), exc_info=True
             )
 
-            self._record_preemption_result(
-                ticket_id,
-                PreemptionStatus.FAILED,
-                str(e)
-            )
+            self._record_preemption_result(ticket_id, PreemptionStatus.FAILED, str(e))
 
-            return {
-                'ticket_id': ticket_id,
-                'status': PreemptionStatus.FAILED,
-                'error': str(e)
-            }
+            return {"ticket_id": ticket_id, "status": PreemptionStatus.FAILED, "error": str(e)}
 
-    async def _compensate_ticket(self, ticket: Dict[str, Any]) -> Dict[str, Any]:
+    async def _compensate_ticket(self, ticket: dict[str, Any]) -> dict[str, Any]:
         """
         Executa compensação do ticket sendo preemptado.
 
@@ -231,22 +192,19 @@ class PreemptionManager:
         Returns:
             Resultado da compensação
         """
-        ticket_id = ticket.get('ticket_id', 'unknown')
+        ticket_id = ticket.get("ticket_id", "unknown")
 
-        self.logger.info(
-            'ticket_preemption_compensation',
-            ticket_id=ticket_id
-        )
+        self.logger.info("ticket_preemption_compensation", ticket_id=ticket_id)
 
         # Na implementação completa, aqui seria chamado o serviço de compensação
         # Por enquanto, retornamos sucesso simulado
         return {
-            'success': True,
-            'compensation_ticket_id': f'comp-{ticket_id}',
-            'message': 'Compensation triggered'
+            "success": True,
+            "compensation_ticket_id": f"comp-{ticket_id}",
+            "message": "Compensation triggered",
         }
 
-    async def _requeue_ticket(self, ticket: Dict[str, Any]) -> Dict[str, Any]:
+    async def _requeue_ticket(self, ticket: dict[str, Any]) -> dict[str, Any]:
         """
         Re-enfileira ticket preemptado.
 
@@ -256,20 +214,14 @@ class PreemptionManager:
         Returns:
             Resultado da re-enfileiramento
         """
-        ticket_id = ticket.get('ticket_id', 'unknown')
+        ticket_id = ticket.get("ticket_id", "unknown")
 
-        self.logger.info(
-            'ticket_preemption_requeue',
-            ticket_id=ticket_id
-        )
+        self.logger.info("ticket_preemption_requeue", ticket_id=ticket_id)
 
         # Na implementação completa, aqui seria usado o QueueManager
-        return {
-            'success': True,
-            'queue': 'LOW'
-        }
+        return {"success": True, "queue": "LOW"}
 
-    def _validate_preemption(self, ticket: Dict[str, Any]) -> PreemptionDecision:
+    def _validate_preemption(self, ticket: dict[str, Any]) -> PreemptionDecision:
         """
         Valida se ticket pode ser preemptado.
 
@@ -293,45 +245,38 @@ class PreemptionManager:
         ticket_priority = self.preemption_rules._extract_priority(ticket)
 
         # Tickets LOW podem sempre ser preemptados por CRITICAL/HIGH
-        if ticket_priority not in ['LOW', 'NORMAL']:
+        if ticket_priority not in ["LOW", "NORMAL"]:
             return PreemptionDecision.DENIED_PRIORITY_DIFF
 
         return PreemptionDecision.ALLOWED
 
     def _record_preemption_check(
-        self,
-        high_ticket: Dict[str, Any],
-        low_ticket: Dict[str, Any],
-        decision: PreemptionDecision
+        self, high_ticket: dict[str, Any], low_ticket: dict[str, Any], decision: PreemptionDecision
     ):
         """Registra verificação de preempção para análise."""
-        self.preemption_history.append({
-            'timestamp': self._get_timestamp(),
-            'high_ticket_id': high_ticket.get('ticket_id'),
-            'low_ticket_id': low_ticket.get('ticket_id'),
-            'decision': decision.value,
-            'high_priority': self.preemption_rules._extract_priority(high_ticket),
-            'low_priority': self.preemption_rules._extract_priority(low_ticket)
-        })
+        self.preemption_history.append(
+            {
+                "timestamp": self._get_timestamp(),
+                "high_ticket_id": high_ticket.get("ticket_id"),
+                "low_ticket_id": low_ticket.get("ticket_id"),
+                "decision": decision.value,
+                "high_priority": self.preemption_rules._extract_priority(high_ticket),
+                "low_priority": self.preemption_rules._extract_priority(low_ticket),
+            }
+        )
 
-    def _record_preemption_result(
-        self,
-        ticket_id: str,
-        status: PreemptionStatus,
-        reason: str
-    ):
+    def _record_preemption_result(self, ticket_id: str, status: PreemptionStatus, reason: str):
         """Registra resultado de preempção."""
         if self.metrics:
-            self.metrics.preemption_executed_total.labels(
-                status=status.value
-            ).inc()
+            self.metrics.preemption_executed_total.labels(status=status.value).inc()
 
     def _get_timestamp(self) -> int:
         """Retorna timestamp atual em milissegundos."""
-        from datetime import datetime, timezone
-        return int(datetime.now(timezone.utc).timestamp() * 1000)
+        from datetime import datetime
 
-    def get_preemption_history(self, limit: int = 100) -> List[Dict[str, Any]]:
+        return int(datetime.now(UTC).timestamp() * 1000)
+
+    def get_preemption_history(self, limit: int = 100) -> list[dict[str, Any]]:
         """
         Retorna histórico de preempções.
 
@@ -343,7 +288,7 @@ class PreemptionManager:
         """
         return self.preemption_history[-limit:]
 
-    def get_preemption_statistics(self) -> Dict[str, Any]:
+    def get_preemption_statistics(self) -> dict[str, Any]:
         """
         Retorna estatísticas de preempção.
 
@@ -351,22 +296,18 @@ class PreemptionManager:
             Dict com estatísticas
         """
         if not self.preemption_history:
-            return {
-                'total_checks': 0,
-                'total_allowed': 0,
-                'total_denied': 0,
-                'allowance_rate': 0.0
-            }
+            return {"total_checks": 0, "total_allowed": 0, "total_denied": 0, "allowance_rate": 0.0}
 
         total = len(self.preemption_history)
         allowed = sum(
-            1 for entry in self.preemption_history
-            if entry['decision'] == PreemptionDecision.ALLOWED.value
+            1
+            for entry in self.preemption_history
+            if entry["decision"] == PreemptionDecision.ALLOWED.value
         )
 
         return {
-            'total_checks': total,
-            'total_allowed': allowed,
-            'total_denied': total - allowed,
-            'allowance_rate': round(allowed / total * 100, 1) if total > 0 else 0.0
+            "total_checks": total,
+            "total_allowed": allowed,
+            "total_denied": total - allowed,
+            "allowance_rate": round(allowed / total * 100, 1) if total > 0 else 0.0,
         }

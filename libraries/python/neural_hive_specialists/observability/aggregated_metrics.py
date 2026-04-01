@@ -6,7 +6,7 @@ specialist_agreement_matrix para observabilidade holística do sistema.
 """
 
 from typing import Dict, List, Any, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
 from prometheus_client import Gauge, Histogram, Counter
@@ -194,7 +194,7 @@ class AggregatedMetricsCollector:
     async def _collect_consensus_metrics(self):
         """Coleta métricas de consenso entre especialistas."""
         try:
-            cutoff_time = datetime.utcnow() - timedelta(hours=self.metrics_window_hours)
+            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=self.metrics_window_hours)
 
             # Buscar planos recentes com múltiplas opiniões
             pipeline = [
@@ -256,7 +256,7 @@ class AggregatedMetricsCollector:
     async def _collect_specialist_metrics(self):
         """Coleta métricas individuais por especialista."""
         try:
-            cutoff_time = datetime.utcnow() - timedelta(hours=self.metrics_window_hours)
+            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=self.metrics_window_hours)
 
             pipeline = [
                 {"$match": {"evaluated_at": {"$gte": cutoff_time}}},
@@ -299,7 +299,7 @@ class AggregatedMetricsCollector:
     async def _collect_latency_metrics(self):
         """Coleta métricas de latência por especialista."""
         try:
-            cutoff_time = datetime.utcnow() - timedelta(hours=self.metrics_window_hours)
+            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=self.metrics_window_hours)
 
             # Buscar tempos de processamento
             pipeline = [
@@ -335,7 +335,7 @@ class AggregatedMetricsCollector:
     async def _collect_recommendation_distribution(self):
         """Coleta distribuição de recomendações."""
         try:
-            cutoff_time = datetime.utcnow() - timedelta(hours=self.metrics_window_hours)
+            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=self.metrics_window_hours)
 
             pipeline = [
                 {"$match": {"evaluated_at": {"$gte": cutoff_time}}},
@@ -396,7 +396,7 @@ class AggregatedMetricsCollector:
             # Calcular média de bufferização
             total_buffered_count = 0
             total_count = 0
-            cutoff_time = datetime.utcnow() - timedelta(hours=self.metrics_window_hours)
+            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=self.metrics_window_hours)
 
             docs = self.collection.find({"evaluated_at": {"$gte": cutoff_time}})
 
@@ -442,7 +442,7 @@ class AggregatedMetricsCollector:
             Matriz de concordância {specialist_a: {specialist_b: agreement_score}}
         """
         try:
-            cutoff_time = datetime.utcnow() - timedelta(hours=self.metrics_window_hours)
+            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=self.metrics_window_hours)
 
             # Buscar planos com múltiplas opiniões
             pipeline = [

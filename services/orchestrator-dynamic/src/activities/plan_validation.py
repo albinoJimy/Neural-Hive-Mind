@@ -2,10 +2,11 @@
 Activities Temporal para validação de planos cognitivos (Etapa C1).
 """
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Any
 
-from temporalio import activity
 import structlog
+from temporalio import activity
+
 from neural_hive_resilience.circuit_breaker import CircuitBreakerError
 
 logger = structlog.get_logger()
@@ -32,7 +33,7 @@ def set_activity_dependencies(policy_validator=None, config=None, mongodb_client
 
 
 @activity.defn
-async def validate_cognitive_plan(plan_id: str, cognitive_plan: Dict[str, Any]) -> Dict[str, Any]:
+async def validate_cognitive_plan(plan_id: str, cognitive_plan: dict[str, Any]) -> dict[str, Any]:
     """
     Valida schema Avro e integridade do Cognitive Plan.
 
@@ -43,43 +44,42 @@ async def validate_cognitive_plan(plan_id: str, cognitive_plan: Dict[str, Any]) 
     Returns:
         Dicionário com resultado da validação: {'valid': bool, 'errors': [...], 'warnings': [...]}
     """
-    activity.logger.info(f'Validando plano cognitivo {plan_id}')
+    activity.logger.info(f"Validando plano cognitivo {plan_id}")
 
     errors = []
     warnings = []
 
     try:
         # Validar campos obrigatórios
-        required_fields = ['plan_id', 'tasks', 'execution_order', 'risk_score', 'risk_band']
+        required_fields = ["plan_id", "tasks", "execution_order", "risk_score", "risk_band"]
         for field in required_fields:
             if field not in cognitive_plan:
-                errors.append(f'Campo obrigatório ausente: {field}')
+                errors.append(f"Campo obrigatório ausente: {field}")
 
         # Validar versão do schema
-        schema_version = cognitive_plan.get('schema_version', 1)
+        schema_version = cognitive_plan.get("schema_version", 1)
         if schema_version != 1:
-            warnings.append(f'Versão de schema não suportada: {schema_version}')
+            warnings.append(f"Versão de schema não suportada: {schema_version}")
 
         # Validar expiração do plano
-        valid_until = cognitive_plan.get('valid_until')
-        if valid_until:
-            if isinstance(valid_until, int):
-                valid_until_dt = datetime.fromtimestamp(valid_until / 1000.0)
-                if valid_until_dt < datetime.now():
-                    errors.append(f'Plano expirado: valid_until={valid_until_dt}')
+        valid_until = cognitive_plan.get("valid_until")
+        if valid_until and isinstance(valid_until, int):
+            valid_until_dt = datetime.fromtimestamp(valid_until / 1000.0)
+            if valid_until_dt < datetime.now():
+                errors.append(f"Plano expirado: valid_until={valid_until_dt}")
 
         # Validar DAG: tasks referenciadas existem
-        tasks = cognitive_plan.get('tasks', [])
-        task_ids = {task['task_id'] for task in tasks}
-        execution_order = cognitive_plan.get('execution_order', [])
+        tasks = cognitive_plan.get("tasks", [])
+        task_ids = {task["task_id"] for task in tasks}
+        execution_order = cognitive_plan.get("execution_order", [])
 
         for task_id in execution_order:
             if task_id not in task_ids:
-                errors.append(f'Task {task_id} referenciada em execution_order mas não existe')
+                errors.append(f"Task {task_id} referenciada em execution_order mas não existe")
 
         # Validar dependencies
         for task in tasks:
-            for dep in task.get('dependencies', []):
+            for dep in task.get("dependencies", []):
                 if dep not in task_ids:
                     errors.append(f'Dependência {dep} da task {task["task_id"]} não existe')
 
@@ -92,18 +92,18 @@ async def validate_cognitive_plan(plan_id: str, cognitive_plan: Dict[str, Any]) 
                 if not policy_result.valid:
                     # Adicionar violações de políticas aos erros
                     for violation in policy_result.violations:
-                        errors.append(f'Política {violation.policy_name}: {violation.message}')
+                        errors.append(f"Política {violation.policy_name}: {violation.message}")
 
                     logger.warning(
-                        'Plano violou políticas OPA',
+                        "Plano violou políticas OPA",
                         plan_id=plan_id,
                         violations_count=len(policy_result.violations),
-                        policies=[v.policy_name for v in policy_result.violations]
+                        policies=[v.policy_name for v in policy_result.violations],
                     )
 
                 # Adicionar warnings de políticas
                 for warning in policy_result.warnings:
-                    warnings.append(f'Política {warning.policy_name}: {warning.message}')
+                    warnings.append(f"Política {warning.policy_name}: {warning.message}")
 
                 # Adicionar decisões de políticas ao resultado
                 policy_decisions = policy_result.policy_decisions
@@ -111,42 +111,38 @@ async def validate_cognitive_plan(plan_id: str, cognitive_plan: Dict[str, Any]) 
             except Exception as e:
                 # Se OPA falhar e fail_closed, adicionar erro
                 # Se fail_open, apenas logar warning
-                activity.logger.error(f'Erro ao validar políticas OPA: {e}', exc_info=True)
+                activity.logger.error(f"Erro ao validar políticas OPA: {e}", exc_info=True)
                 if not _config.opa_fail_open:
-                    errors.append(f'Falha na validação de políticas: {str(e)}')
+                    errors.append(f"Falha na validação de políticas: {e!s}")
 
         valid = len(errors) == 0
 
         result = {
-            'valid': valid,
-            'errors': errors,
-            'warnings': warnings,
-            'validated_at': datetime.now().isoformat(),
-            'policy_decisions': policy_decisions
+            "valid": valid,
+            "errors": errors,
+            "warnings": warnings,
+            "validated_at": datetime.now().isoformat(),
+            "policy_decisions": policy_decisions,
         }
 
         logger.info(
-            'Plano cognitivo validado',
+            "Plano cognitivo validado",
             plan_id=plan_id,
             valid=valid,
             errors_count=len(errors),
             warnings_count=len(warnings),
-            duration_ms=76.339
+            duration_ms=76.339,
         )
 
         return result
 
     except Exception as e:
-        activity.logger.error(f'Erro ao validar plano {plan_id}: {e}', exc_info=True)
-        return {
-            'valid': False,
-            'errors': [f'Erro na validação: {str(e)}'],
-            'warnings': warnings
-        }
+        activity.logger.error(f"Erro ao validar plano {plan_id}: {e}", exc_info=True)
+        return {"valid": False, "errors": [f"Erro na validação: {e!s}"], "warnings": warnings}
 
 
 @activity.defn
-async def audit_validation(plan_id: str, validation_result: Dict[str, Any]) -> None:
+async def audit_validation(plan_id: str, validation_result: dict[str, Any]) -> None:
     """
     Persiste resultado de validação no MongoDB para auditoria (fail-open).
 
@@ -154,44 +150,40 @@ async def audit_validation(plan_id: str, validation_result: Dict[str, Any]) -> N
         plan_id: ID do plano validado
         validation_result: Resultado da validação
     """
-    activity.logger.info(f'Auditando validação do plano {plan_id}')
+    activity.logger.info(f"Auditando validação do plano {plan_id}")
 
     try:
         if not _mongodb_client:
-            activity.logger.warning(f'mongodb_client_not_initialized plan_id={plan_id}')
+            activity.logger.warning(f"mongodb_client_not_initialized plan_id={plan_id}")
             return
 
         try:
             await _mongodb_client.save_validation_audit(
-                plan_id,
-                validation_result,
-                activity.info().workflow_id
+                plan_id, validation_result, activity.info().workflow_id
             )
         except CircuitBreakerError:
             logger.warning(
-                'validation_audit_circuit_open',
+                "validation_audit_circuit_open",
                 plan_id=plan_id,
-                workflow_id=activity.info().workflow_id
+                workflow_id=activity.info().workflow_id,
             )
             return
         except Exception as mongo_error:
-            logger.error(
-                'validation_audit_persist_failed',
-                plan_id=plan_id,
-                error=str(mongo_error)
+            logger.exception(
+                "validation_audit_persist_failed", plan_id=plan_id, error=str(mongo_error)
             )
             return
 
-        activity.logger.info(f'Validação do plano {plan_id} auditada com sucesso')
+        activity.logger.info(f"Validação do plano {plan_id} auditada com sucesso")
 
     except Exception as e:
-        activity.logger.error(f'Erro ao auditar validação do plano {plan_id}: {e}', exc_info=True)
+        activity.logger.error(f"Erro ao auditar validação do plano {plan_id}: {e}", exc_info=True)
         # Fail-open
         return
 
 
 @activity.defn
-async def optimize_dag(tasks: list, execution_order: list) -> Dict[str, Any]:
+async def optimize_dag(tasks: list, execution_order: list) -> dict[str, Any]:
     """
     Detecta e remove ciclos no DAG usando DFS, recalcula ordem topológica.
 
@@ -202,11 +194,11 @@ async def optimize_dag(tasks: list, execution_order: list) -> Dict[str, Any]:
     Returns:
         Dicionário com: {'optimized': bool, 'new_execution_order': [...], 'removed_dependencies': [...]}
     """
-    activity.logger.info('Otimizando DAG')
+    activity.logger.info("Otimizando DAG")
 
     try:
         # Construir grafo de dependências
-        graph = {task['task_id']: task.get('dependencies', []) for task in tasks}
+        graph = {task["task_id"]: task.get("dependencies", []) for task in tasks}
 
         # Detectar ciclos usando DFS
         def has_cycle(node, visited, rec_stack):
@@ -229,29 +221,28 @@ async def optimize_dag(tasks: list, execution_order: list) -> Dict[str, Any]:
         has_cycles = False
 
         for task_id in graph:
-            if task_id not in visited:
-                if has_cycle(task_id, visited, rec_stack):
-                    has_cycles = True
-                    break
+            if task_id not in visited and has_cycle(task_id, visited, rec_stack):
+                has_cycles = True
+                break
 
         if not has_cycles:
-            activity.logger.info('DAG sem ciclos, otimização não necessária')
+            activity.logger.info("DAG sem ciclos, otimização não necessária")
             return {
-                'optimized': False,
-                'new_execution_order': execution_order,
-                'removed_dependencies': []
+                "optimized": False,
+                "new_execution_order": execution_order,
+                "removed_dependencies": [],
             }
 
         # Remover ciclos (simplificado: remover dependências que criam ciclos)
         # TODO: Implementar algoritmo mais sofisticado
-        activity.logger.warning('Ciclos detectados no DAG')
+        activity.logger.warning("Ciclos detectados no DAG")
 
         return {
-            'optimized': True,
-            'new_execution_order': execution_order,  # Placeholder
-            'removed_dependencies': []
+            "optimized": True,
+            "new_execution_order": execution_order,  # Placeholder
+            "removed_dependencies": [],
         }
 
     except Exception as e:
-        activity.logger.error(f'Erro ao otimizar DAG: {e}', exc_info=True)
+        activity.logger.error(f"Erro ao otimizar DAG: {e}", exc_info=True)
         raise

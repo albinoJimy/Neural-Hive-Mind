@@ -3,9 +3,10 @@ Retention Policy Manager
 
 Gerencia políticas de retenção e TTL nas camadas de memória.
 """
+from datetime import datetime, timedelta, timezone
+from typing import Dict
+
 import structlog
-from datetime import datetime, timedelta
-from typing import Dict, Optional, Any, List
 
 logger = structlog.get_logger(__name__)
 
@@ -33,49 +34,41 @@ class RetentionPolicyManager:
         }
         """
         return {
-            'redis': {
-                'default_ttl_seconds': self.settings.redis_default_ttl,
-                'max_ttl_seconds': self.settings.redis_max_ttl,
-                'data_types': {
-                    'context': 300,
-                    'query_cache': 600,
-                    'session': 900
-                }
+            "redis": {
+                "default_ttl_seconds": self.settings.redis_default_ttl,
+                "max_ttl_seconds": self.settings.redis_max_ttl,
+                "data_types": {"context": 300, "query_cache": 600, "session": 900},
             },
-            'mongodb': {
-                'default_retention_days': self.settings.mongodb_retention_days,
-                'cleanup_enabled': True,
-                'data_types': {
-                    'operational_context': 30,
-                    'cognitive_ledger': 365,  # 1 ano para auditoria
-                    'specialist_opinions': 90,
-                    'consensus_decisions': 365,
-                    'data_quality_metrics': 90,
-                    'data_lineage': 730  # 2 anos
-                }
+            "mongodb": {
+                "default_retention_days": self.settings.mongodb_retention_days,
+                "cleanup_enabled": True,
+                "data_types": {
+                    "operational_context": 30,
+                    "cognitive_ledger": 365,  # 1 ano para auditoria
+                    "specialist_opinions": 90,
+                    "consensus_decisions": 365,
+                    "data_quality_metrics": 90,
+                    "data_lineage": 730,  # 2 anos
+                },
             },
-            'clickhouse': {
-                'default_retention_months': self.settings.clickhouse_retention_months,
-                'partition_by': 'month',
-                'data_types': {
-                    'cognitive_plans_history': 18,
-                    'consensus_decisions_history': 24,  # 2 anos
-                    'telemetry_events': 12,
-                    'audit_events': 60  # 5 anos
-                }
+            "clickhouse": {
+                "default_retention_months": self.settings.clickhouse_retention_months,
+                "partition_by": "month",
+                "data_types": {
+                    "cognitive_plans_history": 18,
+                    "consensus_decisions_history": 24,  # 2 anos
+                    "telemetry_events": 12,
+                    "audit_events": 60,  # 5 anos
+                },
             },
-            'neo4j': {
-                'versioning_enabled': True,
-                'max_versions_per_ontology': 10,
-                'archive_old_versions': True
-            }
+            "neo4j": {
+                "versioning_enabled": True,
+                "max_versions_per_ontology": 10,
+                "archive_old_versions": True,
+            },
         }
 
-    def get_ttl_for_data_type(
-        self,
-        data_type: str,
-        layer: str
-    ) -> int:
+    def get_ttl_for_data_type(self, data_type: str, layer: str) -> int:
         """
         Get TTL for specific data type and layer
 
@@ -87,28 +80,23 @@ class RetentionPolicyManager:
             return 0
 
         layer_policy = self.policies[layer]
-        data_types = layer_policy.get('data_types', {})
+        data_types = layer_policy.get("data_types", {})
 
         # Check for specific data type override
         if data_type in data_types:
             return data_types[data_type]
 
         # Fallback to default
-        if layer == 'redis':
-            return layer_policy.get('default_ttl_seconds', 300)
-        elif layer == 'mongodb':
-            return layer_policy.get('default_retention_days', 30)
-        elif layer == 'clickhouse':
-            return layer_policy.get('default_retention_months', 18)
+        if layer == "redis":
+            return layer_policy.get("default_ttl_seconds", 300)
+        elif layer == "mongodb":
+            return layer_policy.get("default_retention_days", 30)
+        elif layer == "clickhouse":
+            return layer_policy.get("default_retention_months", 18)
 
         return 0
 
-    def should_cleanup(
-        self,
-        data_type: str,
-        layer: str,
-        timestamp: datetime
-    ) -> bool:
+    def should_cleanup(self, data_type: str, layer: str, timestamp: datetime) -> bool:
         """
         Check if data should be removed based on retention policy
         """
@@ -116,22 +104,18 @@ class RetentionPolicyManager:
         if ttl == 0:
             return False
 
-        age = datetime.utcnow() - timestamp
+        age = datetime.now(timezone.utc) - timestamp
 
-        if layer == 'redis':
+        if layer == "redis":
             return age.total_seconds() > ttl
-        elif layer == 'mongodb':
+        elif layer == "mongodb":
             return age.days > ttl
-        elif layer == 'clickhouse':
+        elif layer == "clickhouse":
             return age.days > (ttl * 30)  # Convert months to days
 
         return False
 
-    async def enforce_retention(
-        self,
-        layer: str,
-        dry_run: bool = False
-    ) -> Dict[str, int]:
+    async def enforce_retention(self, layer: str, dry_run: bool = False) -> Dict[str, int]:
         """
         Enforce retention policies for a layer
 
@@ -145,16 +129,18 @@ class RetentionPolicyManager:
         results = {}
 
         try:
-            if layer == 'mongodb':
-                results['mongodb_deleted'] = await self._cleanup_mongodb(dry_run)
-            elif layer == 'clickhouse':
-                results['clickhouse_deleted'] = await self._cleanup_clickhouse(dry_run)
-            elif layer == 'neo4j':
-                results['neo4j_versions_pruned'] = await self._cleanup_neo4j(dry_run)
+            if layer == "mongodb":
+                results["mongodb_deleted"] = await self._cleanup_mongodb(dry_run)
+            elif layer == "clickhouse":
+                results["clickhouse_deleted"] = await self._cleanup_clickhouse(dry_run)
+            elif layer == "neo4j":
+                results["neo4j_versions_pruned"] = await self._cleanup_neo4j(dry_run)
             else:
                 logger.warning("Unknown layer for cleanup", layer=layer)
 
-            logger.info("Retention enforcement completed", layer=layer, dry_run=dry_run, results=results)
+            logger.info(
+                "Retention enforcement completed", layer=layer, dry_run=dry_run, results=results
+            )
             return results
 
         except Exception as e:
@@ -178,20 +164,20 @@ class RetentionPolicyManager:
         total_deleted = 0
         # Inclui todas as coleções configuradas em data_types para MongoDB
         collections = [
-            ('operational_context', 'operational_context'),
-            ('data_lineage', 'data_lineage'),
-            ('data_quality_metrics', 'data_quality_metrics'),
-            ('cognitive_ledger', 'cognitive_ledger'),
-            ('specialist_opinions', 'specialist_opinions'),
-            ('consensus_decisions', 'consensus_decisions')
+            ("operational_context", "operational_context"),
+            ("data_lineage", "data_lineage"),
+            ("data_quality_metrics", "data_quality_metrics"),
+            ("cognitive_ledger", "cognitive_ledger"),
+            ("specialist_opinions", "specialist_opinions"),
+            ("consensus_decisions", "consensus_decisions"),
         ]
 
         for collection_name, data_type in collections:
             try:
-                retention_days = self.get_ttl_for_data_type(data_type, 'mongodb')
-                cutoff_date = datetime.utcnow() - timedelta(days=retention_days)
+                retention_days = self.get_ttl_for_data_type(data_type, "mongodb")
+                cutoff_date = datetime.now(timezone.utc) - timedelta(days=retention_days)
 
-                filter_query = {'created_at': {'$lt': cutoff_date}}
+                filter_query = {"created_at": {"$lt": cutoff_date}}
 
                 if dry_run:
                     count = await self.mongodb.count_documents(collection_name, filter_query)
@@ -199,7 +185,7 @@ class RetentionPolicyManager:
                         "[DRY-RUN] Documentos a serem removidos",
                         collection=collection_name,
                         count=count,
-                        cutoff_date=cutoff_date.isoformat()
+                        cutoff_date=cutoff_date.isoformat(),
                     )
                     total_deleted += count
                 else:
@@ -208,16 +194,12 @@ class RetentionPolicyManager:
                         "Documentos removidos",
                         collection=collection_name,
                         count=deleted,
-                        cutoff_date=cutoff_date.isoformat()
+                        cutoff_date=cutoff_date.isoformat(),
                     )
                     total_deleted += deleted
 
             except Exception as e:
-                logger.error(
-                    "Erro no cleanup do MongoDB",
-                    collection=collection_name,
-                    error=str(e)
-                )
+                logger.error("Erro no cleanup do MongoDB", collection=collection_name, error=str(e))
 
         return total_deleted
 
@@ -239,16 +221,16 @@ class RetentionPolicyManager:
 
         total_deleted = 0
         tables = [
-            ('cognitive_plans_history', 'cognitive_plans_history'),
-            ('consensus_decisions_history', 'consensus_decisions_history'),
-            ('specialist_opinions_history', 'specialist_opinions_history'),
-            ('telemetry_events', 'telemetry_events')
+            ("cognitive_plans_history", "cognitive_plans_history"),
+            ("consensus_decisions_history", "consensus_decisions_history"),
+            ("specialist_opinions_history", "specialist_opinions_history"),
+            ("telemetry_events", "telemetry_events"),
         ]
 
         for table_name, data_type in tables:
             try:
-                retention_months = self.get_ttl_for_data_type(data_type, 'clickhouse')
-                cutoff_date = datetime.utcnow() - timedelta(days=retention_months * 30)
+                retention_months = self.get_ttl_for_data_type(data_type, "clickhouse")
+                cutoff_date = datetime.now(timezone.utc) - timedelta(days=retention_months * 30)
 
                 if dry_run:
                     count_query = f"""
@@ -257,15 +239,14 @@ class RetentionPolicyManager:
                         WHERE created_at < %(cutoff_date)s
                     """
                     result = self.clickhouse.client.query(
-                        count_query,
-                        parameters={'cutoff_date': cutoff_date}
+                        count_query, parameters={"cutoff_date": cutoff_date}
                     )
                     count = result.result_rows[0][0] if result.result_rows else 0
                     logger.info(
                         "[DRY-RUN] Registros a serem removidos",
                         table=table_name,
                         count=count,
-                        cutoff_date=cutoff_date.isoformat()
+                        cutoff_date=cutoff_date.isoformat(),
                     )
                     total_deleted += count
                 else:
@@ -275,22 +256,17 @@ class RetentionPolicyManager:
                         DELETE WHERE created_at < %(cutoff_date)s
                     """
                     self.clickhouse.client.command(
-                        delete_query,
-                        parameters={'cutoff_date': cutoff_date}
+                        delete_query, parameters={"cutoff_date": cutoff_date}
                     )
                     logger.info(
                         "Cleanup iniciado para tabela",
                         table=table_name,
-                        cutoff_date=cutoff_date.isoformat()
+                        cutoff_date=cutoff_date.isoformat(),
                     )
                     # ClickHouse não retorna contagem em DELETE
 
             except Exception as e:
-                logger.error(
-                    "Erro no cleanup do ClickHouse",
-                    table=table_name,
-                    error=str(e)
-                )
+                logger.error("Erro no cleanup do ClickHouse", table=table_name, error=str(e))
 
         return total_deleted
 
@@ -310,7 +286,7 @@ class RetentionPolicyManager:
             logger.warning("Neo4j client não configurado para cleanup")
             return 0
 
-        max_versions = self.policies['neo4j']['max_versions_per_ontology']
+        max_versions = self.policies["neo4j"]["max_versions_per_ontology"]
         total_pruned = 0
 
         try:
@@ -322,11 +298,11 @@ class RetentionPolicyManager:
                 RETURN ontology_name, size(versions) as version_count
                 ORDER BY ontology_name
             """
-            results = await self.neo4j.run_query(query, {'max_versions': max_versions})
+            results = await self.neo4j.run_query(query, {"max_versions": max_versions})
 
             for record in results:
-                ontology_name = record['ontology_name']
-                version_count = record['version_count']
+                ontology_name = record["ontology_name"]
+                version_count = record["version_count"]
                 versions_to_delete = version_count - max_versions
 
                 if dry_run:
@@ -335,7 +311,7 @@ class RetentionPolicyManager:
                         ontology=ontology_name,
                         count=versions_to_delete,
                         current=version_count,
-                        max_allowed=max_versions
+                        max_allowed=max_versions,
                     )
                     total_pruned += versions_to_delete
                 else:
@@ -346,14 +322,11 @@ class RetentionPolicyManager:
                         SKIP $max_versions
                         DETACH DELETE o
                     """
-                    await self.neo4j.run_query(delete_query, {
-                        'ontology_name': ontology_name,
-                        'max_versions': max_versions
-                    })
+                    await self.neo4j.run_query(
+                        delete_query, {"ontology_name": ontology_name, "max_versions": max_versions}
+                    )
                     logger.info(
-                        "Versões removidas",
-                        ontology=ontology_name,
-                        count=versions_to_delete
+                        "Versões removidas", ontology=ontology_name, count=versions_to_delete
                     )
                     total_pruned += versions_to_delete
 

@@ -1,13 +1,15 @@
-import structlog
 import time
-from typing import Dict, List, Any, Optional, TYPE_CHECKING
 from datetime import datetime
+from typing import TYPE_CHECKING, Any
 
-from neural_hive_domain import DomainMapper, UnifiedDomain
+import structlog
+
+from neural_hive_domain import DomainMapper
 
 if TYPE_CHECKING:
+    from src.config import Settings
+
     from .redis_client import RedisClient
-    from ..config import Settings
 
 
 logger = structlog.get_logger()
@@ -24,7 +26,7 @@ class PheromoneClient:
         self.redis_client = redis_client
         self.settings = settings
         # Cache local para trilhas de sucesso
-        self._success_trails_cache: Optional[List[Dict[str, Any]]] = None
+        self._success_trails_cache: list[dict[str, Any]] | None = None
         self._cache_timestamp: float = 0
 
     async def publish_pheromone(
@@ -32,7 +34,7 @@ class PheromoneClient:
         pheromone_type: str,
         domain: str,
         strength: float,
-        metadata: Dict[str, Any],
+        metadata: dict[str, Any],
     ) -> None:
         """Publicar feromônio usando chave padronizada via DomainMapper"""
         try:
@@ -67,7 +69,7 @@ class PheromoneClient:
             )
 
         except Exception as e:
-            logger.error("pheromone_publish_failed", error=str(e))
+            logger.exception("pheromone_publish_failed", error=str(e))
 
     async def get_pheromone_strength(self, domain: str, pheromone_type: str) -> float:
         """Obter força de feromônio usando chave padronizada via DomainMapper"""
@@ -87,10 +89,10 @@ class PheromoneClient:
             return 0.0
 
         except Exception as e:
-            logger.error("pheromone_get_failed", error=str(e))
+            logger.exception("pheromone_get_failed", error=str(e))
             return 0.0
 
-    async def get_domain_signals(self, domain: str) -> Dict[str, float]:
+    async def get_domain_signals(self, domain: str) -> dict[str, float]:
         """Obter todos os sinais de feromônio de um domínio"""
         signals = {}
 
@@ -106,7 +108,7 @@ class PheromoneClient:
         self._cache_timestamp = 0
         logger.debug("success_trails_cache_invalidated")
 
-    async def get_success_trails(self, limit: int = 10) -> List[Dict[str, Any]]:
+    async def get_success_trails(self, limit: int = 10) -> list[dict[str, Any]]:
         """
         Obter trilhas de sucesso mais fortes.
 
@@ -120,7 +122,7 @@ class PheromoneClient:
         Returns:
             Lista de trilhas de sucesso ordenadas por strength
         """
-        from ..observability.metrics import QueenAgentMetrics
+        from src.observability.metrics import QueenAgentMetrics
 
         try:
             # Verificar se cache é válido
@@ -139,7 +141,7 @@ class PheromoneClient:
             # Padrão de busca para trilhas SUCCESS (formato unificado)
             # Formato: pheromone:strategic:{domain}:SUCCESS
             pattern = "pheromone:strategic:*:SUCCESS"
-            trails: List[Dict[str, Any]] = []
+            trails: list[dict[str, Any]] = []
             keys_scanned = 0
 
             start_time = time.time()
@@ -161,9 +163,7 @@ class PheromoneClient:
                     domain = key_parts[2]
 
                 except Exception as parse_error:
-                    logger.warning(
-                        "pheromone_key_parse_failed", key=key, error=str(parse_error)
-                    )
+                    logger.warning("pheromone_key_parse_failed", key=key, error=str(parse_error))
                     continue
 
                 # Buscar dados do feromônio
@@ -189,9 +189,7 @@ class PheromoneClient:
 
             # Métricas
             scan_duration = time.time() - start_time
-            QueenAgentMetrics.pheromone_trails_scan_duration_seconds.observe(
-                scan_duration
-            )
+            QueenAgentMetrics.pheromone_trails_scan_duration_seconds.observe(scan_duration)
             QueenAgentMetrics.pheromone_trails_keys_scanned_total.inc(keys_scanned)
 
             logger.debug(
@@ -207,5 +205,5 @@ class PheromoneClient:
             return trails[:limit]
 
         except Exception as e:
-            logger.error("get_success_trails_failed", error=str(e))
+            logger.exception("get_success_trails_failed", error=str(e))
             return []

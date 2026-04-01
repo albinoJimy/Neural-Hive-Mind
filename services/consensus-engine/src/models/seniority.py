@@ -23,6 +23,7 @@ class SeniorityLevel(str, Enum):
     - SENIOR: 1.5x (sénior, opinião tem 50% mais peso)
     - EXPERT: 2.0x (especialista, opinião tem o dobro do peso)
     """
+
     TRAINEE = "trainee"
     JUNIOR = "junior"
     MID_LEVEL = "mid_level"
@@ -109,8 +110,7 @@ def parse_seniority_level(value: str) -> SeniorityLevel:
     except ValueError:
         valid_levels = [level.value for level in SeniorityLevel]
         raise ValueError(
-            f"Invalid seniority level: {value}. "
-            f"Valid levels: {', '.join(valid_levels)}"
+            f"Invalid seniority level: {value}. " f"Valid levels: {', '.join(valid_levels)}"
         )
 
 

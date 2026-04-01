@@ -5,16 +5,16 @@ Router FastAPI para endpoints de error budgets.
 import json
 import time
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException, Depends, Query, Response
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel
 
-from ..models.error_budget import ErrorBudget
-from ..services.budget_calculator import BudgetCalculator
 from ..clients.postgresql_client import PostgreSQLClient
 from ..clients.prometheus_client import PrometheusClient
 from ..clients.redis_client import RedisClient
+from ..models.error_budget import ErrorBudget
 from ..observability.metrics import sla_metrics
-
+from ..services.budget_calculator import BudgetCalculator
 
 router = APIRouter(prefix="/api/v1/budgets", tags=["Error Budgets"])
 
@@ -27,6 +27,7 @@ class BudgetListResponse(BaseModel):
 
 class BudgetTrends(BaseModel):
     """Tendências e estatísticas de budget."""
+
     trend_direction: str
     average_remaining: float
     min_remaining: float
@@ -38,6 +39,7 @@ class BudgetTrends(BaseModel):
 
 class BudgetHistoryResponse(BaseModel):
     """Response para histórico de budgets com suporte a tendências."""
+
     budgets: List[ErrorBudget]
     total: int
     period_days: int
@@ -69,10 +71,10 @@ def get_budget_calculator() -> BudgetCalculator:
     Este fallback acessa o singleton do módulo diretamente.
     """
     from .. import main
+
     if main.budget_calculator is None:
         raise HTTPException(
-            status_code=503,
-            detail="BudgetCalculator não inicializado. Serviço iniciando."
+            status_code=503, detail="BudgetCalculator não inicializado. Serviço iniciando."
         )
     return main.budget_calculator
 
@@ -85,10 +87,10 @@ def get_postgresql_client() -> PostgreSQLClient:
     Este fallback acessa o singleton do módulo diretamente.
     """
     from .. import main
+
     if main.postgresql_client is None:
         raise HTTPException(
-            status_code=503,
-            detail="PostgreSQLClient não inicializado. Serviço iniciando."
+            status_code=503, detail="PostgreSQLClient não inicializado. Serviço iniciando."
         )
     return main.postgresql_client
 
@@ -101,10 +103,10 @@ def get_prometheus_client() -> PrometheusClient:
     Este fallback acessa o singleton do módulo diretamente.
     """
     from .. import main
+
     if main.prometheus_client is None:
         raise HTTPException(
-            status_code=503,
-            detail="PrometheusClient não inicializado. Serviço iniciando."
+            status_code=503, detail="PrometheusClient não inicializado. Serviço iniciando."
         )
     return main.prometheus_client
 
@@ -117,10 +119,10 @@ def get_redis_client() -> RedisClient:
     Este fallback acessa o singleton do módulo diretamente.
     """
     from .. import main
+
     if main.redis_client is None:
         raise HTTPException(
-            status_code=503,
-            detail="RedisClient não inicializado. Serviço iniciando."
+            status_code=503, detail="RedisClient não inicializado. Serviço iniciando."
         )
     return main.redis_client
 
@@ -129,7 +131,7 @@ def get_redis_client() -> RedisClient:
 async def get_budget(
     slo_id: str,
     use_cache: bool = Query(True),
-    calculator: BudgetCalculator = Depends(get_budget_calculator)
+    calculator: BudgetCalculator = Depends(get_budget_calculator),
 ):
     """Busca budget de um SLO."""
     budget = await calculator.get_budget(slo_id, use_cache=use_cache)
@@ -142,14 +144,11 @@ async def get_budget(
 async def list_budgets(
     service_name: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
-    pg_client: PostgreSQLClient = Depends(get_postgresql_client)
+    pg_client: PostgreSQLClient = Depends(get_postgresql_client),
 ):
     """Lista budgets mais recentes."""
     # Buscar todos os SLOs
-    slos = await pg_client.list_slos(
-        service_name=service_name,
-        enabled_only=True
-    )
+    slos = await pg_client.list_slos(service_name=service_name, enabled_only=True)
 
     budgets = []
     for slo in slos:
@@ -165,8 +164,7 @@ async def list_budgets(
 
 @router.post("/{slo_id}/recalculate", response_model=ErrorBudget)
 async def recalculate_budget(
-    slo_id: str,
-    calculator: BudgetCalculator = Depends(get_budget_calculator)
+    slo_id: str, calculator: BudgetCalculator = Depends(get_budget_calculator)
 ):
     """Força recálculo do budget."""
     try:
@@ -186,7 +184,7 @@ async def get_budget_history(
     aggregation: Optional[str] = Query(None, regex="^(hourly|daily|none)$"),
     include_trends: bool = Query(False),
     pg_client: PostgreSQLClient = Depends(get_postgresql_client),
-    redis_client: RedisClient = Depends(get_redis_client)
+    redis_client: RedisClient = Depends(get_redis_client),
 ):
     """
     Retorna histórico de budgets com suporte a agregações e tendências.
@@ -203,13 +201,11 @@ async def get_budget_history(
         include_trends: Se True, inclui análise de tendências
     """
     start_time = time.time()
-    agg_key = aggregation if aggregation and aggregation != 'none' else None
+    agg_key = aggregation if aggregation and aggregation != "none" else None
 
     # Rate limiting: 10 req/min por slo_id
     allowed, remaining = await redis_client.check_rate_limit(
-        slo_id=slo_id,
-        limit=10,
-        window_seconds=60
+        slo_id=slo_id, limit=10, window_seconds=60
     )
     response.headers["X-RateLimit-Remaining"] = str(remaining)
     response.headers["X-RateLimit-Limit"] = "10"
@@ -221,12 +217,12 @@ async def get_budget_history(
             duration=time.time() - start_time,
             success=False,
             result_count=0,
-            slo_id=slo_id
+            slo_id=slo_id,
         )
         raise HTTPException(
             status_code=429,
             detail="Rate limit excedido. Tente novamente em 1 minuto.",
-            headers={"Retry-After": "60"}
+            headers={"Retry-After": "60"},
         )
 
     # Verificar se SLO existe
@@ -249,7 +245,7 @@ async def get_budget_history(
                     duration=duration,
                     success=True,
                     result_count=len(budgets),
-                    slo_id=slo_id
+                    slo_id=slo_id,
                 )
 
                 response.headers["X-Cache"] = "HIT"
@@ -258,7 +254,7 @@ async def get_budget_history(
                     total=len(budgets),
                     period_days=days,
                     aggregation=agg_key,
-                    trends=None
+                    trends=None,
                 )
             except Exception:
                 # Cache corrompido, buscar do banco
@@ -278,18 +274,18 @@ async def get_budget_history(
             duration=duration,
             success=True,
             result_count=len(budgets),
-            slo_id=slo_id
+            slo_id=slo_id,
         )
 
         # Armazenar no cache (se não estiver pedindo trends)
         if not include_trends and budgets:
-            budgets_json = json.dumps([b.model_dump(mode='json') for b in budgets])
+            budgets_json = json.dumps([b.model_dump(mode="json") for b in budgets])
             await redis_client.cache_budget_history(
                 slo_id=slo_id,
                 days=days,
                 aggregation=agg_key,
                 budgets_json=budgets_json,
-                ttl=300  # 5 minutos
+                ttl=300,  # 5 minutos
             )
 
     except Exception as e:
@@ -300,12 +296,9 @@ async def get_budget_history(
             duration=duration,
             success=False,
             result_count=0,
-            slo_id=slo_id
+            slo_id=slo_id,
         )
-        raise HTTPException(
-            status_code=500,
-            detail=f"Erro ao buscar histórico: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Erro ao buscar histórico: {str(e)}")
 
     # Buscar tendências se solicitado
     trends = None
@@ -314,18 +307,12 @@ async def get_budget_history(
         trends = BudgetTrends(**trends_data)
 
     return BudgetHistoryResponse(
-        budgets=budgets,
-        total=len(budgets),
-        period_days=days,
-        aggregation=agg_key,
-        trends=trends
+        budgets=budgets, total=len(budgets), period_days=days, aggregation=agg_key, trends=trends
     )
 
 
 @router.get("/summary", response_model=BudgetSummaryResponse)
-async def get_budgets_summary(
-    pg_client: PostgreSQLClient = Depends(get_postgresql_client)
-):
+async def get_budgets_summary(pg_client: PostgreSQLClient = Depends(get_postgresql_client)):
     """Retorna resumo agregado de todos os budgets."""
     slos = await pg_client.list_slos(enabled_only=True)
 
@@ -359,7 +346,7 @@ async def get_budgets_summary(
         warning=warning,
         critical=critical,
         exhausted=exhausted,
-        average_remaining=average_remaining
+        average_remaining=average_remaining,
     )
 
 
@@ -368,7 +355,7 @@ async def get_burn_rate(
     slo_id: str,
     window_hours: int = Query(1, ge=1, le=168),
     pg_client: PostgreSQLClient = Depends(get_postgresql_client),
-    prom_client: PrometheusClient = Depends(get_prometheus_client)
+    prom_client: PrometheusClient = Depends(get_prometheus_client),
 ):
     """Calcula burn rate para janela específica."""
     # Buscar SLO para obter service_name
@@ -378,13 +365,12 @@ async def get_burn_rate(
 
     # Calcular burn rate
     burn_rate = await prom_client.calculate_burn_rate(
-        slo.service_name,
-        window_hours,
-        baseline_days=30
+        slo.service_name, window_hours, baseline_days=30
     )
 
     # Classificar nível
     from ..models.error_budget import BurnRateLevel
+
     if burn_rate >= 14.4:
         level = BurnRateLevel.CRITICAL
     elif burn_rate >= 6:
@@ -402,7 +388,5 @@ async def get_burn_rate(
             estimated_exhaustion = (budget.error_budget_remaining / burn_rate) * window_hours
 
     return BurnRateResponse(
-        burn_rate=burn_rate,
-        level=level.value,
-        estimated_exhaustion_hours=estimated_exhaustion
+        burn_rate=burn_rate, level=level.value, estimated_exhaustion_hours=estimated_exhaustion
     )

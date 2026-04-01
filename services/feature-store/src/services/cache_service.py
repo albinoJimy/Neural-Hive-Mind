@@ -5,22 +5,24 @@ Gerencia cache de features usando Redis com TTL configurável.
 """
 
 import json
+from datetime import datetime, timezone
+from typing import Any, Dict, Optional
+
 import structlog
-from typing import Optional, Dict, Any
-from datetime import datetime, timedelta
 
 try:
     import aioredis
+
     HAS_AIOREDIS = True
 except ImportError:
     try:
         import redis.asyncio as aioredis
+
         HAS_AIOREDIS = True
     except ImportError:
         HAS_AIOREDIS = False
 
 from src.config.settings import Settings
-
 
 logger = structlog.get_logger()
 
@@ -47,7 +49,7 @@ class RedisCacheService:
                 max_connections=self.settings.redis_max_connections,
                 socket_timeout=self.settings.redis_socket_timeout,
                 socket_connect_timeout=self.settings.redis_socket_connect_timeout,
-                decode_responses=True
+                decode_responses=True,
             )
 
             self._redis = aioredis.Redis(connection_pool=self._pool)
@@ -59,7 +61,7 @@ class RedisCacheService:
             logger.info(
                 "Redis cache inicializado",
                 url=self.settings.redis_url,
-                max_connections=self.settings.redis_max_connections
+                max_connections=self.settings.redis_max_connections,
             )
         except Exception as e:
             logger.error("Falha ao inicializar Redis", error=str(e))
@@ -113,10 +115,7 @@ class RedisCacheService:
             return None
 
     async def set(
-        self,
-        plan_id: str,
-        features: Dict[str, Any],
-        ttl_seconds: Optional[int] = None
+        self, plan_id: str, features: Dict[str, Any], ttl_seconds: Optional[int] = None
     ) -> bool:
         """
         Salva features no cache
@@ -137,13 +136,9 @@ class RedisCacheService:
             key = self._make_key(plan_id)
 
             # Adiciona timestamp de cache
-            features["_cached_at"] = datetime.utcnow().isoformat()
+            features["_cached_at"] = datetime.now(timezone.utc).isoformat()
 
-            await self._redis.setex(
-                key,
-                ttl,
-                json.dumps(features)
-            )
+            await self._redis.setex(key, ttl, json.dumps(features))
 
             logger.debug("Features salvas no cache", plan_id=plan_id, ttl=ttl)
             return True
@@ -169,11 +164,7 @@ class RedisCacheService:
             key = self._make_key(plan_id)
             result = await self._redis.delete(key)
 
-            logger.debug(
-                "Features removidas do cache",
-                plan_id=plan_id,
-                deleted=result > 0
-            )
+            logger.debug("Features removidas do cache", plan_id=plan_id, deleted=result > 0)
             return result > 0
 
         except Exception as e:
@@ -215,10 +206,7 @@ class RedisCacheService:
             Dict com estatísticas
         """
         if not self.is_available():
-            return {
-                "available": False,
-                "keys_count": 0
-            }
+            return {"available": False, "keys_count": 0}
 
         try:
             pattern = "feature_store:*"
@@ -229,12 +217,9 @@ class RedisCacheService:
             return {
                 "available": True,
                 "keys_count": len(keys),
-                "ttl_seconds": self.settings.redis_cache_ttl_seconds
+                "ttl_seconds": self.settings.redis_cache_ttl_seconds,
             }
 
         except Exception as e:
             logger.error("Erro ao obter stats do cache", error=str(e))
-            return {
-                "available": False,
-                "error": str(e)
-            }
+            return {"available": False, "error": str(e)}

@@ -1,16 +1,14 @@
 import asyncio
+import json
+
 import structlog
 from aiokafka import AIOKafkaConsumer
-from typing import Optional
-import json
 
 from neural_hive_observability import instrument_kafka_consumer
 from neural_hive_observability.context import extract_context_from_headers, set_baggage
-
-from ..config import Settings
-from ..services import StrategicDecisionEngine
-from ..clients import RedisClient
-
+from src.clients import RedisClient
+from src.config import Settings
+from src.services import StrategicDecisionEngine
 
 logger = structlog.get_logger()
 
@@ -29,7 +27,7 @@ class IncidentConsumer:
         self.decision_engine = decision_engine
         self.redis_client = redis_client
         self.strategic_producer = strategic_producer
-        self.consumer: Optional[AIOKafkaConsumer] = None
+        self.consumer: AIOKafkaConsumer | None = None
         self.running = False
 
     async def initialize(self) -> None:
@@ -52,7 +50,7 @@ class IncidentConsumer:
             )
 
         except Exception as e:
-            logger.error("incident_consumer_initialization_failed", error=str(e))
+            logger.exception("incident_consumer_initialization_failed", error=str(e))
             raise
 
     async def start(self) -> None:
@@ -71,14 +69,14 @@ class IncidentConsumer:
                     await self.consumer.commit()
 
                 except Exception as e:
-                    logger.error(
+                    logger.exception(
                         "incident_message_processing_failed",
                         error=str(e),
                         offset=message.offset,
                     )
 
         except Exception as e:
-            logger.error("incident_consumer_loop_failed", error=str(e))
+            logger.exception("incident_consumer_loop_failed", error=str(e))
 
         finally:
             logger.info("incident_consumer_stopped")
@@ -94,7 +92,7 @@ class IncidentConsumer:
     async def process_message(self, message) -> None:
         """Processar incidente crítico"""
         try:
-            headers_dict = {k: v for k, v in (message.headers or [])}
+            headers_dict = dict(message.headers or [])
             extract_context_from_headers(headers_dict)
 
             incident = message.value
@@ -115,9 +113,7 @@ class IncidentConsumer:
                 return
 
             # Processar via Decision Engine
-            strategic_decision = await self.decision_engine.process_critical_incident(
-                incident
-            )
+            strategic_decision = await self.decision_engine.process_critical_incident(incident)
 
             if strategic_decision:
                 # Marcar como processado
@@ -130,9 +126,7 @@ class IncidentConsumer:
                 )
 
                 # Publicar decisão estratégica no Kafka
-                published = await self.strategic_producer.publish_decision(
-                    strategic_decision
-                )
+                published = await self.strategic_producer.publish_decision(strategic_decision)
                 if not published:
                     logger.error(
                         "failed_to_publish_strategic_decision",
@@ -153,7 +147,7 @@ class IncidentConsumer:
                     raise Exception("Failed to execute decision action")
 
         except Exception as e:
-            logger.error("process_incident_message_failed", error=str(e))
+            logger.exception("process_incident_message_failed", error=str(e))
             raise
 
     async def _is_already_processed(self, incident_id: str) -> bool:
@@ -164,7 +158,7 @@ class IncidentConsumer:
             return data is not None
 
         except Exception as e:
-            logger.error("incident_dedup_check_failed", error=str(e))
+            logger.exception("incident_dedup_check_failed", error=str(e))
             return False
 
     async def _mark_as_processed(self, incident_id: str) -> None:
@@ -178,4 +172,4 @@ class IncidentConsumer:
             )
 
         except Exception as e:
-            logger.error("incident_mark_processed_failed", error=str(e))
+            logger.exception("incident_mark_processed_failed", error=str(e))

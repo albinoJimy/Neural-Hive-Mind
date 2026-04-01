@@ -4,9 +4,10 @@ Cliente para Artifact Registry (OCI).
 Registra referências de SBOMs no registry para rastreabilidade.
 """
 
+from typing import TYPE_CHECKING, Dict, Optional
+
 import httpx
 import structlog
-from typing import Dict, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ..observability.metrics import CodeForgeMetrics
@@ -22,10 +23,7 @@ class ArtifactRegistryClient:
     """
 
     def __init__(
-        self,
-        registry_url: str,
-        timeout: int = 30,
-        metrics: Optional['CodeForgeMetrics'] = None
+        self, registry_url: str, timeout: int = 30, metrics: Optional["CodeForgeMetrics"] = None
     ):
         """
         Inicializa cliente do Artifact Registry.
@@ -35,37 +33,26 @@ class ArtifactRegistryClient:
             timeout: Timeout para requisições HTTP
             metrics: Instância de CodeForgeMetrics para instrumentação
         """
-        self.registry_url = registry_url.rstrip('/')
+        self.registry_url = registry_url.rstrip("/")
         self.timeout = timeout
         self.metrics = metrics
         self._client: Optional[httpx.AsyncClient] = None
 
-        logger.info(
-            'artifact_registry_client_initialized',
-            registry_url=self.registry_url
-        )
+        logger.info("artifact_registry_client_initialized", registry_url=self.registry_url)
 
     async def start(self):
         """Inicializa cliente HTTP assíncrono."""
-        self._client = httpx.AsyncClient(
-            base_url=self.registry_url,
-            timeout=self.timeout
-        )
-        logger.info('artifact_registry_client_started')
+        self._client = httpx.AsyncClient(base_url=self.registry_url, timeout=self.timeout)
+        logger.info("artifact_registry_client_started")
 
     async def stop(self):
         """Fecha cliente HTTP."""
         if self._client:
             await self._client.aclose()
             self._client = None
-        logger.info('artifact_registry_client_stopped')
+        logger.info("artifact_registry_client_stopped")
 
-    async def register_sbom(
-        self,
-        sbom_uri: str,
-        artifact_id: str,
-        metadata: Dict
-    ) -> Optional[str]:
+    async def register_sbom(self, sbom_uri: str, artifact_id: str, metadata: Dict) -> Optional[str]:
         """
         Registra referência de SBOM no registry.
 
@@ -78,51 +65,36 @@ class ArtifactRegistryClient:
             Referência do registry ou None se falhar
         """
         if not self._client:
-            logger.warning('artifact_registry_client_not_started')
+            logger.warning("artifact_registry_client_not_started")
             return None
 
         try:
-            payload = {
-                'artifact_id': artifact_id,
-                'sbom_uri': sbom_uri,
-                'metadata': metadata
-            }
+            payload = {"artifact_id": artifact_id, "sbom_uri": sbom_uri, "metadata": metadata}
 
-            logger.info(
-                'registering_sbom',
-                artifact_id=artifact_id,
-                sbom_uri=sbom_uri
-            )
+            logger.info("registering_sbom", artifact_id=artifact_id, sbom_uri=sbom_uri)
 
-            response = await self._client.post(
-                '/v2/sboms/register',
-                json=payload
-            )
+            response = await self._client.post("/v2/sboms/register", json=payload)
 
             if response.status_code in (200, 201):
                 result = response.json()
-                reference = result.get('reference')
-                logger.info(
-                    'sbom_registered',
-                    artifact_id=artifact_id,
-                    reference=reference
-                )
+                reference = result.get("reference")
+                logger.info("sbom_registered", artifact_id=artifact_id, reference=reference)
                 return reference
             else:
                 logger.error(
-                    'sbom_registration_failed',
+                    "sbom_registration_failed",
                     artifact_id=artifact_id,
                     status_code=response.status_code,
-                    response=response.text[:200]
+                    response=response.text[:200],
                 )
                 return None
 
         except Exception as e:
             logger.error(
-                'sbom_registration_error',
+                "sbom_registration_error",
                 artifact_id=artifact_id,
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
             return None
 
@@ -140,29 +112,20 @@ class ArtifactRegistryClient:
             return None
 
         try:
-            response = await self._client.get(
-                f'/v2/sboms/{artifact_id}'
-            )
+            response = await self._client.get(f"/v2/sboms/{artifact_id}")
 
             if response.status_code == 200:
                 result = response.json()
-                return result.get('sbom_uri')
+                return result.get("sbom_uri")
 
             return None
 
         except Exception as e:
-            logger.error(
-                'get_sbom_reference_error',
-                artifact_id=artifact_id,
-                error=str(e)
-            )
+            logger.error("get_sbom_reference_error", artifact_id=artifact_id, error=str(e))
             return None
 
     async def register_artifact(
-        self,
-        artifact_uri: str,
-        artifact_type: str,
-        metadata: Dict
+        self, artifact_uri: str, artifact_type: str, metadata: Dict
     ) -> Optional[Dict]:
         """
         Registra artefato de container no registry.
@@ -176,50 +139,45 @@ class ArtifactRegistryClient:
             Dict com artifact_id e referências ou None se falhar
         """
         if not self._client:
-            logger.warning('artifact_registry_client_not_started')
+            logger.warning("artifact_registry_client_not_started")
             return None
 
         try:
             payload = {
-                'artifact_uri': artifact_uri,
-                'artifact_type': artifact_type,
-                'metadata': metadata
+                "artifact_uri": artifact_uri,
+                "artifact_type": artifact_type,
+                "metadata": metadata,
             }
 
             logger.info(
-                'registering_artifact',
-                artifact_uri=artifact_uri,
-                artifact_type=artifact_type
+                "registering_artifact", artifact_uri=artifact_uri, artifact_type=artifact_type
             )
 
-            response = await self._client.post(
-                '/v2/artifacts/register',
-                json=payload
-            )
+            response = await self._client.post("/v2/artifacts/register", json=payload)
 
             if response.status_code in (200, 201):
                 result = response.json()
                 logger.info(
-                    'artifact_registered',
+                    "artifact_registered",
                     artifact_uri=artifact_uri,
-                    artifact_id=result.get('artifact_id')
+                    artifact_id=result.get("artifact_id"),
                 )
                 return result
             else:
                 logger.error(
-                    'artifact_registration_failed',
+                    "artifact_registration_failed",
                     artifact_uri=artifact_uri,
                     status_code=response.status_code,
-                    response=response.text[:200]
+                    response=response.text[:200],
                 )
                 return None
 
         except Exception as e:
             logger.error(
-                'artifact_registration_error',
+                "artifact_registration_error",
                 artifact_uri=artifact_uri,
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
             return None
 
@@ -237,45 +195,29 @@ class ArtifactRegistryClient:
             return None
 
         try:
-            response = await self._client.get(
-                f'/v2/artifacts/{artifact_id}'
-            )
+            response = await self._client.get(f"/v2/artifacts/{artifact_id}")
 
             if response.status_code == 200:
                 result = response.json()
-                logger.debug(
-                    'artifact_metadata_retrieved',
-                    artifact_id=artifact_id
-                )
+                logger.debug("artifact_metadata_retrieved", artifact_id=artifact_id)
                 return result
 
             if response.status_code == 404:
-                logger.debug(
-                    'artifact_metadata_not_found',
-                    artifact_id=artifact_id
-                )
+                logger.debug("artifact_metadata_not_found", artifact_id=artifact_id)
                 return None
 
             logger.warning(
-                'artifact_metadata_failed',
+                "artifact_metadata_failed",
                 artifact_id=artifact_id,
-                status_code=response.status_code
+                status_code=response.status_code,
             )
             return None
 
         except Exception as e:
-            logger.error(
-                'get_artifact_metadata_error',
-                artifact_id=artifact_id,
-                error=str(e)
-            )
+            logger.error("get_artifact_metadata_error", artifact_id=artifact_id, error=str(e))
             return None
 
-    async def list_artifacts(
-        self,
-        artifact_type: Optional[str] = None,
-        limit: int = 100
-    ) -> list:
+    async def list_artifacts(self, artifact_type: Optional[str] = None, limit: int = 100) -> list:
         """
         Lista artefatos registrados.
 
@@ -292,34 +234,22 @@ class ArtifactRegistryClient:
         try:
             params = {}
             if artifact_type:
-                params['type'] = artifact_type
-            params['limit'] = limit
+                params["type"] = artifact_type
+            params["limit"] = limit
 
-            response = await self._client.get(
-                '/v2/artifacts',
-                params=params
-            )
+            response = await self._client.get("/v2/artifacts", params=params)
 
             if response.status_code == 200:
                 result = response.json()
-                artifacts = result.get('artifacts', [])
-                logger.info(
-                    'artifacts_listed',
-                    count=len(artifacts)
-                )
+                artifacts = result.get("artifacts", [])
+                logger.info("artifacts_listed", count=len(artifacts))
                 return artifacts
 
-            logger.warning(
-                'list_artifacts_failed',
-                status_code=response.status_code
-            )
+            logger.warning("list_artifacts_failed", status_code=response.status_code)
             return []
 
         except Exception as e:
-            logger.error(
-                'list_artifacts_error',
-                error=str(e)
-            )
+            logger.error("list_artifacts_error", error=str(e))
             return []
 
     async def health_check(self) -> bool:
@@ -333,7 +263,7 @@ class ArtifactRegistryClient:
             return False
 
         try:
-            response = await self._client.get('/v2/')
+            response = await self._client.get("/v2/")
             return response.status_code == 200
         except Exception:
             return False

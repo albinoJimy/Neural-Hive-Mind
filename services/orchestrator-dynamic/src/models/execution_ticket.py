@@ -9,111 +9,120 @@ NOTA: Este módulo usa Pydantic v2.
 import hashlib
 import json
 from datetime import datetime
-from enum import Enum
-from typing import Optional, Dict, List, Any
+from enum import StrEnum
+from typing import Any
 
-from pydantic import BaseModel, Field, field_validator, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 def _get_enum_value(val) -> str:
     """
     Extrai valor de enum de forma segura.
-    
+
     Com Pydantic ConfigDict(use_enum_values=True), os valores podem vir
     já como strings em vez de objetos Enum. Esta função trata ambos os casos.
-    
+
     Args:
         val: Valor que pode ser um Enum ou uma string
-        
+
     Returns:
         String com o valor
     """
-    return val.value if hasattr(val, 'value') else str(val)
+    return val.value if hasattr(val, "value") else str(val)
 
 
-class TaskType(str, Enum):
+class TaskType(StrEnum):
     """Tipos de tarefa.
 
     Inclui tipos legados (lowercase) para compatibilidade com mensagens antigas.
     Novos tickets devem usar os tipos em UPPERCASE.
     """
+
     # Tipos padrão (UPPERCASE)
-    BUILD = 'BUILD'
-    DEPLOY = 'DEPLOY'
-    TEST = 'TEST'
-    VALIDATE = 'VALIDATE'
-    EXECUTE = 'EXECUTE'
-    COMPENSATE = 'COMPENSATE'
-    QUERY = 'QUERY'
-    TRANSFORM = 'TRANSFORM'
+    BUILD = "BUILD"
+    DEPLOY = "DEPLOY"
+    TEST = "TEST"
+    VALIDATE = "VALIDATE"
+    EXECUTE = "EXECUTE"
+    COMPENSATE = "COMPENSATE"
+    QUERY = "QUERY"
+    TRANSFORM = "TRANSFORM"
 
     # Tipos legados (lowercase) - para compatibilidade com mensagens antigas
-    query = 'query'
-    transform = 'transform'  # lowercase version for backward compatibility
-    validate_legacy = 'validate'  # lowercase version
-    analyze = 'analyze'
-    generate = 'generate'
-    review = 'review'
+    query = "query"
+    transform = "transform"  # lowercase version for backward compatibility
+    validate_legacy = "validate"  # lowercase version
+    analyze = "analyze"
+    generate = "generate"
+    review = "review"
 
 
-class TicketStatus(str, Enum):
+class TicketStatus(StrEnum):
     """Status do ticket de execução."""
-    PENDING = 'PENDING'
-    RUNNING = 'RUNNING'
-    COMPLETED = 'COMPLETED'
-    FAILED = 'FAILED'
-    COMPENSATING = 'COMPENSATING'
-    COMPENSATED = 'COMPENSATED'
+
+    PENDING = "PENDING"
+    RUNNING = "RUNNING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+    COMPENSATING = "COMPENSATING"
+    COMPENSATED = "COMPENSATED"
 
 
-class Priority(str, Enum):
+class Priority(StrEnum):
     """Prioridade de execução."""
-    LOW = 'LOW'
-    NORMAL = 'NORMAL'
-    HIGH = 'HIGH'
-    CRITICAL = 'CRITICAL'
+
+    LOW = "LOW"
+    NORMAL = "NORMAL"
+    HIGH = "HIGH"
+    CRITICAL = "CRITICAL"
 
 
-class RiskBand(str, Enum):
+class RiskBand(StrEnum):
     """Banda de risco."""
-    low = 'low'
-    medium = 'medium'
-    high = 'high'
-    critical = 'critical'
+
+    low = "low"
+    medium = "medium"
+    high = "high"
+    critical = "critical"
 
 
-class SecurityLevel(str, Enum):
+class SecurityLevel(StrEnum):
     """Nível de segurança."""
-    PUBLIC = 'PUBLIC'
-    INTERNAL = 'INTERNAL'
-    CONFIDENTIAL = 'CONFIDENTIAL'
-    RESTRICTED = 'RESTRICTED'
+
+    PUBLIC = "PUBLIC"
+    INTERNAL = "INTERNAL"
+    CONFIDENTIAL = "CONFIDENTIAL"
+    RESTRICTED = "RESTRICTED"
 
 
-class DeliveryMode(str, Enum):
+class DeliveryMode(StrEnum):
     """Modo de entrega."""
-    AT_MOST_ONCE = 'AT_MOST_ONCE'
-    AT_LEAST_ONCE = 'AT_LEAST_ONCE'
-    EXACTLY_ONCE = 'EXACTLY_ONCE'
+
+    AT_MOST_ONCE = "AT_MOST_ONCE"
+    AT_LEAST_ONCE = "AT_LEAST_ONCE"
+    EXACTLY_ONCE = "EXACTLY_ONCE"
 
 
-class Consistency(str, Enum):
+class Consistency(StrEnum):
     """Nível de consistência."""
-    EVENTUAL = 'EVENTUAL'
-    STRONG = 'STRONG'
+
+    EVENTUAL = "EVENTUAL"
+    STRONG = "STRONG"
 
 
-class Durability(str, Enum):
+class Durability(StrEnum):
     """Modo de durabilidade."""
-    TRANSIENT = 'TRANSIENT'
-    PERSISTENT = 'PERSISTENT'
+
+    TRANSIENT = "TRANSIENT"
+    PERSISTENT = "PERSISTENT"
 
 
 class SLA(BaseModel):
     """Definições de SLA."""
-    deadline: int = Field(..., description='Prazo limite (timestamp millis)')
-    timeout_ms: int = Field(..., description='Timeout em milissegundos')
-    max_retries: int = Field(..., description='Número máximo de tentativas')
+
+    deadline: int = Field(..., description="Prazo limite (timestamp millis)")
+    timeout_ms: int = Field(..., description="Timeout em milissegundos")
+    max_retries: int = Field(..., description="Número máximo de tentativas")
 
     # Pydantic v2: ConfigDict substitui class Config
     model_config = ConfigDict(use_enum_values=True)
@@ -121,9 +130,10 @@ class SLA(BaseModel):
 
 class QoS(BaseModel):
     """Definições de Quality of Service."""
-    delivery_mode: DeliveryMode = Field(..., description='Modo de entrega')
-    consistency: Consistency = Field(..., description='Nível de consistência')
-    durability: Durability = Field(..., description='Modo de durabilidade')
+
+    delivery_mode: DeliveryMode = Field(..., description="Modo de entrega")
+    consistency: Consistency = Field(..., description="Nível de consistência")
+    durability: Durability = Field(..., description="Modo de durabilidade")
 
     # Pydantic v2: ConfigDict substitui class Config
     model_config = ConfigDict(use_enum_values=True)
@@ -134,43 +144,53 @@ class ExecutionTicket(BaseModel):
     Modelo de Execution Ticket.
     Representa uma unidade atômica de trabalho gerada pelo Orquestrador Dinâmico.
     """
-    ticket_id: str = Field(..., description='UUID único do ticket')
-    plan_id: str = Field(..., description='Referência ao Cognitive Plan')
-    intent_id: str = Field(..., description='Referência à intenção original')
-    decision_id: str = Field(..., description='Referência à Consolidated Decision')
-    correlation_id: Optional[str] = Field(default=None, description='ID de correlação')
-    trace_id: Optional[str] = Field(default=None, description='Trace ID OpenTelemetry')
-    span_id: Optional[str] = Field(default=None, description='Span ID OpenTelemetry')
-    task_id: str = Field(..., description='ID da tarefa no DAG')
-    task_type: TaskType = Field(..., description='Tipo da tarefa')
-    description: str = Field(..., description='Descrição da tarefa')
-    dependencies: List[str] = Field(default_factory=list, description='Ticket IDs dependentes')
-    status: TicketStatus = Field(default=TicketStatus.PENDING, description='Status do ticket')
-    priority: Priority = Field(..., description='Prioridade de execução')
-    risk_band: RiskBand = Field(..., description='Banda de risco')
-    sla: SLA = Field(..., description='Definições de SLA')
-    qos: QoS = Field(..., description='Definições de QoS')
-    parameters: Dict[str, Any] = Field(default_factory=dict, description='Parâmetros da tarefa (valores podem ser string, list, dict)')
-    required_capabilities: List[str] = Field(default_factory=list, description='Capacidades necessárias')
-    security_level: SecurityLevel = Field(..., description='Nível de segurança')
-    created_at: int = Field(..., description='Timestamp de criação (millis)')
-    started_at: Optional[int] = Field(default=None, description='Timestamp de início (millis)')
-    completed_at: Optional[int] = Field(default=None, description='Timestamp de conclusão (millis)')
-    estimated_duration_ms: Optional[int] = Field(default=None, description='Duração estimada')
-    actual_duration_ms: Optional[int] = Field(default=None, description='Duração real')
-    retry_count: int = Field(default=0, description='Contador de tentativas')
-    error_message: Optional[str] = Field(default=None, description='Mensagem de erro')
-    compensation_ticket_id: Optional[str] = Field(default=None, description='ID do ticket de compensação')
-    metadata: Dict[str, str] = Field(default_factory=dict, description='Metadados adicionais')
-    predictions: Optional[Dict[str, Any]] = Field(default=None, description='Predições ML (duração, recursos, anomalias)')
-    schema_version: int = Field(default=1, description='Versão do schema')
+
+    ticket_id: str = Field(..., description="UUID único do ticket")
+    plan_id: str = Field(..., description="Referência ao Cognitive Plan")
+    intent_id: str = Field(..., description="Referência à intenção original")
+    decision_id: str = Field(..., description="Referência à Consolidated Decision")
+    correlation_id: str | None = Field(default=None, description="ID de correlação")
+    trace_id: str | None = Field(default=None, description="Trace ID OpenTelemetry")
+    span_id: str | None = Field(default=None, description="Span ID OpenTelemetry")
+    task_id: str = Field(..., description="ID da tarefa no DAG")
+    task_type: TaskType = Field(..., description="Tipo da tarefa")
+    description: str = Field(..., description="Descrição da tarefa")
+    dependencies: list[str] = Field(default_factory=list, description="Ticket IDs dependentes")
+    status: TicketStatus = Field(default=TicketStatus.PENDING, description="Status do ticket")
+    priority: Priority = Field(..., description="Prioridade de execução")
+    risk_band: RiskBand = Field(..., description="Banda de risco")
+    sla: SLA = Field(..., description="Definições de SLA")
+    qos: QoS = Field(..., description="Definições de QoS")
+    parameters: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Parâmetros da tarefa (valores podem ser string, list, dict)",
+    )
+    required_capabilities: list[str] = Field(
+        default_factory=list, description="Capacidades necessárias"
+    )
+    security_level: SecurityLevel = Field(..., description="Nível de segurança")
+    created_at: int = Field(..., description="Timestamp de criação (millis)")
+    started_at: int | None = Field(default=None, description="Timestamp de início (millis)")
+    completed_at: int | None = Field(default=None, description="Timestamp de conclusão (millis)")
+    estimated_duration_ms: int | None = Field(default=None, description="Duração estimada")
+    actual_duration_ms: int | None = Field(default=None, description="Duração real")
+    retry_count: int = Field(default=0, description="Contador de tentativas")
+    error_message: str | None = Field(default=None, description="Mensagem de erro")
+    compensation_ticket_id: str | None = Field(
+        default=None, description="ID do ticket de compensação"
+    )
+    metadata: dict[str, str] = Field(default_factory=dict, description="Metadados adicionais")
+    predictions: dict[str, Any] | None = Field(
+        default=None, description="Predições ML (duração, recursos, anomalias)"
+    )
+    schema_version: int = Field(default=1, description="Versão do schema")
 
     # Pydantic v2: ConfigDict substitui class Config
     # json_encoders foi removido - usar field_serializer se necessário
     # Nota: timestamps já são int (millis), não precisam de encoder
     model_config = ConfigDict(use_enum_values=True)
 
-    @field_validator('priority', mode='before')
+    @field_validator("priority", mode="before")
     @classmethod
     def validate_priority(cls, v):
         """
@@ -187,12 +207,11 @@ class ExecutionTicket(BaseModel):
             # Formato legado - mapear para enum string
             if v <= 2:
                 return Priority.LOW
-            elif v <= 5:
+            if v <= 5:
                 return Priority.NORMAL
-            elif v <= 8:
+            if v <= 8:
                 return Priority.HIGH
-            else:
-                return Priority.CRITICAL
+            return Priority.CRITICAL
         # Se já é string ou Priority enum, validar
         if isinstance(v, str):
             try:
@@ -200,12 +219,12 @@ class ExecutionTicket(BaseModel):
             except ValueError:
                 # Tentar mapear string lowercase
                 v_upper = v.upper()
-                if v_upper in ['LOW', 'NORMAL', 'HIGH', 'CRITICAL']:
+                if v_upper in ["LOW", "NORMAL", "HIGH", "CRITICAL"]:
                     return Priority(v_upper)
-                raise ValueError(f'Invalid priority value: {v}')
+                raise ValueError(f"Invalid priority value: {v}")
         return v
 
-    @field_validator('metadata', mode='before')
+    @field_validator("metadata", mode="before")
     @classmethod
     def validate_metadata(cls, v):
         """
@@ -222,34 +241,35 @@ class ExecutionTicket(BaseModel):
             if isinstance(value, str):
                 cleaned[key] = value
             elif value is None:
-                cleaned[key] = ''
+                cleaned[key] = ""
             else:
                 # Converte dict/list para string JSON
                 import json
+
                 try:
                     cleaned[key] = json.dumps(value, default=str)
                 except Exception:
                     cleaned[key] = str(value)
         return cleaned
 
-    @field_validator('dependencies')
+    @field_validator("dependencies")
     @classmethod
     def validate_dependencies(cls, v, info):
         """Valida que dependencies não contém auto-referência."""
-        if 'ticket_id' in info.data and info.data['ticket_id'] in v:
-            raise ValueError('Ticket não pode depender de si mesmo')
+        if "ticket_id" in info.data and info.data["ticket_id"] in v:
+            raise ValueError("Ticket não pode depender de si mesmo")
         return v
 
-    @field_validator('completed_at')
+    @field_validator("completed_at")
     @classmethod
     def validate_completed_at(cls, v, info):
         """Valida que completed_at > started_at."""
-        if v is not None and 'started_at' in info.data and info.data['started_at'] is not None:
-            if v <= info.data['started_at']:
-                raise ValueError('completed_at deve ser maior que started_at')
+        if v is not None and "started_at" in info.data and info.data["started_at"] is not None:
+            if v <= info.data["started_at"]:
+                raise ValueError("completed_at deve ser maior que started_at")
         return v
 
-    def to_avro_dict(self) -> Dict:
+    def to_avro_dict(self) -> dict:
         """
         Converte para dicionário compatível com Avro.
 
@@ -259,34 +279,34 @@ class ExecutionTicket(BaseModel):
         data = self.model_dump()
 
         # Converter enums para strings (usando helper para suportar enum ou string)
-        data['task_type'] = _get_enum_value(self.task_type)
-        data['status'] = _get_enum_value(self.status)
-        data['priority'] = _get_enum_value(self.priority)
-        data['risk_band'] = _get_enum_value(self.risk_band)
-        data['security_level'] = _get_enum_value(self.security_level)
+        data["task_type"] = _get_enum_value(self.task_type)
+        data["status"] = _get_enum_value(self.status)
+        data["priority"] = _get_enum_value(self.priority)
+        data["risk_band"] = _get_enum_value(self.risk_band)
+        data["security_level"] = _get_enum_value(self.security_level)
 
         # Converter SLA
-        data['sla'] = {
-            'deadline': self.sla.deadline,
-            'timeout_ms': self.sla.timeout_ms,
-            'max_retries': self.sla.max_retries
+        data["sla"] = {
+            "deadline": self.sla.deadline,
+            "timeout_ms": self.sla.timeout_ms,
+            "max_retries": self.sla.max_retries,
         }
 
         # Converter QoS (usando helper para suportar enum ou string)
-        data['qos'] = {
-            'delivery_mode': _get_enum_value(self.qos.delivery_mode),
-            'consistency': _get_enum_value(self.qos.consistency),
-            'durability': _get_enum_value(self.qos.durability)
+        data["qos"] = {
+            "delivery_mode": _get_enum_value(self.qos.delivery_mode),
+            "consistency": _get_enum_value(self.qos.consistency),
+            "durability": _get_enum_value(self.qos.durability),
         }
 
         # Incluir predictions se presente
         if self.predictions is not None:
-            data['predictions'] = self.predictions
+            data["predictions"] = self.predictions
 
         return data
 
     @classmethod
-    def from_avro_dict(cls, data: Dict) -> 'ExecutionTicket':
+    def from_avro_dict(cls, data: dict) -> "ExecutionTicket":
         """
         Cria instância a partir de dicionário Avro.
 
@@ -297,12 +317,12 @@ class ExecutionTicket(BaseModel):
             Instância de ExecutionTicket
         """
         # Converter SLA
-        if 'sla' in data and isinstance(data['sla'], dict):
-            data['sla'] = SLA(**data['sla'])
+        if "sla" in data and isinstance(data["sla"], dict):
+            data["sla"] = SLA(**data["sla"])
 
         # Converter QoS
-        if 'qos' in data and isinstance(data['qos'], dict):
-            data['qos'] = QoS(**data['qos'])
+        if "qos" in data and isinstance(data["qos"], dict):
+            data["qos"] = QoS(**data["qos"])
 
         return cls(**data)
 

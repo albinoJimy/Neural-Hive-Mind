@@ -12,7 +12,8 @@ import re
 from collections import defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional
+
 import structlog
 
 logger = structlog.get_logger()
@@ -23,27 +24,56 @@ class CuriosityCalculator:
 
     # Palavras-chave que sugerem código interessante
     INTERESTING_KEYWORDS = {
-        'pattern', 'strategy', 'observer', 'factory', 'builder',
-        'repository', 'service', 'controller', 'middleware',
-        'abstract', 'interface', 'protocol', 'generic',
-        'decorator', 'metaclass', 'proxy', 'adapter',
-        'state', 'context', 'command', 'chain', 'composite',
-        'singleton', 'monad', 'functor', 'coroutine', 'async',
-        'concurrent', 'parallel', 'lock', 'mutex', 'semaphore',
-        'queue', 'channel', 'stream', 'pipeline', 'workflow'
+        "pattern",
+        "strategy",
+        "observer",
+        "factory",
+        "builder",
+        "repository",
+        "service",
+        "controller",
+        "middleware",
+        "abstract",
+        "interface",
+        "protocol",
+        "generic",
+        "decorator",
+        "metaclass",
+        "proxy",
+        "adapter",
+        "state",
+        "context",
+        "command",
+        "chain",
+        "composite",
+        "singleton",
+        "monad",
+        "functor",
+        "coroutine",
+        "async",
+        "concurrent",
+        "parallel",
+        "lock",
+        "mutex",
+        "semaphore",
+        "queue",
+        "channel",
+        "stream",
+        "pipeline",
+        "workflow",
     }
 
     # Padrões que indicam complexidade
     COMPLEXITY_PATTERNS = [
-        r'class\s+\w+.*:',  # Definições de classe
-        r'def\s+\w+\([^)]*\).*:',  # Definições de função
-        r'if\s+.*:',  # Condicionais
-        r'for\s+.*:',  # Loops for
-        r'while\s+.*:',  # Loops while
-        r'except.*:',  # Exception handlers
-        r'with\s+.*:',  # Context managers
-        r'lambda\s+.*:',  # Lambda functions
-        r'@\w+',  # Decorators
+        r"class\s+\w+.*:",  # Definições de classe
+        r"def\s+\w+\([^)]*\).*:",  # Definições de função
+        r"if\s+.*:",  # Condicionais
+        r"for\s+.*:",  # Loops for
+        r"while\s+.*:",  # Loops while
+        r"except.*:",  # Exception handlers
+        r"with\s+.*:",  # Context managers
+        r"lambda\s+.*:",  # Lambda functions
+        r"@\w+",  # Decorators
     ]
 
     def __init__(self, decay_factor: float = 0.8, decay_hours: int = 24):
@@ -61,12 +91,7 @@ class CuriosityCalculator:
         self._visits: Dict[str, List[datetime]] = defaultdict(list)
         self._visit_counts: Dict[str, int] = defaultdict(int)
 
-    def calculate_score(
-        self,
-        code: str,
-        filename: str,
-        consider_visits: bool = True
-    ) -> float:
+    def calculate_score(self, code: str, filename: str, consider_visits: bool = True) -> float:
         """
         Calcula score de curiosidade para um arquivo.
 
@@ -139,19 +164,19 @@ class CuriosityCalculator:
 
         # Detectar padrões via regex
         patterns = {
-            'class': len(re.findall(r'class\s+\w+', code)),
-            'inheritance': len(re.findall(r'class\s+\w+\([^)]+\)', code)),
-            'decorator': len(re.findall(r'@\w+', code)),
-            'abstract': len(re.findall(r'\b(?:ABC|abstractmethod|Protocol)\b', code)),
-            'enum': len(re.findall(r'\bEnum\b', code)),
-            'dataclass': len(re.findall(r'@dataclass\b', code)),
+            "class": len(re.findall(r"class\s+\w+", code)),
+            "inheritance": len(re.findall(r"class\s+\w+\([^)]+\)", code)),
+            "decorator": len(re.findall(r"@\w+", code)),
+            "abstract": len(re.findall(r"\b(?:ABC|abstractmethod|Protocol)\b", code)),
+            "enum": len(re.findall(r"\bEnum\b", code)),
+            "dataclass": len(re.findall(r"@dataclass\b", code)),
         }
 
         # Cada tipo de padrão contribui
         for pattern_type, count in patterns.items():
-            if pattern_type == 'class':
+            if pattern_type == "class":
                 score += min(20, count * 5)
-            elif pattern_type == 'inheritance':
+            elif pattern_type == "inheritance":
                 score += min(20, count * 10)
             else:
                 score += min(15, count * 15)
@@ -167,7 +192,7 @@ class CuriosityCalculator:
             matches += code_lower.count(keyword)
 
         # Normalizar: 1 match por 10 linhas = score 100
-        line_count = len(code.split('\n'))
+        line_count = len(code.split("\n"))
         expected = max(1, line_count / 10)
         return min(100, (matches / expected) * 100)
 
@@ -175,15 +200,33 @@ class CuriosityCalculator:
         """Calcula score baseado em bibliotecas não padrão."""
         # Bibliotecas padrão comuns
         stdlib = {
-            'os', 'sys', 'json', 're', 'datetime', 'pathlib', 'typing',
-            'collections', 'itertools', 'functools', 'asyncio', 'logging',
-            'math', 'random', 'hashlib', 'base64', 'time', 'uuid',
-            'enum', 'dataclasses', 'abc', 'contextlib'
+            "os",
+            "sys",
+            "json",
+            "re",
+            "datetime",
+            "pathlib",
+            "typing",
+            "collections",
+            "itertools",
+            "functools",
+            "asyncio",
+            "logging",
+            "math",
+            "random",
+            "hashlib",
+            "base64",
+            "time",
+            "uuid",
+            "enum",
+            "dataclasses",
+            "abc",
+            "contextlib",
         }
 
         # Extrair imports
         imports = set()
-        for match in re.finditer(r'(?:from|import)\s+(\w+)', code):
+        for match in re.finditer(r"(?:from|import)\s+(\w+)", code):
             imports.add(match.group(1))
 
         unknown = [imp for imp in imports if imp not in stdlib]
@@ -191,14 +234,14 @@ class CuriosityCalculator:
 
     def _documentation_score(self, code: str) -> float:
         """Calcula score baseado em documentação."""
-        lines = code.split('\n')
+        lines = code.split("\n")
         total_lines = len(lines)
 
         # Contar linhas de comentário/docstring
         comment_lines = 0
         for line in lines:
             stripped = line.strip()
-            if stripped.startswith('#') or stripped.startswith('"""') or stripped.startswith("'''"):
+            if stripped.startswith("#") or stripped.startswith('"""') or stripped.startswith("'''"):
                 comment_lines += 1
 
         # Ratio de comentário (0-1)
@@ -218,17 +261,14 @@ class CuriosityCalculator:
         """Aplica decaimento baseado em visitas anteriores."""
         # Limpar visitas antigas
         cutoff = datetime.now() - timedelta(hours=self.decay_hours)
-        self._visits[filename] = [
-            visit for visit in self._visits[filename]
-            if visit > cutoff
-        ]
+        self._visits[filename] = [visit for visit in self._visits[filename] if visit > cutoff]
 
         # Atualizar contador
         self._visit_counts[filename] = len(self._visits[filename])
 
         # Aplicar decaimento
         visit_count = self._visit_counts[filename]
-        decay = self.decay_factor ** visit_count
+        decay = self.decay_factor**visit_count
 
         return base_score * decay
 
@@ -253,9 +293,9 @@ class CuriosityCalculator:
             return 0.0
 
         scores = []
-        for filepath in dir_path.rglob('*.py'):
+        for filepath in dir_path.rglob("*.py"):
             try:
-                with open(filepath, 'r', encoding='utf-8') as f:
+                with open(filepath, "r", encoding="utf-8") as f:
                     code = f.read()
                 score = self.calculate_score(code, str(filepath))
                 scores.append(score)
@@ -285,16 +325,12 @@ class CuriosityCalculator:
         scores = {}
 
         for subdir in root_path.iterdir():
-            if subdir.is_dir() and not subdir.name.startswith('.'):
+            if subdir.is_dir() and not subdir.name.startswith("."):
                 scores[subdir.name] = self.calculate_directory_curiosity(str(subdir))
 
         return scores
 
-    def get_top_interesting_files(
-        self,
-        directory: str,
-        limit: int = 10
-    ) -> List[tuple[str, float]]:
+    def get_top_interesting_files(self, directory: str, limit: int = 10) -> List[tuple[str, float]]:
         """
         Retorna os arquivos mais interessantes de um diretório.
 
@@ -308,10 +344,17 @@ class CuriosityCalculator:
         dir_path = Path(directory)
         file_scores = []
 
-        for filepath in dir_path.rglob('*'):
-            if filepath.is_file() and filepath.suffix in {'.py', '.ts', '.js', '.yaml', '.yml', '.json'}:
+        for filepath in dir_path.rglob("*"):
+            if filepath.is_file() and filepath.suffix in {
+                ".py",
+                ".ts",
+                ".js",
+                ".yaml",
+                ".yml",
+                ".json",
+            }:
                 try:
-                    with open(filepath, 'r', encoding='utf-8') as f:
+                    with open(filepath, "r", encoding="utf-8") as f:
                         code = f.read()
                     score = self.calculate_score(code, str(filepath))
                     file_scores.append((str(filepath), score))

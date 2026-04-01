@@ -1,16 +1,18 @@
 """FastAPI HTTP server for health checks and API endpoints"""
-from datetime import datetime
-from typing import Optional, List, Dict, Any
+from datetime import datetime, timezone
+from typing import Dict, Optional
+
+import structlog
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import PlainTextResponse
-from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
-import structlog
+from prometheus_client import generate_latest
 
-from ..models.scout_signal import ScoutSignal, SignalType, ChannelType
 from neural_hive_domain import UnifiedDomain
-from ..models.raw_event import RawEvent
-from ..engine.exploration_engine import ExplorationEngine
+
 from ..config import get_settings
+from ..engine.exploration_engine import ExplorationEngine
+from ..models.raw_event import RawEvent
+from ..models.scout_signal import ChannelType, SignalType
 
 logger = structlog.get_logger()
 
@@ -18,11 +20,11 @@ logger = structlog.get_logger()
 app = FastAPI(
     title="Scout Agents API",
     description="Neural Hive-Mind Exploration Layer - Scout Agents",
-    version="1.0.0"
+    version="1.0.0",
 )
 
 _engine: Optional[ExplorationEngine] = None
-_agent_start_time: datetime = datetime.utcnow()
+_agent_start_time: datetime = datetime.now(timezone.utc)
 _agent_id: str = ""
 
 
@@ -36,7 +38,7 @@ def init_app(engine: ExplorationEngine, agent_id: str):
 @app.get("/health/live")
 async def liveness():
     """Liveness probe - checks if process is alive"""
-    return {"status": "alive", "timestamp": datetime.utcnow().isoformat()}
+    return {"status": "alive", "timestamp": datetime.now(timezone.utc).isoformat()}
 
 
 @app.get("/health/ready")
@@ -47,8 +49,8 @@ async def readiness():
 
     return {
         "status": "ready",
-        "timestamp": datetime.utcnow().isoformat(),
-        "agent_id": _agent_id
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "agent_id": _agent_id,
     }
 
 
@@ -65,7 +67,7 @@ async def get_status():
         raise HTTPException(status_code=503, detail="Engine not initialized")
 
     settings = get_settings()
-    uptime = (datetime.utcnow() - _agent_start_time).total_seconds()
+    uptime = (datetime.now(timezone.utc) - _agent_start_time).total_seconds()
     stats = _engine.get_stats()
 
     return {
@@ -77,9 +79,9 @@ async def get_status():
         "configuration": {
             "max_signals_per_minute": settings.detection.max_signals_per_minute,
             "curiosity_threshold": settings.detection.curiosity_threshold,
-            "confidence_threshold": settings.detection.confidence_threshold
+            "confidence_threshold": settings.detection.confidence_threshold,
         },
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -87,7 +89,7 @@ async def get_status():
 async def list_signals(
     domain: Optional[UnifiedDomain] = None,
     signal_type: Optional[SignalType] = None,
-    limit: int = Query(default=100, le=1000)
+    limit: int = Query(default=100, le=1000),
 ):
     """
     List recent signals (mock implementation for MVP)
@@ -101,8 +103,8 @@ async def list_signals(
         "limit": limit,
         "filters": {
             "domain": domain.value if domain else None,
-            "signal_type": signal_type.value if signal_type else None
-        }
+            "signal_type": signal_type.value if signal_type else None,
+        },
     }
 
 
@@ -122,8 +124,7 @@ async def get_signal(signal_id: str):
 
 @app.post("/api/v1/signals/simulate")
 async def simulate_signal(
-    domain: UnifiedDomain = UnifiedDomain.TECHNICAL,
-    channel: ChannelType = ChannelType.CORE
+    domain: UnifiedDomain = UnifiedDomain.TECHNICAL, channel: ChannelType = ChannelType.CORE
 ):
     """
     Simulate signal detection (for testing/development)
@@ -137,19 +138,12 @@ async def simulate_signal(
     try:
         # Create synthetic raw event
         raw_event = RawEvent(
-            event_id=f"sim_{datetime.utcnow().timestamp()}",
+            event_id=f"sim_{datetime.now(timezone.utc).timestamp()}",
             event_type="metric",
             source="simulation",
-            timestamp=datetime.utcnow(),
-            payload={
-                "value": 42.5,
-                "metric_name": "test_metric",
-                "anomaly_factor": 2.5
-            },
-            metadata={
-                "simulation": "true",
-                "domain": domain.value
-            }
+            timestamp=datetime.now(timezone.utc),
+            payload={"value": 42.5, "metric_name": "test_metric", "anomaly_factor": 2.5},
+            metadata={"simulation": "true", "domain": domain.value},
         )
 
         # Process through engine
@@ -163,13 +157,13 @@ async def simulate_signal(
                 "curiosity_score": signal.curiosity_score,
                 "confidence": signal.confidence,
                 "domain": domain.value,
-                "channel": channel.value
+                "channel": channel.value,
             }
         else:
             return {
                 "status": "no_signal_detected",
                 "domain": domain.value,
-                "reason": "Signal did not meet thresholds or was filtered"
+                "reason": "Signal did not meet thresholds or was filtered",
             }
 
     except Exception as e:
@@ -181,10 +175,7 @@ async def simulate_signal(
 async def global_exception_handler(request, exc):
     """Global exception handler"""
     logger.error(
-        "unhandled_exception",
-        path=request.url.path,
-        method=request.method,
-        error=str(exc)
+        "unhandled_exception", path=request.url.path, method=request.method, error=str(exc)
     )
     return HTTPException(status_code=500, detail="Internal server error")
 
@@ -198,8 +189,7 @@ _explorations: Dict[str, Dict] = {}  # exploration_id -> exploration_data
 
 @app.get("/api/v1/explorations")
 async def list_explorations(
-    status: str = Query(default="active"),
-    limit: int = Query(default=50, le=100)
+    status: str = Query(default="active"), limit: int = Query(default=50, le=100)
 ):
     """
     Lista explorações ativas ou recentes.
@@ -215,27 +205,26 @@ async def list_explorations(
         raise HTTPException(status_code=503, detail="Engine not initialized")
 
     filtered = [
-        (exp_id, exp) for exp_id, exp in _explorations.items()
-        if exp.get('status') == status
+        (exp_id, exp) for exp_id, exp in _explorations.items() if exp.get("status") == status
     ]
 
-    filtered.sort(key=lambda x: x[1].get('created_at', ''), reverse=True)
+    filtered.sort(key=lambda x: x[1].get("created_at", ""), reverse=True)
 
     return {
         "explorations": [
             {
                 "exploration_id": exp_id,
-                "target": exp.get('target'),
-                "status": exp.get('status'),
-                "created_at": exp.get('created_at'),
-                "scouts_assigned": exp.get('scouts_assigned', 0),
-                "files_scanned": exp.get('files_scanned', 0),
-                "patterns_found": exp.get('patterns_found', 0)
+                "target": exp.get("target"),
+                "status": exp.get("status"),
+                "created_at": exp.get("created_at"),
+                "scouts_assigned": exp.get("scouts_assigned", 0),
+                "files_scanned": exp.get("files_scanned", 0),
+                "patterns_found": exp.get("patterns_found", 0),
             }
             for exp_id, exp in filtered[:limit]
         ],
         "total": len(filtered),
-        "status_filter": status
+        "status_filter": status,
     }
 
 
@@ -258,19 +247,19 @@ async def cancel_exploration(exploration_id: str):
 
     exploration = _explorations[exploration_id]
 
-    if exploration.get('status') == 'completed':
+    if exploration.get("status") == "completed":
         raise HTTPException(status_code=400, detail="Exploration already completed")
 
     # Marcar como cancelada
-    exploration['status'] = 'cancelled'
-    exploration['cancelled_at'] = datetime.utcnow().isoformat()
+    exploration["status"] = "cancelled"
+    exploration["cancelled_at"] = datetime.now(timezone.utc).isoformat()
 
     logger.info("exploration_cancelled", exploration_id=exploration_id)
 
     return {
         "exploration_id": exploration_id,
         "status": "cancelled",
-        "message": "Exploration cancelled successfully"
+        "message": "Exploration cancelled successfully",
     }
 
 
@@ -294,29 +283,25 @@ async def add_scout(exploration_id: str, scout_id: str = Query(...)):
 
     exploration = _explorations[exploration_id]
 
-    if exploration.get('status') not in ('pending', 'active'):
+    if exploration.get("status") not in ("pending", "active"):
         raise HTTPException(status_code=400, detail="Exploration is not accepting new scouts")
 
     # Adicionar scout
-    if 'scouts' not in exploration:
-        exploration['scouts'] = []
+    if "scouts" not in exploration:
+        exploration["scouts"] = []
 
-    if scout_id in exploration['scouts']:
+    if scout_id in exploration["scouts"]:
         raise HTTPException(status_code=400, detail="Scout already assigned")
 
-    exploration['scouts'].append(scout_id)
-    exploration['scouts_assigned'] = len(exploration['scouts'])
+    exploration["scouts"].append(scout_id)
+    exploration["scouts_assigned"] = len(exploration["scouts"])
 
-    logger.info(
-        "scout_added_to_exploration",
-        exploration_id=exploration_id,
-        scout_id=scout_id
-    )
+    logger.info("scout_added_to_exploration", exploration_id=exploration_id, scout_id=scout_id)
 
     return {
         "exploration_id": exploration_id,
         "scout_id": scout_id,
-        "total_scouts": len(exploration['scouts'])
+        "total_scouts": len(exploration["scouts"]),
     }
 
 
@@ -324,10 +309,10 @@ async def add_scout(exploration_id: str, scout_id: str = Query(...)):
 # Pattern Detection Endpoints
 # ========================================================================
 
+
 @app.get("/api/v1/patterns")
 async def list_patterns(
-    category: Optional[str] = Query(default=None),
-    limit: int = Query(default=100, le=500)
+    category: Optional[str] = Query(default=None), limit: int = Query(default=100, le=500)
 ):
     """
     Lista padrões de design detectados.
@@ -355,27 +340,29 @@ async def list_patterns(
         for pattern_name in discovery.get_known_patterns():
             info = discovery.get_pattern_info(pattern_name)
             if info:
-                all_patterns.append({
-                    "name": pattern_name.capitalize(),
-                    "category": info['category'],
-                    "count": 0,
-                    "keywords": info.get('keywords', []),
-                    "common_methods": info.get('common_methods', []),
-                    "naming_suffix": info.get('naming_suffix', [])
-                })
+                all_patterns.append(
+                    {
+                        "name": pattern_name.capitalize(),
+                        "category": info["category"],
+                        "count": 0,
+                        "keywords": info.get("keywords", []),
+                        "common_methods": info.get("common_methods", []),
+                        "naming_suffix": info.get("naming_suffix", []),
+                    }
+                )
 
         # Filtrar por categoria se especificado
         if category:
-            all_patterns = [p for p in all_patterns if p['category'] == category]
-            category_list = [category_map.get(category, [])]
+            all_patterns = [p for p in all_patterns if p["category"] == category]
+            [category_map.get(category, [])]
         else:
-            category_list = [list(patterns) for patterns in category_map.values()]
+            [list(patterns) for patterns in category_map.values()]
 
         return {
             "patterns": all_patterns[:limit],
             "total": len(all_patterns),
             "category_filter": category,
-            "categories": category_map
+            "categories": category_map,
         }
 
     except Exception as e:
@@ -387,10 +374,11 @@ async def list_patterns(
 # Signal Detection Endpoints
 # ========================================================================
 
+
 @app.post("/api/v1/signal-detect")
 async def detect_signals(
     directory: str = Query(...),
-    extensions: Optional[str] = Query(default=".py,.ts,.js,.yaml,.json")
+    extensions: Optional[str] = Query(default=".py,.ts,.js,.yaml,.json"),
 ):
     """
     Detecta sinais de mudança em diretório.
@@ -406,15 +394,11 @@ async def detect_signals(
         raise HTTPException(status_code=503, detail="Engine not initialized")
 
     try:
-        ext_set = set(e.strip() for e in extensions.split(','))
+        ext_set = set(e.strip() for e in extensions.split(","))
 
         signals = await _engine.scan_codebase(directory, ext_set)
 
-        return {
-            "directory": directory,
-            "signals_detected": len(signals),
-            "signals": signals
-        }
+        return {"directory": directory, "signals_detected": len(signals), "signals": signals}
 
     except Exception as e:
         logger.error("signal_detection_failed", directory=directory, error=str(e))
@@ -425,11 +409,9 @@ async def detect_signals(
 # Additional Utility Endpoints
 # ========================================================================
 
+
 @app.get("/api/v1/curiosity/{directory:path}")
-async def get_curiosity_scores(
-    directory: str,
-    limit: int = Query(default=10, le=50)
-):
+async def get_curiosity_scores(directory: str, limit: int = Query(default=10, le=50)):
     """
     Retorna arquivos mais curiosos de um diretório.
 
@@ -446,11 +428,7 @@ async def get_curiosity_scores(
     try:
         scores = await _engine.get_curiosity_scores(str(directory), limit)
 
-        return {
-            "directory": directory,
-            "files": scores,
-            "total": len(scores)
-        }
+        return {"directory": directory, "files": scores, "total": len(scores)}
 
     except Exception as e:
         logger.error("curiosity_calculation_failed", directory=directory, error=str(e))
@@ -482,10 +460,7 @@ async def get_exploration_summary(directory: str):
 
 
 @app.post("/api/v1/explorations")
-async def create_exploration(
-    target: str = Query(...),
-    task_type: str = Query(default="scan")
-):
+async def create_exploration(target: str = Query(...), task_type: str = Query(default="scan")):
     """
     Cria nova exploração.
 
@@ -499,28 +474,25 @@ async def create_exploration(
     if not _engine:
         raise HTTPException(status_code=503, detail="Engine not initialized")
 
-    exploration_id = f"exp_{datetime.utcnow().timestamp()}"
+    exploration_id = f"exp_{datetime.now(timezone.utc).timestamp()}"
 
     _explorations[exploration_id] = {
-        'target': target,
-        'task_type': task_type,
-        'status': 'pending',
-        'created_at': datetime.utcnow().isoformat(),
-        'scouts_assigned': 0,
-        'files_scanned': 0,
-        'patterns_found': 0
+        "target": target,
+        "task_type": task_type,
+        "status": "pending",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "scouts_assigned": 0,
+        "files_scanned": 0,
+        "patterns_found": 0,
     }
 
     logger.info(
-        "exploration_created",
-        exploration_id=exploration_id,
-        target=target,
-        task_type=task_type
+        "exploration_created", exploration_id=exploration_id, target=target, task_type=task_type
     )
 
     return {
         "exploration_id": exploration_id,
         "target": target,
         "status": "pending",
-        "message": "Exploration created successfully"
+        "message": "Exploration created successfully",
     }

@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock
 
 import pytest
@@ -176,7 +176,7 @@ def test_is_cache_valid_no_cache(checker):
 def test_is_cache_valid_expired(checker):
     """Testa _is_cache_valid quando cache expirou."""
     checker._health_cache = {"status": "cached"}
-    checker._cache_timestamp = datetime.utcnow() - timedelta(seconds=31)
+    checker._cache_timestamp = datetime.now(timezone.utc) - timedelta(seconds=31)
 
     assert checker._is_cache_valid() is False
 
@@ -185,7 +185,7 @@ def test_is_cache_valid_expired(checker):
 def test_is_cache_valid_fresh(checker):
     """Testa _is_cache_valid quando cache é fresco."""
     checker._health_cache = {"status": "cached"}
-    checker._cache_timestamp = datetime.utcnow() - timedelta(seconds=10)
+    checker._cache_timestamp = datetime.now(timezone.utc) - timedelta(seconds=10)
 
     assert checker._is_cache_valid() is True
 

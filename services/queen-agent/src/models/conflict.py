@@ -1,7 +1,8 @@
 from datetime import datetime
-from typing import Any, Dict, List, Optional
-from pydantic import BaseModel, Field
+from typing import Any
 from uuid import uuid4
+
+from pydantic import BaseModel, Field
 
 from neural_hive_domain import UnifiedDomain
 
@@ -15,17 +16,13 @@ class Conflict(BaseModel):
     left_domain: UnifiedDomain = Field(..., description="Primeiro domínio em conflito")
     right_domain: UnifiedDomain = Field(..., description="Segundo domínio em conflito")
 
-    entities: List[Dict[str, Any]] = Field(
+    entities: list[dict[str, Any]] = Field(
         default_factory=list, description="Entidades em conflito"
     )
     severity: float = Field(0.0, ge=0.0, le=1.0, description="Severidade do conflito")
 
-    detected_at: datetime = Field(
-        default_factory=datetime.now, description="Quando foi detectado"
-    )
-    context: Dict[str, Any] = Field(
-        default_factory=dict, description="Contexto adicional"
-    )
+    detected_at: datetime = Field(default_factory=datetime.now, description="Quando foi detectado")
+    context: dict[str, Any] = Field(default_factory=dict, description="Contexto adicional")
 
     def calculate_severity(self) -> float:
         """Calcular severidade baseado em divergência de scores"""
@@ -60,8 +57,7 @@ class Conflict(BaseModel):
 
         # Security vs Performance/Operational
         if UnifiedDomain.SECURITY in domains and (
-            UnifiedDomain.OPERATIONAL in domains
-            or UnifiedDomain.INFRASTRUCTURE in domains
+            UnifiedDomain.OPERATIONAL in domains or UnifiedDomain.INFRASTRUCTURE in domains
         ):
             return "PRIORITIZE_SECURITY" if self.severity > 0.7 else "COMPROMISE"
 
@@ -74,10 +70,7 @@ class Conflict(BaseModel):
             return "PRIORITIZE_COMPLIANCE" if self.severity > 0.5 else "COMPROMISE"
 
         # Infrastructure vs Operational (speed vs reliability)
-        if (
-            UnifiedDomain.INFRASTRUCTURE in domains
-            and UnifiedDomain.OPERATIONAL in domains
-        ):
+        if UnifiedDomain.INFRASTRUCTURE in domains and UnifiedDomain.OPERATIONAL in domains:
             return "PRIORITIZE_RELIABILITY" if self.severity > 0.6 else "COMPROMISE"
 
         # Security vs Business
@@ -93,10 +86,8 @@ class ConflictResolution(BaseModel):
     conflict_id: str = Field(..., description="ID do conflito")
     resolution_strategy: str = Field(..., description="Estratégia de resolução")
 
-    chosen_entity: Optional[str] = Field(None, description="Entidade escolhida")
+    chosen_entity: str | None = Field(None, description="Entidade escolhida")
     rationale: str = Field(..., description="Justificativa da resolução")
 
     confidence: float = Field(..., ge=0.0, le=1.0, description="Confiança na resolução")
-    resolved_at: datetime = Field(
-        default_factory=datetime.now, description="Quando foi resolvido"
-    )
+    resolved_at: datetime = Field(default_factory=datetime.now, description="Quando foi resolvido")

@@ -10,15 +10,12 @@ Imports:
       que carrega dinamicamente os modelos Pydantic compartilhados do orchestrator-dynamic
 """
 from datetime import datetime
-from typing import Optional, Dict, List
-from sqlalchemy import (
-    Column, BigInteger, String, Text, Integer, TIMESTAMP,
-    CheckConstraint, Index
-)
+
+from sqlalchemy import TIMESTAMP, BigInteger, CheckConstraint, Column, Index, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import declarative_base
 
-from . import ExecutionTicket, SLA, QoS
+from . import SLA, ExecutionTicket, QoS
 
 Base = declarative_base()
 
@@ -26,37 +23,39 @@ Base = declarative_base()
 def _get_enum_value(val) -> str:
     """
     Extrai valor de enum de forma segura.
-    
+
     Com Pydantic ConfigDict(use_enum_values=True), os valores podem vir
     já como strings em vez de objetos Enum. Esta função trata ambos os casos.
-    
+
     Args:
         val: Valor que pode ser um Enum ou uma string
-        
+
     Returns:
         String com o valor
     """
-    return val.value if hasattr(val, 'value') else str(val)
+    return val.value if hasattr(val, "value") else str(val)
 
 
 class TicketORM(Base):
     """Modelo ORM para tabela execution_tickets."""
 
-    __tablename__ = 'execution_tickets'
+    __tablename__ = "execution_tickets"
     __table_args__ = (
         CheckConstraint(
             "status IN ('PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'COMPENSATING', 'COMPENSATED')",
-            name='chk_status'
+            name="chk_status",
         ),
-        CheckConstraint('retry_count >= 0', name='chk_retry_count'),
-        CheckConstraint('completed_at IS NULL OR completed_at >= started_at', name='chk_completed_after_started'),
-        Index('idx_ticket_id', 'ticket_id', unique=True),
-        Index('idx_plan_id', 'plan_id'),
-        Index('idx_intent_id', 'intent_id'),
-        Index('idx_status', 'status'),
-        Index('idx_created_at', 'created_at'),
-        Index('idx_status_priority', 'status', 'priority'),
-        {'schema': 'public'}
+        CheckConstraint("retry_count >= 0", name="chk_retry_count"),
+        CheckConstraint(
+            "completed_at IS NULL OR completed_at >= started_at", name="chk_completed_after_started"
+        ),
+        Index("idx_ticket_id", "ticket_id", unique=True),
+        Index("idx_plan_id", "plan_id"),
+        Index("idx_intent_id", "intent_id"),
+        Index("idx_status", "status"),
+        Index("idx_created_at", "created_at"),
+        Index("idx_status_priority", "status", "priority"),
+        {"schema": "public"},
     )
 
     # Campos
@@ -72,7 +71,7 @@ class TicketORM(Base):
     task_type = Column(String(20), nullable=False)
     description = Column(Text, nullable=False)
     dependencies = Column(JSONB, default=[], nullable=False)
-    status = Column(String(20), default='PENDING', nullable=False)
+    status = Column(String(20), default="PENDING", nullable=False)
     priority = Column(String(20), nullable=False)
     risk_band = Column(String(20), nullable=False)
     sla = Column(JSONB, nullable=False)
@@ -88,10 +87,12 @@ class TicketORM(Base):
     retry_count = Column(Integer, default=0, nullable=False)
     error_message = Column(Text, nullable=True)
     compensation_ticket_id = Column(String(36), nullable=True)
-    ticket_metadata = Column('metadata', JSONB, default={}, nullable=False)
+    ticket_metadata = Column("metadata", JSONB, default={}, nullable=False)
     schema_version = Column(Integer, default=1, nullable=False)
     hash = Column(String(64), nullable=True)
-    updated_at = Column(TIMESTAMP, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    updated_at = Column(
+        TIMESTAMP, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
 
     def to_pydantic(self) -> ExecutionTicket:
         """
@@ -140,11 +141,11 @@ class TicketORM(Base):
             error_message=self.error_message,
             compensation_ticket_id=self.compensation_ticket_id,
             metadata=self.ticket_metadata,
-            schema_version=self.schema_version
+            schema_version=self.schema_version,
         )
 
     @classmethod
-    def from_pydantic(cls, ticket: ExecutionTicket) -> 'TicketORM':
+    def from_pydantic(cls, ticket: ExecutionTicket) -> "TicketORM":
         """
         Cria ORM a partir de modelo Pydantic ExecutionTicket.
 
@@ -156,21 +157,25 @@ class TicketORM(Base):
         """
         # Converter timestamps millis para datetime
         created_at = datetime.fromtimestamp(ticket.created_at / 1000.0)
-        started_at = datetime.fromtimestamp(ticket.started_at / 1000.0) if ticket.started_at else None
-        completed_at = datetime.fromtimestamp(ticket.completed_at / 1000.0) if ticket.completed_at else None
+        started_at = (
+            datetime.fromtimestamp(ticket.started_at / 1000.0) if ticket.started_at else None
+        )
+        completed_at = (
+            datetime.fromtimestamp(ticket.completed_at / 1000.0) if ticket.completed_at else None
+        )
 
         # Converter SLA para dict
         sla_dict = {
-            'deadline': ticket.sla.deadline,
-            'timeout_ms': ticket.sla.timeout_ms,
-            'max_retries': ticket.sla.max_retries
+            "deadline": ticket.sla.deadline,
+            "timeout_ms": ticket.sla.timeout_ms,
+            "max_retries": ticket.sla.max_retries,
         }
 
         # Converter QoS para dict (usando helper para suportar enum ou string)
         qos_dict = {
-            'delivery_mode': _get_enum_value(ticket.qos.delivery_mode),
-            'consistency': _get_enum_value(ticket.qos.consistency),
-            'durability': _get_enum_value(ticket.qos.durability)
+            "delivery_mode": _get_enum_value(ticket.qos.delivery_mode),
+            "consistency": _get_enum_value(ticket.qos.consistency),
+            "durability": _get_enum_value(ticket.qos.durability),
         }
 
         # Calcular hash
@@ -206,5 +211,5 @@ class TicketORM(Base):
             compensation_ticket_id=ticket.compensation_ticket_id,
             metadata=ticket.metadata,
             schema_version=ticket.schema_version,
-            hash=ticket_hash
+            hash=ticket_hash,
         )

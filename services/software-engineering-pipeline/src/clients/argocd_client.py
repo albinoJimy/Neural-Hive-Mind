@@ -14,9 +14,7 @@ class ApplicationSyncRequest(BaseModel):
     name: str = Field(..., description="Nome da aplicação")
     namespace: str = Field(default="argocd", description="Namespace da aplicação")
     revision: str | None = Field(None, description="Revision específica para sync")
-    prune: bool = Field(
-        default=False, description="Remover recursos que não existem no Git"
-    )
+    prune: bool = Field(default=False, description="Remover recursos que não existem no Git")
     dry_run: bool = Field(default=False, description="Simular sync sem aplicar")
 
 
@@ -95,9 +93,7 @@ class ArgoCDClient:
             await self._client.aclose()
             self._client = None
 
-    async def sync_application(
-        self, request: ApplicationSyncRequest
-    ) -> ApplicationSyncResponse:
+    async def sync_application(self, request: ApplicationSyncRequest) -> ApplicationSyncResponse:
         """
         Sincroniza uma aplicação ArgoCD.
 
@@ -185,9 +181,7 @@ class ArgoCDClient:
             message=f"Failed to rollback: {error_msg}",
         )
 
-    async def get_application(
-        self, name: str, namespace: str | None = None
-    ) -> dict | None:
+    async def get_application(self, name: str, namespace: str | None = None) -> dict | None:
         """
         Obtém informações de uma aplicação.
 
@@ -209,9 +203,7 @@ class ArgoCDClient:
             data = response.json()
             return {
                 "name": data.get("name"),
-                "namespace": data.get("spec", {})
-                .get("destination", {})
-                .get("namespace"),
+                "namespace": data.get("spec", {}).get("destination", {}).get("namespace"),
                 "project": data.get("spec", {}).get("project"),
                 "sync_status": data.get("status", {}).get("sync", {}).get("status"),
                 "health_status": data.get("status", {}).get("health", {}).get("status"),
@@ -255,14 +247,10 @@ class ArgoCDClient:
             return [
                 {
                     "name": app.get("name"),
-                    "namespace": app.get("spec", {})
-                    .get("destination", {})
-                    .get("namespace"),
+                    "namespace": app.get("spec", {}).get("destination", {}).get("namespace"),
                     "project": app.get("spec", {}).get("project"),
                     "sync_status": app.get("status", {}).get("sync", {}).get("status"),
-                    "health_status": app.get("status", {})
-                    .get("health", {})
-                    .get("status"),
+                    "health_status": app.get("status", {}).get("health", {}).get("status"),
                     "synced_at": app.get("status", {}).get("sync", {}).get("startedAt"),
                 }
                 for app in data.get("items", [])

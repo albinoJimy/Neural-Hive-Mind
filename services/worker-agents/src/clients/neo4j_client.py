@@ -4,9 +4,8 @@ Neo4j Client para queries de grafo no Worker Agents.
 Fornece interface assíncrona ao Neo4j para queries em grafo de conhecimento.
 Reutilizado de memory-layer-api para compatibilidade.
 """
-import structlog
-from typing import List, Dict, Optional
 
+import structlog
 
 logger = structlog.get_logger()
 
@@ -19,10 +18,10 @@ class Neo4jClient:
         uri: str,
         user: str,
         password: str,
-        database: str = 'neo4j',
+        database: str = "neo4j",
         max_connection_pool_size: int = 50,
         connection_timeout: int = 30,
-        encrypted: bool = False
+        encrypted: bool = False,
     ):
         """
         Inicializa o cliente Neo4j
@@ -54,24 +53,17 @@ class Neo4jClient:
             auth=(self.user, self.password),
             max_connection_pool_size=self.max_connection_pool_size,
             connection_timeout=self.connection_timeout,
-            encrypted=self.encrypted
+            encrypted=self.encrypted,
         )
 
         # Verifica conectividade
         await self.driver.verify_connectivity()
 
-        logger.info(
-            'neo4j_client_initialized',
-            uri=self.uri,
-            database=self.database
-        )
+        logger.info("neo4j_client_initialized", uri=self.uri, database=self.database)
 
     async def execute_query(
-        self,
-        query: str,
-        parameters: Optional[Dict] = None,
-        timeout: Optional[float] = None
-    ) -> List[Dict]:
+        self, query: str, parameters: dict | None = None, timeout: float | None = None
+    ) -> list[dict]:
         """
         Executa query Cypher
 
@@ -91,25 +83,15 @@ class Neo4jClient:
                 result = await session.run(query, parameters, timeout=timeout)
                 records = await result.data()
 
-                logger.debug(
-                    'neo4j_query_executed',
-                    count=len(records)
-                )
+                logger.debug("neo4j_query_executed", count=len(records))
 
                 return records
 
             except Exception as e:
-                logger.error(
-                    'neo4j_query_error',
-                    error=str(e)
-                )
+                logger.exception("neo4j_query_error", error=str(e))
                 raise
 
-    async def execute_write(
-        self,
-        query: str,
-        parameters: Optional[Dict] = None
-    ) -> Dict:
+    async def execute_write(self, query: str, parameters: dict | None = None) -> dict:
         """
         Executa query de escrita
 
@@ -129,28 +111,25 @@ class Neo4jClient:
                 summary = await result.consume()
 
                 logger.debug(
-                    'neo4j_write_executed',
+                    "neo4j_write_executed",
                     nodes_created=summary.counters.nodes_created,
-                    relationships_created=summary.counters.relationships_created
+                    relationships_created=summary.counters.relationships_created,
                 )
 
                 return {
-                    'nodes_created': summary.counters.nodes_created,
-                    'nodes_deleted': summary.counters.nodes_deleted,
-                    'relationships_created': summary.counters.relationships_created,
-                    'relationships_deleted': summary.counters.relationships_deleted,
-                    'properties_set': summary.counters.properties_set
+                    "nodes_created": summary.counters.nodes_created,
+                    "nodes_deleted": summary.counters.nodes_deleted,
+                    "relationships_created": summary.counters.relationships_created,
+                    "relationships_deleted": summary.counters.relationships_deleted,
+                    "properties_set": summary.counters.properties_set,
                 }
 
             except Exception as e:
-                logger.error(
-                    'neo4j_write_error',
-                    error=str(e)
-                )
+                logger.exception("neo4j_write_error", error=str(e))
                 raise
 
     async def close(self):
         """Fecha conexão com Neo4j"""
         if self.driver:
             await self.driver.close()
-            logger.info('neo4j_client_closed')
+            logger.info("neo4j_client_closed")

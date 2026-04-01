@@ -11,7 +11,6 @@ libraries/python/neural_hive_specialists/validation/description_validator.py
 
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional, Any
 
 # Adicionar path para o módulo compartilhado
 _lib_path = Path(__file__).parent.parent.parent.parent.parent.parent / "libraries" / "python"
@@ -25,58 +24,108 @@ try:
         DescriptionQualityValidator,
         get_validator,
     )
+
     _using_shared_module = True
 except ImportError:
     pass
 
 # Fallback: definir localmente se o módulo compartilhado não estiver disponível
 if not _using_shared_module:
-    import re
     import structlog
 
     logger = structlog.get_logger()
     logger.warning(
         "using_fallback_description_validator",
-        reason="neural_hive_specialists.validation module not found"
+        reason="neural_hive_specialists.validation module not found",
     )
 
     class DescriptionQualityValidator:
         """Fallback validator quando módulo compartilhado não está disponível."""
 
-        DOMAIN_KEYWORDS: Dict[str, List[str]] = {
-            'security-analysis': [
-                'auth', 'security', 'validate', 'encrypt', 'audit', 'permission',
-                'credential', 'token', 'sanitize', 'injection', 'access', 'role'
+        DOMAIN_KEYWORDS: dict[str, list[str]] = {
+            "security-analysis": [
+                "auth",
+                "security",
+                "validate",
+                "encrypt",
+                "audit",
+                "permission",
+                "credential",
+                "token",
+                "sanitize",
+                "injection",
+                "access",
+                "role",
             ],
-            'architecture-review': [
-                'service', 'interface', 'pattern', 'design', 'module', 'component',
-                'api', 'integration', 'layer', 'dependency', 'contract', 'schema'
+            "architecture-review": [
+                "service",
+                "interface",
+                "pattern",
+                "design",
+                "module",
+                "component",
+                "api",
+                "integration",
+                "layer",
+                "dependency",
+                "contract",
+                "schema",
             ],
-            'performance-optimization': [
-                'cache', 'index', 'optimize', 'parallel', 'async', 'batch',
-                'latency', 'throughput', 'memory', 'pool', 'query', 'buffer'
+            "performance-optimization": [
+                "cache",
+                "index",
+                "optimize",
+                "parallel",
+                "async",
+                "batch",
+                "latency",
+                "throughput",
+                "memory",
+                "pool",
+                "query",
+                "buffer",
             ],
-            'code-quality': [
-                'test', 'error', 'log', 'document', 'refactor', 'lint',
-                'coverage', 'exception', 'debug', 'trace', 'monitor', 'metric'
+            "code-quality": [
+                "test",
+                "error",
+                "log",
+                "document",
+                "refactor",
+                "lint",
+                "coverage",
+                "exception",
+                "debug",
+                "trace",
+                "monitor",
+                "metric",
             ],
-            'business-logic': [
-                'workflow', 'kpi', 'cost', 'efficiency', 'process', 'metric',
-                'rule', 'policy', 'compliance', 'approval', 'transaction', 'pipeline'
-            ]
+            "business-logic": [
+                "workflow",
+                "kpi",
+                "cost",
+                "efficiency",
+                "process",
+                "metric",
+                "rule",
+                "policy",
+                "compliance",
+                "approval",
+                "transaction",
+                "pipeline",
+            ],
         }
 
-        SECURITY_KEYWORDS: Dict[str, List[str]] = {
-            'confidential': ['encrypt', 'auth', 'audit', 'permission', 'sanitize'],
-            'restricted': ['encrypt', 'auth', 'audit', 'permission', 'sanitize'],
-            'internal': ['validate', 'verify', 'check', 'access'],
-            'public': []
+        SECURITY_KEYWORDS: dict[str, list[str]] = {
+            "confidential": ["encrypt", "auth", "audit", "permission", "sanitize"],
+            "restricted": ["encrypt", "auth", "audit", "permission", "sanitize"],
+            "internal": ["validate", "verify", "check", "access"],
+            "public": [],
         }
 
-        QOS_KEYWORDS: Dict[str, List[str]] = {
-            'exactly_once': ['idempotent', 'transaction', 'rollback', 'dedup'],
-            'at_least_once': ['retry', 'acknowledge', 'redelivery'],
-            'at_most_once': ['fire-and-forget', 'best-effort'],
+        QOS_KEYWORDS: dict[str, list[str]] = {
+            "exactly_once": ["idempotent", "transaction", "rollback", "dedup"],
+            "at_least_once": ["retry", "acknowledge", "redelivery"],
+            "at_most_once": ["fire-and-forget", "best-effort"],
         }
 
         MIN_WORDS = 15
@@ -89,9 +138,9 @@ if not _using_shared_module:
             self,
             description: str,
             domain: str,
-            security_level: Optional[str] = None,
-            qos: Optional[str] = None
-        ) -> Dict:
+            security_level: str | None = None,
+            qos: str | None = None,
+        ) -> dict:
             """Validação simplificada de fallback."""
             words = description.split()
             word_count = len(words)
@@ -122,7 +171,7 @@ if not _using_shared_module:
 
             # Score de segurança
             security_score = 1.0
-            if security_level in ['confidential', 'restricted']:
+            if security_level in ["confidential", "restricted"]:
                 sec_kws = self.SECURITY_KEYWORDS.get(security_level, [])
                 sec_found = sum(1 for kw in sec_kws if kw in description_lower)
                 if sec_found >= 2:
@@ -137,27 +186,27 @@ if not _using_shared_module:
             score = 0.25 * length_score + 0.35 * domain_score + 0.20 * security_score + 0.20
 
             return {
-                'score': round(score, 3),
-                'issues': issues,
-                'suggestions': [],
-                'metrics': {
-                    'word_count': word_count,
-                    'length_score': round(length_score, 3),
-                    'domain_score': round(domain_score, 3),
-                    'security_score': round(security_score, 3),
-                    'domain_keywords_found': found
-                }
+                "score": round(score, 3),
+                "issues": issues,
+                "suggestions": [],
+                "metrics": {
+                    "word_count": word_count,
+                    "length_score": round(length_score, 3),
+                    "domain_score": round(domain_score, 3),
+                    "security_score": round(security_score, 3),
+                    "domain_keywords_found": found,
+                },
             }
 
-        def suggest_improvements(self, description: str, context: Dict) -> str:
+        def suggest_improvements(self, description: str, context: dict) -> str:
             """Sugestão simplificada de fallback."""
-            domain = context.get('domain', 'code-quality')
-            security_level = context.get('security_level', 'internal')
-            priority = context.get('priority', 'normal')
+            domain = context.get("domain", "code-quality")
+            security_level = context.get("security_level", "internal")
+            priority = context.get("priority", "normal")
 
             return f"Enhanced {description} ({domain}, {security_level}, {priority} priority)"
 
-    _validator_instance: Optional[DescriptionQualityValidator] = None
+    _validator_instance: DescriptionQualityValidator | None = None
 
     def get_validator() -> DescriptionQualityValidator:
         """Obtém ou cria a instância singleton do validador."""
@@ -166,5 +215,6 @@ if not _using_shared_module:
             _validator_instance = DescriptionQualityValidator()
         return _validator_instance
 
+
 # Re-exportar para manter API
-__all__ = ['DescriptionQualityValidator', 'get_validator']
+__all__ = ["DescriptionQualityValidator", "get_validator"]

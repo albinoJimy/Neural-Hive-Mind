@@ -1,20 +1,21 @@
 """
 Repositório MongoDB para Insights.
 """
-from datetime import datetime, timedelta
-from typing import List, Optional, Dict, Any
-from motor.motor_asyncio import AsyncIOMotorClient
 import uuid
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, List, Optional
+
 import structlog
+from motor.motor_asyncio import AsyncIOMotorClient
 
 from ..models.insight_extended import (
-    InsightCreate,
-    InsightResponse,
-    InsightStatus,
     AnalysisType,
-    InsightSource,
-    TimeSeriesCacheEntry,
+    InsightCreate,
     InsightMetrics,
+    InsightResponse,
+    InsightSource,
+    InsightStatus,
+    TimeSeriesCacheEntry,
 )
 
 logger = structlog.get_logger()
@@ -49,8 +50,8 @@ class InsightRepository:
         doc = insight.dict()
         doc["insight_id"] = str(uuid.uuid4())
         doc["status"] = InsightStatus.PENDING
-        doc["created_at"] = datetime.utcnow()
-        doc["expires_at"] = datetime.utcnow() + timedelta(days=self.ttl_days)
+        doc["created_at"] = datetime.now(timezone.utc)
+        doc["expires_at"] = datetime.now(timezone.utc) + timedelta(days=self.ttl_days)
 
         # Initialize default metrics (required field)
         doc["metrics"] = InsightMetrics(
@@ -105,11 +106,7 @@ class InsightRepository:
 
         # Query with pagination
         cursor = (
-            self._db[self.collection]
-            .find(filters)
-            .sort("created_at", -1)
-            .skip(offset)
-            .limit(limit)
+            self._db[self.collection].find(filters).sort("created_at", -1).skip(offset).limit(limit)
         )
 
         items = []
@@ -163,7 +160,11 @@ class InsightRepository:
         return TimeSeriesCacheEntry(**doc)
 
     async def cache_set(
-        self, cache_key: str, metric_name: str, data: List[Dict[str, Any]], statistics: Dict[str, float]
+        self,
+        cache_key: str,
+        metric_name: str,
+        data: List[Dict[str, Any]],
+        statistics: Dict[str, float],
     ) -> TimeSeriesCacheEntry:
         """Salvar no cache de série temporal."""
         doc = {
@@ -171,8 +172,8 @@ class InsightRepository:
             "metric_name": metric_name,
             "data": data,
             "statistics": statistics,
-            "created_at": datetime.utcnow(),
-            "expires_at": datetime.utcnow() + timedelta(hours=self.cache_ttl_hours),
+            "created_at": datetime.now(timezone.utc),
+            "expires_at": datetime.now(timezone.utc) + timedelta(hours=self.cache_ttl_hours),
         }
 
         await self._db[self.cache_collection].update_one(
@@ -188,7 +189,7 @@ class InsightRepository:
 
     async def get_analytics_summary(self, time_range_hours: int = 24) -> Dict[str, Any]:
         """Obter resumo agregado para dashboard."""
-        start_date = datetime.utcnow() - timedelta(hours=time_range_hours)
+        start_date = datetime.now(timezone.utc) - timedelta(hours=time_range_hours)
 
         pipeline = [
             {"$match": {"created_at": {"$gte": start_date}}},
@@ -211,7 +212,12 @@ class InsightRepository:
 
         # Avg processing time
         pipeline_avg = [
-            {"$match": {"created_at": {"$gte": start_date}, "metrics.processing_time_ms": {"$exists": True}}},
+            {
+                "$match": {
+                    "created_at": {"$gte": start_date},
+                    "metrics.processing_time_ms": {"$exists": True},
+                }
+            },
             {"$group": {"_id": None, "avg": {"$avg": "$metrics.processing_time_ms"}}},
         ]
 
@@ -221,7 +227,12 @@ class InsightRepository:
 
         # Confidence distribution
         pipeline_conf = [
-            {"$match": {"created_at": {"$gte": start_date}, "metrics.confidence_score": {"$exists": True}}},
+            {
+                "$match": {
+                    "created_at": {"$gte": start_date},
+                    "metrics.confidence_score": {"$exists": True},
+                }
+            },
             {
                 "$bucket": {
                     "groupBy": "$metrics.confidence_score",

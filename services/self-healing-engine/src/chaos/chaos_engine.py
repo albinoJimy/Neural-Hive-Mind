@@ -6,36 +6,29 @@ playbooks e geração de relatórios.
 """
 
 import asyncio
-from datetime import datetime
-from typing import Any, Dict, List, Optional
+from datetime import datetime, timezone
 from time import perf_counter
+from typing import Any, Dict, List, Optional
+
 import structlog
-from prometheus_client import Counter, Gauge, Histogram, REGISTRY
+from prometheus_client import REGISTRY, Counter, Gauge, Histogram
 
 from neural_hive_observability import get_tracer
 from neural_hive_resilience import MonitoredCircuitBreaker
 
-from .chaos_models import (
-    ChaosExperiment,
-    ChaosExperimentStatus,
-    ChaosExperimentRequest,
-    ChaosExperimentResponse,
-    ExperimentReport,
-    FaultInjection,
-    ScenarioConfig,
-    ValidationResult,
-)
 from .chaos_config import (
-    BLAST_RADIUS_LIMITS,
-    CRITICAL_SERVICES,
     KAFKA_TOPICS,
     OPA_POLICIES,
-    PROTECTED_NAMESPACES,
-    RETRY_CONFIG,
-    get_blast_radius_limit,
     is_business_hours,
-    is_critical_service,
-    is_protected_namespace,
+)
+from .chaos_models import (
+    ChaosExperiment,
+    ChaosExperimentRequest,
+    ChaosExperimentResponse,
+    ChaosExperimentStatus,
+    ExperimentReport,
+    ScenarioConfig,
+    ValidationResult,
 )
 from .injectors import (
     ApplicationFaultInjector,
@@ -44,8 +37,8 @@ from .injectors import (
     PodFaultInjector,
     ResourceFaultInjector,
 )
-from .validators import HealthValidator, PlaybookValidator
 from .scenarios import ScenarioLibrary
+from .validators import HealthValidator, PlaybookValidator
 
 logger = structlog.get_logger(__name__)
 
@@ -62,7 +55,7 @@ def _get_or_create_metric(metric_class, name, description, labels=None, **kwargs
         return REGISTRY._names_to_collectors[name]
 
     # Para Counter, verificar tambem a versao base (sem _total)
-    base_name = name.replace('_total', '') if name.endswith('_total') else name
+    base_name = name.replace("_total", "") if name.endswith("_total") else name
     if base_name in REGISTRY._names_to_collectors:
         return REGISTRY._names_to_collectors[base_name]
 
@@ -74,100 +67,107 @@ def _get_or_create_metric(metric_class, name, description, labels=None, **kwargs
     except ValueError:
         # Fallback: buscar por _name do collector
         for collector in list(REGISTRY._names_to_collectors.values()):
-            if hasattr(collector, '_name') and collector._name == name:
+            if hasattr(collector, "_name") and collector._name == name:
                 return collector
         raise
 
 
 # Métricas Prometheus (singleton pattern)
 EXPERIMENTS_TOTAL = _get_or_create_metric(
-    Counter, 'chaos_experiments_total',
-    'Total de experimentos de chaos executados',
-    ['experiment_type', 'status', 'environment']
+    Counter,
+    "chaos_experiments_total",
+    "Total de experimentos de chaos executados",
+    ["experiment_type", "status", "environment"],
 )
 
 ACTIVE_EXPERIMENTS = _get_or_create_metric(
-    Gauge, 'chaos_active_experiments',
-    'Número de experimentos ativos'
+    Gauge, "chaos_active_experiments", "Número de experimentos ativos"
 )
 
 EXPERIMENT_DURATION = _get_or_create_metric(
-    Histogram, 'chaos_experiment_duration_seconds',
-    'Duração total do experimento',
-    ['experiment_type', 'status'],
-    buckets=[30, 60, 120, 300, 600, 1200, 1800, 3600]
+    Histogram,
+    "chaos_experiment_duration_seconds",
+    "Duração total do experimento",
+    ["experiment_type", "status"],
+    buckets=[30, 60, 120, 300, 600, 1200, 1800, 3600],
 )
 
 BLAST_RADIUS = _get_or_create_metric(
-    Gauge, 'chaos_experiment_blast_radius',
-    'Número de pods afetados pelo experimento',
-    ['experiment_id']
+    Gauge,
+    "chaos_experiment_blast_radius",
+    "Número de pods afetados pelo experimento",
+    ["experiment_id"],
 )
 
 EXPERIMENT_START_TIMESTAMP = _get_or_create_metric(
-    Gauge, 'chaos_experiment_start_timestamp',
-    'Timestamp de início do experimento',
-    ['experiment_id', 'experiment_name']
+    Gauge,
+    "chaos_experiment_start_timestamp",
+    "Timestamp de início do experimento",
+    ["experiment_id", "experiment_name"],
 )
 
 EXPERIMENT_COMPLETED_TOTAL = _get_or_create_metric(
-    Counter, 'chaos_experiment_completed_total',
-    'Total de experimentos completados',
-    ['success', 'experiment_type', 'environment']
+    Counter,
+    "chaos_experiment_completed_total",
+    "Total de experimentos completados",
+    ["success", "experiment_type", "environment"],
 )
 
 BLAST_RADIUS_CURRENT = _get_or_create_metric(
-    Gauge, 'chaos_blast_radius_current',
-    'Blast radius atual do experimento em execução',
-    ['experiment_id']
+    Gauge,
+    "chaos_blast_radius_current",
+    "Blast radius atual do experimento em execução",
+    ["experiment_id"],
 )
 
 POLICY_VIOLATIONS_TOTAL = _get_or_create_metric(
-    Counter, 'chaos_policy_violations_total',
-    'Total de violações de políticas OPA',
-    ['violation', 'environment']
+    Counter,
+    "chaos_policy_violations_total",
+    "Total de violações de políticas OPA",
+    ["violation", "environment"],
 )
 
 PLAYBOOK_VALIDATION_TOTAL = _get_or_create_metric(
-    Counter, 'chaos_playbook_validation_total',
-    'Total de validações de playbooks',
-    ['playbook', 'result']
+    Counter,
+    "chaos_playbook_validation_total",
+    "Total de validações de playbooks",
+    ["playbook", "result"],
 )
 
 PLAYBOOK_RECOVERY_DURATION = _get_or_create_metric(
-    Gauge, 'chaos_playbook_recovery_duration_seconds',
-    'Tempo de recuperação do playbook em segundos',
-    ['playbook']
+    Gauge,
+    "chaos_playbook_recovery_duration_seconds",
+    "Tempo de recuperação do playbook em segundos",
+    ["playbook"],
 )
 
 GAME_DAY_SCENARIOS_TOTAL = _get_or_create_metric(
-    Gauge, 'chaos_game_day_scenarios_total',
-    'Total de cenários no Game Day',
-    ['game_day_id']
+    Gauge, "chaos_game_day_scenarios_total", "Total de cenários no Game Day", ["game_day_id"]
 )
 
 GAME_DAY_SCENARIOS_FAILED = _get_or_create_metric(
-    Gauge, 'chaos_game_day_scenarios_failed',
-    'Número de cenários falhados no Game Day',
-    ['game_day_id']
+    Gauge,
+    "chaos_game_day_scenarios_failed",
+    "Número de cenários falhados no Game Day",
+    ["game_day_id"],
 )
 
 GAME_DAY_DURATION = _get_or_create_metric(
-    Gauge, 'chaos_game_day_duration_seconds',
-    'Duração do Game Day em segundos',
-    ['game_day_id']
+    Gauge, "chaos_game_day_duration_seconds", "Duração do Game Day em segundos", ["game_day_id"]
 )
 
 GAME_DAY_INFO = _get_or_create_metric(
-    Gauge, 'chaos_game_day_info',
-    'Informações do Game Day',
-    ['game_day_id', 'scenarios_total', 'scenarios_passed', 'scenarios_failed', 'success_rate']
+    Gauge,
+    "chaos_game_day_info",
+    "Informações do Game Day",
+    ["game_day_id", "scenarios_total", "scenarios_passed", "scenarios_failed", "success_rate"],
 )
 
 EXPERIMENT_OUTSIDE_MAINTENANCE_WINDOW = _get_or_create_metric(
-    Gauge, 'chaos_experiment_outside_maintenance_window',
-    'Experimentos executando fora da janela de manutenção',
-    ['experiment_id']
+    Gauge,
+    "chaos_experiment_outside_maintenance_window",
+    "Experimentos executando fora da janela de manutenção",
+    ["experiment_id"],
 )
 
 
@@ -257,14 +257,14 @@ class ChaosEngine:
             service_name="chaos-engine",
             circuit_name="experiment-execution",
             fail_max=5,
-            reset_timeout=60
+            reset_timeout=60,
         )
 
         logger.info(
             "chaos_engine.created",
             max_concurrent=max_concurrent_experiments,
             require_opa=require_opa_approval,
-            blast_radius_limit=blast_radius_limit
+            blast_radius_limit=blast_radius_limit,
         )
 
     async def initialize(self):
@@ -323,9 +323,7 @@ class ChaosEngine:
             await self.health_validator.initialize()
 
             # Semáforo para controle de concorrência
-            self._experiment_semaphore = asyncio.Semaphore(
-                self.max_concurrent_experiments
-            )
+            self._experiment_semaphore = asyncio.Semaphore(self.max_concurrent_experiments)
 
             logger.info("chaos_engine.initialized", in_cluster=self.k8s_in_cluster)
 
@@ -343,7 +341,7 @@ class ChaosEngine:
                 logger.error(
                     "chaos_engine.cleanup_rollback_failed",
                     experiment_id=experiment_id,
-                    error=str(e)
+                    error=str(e),
                 )
 
         # Fechar validadores
@@ -387,20 +385,18 @@ class ChaosEngine:
             logger.warning(
                 "chaos_engine.using_memory_cache",
                 experiment_id=experiment.id,
-                note="MongoDB indisponível, usando cache em memória"
+                note="MongoDB indisponível, usando cache em memória",
             )
 
         logger.info(
-            "chaos_engine.experiment_created",
-            experiment_id=experiment.id,
-            name=experiment.name
+            "chaos_engine.experiment_created", experiment_id=experiment.id, name=experiment.name
         )
 
         return ChaosExperimentResponse(
             experiment_id=experiment.id,
             status=experiment.status,
             message="Experimento criado com sucesso",
-            estimated_duration_seconds=experiment.timeout_seconds
+            estimated_duration_seconds=experiment.timeout_seconds,
         )
 
     async def execute_experiment(
@@ -429,9 +425,7 @@ class ChaosEngine:
             if not allowed:
                 experiment.status = ChaosExperimentStatus.FAILED
                 await self._update_experiment_status(experiment)
-                raise PermissionError(
-                    f"Experimento bloqueado por política OPA: {violations}"
-                )
+                raise PermissionError(f"Experimento bloqueado por política OPA: {violations}")
 
         # Adquirir semáforo
         async with self._experiment_semaphore:
@@ -444,7 +438,7 @@ class ChaosEngine:
     ) -> ExperimentReport:
         """Execução interna do experimento."""
         start_time = perf_counter()
-        experiment.started_at = datetime.utcnow()
+        experiment.started_at = datetime.now(timezone.utc)
         experiment.executed_by = executed_by
         experiment.status = ChaosExperimentStatus.INJECTING
 
@@ -453,20 +447,17 @@ class ChaosEngine:
 
         # Registrar timestamp de início para detecção de experimentos travados
         EXPERIMENT_START_TIMESTAMP.labels(
-            experiment_id=experiment.id,
-            experiment_name=experiment.name
+            experiment_id=experiment.id, experiment_name=experiment.name
         ).set_to_current_time()
 
         # Verificar se está fora da janela de manutenção
         if not is_business_hours():
-            EXPERIMENT_OUTSIDE_MAINTENANCE_WINDOW.labels(
-                experiment_id=experiment.id
-            ).set(0)
+            EXPERIMENT_OUTSIDE_MAINTENANCE_WINDOW.labels(experiment_id=experiment.id).set(0)
         else:
             # Se não é fora de business hours, pode estar fora da janela de manutenção
-            EXPERIMENT_OUTSIDE_MAINTENANCE_WINDOW.labels(
-                experiment_id=experiment.id
-            ).set(1 if experiment.environment == "production" else 0)
+            EXPERIMENT_OUTSIDE_MAINTENANCE_WINDOW.labels(experiment_id=experiment.id).set(
+                1 if experiment.environment == "production" else 0
+            )
 
         tracer = get_tracer()
         injection_results = []
@@ -485,16 +476,13 @@ class ChaosEngine:
                 logger.info(
                     "chaos_engine.injecting_faults",
                     experiment_id=experiment.id,
-                    injection_count=len(experiment.fault_injections)
+                    injection_count=len(experiment.fault_injections),
                 )
 
                 for injection in experiment.fault_injections:
                     injector = self._get_injector_for_fault(injection.fault_type)
                     if not injector:
-                        logger.warning(
-                            "chaos_engine.no_injector",
-                            fault_type=injection.fault_type
-                        )
+                        logger.warning("chaos_engine.no_injector", fault_type=injection.fault_type)
                         continue
 
                     # Verificar blast radius
@@ -504,7 +492,7 @@ class ChaosEngine:
                             "chaos_engine.blast_radius_exceeded",
                             current=total_blast_radius,
                             additional=blast_radius,
-                            limit=experiment.blast_radius_limit
+                            limit=experiment.blast_radius_limit,
                         )
                         continue
 
@@ -513,30 +501,23 @@ class ChaosEngine:
 
                     if result.success:
                         total_blast_radius += result.blast_radius
-                        BLAST_RADIUS.labels(
-                            experiment_id=experiment.id
-                        ).set(total_blast_radius)
+                        BLAST_RADIUS.labels(experiment_id=experiment.id).set(total_blast_radius)
                         # Atualizar métrica de blast radius atual
-                        BLAST_RADIUS_CURRENT.labels(
-                            experiment_id=experiment.id
-                        ).set(total_blast_radius)
+                        BLAST_RADIUS_CURRENT.labels(experiment_id=experiment.id).set(
+                            total_blast_radius
+                        )
 
                 # Fase 2: Aguardar propagação e validar
                 experiment.status = ChaosExperimentStatus.VALIDATING
                 await self._update_experiment_status(experiment)
 
-                logger.info(
-                    "chaos_engine.validating",
-                    experiment_id=experiment.id
-                )
+                logger.info("chaos_engine.validating", experiment_id=experiment.id)
 
                 # Aguardar tempo para falha propagar
                 await asyncio.sleep(10)
 
                 # Validar playbooks se configurado
-                if (experiment.validation_criteria.required_playbook and
-                        self.playbook_validator):
-
+                if experiment.validation_criteria.required_playbook and self.playbook_validator:
                     for injection in experiment.fault_injections:
                         context = {
                             "experiment_id": experiment.id,
@@ -548,7 +529,7 @@ class ChaosEngine:
                             experiment.validation_criteria.required_playbook,
                             injection,
                             experiment.validation_criteria,
-                            context
+                            context,
                         )
                         validation_results.append(validation)
 
@@ -556,22 +537,19 @@ class ChaosEngine:
                         playbook_name = experiment.validation_criteria.required_playbook
                         PLAYBOOK_VALIDATION_TOTAL.labels(
                             playbook=playbook_name,
-                            result="passed" if validation.success else "failed"
+                            result="passed" if validation.success else "failed",
                         ).inc()
 
                         if validation.recovery_time_seconds is not None:
-                            PLAYBOOK_RECOVERY_DURATION.labels(
-                                playbook=playbook_name
-                            ).set(validation.recovery_time_seconds)
+                            PLAYBOOK_RECOVERY_DURATION.labels(playbook=playbook_name).set(
+                                validation.recovery_time_seconds
+                            )
 
                 # Fase 3: Recuperação
                 experiment.status = ChaosExperimentStatus.RECOVERING
                 await self._update_experiment_status(experiment)
 
-                logger.info(
-                    "chaos_engine.recovering",
-                    experiment_id=experiment.id
-                )
+                logger.info("chaos_engine.recovering", experiment_id=experiment.id)
 
                 # Rollback de todas as injeções
                 await self._rollback_all_injections(experiment)
@@ -583,29 +561,27 @@ class ChaosEngine:
                         await self.health_validator.wait_for_healthy(
                             first_injection.target.service_name,
                             first_injection.target.namespace,
-                            timeout_seconds=experiment.validation_criteria.max_recovery_time_seconds
+                            timeout_seconds=experiment.validation_criteria.max_recovery_time_seconds,
                         )
 
                 # Determinar resultado
-                all_validations_passed = all(
-                    v.success for v in validation_results
-                ) if validation_results else True
+                all_validations_passed = (
+                    all(v.success for v in validation_results) if validation_results else True
+                )
 
                 experiment.status = (
                     ChaosExperimentStatus.COMPLETED
                     if all_validations_passed
                     else ChaosExperimentStatus.FAILED
                 )
-                experiment.completed_at = datetime.utcnow()
+                experiment.completed_at = datetime.now(timezone.utc)
 
         except Exception as e:
             logger.error(
-                "chaos_engine.experiment_failed",
-                experiment_id=experiment.id,
-                error=str(e)
+                "chaos_engine.experiment_failed", experiment_id=experiment.id, error=str(e)
             )
             experiment.status = ChaosExperimentStatus.FAILED
-            experiment.completed_at = datetime.utcnow()
+            experiment.completed_at = datetime.now(timezone.utc)
 
             # Rollback de emergência
             await self._rollback_all_injections(experiment)
@@ -618,12 +594,12 @@ class ChaosEngine:
             EXPERIMENTS_TOTAL.labels(
                 experiment_type=experiment.metadata.get("scenario", "custom"),
                 status=experiment.status.value,
-                environment=experiment.environment
+                environment=experiment.environment,
             ).inc()
 
             EXPERIMENT_DURATION.labels(
                 experiment_type=experiment.metadata.get("scenario", "custom"),
-                status=experiment.status.value
+                status=experiment.status.value,
             ).observe(duration)
 
             # Registrar métrica de experimento completado
@@ -631,7 +607,7 @@ class ChaosEngine:
             EXPERIMENT_COMPLETED_TOTAL.labels(
                 success="true" if is_success else "false",
                 experiment_type=experiment.metadata.get("scenario", "custom"),
-                environment=experiment.environment
+                environment=experiment.environment,
             ).inc()
 
             # Limpar métricas de timestamp e blast radius ao finalizar
@@ -644,11 +620,7 @@ class ChaosEngine:
 
         # Gerar relatório
         report = self._generate_report(
-            experiment,
-            injection_results,
-            validation_results,
-            total_blast_radius,
-            duration
+            experiment, injection_results, validation_results, total_blast_radius, duration
         )
 
         # Persistir relatório
@@ -674,26 +646,20 @@ class ChaosEngine:
         if not experiment:
             raise ValueError(f"Experimento não encontrado: {experiment_id}")
 
-        logger.info(
-            "chaos_engine.manual_rollback",
-            experiment_id=experiment_id
-        )
+        logger.info("chaos_engine.manual_rollback", experiment_id=experiment_id)
 
         success = await self._rollback_all_injections(experiment)
 
         if success:
             experiment.status = ChaosExperimentStatus.ROLLED_BACK
-            experiment.completed_at = datetime.utcnow()
+            experiment.completed_at = datetime.now(timezone.utc)
             await self._update_experiment_status(experiment)
             self._active_experiments.pop(experiment_id, None)
             ACTIVE_EXPERIMENTS.dec()
 
         return success
 
-    async def get_experiment_status(
-        self,
-        experiment_id: str
-    ) -> Optional[ChaosExperiment]:
+    async def get_experiment_status(self, experiment_id: str) -> Optional[ChaosExperiment]:
         """Retorna status atual de um experimento."""
         if experiment_id in self._active_experiments:
             return self._active_experiments[experiment_id]
@@ -747,9 +713,7 @@ class ChaosEngine:
             if not allowed:
                 experiment.status = ChaosExperimentStatus.FAILED
                 await self._update_experiment_status(experiment)
-                raise PermissionError(
-                    f"Cenário bloqueado por política OPA: {violations}"
-                )
+                raise PermissionError(f"Cenário bloqueado por política OPA: {violations}")
 
         # Adquirir semáforo para controle de concorrência (igual ao execute_experiment)
         async with self._experiment_semaphore:
@@ -813,29 +777,28 @@ class ChaosEngine:
         - input.approval: dados de aprovação
         """
         if not self.opa_client:
-            logger.warning(
-                "chaos_engine.opa_client_unavailable",
-                experiment_id=experiment.id
-            )
+            logger.warning("chaos_engine.opa_client_unavailable", experiment_id=experiment.id)
             return True, []
 
         try:
             # Construir fault_injections com estrutura completa para o OPA
             fault_injections_for_opa = []
             for injection in experiment.fault_injections:
-                fault_injections_for_opa.append({
-                    "id": injection.id,
-                    "fault_type": injection.fault_type.value,
-                    "target": {
-                        "namespace": injection.target.namespace,
-                        "service_name": injection.target.service_name,
-                        "labels": injection.target.labels,
-                        "deployment_name": injection.target.deployment_name,
-                        "percentage": injection.target.percentage,
-                    },
-                    "parameters": injection.parameters.model_dump(),
-                    "duration_seconds": injection.duration_seconds,
-                })
+                fault_injections_for_opa.append(
+                    {
+                        "id": injection.id,
+                        "fault_type": injection.fault_type.value,
+                        "target": {
+                            "namespace": injection.target.namespace,
+                            "service_name": injection.target.service_name,
+                            "labels": injection.target.labels,
+                            "deployment_name": injection.target.deployment_name,
+                            "percentage": injection.target.percentage,
+                        },
+                        "parameters": injection.parameters.model_dump(),
+                        "duration_seconds": injection.duration_seconds,
+                    }
+                )
 
             # Construir input no formato esperado pelo Rego policy
             opa_input = {
@@ -865,8 +828,7 @@ class ChaosEngine:
             }
 
             result = await self.opa_client.evaluate_policy(
-                OPA_POLICIES["experiment_validation"],
-                opa_input
+                OPA_POLICIES["experiment_validation"], opa_input
             )
 
             violations = result.get("result", {}).get("violations", [])
@@ -874,26 +836,27 @@ class ChaosEngine:
             # Registrar métricas de violações de política
             if violations:
                 for violation in violations:
-                    violation_rule = violation.get("rule", "unknown") if isinstance(violation, dict) else str(violation)
+                    violation_rule = (
+                        violation.get("rule", "unknown")
+                        if isinstance(violation, dict)
+                        else str(violation)
+                    )
                     POLICY_VIOLATIONS_TOTAL.labels(
-                        violation=violation_rule,
-                        environment=experiment.environment
+                        violation=violation_rule, environment=experiment.environment
                     ).inc()
 
             return len(violations) == 0, violations
 
         except Exception as e:
             logger.error(
-                "chaos_engine.opa_validation_failed",
-                experiment_id=experiment.id,
-                error=str(e)
+                "chaos_engine.opa_validation_failed", experiment_id=experiment.id, error=str(e)
             )
             # Fail-open
             return True, []
 
     def _get_injector_for_fault(self, fault_type) -> Optional[BaseFaultInjector]:
         """Retorna o injetor apropriado para o tipo de falha."""
-        fault_type_str = fault_type.value if hasattr(fault_type, 'value') else str(fault_type)
+        fault_type_str = fault_type.value if hasattr(fault_type, "value") else str(fault_type)
 
         if fault_type_str.startswith("network"):
             return self.injectors.get("network")
@@ -925,15 +888,11 @@ class ChaosEngine:
                     logger.warning(
                         "chaos_engine.rollback_failed",
                         injection_id=injection.id,
-                        error=result.error_message
+                        error=result.error_message,
                     )
             except Exception as e:
                 success = False
-                logger.error(
-                    "chaos_engine.rollback_error",
-                    injection_id=injection.id,
-                    error=str(e)
-                )
+                logger.error("chaos_engine.rollback_error", injection_id=injection.id, error=str(e))
 
         return success
 
@@ -955,28 +914,26 @@ class ChaosEngine:
             # Identificar razão da falha
             failed_validations = [v for v in validation_results if not v.success]
             if failed_validations:
-                failure_reason = f"Validações falharam: {[v.playbook_name for v in failed_validations]}"
+                failure_reason = (
+                    f"Validações falharam: {[v.playbook_name for v in failed_validations]}"
+                )
             else:
                 failure_reason = "Falha durante execução do experimento"
 
         # Gerar recomendações
         recommendations = self._generate_recommendations(
-            experiment,
-            validation_results,
-            blast_radius
+            experiment, validation_results, blast_radius
         )
 
         # Coletar playbooks trigados
-        playbooks_triggered = list(set(
-            v.playbook_name for v in validation_results
-        ))
+        playbooks_triggered = list(set(v.playbook_name for v in validation_results))
 
         return ExperimentReport(
             experiment_id=experiment.id,
             experiment_name=experiment.name,
             environment=experiment.environment,
-            start_time=experiment.started_at or datetime.utcnow(),
-            end_time=experiment.completed_at or datetime.utcnow(),
+            start_time=experiment.started_at or datetime.now(timezone.utc),
+            end_time=experiment.completed_at or datetime.now(timezone.utc),
             duration_seconds=duration,
             status=experiment.status,
             fault_injections=experiment.fault_injections,
@@ -988,14 +945,10 @@ class ChaosEngine:
             recommendations=recommendations,
             metrics_summary={
                 "total_injections": len(experiment.fault_injections),
-                "successful_injections": sum(
-                    1 for r in injection_results if r.success
-                ),
+                "successful_injections": sum(1 for r in injection_results if r.success),
                 "total_validations": len(validation_results),
-                "passed_validations": sum(
-                    1 for v in validation_results if v.success
-                ),
-            }
+                "passed_validations": sum(1 for v in validation_results if v.success),
+            },
         )
 
     def _generate_recommendations(
@@ -1042,16 +995,12 @@ class ChaosEngine:
 
         if not recommendations:
             recommendations.append(
-                "Experimento concluído com sucesso. "
-                "Sistema demonstrou boa resiliência."
+                "Experimento concluído com sucesso. " "Sistema demonstrou boa resiliência."
             )
 
         return recommendations
 
-    async def _get_experiment(
-        self,
-        experiment_id: str
-    ) -> Optional[ChaosExperiment]:
+    async def _get_experiment(self, experiment_id: str) -> Optional[ChaosExperiment]:
         """
         Busca experimento primeiro no cache em memória, depois no MongoDB.
 
@@ -1059,10 +1008,7 @@ class ChaosEngine:
         """
         # Verificar primeiro no cache em memória
         if experiment_id in self._experiment_cache:
-            logger.debug(
-                "chaos_engine.experiment_from_cache",
-                experiment_id=experiment_id
-            )
+            logger.debug("chaos_engine.experiment_from_cache", experiment_id=experiment_id)
             return self._experiment_cache[experiment_id]
 
         # Verificar experimentos ativos
@@ -1074,22 +1020,17 @@ class ChaosEngine:
             logger.warning(
                 "chaos_engine.no_mongodb_no_cache",
                 experiment_id=experiment_id,
-                note="Experimento não encontrado no cache e MongoDB indisponível"
+                note="Experimento não encontrado no cache e MongoDB indisponível",
             )
             return None
 
         try:
-            doc = await self.mongodb_client.find_one(
-                "chaos_experiments",
-                {"id": experiment_id}
-            )
+            doc = await self.mongodb_client.find_one("chaos_experiments", {"id": experiment_id})
             if doc:
                 return ChaosExperiment(**doc)
         except Exception as e:
             logger.error(
-                "chaos_engine.get_experiment_failed",
-                experiment_id=experiment_id,
-                error=str(e)
+                "chaos_engine.get_experiment_failed", experiment_id=experiment_id, error=str(e)
             )
 
         return None
@@ -1101,14 +1042,11 @@ class ChaosEngine:
 
         try:
             await self.mongodb_client.insert_one(
-                "chaos_experiments",
-                experiment.model_dump(mode="json")
+                "chaos_experiments", experiment.model_dump(mode="json")
             )
         except Exception as e:
             logger.error(
-                "chaos_engine.persist_experiment_failed",
-                experiment_id=experiment.id,
-                error=str(e)
+                "chaos_engine.persist_experiment_failed", experiment_id=experiment.id, error=str(e)
             )
 
     async def _update_experiment_status(self, experiment: ChaosExperiment):
@@ -1120,13 +1058,11 @@ class ChaosEngine:
             await self.mongodb_client.update_one(
                 "chaos_experiments",
                 {"id": experiment.id},
-                {"$set": experiment.model_dump(mode="json")}
+                {"$set": experiment.model_dump(mode="json")},
             )
         except Exception as e:
             logger.error(
-                "chaos_engine.update_experiment_failed",
-                experiment_id=experiment.id,
-                error=str(e)
+                "chaos_engine.update_experiment_failed", experiment_id=experiment.id, error=str(e)
             )
 
     async def _persist_report(self, report: ExperimentReport):
@@ -1135,22 +1071,15 @@ class ChaosEngine:
             return
 
         try:
-            await self.mongodb_client.insert_one(
-                "chaos_reports",
-                report.model_dump(mode="json")
-            )
+            await self.mongodb_client.insert_one("chaos_reports", report.model_dump(mode="json"))
         except Exception as e:
             logger.error(
                 "chaos_engine.persist_report_failed",
                 experiment_id=report.experiment_id,
-                error=str(e)
+                error=str(e),
             )
 
-    async def _publish_event(
-        self,
-        event_type: str,
-        experiment: ChaosExperiment
-    ):
+    async def _publish_event(self, event_type: str, experiment: ChaosExperiment):
         """Publica evento no Kafka."""
         if not self.kafka_producer:
             return
@@ -1162,16 +1091,9 @@ class ChaosEngine:
                 "experiment_name": experiment.name,
                 "status": experiment.status.value,
                 "environment": experiment.environment,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 
-            await self.kafka_producer.send(
-                KAFKA_TOPICS["experiments"],
-                event
-            )
+            await self.kafka_producer.send(KAFKA_TOPICS["experiments"], event)
         except Exception as e:
-            logger.warning(
-                "chaos_engine.publish_event_failed",
-                event_type=event_type,
-                error=str(e)
-            )
+            logger.warning("chaos_engine.publish_event_failed", event_type=event_type, error=str(e))

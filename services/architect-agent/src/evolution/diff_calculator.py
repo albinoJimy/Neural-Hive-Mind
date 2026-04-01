@@ -1,9 +1,8 @@
 """Calculador de diferenças entre versões de arquitetura."""
 
-from typing import List
 
-from src.models.evolution import ArchitectureDiff
 from src.models.architecture import ArchitecturePlan
+from src.models.evolution import ArchitectureDiff
 
 
 class DiffCalculator:
@@ -44,7 +43,7 @@ class DiffCalculator:
             additions=additions,
             removals=removals,
             modifications=modifications,
-            requires_migration=requires_migration
+            requires_migration=requires_migration,
         )
 
     def _check_migration_needed(

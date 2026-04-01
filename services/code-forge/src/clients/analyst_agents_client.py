@@ -1,5 +1,6 @@
 """Cliente REST para integração com o serviço Analyst Agents"""
 from typing import Dict, List, Optional
+
 import httpx
 import structlog
 
@@ -23,11 +24,7 @@ class AnalystAgentsClient:
 
     async def start(self):
         """Inicializar conexão HTTP"""
-        self.client = httpx.AsyncClient(
-            base_url=self.base_url,
-            timeout=30.0,
-            follow_redirects=True
-        )
+        self.client = httpx.AsyncClient(base_url=self.base_url, timeout=30.0, follow_redirects=True)
         self.logger.info("analyst_agents_client_started")
 
     async def stop(self):
@@ -51,27 +48,18 @@ class AnalystAgentsClient:
             return None
 
         try:
-            response = await self.client.post(
-                "/api/v1/semantics/embedding",
-                json={"text": text}
-            )
+            response = await self.client.post("/api/v1/semantics/embedding", json={"text": text})
             response.raise_for_status()
             data = response.json()
             embedding = data.get("embedding", [])
 
             self.logger.info(
-                "embedding_generated",
-                text_length=len(text),
-                embedding_dim=len(embedding)
+                "embedding_generated", text_length=len(text), embedding_dim=len(embedding)
             )
             return embedding
 
         except httpx.HTTPError as e:
-            self.logger.error(
-                "embedding_failed",
-                error=str(e),
-                text_length=len(text)
-            )
+            self.logger.error("embedding_failed", error=str(e), text_length=len(text))
             return None
 
     async def find_similar_templates(self, embedding: List[float], top_k: int = 5) -> List[Dict]:
@@ -92,11 +80,7 @@ class AnalystAgentsClient:
         try:
             response = await self.client.post(
                 "/api/v1/semantics/search",
-                json={
-                    "embedding": embedding,
-                    "top_k": top_k,
-                    "threshold": 0.7
-                }
+                json={"embedding": embedding, "top_k": top_k, "threshold": 0.7},
             )
             response.raise_for_status()
             data = response.json()
@@ -106,7 +90,7 @@ class AnalystAgentsClient:
                 "similar_templates_found",
                 embedding_dim=len(embedding),
                 results_count=len(results),
-                top_k=top_k
+                top_k=top_k,
             )
             return results
 
@@ -115,7 +99,7 @@ class AnalystAgentsClient:
                 "similar_templates_search_failed",
                 error=str(e),
                 embedding_dim=len(embedding),
-                top_k=top_k
+                top_k=top_k,
             )
             return []
 
@@ -133,7 +117,7 @@ class AnalystAgentsClient:
             self.logger.warning(
                 "client_not_initialized_using_fallback",
                 operation="get_architectural_patterns",
-                domain=domain
+                domain=domain,
             )
             return self._get_fallback_patterns(domain)
 
@@ -145,18 +129,14 @@ class AnalystAgentsClient:
             patterns = data.get("patterns", [])
 
             self.logger.info(
-                "architectural_patterns_retrieved",
-                domain=domain,
-                patterns_count=len(patterns)
+                "architectural_patterns_retrieved", domain=domain, patterns_count=len(patterns)
             )
             return patterns
 
         except httpx.HTTPError as e:
             # Fallback para padrões hardcoded baseados no domínio
             self.logger.warning(
-                "architectural_patterns_api_failed_using_fallback",
-                error=str(e),
-                domain=domain
+                "architectural_patterns_api_failed_using_fallback", error=str(e), domain=domain
             )
             return self._get_fallback_patterns(domain)
 
@@ -177,45 +157,41 @@ class AnalystAgentsClient:
                 "REST API",
                 "layered architecture",
                 "repository pattern",
-                "dependency injection"
+                "dependency injection",
             ],
             "BUSINESS": [
                 "domain-driven design",
                 "CQRS",
                 "event sourcing",
                 "saga pattern",
-                "business process modeling"
+                "business process modeling",
             ],
             "BEHAVIOR": [
                 "observer pattern",
                 "strategy pattern",
                 "state machine",
-                "reactive programming"
+                "reactive programming",
             ],
             "EVOLUTION": [
                 "feature toggles",
                 "blue-green deployment",
                 "canary releases",
-                "evolutionary architecture"
+                "evolutionary architecture",
             ],
             "ARCHITECTURE": [
                 "hexagonal architecture",
                 "clean architecture",
                 "onion architecture",
-                "ports and adapters"
-            ]
+                "ports and adapters",
+            ],
         }
 
-        patterns = patterns_map.get(domain.upper(), [
-            "microservices",
-            "REST API",
-            "layered architecture"
-        ])
+        patterns = patterns_map.get(
+            domain.upper(), ["microservices", "REST API", "layered architecture"]
+        )
 
         self.logger.info(
-            "architectural_patterns_fallback_used",
-            domain=domain,
-            patterns_count=len(patterns)
+            "architectural_patterns_fallback_used", domain=domain, patterns_count=len(patterns)
         )
 
         return patterns

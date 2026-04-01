@@ -1,15 +1,15 @@
-import asyncio
+import json
+
 import structlog
 from aiokafka import AIOKafkaConsumer
 from aiokafka.errors import KafkaError
-import json
-from typing import Dict, List
-from ..services.analytics_engine import AnalyticsEngine
-from ..services.insight_generator import InsightGenerator
-from ..models.insight import InsightType, TimeWindow
+
 from ..clients.mongodb_client import MongoDBClient
 from ..clients.redis_client import RedisClient
+from ..models.insight import TimeWindow
 from ..observability.metrics import record_insight_generated, update_kafka_consumer_lag
+from ..services.analytics_engine import AnalyticsEngine
+from ..services.insight_generator import InsightGenerator
 
 logger = structlog.get_logger()
 
@@ -26,7 +26,7 @@ class TelemetryConsumer:
         redis_client: RedisClient,
         insight_producer,
         queen_agent_client,
-        window_size_seconds: int = 300
+        window_size_seconds: int = 300,
     ):
         self.bootstrap_servers = bootstrap_servers
         self.topic = topic
@@ -49,20 +49,20 @@ class TelemetryConsumer:
                 self.topic,
                 bootstrap_servers=self.bootstrap_servers,
                 group_id=self.group_id,
-                auto_offset_reset='earliest',
+                auto_offset_reset="earliest",
                 enable_auto_commit=False,
-                value_deserializer=lambda m: json.loads(m.decode('utf-8'))
+                value_deserializer=lambda m: json.loads(m.decode("utf-8")),
             )
             await self.consumer.start()
-            logger.info('telemetry_consumer_initialized', topic=self.topic)
+            logger.info("telemetry_consumer_initialized", topic=self.topic)
         except Exception as e:
-            logger.error('telemetry_consumer_initialization_failed', error=str(e))
+            logger.error("telemetry_consumer_initialization_failed", error=str(e))
             raise
 
     async def start(self):
         """Iniciar loop de consumo"""
         self.running = True
-        logger.info('telemetry_consumer_started')
+        logger.info("telemetry_consumer_started")
 
         try:
             async for message in self.consumer:
@@ -80,11 +80,11 @@ class TelemetryConsumer:
                     update_kafka_consumer_lag(self.topic, str(message.partition), lag)
 
                 except Exception as e:
-                    logger.error('telemetry_processing_failed', error=str(e), message=message.value)
+                    logger.error("telemetry_processing_failed", error=str(e), message=message.value)
                     # Não faz commit em caso de erro
 
         except KafkaError as e:
-            logger.error('kafka_error', error=str(e))
+            logger.error("kafka_error", error=str(e))
         finally:
             await self.stop()
 
@@ -93,29 +93,31 @@ class TelemetryConsumer:
         self.running = False
         if self.consumer:
             await self.consumer.stop()
-        logger.info('telemetry_consumer_stopped')
+        logger.info("telemetry_consumer_stopped")
 
     async def process_telemetry(self, message: dict):
         """Processar mensagem de telemetria"""
         try:
             # Extrair dados
-            correlation_id = message.get('correlation_id', '')
-            intent_id = message.get('intent_id', '')
-            plan_id = message.get('plan_id', '')
-            metrics = message.get('metrics', {})
+            correlation_id = message.get("correlation_id", "")
+            message.get("intent_id", "")
+            message.get("plan_id", "")
+            metrics = message.get("metrics", {})
 
             # Adicionar ao buffer
             self.telemetry_buffer.append(message)
 
             # Log
-            logger.debug('telemetry_received', correlation_id=correlation_id, metrics_count=len(metrics))
+            logger.debug(
+                "telemetry_received", correlation_id=correlation_id, metrics_count=len(metrics)
+            )
 
             # Verificar se janela temporal está completa
             if self._should_analyze_window():
                 await self._analyze_window()
 
         except Exception as e:
-            logger.error('process_telemetry_failed', error=str(e))
+            logger.error("process_telemetry_failed", error=str(e))
             raise
 
     def _should_analyze_window(self) -> bool:
@@ -133,33 +135,29 @@ class TelemetryConsumer:
                 return
 
             # Extrair timestamps
-            timestamps = [msg.get('timestamp', 0) for msg in self.telemetry_buffer if 'timestamp' in msg]
+            timestamps = [
+                msg.get("timestamp", 0) for msg in self.telemetry_buffer if "timestamp" in msg
+            ]
             if not timestamps:
                 return
 
-            time_window = TimeWindow(
-                start_timestamp=min(timestamps),
-                end_timestamp=max(timestamps)
-            )
+            time_window = TimeWindow(start_timestamp=min(timestamps), end_timestamp=max(timestamps))
 
             # Extrair métricas
             latency_values = []
             error_rates = []
 
             for msg in self.telemetry_buffer:
-                metrics = msg.get('metrics', {})
-                if 'latency_ms' in metrics:
-                    latency_values.append(float(metrics['latency_ms']))
-                if 'error_rate' in metrics:
-                    error_rates.append(float(metrics['error_rate']))
+                metrics = msg.get("metrics", {})
+                if "latency_ms" in metrics:
+                    latency_values.append(float(metrics["latency_ms"]))
+                if "error_rate" in metrics:
+                    error_rates.append(float(metrics["error_rate"]))
 
             # Detectar anomalias em latência
             if latency_values:
                 anomalies = self.analytics_engine.detect_anomalies(
-                    'latency_ms',
-                    latency_values,
-                    method='zscore',
-                    threshold=3.0
+                    "latency_ms", latency_values, method="zscore", threshold=3.0
                 )
 
                 # Gerar insight para cada anomalia detectada
@@ -169,25 +167,25 @@ class TelemetryConsumer:
             # Limpar buffer
             self.telemetry_buffer = []
 
-            logger.info('telemetry_window_analyzed', window_size=len(self.telemetry_buffer))
+            logger.info("telemetry_window_analyzed", window_size=len(self.telemetry_buffer))
 
         except Exception as e:
-            logger.error('analyze_window_failed', error=str(e))
+            logger.error("analyze_window_failed", error=str(e))
 
     async def _generate_anomaly_insight(self, anomaly: dict, time_window: TimeWindow):
         """Gerar insight de anomalia"""
         try:
             anomaly_data = {
-                'metric_name': 'latency_ms',
-                'value': anomaly.get('value'),
-                'zscore': anomaly.get('zscore'),
-                'method': 'zscore',
-                'time_window': {
-                    'start': time_window.start_timestamp,
-                    'end': time_window.end_timestamp
+                "metric_name": "latency_ms",
+                "value": anomaly.get("value"),
+                "zscore": anomaly.get("zscore"),
+                "method": "zscore",
+                "time_window": {
+                    "start": time_window.start_timestamp,
+                    "end": time_window.end_timestamp,
                 },
-                'correlation_id': '',
-                'tags': ['anomaly', 'latency']
+                "correlation_id": "",
+                "tags": ["anomaly", "latency"],
             }
 
             # Gerar insight
@@ -204,16 +202,21 @@ class TelemetryConsumer:
 
             # Enviar ao Queen Agent se operacional
             from ..models.insight import InsightType
+
             if insight.insight_type == InsightType.OPERATIONAL:
                 await self.queen_agent_client.send_operational_insight(insight)
 
             # Registrar métrica
             record_insight_generated(insight.insight_type.value, insight.priority.value)
 
-            logger.info('anomaly_insight_generated', insight_id=insight.insight_id, priority=insight.priority)
+            logger.info(
+                "anomaly_insight_generated",
+                insight_id=insight.insight_id,
+                priority=insight.priority,
+            )
 
         except Exception as e:
-            logger.error('generate_anomaly_insight_failed', error=str(e))
+            logger.error("generate_anomaly_insight_failed", error=str(e))
 
     async def _get_consumer_lag(self) -> int:
         """Obter lag do consumer"""
@@ -221,5 +224,5 @@ class TelemetryConsumer:
             # Implementação simplificada
             return 0
         except Exception as e:
-            logger.error('get_consumer_lag_failed', error=str(e))
+            logger.error("get_consumer_lag_failed", error=str(e))
             return 0

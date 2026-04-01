@@ -10,10 +10,11 @@ Responsável por:
 Explainability API v3 - Task 5
 """
 
-from typing import Dict, Any, List, Optional
-from datetime import datetime, timedelta
-from motor.motor_asyncio import AsyncIOMotorClient
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, List, Optional
+
 import structlog
+from motor.motor_asyncio import AsyncIOMotorClient
 
 logger = structlog.get_logger(__name__)
 
@@ -36,7 +37,7 @@ class TemporalTracker:
         Args:
             mongo_client: Cliente MongoDB para queries
         """
-        self.db = mongo_client['neural_hive']
+        self.db = mongo_client["neural_hive"]
         self.explainability_collection = self.db.explainability_ledger
         self.seniority_collection = self.db.seniority_history
         self.logger = logger
@@ -58,14 +59,11 @@ class TemporalTracker:
                 - duration_hours: duração em horas
         """
         # Buscar a decisão de referência para obter o plan_id
-        reference = await self.explainability_collection.find_one(
-            {"decision_id": decision_id}
-        )
+        reference = await self.explainability_collection.find_one({"decision_id": decision_id})
 
         if not reference:
             self.logger.warning(
-                "temporal_tracker.reference_decision_not_found",
-                decision_id=decision_id
+                "temporal_tracker.reference_decision_not_found", decision_id=decision_id
             )
             return {
                 "session_id": None,
@@ -84,9 +82,7 @@ class TemporalTracker:
             plan_id = decision_id
 
         # Buscar todas as decisões do mesmo plan_id
-        cursor = self.explainability_collection.find(
-            {"plan_id": plan_id}
-        ).sort("generated_at", 1)
+        cursor = self.explainability_collection.find({"plan_id": plan_id}).sort("generated_at", 1)
 
         timeline = await self._parse_cursor(cursor)
 
@@ -108,8 +104,8 @@ class TemporalTracker:
         duration_hours = 0.0
         if first_timestamp and last_timestamp:
             try:
-                first_dt = datetime.fromisoformat(first_timestamp.replace('Z', '+00:00'))
-                last_dt = datetime.fromisoformat(last_timestamp.replace('Z', '+00:00'))
+                first_dt = datetime.fromisoformat(first_timestamp.replace("Z", "+00:00"))
+                last_dt = datetime.fromisoformat(last_timestamp.replace("Z", "+00:00"))
                 duration_hours = (last_dt - first_dt).total_seconds() / 3600
             except (ValueError, AttributeError):
                 pass
@@ -140,7 +136,7 @@ class TemporalTracker:
                 - daily_breakdown: decisões por dia
         """
         # Calcular data de corte
-        since = datetime.utcnow() - timedelta(days=days)
+        since = datetime.now(timezone.utc) - timedelta(days=days)
 
         # Buscar decisões dentro da janela
         cursor = self.explainability_collection.find(
@@ -168,7 +164,7 @@ class TemporalTracker:
             generated_at = decision.get("generated_at", "")
             if generated_at:
                 try:
-                    dt = datetime.fromisoformat(generated_at.replace('Z', '+00:00'))
+                    dt = datetime.fromisoformat(generated_at.replace("Z", "+00:00"))
                     day_key = dt.strftime("%Y-%m-%d")
                     daily_breakdown[day_key] = daily_breakdown.get(day_key, 0) + 1
                 except (ValueError, AttributeError):
@@ -186,9 +182,7 @@ class TemporalTracker:
             "daily_breakdown": daily_breakdown,
         }
 
-    async def get_seniority_changes(
-        self, specialists: List[str], days: int = 30
-    ) -> Dict[str, Any]:
+    async def get_seniority_changes(self, specialists: List[str], days: int = 30) -> Dict[str, Any]:
         """
         Busca mudanças de senioridade recentes para os especialistas.
 
@@ -204,20 +198,17 @@ class TemporalTracker:
                 - specialists_with_changes: IDs com mudanças
         """
         # Calcular data de corte
-        since = datetime.utcnow() - timedelta(days=days)
+        since = datetime.now(timezone.utc) - timedelta(days=days)
 
         # Buscar mudanças recentes
-        cursor = self.seniority_collection.find({
-            "specialist_id": {"$in": specialists},
-            "changed_at": {"$gte": since}
-        }).sort("changed_at", -1)
+        cursor = self.seniority_collection.find(
+            {"specialist_id": {"$in": specialists}, "changed_at": {"$gte": since}}
+        ).sort("changed_at", -1)
 
         changes = await self._parse_cursor(cursor)
 
         # Extrair especialistas únicos com mudanças
-        specialists_with_changes = list(set(
-            c.get("specialist_id") for c in changes
-        ))
+        specialists_with_changes = list(set(c.get("specialist_id") for c in changes))
 
         return {
             "period_days": days,
@@ -226,9 +217,7 @@ class TemporalTracker:
             "specialists_with_changes": specialists_with_changes,
         }
 
-    async def _get_seniority_distribution(
-        self, since: Optional[datetime] = None
-    ) -> Dict[str, Any]:
+    async def _get_seniority_distribution(self, since: Optional[datetime] = None) -> Dict[str, Any]:
         """
         Calcula distribuição de senioridade desde uma data.
 
@@ -243,12 +232,12 @@ class TemporalTracker:
                 - percentages: porcentagem por nível
         """
         if since is None:
-            since = datetime.utcnow() - timedelta(days=30)
+            since = datetime.now(timezone.utc) - timedelta(days=30)
 
         # Buscar mudanças no período, ordenadas por data (mais recente primeiro)
-        cursor = self.seniority_collection.find({
-            "changed_at": {"$gte": since}
-        }).sort("changed_at", -1)
+        cursor = self.seniority_collection.find({"changed_at": {"$gte": since}}).sort(
+            "changed_at", -1
+        )
 
         changes = await self._parse_cursor(cursor)
 

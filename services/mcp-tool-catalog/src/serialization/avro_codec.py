@@ -13,6 +13,7 @@ logger = structlog.get_logger()
 try:
     import avro.io
     import avro.schema
+
     AVRO_AVAILABLE = True
 except ImportError:
     AVRO_AVAILABLE = False
@@ -31,7 +32,7 @@ class AvroCodec:
         """
         # Calcular caminho para schemas - prioriza variável de ambiente
         if schema_registry_path is None:
-            schema_registry_path = os.environ.get('SCHEMAS_DIR')
+            schema_registry_path = os.environ.get("SCHEMAS_DIR")
             if schema_registry_path is None:
                 # Fallback: tentar caminhos relativos conhecidos
                 try:
@@ -64,22 +65,40 @@ class AvroCodec:
 
         try:
             # Schema de request
-            request_schema_path = self.schema_registry_path / "mcp-tool-selection-request" / "mcp-tool-selection-request.avsc"
+            request_schema_path = (
+                self.schema_registry_path
+                / "mcp-tool-selection-request"
+                / "mcp-tool-selection-request.avsc"
+            )
             if request_schema_path.exists():
-                with open(request_schema_path, 'r') as f:
-                    self.schemas['request'] = avro.schema.parse(f.read())
-                    logger.info("avro_request_schema_loaded", path=str(request_schema_path.absolute()))
+                with open(request_schema_path, "r") as f:
+                    self.schemas["request"] = avro.schema.parse(f.read())
+                    logger.info(
+                        "avro_request_schema_loaded", path=str(request_schema_path.absolute())
+                    )
             else:
-                logger.warning("avro_request_schema_not_found", expected_path=str(request_schema_path.absolute()))
+                logger.warning(
+                    "avro_request_schema_not_found",
+                    expected_path=str(request_schema_path.absolute()),
+                )
 
             # Schema de response
-            response_schema_path = self.schema_registry_path / "mcp-tool-selection-response" / "mcp-tool-selection-response.avsc"
+            response_schema_path = (
+                self.schema_registry_path
+                / "mcp-tool-selection-response"
+                / "mcp-tool-selection-response.avsc"
+            )
             if response_schema_path.exists():
-                with open(response_schema_path, 'r') as f:
-                    self.schemas['response'] = avro.schema.parse(f.read())
-                    logger.info("avro_response_schema_loaded", path=str(response_schema_path.absolute()))
+                with open(response_schema_path, "r") as f:
+                    self.schemas["response"] = avro.schema.parse(f.read())
+                    logger.info(
+                        "avro_response_schema_loaded", path=str(response_schema_path.absolute())
+                    )
             else:
-                logger.warning("avro_response_schema_not_found", expected_path=str(response_schema_path.absolute()))
+                logger.warning(
+                    "avro_response_schema_not_found",
+                    expected_path=str(response_schema_path.absolute()),
+                )
 
             # Se nenhum schema foi carregado, desabilitar Avro
             if not self.schemas:
@@ -103,7 +122,7 @@ class AvroCodec:
         """
         if not self.avro_enabled or schema_type not in self.schemas:
             # Fallback para JSON
-            return json.dumps(record).encode('utf-8')
+            return json.dumps(record).encode("utf-8")
 
         try:
             # Serializar com Avro
@@ -116,9 +135,11 @@ class AvroCodec:
             return bytes_writer.getvalue()
 
         except Exception as e:
-            logger.error("avro_serialization_failed_using_json", error=str(e), schema_type=schema_type)
+            logger.error(
+                "avro_serialization_failed_using_json", error=str(e), schema_type=schema_type
+            )
             # Fallback para JSON
-            return json.dumps(record).encode('utf-8')
+            return json.dumps(record).encode("utf-8")
 
     def deserialize(self, data: bytes, schema_type: str) -> Optional[Dict]:
         """
@@ -133,7 +154,7 @@ class AvroCodec:
         """
         # Tentar JSON primeiro (compatibilidade)
         try:
-            return json.loads(data.decode('utf-8'))
+            return json.loads(data.decode("utf-8"))
         except (json.JSONDecodeError, UnicodeDecodeError):
             pass
 

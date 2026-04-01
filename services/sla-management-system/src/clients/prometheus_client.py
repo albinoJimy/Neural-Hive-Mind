@@ -3,8 +3,9 @@ Cliente para Prometheus HTTP API.
 """
 
 import asyncio
-from datetime import datetime, timedelta
-from typing import Dict, Any, Optional
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, Optional
+
 import httpx
 import structlog
 
@@ -14,11 +15,13 @@ from ..models.slo_definition import SLODefinition
 
 class PrometheusQueryError(Exception):
     """Erro em query ao Prometheus."""
+
     pass
 
 
 class PrometheusConnectionError(Exception):
     """Erro de conexão com Prometheus."""
+
     pass
 
 
@@ -34,10 +37,7 @@ class PrometheusClient:
 
     async def connect(self):
         """Inicializa cliente HTTP."""
-        self.session = httpx.AsyncClient(
-            base_url=self.base_url,
-            timeout=self.timeout
-        )
+        self.session = httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout)
         self.logger.info("prometheus_client_connected", base_url=self.base_url)
 
     async def disconnect(self):
@@ -46,11 +46,7 @@ class PrometheusClient:
             await self.session.aclose()
             self.logger.info("prometheus_client_disconnected")
 
-    async def query(
-        self,
-        query: str,
-        time: Optional[datetime] = None
-    ) -> Dict[str, Any]:
+    async def query(self, query: str, time: Optional[datetime] = None) -> Dict[str, Any]:
         """Executa query PromQL instantânea."""
         params = {"query": query}
         if time:
@@ -72,22 +68,13 @@ class PrometheusClient:
             except httpx.HTTPError as e:
                 if attempt == self.max_retries - 1:
                     raise PrometheusConnectionError(f"Failed after {self.max_retries} retries: {e}")
-                await asyncio.sleep(2 ** attempt)  # Exponential backoff
+                await asyncio.sleep(2**attempt)  # Exponential backoff
 
     async def query_range(
-        self,
-        query: str,
-        start: datetime,
-        end: datetime,
-        step: str = "1m"
+        self, query: str, start: datetime, end: datetime, step: str = "1m"
     ) -> Dict[str, Any]:
         """Executa query PromQL em range temporal."""
-        params = {
-            "query": query,
-            "start": start.isoformat(),
-            "end": end.isoformat(),
-            "step": step
-        }
+        params = {"query": query, "start": start.isoformat(), "end": end.isoformat(), "step": step}
 
         for attempt in range(self.max_retries):
             try:
@@ -105,23 +92,16 @@ class PrometheusClient:
             except httpx.HTTPError as e:
                 if attempt == self.max_retries - 1:
                     raise PrometheusConnectionError(f"Failed after {self.max_retries} retries: {e}")
-                await asyncio.sleep(2 ** attempt)
+                await asyncio.sleep(2**attempt)
 
-    async def calculate_sli(
-        self,
-        slo_definition: SLODefinition,
-        window_days: int = 30
-    ) -> float:
+    async def calculate_sli(self, slo_definition: SLODefinition, window_days: int = 30) -> float:
         """Calcula SLI atual baseado na definição do SLO."""
-        end = datetime.utcnow()
+        end = datetime.now(timezone.utc)
         start = end - timedelta(days=window_days)
 
         try:
             result = await self.query_range(
-                query=slo_definition.sli_query.query,
-                start=start,
-                end=end,
-                step="5m"
+                query=slo_definition.sli_query.query, start=start, end=end, step="5m"
             )
 
             # Extrai valor agregado
@@ -134,36 +114,23 @@ class PrometheusClient:
                         # values[-1] = [timestamp, value]
                         sli_value = float(values[-1][1])
                         self.logger.info(
-                            "sli_calculated",
-                            slo_id=slo_definition.slo_id,
-                            sli_value=sli_value
+                            "sli_calculated", slo_id=slo_definition.slo_id, sli_value=sli_value
                         )
                         return sli_value
 
-            self.logger.warning(
-                "sli_calculation_no_data",
-                slo_id=slo_definition.slo_id
-            )
+            self.logger.warning("sli_calculation_no_data", slo_id=slo_definition.slo_id)
             return slo_definition.target  # Default to target if no data
 
         except Exception as e:
-            self.logger.error(
-                "sli_calculation_failed",
-                slo_id=slo_definition.slo_id,
-                error=str(e)
-            )
+            self.logger.error("sli_calculation_failed", slo_id=slo_definition.slo_id, error=str(e))
             raise
 
-    async def calculate_error_rate(
-        self,
-        service: str,
-        window_days: int = 30
-    ) -> float:
+    async def calculate_error_rate(self, service: str, window_days: int = 30) -> float:
         """Calcula taxa de erro para um serviço."""
-        query = f'''
+        query = f"""
         sum(rate(neural_hive_request_errors_total{{service="{service}"}}[{window_days}d])) /
         sum(rate(neural_hive_requests_total{{service="{service}"}}[{window_days}d]))
-        '''
+        """
 
         try:
             result = await self.query(query)
@@ -174,31 +141,24 @@ class PrometheusClient:
             return 0.0
 
         except Exception as e:
-            self.logger.error(
-                "error_rate_calculation_failed",
-                service=service,
-                error=str(e)
-            )
+            self.logger.error("error_rate_calculation_failed", service=service, error=str(e))
             return 0.0
 
     async def calculate_burn_rate(
-        self,
-        service: str,
-        window_hours: int,
-        baseline_days: int = 30
+        self, service: str, window_hours: int, baseline_days: int = 30
     ) -> float:
         """Calcula burn rate comparando janela curta vs baseline."""
         # Error rate na janela curta
-        query_window = f'''
+        query_window = f"""
         sum(rate(neural_hive_request_errors_total{{service="{service}"}}[{window_hours}h])) /
         sum(rate(neural_hive_requests_total{{service="{service}"}}[{window_hours}h]))
-        '''
+        """
 
         # Error rate no baseline
-        query_baseline = f'''
+        query_baseline = f"""
         sum(rate(neural_hive_request_errors_total{{service="{service}"}}[{baseline_days}d])) /
         sum(rate(neural_hive_requests_total{{service="{service}"}}[{baseline_days}d]))
-        '''
+        """
 
         try:
             error_rate_window = 0.0
@@ -220,8 +180,9 @@ class PrometheusClient:
 
             # Calcula burn rate
             if error_rate_baseline > 0:
-                burn_rate = (error_rate_window / error_rate_baseline) * \
-                           (baseline_days * 24 / window_hours)
+                burn_rate = (error_rate_window / error_rate_baseline) * (
+                    baseline_days * 24 / window_hours
+                )
                 return burn_rate
 
             return 0.0
@@ -231,15 +192,11 @@ class PrometheusClient:
                 "burn_rate_calculation_failed",
                 service=service,
                 window_hours=window_hours,
-                error=str(e)
+                error=str(e),
             )
             return 0.0
 
-    async def count_slo_violations(
-        self,
-        slo_name: str,
-        window_hours: int = 24
-    ) -> int:
+    async def count_slo_violations(self, slo_name: str, window_hours: int = 24) -> int:
         """
         Conta número de violações de SLO via Alertmanager alerts.
 
@@ -252,9 +209,9 @@ class PrometheusClient:
         """
         # Query para contar alertas de violação SLO
         # ALERTS_FOR_STATE retorna alertas ativos
-        query = f'''
+        query = f"""
         count(ALERTS{{slo="{slo_name}", alertstate="firing"}})
-        '''
+        """
 
         try:
             result = await self.query(query)
@@ -265,13 +222,13 @@ class PrometheusClient:
                     return count
 
             # Fallback: query com range para histórico
-            end = datetime.utcnow()
-            start = end - timedelta(hours=window_hours)
+            end = datetime.now(timezone.utc)
+            end - timedelta(hours=window_hours)
 
             # Query alternativa usando increase em contadores de alertas
-            query_history = f'''
+            query_history = f"""
             sum(increase(ALERTS{{slo="{slo_name}"}}[{window_hours}h]))
-            '''
+            """
 
             result_history = await self.query(query_history)
             if result_history.get("resultType") == "vector":
@@ -281,18 +238,12 @@ class PrometheusClient:
                     return count
 
             self.logger.debug(
-                "slo_violations_not_found",
-                slo_name=slo_name,
-                window_hours=window_hours
+                "slo_violations_not_found", slo_name=slo_name, window_hours=window_hours
             )
             return 0
 
         except Exception as e:
-            self.logger.error(
-                "slo_violations_count_failed",
-                slo_name=slo_name,
-                error=str(e)
-            )
+            self.logger.error("slo_violations_count_failed", slo_name=slo_name, error=str(e))
             return 0
 
     async def health_check(self) -> bool:

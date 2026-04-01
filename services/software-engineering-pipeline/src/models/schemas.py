@@ -1,7 +1,6 @@
 from enum import Enum
+
 from pydantic import BaseModel, ConfigDict, Field
-from typing import Literal
-from datetime import datetime, timezone
 
 
 class PipelineProvider(str, Enum):
@@ -52,13 +51,9 @@ class ProjectStack(BaseModel):
     framework: str | None = Field(default=None, description="Framework web utilizado")
     package_manager: str = Field(description="Gerenciador de pacotes")
     has_dockerfile: bool = Field(default=False, description="Se existe Dockerfile")
-    has_docker_compose: bool = Field(
-        default=False, description="Se existe docker-compose.yml"
-    )
+    has_docker_compose: bool = Field(default=False, description="Se existe docker-compose.yml")
     has_helm_chart: bool = Field(default=False, description="Se existe chart Helm")
-    kubernetes_manifests: bool = Field(
-        default=False, description="Se existem manifests K8s"
-    )
+    kubernetes_manifests: bool = Field(default=False, description="Se existem manifests K8s")
 
 
 class Component(BaseModel):

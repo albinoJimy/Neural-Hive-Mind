@@ -1,4 +1,4 @@
-from prometheus_client import Counter, Gauge, Histogram, REGISTRY
+from prometheus_client import REGISTRY, Counter, Gauge, Histogram
 
 
 def _get_or_create_counter(name: str, description: str, labelnames=None):
@@ -30,86 +30,63 @@ class RegistryMetrics:
 
     # Métricas de registro
     agents_registered_total = _get_or_create_counter(
-        'agents_registered_total',
-        'Total de agentes registrados',
-        ['agent_type']
+        "agents_registered_total", "Total de agentes registrados", ["agent_type"]
     )
 
     agents_deregistered_total = _get_or_create_counter(
-        'agents_deregistered_total',
-        'Total de agentes desregistrados',
-        ['agent_type']
+        "agents_deregistered_total", "Total de agentes desregistrados", ["agent_type"]
     )
 
     agents_active = _get_or_create_gauge(
-        'agents_active',
-        'Número de agentes ativos',
-        ['agent_type', 'status']
+        "agents_active", "Número de agentes ativos", ["agent_type", "status"]
     )
 
     # Métricas de heartbeat
     heartbeats_received_total = _get_or_create_counter(
-        'heartbeats_received_total',
-        'Total de heartbeats recebidos',
-        ['agent_type', 'status']
+        "heartbeats_received_total", "Total de heartbeats recebidos", ["agent_type", "status"]
     )
 
     heartbeat_latency_seconds = _get_or_create_histogram(
-        'heartbeat_latency_seconds',
-        'Latência de processamento de heartbeat'
+        "heartbeat_latency_seconds", "Latência de processamento de heartbeat"
     )
 
     # Métricas de discovery
     discovery_requests_total = _get_or_create_counter(
-        'discovery_requests_total',
-        'Total de requisições de discovery',
-        ['agent_type']
+        "discovery_requests_total", "Total de requisições de discovery", ["agent_type"]
     )
 
     discovery_duration_seconds = _get_or_create_histogram(
-        'discovery_duration_seconds',
-        'Duração de requisições de discovery'
+        "discovery_duration_seconds", "Duração de requisições de discovery"
     )
 
     matching_candidates_evaluated = _get_or_create_histogram(
-        'matching_candidates_evaluated',
-        'Número de candidatos avaliados no matching'
+        "matching_candidates_evaluated", "Número de candidatos avaliados no matching"
     )
 
     agents_matched = _get_or_create_histogram(
-        'agents_matched',
-        'Número de agentes retornados no matching'
+        "agents_matched", "Número de agentes retornados no matching"
     )
 
     # Métricas de health checks
     health_checks_total = _get_or_create_counter(
-        'health_checks_total',
-        'Total de health checks executados'
+        "health_checks_total", "Total de health checks executados"
     )
 
     agents_marked_unhealthy_total = _get_or_create_counter(
-        'agents_marked_unhealthy_total',
-        'Total de agentes marcados como unhealthy',
-        ['agent_type']
+        "agents_marked_unhealthy_total", "Total de agentes marcados como unhealthy", ["agent_type"]
     )
 
     agents_removed_total = _get_or_create_counter(
-        'agents_removed_total',
-        'Total de agentes removidos por inatividade',
-        ['agent_type']
+        "agents_removed_total", "Total de agentes removidos por inatividade", ["agent_type"]
     )
 
     # Métricas de etcd
     etcd_operations_total = _get_or_create_counter(
-        'etcd_operations_total',
-        'Total de operações no etcd',
-        ['operation', 'status']
+        "etcd_operations_total", "Total de operações no etcd", ["operation", "status"]
     )
 
     etcd_operation_duration_seconds = _get_or_create_histogram(
-        'etcd_operation_duration_seconds',
-        'Duração de operações no etcd',
-        ['operation']
+        "etcd_operation_duration_seconds", "Duração de operações no etcd", ["operation"]
     )
 
     @staticmethod
@@ -125,10 +102,7 @@ class RegistryMetrics:
     @staticmethod
     def record_heartbeat(agent_type: str, status: str):
         """Registra métrica de heartbeat"""
-        RegistryMetrics.heartbeats_received_total.labels(
-            agent_type=agent_type,
-            status=status
-        ).inc()
+        RegistryMetrics.heartbeats_received_total.labels(agent_type=agent_type, status=status).inc()
 
     @staticmethod
     def record_discovery_request(agent_type: str):
@@ -153,7 +127,4 @@ class RegistryMetrics:
     @staticmethod
     def record_etcd_operation(operation: str, status: str):
         """Registra métrica de operação etcd"""
-        RegistryMetrics.etcd_operations_total.labels(
-            operation=operation,
-            status=status
-        ).inc()
+        RegistryMetrics.etcd_operations_total.labels(operation=operation, status=status).inc()

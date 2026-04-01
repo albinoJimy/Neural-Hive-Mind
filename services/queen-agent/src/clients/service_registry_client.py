@@ -1,20 +1,20 @@
 """Service Registry gRPC client for Queen Agent com suporte a mTLS via SPIFFE."""
-import structlog
-from typing import List, Dict, Any, Optional, Tuple
+from typing import Any
+
 import grpc
+import structlog
 
 from neural_hive_integration.proto_stubs import (
     service_registry_pb2,
     service_registry_pb2_grpc,
 )
-
-from ..config import Settings
+from src.config import Settings
 
 # Importar SPIFFE/mTLS se disponível
 try:
     from neural_hive_security import (
-        SPIFFEManager,
         SPIFFEConfig,
+        SPIFFEManager,
         create_secure_grpc_channel,
         get_grpc_metadata_with_jwt,
     )
@@ -36,9 +36,9 @@ class ServiceRegistryClient:
         self.settings = settings
         self.grpc_host = settings.SERVICE_REGISTRY_GRPC_HOST
         self.grpc_port = settings.SERVICE_REGISTRY_GRPC_PORT
-        self.channel: Optional[grpc.aio.Channel] = None
-        self.stub: Optional[service_registry_pb2_grpc.ServiceRegistryStub] = None
-        self.spiffe_manager: Optional[SPIFFEManager] = None
+        self.channel: grpc.aio.Channel | None = None
+        self.stub: service_registry_pb2_grpc.ServiceRegistryStub | None = None
+        self.spiffe_manager: SPIFFEManager | None = None
 
     async def initialize(self) -> None:
         """Inicializar cliente gRPC com suporte a mTLS."""
@@ -50,9 +50,7 @@ class ServiceRegistryClient:
             spiffe_enable_x509 = getattr(self.settings, "SPIFFE_ENABLE_X509", False)
             environment = getattr(self.settings, "ENVIRONMENT", "development")
 
-            spiffe_x509_enabled = (
-                spiffe_enabled and spiffe_enable_x509 and SECURITY_LIB_AVAILABLE
-            )
+            spiffe_x509_enabled = spiffe_enabled and spiffe_enable_x509 and SECURITY_LIB_AVAILABLE
 
             if spiffe_x509_enabled:
                 # Criar configuração SPIFFE
@@ -62,15 +60,9 @@ class ServiceRegistryClient:
                         "SPIFFE_SOCKET_PATH",
                         "unix:///run/spire/sockets/agent.sock",
                     ),
-                    trust_domain=getattr(
-                        self.settings, "SPIFFE_TRUST_DOMAIN", "neural-hive.local"
-                    ),
-                    jwt_audience=getattr(
-                        self.settings, "SPIFFE_JWT_AUDIENCE", "neural-hive.local"
-                    ),
-                    jwt_ttl_seconds=getattr(
-                        self.settings, "SPIFFE_JWT_TTL_SECONDS", 3600
-                    ),
+                    trust_domain=getattr(self.settings, "SPIFFE_TRUST_DOMAIN", "neural-hive.local"),
+                    jwt_audience=getattr(self.settings, "SPIFFE_JWT_AUDIENCE", "neural-hive.local"),
+                    jwt_ttl_seconds=getattr(self.settings, "SPIFFE_JWT_TTL_SECONDS", 3600),
                     enable_x509=True,
                     environment=environment,
                 )
@@ -89,9 +81,7 @@ class ServiceRegistryClient:
                     fallback_insecure=is_dev_env,
                 )
 
-                logger.info(
-                    "mtls_channel_configured", target=target, environment=environment
-                )
+                logger.info("mtls_channel_configured", target=target, environment=environment)
             else:
                 # Fallback para canal inseguro (apenas desenvolvimento)
                 if environment in ["production", "staging", "prod"]:
@@ -99,9 +89,7 @@ class ServiceRegistryClient:
                         f"mTLS is required in {environment} but SPIFFE X.509 is disabled."
                     )
 
-                logger.warning(
-                    "using_insecure_channel", target=target, environment=environment
-                )
+                logger.warning("using_insecure_channel", target=target, environment=environment)
                 self.channel = grpc.aio.insecure_channel(target)
 
             self.stub = service_registry_pb2_grpc.ServiceRegistryStub(self.channel)
@@ -111,19 +99,17 @@ class ServiceRegistryClient:
                 port=self.grpc_port,
             )
         except Exception as e:
-            logger.error("service_registry_client_init_failed", error=str(e))
+            logger.exception("service_registry_client_init_failed", error=str(e))
             raise
 
-    async def _get_grpc_metadata(self) -> List[Tuple[str, str]]:
+    async def _get_grpc_metadata(self) -> list[tuple[str, str]]:
         """Obter metadata gRPC com JWT-SVID para autenticação."""
         spiffe_enabled = getattr(self.settings, "SPIFFE_ENABLED", False)
         if not spiffe_enabled or not self.spiffe_manager:
             return []
 
         try:
-            trust_domain = getattr(
-                self.settings, "SPIFFE_TRUST_DOMAIN", "neural-hive.local"
-            )
+            trust_domain = getattr(self.settings, "SPIFFE_TRUST_DOMAIN", "neural-hive.local")
             environment = getattr(self.settings, "ENVIRONMENT", "development")
             audience = f"service-registry.{trust_domain}"
             return await get_grpc_metadata_with_jwt(
@@ -151,8 +137,8 @@ class ServiceRegistryClient:
         logger.info("service_registry_client_closed")
 
     async def discover_agents(
-        self, capabilities: List[str], filters: Dict[str, Any], max_results: int = 10
-    ) -> List[Dict[str, Any]]:
+        self, capabilities: list[str], filters: dict[str, Any], max_results: int = 10
+    ) -> list[dict[str, Any]]:
         """Descobrir agentes com capabilities especificas"""
         try:
             if not self.stub:
@@ -194,13 +180,13 @@ class ServiceRegistryClient:
             return agents
 
         except grpc.RpcError as e:
-            logger.error("discover_agents_grpc_failed", error=str(e), code=e.code())
+            logger.exception("discover_agents_grpc_failed", error=str(e), code=e.code())
             return []
         except Exception as e:
-            logger.error("discover_agents_failed", error=str(e))
+            logger.exception("discover_agents_failed", error=str(e))
             return []
 
-    async def get_healthy_agents(self, agent_type: str) -> List[Dict[str, Any]]:
+    async def get_healthy_agents(self, agent_type: str) -> list[dict[str, Any]]:
         """Listar agentes saudaveis por tipo"""
         try:
             if not self.stub:
@@ -249,16 +235,14 @@ class ServiceRegistryClient:
                         }
                     )
 
-            logger.info(
-                "healthy_agents_retrieved", agent_type=agent_type, count=len(agents)
-            )
+            logger.info("healthy_agents_retrieved", agent_type=agent_type, count=len(agents))
             return agents
 
         except grpc.RpcError as e:
-            logger.error("get_healthy_agents_grpc_failed", error=str(e), code=e.code())
+            logger.exception("get_healthy_agents_grpc_failed", error=str(e), code=e.code())
             return []
         except Exception as e:
-            logger.error("get_healthy_agents_failed", error=str(e))
+            logger.exception("get_healthy_agents_failed", error=str(e))
             return []
 
     def _agent_type_to_string(self, agent_type: int) -> str:

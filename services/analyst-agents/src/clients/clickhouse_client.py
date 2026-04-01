@@ -1,6 +1,7 @@
+from typing import Dict, List, Optional
+
 import structlog
 from clickhouse_driver import Client
-from typing import List, Dict, Optional
 
 logger = structlog.get_logger()
 
@@ -21,20 +22,20 @@ class ClickHouseClient:
                 host=self.host,
                 port=self.port,
                 user=self.user,
-                password=self.password or '',
-                database=self.database
+                password=self.password or "",
+                database=self.database,
             )
-            self.client.execute('SELECT 1')
-            logger.info('clickhouse_client_initialized', host=self.host)
+            self.client.execute("SELECT 1")
+            logger.info("clickhouse_client_initialized", host=self.host)
         except Exception as e:
-            logger.error('clickhouse_client_initialization_failed', error=str(e))
+            logger.error("clickhouse_client_initialization_failed", error=str(e))
             raise
 
     def close(self):
         """Fechar conexão"""
         if self.client:
             self.client.disconnect()
-            logger.info('clickhouse_client_closed')
+            logger.info("clickhouse_client_closed")
 
     def query(self, sql: str, parameters: dict = None) -> List[tuple]:
         """Executar consulta SQL"""
@@ -42,13 +43,15 @@ class ClickHouseClient:
             result = self.client.execute(sql, parameters or {})
             return result
         except Exception as e:
-            logger.error('clickhouse_query_failed', error=str(e), sql=sql[:100])
+            logger.error("clickhouse_query_failed", error=str(e), sql=sql[:100])
             return []
 
-    def get_telemetry_aggregates(self, start: int, end: int, metrics: List[str], group_by: List[str]) -> List[Dict]:
+    def get_telemetry_aggregates(
+        self, start: int, end: int, metrics: List[str], group_by: List[str]
+    ) -> List[Dict]:
         """Agregar telemetria por janela temporal"""
-        metrics_str = ', '.join([f'avg({m}) as avg_{m}, max({m}) as max_{m}' for m in metrics])
-        group_by_str = ', '.join(group_by)
+        metrics_str = ", ".join([f"avg({m}) as avg_{m}, max({m}) as max_{m}" for m in metrics])
+        group_by_str = ", ".join(group_by)
 
         sql = f"""
         SELECT {group_by_str}, {metrics_str}
@@ -57,8 +60,11 @@ class ClickHouseClient:
         GROUP BY {group_by_str}
         """
 
-        result = self.query(sql, {'start': start, 'end': end})
-        return [dict(zip(group_by + [f'avg_{m}' for m in metrics] + [f'max_{m}' for m in metrics], row)) for row in result]
+        result = self.query(sql, {"start": start, "end": end})
+        return [
+            dict(zip(group_by + [f"avg_{m}" for m in metrics] + [f"max_{m}" for m in metrics], row))
+            for row in result
+        ]
 
     def get_execution_statistics(self, start: int, end: int) -> Dict:
         """Estatísticas de execução"""
@@ -73,18 +79,20 @@ class ClickHouseClient:
         WHERE timestamp >= %(start)s AND timestamp <= %(end)s
         """
 
-        result = self.query(sql, {'start': start, 'end': end})
+        result = self.query(sql, {"start": start, "end": end})
         if result:
             return {
-                'p50_latency': result[0][0],
-                'p95_latency': result[0][1],
-                'p99_latency': result[0][2],
-                'error_rate': result[0][3],
-                'total_executions': result[0][4]
+                "p50_latency": result[0][0],
+                "p95_latency": result[0][1],
+                "p99_latency": result[0][2],
+                "error_rate": result[0][3],
+                "total_executions": result[0][4],
             }
         return {}
 
-    def detect_metric_anomalies(self, metric_name: str, start: int, end: int, threshold: float = 3.0) -> List[Dict]:
+    def detect_metric_anomalies(
+        self, metric_name: str, start: int, end: int, threshold: float = 3.0
+    ) -> List[Dict]:
         """Detectar anomalias em métricas usando desvio padrão"""
         sql = f"""
         WITH stats AS (
@@ -100,5 +108,5 @@ class ClickHouseClient:
         ORDER BY zscore DESC
         """
 
-        result = self.query(sql, {'start': start, 'end': end, 'threshold': threshold})
-        return [{'timestamp': r[0], 'value': r[1], 'zscore': r[2]} for r in result]
+        result = self.query(sql, {"start": start, "end": end, "threshold": threshold})
+        return [{"timestamp": r[0], "value": r[1], "zscore": r[2]} for r in result]

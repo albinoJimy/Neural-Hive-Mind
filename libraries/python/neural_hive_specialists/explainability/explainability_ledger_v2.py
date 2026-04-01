@@ -7,7 +7,7 @@ e narrativa legível, garantindo reprodutibilidade e auditoria.
 
 import hashlib
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Any, Optional
 import structlog
 from pymongo import MongoClient, ASCENDING, IndexModel
@@ -230,7 +230,7 @@ class ExplainabilityLedgerV2:
                 "plan_id": explainability_data["plan_id"],
                 "input_features": explainability_data["input_features"],
                 "model_version": explainability_data["model_version"],
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             },
             sort_keys=True,
         )

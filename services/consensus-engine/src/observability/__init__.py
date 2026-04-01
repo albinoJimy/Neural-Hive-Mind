@@ -1,3 +1,3 @@
 from .metrics import ConsensusMetrics
 
-__all__ = ['ConsensusMetrics']
+__all__ = ["ConsensusMetrics"]

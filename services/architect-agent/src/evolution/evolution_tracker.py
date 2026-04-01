@@ -1,18 +1,17 @@
 """Rastreador de evolução de arquitetura."""
 
 import uuid
-from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
 
+import structlog
 from motor.motor_asyncio import AsyncIOMotorClientSession
 
-from src.models.evolution import EvolutionHistory, DriftDetection, ArchitectureDiff
-from src.models.architecture import ArchitecturePlan
-from src.evolution.drift_detector import DriftDetector
-from src.evolution.diff_calculator import DiffCalculator
 from src.config.settings import get_settings
-import structlog
-
+from src.evolution.diff_calculator import DiffCalculator
+from src.evolution.drift_detector import DriftDetector
+from src.models.architecture import ArchitecturePlan
+from src.models.evolution import ArchitectureDiff, DriftDetection, EvolutionHistory
 
 logger = structlog.get_logger(__name__)
 
@@ -39,7 +38,7 @@ class EvolutionTracker:
         version: int,
         changes: List[str],
         drifts: List[DriftDetection],
-        created_by: str = "architect-agent"
+        created_by: str = "architect-agent",
     ) -> EvolutionHistory:
         """Registra entrada de histórico de evolução.
 
@@ -60,7 +59,7 @@ class EvolutionTracker:
             changes=changes,
             drifts=drifts,
             created_at=datetime.now(timezone.utc),
-            created_by=created_by
+            created_by=created_by,
         )
 
         await self.db[self.db_name][self.collection].insert_one(
@@ -73,7 +72,7 @@ class EvolutionTracker:
             plan_id=plan_id,
             version=version,
             changes_count=len(changes),
-            drifts_count=len(drifts)
+            drifts_count=len(drifts),
         )
 
         return history
@@ -83,7 +82,7 @@ class EvolutionTracker:
         planned: ArchitecturePlan,
         implemented: Dict[str, Any],
         version: int,
-        created_by: str = "architect-agent"
+        created_by: str = "architect-agent",
     ) -> List[DriftDetection]:
         """Detecta divergências e registra no histórico.
 
@@ -105,7 +104,7 @@ class EvolutionTracker:
                 version=version,
                 changes=changes,
                 drifts=drifts,
-                created_by=created_by
+                created_by=created_by,
             )
 
         return drifts
@@ -130,12 +129,10 @@ class EvolutionTracker:
             additions=[],
             removals=[],
             modifications=[],
-            requires_migration=False
+            requires_migration=False,
         )
 
-    async def get_history(
-        self, plan_id: str, limit: int = 10
-    ) -> List[EvolutionHistory]:
+    async def get_history(self, plan_id: str, limit: int = 10) -> List[EvolutionHistory]:
         """Obtém histórico de evolução de um plano.
 
         Args:

@@ -1,5 +1,3 @@
-from typing import Dict, Optional
-
 import structlog
 from redis.asyncio import Redis
 
@@ -13,7 +11,7 @@ class RedisClient:
 
     def __init__(self, settings=None):
         self.settings = settings or get_settings()
-        self.client: Optional[Redis] = None
+        self.client: Redis | None = None
 
     async def connect(self):
         """Estabelecer conexão Redis."""
@@ -46,7 +44,7 @@ class RedisClient:
             await self.client.close()
             logger.info("redis_disconnected")
 
-    async def cache_metrics(self, component: str, metrics: Dict[str, float], ttl: int = 300):
+    async def cache_metrics(self, component: str, metrics: dict[str, float], ttl: int = 300):
         """Cachear métricas de componente."""
         try:
             key = f"optimizer:metrics:{component}"
@@ -59,7 +57,7 @@ class RedisClient:
         except Exception as e:
             logger.error("metrics_cache_failed", component=component, error=str(e))
 
-    async def get_cached_metrics(self, component: str) -> Optional[Dict[str, float]]:
+    async def get_cached_metrics(self, component: str) -> dict[str, float] | None:
         """Recuperar métricas cacheadas."""
         try:
             key = f"optimizer:metrics:{component}"
@@ -76,7 +74,7 @@ class RedisClient:
             logger.error("metrics_retrieval_failed", component=component, error=str(e))
             return None
 
-    async def cache_optimization_state(self, optimization_id: str, state: Dict, ttl: int = 3600):
+    async def cache_optimization_state(self, optimization_id: str, state: dict, ttl: int = 3600):
         """Cachear estado de otimização em andamento."""
         try:
             key = f"optimizer:state:{optimization_id}"
@@ -87,9 +85,11 @@ class RedisClient:
 
             logger.debug("optimization_state_cached", optimization_id=optimization_id)
         except Exception as e:
-            logger.error("optimization_state_cache_failed", optimization_id=optimization_id, error=str(e))
+            logger.error(
+                "optimization_state_cache_failed", optimization_id=optimization_id, error=str(e)
+            )
 
-    async def get_optimization_state(self, optimization_id: str) -> Optional[Dict]:
+    async def get_optimization_state(self, optimization_id: str) -> dict | None:
         """Recuperar estado de otimização."""
         try:
             key = f"optimizer:state:{optimization_id}"
@@ -101,7 +101,9 @@ class RedisClient:
 
             return None
         except Exception as e:
-            logger.error("optimization_state_retrieval_failed", optimization_id=optimization_id, error=str(e))
+            logger.error(
+                "optimization_state_retrieval_failed", optimization_id=optimization_id, error=str(e)
+            )
             return None
 
     async def lock_component(self, component: str, ttl: int = 60) -> bool:
@@ -158,14 +160,18 @@ class RedisClient:
             await self.client.set(full_key, value, ex=ttl)
             logger.debug("metadata_set", optimization_id=optimization_id, key=key)
         except Exception as e:
-            logger.error("metadata_set_failed", optimization_id=optimization_id, key=key, error=str(e))
+            logger.error(
+                "metadata_set_failed", optimization_id=optimization_id, key=key, error=str(e)
+            )
 
-    async def get_metadata(self, optimization_id: str, key: str) -> Optional[str]:
+    async def get_metadata(self, optimization_id: str, key: str) -> str | None:
         """Obter metadados de otimização."""
         try:
             full_key = f"optimizer:metadata:{optimization_id}:{key}"
             value = await self.client.get(full_key)
             return value
         except Exception as e:
-            logger.error("metadata_get_failed", optimization_id=optimization_id, key=key, error=str(e))
+            logger.error(
+                "metadata_get_failed", optimization_id=optimization_id, key=key, error=str(e)
+            )
             return None

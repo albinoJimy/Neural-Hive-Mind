@@ -6,7 +6,7 @@ sobre opiniões de especialistas, permitindo re-treinamento contínuo dos modelo
 """
 
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, Optional, List
 import structlog
 from pydantic import BaseModel, Field, field_validator, ConfigDict
@@ -606,7 +606,7 @@ class FeedbackCollector:
             FeedbackStoreUnavailable: Se store estiver indisponível
         """
         try:
-            cutoff_date = datetime.utcnow() - timedelta(days=window_days)
+            cutoff_date = datetime.now(timezone.utc) - timedelta(days=window_days)
 
             results = self._with_breaker(
                 lambda: list(
@@ -674,7 +674,7 @@ class FeedbackCollector:
             FeedbackStoreUnavailable: Se store estiver indisponível
         """
         try:
-            cutoff_date = datetime.utcnow() - timedelta(days=window_days)
+            cutoff_date = datetime.now(timezone.utc) - timedelta(days=window_days)
 
             count = self._with_breaker(
                 lambda: self._collection.count_documents(

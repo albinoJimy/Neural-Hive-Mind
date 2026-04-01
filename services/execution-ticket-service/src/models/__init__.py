@@ -1,15 +1,14 @@
 """Modelos de dados do Execution Ticket Service."""
 
 # Reutilizar modelo Pydantic do Orchestrator
-import sys
 import os
-from importlib.util import spec_from_file_location, module_from_spec
+import sys
+from importlib.util import module_from_spec, spec_from_file_location
 
 # Caminho para o módulo execution_ticket do orchestrator
 execution_ticket_path = os.path.abspath(
     os.path.join(
-        os.path.dirname(__file__),
-        '../../../orchestrator-dynamic/src/models/execution_ticket.py'
+        os.path.dirname(__file__), "../../../orchestrator-dynamic/src/models/execution_ticket.py"
     )
 )
 
@@ -31,26 +30,26 @@ Durability = _orchestrator_models.Durability
 SLA = _orchestrator_models.SLA
 QoS = _orchestrator_models.QoS
 
+from .jwt_token import JWTToken, JWTTokenPayload, decode_token, generate_token
 from .ticket_orm import TicketORM
 from .webhook_event import WebhookEvent
-from .jwt_token import JWTToken, JWTTokenPayload, generate_token, decode_token
 
 __all__ = [
-    'ExecutionTicket',
-    'TaskType',
-    'TicketStatus',
-    'Priority',
-    'RiskBand',
-    'SecurityLevel',
-    'DeliveryMode',
-    'Consistency',
-    'Durability',
-    'SLA',
-    'QoS',
-    'TicketORM',
-    'WebhookEvent',
-    'JWTToken',
-    'JWTTokenPayload',
-    'generate_token',
-    'decode_token'
+    "ExecutionTicket",
+    "TaskType",
+    "TicketStatus",
+    "Priority",
+    "RiskBand",
+    "SecurityLevel",
+    "DeliveryMode",
+    "Consistency",
+    "Durability",
+    "SLA",
+    "QoS",
+    "TicketORM",
+    "WebhookEvent",
+    "JWTToken",
+    "JWTTokenPayload",
+    "generate_token",
+    "decode_token",
 ]

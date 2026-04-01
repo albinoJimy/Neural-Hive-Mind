@@ -1,11 +1,13 @@
 """Bayesian filter for noise reduction in signal detection"""
 from typing import Dict, Tuple
+
 import numpy as np
-from scipy import stats
 import structlog
+from scipy import stats
+
+from neural_hive_domain import UnifiedDomain
 
 from ..models.raw_event import RawEvent
-from neural_hive_domain import UnifiedDomain
 
 logger = structlog.get_logger()
 
@@ -55,8 +57,8 @@ class BayesianFilter:
             # Calculate posterior using Bayes' theorem
             # P(signal|features) = P(features|signal) * P(signal) / P(features)
             # Using complementary probability for normalization
-            p_signal_given_features = (likelihood * prior_prob)
-            p_noise_given_features = ((1 - likelihood) * (1 - prior_prob))
+            p_signal_given_features = likelihood * prior_prob
+            p_noise_given_features = (1 - likelihood) * (1 - prior_prob)
 
             # Normalize to get true posterior probability
             total_prob = p_signal_given_features + p_noise_given_features
@@ -78,17 +80,13 @@ class BayesianFilter:
                 prior=prior_prob,
                 likelihood=likelihood,
                 posterior=posterior,
-                decision=should_process
+                decision=should_process,
             )
 
             return should_process, posterior
 
         except Exception as e:
-            logger.error(
-                "bayesian_filter_failed",
-                domain=domain.value,
-                error=str(e)
-            )
+            logger.error("bayesian_filter_failed", domain=domain.value, error=str(e))
             # Default to processing on error
             return True, 0.5
 
@@ -143,15 +141,10 @@ class BayesianFilter:
             domain=domain.value,
             alpha=alpha,
             beta=beta,
-            mean=alpha / (alpha + beta)
+            mean=alpha / (alpha + beta),
         )
 
-    def update_likelihood(
-        self,
-        domain: UnifiedDomain,
-        feature_mean: float,
-        weight: float = 0.1
-    ):
+    def update_likelihood(self, domain: UnifiedDomain, feature_mean: float, weight: float = 0.1):
         """
         Update likelihood parameters using exponential moving average
 
@@ -175,12 +168,7 @@ class BayesianFilter:
 
         self.likelihoods[domain.value] = (new_mean, new_std)
 
-        logger.debug(
-            "likelihood_updated",
-            domain=domain.value,
-            mean=new_mean,
-            std=new_std
-        )
+        logger.debug("likelihood_updated", domain=domain.value, mean=new_mean, std=new_std)
 
     def get_posterior_stats(self, domain: UnifiedDomain) -> Dict[str, float]:
         """
@@ -202,9 +190,9 @@ class BayesianFilter:
         ci_upper = stats.beta.ppf(0.975, alpha, beta)
 
         return {
-            'mean': mean,
-            'variance': variance,
-            'ci_lower': ci_lower,
-            'ci_upper': ci_upper,
-            'samples': alpha + beta - 2  # Number of observations
+            "mean": mean,
+            "variance": variance,
+            "ci_lower": ci_lower,
+            "ci_upper": ci_upper,
+            "samples": alpha + beta - 2,  # Number of observations
         }

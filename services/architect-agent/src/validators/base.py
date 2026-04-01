@@ -1,7 +1,7 @@
 """Interface base para validadores de arquitetura."""
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any
+from typing import Any, Dict
 
 
 class BaseValidator(ABC):

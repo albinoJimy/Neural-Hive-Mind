@@ -1,10 +1,12 @@
 """Repositório base para operações MongoDB."""
 
-from typing import TypeVar, Generic, List, Optional, Dict, Any
+from typing import Any, Dict, Generic, List, Optional, TypeVar
+
+import structlog
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel
+
 from src.config.settings import get_settings
-import structlog
 
 logger = structlog.get_logger(__name__)
 

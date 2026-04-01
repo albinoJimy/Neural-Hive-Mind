@@ -4,11 +4,11 @@ Neo4j Client para grafo de conhecimento e dados semânticos
 Fornece interface assíncrona ao Neo4j para queries em grafo de conhecimento.
 """
 
+from typing import Dict, List, Optional
+
 import structlog
-from typing import List, Dict, Optional
 from neo4j import AsyncGraphDatabase
 from tenacity import retry, stop_after_attempt, wait_exponential
-
 
 logger = structlog.get_logger()
 
@@ -21,10 +21,10 @@ class Neo4jClient:
         uri: str,
         user: str,
         password: str,
-        database: str = 'neo4j',
+        database: str = "neo4j",
         max_connection_pool_size: int = 50,
         connection_timeout: int = 30,
-        encrypted: bool = False
+        encrypted: bool = False,
     ):
         """
         Inicializa o cliente Neo4j
@@ -54,27 +54,17 @@ class Neo4jClient:
             auth=(self.user, self.password),
             max_connection_pool_size=self.max_connection_pool_size,
             connection_timeout=self.connection_timeout,
-            encrypted=self.encrypted
+            encrypted=self.encrypted,
         )
 
         # Verifica conectividade
         await self.driver.verify_connectivity()
 
-        logger.info(
-            'Neo4j client inicializado',
-            uri=self.uri,
-            database=self.database
-        )
+        logger.info("Neo4j client inicializado", uri=self.uri, database=self.database)
 
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=1, max=10)
-    )
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=1, max=10))
     async def execute_query(
-        self,
-        query: str,
-        parameters: Optional[Dict] = None,
-        timeout: Optional[float] = None
+        self, query: str, parameters: Optional[Dict] = None, timeout: Optional[float] = None
     ) -> List[Dict]:
         """
         Executa query Cypher
@@ -95,29 +85,16 @@ class Neo4jClient:
                 result = await session.run(query, parameters, timeout=timeout)
                 records = await result.data()
 
-                logger.debug(
-                    'Query executada',
-                    count=len(records)
-                )
+                logger.debug("Query executada", count=len(records))
 
                 return records
 
             except Exception as e:
-                logger.error(
-                    'Erro ao executar query',
-                    error=str(e)
-                )
+                logger.error("Erro ao executar query", error=str(e))
                 raise
 
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=1, max=10)
-    )
-    async def execute_write(
-        self,
-        query: str,
-        parameters: Optional[Dict] = None
-    ) -> Dict:
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=1, max=10))
+    async def execute_write(self, query: str, parameters: Optional[Dict] = None) -> Dict:
         """
         Executa query de escrita
 
@@ -137,32 +114,24 @@ class Neo4jClient:
                 summary = await result.consume()
 
                 logger.debug(
-                    'Query de escrita executada',
+                    "Query de escrita executada",
                     nodes_created=summary.counters.nodes_created,
-                    relationships_created=summary.counters.relationships_created
+                    relationships_created=summary.counters.relationships_created,
                 )
 
                 return {
-                    'nodes_created': summary.counters.nodes_created,
-                    'nodes_deleted': summary.counters.nodes_deleted,
-                    'relationships_created': summary.counters.relationships_created,
-                    'relationships_deleted': summary.counters.relationships_deleted,
-                    'properties_set': summary.counters.properties_set
+                    "nodes_created": summary.counters.nodes_created,
+                    "nodes_deleted": summary.counters.nodes_deleted,
+                    "relationships_created": summary.counters.relationships_created,
+                    "relationships_deleted": summary.counters.relationships_deleted,
+                    "properties_set": summary.counters.properties_set,
                 }
 
             except Exception as e:
-                logger.error(
-                    'Erro ao executar query de escrita',
-                    error=str(e)
-                )
+                logger.error("Erro ao executar query de escrita", error=str(e))
                 raise
 
-    async def find_node(
-        self,
-        label: str,
-        properties: Dict,
-        limit: int = 1
-    ) -> List[Dict]:
+    async def find_node(self, label: str, properties: Dict, limit: int = 1) -> List[Dict]:
         """
         Busca nós por label e propriedades
 
@@ -186,9 +155,9 @@ class Neo4jClient:
 
         try:
             results = await self.execute_query(query, properties)
-            return [record['n'] for record in results]
+            return [record["n"] for record in results]
         except Exception as e:
-            logger.error('Erro ao buscar nó', label=label, error=str(e))
+            logger.error("Erro ao buscar nó", label=label, error=str(e))
             return []
 
     async def create_node(self, label: str, properties: Dict) -> Optional[Dict]:
@@ -208,11 +177,11 @@ class Neo4jClient:
         try:
             results = await self.execute_query(query, properties)
             if results:
-                logger.debug('Nó criado', label=label)
-                return results[0]['n']
+                logger.debug("Nó criado", label=label)
+                return results[0]["n"]
             return None
         except Exception as e:
-            logger.error('Erro ao criar nó', label=label, error=str(e))
+            logger.error("Erro ao criar nó", label=label, error=str(e))
             return None
 
     async def create_relationship(
@@ -222,7 +191,7 @@ class Neo4jClient:
         to_label: str,
         to_properties: Dict,
         relationship_type: str,
-        relationship_properties: Optional[Dict] = None
+        relationship_properties: Optional[Dict] = None,
     ) -> bool:
         """
         Cria relacionamento entre nós
@@ -267,18 +236,15 @@ class Neo4jClient:
         try:
             results = await self.execute_query(query, parameters)
             if results:
-                logger.debug('Relacionamento criado', type=relationship_type)
+                logger.debug("Relacionamento criado", type=relationship_type)
                 return True
             return False
         except Exception as e:
-            logger.error('Erro ao criar relacionamento', type=relationship_type, error=str(e))
+            logger.error("Erro ao criar relacionamento", type=relationship_type, error=str(e))
             return False
 
     async def get_lineage(
-        self,
-        entity_id: str,
-        depth: int = 3,
-        direction: str = 'both'
+        self, entity_id: str, depth: int = 3, direction: str = "both"
     ) -> List[Dict]:
         """
         Obtém linhagem de dados de uma entidade
@@ -291,9 +257,9 @@ class Neo4jClient:
         Returns:
             Lista de nós e relacionamentos na linhagem
         """
-        if direction == 'upstream':
+        if direction == "upstream":
             pattern = f"(e)<-[*1..{depth}]-(related)"
-        elif direction == 'downstream':
+        elif direction == "downstream":
             pattern = f"(e)-[*1..{depth}]->(related)"
         else:  # both
             pattern = f"(e)-[*1..{depth}]-(related)"
@@ -306,14 +272,14 @@ class Neo4jClient:
         """
 
         try:
-            results = await self.execute_query(query, {'entity_id': entity_id})
-            return [record['related'] for record in results]
+            results = await self.execute_query(query, {"entity_id": entity_id})
+            return [record["related"] for record in results]
         except Exception as e:
-            logger.error('Erro ao buscar linhagem', entity_id=entity_id, error=str(e))
+            logger.error("Erro ao buscar linhagem", entity_id=entity_id, error=str(e))
             return []
 
     async def close(self):
         """Fecha conexão com Neo4j"""
         if self.driver:
             await self.driver.close()
-            logger.info('Neo4j client fechado')
+            logger.info("Neo4j client fechado")

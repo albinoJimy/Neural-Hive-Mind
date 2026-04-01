@@ -5,23 +5,23 @@ Funções para preparação de dados, geração de anomalias sintéticas,
 e validação de dados para treinamento de modelos de detecção de anomalias.
 """
 
+from datetime import datetime
+from typing import Any
+
 import numpy as np
 import pandas as pd
-from datetime import datetime, timedelta
-from typing import Dict, List, Tuple, Optional, Any
-from sklearn.model_selection import train_test_split
-
 import structlog
+from sklearn.model_selection import train_test_split
 
 logger = structlog.get_logger(__name__)
 
 
 def prepare_anomaly_training_data(
     df: pd.DataFrame,
-    label_column: str = 'is_anomaly',
-    features_to_use: Optional[List[str]] = None,
-    synthetic_ratio: float = 0.1
-) -> Tuple[pd.DataFrame, pd.DataFrame, np.ndarray, np.ndarray]:
+    label_column: str = "is_anomaly",
+    features_to_use: list[str] | None = None,
+    synthetic_ratio: float = 0.1,
+) -> tuple[pd.DataFrame, pd.DataFrame, np.ndarray, np.ndarray]:
     """
     Prepara dados para treinamento do AnomalyDetector.
 
@@ -54,7 +54,7 @@ def prepare_anomaly_training_data(
         logger.warning(
             "insufficient_features_for_anomaly_training",
             available=available_features,
-            required=features_to_use
+            required=features_to_use,
         )
         # Tentar criar features derivadas
         df_work = _create_derived_features(df_work)
@@ -73,9 +73,7 @@ def prepare_anomaly_training_data(
 
     if len(df_clean) < 100:
         logger.warning(
-            "insufficient_samples_after_cleaning",
-            original=len(df),
-            cleaned=len(df_clean)
+            "insufficient_samples_after_cleaning", original=len(df), cleaned=len(df_clean)
         )
 
     # Separar features e labels
@@ -85,18 +83,11 @@ def prepare_anomaly_training_data(
     # Split train/test com estratificação
     try:
         X_train, X_test, y_train, y_test = train_test_split(
-            X, y,
-            test_size=0.2,
-            random_state=42,
-            stratify=y
+            X, y, test_size=0.2, random_state=42, stratify=y
         )
     except ValueError:
         # Se estratificação falhar (poucas amostras de uma classe)
-        X_train, X_test, y_train, y_test = train_test_split(
-            X, y,
-            test_size=0.2,
-            random_state=42
-        )
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
     logger.info(
         "anomaly_training_data_prepared",
@@ -104,36 +95,33 @@ def prepare_anomaly_training_data(
         train_samples=len(X_train),
         test_samples=len(X_test),
         features_used=len(available_features),
-        anomaly_ratio=y.mean()
+        anomaly_ratio=y.mean(),
     )
 
     return X_train, X_test, y_train.values, y_test.values
 
 
-def _get_default_anomaly_features() -> List[str]:
+def _get_default_anomaly_features() -> list[str]:
     """Retorna lista de features padrão para detecção de anomalias."""
     return [
         # Timing features
-        'actual_duration_ms',
-        'estimated_duration_ms',
-        'queue_wait_ms',
-        'duration_deviation',  # derivada
-
+        "actual_duration_ms",
+        "estimated_duration_ms",
+        "queue_wait_ms",
+        "duration_deviation",  # derivada
         # Resource features
-        'resource_cpu',
-        'resource_memory',
-        'capabilities_count',
-        'parameters_size',
-
+        "resource_cpu",
+        "resource_memory",
+        "capabilities_count",
+        "parameters_size",
         # Contextual features
-        'retry_count',
-        'sla_timeout_ms',
-        'hour_of_day',
-        'day_of_week',
-
+        "retry_count",
+        "sla_timeout_ms",
+        "hour_of_day",
+        "day_of_week",
         # Derived features
-        'duration_ratio',  # actual/estimated
-        'sla_utilization',  # duration/sla_timeout
+        "duration_ratio",  # actual/estimated
+        "sla_utilization",  # duration/sla_timeout
     ]
 
 
@@ -142,61 +130,59 @@ def _create_derived_features(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
 
     # Duration ratio (actual/estimated)
-    if 'actual_duration_ms' in df.columns and 'estimated_duration_ms' in df.columns:
-        estimated = df['estimated_duration_ms'].replace(0, 60000)  # default 60s
-        df['duration_ratio'] = df['actual_duration_ms'] / estimated
+    if "actual_duration_ms" in df.columns and "estimated_duration_ms" in df.columns:
+        estimated = df["estimated_duration_ms"].replace(0, 60000)  # default 60s
+        df["duration_ratio"] = df["actual_duration_ms"] / estimated
 
     # Duration deviation (z-score simplificado por task_type)
-    if 'actual_duration_ms' in df.columns and 'task_type' in df.columns:
-        df['duration_deviation'] = df.groupby('task_type')['actual_duration_ms'].transform(
+    if "actual_duration_ms" in df.columns and "task_type" in df.columns:
+        df["duration_deviation"] = df.groupby("task_type")["actual_duration_ms"].transform(
             lambda x: (x - x.mean()) / (x.std() + 1e-6)
         )
-    elif 'actual_duration_ms' in df.columns:
-        mean_dur = df['actual_duration_ms'].mean()
-        std_dur = df['actual_duration_ms'].std() + 1e-6
-        df['duration_deviation'] = (df['actual_duration_ms'] - mean_dur) / std_dur
+    elif "actual_duration_ms" in df.columns:
+        mean_dur = df["actual_duration_ms"].mean()
+        std_dur = df["actual_duration_ms"].std() + 1e-6
+        df["duration_deviation"] = (df["actual_duration_ms"] - mean_dur) / std_dur
 
     # SLA utilization
-    if 'actual_duration_ms' in df.columns and 'sla_timeout_ms' in df.columns:
-        sla = df['sla_timeout_ms'].replace(0, 300000)  # default 5min
-        df['sla_utilization'] = df['actual_duration_ms'] / sla
+    if "actual_duration_ms" in df.columns and "sla_timeout_ms" in df.columns:
+        sla = df["sla_timeout_ms"].replace(0, 300000)  # default 5min
+        df["sla_utilization"] = df["actual_duration_ms"] / sla
 
     # Temporal features
-    if 'created_at' in df.columns:
-        if pd.api.types.is_datetime64_any_dtype(df['created_at']):
-            df['hour_of_day'] = df['created_at'].dt.hour
-            df['day_of_week'] = df['created_at'].dt.dayofweek
-        elif df['created_at'].dtype == object:
+    if "created_at" in df.columns:
+        if pd.api.types.is_datetime64_any_dtype(df["created_at"]):
+            df["hour_of_day"] = df["created_at"].dt.hour
+            df["day_of_week"] = df["created_at"].dt.dayofweek
+        elif df["created_at"].dtype == object:
             try:
-                dt_col = pd.to_datetime(df['created_at'])
-                df['hour_of_day'] = dt_col.dt.hour
-                df['day_of_week'] = dt_col.dt.dayofweek
+                dt_col = pd.to_datetime(df["created_at"])
+                df["hour_of_day"] = dt_col.dt.hour
+                df["day_of_week"] = dt_col.dt.dayofweek
             except Exception:
-                df['hour_of_day'] = 12
-                df['day_of_week'] = 0
+                df["hour_of_day"] = 12
+                df["day_of_week"] = 0
 
     # Default values para features faltantes
-    if 'queue_wait_ms' not in df.columns:
-        df['queue_wait_ms'] = 0.0
+    if "queue_wait_ms" not in df.columns:
+        df["queue_wait_ms"] = 0.0
 
-    if 'retry_count' not in df.columns:
-        df['retry_count'] = 0
+    if "retry_count" not in df.columns:
+        df["retry_count"] = 0
 
-    if 'capabilities_count' not in df.columns:
-        if 'required_capabilities' in df.columns:
-            df['capabilities_count'] = df['required_capabilities'].apply(
+    if "capabilities_count" not in df.columns:
+        if "required_capabilities" in df.columns:
+            df["capabilities_count"] = df["required_capabilities"].apply(
                 lambda x: len(x) if isinstance(x, list) else 1
             )
         else:
-            df['capabilities_count'] = 1
+            df["capabilities_count"] = 1
 
-    if 'parameters_size' not in df.columns:
-        if 'parameters' in df.columns:
-            df['parameters_size'] = df['parameters'].apply(
-                lambda x: len(str(x)) if x else 0
-            )
+    if "parameters_size" not in df.columns:
+        if "parameters" in df.columns:
+            df["parameters_size"] = df["parameters"].apply(lambda x: len(str(x)) if x else 0)
         else:
-            df['parameters_size'] = 0
+            df["parameters_size"] = 0
 
     return df
 
@@ -216,32 +202,32 @@ def _apply_heuristic_labels(df: pd.DataFrame) -> np.ndarray:
     labels = np.zeros(n, dtype=int)
 
     # Heurística 1: Duration muito alta (>3x média por task_type)
-    if 'actual_duration_ms' in df.columns and 'task_type' in df.columns:
-        task_means = df.groupby('task_type')['actual_duration_ms'].transform('mean')
-        labels = np.where(df['actual_duration_ms'] > 3 * task_means, 1, labels)
-    elif 'actual_duration_ms' in df.columns:
-        mean_dur = df['actual_duration_ms'].mean()
-        labels = np.where(df['actual_duration_ms'] > 3 * mean_dur, 1, labels)
+    if "actual_duration_ms" in df.columns and "task_type" in df.columns:
+        task_means = df.groupby("task_type")["actual_duration_ms"].transform("mean")
+        labels = np.where(df["actual_duration_ms"] > 3 * task_means, 1, labels)
+    elif "actual_duration_ms" in df.columns:
+        mean_dur = df["actual_duration_ms"].mean()
+        labels = np.where(df["actual_duration_ms"] > 3 * mean_dur, 1, labels)
 
     # Heurística 2: Muitos retries
-    if 'retry_count' in df.columns:
-        labels = np.where(df['retry_count'] >= 3, 1, labels)
+    if "retry_count" in df.columns:
+        labels = np.where(df["retry_count"] >= 3, 1, labels)
 
     # Heurística 3: SLA quase estourado
-    if 'sla_utilization' in df.columns:
-        labels = np.where(df['sla_utilization'] > 0.95, 1, labels)
-    elif 'actual_duration_ms' in df.columns and 'sla_timeout_ms' in df.columns:
-        sla = df['sla_timeout_ms'].replace(0, 300000)
-        util = df['actual_duration_ms'] / sla
+    if "sla_utilization" in df.columns:
+        labels = np.where(df["sla_utilization"] > 0.95, 1, labels)
+    elif "actual_duration_ms" in df.columns and "sla_timeout_ms" in df.columns:
+        sla = df["sla_timeout_ms"].replace(0, 300000)
+        util = df["actual_duration_ms"] / sla
         labels = np.where(util > 0.95, 1, labels)
 
     # Heurística 4: Falha
-    if 'status' in df.columns:
-        labels = np.where(df['status'] == 'FAILED', 1, labels)
+    if "status" in df.columns:
+        labels = np.where(df["status"] == "FAILED", 1, labels)
 
     # Heurística 5: Duration deviation alta
-    if 'duration_deviation' in df.columns:
-        labels = np.where(abs(df['duration_deviation']) > 3, 1, labels)
+    if "duration_deviation" in df.columns:
+        labels = np.where(abs(df["duration_deviation"]) > 3, 1, labels)
 
     anomaly_count = labels.sum()
     anomaly_ratio = anomaly_count / n if n > 0 else 0
@@ -250,17 +236,13 @@ def _apply_heuristic_labels(df: pd.DataFrame) -> np.ndarray:
         "heuristic_labels_applied",
         total=n,
         anomalies=anomaly_count,
-        anomaly_ratio=round(anomaly_ratio, 4)
+        anomaly_ratio=round(anomaly_ratio, 4),
     )
 
     return labels
 
 
-def _add_synthetic_anomalies(
-    df: pd.DataFrame,
-    features: List[str],
-    ratio: float
-) -> pd.DataFrame:
+def _add_synthetic_anomalies(df: pd.DataFrame, features: list[str], ratio: float) -> pd.DataFrame:
     """
     Gera anomalias sintéticas para balanceamento do dataset.
 
@@ -287,7 +269,7 @@ def _add_synthetic_anomalies(
     means = {}
     stds = {}
     for f in available_features:
-        col = pd.to_numeric(df_work[f], errors='coerce')
+        col = pd.to_numeric(df_work[f], errors="coerce")
         means[f] = col.mean()
         stds[f] = col.std()
 
@@ -314,11 +296,11 @@ def _add_synthetic_anomalies(
             row[f] = means[f] + direction * magnitude * stds[f]
 
             # Garantir valores não negativos para features apropriadas
-            if f.endswith('_ms') or f.endswith('_count') or f == 'retry_count':
+            if f.endswith(("_ms", "_count")) or f == "retry_count":
                 row[f] = max(0, row[f])
 
         # Marcar como anomalia
-        row['is_anomaly'] = 1
+        row["is_anomaly"] = 1
         synthetic_rows.append(row)
 
     # Adicionar ao DataFrame
@@ -329,13 +311,13 @@ def _add_synthetic_anomalies(
         "synthetic_anomalies_added",
         original_samples=len(df),
         synthetic_samples=n_synthetic,
-        total_samples=len(df_augmented)
+        total_samples=len(df_augmented),
     )
 
     return df_augmented
 
 
-def compute_anomaly_features_from_ticket(ticket: Dict[str, Any]) -> Optional[Dict[str, float]]:
+def compute_anomaly_features_from_ticket(ticket: dict[str, Any]) -> dict[str, float] | None:
     """
     Extrai features de anomalia de um único ticket.
 
@@ -349,51 +331,51 @@ def compute_anomaly_features_from_ticket(ticket: Dict[str, Any]) -> Optional[Dic
         features = {}
 
         # Timing
-        features['actual_duration_ms'] = float(ticket.get('actual_duration_ms', 60000))
-        features['estimated_duration_ms'] = float(ticket.get('estimated_duration_ms', 60000))
+        features["actual_duration_ms"] = float(ticket.get("actual_duration_ms", 60000))
+        features["estimated_duration_ms"] = float(ticket.get("estimated_duration_ms", 60000))
 
         # Duration ratio
-        est = features['estimated_duration_ms'] if features['estimated_duration_ms'] > 0 else 60000
-        features['duration_ratio'] = features['actual_duration_ms'] / est
+        est = features["estimated_duration_ms"] if features["estimated_duration_ms"] > 0 else 60000
+        features["duration_ratio"] = features["actual_duration_ms"] / est
 
         # Queue wait
-        features['queue_wait_ms'] = float(ticket.get('queue_wait_ms', 0))
+        features["queue_wait_ms"] = float(ticket.get("queue_wait_ms", 0))
 
         # Resources
-        features['resource_cpu'] = float(ticket.get('resource_cpu', 0.5))
-        features['resource_memory'] = float(ticket.get('resource_memory', 512))
+        features["resource_cpu"] = float(ticket.get("resource_cpu", 0.5))
+        features["resource_memory"] = float(ticket.get("resource_memory", 512))
 
         # Counts
-        caps = ticket.get('required_capabilities', [])
-        features['capabilities_count'] = len(caps) if isinstance(caps, list) else 1
+        caps = ticket.get("required_capabilities", [])
+        features["capabilities_count"] = len(caps) if isinstance(caps, list) else 1
 
-        params = ticket.get('parameters', {})
-        features['parameters_size'] = len(str(params)) if params else 0
+        params = ticket.get("parameters", {})
+        features["parameters_size"] = len(str(params)) if params else 0
 
-        features['retry_count'] = int(ticket.get('retry_count', 0))
+        features["retry_count"] = int(ticket.get("retry_count", 0))
 
         # SLA
-        sla = float(ticket.get('sla_timeout_ms', 300000))
-        features['sla_timeout_ms'] = sla
-        features['sla_utilization'] = features['actual_duration_ms'] / sla if sla > 0 else 1.0
+        sla = float(ticket.get("sla_timeout_ms", 300000))
+        features["sla_timeout_ms"] = sla
+        features["sla_utilization"] = features["actual_duration_ms"] / sla if sla > 0 else 1.0
 
         # Temporal
-        created_at = ticket.get('created_at')
+        created_at = ticket.get("created_at")
         if created_at:
             if isinstance(created_at, datetime):
-                features['hour_of_day'] = created_at.hour
-                features['day_of_week'] = created_at.weekday()
+                features["hour_of_day"] = created_at.hour
+                features["day_of_week"] = created_at.weekday()
             else:
                 try:
                     dt = pd.to_datetime(created_at)
-                    features['hour_of_day'] = dt.hour
-                    features['day_of_week'] = dt.weekday()
+                    features["hour_of_day"] = dt.hour
+                    features["day_of_week"] = dt.weekday()
                 except Exception:
-                    features['hour_of_day'] = 12
-                    features['day_of_week'] = 0
+                    features["hour_of_day"] = 12
+                    features["day_of_week"] = 0
         else:
-            features['hour_of_day'] = 12
-            features['day_of_week'] = 0
+            features["hour_of_day"] = 12
+            features["day_of_week"] = 0
 
         return features
 
@@ -407,8 +389,8 @@ def validate_anomaly_training_data(
     y_train: np.ndarray,
     min_samples: int = 100,
     min_anomaly_ratio: float = 0.01,
-    max_anomaly_ratio: float = 0.5
-) -> Tuple[bool, List[str]]:
+    max_anomaly_ratio: float = 0.5,
+) -> tuple[bool, list[str]]:
     """
     Valida dados de treinamento para AnomalyDetector.
 
@@ -452,10 +434,7 @@ def validate_anomaly_training_data(
     is_valid = len(issues) == 0
 
     if not is_valid:
-        logger.warning(
-            "anomaly_training_data_validation_failed",
-            issues=issues
-        )
+        logger.warning("anomaly_training_data_validation_failed", issues=issues)
     else:
         logger.info("anomaly_training_data_validation_passed")
 

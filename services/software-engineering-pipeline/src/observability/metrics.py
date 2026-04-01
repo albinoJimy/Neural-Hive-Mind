@@ -1,9 +1,8 @@
 """Métricas Prometheus customizadas para o serviço."""
 
-from prometheus_client import Counter, Gauge, Histogram, Summary
-from prometheus_client import CollectorRegistry
 from typing import Literal
 
+from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram, Summary
 
 # Registry customizada para métricas da aplicação
 custom_registry = CollectorRegistry()
@@ -110,14 +109,10 @@ class MetricsHelper:
         duration_seconds: float | None = None,
     ) -> None:
         """Registra uma execução de pipeline."""
-        pipeline_runs_total.labels(
-            repo_url=repo_url, status=status, provider=provider
-        ).inc()
+        pipeline_runs_total.labels(repo_url=repo_url, status=status, provider=provider).inc()
 
         if duration_seconds is not None:
-            pipeline_duration.labels(repo_url=repo_url, status=status).observe(
-                duration_seconds
-            )
+            pipeline_duration.labels(repo_url=repo_url, status=status).observe(duration_seconds)
 
     @staticmethod
     def record_anomaly(
@@ -167,13 +162,9 @@ class MetricsHelper:
         stage_duration.labels(stage=stage, repo_url=repo_url).observe(duration)
 
     @staticmethod
-    def record_api_request(
-        method: str, endpoint: str, status: int, duration: float
-    ) -> None:
+    def record_api_request(method: str, endpoint: str, status: int, duration: float) -> None:
         """Registra uma requisição da API."""
-        api_requests_total.labels(
-            method=method, endpoint=endpoint, status=str(status)
-        ).inc()
+        api_requests_total.labels(method=method, endpoint=endpoint, status=str(status)).inc()
 
         api_request_duration.labels(method=method, endpoint=endpoint).observe(duration)
 
@@ -181,7 +172,7 @@ class MetricsHelper:
 # Função para obter métricas em formato de exposição
 def get_metrics_text() -> str:
     """Retorna todas as métricas em formato de texto Prometheus."""
-    from prometheus_client import generate_latest, REGISTRY
+    from prometheus_client import REGISTRY, generate_latest
 
     # Métricas padrão do Prometheus
     default_metrics = generate_latest(REGISTRY)

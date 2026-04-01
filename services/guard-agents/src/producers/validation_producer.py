@@ -8,9 +8,10 @@ Responsável por:
 - Publicar tickets pendentes em execution.tickets.pending_approval
 """
 
-from typing import Optional
-import structlog
 import json
+from typing import Optional
+
+import structlog
 from aiokafka import AIOKafkaProducer
 from aiokafka.errors import KafkaError
 
@@ -24,11 +25,7 @@ class ValidationProducer:
     Producer Kafka para publicação de validações de segurança.
     """
 
-    def __init__(
-        self,
-        bootstrap_servers: str,
-        topic: str = "security.validations"
-    ):
+    def __init__(self, bootstrap_servers: str, topic: str = "security.validations"):
         """
         Inicializa o ValidationProducer.
 
@@ -50,10 +47,10 @@ class ValidationProducer:
         try:
             self.producer = AIOKafkaProducer(
                 bootstrap_servers=self.bootstrap_servers,
-                value_serializer=lambda v: json.dumps(v).encode('utf-8'),
-                key_serializer=lambda k: k.encode('utf-8') if k else None,
-                acks='all',
-                enable_idempotence=True
+                value_serializer=lambda v: json.dumps(v).encode("utf-8"),
+                key_serializer=lambda k: k.encode("utf-8") if k else None,
+                acks="all",
+                enable_idempotence=True,
             )
 
             await self.producer.start()
@@ -61,14 +58,11 @@ class ValidationProducer:
             logger.info(
                 "validation_producer.connected",
                 bootstrap_servers=self.bootstrap_servers,
-                topic=self.topic
+                topic=self.topic,
             )
 
         except Exception as e:
-            logger.error(
-                "validation_producer.connection_failed",
-                error=str(e)
-            )
+            logger.error("validation_producer.connection_failed", error=str(e))
             raise
 
     async def close(self) -> None:
@@ -99,18 +93,15 @@ class ValidationProducer:
 
             # Headers com metadados
             headers = [
-                ("ticket_id", validation.ticket_id.encode('utf-8')),
-                ("validation_status", validation.validation_status.value.encode('utf-8')),
-                ("risk_score", str(validation.risk_assessment.risk_score).encode('utf-8')),
-                ("validator_type", validation.validator_type.value.encode('utf-8'))
+                ("ticket_id", validation.ticket_id.encode("utf-8")),
+                ("validation_status", validation.validation_status.value.encode("utf-8")),
+                ("risk_score", str(validation.risk_assessment.risk_score).encode("utf-8")),
+                ("validator_type", validation.validator_type.value.encode("utf-8")),
             ]
 
             # Publicar
             metadata = await self.producer.send_and_wait(
-                self.topic,
-                value=value,
-                key=key,
-                headers=headers
+                self.topic, value=value, key=key, headers=headers
             )
 
             logger.info(
@@ -119,7 +110,7 @@ class ValidationProducer:
                 ticket_id=validation.ticket_id,
                 topic=self.topic,
                 partition=metadata.partition,
-                offset=metadata.offset
+                offset=metadata.offset,
             )
 
             # Atualizar métricas
@@ -129,7 +120,7 @@ class ValidationProducer:
             logger.error(
                 "validation_producer.kafka_error",
                 validation_id=validation.validation_id,
-                error=str(e)
+                error=str(e),
             )
             await self._update_metrics(self.topic, "error")
             raise
@@ -138,17 +129,13 @@ class ValidationProducer:
             logger.error(
                 "validation_producer.publish_failed",
                 validation_id=validation.validation_id,
-                error=str(e)
+                error=str(e),
             )
             await self._update_metrics(self.topic, "error")
             raise
 
     async def publish_to_topic(
-        self,
-        topic: str,
-        key: str,
-        value: dict,
-        headers: Optional[list] = None
+        self, topic: str, key: str, value: dict, headers: Optional[list] = None
     ) -> None:
         """
         Publica mensagem em tópico específico.
@@ -168,10 +155,7 @@ class ValidationProducer:
         try:
             # Publicar
             metadata = await self.producer.send_and_wait(
-                topic,
-                value=value,
-                key=key,
-                headers=headers or []
+                topic, value=value, key=key, headers=headers or []
             )
 
             logger.info(
@@ -179,28 +163,20 @@ class ValidationProducer:
                 topic=topic,
                 key=key,
                 partition=metadata.partition,
-                offset=metadata.offset
+                offset=metadata.offset,
             )
 
             # Atualizar métricas
             await self._update_metrics(topic, "success")
 
         except KafkaError as e:
-            logger.error(
-                "validation_producer.kafka_error",
-                topic=topic,
-                key=key,
-                error=str(e)
-            )
+            logger.error("validation_producer.kafka_error", topic=topic, key=key, error=str(e))
             await self._update_metrics(topic, "error")
             raise
 
         except Exception as e:
             logger.error(
-                "validation_producer.publish_to_topic_failed",
-                topic=topic,
-                key=key,
-                error=str(e)
+                "validation_producer.publish_to_topic_failed", topic=topic, key=key, error=str(e)
             )
             await self._update_metrics(topic, "error")
             raise
@@ -214,17 +190,9 @@ class ValidationProducer:
             status: Status da publicação (success/error)
         """
         try:
-            from src.observability.metrics import (
-                validations_published_total
-            )
+            from src.observability.metrics import validations_published_total
 
-            validations_published_total.labels(
-                topic=topic,
-                status=status
-            ).inc()
+            validations_published_total.labels(topic=topic, status=status).inc()
 
         except Exception as e:
-            logger.warning(
-                "validation_producer.update_metrics_failed",
-                error=str(e)
-            )
+            logger.warning("validation_producer.update_metrics_failed", error=str(e))

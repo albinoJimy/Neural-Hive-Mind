@@ -8,35 +8,38 @@ Responsável por:
 - Guardrails de custo (resource limits, cost thresholds)
 """
 
-from typing import List, Dict, Optional
+from datetime import datetime, timezone
+from typing import List
+
 import structlog
-from datetime import datetime
 
 from neural_hive_observability import get_tracer
-
-from src.models.security_validation import (
-    GuardrailViolation,
-    ViolationType,
-    Severity
-)
+from src.models.security_validation import GuardrailViolation, Severity, ViolationType
 
 logger = structlog.get_logger(__name__)
 _tracer = get_tracer()
 
+
 # Create dummy tracer for test environments
 class _DummySpan:
     """Dummy span for test environments."""
+
     def __enter__(self):
         return self
+
     def __exit__(self, *args):
         pass
+
     def set_attribute(self, *args):
         pass
 
+
 class _DummyTracer:
     """Dummy tracer for test environments."""
+
     def start_as_current_span(self, *args, **kwargs):
         return _DummySpan()
+
 
 tracer = _tracer if _tracer is not None else _DummyTracer()
 
@@ -46,13 +49,7 @@ class GuardrailEnforcer:
     Enforcer de guardrails de segurança, compliance e ética.
     """
 
-    def __init__(
-        self,
-        opa_client,
-        mongodb_client,
-        redis_client,
-        mode: str = "BLOCKING"
-    ):
+    def __init__(self, opa_client, mongodb_client, redis_client, mode: str = "BLOCKING"):
         """
         Inicializa o GuardrailEnforcer.
 
@@ -78,11 +75,7 @@ class GuardrailEnforcer:
             Lista de violações de guardrails
         """
         ticket_id = ticket.get("ticket_id", "unknown")
-        logger.info(
-            "guardrail_enforcer.enforcing",
-            ticket_id=ticket_id,
-            mode=self.mode
-        )
+        logger.info("guardrail_enforcer.enforcing", ticket_id=ticket_id, mode=self.mode)
 
         with tracer.start_as_current_span("enforce_guardrails") as span:
             span.set_attribute("neural.hive.ticket.id", ticket_id)
@@ -111,14 +104,16 @@ class GuardrailEnforcer:
             if violations:
                 await self._persist_violations(ticket_id, violations)
 
-            span.set_attribute("neural.hive.validation.result", "violations" if violations else "clean")
+            span.set_attribute(
+                "neural.hive.validation.result", "violations" if violations else "clean"
+            )
             span.set_attribute("neural.hive.validation.violations", len(violations))
 
             logger.info(
                 "guardrail_enforcer.complete",
                 ticket_id=ticket_id,
                 violations_count=len(violations),
-                mode=self.mode
+                mode=self.mode,
             )
 
             return violations
@@ -143,9 +138,9 @@ class GuardrailEnforcer:
 
             # Detectar uso de modelos ML
             uses_ml_model = (
-                "model" in parameters or
-                "ml_model" in parameters or
-                task_type in ["ML_TRAINING", "ML_INFERENCE"]
+                "model" in parameters
+                or "ml_model" in parameters
+                or task_type in ["ML_TRAINING", "ML_INFERENCE"]
             )
 
             if uses_ml_model:
@@ -162,8 +157,8 @@ class GuardrailEnforcer:
                             detected_by="BiasRiskGuardrail",
                             evidence={
                                 "task_type": task_type,
-                                "model": parameters.get("model", "unknown")
-                            }
+                                "model": parameters.get("model", "unknown"),
+                            },
                         )
                     )
 
@@ -189,9 +184,7 @@ class GuardrailEnforcer:
             data_classification = parameters.get("data_classification", "")
 
             # Verificar se processa dados pessoais
-            processes_personal_data = (
-                data_classification in ["PII", "PERSONAL", "SENSITIVE"]
-            )
+            processes_personal_data = data_classification in ["PII", "PERSONAL", "SENSITIVE"]
 
             if processes_personal_data:
                 # Verificar consentimento
@@ -205,9 +198,7 @@ class GuardrailEnforcer:
                             description="Processamento de dados pessoais sem consentimento",
                             remediation_suggestion="Obter consentimento do usuário (GDPR/LGPD)",
                             detected_by="PrivacyComplianceGuardrail",
-                            evidence={
-                                "data_classification": data_classification
-                            }
+                            evidence={"data_classification": data_classification},
                         )
                     )
 
@@ -222,9 +213,7 @@ class GuardrailEnforcer:
                             description="Dados pessoais sem política de retenção",
                             remediation_suggestion="Definir data retention policy",
                             detected_by="PrivacyComplianceGuardrail",
-                            evidence={
-                                "data_classification": data_classification
-                            }
+                            evidence={"data_classification": data_classification},
                         )
                     )
 
@@ -264,8 +253,8 @@ class GuardrailEnforcer:
                             detected_by="ExplainabilityGuardrail",
                             evidence={
                                 "task_type": task_type,
-                                "is_critical_decision": str(is_critical_decision)
-                            }
+                                "is_critical_decision": str(is_critical_decision),
+                            },
                         )
                     )
 
@@ -302,10 +291,7 @@ class GuardrailEnforcer:
                         description=f"Dados EU sendo transferidos para {target_region}",
                         remediation_suggestion="Manter dados EU na região EU (GDPR compliance)",
                         detected_by="DataResidencyGuardrail",
-                        evidence={
-                            "data_region": data_region,
-                            "target_region": target_region
-                        }
+                        evidence={"data_region": data_region, "target_region": target_region},
                     )
                 )
 
@@ -344,9 +330,7 @@ class GuardrailEnforcer:
                             description=f"Ação crítica '{task_type}' sem audit trail",
                             remediation_suggestion="Habilitar audit trail para ações críticas",
                             detected_by="AuditTrailGuardrail",
-                            evidence={
-                                "task_type": task_type
-                            }
+                            evidence={"task_type": task_type},
                         )
                     )
 
@@ -373,7 +357,10 @@ class GuardrailEnforcer:
 
             # Dados sensíveis requerem encryption
             requires_encryption = data_classification in [
-                "CONFIDENTIAL", "RESTRICTED", "PII", "SENSITIVE"
+                "CONFIDENTIAL",
+                "RESTRICTED",
+                "PII",
+                "SENSITIVE",
             ]
 
             if requires_encryption:
@@ -388,9 +375,7 @@ class GuardrailEnforcer:
                             description="Dados sensíveis sem encryption at rest",
                             remediation_suggestion="Habilitar encryption at rest",
                             detected_by="EncryptionGuardrail",
-                            evidence={
-                                "data_classification": data_classification
-                            }
+                            evidence={"data_classification": data_classification},
                         )
                     )
 
@@ -402,9 +387,7 @@ class GuardrailEnforcer:
                             description="Dados sensíveis sem encryption in transit",
                             remediation_suggestion="Habilitar TLS/mTLS",
                             detected_by="EncryptionGuardrail",
-                            evidence={
-                                "data_classification": data_classification
-                            }
+                            evidence={"data_classification": data_classification},
                         )
                     )
 
@@ -445,8 +428,8 @@ class GuardrailEnforcer:
                             detected_by="BlastRadiusGuardrail",
                             evidence={
                                 "affected_percentage": str(affected_percentage),
-                                "max_allowed": str(max_blast_radius)
-                            }
+                                "max_allowed": str(max_blast_radius),
+                            },
                         )
                     )
 
@@ -481,13 +464,10 @@ class GuardrailEnforcer:
                         GuardrailViolation(
                             violation_type=ViolationType.POLICY_VIOLATION,
                             severity=Severity.HIGH,
-                            description=f"Mudança em produção sem rollback plan",
+                            description="Mudança em produção sem rollback plan",
                             remediation_suggestion="Definir rollback plan antes de executar",
                             detected_by="RollbackPlanGuardrail",
-                            evidence={
-                                "task_type": task_type,
-                                "environment": environment
-                            }
+                            evidence={"task_type": task_type, "environment": environment},
                         )
                     )
 
@@ -525,9 +505,7 @@ class GuardrailEnforcer:
                             description="Deploy sem testes passando",
                             remediation_suggestion="Executar e passar todos os testes",
                             detected_by="TestingCoverageGuardrail",
-                            evidence={
-                                "tests_passed": str(tests_passed)
-                            }
+                            evidence={"tests_passed": str(tests_passed)},
                         )
                     )
 
@@ -541,8 +519,8 @@ class GuardrailEnforcer:
                             detected_by="TestingCoverageGuardrail",
                             evidence={
                                 "test_coverage": str(test_coverage),
-                                "min_coverage": str(min_coverage)
-                            }
+                                "min_coverage": str(min_coverage),
+                            },
                         )
                     )
 
@@ -578,7 +556,7 @@ class GuardrailEnforcer:
                         description="Resource limits não definidos",
                         remediation_suggestion="Definir requests e limits de CPU/memória",
                         detected_by="ResourceLimitsGuardrail",
-                        evidence={}
+                        evidence={},
                     )
                 )
             else:
@@ -595,7 +573,7 @@ class GuardrailEnforcer:
                             description=f"CPU limit muito alto: {cpu_limit} cores",
                             remediation_suggestion="Reduzir CPU limit ou justificar necessidade",
                             detected_by="ResourceLimitsGuardrail",
-                            evidence={"cpu_limit": str(cpu_limit)}
+                            evidence={"cpu_limit": str(cpu_limit)},
                         )
                     )
 
@@ -607,7 +585,7 @@ class GuardrailEnforcer:
                             description=f"Memory limit muito alto: {memory_limit}Mi",
                             remediation_suggestion="Reduzir memory limit ou justificar necessidade",
                             detected_by="ResourceLimitsGuardrail",
-                            evidence={"memory_limit": str(memory_limit)}
+                            evidence={"memory_limit": str(memory_limit)},
                         )
                     )
 
@@ -643,8 +621,8 @@ class GuardrailEnforcer:
                         detected_by="CostThresholdGuardrail",
                         evidence={
                             "estimated_cost_usd": str(estimated_cost),
-                            "cost_threshold_usd": str(cost_threshold)
-                        }
+                            "cost_threshold_usd": str(cost_threshold),
+                        },
                     )
                 )
 
@@ -654,9 +632,7 @@ class GuardrailEnforcer:
         return violations
 
     async def _persist_violations(
-        self,
-        ticket_id: str,
-        violations: List[GuardrailViolation]
+        self, ticket_id: str, violations: List[GuardrailViolation]
     ) -> None:
         """
         Persiste violations no MongoDB para análise de tendências.
@@ -671,13 +647,11 @@ class GuardrailEnforcer:
             for violation in violations:
                 document = violation.to_dict()
                 document["ticket_id"] = ticket_id
-                document["created_at"] = datetime.utcnow().isoformat()
+                document["created_at"] = datetime.now(timezone.utc).isoformat()
 
                 await collection.insert_one(document)
 
         except Exception as e:
             logger.error(
-                "guardrail_enforcer.persist_violations_failed",
-                ticket_id=ticket_id,
-                error=str(e)
+                "guardrail_enforcer.persist_violations_failed", ticket_id=ticket_id, error=str(e)
             )

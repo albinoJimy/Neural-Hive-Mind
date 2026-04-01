@@ -1,9 +1,9 @@
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
-from src.models.optimization_event import Adjustment, OptimizationType, CausalAnalysis
+from src.models.optimization_event import Adjustment, CausalAnalysis, OptimizationType
 
 
 class OptimizationHypothesis(BaseModel):
@@ -13,17 +13,17 @@ class OptimizationHypothesis(BaseModel):
     hypothesis_text: str = Field(..., description="Textual description of hypothesis")
     target_component: str = Field(..., description="Target component")
     optimization_type: OptimizationType = Field(..., description="Type of optimization")
-    proposed_adjustments: List[Adjustment] = Field(..., description="Proposed adjustments")
+    proposed_adjustments: list[Adjustment] = Field(..., description="Proposed adjustments")
     expected_improvement: float = Field(..., ge=0.0, le=1.0, description="Expected improvement")
     confidence_score: float = Field(..., ge=0.0, le=1.0, description="Confidence in hypothesis")
     risk_score: float = Field(..., ge=0.0, le=1.0, description="Risk of the change")
-    causal_evidence: Optional[CausalAnalysis] = Field(None, description="Causal evidence")
-    baseline_metrics: Dict[str, float] = Field(..., description="Current metrics")
-    target_metrics: Dict[str, float] = Field(..., description="Target metrics")
+    causal_evidence: CausalAnalysis | None = Field(None, description="Causal evidence")
+    baseline_metrics: dict[str, float] = Field(..., description="Current metrics")
+    target_metrics: dict[str, float] = Field(..., description="Target metrics")
     priority: int = Field(..., ge=1, le=5, description="Priority (1-5)")
     requires_experiment: bool = Field(default=True, description="Requires validation")
     created_at: datetime = Field(default_factory=datetime.utcnow, description="Creation timestamp")
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
 
     @field_validator("expected_improvement", "confidence_score", "risk_score")
     @classmethod
@@ -39,7 +39,7 @@ class OptimizationHypothesis(BaseModel):
             raise ValueError("Priority must be between 1 and 5")
         return v
 
-    def to_experiment_request(self) -> Dict[str, Any]:
+    def to_experiment_request(self) -> dict[str, Any]:
         """Convert hypothesis to ExperimentRequest structure."""
         return {
             "hypothesis": self.hypothesis_text,
@@ -53,7 +53,9 @@ class OptimizationHypothesis(BaseModel):
             "success_criteria": [
                 {
                     "metric_name": metric,
-                    "operator": "GTE" if self.target_metrics[metric] >= self.baseline_metrics.get(metric, 0) else "LTE",
+                    "operator": "GTE"
+                    if self.target_metrics[metric] >= self.baseline_metrics.get(metric, 0)
+                    else "LTE",
                     "threshold": target_value,
                     "confidence_level": self.confidence_score,
                 }

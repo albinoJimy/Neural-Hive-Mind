@@ -6,11 +6,11 @@ foco em segurança (usuário não-root), tamanho mínimo e health checks.
 """
 
 from typing import Optional
+
 import structlog
 
 # Importar tipos centralizados
-from ..types.artifact_types import CodeLanguage, ArtifactSubtype
-
+from ..types.artifact_types import ArtifactSubtype, CodeLanguage
 
 logger = structlog.get_logger()
 
@@ -122,7 +122,7 @@ class DockerfileGenerator:
             healthcheck = (
                 f"HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \\\n"
                 f'    CMD python -c "import urllib.request; '
-                f'urllib.request.urlopen(\'http://localhost:{port}/health\')" || exit 1'
+                f"urllib.request.urlopen('http://localhost:{port}/health')\" || exit 1"
             )
 
         return f"""# Builder stage
@@ -195,7 +195,7 @@ ENV PATH=/root/.local/bin:$PATH
             expose = f"EXPOSE {port}"
             healthcheck = (
                 f"HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \\\n"
-                f'    CMD curl -f http://localhost:{port}/health || exit 1'
+                f"    CMD curl -f http://localhost:{port}/health || exit 1"
             )
             cmd = 'CMD ["node", "index.js"]'
 
@@ -260,7 +260,7 @@ USER nodejs
             expose = f"EXPOSE {port}"
             healthcheck = (
                 f"HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \\\n"
-                f'    CMD wget -q -O /dev/null http://localhost:{port}/health || exit 1'
+                f"    CMD wget -q -O /dev/null http://localhost:{port}/health || exit 1"
             )
 
         return f"""# Builder stage
@@ -400,7 +400,7 @@ CMD ["java", "-jar", "app.jar"]
             expose = f"EXPOSE {port}"
             healthcheck = (
                 f"HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \\\n"
-                f'    CMD curl -f http://localhost:{port}/health || exit 1'
+                f"    CMD curl -f http://localhost:{port}/health || exit 1"
             )
 
         return f"""# Builder stage
@@ -474,7 +474,7 @@ ENTRYPOINT ["/sbin/tini", "--"]
             expose = f"EXPOSE {port}"
             healthcheck = (
                 f"HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \\\n"
-                f'    CMD curl -f http://localhost:{port}/health || exit 1'
+                f"    CMD curl -f http://localhost:{port}/health || exit 1"
             )
 
         return f"""# Builder stage

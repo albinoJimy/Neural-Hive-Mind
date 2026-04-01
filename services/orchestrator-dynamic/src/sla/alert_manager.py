@@ -5,8 +5,8 @@ Responsável por publicar alertas proativos e eventos de violação no Kafka.
 """
 
 import uuid
-from datetime import datetime
-from typing import Dict, Optional
+from datetime import UTC, datetime
+
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -61,11 +61,7 @@ class AlertManager:
         try:
             cached = await self.redis.get(cache_key)
             if cached:
-                logger.debug(
-                    "alert_deduplicated",
-                    workflow_id=workflow_id,
-                    alert_type=alert_type
-                )
+                logger.debug("alert_deduplicated", workflow_id=workflow_id, alert_type=alert_type)
                 self.metrics.record_sla_alert_deduplicated()
                 return False
             return True
@@ -75,7 +71,7 @@ class AlertManager:
                 "deduplication_check_error",
                 workflow_id=workflow_id,
                 alert_type=alert_type,
-                error=str(e)
+                error=str(e),
             )
             # Em caso de erro, enviar alerta (fail-open)
             return True
@@ -94,20 +90,16 @@ class AlertManager:
         cache_key = f"alert:sent:{workflow_id}:{alert_type}"
 
         try:
-            await self.redis.setex(
-                cache_key,
-                self.config.sla_alert_deduplication_ttl_seconds,
-                "1"
-            )
+            await self.redis.setex(cache_key, self.config.sla_alert_deduplication_ttl_seconds, "1")
         except Exception as e:
             logger.warning(
                 "deduplication_cache_error",
                 workflow_id=workflow_id,
                 alert_type=alert_type,
-                error=str(e)
+                error=str(e),
             )
 
-    async def send_proactive_alert(self, alert_type: str, context: Dict) -> bool:
+    async def send_proactive_alert(self, alert_type: str, context: dict) -> bool:
         """
         Enviar alerta proativo.
 
@@ -118,16 +110,14 @@ class AlertManager:
         Returns:
             bool: True se alerta foi enviado, False se deduplicated ou se producer não configurado
         """
-        workflow_id = context.get('workflow_id', 'unknown')
+        workflow_id = context.get("workflow_id", "unknown")
 
         # Validar se Kafka producer está configurado
         if self.kafka_producer is None:
             logger.error(
-                "kafka_producer_not_configured",
-                alert_type=alert_type,
-                workflow_id=workflow_id
+                "kafka_producer_not_configured", alert_type=alert_type, workflow_id=workflow_id
             )
-            self.metrics.record_sla_monitor_error('producer_not_initialized')
+            self.metrics.record_sla_monitor_error("producer_not_initialized")
             return False
 
         # Verificar deduplicação
@@ -136,26 +126,28 @@ class AlertManager:
 
         try:
             # Determinar severidade
-            severity = 'CRITICAL' if alert_type in ['BUDGET_CRITICAL', 'DEADLINE_APPROACHING'] else 'WARNING'
+            severity = (
+                "CRITICAL"
+                if alert_type in ["BUDGET_CRITICAL", "DEADLINE_APPROACHING"]
+                else "WARNING"
+            )
 
             # Construir payload do alerta
             alert_payload = {
-                'alert_id': str(uuid.uuid4()),
-                'event_type': 'ALERT',  # Distinguir de violações
-                'alert_type': alert_type,
-                'severity': severity,
-                'service_name': context.get('service_name', 'orchestrator-dynamic'),
-                'workflow_id': workflow_id,
-                'timestamp': datetime.utcnow().isoformat() + 'Z',
-                'context': context
+                "alert_id": str(uuid.uuid4()),
+                "event_type": "ALERT",  # Distinguir de violações
+                "alert_type": alert_type,
+                "severity": severity,
+                "service_name": context.get("service_name", "orchestrator-dynamic"),
+                "workflow_id": workflow_id,
+                "timestamp": datetime.now(UTC).isoformat() + "Z",
+                "context": context,
             }
 
             # Publicar no Kafka (tópico dedicado para alertas proativos)
             topic = self.config.sla_alerts_topic
             await self.kafka_producer.send(
-                topic=topic,
-                value=alert_payload,
-                key=alert_payload['alert_id']
+                topic=topic, value=alert_payload, key=alert_payload["alert_id"]
             )
 
             # Cachear alerta enviado
@@ -166,30 +158,25 @@ class AlertManager:
 
             logger.info(
                 "proactive_alert_sent",
-                alert_id=alert_payload['alert_id'],
+                alert_id=alert_payload["alert_id"],
                 alert_type=alert_type,
                 severity=severity,
-                workflow_id=workflow_id
+                workflow_id=workflow_id,
             )
 
             return True
 
         except Exception as e:
-            logger.error(
+            logger.exception(
                 "proactive_alert_failed",
                 alert_type=alert_type,
                 workflow_id=workflow_id,
-                error=str(e)
+                error=str(e),
             )
-            self.metrics.record_sla_monitor_error('alert_publish')
+            self.metrics.record_sla_monitor_error("alert_publish")
             return False
 
-    async def send_budget_alert(
-        self,
-        workflow_id: str,
-        service_name: str,
-        budget_data: Dict
-    ):
+    async def send_budget_alert(self, workflow_id: str, service_name: str, budget_data: dict):
         """
         Enviar alerta específico para budget crítico.
 
@@ -199,21 +186,16 @@ class AlertManager:
             budget_data: Dados do budget (error_budget_remaining, status, burn_rates)
         """
         context = {
-            'workflow_id': workflow_id,
-            'service_name': service_name,
-            'budget_remaining': budget_data.get('error_budget_remaining', 0),
-            'status': budget_data.get('status', 'UNKNOWN'),
-            'burn_rates': budget_data.get('burn_rates', [])
+            "workflow_id": workflow_id,
+            "service_name": service_name,
+            "budget_remaining": budget_data.get("error_budget_remaining", 0),
+            "status": budget_data.get("status", "UNKNOWN"),
+            "burn_rates": budget_data.get("burn_rates", []),
         }
 
-        await self.send_proactive_alert('BUDGET_CRITICAL', context)
+        await self.send_proactive_alert("BUDGET_CRITICAL", context)
 
-    async def send_deadline_alert(
-        self,
-        workflow_id: str,
-        ticket_id: str,
-        deadline_data: Dict
-    ):
+    async def send_deadline_alert(self, workflow_id: str, ticket_id: str, deadline_data: dict):
         """
         Enviar alerta específico para deadline próximo.
 
@@ -223,16 +205,16 @@ class AlertManager:
             deadline_data: Dados do deadline (remaining_seconds, percent_consumed, sla_deadline)
         """
         context = {
-            'workflow_id': workflow_id,
-            'ticket_id': ticket_id,
-            'remaining_seconds': deadline_data.get('remaining_seconds', 0),
-            'percent_consumed': deadline_data.get('percent_consumed', 0),
-            'sla_deadline': deadline_data.get('sla_deadline')
+            "workflow_id": workflow_id,
+            "ticket_id": ticket_id,
+            "remaining_seconds": deadline_data.get("remaining_seconds", 0),
+            "percent_consumed": deadline_data.get("percent_consumed", 0),
+            "sla_deadline": deadline_data.get("sla_deadline"),
         }
 
-        await self.send_proactive_alert('DEADLINE_APPROACHING', context)
+        await self.send_proactive_alert("DEADLINE_APPROACHING", context)
 
-    async def publish_sla_violation(self, violation: Dict):
+    async def publish_sla_violation(self, violation: dict):
         """
         Publicar evento de violação SLA no Kafka.
 
@@ -243,56 +225,50 @@ class AlertManager:
         if self.kafka_producer is None:
             logger.error(
                 "kafka_producer_not_configured",
-                violation_type=violation.get('violation_type'),
-                workflow_id=violation.get('workflow_id'),
-                ticket_id=violation.get('ticket_id')
+                violation_type=violation.get("violation_type"),
+                workflow_id=violation.get("workflow_id"),
+                ticket_id=violation.get("ticket_id"),
             )
-            self.metrics.record_sla_monitor_error('producer_not_initialized')
+            self.metrics.record_sla_monitor_error("producer_not_initialized")
             return
 
         try:
             # Garantir campos obrigatórios
             violation_event = {
-                'violation_id': violation.get('violation_id', str(uuid.uuid4())),
-                'event_type': 'VIOLATION',  # Distinguir de alertas proativos
-                'workflow_id': violation.get('workflow_id'),
-                'ticket_id': violation.get('ticket_id'),
-                'violation_type': violation.get('violation_type'),
-                'service_name': violation.get('service_name', 'orchestrator-dynamic'),
-                'sla_deadline': violation.get('sla_deadline'),
-                'actual_completion': violation.get('actual_completion'),
-                'delay_ms': violation.get('delay_ms'),
-                'budget_remaining': violation.get('budget_remaining'),
-                'severity': violation.get('severity', 'WARNING'),
-                'metadata': violation.get('metadata', {}),
-                'timestamp': violation.get('timestamp', datetime.utcnow().isoformat() + 'Z')
+                "violation_id": violation.get("violation_id", str(uuid.uuid4())),
+                "event_type": "VIOLATION",  # Distinguir de alertas proativos
+                "workflow_id": violation.get("workflow_id"),
+                "ticket_id": violation.get("ticket_id"),
+                "violation_type": violation.get("violation_type"),
+                "service_name": violation.get("service_name", "orchestrator-dynamic"),
+                "sla_deadline": violation.get("sla_deadline"),
+                "actual_completion": violation.get("actual_completion"),
+                "delay_ms": violation.get("delay_ms"),
+                "budget_remaining": violation.get("budget_remaining"),
+                "severity": violation.get("severity", "WARNING"),
+                "metadata": violation.get("metadata", {}),
+                "timestamp": violation.get("timestamp", datetime.now(UTC).isoformat() + "Z"),
             }
 
             # Publicar no Kafka (tópico dedicado para violações formais)
             topic = self.config.sla_violations_topic
             await self.kafka_producer.send(
-                topic=topic,
-                value=violation_event,
-                key=violation_event['violation_id']
+                topic=topic, value=violation_event, key=violation_event["violation_id"]
             )
 
             # Registrar métrica
-            violation_type = violation_event['violation_type']
+            violation_type = violation_event["violation_type"]
             self.metrics.record_sla_violation_published(violation_type)
 
             logger.warning(
                 "sla_violation_published",
-                violation_id=violation_event['violation_id'],
+                violation_id=violation_event["violation_id"],
                 violation_type=violation_type,
-                workflow_id=violation_event['workflow_id'],
-                ticket_id=violation_event['ticket_id'],
-                delay_ms=violation_event['delay_ms']
+                workflow_id=violation_event["workflow_id"],
+                ticket_id=violation_event["ticket_id"],
+                delay_ms=violation_event["delay_ms"],
             )
 
         except Exception as e:
-            logger.error(
-                "violation_publish_failed",
-                violation=violation,
-                error=str(e)
-            )
-            self.metrics.record_sla_monitor_error('violation_publish')
+            logger.exception("violation_publish_failed", violation=violation, error=str(e))
+            self.metrics.record_sla_monitor_error("violation_publish")

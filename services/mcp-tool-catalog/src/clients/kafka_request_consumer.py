@@ -1,6 +1,5 @@
 """Kafka consumer for tool selection requests."""
 import asyncio
-import json
 from typing import AsyncGenerator, Optional
 
 import structlog
@@ -96,7 +95,7 @@ class KafkaRequestConsumer:
         async for msg in self.consumer:
             try:
                 # Deserialize usando AvroCodec (com fallback JSON)
-                data = self.avro_codec.deserialize(msg.value, 'request')
+                data = self.avro_codec.deserialize(msg.value, "request")
                 if not data:
                     logger.error("failed_to_deserialize_request", offset=msg.offset)
                     continue

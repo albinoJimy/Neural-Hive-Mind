@@ -4,14 +4,14 @@ Model Registry para MLflow Integration.
 Gerencia ciclo de vida de modelos ML: versionamento, registro, promoção e carregamento.
 """
 
-from typing import Any, Dict, List, Optional, Tuple
-from functools import lru_cache
-from datetime import datetime
 import asyncio
-import structlog
-from mlflow.tracking import MlflowClient
+from datetime import UTC, datetime
+from typing import Any
+
 import mlflow
 import mlflow.sklearn
+import structlog
+from mlflow.tracking import MlflowClient
 
 logger = structlog.get_logger(__name__)
 
@@ -25,6 +25,7 @@ def _get_metrics():
     global _metrics_instance
     if _metrics_instance is None:
         from src.observability.metrics import get_metrics
+
         _metrics_instance = get_metrics()
     return _metrics_instance
 
@@ -51,10 +52,10 @@ class ModelRegistry:
         self.config = config
         self.tracking_uri = config.mlflow_tracking_uri
         self.experiment_name = config.mlflow_experiment_name
-        self.client: Optional[MlflowClient] = None
-        self.experiment_id: Optional[str] = None
+        self.client: MlflowClient | None = None
+        self.experiment_id: str | None = None
         # Cache: {cache_key: (model, loaded_timestamp)}
-        self._model_cache: Dict[str, Tuple[Any, float]] = {}
+        self._model_cache: dict[str, tuple[Any, float]] = {}
         self.cache_ttl_seconds = config.ml_model_cache_ttl_seconds
         self.logger = logger.bind(component="model_registry")
 
@@ -68,19 +69,17 @@ class ModelRegistry:
             self.client = MlflowClient(tracking_uri=self.tracking_uri)
 
             # Cria ou obtém experimento
-            self.experiment_id = await self._create_experiment_if_not_exists(
-                self.experiment_name
-            )
+            self.experiment_id = await self._create_experiment_if_not_exists(self.experiment_name)
 
             self.logger.info(
                 "mlflow_initialized",
                 tracking_uri=self.tracking_uri,
                 experiment_id=self.experiment_id,
-                experiment_name=self.experiment_name
+                experiment_name=self.experiment_name,
             )
 
         except Exception as e:
-            self.logger.error("mlflow_initialization_failed", error=str(e))
+            self.logger.exception("mlflow_initialization_failed", error=str(e))
             raise
 
     async def _create_experiment_if_not_exists(self, experiment_name: str) -> str:
@@ -96,8 +95,7 @@ class ModelRegistry:
         try:
             # Executa operação sync em thread separada
             experiment = await asyncio.to_thread(
-                self.client.get_experiment_by_name,
-                experiment_name
+                self.client.get_experiment_by_name, experiment_name
             )
             if experiment:
                 return experiment.experiment_id
@@ -107,26 +105,26 @@ class ModelRegistry:
                 self.client.create_experiment,
                 name=experiment_name,
                 tags={
-                    'project': 'neural-hive-mind',
-                    'component': 'orchestrator-dynamic',
-                    'purpose': 'predictive-modeling'
-                }
+                    "project": "neural-hive-mind",
+                    "component": "orchestrator-dynamic",
+                    "purpose": "predictive-modeling",
+                },
             )
 
             self.logger.info("mlflow_experiment_created", experiment_id=experiment_id)
             return experiment_id
 
         except Exception as e:
-            self.logger.error("experiment_creation_failed", error=str(e))
+            self.logger.exception("experiment_creation_failed", error=str(e))
             raise
 
     def _save_model_sync(
         self,
         model: Any,
         model_name: str,
-        metrics: Dict[str, float],
-        params: Dict[str, Any],
-        tags: Optional[Dict[str, str]] = None
+        metrics: dict[str, float],
+        params: dict[str, Any],
+        tags: dict[str, str] | None = None,
     ) -> str:
         """
         Helper síncrono para salvar modelo no MLflow.
@@ -154,9 +152,7 @@ class ModelRegistry:
 
             # Log modelo com sklearn flavor
             mlflow.sklearn.log_model(
-                sk_model=model,
-                artifact_path="model",
-                registered_model_name=model_name
+                sk_model=model, artifact_path="model", registered_model_name=model_name
             )
 
             return run.info.run_id
@@ -165,9 +161,9 @@ class ModelRegistry:
         self,
         model: Any,
         model_name: str,
-        metrics: Dict[str, float],
-        params: Dict[str, Any],
-        tags: Optional[Dict[str, str]] = None
+        metrics: dict[str, float],
+        params: dict[str, Any],
+        tags: dict[str, str] | None = None,
     ) -> str:
         """
         Salva modelo no MLflow com métricas e parâmetros.
@@ -185,20 +181,10 @@ class ModelRegistry:
         try:
             # Executa operação sync em thread separada
             run_id = await asyncio.to_thread(
-                self._save_model_sync,
-                model,
-                model_name,
-                metrics,
-                params,
-                tags
+                self._save_model_sync, model, model_name, metrics, params, tags
             )
 
-            self.logger.info(
-                "model_saved",
-                model_name=model_name,
-                run_id=run_id,
-                metrics=metrics
-            )
+            self.logger.info("model_saved", model_name=model_name, run_id=run_id, metrics=metrics)
 
             # Limpa cache após salvar novo modelo
             self._model_cache.pop(model_name, None)
@@ -206,15 +192,12 @@ class ModelRegistry:
             return run_id
 
         except Exception as e:
-            self.logger.error("model_save_failed", model_name=model_name, error=str(e))
+            self.logger.exception("model_save_failed", model_name=model_name, error=str(e))
             raise
 
     async def load_model(
-        self,
-        model_name: str,
-        version: str = 'latest',
-        stage: str = 'Production'
-    ) -> Optional[Any]:
+        self, model_name: str, version: str = "latest", stage: str = "Production"
+    ) -> Any | None:
         """
         Carrega modelo do MLflow.
 
@@ -234,26 +217,24 @@ class ModelRegistry:
             cache_key = f"{model_name}_{stage}_{version}"
             if cache_key in self._model_cache:
                 cached_model, loaded_at = self._model_cache[cache_key]
-                elapsed = datetime.utcnow().timestamp() - loaded_at
+                elapsed = datetime.now(UTC).timestamp() - loaded_at
 
                 if elapsed < self.cache_ttl_seconds:
-                    self.logger.debug("model_loaded_from_cache", model_name=model_name, age_seconds=elapsed)
+                    self.logger.debug(
+                        "model_loaded_from_cache", model_name=model_name, age_seconds=elapsed
+                    )
                     return cached_model
-                else:
-                    # Cache expirado, remove entrada
-                    self.logger.debug("cache_expired", model_name=model_name, age_seconds=elapsed)
-                    del self._model_cache[cache_key]
+                # Cache expirado, remove entrada
+                self.logger.debug("cache_expired", model_name=model_name, age_seconds=elapsed)
+                del self._model_cache[cache_key]
 
             # Tenta carregar da stage Production
             try:
                 model_uri = f"models:/{model_name}/{stage}"
                 # Executa carregamento em thread separada
-                model = await asyncio.to_thread(
-                    mlflow.sklearn.load_model,
-                    model_uri
-                )
+                model = await asyncio.to_thread(mlflow.sklearn.load_model, model_uri)
                 # Armazena com timestamp
-                self._model_cache[cache_key] = (model, datetime.utcnow().timestamp())
+                self._model_cache[cache_key] = (model, datetime.now(UTC).timestamp())
                 self.logger.info("model_loaded", model_name=model_name, stage=stage)
                 return model
             except Exception:
@@ -264,8 +245,7 @@ class ModelRegistry:
             try:
                 # Busca versões em thread separada
                 versions = await asyncio.to_thread(
-                    self.client.search_model_versions,
-                    f"name='{model_name}'"
+                    self.client.search_model_versions, f"name='{model_name}'"
                 )
                 if not versions:
                     self.logger.warning("model_not_found", model_name=model_name)
@@ -277,29 +257,24 @@ class ModelRegistry:
 
                 model_uri = f"models:/{model_name}/{latest_version.version}"
                 # Executa carregamento em thread separada
-                model = await asyncio.to_thread(
-                    mlflow.sklearn.load_model,
-                    model_uri
-                )
+                model = await asyncio.to_thread(mlflow.sklearn.load_model, model_uri)
 
                 # Armazena com timestamp
-                self._model_cache[cache_key] = (model, datetime.utcnow().timestamp())
+                self._model_cache[cache_key] = (model, datetime.now(UTC).timestamp())
                 self.logger.info(
-                    "model_loaded",
-                    model_name=model_name,
-                    version=latest_version.version
+                    "model_loaded", model_name=model_name, version=latest_version.version
                 )
                 return model
 
             except Exception as e:
-                self.logger.error("model_load_failed", model_name=model_name, error=str(e))
+                self.logger.exception("model_load_failed", model_name=model_name, error=str(e))
                 return None
 
         except Exception as e:
-            self.logger.error("model_load_error", model_name=model_name, error=str(e))
+            self.logger.exception("model_load_error", model_name=model_name, error=str(e))
             return None
 
-    async def get_model_metadata(self, model_name: str) -> Dict[str, Any]:
+    async def get_model_metadata(self, model_name: str) -> dict[str, Any]:
         """
         Recupera metadados do modelo (métricas, params, versão).
 
@@ -312,8 +287,7 @@ class ModelRegistry:
         try:
             # Executa operação sync em thread separada
             versions = await asyncio.to_thread(
-                self.client.search_model_versions,
-                f"name='{model_name}'"
+                self.client.search_model_versions, f"name='{model_name}'"
             )
             if not versions:
                 return {}
@@ -322,31 +296,23 @@ class ModelRegistry:
             latest = sorted(versions, key=lambda v: int(v.version), reverse=True)[0]
 
             # Busca run associado em thread separada
-            run = await asyncio.to_thread(
-                self.client.get_run,
-                latest.run_id
-            )
+            run = await asyncio.to_thread(self.client.get_run, latest.run_id)
 
             return {
-                'model_name': model_name,
-                'version': latest.version,
-                'stage': latest.current_stage,
-                'run_id': latest.run_id,
-                'metrics': run.data.metrics,
-                'params': run.data.params,
-                'tags': run.data.tags
+                "model_name": model_name,
+                "version": latest.version,
+                "stage": latest.current_stage,
+                "run_id": latest.run_id,
+                "metrics": run.data.metrics,
+                "params": run.data.params,
+                "tags": run.data.tags,
             }
 
         except Exception as e:
-            self.logger.error("get_metadata_failed", model_name=model_name, error=str(e))
+            self.logger.exception("get_metadata_failed", model_name=model_name, error=str(e))
             return {}
 
-    async def promote_model(
-        self,
-        model_name: str,
-        version: str,
-        stage: str = 'Production'
-    ):
+    async def promote_model(self, model_name: str, version: str, stage: str = "Production"):
         """
         Promove versão do modelo para stage (Production, Staging, etc).
 
@@ -362,30 +328,30 @@ class ModelRegistry:
         try:
             # Valida critérios de promoção
             metadata = await self.get_model_metadata(model_name)
-            metrics = metadata.get('metrics', {})
+            metrics = metadata.get("metrics", {})
 
             should_promote = False
 
-            if 'duration' in model_name.lower():
+            if "duration" in model_name.lower():
                 # Duration predictor: MAE < 15%
-                mae_pct = metrics.get('mae_percentage', 100.0)
+                mae_pct = metrics.get("mae_percentage", 100.0)
                 should_promote = mae_pct < 15.0
                 self.logger.info(
                     "duration_model_promotion_check",
                     mae_pct=mae_pct,
                     threshold=15.0,
-                    will_promote=should_promote
+                    will_promote=should_promote,
                 )
 
-            elif 'anomaly' in model_name.lower():
+            elif "anomaly" in model_name.lower():
                 # Anomaly detector: precision > 0.75
-                precision = metrics.get('precision', 0.0)
+                precision = metrics.get("precision", 0.0)
                 should_promote = precision > 0.75
                 self.logger.info(
                     "anomaly_model_promotion_check",
                     precision=precision,
                     threshold=0.75,
-                    will_promote=should_promote
+                    will_promote=should_promote,
                 )
 
             if not should_promote:
@@ -393,7 +359,7 @@ class ModelRegistry:
                     "model_promotion_skipped",
                     model_name=model_name,
                     version=version,
-                    reason="metrics_below_threshold"
+                    reason="metrics_below_threshold",
                 )
                 return
 
@@ -403,7 +369,7 @@ class ModelRegistry:
                 name=model_name,
                 version=version,
                 stage=stage,
-                archive_existing_versions=True
+                archive_existing_versions=True,
             )
 
             # Limpa cache
@@ -412,51 +378,41 @@ class ModelRegistry:
             # Registra métricas do modelo promovido
             try:
                 metrics_obj = _get_metrics()
-                model_type = 'duration' if 'duration' in model_name.lower() else 'anomaly'
+                "duration" if "duration" in model_name.lower() else "anomaly"
 
                 # Atualiza gauges com métricas de produção
-                if 'duration' in model_name.lower():
-                    if 'mae_percentage' in metrics:
+                if "duration" in model_name.lower():
+                    if "mae_percentage" in metrics:
                         metrics_obj.ml_model_accuracy.labels(
-                            model_name=model_name,
-                            metric_type='mae_pct_production'
-                        ).set(metrics.get('mae_percentage'))
-                    if 'r2' in metrics:
+                            model_name=model_name, metric_type="mae_pct_production"
+                        ).set(metrics.get("mae_percentage"))
+                    if "r2" in metrics:
                         metrics_obj.ml_model_accuracy.labels(
-                            model_name=model_name,
-                            metric_type='r2_production'
-                        ).set(metrics.get('r2'))
-                elif 'anomaly' in model_name.lower():
-                    if 'precision' in metrics:
+                            model_name=model_name, metric_type="r2_production"
+                        ).set(metrics.get("r2"))
+                elif "anomaly" in model_name.lower():
+                    if "precision" in metrics:
                         metrics_obj.ml_model_accuracy.labels(
-                            model_name=model_name,
-                            metric_type='precision_production'
-                        ).set(metrics.get('precision'))
-                    if 'recall' in metrics:
+                            model_name=model_name, metric_type="precision_production"
+                        ).set(metrics.get("precision"))
+                    if "recall" in metrics:
                         metrics_obj.ml_model_accuracy.labels(
-                            model_name=model_name,
-                            metric_type='recall_production'
-                        ).set(metrics.get('recall'))
-                    if 'f1_score' in metrics:
+                            model_name=model_name, metric_type="recall_production"
+                        ).set(metrics.get("recall"))
+                    if "f1_score" in metrics:
                         metrics_obj.ml_model_accuracy.labels(
-                            model_name=model_name,
-                            metric_type='f1_production'
-                        ).set(metrics.get('f1_score'))
+                            model_name=model_name, metric_type="f1_production"
+                        ).set(metrics.get("f1_score"))
             except Exception as e:
                 self.logger.warning("failed_to_record_production_metrics", error=str(e))
 
-            self.logger.info(
-                "model_promoted",
-                model_name=model_name,
-                version=version,
-                stage=stage
-            )
+            self.logger.info("model_promoted", model_name=model_name, version=version, stage=stage)
 
         except Exception as e:
-            self.logger.error("model_promotion_failed", error=str(e))
+            self.logger.exception("model_promotion_failed", error=str(e))
             raise
 
-    async def list_models(self) -> List[Dict[str, Any]]:
+    async def list_models(self) -> list[dict[str, Any]]:
         """
         Lista todos os modelos registrados com metadados.
 
@@ -465,39 +421,39 @@ class ModelRegistry:
         """
         try:
             # Executa operação sync em thread separada
-            registered_models = await asyncio.to_thread(
-                self.client.search_registered_models
-            )
+            registered_models = await asyncio.to_thread(self.client.search_registered_models)
 
             models = []
             for rm in registered_models:
                 # Busca versões em thread separada
                 versions = await asyncio.to_thread(
-                    self.client.search_model_versions,
-                    f"name='{rm.name}'"
+                    self.client.search_model_versions, f"name='{rm.name}'"
                 )
-                latest = sorted(versions, key=lambda v: int(v.version), reverse=True)[0] if versions else None
+                latest = (
+                    sorted(versions, key=lambda v: int(v.version), reverse=True)[0]
+                    if versions
+                    else None
+                )
 
-                models.append({
-                    'name': rm.name,
-                    'latest_version': latest.version if latest else None,
-                    'current_stage': latest.current_stage if latest else None,
-                    'description': rm.description,
-                    'tags': rm.tags
-                })
+                models.append(
+                    {
+                        "name": rm.name,
+                        "latest_version": latest.version if latest else None,
+                        "current_stage": latest.current_stage if latest else None,
+                        "description": rm.description,
+                        "tags": rm.tags,
+                    }
+                )
 
             return models
 
         except Exception as e:
-            self.logger.error("list_models_failed", error=str(e))
+            self.logger.exception("list_models_failed", error=str(e))
             return []
 
     async def compare_models(
-        self,
-        model_name: str,
-        version_a: str,
-        version_b: str
-    ) -> Dict[str, Any]:
+        self, model_name: str, version_a: str, version_b: str
+    ) -> dict[str, Any]:
         """
         Compara duas versões de um modelo.
 
@@ -512,14 +468,13 @@ class ModelRegistry:
         try:
             # Busca versões em thread separada
             versions = await asyncio.to_thread(
-                self.client.search_model_versions,
-                f"name='{model_name}'"
+                self.client.search_model_versions, f"name='{model_name}'"
             )
 
             versions_dict = {v.version: v for v in versions}
 
             if version_a not in versions_dict or version_b not in versions_dict:
-                return {'error': 'Uma ou ambas versões não encontradas'}
+                return {"error": "Uma ou ambas versões não encontradas"}
 
             v_a = versions_dict[version_a]
             v_b = versions_dict[version_b]
@@ -533,20 +488,20 @@ class ModelRegistry:
 
             # Calcular diferenças
             comparison = {
-                'model_name': model_name,
-                'version_a': {
-                    'version': version_a,
-                    'stage': v_a.current_stage,
-                    'metrics': metrics_a,
-                    'created_at': v_a.creation_timestamp
+                "model_name": model_name,
+                "version_a": {
+                    "version": version_a,
+                    "stage": v_a.current_stage,
+                    "metrics": metrics_a,
+                    "created_at": v_a.creation_timestamp,
                 },
-                'version_b': {
-                    'version': version_b,
-                    'stage': v_b.current_stage,
-                    'metrics': metrics_b,
-                    'created_at': v_b.creation_timestamp
+                "version_b": {
+                    "version": version_b,
+                    "stage": v_b.current_stage,
+                    "metrics": metrics_b,
+                    "created_at": v_b.creation_timestamp,
                 },
-                'differences': {}
+                "differences": {},
             }
 
             # Calcular diferenças percentuais para cada métrica
@@ -557,76 +512,63 @@ class ModelRegistry:
 
                 if val_a is not None and val_b is not None and val_a != 0:
                     pct_change = ((val_b - val_a) / abs(val_a)) * 100
-                    comparison['differences'][metric] = {
-                        'value_a': val_a,
-                        'value_b': val_b,
-                        'change_pct': round(pct_change, 2)
+                    comparison["differences"][metric] = {
+                        "value_a": val_a,
+                        "value_b": val_b,
+                        "change_pct": round(pct_change, 2),
                     }
 
             # Determinar recomendação
-            recommendation = self._determine_recommendation(
-                model_name, metrics_a, metrics_b
-            )
-            comparison['recommendation'] = recommendation
+            recommendation = self._determine_recommendation(model_name, metrics_a, metrics_b)
+            comparison["recommendation"] = recommendation
 
             self.logger.info(
                 "models_compared",
                 model_name=model_name,
                 version_a=version_a,
                 version_b=version_b,
-                recommendation=recommendation['preferred_version']
+                recommendation=recommendation["preferred_version"],
             )
 
             return comparison
 
         except Exception as e:
-            self.logger.error(
-                "compare_models_failed",
-                model_name=model_name,
-                error=str(e)
-            )
-            return {'error': str(e)}
+            self.logger.exception("compare_models_failed", model_name=model_name, error=str(e))
+            return {"error": str(e)}
 
     def _determine_recommendation(
-        self,
-        model_name: str,
-        metrics_a: Dict[str, float],
-        metrics_b: Dict[str, float]
-    ) -> Dict[str, Any]:
+        self, model_name: str, metrics_a: dict[str, float], metrics_b: dict[str, float]
+    ) -> dict[str, Any]:
         """Determina qual versão é recomendada baseado nas métricas."""
-        if 'duration' in model_name.lower():
+        if "duration" in model_name.lower():
             # Para duration: menor MAE é melhor
-            mae_a = metrics_a.get('mae', metrics_a.get('mae_percentage', float('inf')))
-            mae_b = metrics_b.get('mae', metrics_b.get('mae_percentage', float('inf')))
+            mae_a = metrics_a.get("mae", metrics_a.get("mae_percentage", float("inf")))
+            mae_b = metrics_b.get("mae", metrics_b.get("mae_percentage", float("inf")))
 
             return {
-                'preferred_version': 'a' if mae_a <= mae_b else 'b',
-                'reason': f"MAE: {mae_a:.4f} vs {mae_b:.4f}",
-                'primary_metric': 'mae'
+                "preferred_version": "a" if mae_a <= mae_b else "b",
+                "reason": f"MAE: {mae_a:.4f} vs {mae_b:.4f}",
+                "primary_metric": "mae",
             }
 
-        elif 'anomaly' in model_name.lower():
+        if "anomaly" in model_name.lower():
             # Para anomaly: maior F1 é melhor
-            f1_a = metrics_a.get('f1_score', metrics_a.get('f1', 0))
-            f1_b = metrics_b.get('f1_score', metrics_b.get('f1', 0))
+            f1_a = metrics_a.get("f1_score", metrics_a.get("f1", 0))
+            f1_b = metrics_b.get("f1_score", metrics_b.get("f1", 0))
 
             return {
-                'preferred_version': 'a' if f1_a >= f1_b else 'b',
-                'reason': f"F1: {f1_a:.4f} vs {f1_b:.4f}",
-                'primary_metric': 'f1_score'
+                "preferred_version": "a" if f1_a >= f1_b else "b",
+                "reason": f"F1: {f1_a:.4f} vs {f1_b:.4f}",
+                "primary_metric": "f1_score",
             }
 
         return {
-            'preferred_version': 'unknown',
-            'reason': 'Tipo de modelo não reconhecido',
-            'primary_metric': None
+            "preferred_version": "unknown",
+            "reason": "Tipo de modelo não reconhecido",
+            "primary_metric": None,
         }
 
-    async def get_model_history(
-        self,
-        model_name: str,
-        limit: int = 10
-    ) -> List[Dict[str, Any]]:
+    async def get_model_history(self, model_name: str, limit: int = 10) -> list[dict[str, Any]]:
         """
         Recupera histórico de versões do modelo.
 
@@ -639,19 +581,14 @@ class ModelRegistry:
         """
         try:
             versions = await asyncio.to_thread(
-                self.client.search_model_versions,
-                f"name='{model_name}'"
+                self.client.search_model_versions, f"name='{model_name}'"
             )
 
             if not versions:
                 return []
 
             # Ordena por versão (mais recente primeiro)
-            sorted_versions = sorted(
-                versions,
-                key=lambda v: int(v.version),
-                reverse=True
-            )[:limit]
+            sorted_versions = sorted(versions, key=lambda v: int(v.version), reverse=True)[:limit]
 
             history = []
             for v in sorted_versions:
@@ -664,38 +601,31 @@ class ModelRegistry:
                     metrics = {}
                     params = {}
 
-                history.append({
-                    'version': v.version,
-                    'stage': v.current_stage,
-                    'run_id': v.run_id,
-                    'created_at': v.creation_timestamp,
-                    'metrics': metrics,
-                    'params': params,
-                    'status': v.status
-                })
+                history.append(
+                    {
+                        "version": v.version,
+                        "stage": v.current_stage,
+                        "run_id": v.run_id,
+                        "created_at": v.creation_timestamp,
+                        "metrics": metrics,
+                        "params": params,
+                        "status": v.status,
+                    }
+                )
 
             self.logger.debug(
-                "model_history_retrieved",
-                model_name=model_name,
-                versions_count=len(history)
+                "model_history_retrieved", model_name=model_name, versions_count=len(history)
             )
 
             return history
 
         except Exception as e:
-            self.logger.error(
-                "get_model_history_failed",
-                model_name=model_name,
-                error=str(e)
-            )
+            self.logger.exception("get_model_history_failed", model_name=model_name, error=str(e))
             return []
 
     async def get_best_model(
-        self,
-        model_name: str,
-        metric_name: str,
-        minimize: bool = True
-    ) -> Optional[Dict[str, Any]]:
+        self, model_name: str, metric_name: str, minimize: bool = True
+    ) -> dict[str, Any] | None:
         """
         Encontra a melhor versão do modelo baseado em uma métrica.
 
@@ -709,15 +639,14 @@ class ModelRegistry:
         """
         try:
             versions = await asyncio.to_thread(
-                self.client.search_model_versions,
-                f"name='{model_name}'"
+                self.client.search_model_versions, f"name='{model_name}'"
             )
 
             if not versions:
                 return None
 
             best_version = None
-            best_metric_value = float('inf') if minimize else float('-inf')
+            best_metric_value = float("inf") if minimize else float("-inf")
 
             for v in versions:
                 try:
@@ -728,19 +657,20 @@ class ModelRegistry:
                         continue
 
                     is_better = (
-                        metric_value < best_metric_value if minimize
+                        metric_value < best_metric_value
+                        if minimize
                         else metric_value > best_metric_value
                     )
 
                     if is_better:
                         best_metric_value = metric_value
                         best_version = {
-                            'version': v.version,
-                            'stage': v.current_stage,
-                            'run_id': v.run_id,
+                            "version": v.version,
+                            "stage": v.current_stage,
+                            "run_id": v.run_id,
                             metric_name: metric_value,
-                            'metrics': run.data.metrics,
-                            'params': run.data.params
+                            "metrics": run.data.metrics,
+                            "params": run.data.params,
                         }
 
                 except Exception:
@@ -750,27 +680,20 @@ class ModelRegistry:
                 self.logger.info(
                     "best_model_found",
                     model_name=model_name,
-                    version=best_version['version'],
+                    version=best_version["version"],
                     metric_name=metric_name,
-                    metric_value=best_metric_value
+                    metric_value=best_metric_value,
                 )
 
             return best_version
 
         except Exception as e:
-            self.logger.error(
-                "get_best_model_failed",
-                model_name=model_name,
-                error=str(e)
-            )
+            self.logger.exception("get_best_model_failed", model_name=model_name, error=str(e))
             return None
 
     async def rollback_model(
-        self,
-        model_name: str,
-        target_version: Optional[str] = None,
-        reason: str = "manual_rollback"
-    ) -> Dict[str, Any]:
+        self, model_name: str, target_version: str | None = None, reason: str = "manual_rollback"
+    ) -> dict[str, Any]:
         """
         Faz rollback do modelo para uma versão anterior.
 
@@ -785,61 +708,40 @@ class ModelRegistry:
         try:
             # Busca versões
             versions = await asyncio.to_thread(
-                self.client.search_model_versions,
-                f"name='{model_name}'"
+                self.client.search_model_versions, f"name='{model_name}'"
             )
 
             if not versions:
-                return {
-                    'success': False,
-                    'error': 'Modelo não encontrado'
-                }
+                return {"success": False, "error": "Modelo não encontrado"}
 
             # Ordena por versão
-            sorted_versions = sorted(
-                versions,
-                key=lambda v: int(v.version),
-                reverse=True
-            )
+            sorted_versions = sorted(versions, key=lambda v: int(v.version), reverse=True)
 
             # Encontra versão atual em Production
             current_prod = None
             for v in sorted_versions:
-                if v.current_stage == 'Production':
+                if v.current_stage == "Production":
                     current_prod = v
                     break
 
             if not current_prod:
-                return {
-                    'success': False,
-                    'error': 'Nenhuma versão em Production'
-                }
+                return {"success": False, "error": "Nenhuma versão em Production"}
 
             # Determina versão alvo
             if target_version:
-                target = next(
-                    (v for v in sorted_versions if v.version == target_version),
-                    None
-                )
+                target = next((v for v in sorted_versions if v.version == target_version), None)
             else:
                 # Versão anterior
                 current_idx = next(
-                    (i for i, v in enumerate(sorted_versions)
-                     if v.version == current_prod.version),
-                    -1
+                    (i for i, v in enumerate(sorted_versions) if v.version == current_prod.version),
+                    -1,
                 )
                 if current_idx < 0 or current_idx + 1 >= len(sorted_versions):
-                    return {
-                        'success': False,
-                        'error': 'Nenhuma versão anterior disponível'
-                    }
+                    return {"success": False, "error": "Nenhuma versão anterior disponível"}
                 target = sorted_versions[current_idx + 1]
 
             if not target:
-                return {
-                    'success': False,
-                    'error': f'Versão {target_version} não encontrada'
-                }
+                return {"success": False, "error": f"Versão {target_version} não encontrada"}
 
             # Executa rollback
             # 1. Arquiva versão atual
@@ -847,8 +749,8 @@ class ModelRegistry:
                 self.client.transition_model_version_stage,
                 name=model_name,
                 version=current_prod.version,
-                stage='Archived',
-                archive_existing_versions=False
+                stage="Archived",
+                archive_existing_versions=False,
             )
 
             # 2. Promove versão alvo
@@ -856,8 +758,8 @@ class ModelRegistry:
                 self.client.transition_model_version_stage,
                 name=model_name,
                 version=target.version,
-                stage='Production',
-                archive_existing_versions=False
+                stage="Production",
+                archive_existing_versions=False,
             )
 
             # Limpa cache
@@ -865,46 +767,31 @@ class ModelRegistry:
 
             # Log rollback
             rollback_info = {
-                'success': True,
-                'model_name': model_name,
-                'previous_version': current_prod.version,
-                'new_version': target.version,
-                'reason': reason,
-                'timestamp': datetime.utcnow().isoformat()
+                "success": True,
+                "model_name": model_name,
+                "previous_version": current_prod.version,
+                "new_version": target.version,
+                "reason": reason,
+                "timestamp": datetime.now(UTC).isoformat(),
             }
 
-            self.logger.warning(
-                "model_rollback_executed",
-                **rollback_info
-            )
+            self.logger.warning("model_rollback_executed", **rollback_info)
 
             # Registra métrica de rollback
             try:
                 metrics_obj = _get_metrics()
-                metrics_obj.ml_model_rollbacks.labels(
-                    model_name=model_name
-                ).inc()
+                metrics_obj.ml_model_rollbacks.labels(model_name=model_name).inc()
             except Exception:
                 pass
 
             return rollback_info
 
         except Exception as e:
-            self.logger.error(
-                "rollback_failed",
-                model_name=model_name,
-                error=str(e)
-            )
-            return {
-                'success': False,
-                'error': str(e)
-            }
+            self.logger.exception("rollback_failed", model_name=model_name, error=str(e))
+            return {"success": False, "error": str(e)}
 
     async def enrich_model_metadata(
-        self,
-        model_name: str,
-        version: str,
-        metadata: Dict[str, Any]
+        self, model_name: str, version: str, metadata: dict[str, Any]
     ) -> bool:
         """
         Enriquece metadados de uma versão do modelo.
@@ -920,15 +807,12 @@ class ModelRegistry:
         try:
             # Busca versão
             versions = await asyncio.to_thread(
-                self.client.search_model_versions,
-                f"name='{model_name}' AND version='{version}'"
+                self.client.search_model_versions, f"name='{model_name}' AND version='{version}'"
             )
 
             if not versions:
                 self.logger.warning(
-                    "version_not_found_for_enrichment",
-                    model_name=model_name,
-                    version=version
+                    "version_not_found_for_enrichment", model_name=model_name, version=version
                 )
                 return False
 
@@ -937,27 +821,21 @@ class ModelRegistry:
             # Adiciona tags ao run
             for key, value in metadata.items():
                 await asyncio.to_thread(
-                    self.client.set_tag,
-                    v.run_id,
-                    f"enrichment.{key}",
-                    str(value)
+                    self.client.set_tag, v.run_id, f"enrichment.{key}", str(value)
                 )
 
             self.logger.info(
                 "model_metadata_enriched",
                 model_name=model_name,
                 version=version,
-                keys=list(metadata.keys())
+                keys=list(metadata.keys()),
             )
 
             return True
 
         except Exception as e:
-            self.logger.error(
-                "enrich_metadata_failed",
-                model_name=model_name,
-                version=version,
-                error=str(e)
+            self.logger.exception(
+                "enrich_metadata_failed", model_name=model_name, version=version, error=str(e)
             )
             return False
 

@@ -1,10 +1,9 @@
 """Interface base para planners de arquitetura."""
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 
 from src.models.architecture import ArchitecturePlan
-from src.models.validation import ValidationReport
 
 
 class BasePlanner(ABC):

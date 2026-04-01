@@ -3,11 +3,11 @@ Adapter para ferramentas executadas via containers Docker.
 """
 
 import time
-import json
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict
+
 import structlog
 
-from .base_adapter import BaseToolAdapter, ExecutionResult, AdapterError
+from .base_adapter import AdapterError, BaseToolAdapter, ExecutionResult
 
 logger = structlog.get_logger(__name__)
 
@@ -16,9 +16,7 @@ class ContainerAdapter(BaseToolAdapter):
     """Adapter para execução de ferramentas via Docker containers."""
 
     def __init__(
-        self,
-        docker_host: str = "unix:///var/run/docker.sock",
-        timeout_seconds: int = 600
+        self, docker_host: str = "unix:///var/run/docker.sock", timeout_seconds: int = 600
     ):
         super().__init__()
         self.docker_host = docker_host
@@ -30,7 +28,7 @@ class ContainerAdapter(BaseToolAdapter):
         tool_name: str,
         command: str,  # Docker image
         parameters: Dict[str, Any],
-        context: Dict[str, Any]
+        context: Dict[str, Any],
     ) -> ExecutionResult:
         """
         Executa ferramenta via Docker container.
@@ -49,31 +47,20 @@ class ContainerAdapter(BaseToolAdapter):
 
         try:
             # Construir comando docker run
-            docker_command = self._build_docker_command(
-                command,
-                parameters,
-                context
-            )
+            docker_command = self._build_docker_command(command, parameters, context)
 
-            self.logger.info(
-                "executing_container_tool",
-                tool_name=tool_name,
-                image=command
-            )
+            self.logger.info("executing_container_tool", tool_name=tool_name, image=command)
 
             # Executar via docker CLI (simplificação - em produção usar docker-py)
             import asyncio
 
             process = await asyncio.create_subprocess_shell(
-                docker_command,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                docker_command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
             )
 
             try:
                 stdout, stderr = await asyncio.wait_for(
-                    process.communicate(),
-                    timeout=self.timeout_seconds
+                    process.communicate(), timeout=self.timeout_seconds
                 )
             except asyncio.TimeoutError:
                 process.kill()
@@ -82,16 +69,14 @@ class ContainerAdapter(BaseToolAdapter):
                 await asyncio.create_subprocess_shell(
                     f"docker kill {container_name}",
                     stdout=asyncio.subprocess.DEVNULL,
-                    stderr=asyncio.subprocess.DEVNULL
+                    stderr=asyncio.subprocess.DEVNULL,
                 )
-                raise AdapterError(
-                    f"Container {tool_name} timed out after {self.timeout_seconds}s"
-                )
+                raise AdapterError(f"Container {tool_name} timed out after {self.timeout_seconds}s")
 
             execution_time_ms = (time.time() - start_time) * 1000
 
-            output = stdout.decode('utf-8', errors='replace')
-            error = stderr.decode('utf-8', errors='replace') if stderr else None
+            output = stdout.decode("utf-8", errors="replace")
+            error = stderr.decode("utf-8", errors="replace") if stderr else None
 
             result = ExecutionResult(
                 success=(process.returncode == 0),
@@ -99,10 +84,7 @@ class ContainerAdapter(BaseToolAdapter):
                 error=error,
                 execution_time_ms=execution_time_ms,
                 exit_code=process.returncode,
-                metadata={
-                    "image": command,
-                    "docker_command": docker_command
-                }
+                metadata={"image": command, "docker_command": docker_command},
             )
 
             await self._log_execution(tool_name, command, result)
@@ -114,14 +96,14 @@ class ContainerAdapter(BaseToolAdapter):
                 "container_tool_execution_failed",
                 tool_name=tool_name,
                 error=str(e),
-                execution_time_ms=execution_time_ms
+                execution_time_ms=execution_time_ms,
             )
             return ExecutionResult(
                 success=False,
                 output="",
                 error=str(e),
                 execution_time_ms=execution_time_ms,
-                metadata={"exception": type(e).__name__}
+                metadata={"exception": type(e).__name__},
             )
 
     async def validate_tool_availability(self, tool_name: str) -> bool:
@@ -139,26 +121,18 @@ class ContainerAdapter(BaseToolAdapter):
 
             # Verificar se docker está disponível
             process = await asyncio.create_subprocess_shell(
-                "docker version",
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                "docker version", stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
             )
             await process.communicate()
 
             return process.returncode == 0
 
         except Exception as e:
-            self.logger.warning(
-                "docker_validation_failed",
-                error=str(e)
-            )
+            self.logger.warning("docker_validation_failed", error=str(e))
             return False
 
     def _build_docker_command(
-        self,
-        image: str,
-        parameters: Dict[str, Any],
-        context: Dict[str, Any]
+        self, image: str, parameters: Dict[str, Any], context: Dict[str, Any]
     ) -> str:
         """
         Constrói comando 'docker run' completo.

@@ -2,8 +2,9 @@
 Cliente para Redis Cluster (cache de budgets).
 """
 
-from typing import Optional, Union
 import json
+from typing import Optional, Union
+
 import redis.asyncio as redis
 import structlog
 
@@ -37,15 +38,14 @@ class RedisClient:
                     port=port,
                     password=self.settings.password if self.settings.password else None,
                     ssl=self.settings.ssl,
-                    decode_responses=self.settings.decode_responses
+                    decode_responses=self.settings.decode_responses,
                 )
                 await self.cluster.ping()
                 self.logger.info("redis_standalone_connected", host=host, port=port)
             except Exception as standalone_error:
                 # Fallback to cluster mode
                 self.logger.warning(
-                    "redis_standalone_unavailable_trying_cluster",
-                    error=str(standalone_error)
+                    "redis_standalone_unavailable_trying_cluster", error=str(standalone_error)
                 )
                 try:
                     self.cluster = redis.RedisCluster(
@@ -53,7 +53,7 @@ class RedisClient:
                         port=port,
                         password=self.settings.password if self.settings.password else None,
                         ssl=self.settings.ssl,
-                        decode_responses=self.settings.decode_responses
+                        decode_responses=self.settings.decode_responses,
                     )
                     await self.cluster.ping()
                     self.logger.info("redis_cluster_connected", nodes=nodes_list)
@@ -117,10 +117,7 @@ class RedisClient:
             return False
 
     async def cache_freeze_status(
-        self,
-        service_name: str,
-        is_frozen: bool,
-        ttl: Optional[int] = None
+        self, service_name: str, is_frozen: bool, ttl: Optional[int] = None
     ) -> bool:
         """Armazena status de freeze."""
         if not self.cluster:
@@ -164,12 +161,7 @@ class RedisClient:
 
     # Métodos para cache de histórico de budgets
     async def cache_budget_history(
-        self,
-        slo_id: str,
-        days: int,
-        aggregation: str,
-        budgets_json: str,
-        ttl: int = 300
+        self, slo_id: str, days: int, aggregation: str, budgets_json: str, ttl: int = 300
     ) -> bool:
         """
         Armazena histórico de budgets em cache.
@@ -188,25 +180,15 @@ class RedisClient:
             key = f"budget:history:{slo_id}:{days}:{agg_key}"
             await self.cluster.setex(key, ttl, budgets_json)
             self.logger.debug(
-                "budget_history_cached",
-                slo_id=slo_id,
-                days=days,
-                aggregation=agg_key
+                "budget_history_cached", slo_id=slo_id, days=days, aggregation=agg_key
             )
             return True
         except Exception as e:
-            self.logger.warning(
-                "budget_history_cache_failed",
-                slo_id=slo_id,
-                error=str(e)
-            )
+            self.logger.warning("budget_history_cache_failed", slo_id=slo_id, error=str(e))
             return False
 
     async def get_cached_budget_history(
-        self,
-        slo_id: str,
-        days: int,
-        aggregation: str
+        self, slo_id: str, days: int, aggregation: str
     ) -> Optional[str]:
         """
         Busca histórico de budgets no cache.
@@ -222,32 +204,19 @@ class RedisClient:
             value = await self.cluster.get(key)
             if value:
                 self.logger.debug(
-                    "budget_history_cache_hit",
-                    slo_id=slo_id,
-                    days=days,
-                    aggregation=agg_key
+                    "budget_history_cache_hit", slo_id=slo_id, days=days, aggregation=agg_key
                 )
                 return value
             self.logger.debug(
-                "budget_history_cache_miss",
-                slo_id=slo_id,
-                days=days,
-                aggregation=agg_key
+                "budget_history_cache_miss", slo_id=slo_id, days=days, aggregation=agg_key
             )
             return None
         except Exception as e:
-            self.logger.warning(
-                "budget_history_cache_read_failed",
-                slo_id=slo_id,
-                error=str(e)
-            )
+            self.logger.warning("budget_history_cache_read_failed", slo_id=slo_id, error=str(e))
             return None
 
     async def check_rate_limit(
-        self,
-        slo_id: str,
-        limit: int = 10,
-        window_seconds: int = 60
+        self, slo_id: str, limit: int = 10, window_seconds: int = 60
     ) -> tuple[bool, int]:
         """
         Verifica rate limit para queries de histórico por SLO.
@@ -274,12 +243,7 @@ class RedisClient:
 
             count = int(current)
             if count >= limit:
-                self.logger.warning(
-                    "rate_limit_exceeded",
-                    slo_id=slo_id,
-                    count=count,
-                    limit=limit
-                )
+                self.logger.warning("rate_limit_exceeded", slo_id=slo_id, count=count, limit=limit)
                 return (False, 0)
 
             # Incrementar contador
@@ -288,10 +252,6 @@ class RedisClient:
             return (True, remaining)
 
         except Exception as e:
-            self.logger.warning(
-                "rate_limit_check_failed",
-                slo_id=slo_id,
-                error=str(e)
-            )
+            self.logger.warning("rate_limit_check_failed", slo_id=slo_id, error=str(e))
             # Fail-open: permitir se houver erro
             return (True, limit)

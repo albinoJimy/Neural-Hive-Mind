@@ -1,11 +1,10 @@
-# -*- coding: utf-8 -*-
 """
 API Endpoints para A/B Testing.
 
 Fornece endpoints REST para criar, gerenciar e analisar testes A/B.
 """
 
-from typing import Dict, List, Optional
+from datetime import UTC
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -24,21 +23,26 @@ settings = get_settings()
 
 # Request/Response Models
 
+
 class CreateABTestRequest(BaseModel):
     """Request para criar teste A/B."""
 
     name: str = Field(..., description="Nome do teste")
     hypothesis: str = Field(..., description="Hipotese a ser testada")
-    primary_metrics: List[str] = Field(..., description="Metricas primarias para decisao")
-    secondary_metrics: List[str] = Field(default_factory=list, description="Metricas secundarias")
-    traffic_split: float = Field(default=0.5, ge=0.0, le=1.0, description="Proporcao para treatment")
+    primary_metrics: list[str] = Field(..., description="Metricas primarias para decisao")
+    secondary_metrics: list[str] = Field(default_factory=list, description="Metricas secundarias")
+    traffic_split: float = Field(
+        default=0.5, ge=0.0, le=1.0, description="Proporcao para treatment"
+    )
     randomization_strategy: str = Field(default="RANDOM", description="Estrategia de randomizacao")
-    guardrails: List[Dict] = Field(default_factory=list, description="Configuracao de guardrails")
+    guardrails: list[dict] = Field(default_factory=list, description="Configuracao de guardrails")
     minimum_sample_size: int = Field(default=100, ge=10, description="Tamanho minimo de amostra")
-    maximum_duration_seconds: int = Field(default=604800, gt=0, description="Duracao maxima em segundos")
+    maximum_duration_seconds: int = Field(
+        default=604800, gt=0, description="Duracao maxima em segundos"
+    )
     early_stopping_enabled: bool = Field(default=True, description="Habilitar parada antecipada")
     bayesian_analysis_enabled: bool = Field(default=True, description="Habilitar analise Bayesiana")
-    metadata: Dict = Field(default_factory=dict, description="Metadados adicionais")
+    metadata: dict = Field(default_factory=dict, description="Metadados adicionais")
 
 
 class CreateABTestResponse(BaseModel):
@@ -56,7 +60,7 @@ class AssignmentRequest(BaseModel):
     """Request para atribuicao de entidade a grupo."""
 
     entity_id: str = Field(..., description="ID da entidade")
-    strata_key: Optional[str] = Field(default=None, description="Chave de estrato")
+    strata_key: str | None = Field(default=None, description="Chave de estrato")
     block_size: int = Field(default=10, ge=2, description="Tamanho do bloco")
 
 
@@ -73,8 +77,8 @@ class MetricsSubmissionRequest(BaseModel):
     """Request para submissao de metricas."""
 
     group: str = Field(..., description="Grupo (control ou treatment)")
-    metrics: Dict[str, float] = Field(..., description="Metricas coletadas")
-    entity_id: Optional[str] = Field(default=None, description="ID da entidade")
+    metrics: dict[str, float] = Field(..., description="Metricas coletadas")
+    entity_id: str | None = Field(default=None, description="ID da entidade")
 
 
 class MetricsSubmissionResponse(BaseModel):
@@ -93,14 +97,14 @@ class ABTestResultsResponse(BaseModel):
     status: str
     control_size: int
     treatment_size: int
-    primary_metrics_analysis: List[Dict]
-    secondary_metrics_analysis: List[Dict]
-    bayesian_analysis: Optional[List[Dict]]
-    guardrails_status: Dict
+    primary_metrics_analysis: list[dict]
+    secondary_metrics_analysis: list[dict]
+    bayesian_analysis: list[dict] | None
+    guardrails_status: dict
     statistical_recommendation: str
     confidence_level: float
     early_stopped: bool
-    early_stop_reason: Optional[str]
+    early_stop_reason: str | None
     analysis_timestamp: str
 
 
@@ -113,7 +117,7 @@ class ABTestStatusResponse(BaseModel):
     treatment_size: int
     minimum_sample_size: int
     percentage_complete: float
-    estimated_remaining_hours: Optional[float]
+    estimated_remaining_hours: float | None
     guardrails_ok: bool
 
 
@@ -123,7 +127,7 @@ class SampleSizeRequest(BaseModel):
     metric_type: str = Field(..., description="Tipo de metrica (continuous ou binary)")
     baseline_value: float = Field(..., description="Valor baseline")
     mde: float = Field(..., description="Minimum Detectable Effect")
-    std_dev: Optional[float] = Field(default=None, description="Desvio padrao (para continuous)")
+    std_dev: float | None = Field(default=None, description="Desvio padrao (para continuous)")
     alpha: float = Field(default=0.05, ge=0.01, le=0.10, description="Nivel de significancia")
     power: float = Field(default=0.80, ge=0.70, le=0.99, description="Power estatistico")
     is_relative: bool = Field(default=False, description="MDE e relativo")
@@ -145,6 +149,7 @@ class SampleSizeResponse(BaseModel):
 # These are default providers that return HTTP 503 when not overridden.
 # In main.py, app.dependency_overrides replaces these with actual implementations.
 
+
 def get_mongodb_client() -> MongoDBClient:
     """
     Dependency para injetar MongoDBClient.
@@ -152,8 +157,7 @@ def get_mongodb_client() -> MongoDBClient:
     Returns HTTP 503 if not overridden via app.dependency_overrides in main.py.
     """
     raise HTTPException(
-        status_code=503,
-        detail="MongoDBClient not available. Service is starting or misconfigured."
+        status_code=503, detail="MongoDBClient not available. Service is starting or misconfigured."
     )
 
 
@@ -164,8 +168,7 @@ def get_redis_client() -> RedisClient:
     Returns HTTP 503 if not overridden via app.dependency_overrides in main.py.
     """
     raise HTTPException(
-        status_code=503,
-        detail="RedisClient not available. Service is starting or misconfigured."
+        status_code=503, detail="RedisClient not available. Service is starting or misconfigured."
     )
 
 
@@ -177,11 +180,12 @@ def get_ab_testing_engine() -> ABTestingEngine:
     """
     raise HTTPException(
         status_code=503,
-        detail="ABTestingEngine not available. Service is starting or misconfigured."
+        detail="ABTestingEngine not available. Service is starting or misconfigured.",
     )
 
 
 # Endpoints
+
 
 @router.post("/create", response_model=CreateABTestResponse)
 async def create_ab_test(
@@ -253,7 +257,7 @@ async def assign_to_group(
             entity_id=request.entity_id,
             experiment_id=experiment_id,
             group=group,
-            assigned_at=datetime.utcnow().isoformat(),
+            assigned_at=datetime.now(UTC).isoformat(),
         )
 
     except ValueError as e:
@@ -350,7 +354,9 @@ async def get_status(
         # Obter configuracao
         config = await ab_engine._get_experiment_config(experiment_id)
         if not config:
-            raise HTTPException(status_code=404, detail=f"Experimento {experiment_id} nao encontrado")
+            raise HTTPException(
+                status_code=404, detail=f"Experimento {experiment_id} nao encontrado"
+            )
 
         # Verificar guardrails
         control_metrics = await ab_engine._get_collected_metrics(experiment_id, "control")
@@ -491,9 +497,9 @@ async def calculate_sample_size(
         raise HTTPException(status_code=500, detail=f"Falha no calculo: {str(e)}")
 
 
-@router.get("", response_model=List[Dict])
+@router.get("", response_model=list[dict])
 async def list_ab_tests(
-    status: Optional[str] = Query(default=None, description="Filtrar por status"),
+    status: str | None = Query(default=None, description="Filtrar por status"),
     limit: int = Query(default=50, ge=1, le=100, description="Limite de resultados"),
     mongodb_client: MongoDBClient = Depends(get_mongodb_client),
 ):
@@ -518,3 +524,159 @@ async def list_ab_tests(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Falha ao listar experimentos: {str(e)}")
+
+
+@router.get("/{experiment_id}/history")
+async def get_ab_test_history(
+    experiment_id: str,
+    days: int = Query(default=30, ge=1, le=90, description="Numero de dias para historico"),
+    mongodb_client: MongoDBClient = Depends(get_mongodb_client),
+):
+    """
+    Obter historico de resultados de um experimento A/B.
+
+    Retorna snapshots dos resultados do experimento dentro do periodo especificado.
+    """
+    try:
+        if mongodb_client:
+            history = await mongodb_client.get_ab_test_history(
+                experiment_id=experiment_id,
+                days=days,
+            )
+            return {
+                "experiment_id": experiment_id,
+                "period_days": days,
+                "snapshots": history,
+                "count": len(history),
+            }
+
+        return {
+            "experiment_id": experiment_id,
+            "period_days": days,
+            "snapshots": [],
+            "count": 0,
+            "message": "MongoDB client not available",
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Falha ao obter historico: {str(e)}")
+
+
+@router.get("/{experiment_id}/results/persisted")
+async def get_persisted_results(
+    experiment_id: str,
+    mongodb_client: MongoDBClient = Depends(get_mongodb_client),
+):
+    """
+    Obter resultados persistidos de um experimento A/B.
+
+    Retorna os resultados salvos no MongoDB (diferente do endpoint /results
+    que recalcula a analise estatistica).
+    """
+    try:
+        if mongodb_client:
+            results = await mongodb_client.get_ab_test_results(experiment_id=experiment_id)
+            if results:
+                return results
+
+        raise HTTPException(
+            status_code=404,
+            detail=f"Resultados persistidos nao encontrados para experimento {experiment_id}",
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Falha ao obter resultados persistidos: {str(e)}"
+        )
+
+
+@router.get("/results/list")
+async def list_ab_test_results(
+    status: str | None = Query(default=None, description="Filtrar por status"),
+    recommendation: str | None = Query(default=None, description="Filtrar por recomendacao"),
+    experiment_name: str | None = Query(default=None, description="Filtrar por nome parcial"),
+    limit: int = Query(default=50, ge=1, le=100, description="Limite de resultados"),
+    mongodb_client: MongoDBClient = Depends(get_mongodb_client),
+):
+    """
+    Listar resultados de A/B testing com filtros.
+
+    Retorna lista de resultados persistidos com filtros opcionais.
+    """
+    try:
+        if not mongodb_client:
+            return []
+
+        filters = {}
+        if status:
+            filters["status"] = status
+        if recommendation:
+            filters["statistical_recommendation"] = recommendation
+        if experiment_name:
+            filters["experiment_name"] = experiment_name
+
+        results = await mongodb_client.list_ab_test_results(
+            filters=filters,
+            limit=limit,
+        )
+        return results
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Falha ao listar resultados: {str(e)}")
+
+
+@router.get("/aggregations")
+async def get_ab_test_aggregations(
+    metric_name: str | None = Query(default=None, description="Nome da metrica para agregacoes"),
+    days: int = Query(default=30, ge=1, le=90, description="Numero de dias para agregacao"),
+    mongodb_client: MongoDBClient = Depends(get_mongodb_client),
+):
+    """
+    Obter agregacoes estatisticas de A/B testing.
+
+    Retorna estatisticas agregadas como win rate, lift medio, etc.
+    """
+    try:
+        if mongodb_client:
+            aggregations = await mongodb_client.get_ab_test_aggregations(
+                metric_name=metric_name,
+                days=days,
+            )
+            return aggregations
+
+        return {
+            "period": {"days": days},
+            "error": "MongoDB client not available",
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Falha ao obter agregacoes: {str(e)}")
+
+
+@router.get("/dashboard")
+async def get_ab_test_dashboard(
+    days: int = Query(default=30, ge=1, le=90, description="Numero de dias para dashboard"),
+    mongodb_client: MongoDBClient = Depends(get_mongodb_client),
+):
+    """
+    Obter dashboard completo de A/B testing.
+
+    Retorna dados agregados incluindo:
+    - Estatisticas gerais (total experiments, win rate, avg lift)
+    - Top experimentos (maiores efeitos positivos)
+    - Breakdown por metrica
+    """
+    try:
+        if mongodb_client:
+            dashboard = await mongodb_client.get_ab_test_dashboard(days=days)
+            return dashboard
+
+        return {
+            "period": {"days": days},
+            "error": "MongoDB client not available",
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Falha ao obter dashboard: {str(e)}")

@@ -1,7 +1,7 @@
 # MCP Execution Repository
 
 import asyncio
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from neural_hive_observability import get_logger
@@ -59,16 +59,14 @@ class MCPCleanupTask:
         while not self._stop_event.is_set():
             try:
                 # Executar limpeza
-                deleted = await self.repository.delete_old_executions(
-                    days_old=self.retention_days
-                )
+                deleted = await self.repository.delete_old_executions(days_old=self.retention_days)
                 logger.info(
                     "mcp_cleanup_completed",
                     deleted_count=deleted,
                     retention_days=self.retention_days,
                 )
             except Exception as e:
-                logger.error(
+                logger.exception(
                     "mcp_cleanup_failed",
                     error=str(e),
                     retention_days=self.retention_days,
@@ -81,7 +79,7 @@ class MCPCleanupTask:
                     timeout=self.cleanup_interval.total_seconds(),
                 )
                 break
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 # Timeout esperado - continuar loop
                 continue
 
@@ -132,9 +130,7 @@ class MCPCleanupTask:
             Número de documentos deletados
         """
         logger.info("mcp_cleanup_manual_run", retention_days=self.retention_days)
-        deleted = await self.repository.delete_old_executions(
-            days_old=self.retention_days
-        )
+        deleted = await self.repository.delete_old_executions(days_old=self.retention_days)
         logger.info("mcp_cleanup_manual_completed", deleted_count=deleted)
         return deleted
 
@@ -197,7 +193,7 @@ class MCPExecutionRepository:
             "result": result,
             "status": status,
             "duration_ms": duration_ms,
-            "timestamp": datetime.utcnow(),
+            "timestamp": datetime.now(UTC),
             "metadata": metadata or {},
         }
 
@@ -221,8 +217,7 @@ class MCPExecutionRepository:
         Returns:
             Documento da execução ou None
         """
-        result = await self.collection.find_one({"_id": execution_id})
-        return result
+        return await self.collection.find_one({"_id": execution_id})
 
     async def get_executions_by_server(
         self,
@@ -239,9 +234,7 @@ class MCPExecutionRepository:
         Returns:
             Lista de execuções
         """
-        cursor = (
-            self.collection.find({"server": server}).sort("timestamp", -1).limit(limit)
-        )
+        cursor = self.collection.find({"server": server}).sort("timestamp", -1).limit(limit)
         return await cursor.to_list(length=limit)
 
     async def get_executions_by_tool(
@@ -299,7 +292,7 @@ class MCPExecutionRepository:
         Returns:
             Métricas agregadas
         """
-        cutoff_date = datetime.utcnow() - timedelta(days=days)
+        cutoff_date = datetime.now(UTC) - timedelta(days=days)
 
         pipeline = [
             {"$match": {"server": server, "timestamp": {"$gte": cutoff_date}}},
@@ -307,12 +300,8 @@ class MCPExecutionRepository:
                 "$group": {
                     "_id": "$server",
                     "total_executions": {"$sum": 1},
-                    "success_count": {
-                        "$sum": {"$cond": [{"$eq": ["$status", "success"]}, 1, 0]}
-                    },
-                    "error_count": {
-                        "$sum": {"$cond": [{"$eq": ["$status", "error"]}, 1, 0]}
-                    },
+                    "success_count": {"$sum": {"$cond": [{"$eq": ["$status", "success"]}, 1, 0]}},
+                    "error_count": {"$sum": {"$cond": [{"$eq": ["$status", "error"]}, 1, 0]}},
                     "avg_duration_ms": {"$avg": "$duration_ms"},
                     "total_duration_ms": {"$sum": "$duration_ms"},
                 }
@@ -349,7 +338,7 @@ class MCPExecutionRepository:
         Returns:
             Métricas agregadas
         """
-        cutoff_date = datetime.utcnow() - timedelta(days=days)
+        cutoff_date = datetime.now(UTC) - timedelta(days=days)
 
         pipeline = [
             {
@@ -363,9 +352,7 @@ class MCPExecutionRepository:
                 "$group": {
                     "_id": {"server": "$server", "tool": "$tool_name"},
                     "total_executions": {"$sum": 1},
-                    "success_count": {
-                        "$sum": {"$cond": [{"$eq": ["$status", "success"]}, 1, 0]}
-                    },
+                    "success_count": {"$sum": {"$cond": [{"$eq": ["$status", "success"]}, 1, 0]}},
                     "avg_duration_ms": {"$avg": "$duration_ms"},
                 }
             },
@@ -375,9 +362,7 @@ class MCPExecutionRepository:
                     "total_executions": 1,
                     "success_count": 1,
                     "avg_duration_ms": 1,
-                    "success_rate": {
-                        "$divide": ["$success_count", "$total_executions"]
-                    },
+                    "success_rate": {"$divide": ["$success_count", "$total_executions"]},
                 }
             },
         ]
@@ -407,7 +392,7 @@ class MCPExecutionRepository:
         Returns:
             Número de documentos deletados
         """
-        cutoff_date = datetime.utcnow() - timedelta(days=days_old)
+        cutoff_date = datetime.now(UTC) - timedelta(days=days_old)
 
         result = await self.collection.delete_many({"timestamp": {"$lt": cutoff_date}})
 

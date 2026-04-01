@@ -3,7 +3,7 @@ Audit logger para registrar eventos de compliance em MongoDB.
 """
 import structlog
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, Optional, List
 from pymongo import MongoClient, ASCENDING, DESCENDING
 from pymongo.errors import PyMongoError
@@ -389,7 +389,7 @@ class AuditLogger:
         try:
             document = {
                 "audit_id": str(uuid.uuid4()),
-                "timestamp": datetime.utcnow(),
+                "timestamp": datetime.now(timezone.utc),
                 "specialist_type": self.specialist_type,
                 "event_type": event_type,
                 "event_data": event_data,

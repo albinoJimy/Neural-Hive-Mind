@@ -5,10 +5,11 @@ Adapter para ferramentas executadas via CLI (Command Line Interface).
 import asyncio
 import shlex
 import time
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, Optional
+
 import structlog
 
-from .base_adapter import BaseToolAdapter, ExecutionResult, AdapterError
+from .base_adapter import AdapterError, BaseToolAdapter, ExecutionResult
 
 logger = structlog.get_logger(__name__)
 
@@ -26,7 +27,7 @@ class CLIAdapter(BaseToolAdapter):
         tool_name: str,
         command: str,
         parameters: Dict[str, Any],
-        context: Dict[str, Any]
+        context: Dict[str, Any],
     ) -> ExecutionResult:
         """
         Executa ferramenta CLI.
@@ -55,7 +56,7 @@ class CLIAdapter(BaseToolAdapter):
                 "executing_cli_tool",
                 tool_name=tool_name,
                 command=full_command,
-                working_dir=working_dir
+                working_dir=working_dir,
             )
 
             # Executar comando
@@ -64,26 +65,23 @@ class CLIAdapter(BaseToolAdapter):
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 cwd=working_dir,
-                env=env_vars if env_vars else None
+                env=env_vars if env_vars else None,
             )
 
             # Aguardar com timeout
             try:
                 stdout, stderr = await asyncio.wait_for(
-                    process.communicate(),
-                    timeout=self.timeout_seconds
+                    process.communicate(), timeout=self.timeout_seconds
                 )
             except asyncio.TimeoutError:
                 process.kill()
-                raise AdapterError(
-                    f"Tool {tool_name} timed out after {self.timeout_seconds}s"
-                )
+                raise AdapterError(f"Tool {tool_name} timed out after {self.timeout_seconds}s")
 
             execution_time_ms = (time.time() - start_time) * 1000
 
             # Decodificar output
-            output = stdout.decode('utf-8', errors='replace')
-            error = stderr.decode('utf-8', errors='replace') if stderr else None
+            output = stdout.decode("utf-8", errors="replace")
+            error = stderr.decode("utf-8", errors="replace") if stderr else None
 
             result = ExecutionResult(
                 success=(process.returncode == 0),
@@ -91,10 +89,7 @@ class CLIAdapter(BaseToolAdapter):
                 error=error,
                 execution_time_ms=execution_time_ms,
                 exit_code=process.returncode,
-                metadata={
-                    "command": full_command,
-                    "working_dir": working_dir
-                }
+                metadata={"command": full_command, "working_dir": working_dir},
             )
 
             await self._log_execution(tool_name, full_command, result)
@@ -106,14 +101,14 @@ class CLIAdapter(BaseToolAdapter):
                 "cli_tool_execution_failed",
                 tool_name=tool_name,
                 error=str(e),
-                execution_time_ms=execution_time_ms
+                execution_time_ms=execution_time_ms,
             )
             return ExecutionResult(
                 success=False,
                 output="",
                 error=str(e),
                 execution_time_ms=execution_time_ms,
-                metadata={"exception": type(e).__name__}
+                metadata={"exception": type(e).__name__},
             )
 
     async def validate_tool_availability(self, tool_name: str) -> bool:
@@ -131,7 +126,7 @@ class CLIAdapter(BaseToolAdapter):
             process = await asyncio.create_subprocess_shell(
                 f"which {shlex.quote(tool_name)}",
                 stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                stderr=asyncio.subprocess.PIPE,
             )
             await process.communicate()
 
@@ -142,25 +137,17 @@ class CLIAdapter(BaseToolAdapter):
             process = await asyncio.create_subprocess_shell(
                 f"{shlex.quote(tool_name)} --version",
                 stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                stderr=asyncio.subprocess.PIPE,
             )
             await process.communicate()
 
             return process.returncode == 0
 
         except Exception as e:
-            self.logger.warning(
-                "cli_tool_validation_failed",
-                tool_name=tool_name,
-                error=str(e)
-            )
+            self.logger.warning("cli_tool_validation_failed", tool_name=tool_name, error=str(e))
             return False
 
-    def _build_command(
-        self,
-        base_command: str,
-        parameters: Dict[str, Any]
-    ) -> str:
+    def _build_command(self, base_command: str, parameters: Dict[str, Any]) -> str:
         """
         Constrói comando CLI completo a partir de parâmetros.
 

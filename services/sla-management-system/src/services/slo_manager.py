@@ -2,10 +2,11 @@
 Serviço para gerenciar definições de SLO.
 """
 
-from typing import List, Optional, Dict, Any, Tuple, TYPE_CHECKING
-from datetime import datetime
-import yaml
+from datetime import datetime, timezone
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+
 import structlog
+import yaml
 from prometheus_client import Counter, Histogram
 
 from ..clients.postgresql_client import PostgreSQLClient
@@ -16,16 +17,12 @@ if TYPE_CHECKING:
     from ..clients.kubernetes_client import KubernetesClient
 
 # Metricas para sincronizacao de CRDs
-sla_crd_sync_total = Counter(
-    'sla_crd_sync_total',
-    'Total de sincronizacoes de CRDs',
-    ['status']
-)
+sla_crd_sync_total = Counter("sla_crd_sync_total", "Total de sincronizacoes de CRDs", ["status"])
 
 sla_crd_sync_duration = Histogram(
-    'sla_crd_sync_duration_seconds',
-    'Duracao da sincronizacao de CRDs',
-    buckets=(0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0, 60.0)
+    "sla_crd_sync_duration_seconds",
+    "Duracao da sincronizacao de CRDs",
+    buckets=(0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0, 60.0),
 )
 
 
@@ -36,7 +33,7 @@ class SLOManager:
         self,
         postgresql_client: PostgreSQLClient,
         prometheus_client: PrometheusClient,
-        kubernetes_client: Optional["KubernetesClient"] = None
+        kubernetes_client: Optional["KubernetesClient"] = None,
     ):
         self.postgresql_client = postgresql_client
         self.prometheus_client = prometheus_client
@@ -53,12 +50,7 @@ class SLOManager:
         # Persistir
         slo_id = await self.postgresql_client.create_slo(slo)
 
-        self.logger.info(
-            "slo_created",
-            slo_id=slo_id,
-            name=slo.name,
-            service=slo.service_name
-        )
+        self.logger.info("slo_created", slo_id=slo_id, name=slo.name, service=slo.service_name)
 
         return slo_id
 
@@ -66,10 +58,7 @@ class SLOManager:
         """Busca SLO por ID."""
         return await self.postgresql_client.get_slo(slo_id)
 
-    async def list_slos(
-        self,
-        filters: Optional[Dict[str, Any]] = None
-    ) -> List[SLODefinition]:
+    async def list_slos(self, filters: Optional[Dict[str, Any]] = None) -> List[SLODefinition]:
         """Lista SLOs com filtros opcionais."""
         if not filters:
             return await self.postgresql_client.list_slos()
@@ -79,8 +68,7 @@ class SLOManager:
         enabled_only = filters.get("enabled", True)
 
         slos = await self.postgresql_client.list_slos(
-            service_name=service_name,
-            enabled_only=enabled_only
+            service_name=service_name, enabled_only=enabled_only
         )
 
         # Filtros adicionais (layer, slo_type)
@@ -92,16 +80,17 @@ class SLOManager:
 
         return slos
 
-    async def update_slo(
-        self,
-        slo_id: str,
-        updates: Dict[str, Any]
-    ) -> Optional[SLODefinition]:
+    async def update_slo(self, slo_id: str, updates: Dict[str, Any]) -> Optional[SLODefinition]:
         """Atualiza campos do SLO."""
         # Validar campos permitidos
         allowed_fields = {
-            "name", "description", "target", "sli_query",
-            "enabled", "window_days", "metadata"
+            "name",
+            "description",
+            "target",
+            "sli_query",
+            "enabled",
+            "window_days",
+            "metadata",
         }
 
         invalid_fields = set(updates.keys()) - allowed_fields
@@ -109,18 +98,13 @@ class SLOManager:
             raise ValueError(f"Invalid fields for update: {invalid_fields}")
 
         # Atualizar
-        from datetime import datetime
-        updates["updated_at"] = datetime.utcnow()
+        updates["updated_at"] = datetime.now(timezone.utc)
 
         success = await self.postgresql_client.update_slo(slo_id, updates)
         if not success:
             return None
 
-        self.logger.info(
-            "slo_updated",
-            slo_id=slo_id,
-            updated_fields=list(updates.keys())
-        )
+        self.logger.info("slo_updated", slo_id=slo_id, updated_fields=list(updates.keys()))
 
         # Retornar SLO atualizado
         return await self.postgresql_client.get_slo(slo_id)
@@ -137,7 +121,7 @@ class SLOManager:
     async def import_from_alerts(self, alert_rules_path: str) -> List[str]:
         """Importa SLOs de arquivo de alertas Prometheus."""
         try:
-            with open(alert_rules_path, 'r') as f:
+            with open(alert_rules_path, "r") as f:
                 alert_rules = yaml.safe_load(f)
 
             slo_ids = []
@@ -153,7 +137,7 @@ class SLOManager:
                     # Extrair informações
                     slo_name = labels.get("slo")
                     service_name = labels.get("service", "unknown")
-                    severity = labels.get("severity", "warning")
+                    labels.get("severity", "warning")
 
                     # Determinar tipo de SLO baseado no nome
                     slo_type = self._infer_slo_type(slo_name)
@@ -162,7 +146,8 @@ class SLOManager:
                     expr = rule.get("expr", "")
 
                     # Criar SLO
-                    from ..models.slo_definition import SLOType, SLIQuery
+                    from ..models.slo_definition import SLIQuery
+
                     slo = SLODefinition(
                         name=slo_name,
                         description=rule.get("annotations", {}).get("description", ""),
@@ -171,46 +156,29 @@ class SLOManager:
                         layer="orquestracao",  # Default
                         target=0.999,  # Default 99.9%
                         window_days=30,
-                        sli_query=SLIQuery(
-                            metric_name=slo_name,
-                            query=expr,
-                            aggregation="avg"
-                        ),
-                        enabled=True
+                        sli_query=SLIQuery(metric_name=slo_name, query=expr, aggregation="avg"),
+                        enabled=True,
                     )
 
                     # Verificar se já existe
-                    existing_slos = await self.list_slos({
-                        "service_name": service_name
-                    })
-                    already_exists = any(
-                        s.name == slo_name for s in existing_slos
-                    )
+                    existing_slos = await self.list_slos({"service_name": service_name})
+                    already_exists = any(s.name == slo_name for s in existing_slos)
 
                     if not already_exists:
                         slo_id = await self.create_slo(slo)
                         slo_ids.append(slo_id)
 
             self.logger.info(
-                "slos_imported_from_alerts",
-                count=len(slo_ids),
-                source=alert_rules_path
+                "slos_imported_from_alerts", count=len(slo_ids), source=alert_rules_path
             )
 
             return slo_ids
 
         except Exception as e:
-            self.logger.error(
-                "slo_import_failed",
-                error=str(e),
-                source=alert_rules_path
-            )
+            self.logger.error("slo_import_failed", error=str(e), source=alert_rules_path)
             raise
 
-    async def sync_from_crds(
-        self,
-        namespace: Optional[str] = None
-    ) -> List[str]:
+    async def sync_from_crds(self, namespace: Optional[str] = None) -> List[str]:
         """
         Sincroniza SLOs de CRDs Kubernetes para PostgreSQL.
 
@@ -226,14 +194,13 @@ class SLOManager:
         if not self.kubernetes_client:
             self.logger.warning(
                 "crd_sync.kubernetes_client_not_available",
-                reason="kubernetes_client nao foi configurado"
+                reason="kubernetes_client nao foi configurado",
             )
             return []
 
         if not self.kubernetes_client.is_healthy():
             self.logger.warning(
-                "crd_sync.kubernetes_client_not_healthy",
-                reason="cliente nao conectado ao cluster"
+                "crd_sync.kubernetes_client_not_healthy", reason="cliente nao conectado ao cluster"
             )
             return []
 
@@ -245,9 +212,7 @@ class SLOManager:
                 crds = await self.kubernetes_client.list_slo_definitions(namespace)
 
                 self.logger.info(
-                    "crd_sync.started",
-                    crd_count=len(crds),
-                    namespace=namespace or "all"
+                    "crd_sync.started", crd_count=len(crds), namespace=namespace or "all"
                 )
 
                 for crd in crds:
@@ -262,25 +227,20 @@ class SLOManager:
                             "crd_sync.single_crd_failed",
                             crd_name=crd_name,
                             crd_namespace=crd_namespace,
-                            error=str(e)
+                            error=str(e),
                         )
 
                 sla_crd_sync_total.labels(status="success").inc()
 
                 self.logger.info(
-                    "crd_sync.completed",
-                    synced_count=len(synced_ids),
-                    total_crds=len(crds)
+                    "crd_sync.completed", synced_count=len(synced_ids), total_crds=len(crds)
                 )
 
                 return synced_ids
 
             except Exception as e:
                 sla_crd_sync_total.labels(status="error").inc()
-                self.logger.error(
-                    "crd_sync.failed",
-                    error=str(e)
-                )
+                self.logger.error("crd_sync.failed", error=str(e))
                 return []
 
     async def _sync_single_crd(self, crd: Dict[str, Any]) -> Optional[str]:
@@ -300,48 +260,49 @@ class SLOManager:
 
         if not spec:
             self.logger.warning(
-                "crd_sync.missing_spec",
-                crd_name=crd_name,
-                crd_namespace=crd_namespace
+                "crd_sync.missing_spec", crd_name=crd_name, crd_namespace=crd_namespace
             )
             return None
 
         # Converter CRD para SLODefinition
         # Mapear campos camelCase do CRD para snake_case do modelo
         sli_query_spec = spec.get("sliQuery", {})
-        slo_data = SLODefinition.from_crd({
-            "name": spec.get("name"),
-            "description": spec.get("description", ""),
-            "sloType": spec.get("sloType"),
-            "serviceName": spec.get("serviceName"),
-            "component": spec.get("component"),
-            "layer": spec.get("layer"),
-            "target": spec.get("target"),
-            "windowDays": spec.get("windowDays", 30),
-            "sliQuery": {
-                "metricName": sli_query_spec.get("metricName"),
-                "query": sli_query_spec.get("query"),
-                "aggregation": sli_query_spec.get("aggregation", "avg"),
-                "labels": sli_query_spec.get("labels", {})
-            },
-            "enabled": spec.get("enabled", True),
-            "metadata": spec.get("metadata", {})
-        })
+        slo_data = SLODefinition.from_crd(
+            {
+                "name": spec.get("name"),
+                "description": spec.get("description", ""),
+                "sloType": spec.get("sloType"),
+                "serviceName": spec.get("serviceName"),
+                "component": spec.get("component"),
+                "layer": spec.get("layer"),
+                "target": spec.get("target"),
+                "windowDays": spec.get("windowDays", 30),
+                "sliQuery": {
+                    "metricName": sli_query_spec.get("metricName"),
+                    "query": sli_query_spec.get("query"),
+                    "aggregation": sli_query_spec.get("aggregation", "avg"),
+                    "labels": sli_query_spec.get("labels", {}),
+                },
+                "enabled": spec.get("enabled", True),
+                "metadata": spec.get("metadata", {}),
+            }
+        )
 
         # Adicionar metadados do CRD
         slo_data.metadata["crd_name"] = crd_name
         slo_data.metadata["crd_namespace"] = crd_namespace
 
         # Verificar se SLO ja existe (por nome + namespace no metadata)
-        existing_slos = await self.list_slos({
-            "service_name": slo_data.service_name,
-            "enabled": None  # Incluir desabilitados
-        })
+        existing_slos = await self.list_slos(
+            {"service_name": slo_data.service_name, "enabled": None}  # Incluir desabilitados
+        )
 
         existing_slo = None
         for slo in existing_slos:
-            if (slo.metadata.get("crd_name") == crd_name and
-                    slo.metadata.get("crd_namespace") == crd_namespace):
+            if (
+                slo.metadata.get("crd_name") == crd_name
+                and slo.metadata.get("crd_namespace") == crd_namespace
+            ):
                 existing_slo = slo
                 break
 
@@ -357,48 +318,31 @@ class SLOManager:
                     "window_days": slo_data.window_days,
                     "sli_query": slo_data.sli_query.model_dump(),
                     "enabled": slo_data.enabled,
-                    "metadata": slo_data.metadata
+                    "metadata": slo_data.metadata,
                 }
                 await self.update_slo(existing_slo.slo_id, updates)
                 self.logger.info(
-                    "crd_sync.slo_updated",
-                    slo_id=existing_slo.slo_id,
-                    crd_name=crd_name
+                    "crd_sync.slo_updated", slo_id=existing_slo.slo_id, crd_name=crd_name
                 )
             else:
                 self.logger.debug(
-                    "crd_sync.slo_unchanged",
-                    slo_id=existing_slo.slo_id,
-                    crd_name=crd_name
+                    "crd_sync.slo_unchanged", slo_id=existing_slo.slo_id, crd_name=crd_name
                 )
             slo_id = existing_slo.slo_id
         else:
             # Criar novo SLO
             slo_id = await self.create_slo(slo_data)
-            self.logger.info(
-                "crd_sync.slo_created",
-                slo_id=slo_id,
-                crd_name=crd_name
-            )
+            self.logger.info("crd_sync.slo_created", slo_id=slo_id, crd_name=crd_name)
 
         # Atualizar status do CRD
         if self.kubernetes_client:
             await self.kubernetes_client.update_slo_status(
-                name=crd_name,
-                namespace=crd_namespace,
-                status={
-                    "synced": True,
-                    "sloId": slo_id
-                }
+                name=crd_name, namespace=crd_namespace, status={"synced": True, "sloId": slo_id}
             )
 
         return slo_id
 
-    def _slo_needs_update(
-        self,
-        existing: SLODefinition,
-        new_data: SLODefinition
-    ) -> bool:
+    def _slo_needs_update(self, existing: SLODefinition, new_data: SLODefinition) -> bool:
         """
         Verifica se SLO precisa ser atualizado.
 
@@ -446,8 +390,7 @@ class SLOManager:
         return True, None
 
     async def test_slo_query(
-        self,
-        slo: SLODefinition
+        self, slo: SLODefinition
     ) -> Tuple[bool, Optional[float], Optional[str]]:
         """Testa query do SLO contra Prometheus."""
         try:

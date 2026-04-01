@@ -11,25 +11,25 @@ As políticas são carregadas do arquivo YAML montado em /etc/memory-layer/polic
 import asyncio
 import os
 import sys
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from typing import Any, Dict, Optional
+
 import structlog
 import yaml
-from datetime import datetime, timedelta
-from pathlib import Path
-from typing import Dict, List, Optional, Any
 
 # Adiciona o diretório raiz ao path para importações
-sys.path.insert(0, '/app')
+sys.path.insert(0, "/app")
 
+from src.clients.clickhouse_client import ClickHouseClient
 from src.clients.mongodb_client import MongoDBClient
 from src.clients.neo4j_client import Neo4jClient
-from src.clients.clickhouse_client import ClickHouseClient
 from src.config.settings import Settings
-
 
 logger = structlog.get_logger(__name__)
 
 # Caminho padrão do arquivo de política de retenção
-DEFAULT_RETENTION_POLICY_PATH = '/etc/memory-layer/policies/retention-policy.yaml'
+DEFAULT_RETENTION_POLICY_PATH = "/etc/memory-layer/policies/retention-policy.yaml"
 
 
 def load_retention_policy(policy_path: Optional[str] = None) -> Dict[str, Any]:
@@ -43,19 +43,19 @@ def load_retention_policy(policy_path: Optional[str] = None) -> Dict[str, Any]:
         Dicionário com as políticas de retenção
     """
     if policy_path is None:
-        policy_path = os.getenv('RETENTION_POLICY_FILE', DEFAULT_RETENTION_POLICY_PATH)
+        policy_path = os.getenv("RETENTION_POLICY_FILE", DEFAULT_RETENTION_POLICY_PATH)
 
     policy_file = Path(policy_path)
 
     if not policy_file.exists():
         logger.warning(
             "Arquivo de política de retenção não encontrado, usando valores padrão",
-            path=policy_path
+            path=policy_path,
         )
         return get_default_retention_policy()
 
     try:
-        with open(policy_file, 'r') as f:
+        with open(policy_file, "r") as f:
             policy = yaml.safe_load(f)
             logger.info("Política de retenção carregada do arquivo", path=policy_path)
             return policy
@@ -63,7 +63,7 @@ def load_retention_policy(policy_path: Optional[str] = None) -> Dict[str, Any]:
         logger.error(
             "Erro ao carregar política de retenção, usando valores padrão",
             path=policy_path,
-            error=str(e)
+            error=str(e),
         )
         return get_default_retention_policy()
 
@@ -71,14 +71,14 @@ def load_retention_policy(policy_path: Optional[str] = None) -> Dict[str, Any]:
 def get_default_retention_policy() -> Dict[str, Any]:
     """Retorna política de retenção padrão como fallback"""
     return {
-        'version': '1.0',
-        'tiers': {
-            'hot': {'storage': 'redis', 'max_age_seconds': 300},
-            'warm': {'storage': 'mongodb', 'max_age_days': 30},
-            'cold': {'storage': 'clickhouse', 'max_age_months': 18}
+        "version": "1.0",
+        "tiers": {
+            "hot": {"storage": "redis", "max_age_seconds": 300},
+            "warm": {"storage": "mongodb", "max_age_days": 30},
+            "cold": {"storage": "clickhouse", "max_age_months": 18},
         },
-        'mongodb': {'retention_days': 30},
-        'clickhouse': {'retention_months': 18}
+        "mongodb": {"retention_days": 30},
+        "clickhouse": {"retention_months": 18},
     }
 
 
@@ -87,7 +87,7 @@ class RetentionEnforcer:
 
     def __init__(self, settings: Settings, policy: Optional[Dict[str, Any]] = None):
         self.settings = settings
-        self.dry_run = os.getenv('RETENTION_DRY_RUN', 'false').lower() == 'true'
+        self.dry_run = os.getenv("RETENTION_DRY_RUN", "false").lower() == "true"
         self.mongodb_client = None
         self.neo4j_client = None
         self.clickhouse_client = None
@@ -96,20 +96,18 @@ class RetentionEnforcer:
         self.policy = policy if policy is not None else load_retention_policy()
 
         # Extrai valores de retenção da política
-        self.mongodb_retention_days = self.policy.get('mongodb', {}).get(
-            'retention_days',
-            self.settings.mongodb_retention_days
+        self.mongodb_retention_days = self.policy.get("mongodb", {}).get(
+            "retention_days", self.settings.mongodb_retention_days
         )
-        self.clickhouse_retention_months = self.policy.get('clickhouse', {}).get(
-            'retention_months',
-            self.settings.clickhouse_retention_months
+        self.clickhouse_retention_months = self.policy.get("clickhouse", {}).get(
+            "retention_months", self.settings.clickhouse_retention_months
         )
 
         logger.info(
             "RetentionEnforcer inicializado com política",
             mongodb_retention_days=self.mongodb_retention_days,
             clickhouse_retention_months=self.clickhouse_retention_months,
-            policy_version=self.policy.get('version', 'unknown')
+            policy_version=self.policy.get("version", "unknown"),
         )
 
     async def initialize(self):
@@ -118,8 +116,7 @@ class RetentionEnforcer:
 
         # MongoDB
         self.mongodb_client = MongoDBClient(
-            uri=self.settings.mongodb_uri,
-            database=self.settings.mongodb_database
+            uri=self.settings.mongodb_uri, database=self.settings.mongodb_database
         )
         await self.mongodb_client.initialize()
 
@@ -128,7 +125,7 @@ class RetentionEnforcer:
             uri=self.settings.neo4j_uri,
             user=self.settings.neo4j_user,
             password=self.settings.neo4j_password,
-            database=self.settings.neo4j_database
+            database=self.settings.neo4j_database,
         )
         await self.neo4j_client.initialize()
 
@@ -147,44 +144,26 @@ class RetentionEnforcer:
         """
         logger.info("Aplicando retenção no MongoDB...")
 
-        cutoff_date = datetime.utcnow() - timedelta(days=self.mongodb_retention_days)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=self.mongodb_retention_days)
 
-        collections = [
-            'operational_context',
-            'data_lineage',
-            'data_quality_metrics'
-        ]
+        collections = ["operational_context", "data_lineage", "data_quality_metrics"]
 
         total_deleted = 0
         for collection in collections:
-            filter_query = {
-                'timestamp': {'$lt': cutoff_date}
-            }
+            filter_query = {"timestamp": {"$lt": cutoff_date}}
 
             if self.dry_run:
                 # Apenas conta documentos que seriam removidos
                 count = await self.mongodb_client.count_documents(collection, filter_query)
-                logger.info(
-                    f"[DRY-RUN] Documentos a remover",
-                    collection=collection,
-                    count=count
-                )
+                logger.info("[DRY-RUN] Documentos a remover", collection=collection, count=count)
                 total_deleted += count
             else:
                 # Remove documentos expirados
                 deleted = await self.mongodb_client.delete_many(collection, filter_query)
-                logger.info(
-                    f"Documentos removidos",
-                    collection=collection,
-                    count=deleted
-                )
+                logger.info("Documentos removidos", collection=collection, count=deleted)
                 total_deleted += deleted
 
-        logger.info(
-            "Retenção MongoDB completa",
-            total_deleted=total_deleted,
-            dry_run=self.dry_run
-        )
+        logger.info("Retenção MongoDB completa", total_deleted=total_deleted, dry_run=self.dry_run)
 
         return total_deleted
 
@@ -199,7 +178,7 @@ class RetentionEnforcer:
 
         # Neo4j mantém dados semânticos de longo prazo
         # Apenas remove nós marcados como temporários e expirados
-        cutoff_timestamp = int((datetime.utcnow() - timedelta(days=90)).timestamp())
+        cutoff_timestamp = int((datetime.now(timezone.utc) - timedelta(days=90)).timestamp())
 
         query = """
         MATCH (n)
@@ -209,14 +188,10 @@ class RetentionEnforcer:
 
         if self.dry_run:
             results = await self.neo4j_client.execute_query(
-                query,
-                {'cutoff_timestamp': cutoff_timestamp}
+                query, {"cutoff_timestamp": cutoff_timestamp}
             )
-            count = results[0]['count'] if results else 0
-            logger.info(
-                "[DRY-RUN] Nós temporários a remover",
-                count=count
-            )
+            count = results[0]["count"] if results else 0
+            logger.info("[DRY-RUN] Nós temporários a remover", count=count)
             return count
         else:
             delete_query = """
@@ -225,14 +200,10 @@ class RetentionEnforcer:
             DETACH DELETE n
             """
             result = await self.neo4j_client.execute_write(
-                delete_query,
-                {'cutoff_timestamp': cutoff_timestamp}
+                delete_query, {"cutoff_timestamp": cutoff_timestamp}
             )
-            deleted = result.get('nodes_deleted', 0)
-            logger.info(
-                "Nós temporários removidos",
-                count=deleted
-            )
+            deleted = result.get("nodes_deleted", 0)
+            logger.info("Nós temporários removidos", count=deleted)
             return deleted
 
     async def enforce_clickhouse_retention(self) -> int:
@@ -244,14 +215,12 @@ class RetentionEnforcer:
         """
         logger.info("Aplicando retenção no ClickHouse...")
 
-        cutoff_date = datetime.utcnow() - timedelta(days=self.clickhouse_retention_months * 30)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(
+            days=self.clickhouse_retention_months * 30
+        )
         database = self.clickhouse_client.database
 
-        tables = [
-            'operational_context_history',
-            'data_lineage_history',
-            'quality_metrics_history'
-        ]
+        tables = ["operational_context_history", "data_lineage_history", "quality_metrics_history"]
 
         total_deleted = 0
         for table in tables:
@@ -264,15 +233,10 @@ class RetentionEnforcer:
                 WHERE created_at < %(cutoff_date)s
                 """
                 result = self.clickhouse_client.client.query(
-                    count_query,
-                    parameters={'cutoff_date': cutoff_date}
+                    count_query, parameters={"cutoff_date": cutoff_date}
                 )
                 count = result.result_rows[0][0] if result.result_rows else 0
-                logger.info(
-                    "[DRY-RUN] Linhas a remover",
-                    table=table,
-                    count=count
-                )
+                logger.info("[DRY-RUN] Linhas a remover", table=table, count=count)
                 total_deleted += count
             else:
                 # Remove linhas expiradas usando client.command()
@@ -281,18 +245,12 @@ class RetentionEnforcer:
                 DELETE WHERE created_at < %(cutoff_date)s
                 """
                 self.clickhouse_client.client.command(
-                    delete_query,
-                    parameters={'cutoff_date': cutoff_date}
+                    delete_query, parameters={"cutoff_date": cutoff_date}
                 )
-                logger.info(
-                    "Linhas removidas de tabela",
-                    table=table
-                )
+                logger.info("Linhas removidas de tabela", table=table)
 
         logger.info(
-            "Retenção ClickHouse completa",
-            total_deleted=total_deleted,
-            dry_run=self.dry_run
+            "Retenção ClickHouse completa", total_deleted=total_deleted, dry_run=self.dry_run
         )
 
         return total_deleted
@@ -316,7 +274,7 @@ class RetentionEnforcer:
                 neo4j_deleted=neo4j_deleted,
                 clickhouse_deleted=clickhouse_deleted,
                 total_deleted=mongodb_deleted + neo4j_deleted + clickhouse_deleted,
-                dry_run=self.dry_run
+                dry_run=self.dry_run,
             )
 
         except Exception as e:
@@ -340,7 +298,7 @@ async def main():
         processors=[
             structlog.processors.TimeStamper(fmt="iso"),
             structlog.processors.add_log_level,
-            structlog.processors.JSONRenderer()
+            structlog.processors.JSONRenderer(),
         ]
     )
 

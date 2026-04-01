@@ -8,27 +8,21 @@ Author: Neural-Hive-Mind
 Created: 2026-03-31 (CR-02)
 """
 import json
-import asyncio
-from typing import Optional, Dict, Any, TYPE_CHECKING
 from datetime import datetime, timezone
-from types import TracebackType
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 if TYPE_CHECKING:
     from ..config.settings import Settings
-    from ..observability.metrics import ScoutMetrics
     from ..engine.exploration_engine import ExplorationEngine
+    from ..observability.metrics import ScoutMetrics
 
 import structlog
 from aiokafka import AIOKafkaConsumer
-from aiokafka.errors import KafkaError
 
 from neural_hive_observability import instrument_kafka_consumer
-from neural_hive_observability.context import (
-    extract_context_from_headers,
-    set_baggage
-)
+from neural_hive_observability.context import extract_context_from_headers, set_baggage
 
-from ..models.digital_event import DigitalEvent, DigitalEventType, DigitalChannel
+from ..models.digital_event import DigitalEvent
 
 logger = structlog.get_logger(__name__)
 
@@ -43,9 +37,9 @@ class DigitalEventsConsumer:
 
     def __init__(
         self,
-        settings: 'Settings',
-        exploration_engine: Optional['ExplorationEngine'] = None,
-        metrics: Optional['ScoutMetrics'] = None
+        settings: "Settings",
+        exploration_engine: Optional["ExplorationEngine"] = None,
+        metrics: Optional["ScoutMetrics"] = None,
     ):
         """
         Inicializa o consumer.
@@ -63,29 +57,29 @@ class DigitalEventsConsumer:
 
         # Estatísticas de processamento
         self.stats = {
-            'events_consumed': 0,
-            'events_processed': 0,
-            'events_failed': 0,
-            'last_event_at': None
+            "events_consumed": 0,
+            "events_processed": 0,
+            "events_failed": 0,
+            "last_event_at": None,
         }
 
     async def initialize(self):
         """Inicializa o consumer Kafka."""
-        topic = getattr(self.settings.kafka, 'topics_digital_events', 'digital.events')
-        logger.info('Inicializando DigitalEventsConsumer', topic=topic)
+        topic = getattr(self.settings.kafka, "topics_digital_events", "digital.events")
+        logger.info("Inicializando DigitalEventsConsumer", topic=topic)
 
         self.consumer = AIOKafkaConsumer(
             topic,
             bootstrap_servers=self.settings.kafka.bootstrap_servers,
-            group_id=self.settings.kafka.consumer_group_id + '-digital',
-            auto_offset_reset='latest',
+            group_id=self.settings.kafka.consumer_group_id + "-digital",
+            auto_offset_reset="latest",
             enable_auto_commit=False,
-            value_deserializer=lambda m: m.decode('utf-8') if isinstance(m, bytes) else m
+            value_deserializer=lambda m: m.decode("utf-8") if isinstance(m, bytes) else m,
         )
 
         self.consumer = instrument_kafka_consumer(self.consumer)
         await self.consumer.start()
-        logger.info('DigitalEventsConsumer inicializado com sucesso', topic=topic)
+        logger.info("DigitalEventsConsumer inicializado com sucesso", topic=topic)
 
     async def start(self):
         """
@@ -94,9 +88,9 @@ class DigitalEventsConsumer:
         Este método roda em loop até que self.running seja False.
         """
         if not self.consumer:
-            raise RuntimeError('Consumer não foi inicializado. Chame initialize() primeiro.')
+            raise RuntimeError("Consumer não foi inicializado. Chame initialize() primeiro.")
 
-        logger.info('Iniciando consumo de eventos digitais')
+        logger.info("Iniciando consumo de eventos digitais")
         self.running = True
 
         try:
@@ -111,32 +105,29 @@ class DigitalEventsConsumer:
 
                 except Exception as e:
                     logger.error(
-                        'Erro ao processar evento digital',
+                        "Erro ao processar evento digital",
                         topic=message.topic,
                         partition=message.partition,
                         offset=message.offset,
                         error=str(e),
-                        exc_info=False
+                        exc_info=False,
                     )
-                    self.stats['events_failed'] += 1
+                    self.stats["events_failed"] += 1
                     # Não commitar offset em caso de erro para permitir retry
 
         except Exception as e:
-            logger.error('Erro no loop de consumo', error=str(e), exc_info=True)
+            logger.error("Erro no loop de consumo", error=str(e), exc_info=True)
             raise
 
     async def stop(self):
         """Para o consumer gracefulmente."""
-        logger.info('Parando DigitalEventsConsumer')
+        logger.info("Parando DigitalEventsConsumer")
         self.running = False
 
         if self.consumer:
             await self.consumer.stop()
 
-        logger.info(
-            'DigitalEventsConsumer parado',
-            stats=self.stats
-        )
+        logger.info("DigitalEventsConsumer parado", stats=self.stats)
 
     def _deserialize_event(self, event_data: str) -> Optional[DigitalEvent]:
         """
@@ -152,32 +143,32 @@ class DigitalEventsConsumer:
             data = json.loads(event_data) if isinstance(event_data, str) else event_data
 
             # Validar campos obrigatórios
-            if 'event_id' not in data:
-                logger.warning('evento_sem_event_id', data=event_data)
+            if "event_id" not in data:
+                logger.warning("evento_sem_event_id", data=event_data)
                 return None
 
-            if 'event_type' not in data:
-                logger.warning('evento_sem_event_type', event_id=data.get('event_id'))
+            if "event_type" not in data:
+                logger.warning("evento_sem_event_type", event_id=data.get("event_id"))
                 return None
 
-            if 'channel' not in data:
-                logger.warning('evento_sem_channel', event_id=data.get('event_id'))
+            if "channel" not in data:
+                logger.warning("evento_sem_channel", event_id=data.get("event_id"))
                 return None
 
             # Criar DigitalEvent
             event = DigitalEvent(**data)
 
             if not event.is_valid():
-                logger.warning('evento_invalido', event_id=event.event_id)
+                logger.warning("evento_invalido", event_id=event.event_id)
                 return None
 
             return event
 
         except (json.JSONDecodeError, TypeError, ValueError) as e:
-            logger.error('erro_desserializacao', error=str(e))
+            logger.error("erro_desserializacao", error=str(e))
             return None
         except Exception as e:
-            logger.error('erro_inesperado_desserializacao', error=str(e))
+            logger.error("erro_inesperado_desserializacao", error=str(e))
             return None
 
     async def _process_message(self, message) -> None:
@@ -195,28 +186,28 @@ class DigitalEventsConsumer:
 
         if not event:
             logger.debug(
-                'evento_ignorado',
+                "evento_ignorado",
                 topic=message.topic,
                 partition=message.partition,
-                offset=message.offset
+                offset=message.offset,
             )
             return
 
-        self.stats['events_consumed'] += 1
+        self.stats["events_consumed"] += 1
 
         logger.info(
-            'evento_digital_recebido',
+            "evento_digital_recebido",
             event_id=event.event_id,
             type=str(event.event_type),
             channel=str(event.channel),
             partition=message.partition,
-            offset=message.offset
+            offset=message.offset,
         )
 
         # Definir baggage para tracing
-        correlation_id = event.metadata.get('correlation_id')
+        correlation_id = event.metadata.get("correlation_id")
         if correlation_id:
-            set_baggage('correlation_id', correlation_id)
+            set_baggage("correlation_id", correlation_id)
 
         # Processar evento através da exploration engine
         await self._forward_to_exploration_engine(event)
@@ -224,14 +215,13 @@ class DigitalEventsConsumer:
         # Atualizar métricas
         if self.metrics:
             self.metrics.digital_events_consumed_total.labels(
-                type=str(event.event_type),
-                channel=str(event.channel)
+                type=str(event.event_type), channel=str(event.channel)
             ).inc()
 
-        self.stats['events_processed'] += 1
-        self.stats['last_event_at'] = datetime.now(timezone.utc)
+        self.stats["events_processed"] += 1
+        self.stats["last_event_at"] = datetime.now(timezone.utc)
 
-        logger.debug('evento_digital_processado', event_id=event.event_id)
+        logger.debug("evento_digital_processado", event_id=event.event_id)
 
     async def _forward_to_exploration_engine(self, event: DigitalEvent) -> None:
         """
@@ -241,7 +231,7 @@ class DigitalEventsConsumer:
             event: Evento digital processado
         """
         if not self.exploration_engine:
-            logger.debug('exploration_engine_nao_configada')
+            logger.debug("exploration_engine_nao_configada")
             return
 
         try:
@@ -250,39 +240,32 @@ class DigitalEventsConsumer:
 
             # Chamar método de processamento da engine
             # Se a engine tiver método específico para eventos digitais, usá-lo
-            if hasattr(self.exploration_engine, 'process_digital_event'):
+            if hasattr(self.exploration_engine, "process_digital_event"):
                 await self.exploration_engine.process_digital_event(event)
             else:
                 # Fallback: converter para RawEvent e usar process_event
-                from ..models.raw_event import RawEvent
                 from neural_hive_domain import UnifiedDomain
 
+                from ..models.raw_event import RawEvent
+
                 raw_event = RawEvent(
-                    event_id=raw_event_data['event_id'],
-                    event_type=raw_event_data['event_type'],
-                    source=raw_event_data['source'],
-                    timestamp=datetime.fromisoformat(raw_event_data['timestamp']),
-                    payload=raw_event_data['payload'],
-                    metadata=raw_event_data['metadata']
+                    event_id=raw_event_data["event_id"],
+                    event_type=raw_event_data["event_type"],
+                    source=raw_event_data["source"],
+                    timestamp=datetime.fromisoformat(raw_event_data["timestamp"]),
+                    payload=raw_event_data["payload"],
+                    metadata=raw_event_data["metadata"],
                 )
 
                 # Usar domínio BEHAVIOR para eventos digitais
                 await self.exploration_engine.process_event(
-                    event=raw_event,
-                    domain=UnifiedDomain.BEHAVIOR
+                    event=raw_event, domain=UnifiedDomain.BEHAVIOR
                 )
 
-            logger.debug(
-                'evento_encaminhado_para_engine',
-                event_id=event.event_id
-            )
+            logger.debug("evento_encaminhado_para_engine", event_id=event.event_id)
 
         except Exception as e:
-            logger.error(
-                'erro_encaminhar_para_engine',
-                event_id=event.event_id,
-                error=str(e)
-            )
+            logger.error("erro_encaminhar_para_engine", event_id=event.event_id, error=str(e))
             raise
 
     def get_stats(self) -> Dict[str, Any]:
@@ -292,7 +275,4 @@ class DigitalEventsConsumer:
         Returns:
             Dicionário com estatísticas agregadas
         """
-        return {
-            **self.stats,
-            'running': self.running
-        }
+        return {**self.stats, "running": self.running}

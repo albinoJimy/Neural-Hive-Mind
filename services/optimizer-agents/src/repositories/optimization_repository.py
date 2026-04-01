@@ -1,7 +1,8 @@
 """Repository MongoDB para recomendações de otimização."""
 import logging
-from datetime import datetime
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
+
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorClient
 
@@ -42,7 +43,7 @@ class OptimizationRepository:
         )
         logger.info("optimization_indexes_created")
 
-    async def create(self, data: Dict[str, Any]) -> str:
+    async def create(self, data: dict[str, Any]) -> str:
         """
         Cria nova recomendação de otimização.
 
@@ -52,14 +53,14 @@ class OptimizationRepository:
         Returns:
             ID do documento criado
         """
-        data["created_at"] = datetime.utcnow()
-        data["updated_at"] = datetime.utcnow()
+        data["created_at"] = datetime.now(UTC)
+        data["updated_at"] = datetime.now(UTC)
 
         result = await self.collection.insert_one(data)
         logger.info(f"optimization_created id={result.inserted_id}")
         return str(result.inserted_id)
 
-    async def get_by_id(self, recommendation_id: str) -> Optional[Dict[str, Any]]:
+    async def get_by_id(self, recommendation_id: str) -> dict[str, Any] | None:
         """
         Busca recomendação por ID.
 
@@ -80,12 +81,12 @@ class OptimizationRepository:
 
     async def list_by_filters(
         self,
-        status: Optional[str] = None,
-        workflow_id: Optional[str] = None,
-        target_type: Optional[str] = None,
+        status: str | None = None,
+        workflow_id: str | None = None,
+        target_type: str | None = None,
         limit: int = 50,
         offset: int = 0,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Lista recomendações com filtros.
 
@@ -109,9 +110,7 @@ class OptimizationRepository:
             query["recommendations.target_type"] = target_type
 
         total = await self.collection.count_documents(query)
-        cursor = (
-            self.collection.find(query).sort("created_at", -1).skip(offset).limit(limit)
-        )
+        cursor = self.collection.find(query).sort("created_at", -1).skip(offset).limit(limit)
 
         items = []
         async for doc in cursor:
@@ -129,7 +128,7 @@ class OptimizationRepository:
         self,
         recommendation_id: str,
         status: str,
-        approved_by: Optional[str] = None,
+        approved_by: str | None = None,
     ) -> bool:
         """
         Atualiza status de uma recomendação.
@@ -146,19 +145,17 @@ class OptimizationRepository:
             obj_id = ObjectId(recommendation_id)
             update_data = {
                 "status": status,
-                "updated_at": datetime.utcnow(),
+                "updated_at": datetime.now(UTC),
             }
 
             if approved_by:
                 update_data["approved_by"] = approved_by
-                update_data["approved_at"] = datetime.utcnow()
+                update_data["approved_at"] = datetime.now(UTC)
 
             if status == "applied":
-                update_data["applied_at"] = datetime.utcnow()
+                update_data["applied_at"] = datetime.now(UTC)
 
-            result = await self.collection.update_one(
-                {"_id": obj_id}, {"$set": update_data}
-            )
+            result = await self.collection.update_one({"_id": obj_id}, {"$set": update_data})
 
             return result.modified_count > 0
         except Exception as e:
@@ -194,9 +191,9 @@ class OptimizationRepository:
                             "before_duration_ms": before_duration_ms,
                             "after_duration_ms": after_duration_ms,
                             "improvement_pct": improvement_pct,
-                            "validated_at": datetime.utcnow(),
+                            "validated_at": datetime.now(UTC),
                         },
-                        "updated_at": datetime.utcnow(),
+                        "updated_at": datetime.now(UTC),
                     }
                 },
             )
@@ -208,9 +205,9 @@ class OptimizationRepository:
 
     async def get_metrics(
         self,
-        from_date: Optional[datetime] = None,
-        to_date: Optional[datetime] = None,
-    ) -> Dict[str, Any]:
+        from_date: datetime | None = None,
+        to_date: datetime | None = None,
+    ) -> dict[str, Any]:
         """
         Retorna métricas agregadas de otimizações.
 
@@ -318,7 +315,7 @@ class OptimizationRepository:
             "best_improvement_pct": round(best_improvement_pct, 2),
         }
 
-    async def get_dashboard_data(self) -> Dict[str, Any]:
+    async def get_dashboard_data(self) -> dict[str, Any]:
         """
         Retorna dados agregados para dashboard.
 
@@ -386,7 +383,7 @@ class OptimizationRepository:
 
         return 0.0
 
-    async def get_timeline(self, workflow_id: str) -> List[Dict[str, Any]]:
+    async def get_timeline(self, workflow_id: str) -> list[dict[str, Any]]:
         """
         Retorna timeline de otimizações para um workflow.
 
@@ -396,9 +393,7 @@ class OptimizationRepository:
         Returns:
             Lista de otimizações ordenadas por data
         """
-        cursor = self.collection.find({"workflow_id": workflow_id}).sort(
-            "created_at", 1
-        )
+        cursor = self.collection.find({"workflow_id": workflow_id}).sort("created_at", 1)
 
         timeline = []
         async for doc in cursor:
@@ -416,7 +411,7 @@ class OptimizationRepository:
 
 
 # Singleton instance
-_repository: Optional[OptimizationRepository] = None
+_repository: OptimizationRepository | None = None
 
 
 async def get_repository(

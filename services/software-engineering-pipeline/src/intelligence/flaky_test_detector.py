@@ -1,6 +1,5 @@
-from collections import defaultdict
 from datetime import datetime, timezone
-from typing import Any
+
 from pydantic import BaseModel, ConfigDict, Field
 from structlog import get_logger
 
@@ -114,11 +113,7 @@ class FlakyTestDetector:
 
     def get_flaky_tests(self) -> list[TestHistory]:
         """Retorna todos os testes considerados flaky."""
-        return [
-            h
-            for h in self.test_histories.values()
-            if h.flaky_score >= self.flaky_threshold
-        ]
+        return [h for h in self.test_histories.values() if h.flaky_score >= self.flaky_threshold]
 
     def get_test_history(self, test_name: str) -> TestHistory | None:
         """Retorna histórico de um teste específico."""

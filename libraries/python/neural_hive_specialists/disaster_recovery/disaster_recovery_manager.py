@@ -16,7 +16,7 @@ import tempfile
 import uuid
 import json
 import subprocess
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, Optional, List
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import structlog
@@ -124,7 +124,7 @@ class DisasterRecoveryManager:
                 backup_id=backup_id,
                 specialist_type=self.config.specialist_type,
                 tenant_id=tenant_id,
-                backup_timestamp=datetime.utcnow(),
+                backup_timestamp=datetime.now(timezone.utc),
                 compression_level=self.config.backup_compression_level,
                 metadata={
                     "environment": self.config.environment,
@@ -212,7 +212,7 @@ class DisasterRecoveryManager:
             manifest.save_to_file(manifest_path)
 
             # Criar arquivo .tar.gz
-            timestamp = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
+            timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
             backup_filename = f"specialist-{self.config.specialist_type}{tenant_suffix}-backup-{timestamp}.tar.gz"
             backup_archive_path = os.path.join(tempfile.gettempdir(), backup_filename)
 
@@ -830,7 +830,7 @@ class DisasterRecoveryManager:
 
         start_time = time.time()
 
-        snapshot_id = f"snapshot-{datetime.utcnow().strftime('%Y%m%d-%H%M%S')}"
+        snapshot_id = f"snapshot-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}"
         tenant_suffix = f"-{tenant_id}" if tenant_id else ""
 
         logger.info(
@@ -849,7 +849,7 @@ class DisasterRecoveryManager:
                 backup_id=snapshot_id,
                 specialist_type=self.config.specialist_type,
                 tenant_id=tenant_id,
-                backup_timestamp=datetime.utcnow(),
+                backup_timestamp=datetime.now(timezone.utc),
                 compression_level=self.config.backup_compression_level,
                 metadata={
                     "environment": self.config.environment,
@@ -992,7 +992,7 @@ class DisasterRecoveryManager:
             # Criar snapshot JSON com referências
             snapshot = {
                 "snapshot_id": snapshot_id,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "specialist_type": self.config.specialist_type,
                 "tenant_id": tenant_id,
                 "component_refs": component_digests,
@@ -2283,7 +2283,7 @@ class DisasterRecoveryManager:
                     "original_model_version",
                     model_metadata.get("model_version", "unknown"),
                 )
-                mlflow.log_param("backup_timestamp", datetime.utcnow().isoformat())
+                mlflow.log_param("backup_timestamp", datetime.now(timezone.utc).isoformat())
 
                 # Carregar modelo dos artifacts
                 model = mlflow.pyfunc.load_model(artifacts_dir)

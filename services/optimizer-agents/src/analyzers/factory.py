@@ -1,18 +1,18 @@
 """Factory para criar analyzers apropriados."""
-from enum import Enum
-from typing import Optional
+from enum import StrEnum
 
 from .base import BaseAnalyzer
-from .mongodb_analyzer import MongoDBAnalyzer
-from .postgresql_analyzer import PostgreSQLAnalyzer
-from .neo4j_analyzer import Neo4jAnalyzer
-from .redis_analyzer import RedisAnalyzer
 from .clickhouse_analyzer import ClickHouseAnalyzer
 from .code_analyzer import CodeAnalyzer
+from .mongodb_analyzer import MongoDBAnalyzer
+from .neo4j_analyzer import Neo4jAnalyzer
+from .postgresql_analyzer import PostgreSQLAnalyzer
+from .redis_analyzer import RedisAnalyzer
 
 
-class AnalyzerType(str, Enum):
+class AnalyzerType(StrEnum):
     """Tipos de analyzer suportados."""
+
     CODE = "code"
     MONGODB = "mongodb"
     POSTGRESQL = "postgresql"

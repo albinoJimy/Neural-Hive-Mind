@@ -1,12 +1,14 @@
 """HTTP client for Memory Layer API"""
 import asyncio
-from typing import Optional, Dict, Any, List
+from typing import Any, Dict, List, Optional
+
 import httpx
 import structlog
 
-from ..models.scout_signal import ScoutSignal
 from neural_hive_domain import UnifiedDomain
+
 from ..config import get_settings
+from ..models.scout_signal import ScoutSignal
 
 logger = structlog.get_logger()
 
@@ -22,8 +24,7 @@ class MemoryLayerClient:
     async def start(self):
         """Initialize HTTP client"""
         self.client = httpx.AsyncClient(
-            base_url=self.base_url,
-            timeout=self.settings.memory_layer.timeout
+            base_url=self.base_url, timeout=self.settings.memory_layer.timeout
         )
         logger.info("memory_layer_client_started", base_url=self.base_url)
 
@@ -46,11 +47,11 @@ class MemoryLayerClient:
                     method=method,
                     url=url,
                     attempt=attempt + 1,
-                    error=str(e)
+                    error=str(e),
                 )
                 if attempt == self.settings.memory_layer.retry_attempts - 1:
                     raise
-                await asyncio.sleep(2 ** attempt)  # Exponential backoff
+                await asyncio.sleep(2**attempt)  # Exponential backoff
 
         return None
 
@@ -66,27 +67,21 @@ class MemoryLayerClient:
         """
         try:
             response = await self._retry_request(
-                "POST",
-                "/api/v1/memory/redis/scout-signals",
-                json=signal.to_avro_dict()
+                "POST", "/api/v1/memory/redis/scout-signals", json=signal.to_avro_dict()
             )
 
             if response and response.status_code == 201:
                 logger.info(
                     "signal_stored_in_redis",
                     signal_id=signal.signal_id,
-                    domain=signal.exploration_domain.value
+                    domain=signal.exploration_domain.value,
                 )
                 return True
 
             return False
 
         except Exception as e:
-            logger.error(
-                "redis_storage_failed",
-                signal_id=signal.signal_id,
-                error=str(e)
-            )
+            logger.error("redis_storage_failed", signal_id=signal.signal_id, error=str(e))
             return False
 
     async def store_signal_neo4j(self, signal: ScoutSignal) -> bool:
@@ -101,33 +96,25 @@ class MemoryLayerClient:
         """
         try:
             response = await self._retry_request(
-                "POST",
-                "/api/v1/memory/neo4j/scout-signals",
-                json=signal.to_avro_dict()
+                "POST", "/api/v1/memory/neo4j/scout-signals", json=signal.to_avro_dict()
             )
 
             if response and response.status_code == 201:
                 logger.info(
                     "signal_stored_in_neo4j",
                     signal_id=signal.signal_id,
-                    domain=signal.exploration_domain.value
+                    domain=signal.exploration_domain.value,
                 )
                 return True
 
             return False
 
         except Exception as e:
-            logger.error(
-                "neo4j_storage_failed",
-                signal_id=signal.signal_id,
-                error=str(e)
-            )
+            logger.error("neo4j_storage_failed", signal_id=signal.signal_id, error=str(e))
             return False
 
     async def query_historical_signals(
-        self,
-        domain: Optional[UnifiedDomain] = None,
-        limit: int = 100
+        self, domain: Optional[UnifiedDomain] = None, limit: int = 100
     ) -> List[Dict[str, Any]]:
         """
         Query historical signals for pattern analysis
@@ -145,9 +132,7 @@ class MemoryLayerClient:
                 params["domain"] = domain.value
 
             response = await self._retry_request(
-                "GET",
-                "/api/v1/memory/scout-signals",
-                params=params
+                "GET", "/api/v1/memory/scout-signals", params=params
             )
 
             if response and response.status_code == 200:
@@ -170,10 +155,7 @@ class MemoryLayerClient:
             Signal dictionary or None
         """
         try:
-            response = await self._retry_request(
-                "GET",
-                f"/api/v1/memory/scout-signals/{signal_id}"
-            )
+            response = await self._retry_request("GET", f"/api/v1/memory/scout-signals/{signal_id}")
 
             if response and response.status_code == 200:
                 return response.json()
@@ -181,18 +163,10 @@ class MemoryLayerClient:
             return None
 
         except Exception as e:
-            logger.error(
-                "signal_retrieval_failed",
-                signal_id=signal_id,
-                error=str(e)
-            )
+            logger.error("signal_retrieval_failed", signal_id=signal_id, error=str(e))
             return None
 
-    async def update_signal_status(
-        self,
-        signal_id: str,
-        status: str
-    ) -> bool:
+    async def update_signal_status(self, signal_id: str, status: str) -> bool:
         """
         Update signal status (PENDING, VALIDATED, REJECTED)
 
@@ -205,25 +179,15 @@ class MemoryLayerClient:
         """
         try:
             response = await self._retry_request(
-                "PATCH",
-                f"/api/v1/memory/scout-signals/{signal_id}/status",
-                json={"status": status}
+                "PATCH", f"/api/v1/memory/scout-signals/{signal_id}/status", json={"status": status}
             )
 
             if response and response.status_code == 200:
-                logger.info(
-                    "signal_status_updated",
-                    signal_id=signal_id,
-                    status=status
-                )
+                logger.info("signal_status_updated", signal_id=signal_id, status=status)
                 return True
 
             return False
 
         except Exception as e:
-            logger.error(
-                "signal_status_update_failed",
-                signal_id=signal_id,
-                error=str(e)
-            )
+            logger.error("signal_status_update_failed", signal_id=signal_id, error=str(e))
             return False

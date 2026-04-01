@@ -4,7 +4,7 @@ import os
 import sys
 import pytest
 from unittest.mock import patch, Mock
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 # Adicionar diretório de scripts ao path
 sys.path.insert(
@@ -61,7 +61,7 @@ class TestMonitorRunningTriggers:
         trigger_doc = {
             "trigger_id": "trigger-123",
             "metadata": {"mlflow_run_id": "run-456"},
-            "triggered_at": datetime.utcnow() - timedelta(minutes=30),
+            "triggered_at": datetime.now(timezone.utc) - timedelta(minutes=30),
             "specialist_type": "technical",
         }
         mock_collection.find.return_value = [trigger_doc]
@@ -71,8 +71,8 @@ class TestMonitorRunningTriggers:
 
         mock_run = Mock()
         mock_run.info.status = "FINISHED"
-        mock_run.info.end_time = int((datetime.utcnow().timestamp() + 3600) * 1000)
-        mock_run.info.start_time = int(datetime.utcnow().timestamp() * 1000)
+        mock_run.info.end_time = int((datetime.now(timezone.utc).timestamp() + 3600) * 1000)
+        mock_run.info.start_time = int(datetime.now(timezone.utc).timestamp() * 1000)
         mock_run.data.metrics = {"precision": 0.85}
         mock_mlflow.get_run.return_value = mock_run
 
@@ -100,7 +100,7 @@ class TestMonitorRunningTriggers:
         trigger_doc = {
             "trigger_id": "trigger-789",
             "metadata": {"mlflow_run_id": "run-failed"},
-            "triggered_at": datetime.utcnow() - timedelta(minutes=30),
+            "triggered_at": datetime.now(timezone.utc) - timedelta(minutes=30),
             "specialist_type": "business",
         }
         mock_collection.find.return_value = [trigger_doc]
@@ -135,7 +135,7 @@ class TestMonitorRunningTriggers:
         trigger_doc = {
             "trigger_id": "trigger-running",
             "metadata": {"mlflow_run_id": "run-running"},
-            "triggered_at": datetime.utcnow() - timedelta(minutes=10),
+            "triggered_at": datetime.now(timezone.utc) - timedelta(minutes=10),
             "specialist_type": "behavior",
         }
         mock_collection.find.return_value = [trigger_doc]
@@ -170,7 +170,7 @@ class TestMonitorRunningTriggers:
         trigger_doc = {
             "trigger_id": "trigger-timeout",
             "metadata": {"mlflow_run_id": "run-timeout"},
-            "triggered_at": datetime.utcnow() - timedelta(hours=25),
+            "triggered_at": datetime.now(timezone.utc) - timedelta(hours=25),
             "specialist_type": "evolution",
         }
         mock_collection.find.return_value = [trigger_doc]

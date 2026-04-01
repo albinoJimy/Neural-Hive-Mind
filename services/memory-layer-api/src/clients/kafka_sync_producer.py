@@ -4,23 +4,28 @@ Kafka Producer para eventos de sincronização de memória
 Publica eventos para sincronização assíncrona MongoDB -> ClickHouse.
 Utiliza serialização Avro conforme schema em schemas/memory-sync-event/memory-sync-event.avsc
 """
+import asyncio
 import io
 import json
-import asyncio
-import structlog
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, Optional, Any
+from typing import Any, Dict, Optional
+
+import fastavro
+import structlog
 from aiokafka import AIOKafkaProducer
 from aiokafka.errors import KafkaError
 from prometheus_client import Counter, Histogram
-import fastavro
-from fastavro.schema import load_schema
 
 logger = structlog.get_logger(__name__)
 
 # Caminho do schema Avro
-AVRO_SCHEMA_PATH = Path(__file__).parent.parent.parent.parent.parent / 'schemas' / 'memory-sync-event' / 'memory-sync-event.avsc'
+AVRO_SCHEMA_PATH = (
+    Path(__file__).parent.parent.parent.parent.parent
+    / "schemas"
+    / "memory-sync-event"
+    / "memory-sync-event.avsc"
+)
 
 # Cache do schema Avro carregado
 _avro_schema = None
@@ -38,8 +43,7 @@ def get_avro_schema():
             logger.info("Schema Avro carregado", path=str(AVRO_SCHEMA_PATH))
         else:
             logger.warning(
-                "Schema Avro não encontrado, usando JSON fallback",
-                path=str(AVRO_SCHEMA_PATH)
+                "Schema Avro não encontrado, usando JSON fallback", path=str(AVRO_SCHEMA_PATH)
             )
     return _avro_schema
 
@@ -59,18 +63,19 @@ def serialize_avro(event: Dict[str, Any], schema) -> bytes:
     fastavro.schemaless_writer(buffer, schema, event)
     return buffer.getvalue()
 
+
 # Métricas Prometheus
 SYNC_EVENTS_PUBLISHED = Counter(
-    'memory_sync_events_published_total',
-    'Total de eventos de sincronização publicados',
-    ['status', 'data_type']
+    "memory_sync_events_published_total",
+    "Total de eventos de sincronização publicados",
+    ["status", "data_type"],
 )
 
 SYNC_PUBLISH_LATENCY = Histogram(
-    'memory_sync_publish_latency_seconds',
-    'Latência de publicação de eventos de sincronização',
-    ['data_type'],
-    buckets=[0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0]
+    "memory_sync_publish_latency_seconds",
+    "Latência de publicação de eventos de sincronização",
+    ["data_type"],
+    buckets=[0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0],
 )
 
 
@@ -113,22 +118,22 @@ class KafkaSyncProducer:
 
             # Configuração de segurança
             security_kwargs = {}
-            if self.settings.kafka_security_protocol != 'PLAINTEXT':
-                security_kwargs['security_protocol'] = self.settings.kafka_security_protocol
+            if self.settings.kafka_security_protocol != "PLAINTEXT":
+                security_kwargs["security_protocol"] = self.settings.kafka_security_protocol
                 if self.settings.kafka_sasl_username and self.settings.kafka_sasl_password:
-                    security_kwargs['sasl_mechanism'] = 'PLAIN'
-                    security_kwargs['sasl_plain_username'] = self.settings.kafka_sasl_username
-                    security_kwargs['sasl_plain_password'] = self.settings.kafka_sasl_password
+                    security_kwargs["sasl_mechanism"] = "PLAIN"
+                    security_kwargs["sasl_plain_username"] = self.settings.kafka_sasl_username
+                    security_kwargs["sasl_plain_password"] = self.settings.kafka_sasl_password
 
             self.producer = AIOKafkaProducer(
                 bootstrap_servers=self.settings.kafka_bootstrap_servers,
-                acks='all',  # Garante durabilidade
-                compression_type='gzip',
+                acks="all",  # Garante durabilidade
+                compression_type="gzip",
                 enable_idempotence=True,  # Previne duplicatas
                 max_request_size=1048576,  # 1MB
                 request_timeout_ms=30000,
                 retry_backoff_ms=100,
-                **security_kwargs
+                **security_kwargs,
             )
 
             await self.producer.start()
@@ -137,7 +142,7 @@ class KafkaSyncProducer:
                 "Kafka sync producer iniciado",
                 bootstrap_servers=self.settings.kafka_bootstrap_servers,
                 topic=self.settings.kafka_sync_topic,
-                serialization='avro' if self._use_avro else 'json'
+                serialization="avro" if self._use_avro else "json",
             )
 
         except Exception as e:
@@ -167,14 +172,16 @@ class KafkaSyncProducer:
             Evento formatado para Avro
         """
         return {
-            'event_id': str(event.get('event_id', '')),
-            'entity_id': str(event.get('entity_id', '')),
-            'data_type': str(event.get('data_type', 'unknown')),
-            'operation': str(event.get('operation', 'INSERT')),
-            'collection': str(event.get('collection', '')),
-            'timestamp': int(event.get('timestamp', int(datetime.utcnow().timestamp() * 1000))),
-            'data': str(event.get('data', '{}')),
-            'metadata': event.get('metadata') if event.get('metadata') else None
+            "event_id": str(event.get("event_id", "")),
+            "entity_id": str(event.get("entity_id", "")),
+            "data_type": str(event.get("data_type", "unknown")),
+            "operation": str(event.get("operation", "INSERT")),
+            "collection": str(event.get("collection", "")),
+            "timestamp": int(
+                event.get("timestamp", int(datetime.now(timezone.utc).timestamp() * 1000))
+            ),
+            "data": str(event.get("data", "{}")),
+            "metadata": event.get("metadata") if event.get("metadata") else None,
         }
 
     async def publish_sync_event(self, event: Dict[str, Any]) -> bool:
@@ -201,8 +208,8 @@ class KafkaSyncProducer:
             logger.warning("Producer não está rodando, evento não publicado")
             return False
 
-        data_type = event.get('data_type', 'unknown')
-        start_time = datetime.utcnow()
+        data_type = event.get("data_type", "unknown")
+        start_time = datetime.now(timezone.utc)
 
         for attempt in range(self._retry_attempts):
             try:
@@ -211,59 +218,57 @@ class KafkaSyncProducer:
                     avro_event = self._prepare_avro_event(event)
                     value = serialize_avro(avro_event, self._avro_schema)
                 else:
-                    value = json.dumps(event).encode('utf-8')
+                    value = json.dumps(event).encode("utf-8")
 
-                key = event.get('entity_id', '').encode('utf-8')
+                key = event.get("entity_id", "").encode("utf-8")
 
                 # Publica no Kafka
                 await self.producer.send_and_wait(
-                    topic=self.settings.kafka_sync_topic,
-                    value=value,
-                    key=key
+                    topic=self.settings.kafka_sync_topic, value=value, key=key
                 )
 
                 # Registra métricas
-                latency = (datetime.utcnow() - start_time).total_seconds()
-                SYNC_EVENTS_PUBLISHED.labels(status='success', data_type=data_type).inc()
+                latency = (datetime.now(timezone.utc) - start_time).total_seconds()
+                SYNC_EVENTS_PUBLISHED.labels(status="success", data_type=data_type).inc()
                 SYNC_PUBLISH_LATENCY.labels(data_type=data_type).observe(latency)
 
                 logger.debug(
                     "Evento de sincronização publicado",
-                    event_id=event.get('event_id'),
-                    entity_id=event.get('entity_id'),
+                    event_id=event.get("event_id"),
+                    entity_id=event.get("entity_id"),
                     data_type=data_type,
                     latency_ms=int(latency * 1000),
-                    serialization='avro' if self._use_avro else 'json'
+                    serialization="avro" if self._use_avro else "json",
                 )
 
                 return True
 
             except KafkaError as e:
-                SYNC_EVENTS_PUBLISHED.labels(status='error', data_type=data_type).inc()
+                SYNC_EVENTS_PUBLISHED.labels(status="error", data_type=data_type).inc()
                 logger.warning(
                     "Erro ao publicar evento de sincronização",
                     error=str(e),
                     attempt=attempt + 1,
-                    max_attempts=self._retry_attempts
+                    max_attempts=self._retry_attempts,
                 )
 
                 if attempt < self._retry_attempts - 1:
-                    await asyncio.sleep(self._retry_delay * (2 ** attempt))
+                    await asyncio.sleep(self._retry_delay * (2**attempt))
                 else:
                     logger.error(
                         "Falha ao publicar evento após todas as tentativas",
-                        event_id=event.get('event_id'),
-                        entity_id=event.get('entity_id'),
-                        error=str(e)
+                        event_id=event.get("event_id"),
+                        entity_id=event.get("entity_id"),
+                        error=str(e),
                     )
                     return False
 
             except Exception as e:
-                SYNC_EVENTS_PUBLISHED.labels(status='error', data_type=data_type).inc()
+                SYNC_EVENTS_PUBLISHED.labels(status="error", data_type=data_type).inc()
                 logger.error(
                     "Erro inesperado ao publicar evento de sincronização",
                     error=str(e),
-                    event_id=event.get('event_id')
+                    event_id=event.get("event_id"),
                 )
                 return False
 
@@ -291,7 +296,7 @@ class KafkaSyncProducer:
             "Batch de eventos publicado",
             total=len(events),
             success=success_count,
-            failed=len(events) - success_count
+            failed=len(events) - success_count,
         )
 
         return success_count

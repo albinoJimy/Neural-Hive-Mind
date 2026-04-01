@@ -8,7 +8,7 @@ para Slack, email ou outros canais.
 import aiohttp
 import json
 from typing import Dict, List, Any
-from datetime import datetime
+from datetime import datetime, timezone
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -61,7 +61,7 @@ class DriftAlerter:
             return
 
         alert_data = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "severity": self._calculate_severity(drift_score),
             "drift_score": drift_score,
             "num_drifted_features": len(drifted_features),
@@ -167,7 +167,7 @@ class DriftAlerter:
                             },
                         ],
                         "footer": "Neural Hive Specialists",
-                        "ts": int(datetime.utcnow().timestamp()),
+                        "ts": int(datetime.now(timezone.utc).timestamp()),
                     }
                 ]
             }

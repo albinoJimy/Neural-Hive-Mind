@@ -1,10 +1,10 @@
-from enum import Enum
-from typing import Any, Dict, List, Optional
+from enum import StrEnum
+from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
 
-class ExperimentType(str, Enum):
+class ExperimentType(StrEnum):
     """Types of experiment."""
 
     A_B_TEST = "A_B_TEST"
@@ -13,7 +13,7 @@ class ExperimentType(str, Enum):
     MULTI_ARMED_BANDIT = "MULTI_ARMED_BANDIT"
 
 
-class RandomizationStrategy(str, Enum):
+class RandomizationStrategy(StrEnum):
     """Randomization strategies."""
 
     RANDOM = "RANDOM"
@@ -21,7 +21,7 @@ class RandomizationStrategy(str, Enum):
     BLOCKED = "BLOCKED"
 
 
-class ComparisonOperator(str, Enum):
+class ComparisonOperator(StrEnum):
     """Comparison operators."""
 
     GT = "GT"
@@ -51,14 +51,26 @@ class Guardrail(BaseModel):
 class ABTestConfig(BaseModel):
     """Configuracao especifica para testes A/B."""
 
-    traffic_split: float = Field(default=0.5, ge=0.0, le=1.0, description="Proporcao de trafego para treatment")
-    primary_metrics: List[str] = Field(default_factory=list, description="Metricas primarias para decisao")
-    secondary_metrics: List[str] = Field(default_factory=list, description="Metricas secundarias observacionais")
+    traffic_split: float = Field(
+        default=0.5, ge=0.0, le=1.0, description="Proporcao de trafego para treatment"
+    )
+    primary_metrics: list[str] = Field(
+        default_factory=list, description="Metricas primarias para decisao"
+    )
+    secondary_metrics: list[str] = Field(
+        default_factory=list, description="Metricas secundarias observacionais"
+    )
     early_stopping_enabled: bool = Field(default=True, description="Habilitar parada antecipada")
     bayesian_analysis_enabled: bool = Field(default=True, description="Habilitar analise Bayesiana")
-    sequential_testing_enabled: bool = Field(default=True, description="Habilitar sequential testing (SPRT)")
-    strata_key: str = Field(default="", description="Chave de estrato para randomizacao estratificada")
-    block_size: int = Field(default=10, ge=2, description="Tamanho do bloco para randomizacao em blocos")
+    sequential_testing_enabled: bool = Field(
+        default=True, description="Habilitar sequential testing (SPRT)"
+    )
+    strata_key: str = Field(
+        default="", description="Chave de estrato para randomizacao estratificada"
+    )
+    block_size: int = Field(
+        default=10, ge=2, description="Tamanho do bloco para randomizacao em blocos"
+    )
 
 
 class ExperimentRequest(BaseModel):
@@ -73,10 +85,10 @@ class ExperimentRequest(BaseModel):
     objective: str = Field(..., description="Objective of experiment")
     experiment_type: ExperimentType = Field(..., description="Type of experiment")
     target_component: str = Field(..., description="Target component")
-    baseline_configuration: Dict[str, str] = Field(..., description="Current configuration")
-    experimental_configuration: Dict[str, str] = Field(..., description="Proposed configuration")
-    success_criteria: List[SuccessCriterion] = Field(..., description="Success criteria")
-    guardrails: List[Guardrail] = Field(..., description="Safety guardrails")
+    baseline_configuration: dict[str, str] = Field(..., description="Current configuration")
+    experimental_configuration: dict[str, str] = Field(..., description="Proposed configuration")
+    success_criteria: list[SuccessCriterion] = Field(..., description="Success criteria")
+    guardrails: list[Guardrail] = Field(..., description="Safety guardrails")
     traffic_percentage: float = Field(..., ge=0.0, le=1.0, description="Traffic percentage")
     duration_seconds: int = Field(..., gt=0, description="Max duration in seconds")
     sample_size: int = Field(..., gt=0, description="Required sample size")
@@ -86,15 +98,23 @@ class ExperimentRequest(BaseModel):
     rollback_on_failure: bool = Field(default=True, description="Rollback on failure")
     created_at: int = Field(..., description="Creation timestamp (Unix millis)")
     created_by: str = Field(..., description="Agent that created the experiment")
-    metadata: Dict[str, str] = Field(default_factory=dict, description="Additional metadata")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Additional metadata")
 
     # Campos especificos para A/B Testing
     control_group_size: int = Field(default=0, description="Tamanho atual do grupo controle")
     treatment_group_size: int = Field(default=0, description="Tamanho atual do grupo tratamento")
-    control_metrics: Dict[str, List[float]] = Field(default_factory=dict, description="Metricas coletadas do controle")
-    treatment_metrics: Dict[str, List[float]] = Field(default_factory=dict, description="Metricas coletadas do tratamento")
-    statistical_results: Dict[str, Any] = Field(default_factory=dict, description="Resultados da analise estatistica")
-    ab_test_config: ABTestConfig = Field(default_factory=ABTestConfig, description="Configuracao especifica A/B")
+    control_metrics: dict[str, list[float]] = Field(
+        default_factory=dict, description="Metricas coletadas do controle"
+    )
+    treatment_metrics: dict[str, list[float]] = Field(
+        default_factory=dict, description="Metricas coletadas do tratamento"
+    )
+    statistical_results: dict[str, Any] = Field(
+        default_factory=dict, description="Resultados da analise estatistica"
+    )
+    ab_test_config: ABTestConfig = Field(
+        default_factory=ABTestConfig, description="Configuracao especifica A/B"
+    )
     minimum_sample_size: int = Field(default=100, description="Tamanho minimo de amostra por grupo")
 
     @field_validator("traffic_percentage")
@@ -104,7 +124,7 @@ class ExperimentRequest(BaseModel):
             raise ValueError("Traffic percentage must be between 0.0 and 1.0")
         return v
 
-    def to_avro_dict(self) -> Dict[str, Any]:
+    def to_avro_dict(self) -> dict[str, Any]:
         """Convert to Avro-compatible dictionary."""
         data = self.model_dump()
         # Convert enums to strings
@@ -115,11 +135,13 @@ class ExperimentRequest(BaseModel):
         data["guardrails"] = [g.model_dump() for g in self.guardrails]
         # Convert operator enums in success criteria
         for sc in data["success_criteria"]:
-            sc["operator"] = sc["operator"] if isinstance(sc["operator"], str) else sc["operator"].value
+            sc["operator"] = (
+                sc["operator"] if isinstance(sc["operator"], str) else sc["operator"].value
+            )
         return data
 
     @classmethod
-    def from_avro_dict(cls, data: Dict[str, Any]) -> "ExperimentRequest":
+    def from_avro_dict(cls, data: dict[str, Any]) -> "ExperimentRequest":
         """Create instance from Avro dictionary."""
         # Convert nested structures
         if "success_criteria" in data:

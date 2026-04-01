@@ -1,13 +1,12 @@
 import hashlib
 import json
-from datetime import datetime
-from enum import Enum
-from typing import Any, Dict, List, Optional, Union
+from enum import StrEnum
+from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
 
-class OptimizationType(str, Enum):
+class OptimizationType(StrEnum):
     """Types of optimization."""
 
     WEIGHT_RECALIBRATION = "WEIGHT_RECALIBRATION"
@@ -16,7 +15,7 @@ class OptimizationType(str, Enum):
     POLICY_CHANGE = "POLICY_CHANGE"
 
 
-class ApprovalStatus(str, Enum):
+class ApprovalStatus(StrEnum):
     """Approval status."""
 
     AUTO_APPROVED = "AUTO_APPROVED"
@@ -33,8 +32,10 @@ class CausalAnalysis(BaseModel):
     root_cause: str = Field(default="", description="Root cause identified")
     confidence: float = Field(default=0.0, ge=0.0, le=1.0, description="Confidence score")
     confidence_score: float = Field(default=0.0, ge=0.0, le=1.0, description="Alias for confidence")
-    confounders: List[str] = Field(default_factory=list, description="Identified confounders")
-    contributing_factors: List[str] = Field(default_factory=list, description="Contributing factors")
+    confounders: list[str] = Field(default_factory=list, description="Identified confounders")
+    contributing_factors: list[str] = Field(
+        default_factory=list, description="Contributing factors"
+    )
     effect_size: float = Field(default=0.0, description="Effect size of causal relationship")
 
 
@@ -53,8 +54,10 @@ class RollbackPlan(BaseModel):
     """Rollback plan for optimization."""
 
     rollback_strategy: str = Field(..., description="Strategy for rollback")
-    rollback_steps: List[str] = Field(default_factory=list, description="Steps to rollback")
-    validation_criteria: List[str] = Field(default_factory=list, description="Criteria to validate rollback")
+    rollback_steps: list[str] = Field(default_factory=list, description="Steps to rollback")
+    validation_criteria: list[str] = Field(
+        default_factory=list, description="Criteria to validate rollback"
+    )
 
 
 class OptimizationEvent(BaseModel):
@@ -67,19 +70,27 @@ class OptimizationEvent(BaseModel):
     span_id: str = Field(default="", description="OpenTelemetry span ID")
     optimization_type: OptimizationType = Field(..., description="Type of optimization")
     target_component: str = Field(default="", description="Target component")
-    experiment_id: Optional[str] = Field(None, description="Reference to experiment")
+    experiment_id: str | None = Field(None, description="Reference to experiment")
     hypothesis: str = Field(default="", description="Hypothesis that was tested")
-    baseline_metrics: Dict[str, float] = Field(default_factory=dict, description="Metrics before optimization")
-    optimized_metrics: Dict[str, float] = Field(default_factory=dict, description="Metrics after optimization")
+    baseline_metrics: dict[str, float] = Field(
+        default_factory=dict, description="Metrics before optimization"
+    )
+    optimized_metrics: dict[str, float] = Field(
+        default_factory=dict, description="Metrics after optimization"
+    )
     improvement_percentage: float = Field(default=0.0, description="Percentage improvement")
-    causal_analysis: Optional[CausalAnalysis] = Field(None, description="Causal analysis evidence")
-    adjustments: List[Adjustment] = Field(default_factory=list, description="List of adjustments applied")
-    approval_status: ApprovalStatus = Field(default=ApprovalStatus.PENDING_REVIEW, description="Approval status")
-    approved_by: Optional[str] = Field(None, description="Agent that approved")
-    rollback_plan: Union[str, RollbackPlan] = Field(default="", description="Rollback plan")
-    applied_at: Optional[int] = Field(None, description="Timestamp (Unix millis)")
-    valid_until: Optional[int] = Field(None, description="Expiration timestamp")
-    metadata: Dict[str, str] = Field(default_factory=dict, description="Additional metadata")
+    causal_analysis: CausalAnalysis | None = Field(None, description="Causal analysis evidence")
+    adjustments: list[Adjustment] = Field(
+        default_factory=list, description="List of adjustments applied"
+    )
+    approval_status: ApprovalStatus = Field(
+        default=ApprovalStatus.PENDING_REVIEW, description="Approval status"
+    )
+    approved_by: str | None = Field(None, description="Agent that approved")
+    rollback_plan: str | RollbackPlan = Field(default="", description="Rollback plan")
+    applied_at: int | None = Field(None, description="Timestamp (Unix millis)")
+    valid_until: int | None = Field(None, description="Expiration timestamp")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Additional metadata")
     hash: str = Field(default="", description="SHA-256 hash for integrity")
     schema_version: int = Field(default=1, description="Schema structure version")
 
@@ -97,7 +108,7 @@ class OptimizationEvent(BaseModel):
         data_str = json.dumps(data, sort_keys=True)
         return hashlib.sha256(data_str.encode()).hexdigest()
 
-    def to_avro_dict(self) -> Dict[str, Any]:
+    def to_avro_dict(self) -> dict[str, Any]:
         """Convert to Avro-compatible dictionary."""
         data = self.model_dump()
         # Convert enums to strings
@@ -109,7 +120,7 @@ class OptimizationEvent(BaseModel):
         return data
 
     @classmethod
-    def from_avro_dict(cls, data: Dict[str, Any]) -> "OptimizationEvent":
+    def from_avro_dict(cls, data: dict[str, Any]) -> "OptimizationEvent":
         """Create instance from Avro dictionary."""
         # Convert nested structures
         if "causal_analysis" in data:

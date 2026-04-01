@@ -1,12 +1,12 @@
 """Consumidor base para Kafka."""
 
-import asyncio
 from abc import ABC, abstractmethod
-from typing import Callable, Awaitable
+from typing import Awaitable, Callable
 
-from aiokafka import AIOKafkaConsumer
-from src.config.settings import get_settings
 import structlog
+from aiokafka import AIOKafkaConsumer
+
+from src.config.settings import get_settings
 
 logger = structlog.get_logger(__name__)
 
@@ -33,9 +33,7 @@ class BaseKafkaConsumer(ABC):
         """Processa mensagem recebida."""
         pass
 
-    def register_callback(
-        self, callback: Callable[[dict], Awaitable[None]]
-    ) -> None:
+    def register_callback(self, callback: Callable[[dict], Awaitable[None]]) -> None:
         """Registra callback para processamento."""
         self._callbacks.append(callback)
 

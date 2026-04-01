@@ -11,7 +11,7 @@ Testa:
 import pytest
 import uuid
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any
 from unittest.mock import Mock, patch, MagicMock
 
@@ -176,7 +176,7 @@ class TestSchemaVersionManager:
             "correlation_id": str(uuid.uuid4()),
             "trace_id": None,
             "span_id": None,
-            "evaluated_at": datetime.utcnow().isoformat(),
+            "evaluated_at": datetime.now(timezone.utc).isoformat(),
             "processing_time_ms": 100,
             "buffered": False,
             "content_hash": "abc123",
@@ -369,7 +369,7 @@ class TestLedgerClientV2Integration:
             "specialist_type": "technical",
             "correlation_id": str(uuid.uuid4()),
             "opinion_data": {"test": "data"},
-            "timestamp": datetime.utcnow(),
+            "timestamp": datetime.now(timezone.utc),
             "hash": "legacy_hash_placeholder",
         }
 

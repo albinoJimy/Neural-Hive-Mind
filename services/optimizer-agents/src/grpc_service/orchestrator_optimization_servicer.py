@@ -5,7 +5,6 @@ Implementa os métodos RPC definidos em orchestrator_extensions.proto.
 Expõe APIs para que o Orchestrator Dynamic solicite otimizações de SLOs.
 """
 import time
-from typing import Dict, Optional
 
 import grpc
 import structlog
@@ -24,10 +23,13 @@ logger = structlog.get_logger()
 # Proto imports - disponíveis após `make proto` compilation
 try:
     from proto import orchestrator_extensions_pb2, orchestrator_extensions_pb2_grpc
+
     PROTO_AVAILABLE = True
 except ImportError:
     PROTO_AVAILABLE = False
-    logger.warning("orchestrator_proto_not_compiled", message="Run 'make proto' to compile protocol buffers")
+    logger.warning(
+        "orchestrator_proto_not_compiled", message="Run 'make proto' to compile protocol buffers"
+    )
 
 
 class OrchestratorOptimizationServicer(
@@ -42,11 +44,11 @@ class OrchestratorOptimizationServicer(
 
     def __init__(
         self,
-        slo_adjuster: Optional[SLOAdjuster] = None,
-        mongodb_client: Optional[MongoDBClient] = None,
-        redis_client: Optional[RedisClient] = None,
-        clickhouse_client: Optional[ClickHouseClient] = None,
-        orchestrator_client: Optional[OrchestratorGrpcClient] = None,
+        slo_adjuster: SLOAdjuster | None = None,
+        mongodb_client: MongoDBClient | None = None,
+        redis_client: RedisClient | None = None,
+        clickhouse_client: ClickHouseClient | None = None,
+        orchestrator_client: OrchestratorGrpcClient | None = None,
         load_predictor=None,
         scheduling_optimizer=None,
         settings=None,
@@ -109,9 +111,7 @@ class OrchestratorOptimizationServicer(
                     query["service"] = service
 
                 cursor = await self.mongodb_client.find(
-                    "slo_configs",
-                    query,
-                    sort=[("last_updated_at", -1)]
+                    "slo_configs", query, sort=[("last_updated_at", -1)]
                 )
 
                 async for doc in cursor:
@@ -134,7 +134,7 @@ class OrchestratorOptimizationServicer(
                         await self.redis_client.set_json(
                             cache_key,
                             {"slos": slos, "last_updated_at": last_updated_at},
-                            ttl=self.settings.redis_cache_ttl
+                            ttl=self.settings.redis_cache_ttl,
                         )
                     except Exception as e:
                         logger.warning("redis_cache_set_error", error=str(e))
@@ -221,7 +221,11 @@ class OrchestratorOptimizationServicer(
             justification = request.justification
             optimization_id = request.optimization_id
             validate_before_apply = request.validate_before_apply
-            gradual_rollout = request.gradual_rollout_percentage if request.HasField("gradual_rollout_percentage") else None
+            gradual_rollout = (
+                request.gradual_rollout_percentage
+                if request.HasField("gradual_rollout_percentage")
+                else None
+            )
 
             logger.info(
                 "update_slos_requested",
@@ -258,7 +262,7 @@ class OrchestratorOptimizationServicer(
                     prev_doc = await self.mongodb_client.find_one(
                         "slo_configs",
                         {"service": service, "active": True},
-                        sort=[("last_updated_at", -1)]
+                        sort=[("last_updated_at", -1)],
                     )
                     if prev_doc:
                         previous_slos[service] = {
@@ -275,14 +279,15 @@ class OrchestratorOptimizationServicer(
             if self.load_predictor:
                 try:
                     load_forecast = await self.load_predictor.predict_load(
-                        horizon_minutes=60,
-                        include_confidence_intervals=True
+                        horizon_minutes=60, include_confidence_intervals=True
                     )
                     # Ajustar expected_improvement baseado na previsão
                     if load_forecast:
                         forecast_data = load_forecast.get("forecast", [])
                         if forecast_data:
-                            avg_load = sum(p.get("predicted_load", 0) for p in forecast_data) / len(forecast_data)
+                            avg_load = sum(p.get("predicted_load", 0) for p in forecast_data) / len(
+                                forecast_data
+                            )
                             expected_improvement = min(0.3, 0.05 + avg_load * 0.001)
                 except Exception as e:
                     logger.warning("load_forecast_for_slo_failed", error=str(e))
@@ -315,7 +320,8 @@ class OrchestratorOptimizationServicer(
                         proposed_adjustments=[
                             {"parameter": k, "new_value": v}
                             for k, v in slo_config.items()
-                            if k in ["target_latency_ms", "target_availability", "target_error_rate"]
+                            if k
+                            in ["target_latency_ms", "target_availability", "target_error_rate"]
                         ],
                         baseline_metrics=previous_slos.get(service, {}),
                         expected_improvement=expected_improvement,
@@ -333,7 +339,9 @@ class OrchestratorOptimizationServicer(
                                 service=service,
                             )
                         else:
-                            apply_error_message = f"SLOAdjuster failed to apply adjustment for {service}"
+                            apply_error_message = (
+                                f"SLOAdjuster failed to apply adjustment for {service}"
+                            )
                             logger.error(
                                 "slo_adjustment_via_adjuster_failed",
                                 optimization_id=optimization_id,
@@ -392,7 +400,7 @@ class OrchestratorOptimizationServicer(
                 if self.metrics:
                     self.metrics.increment_counter(
                         "orchestrator_slo_updates_total",
-                        {"service": "all", "status": "application_failed"}
+                        {"service": "all", "status": "application_failed"},
                     )
 
                 context.set_code(grpc.StatusCode.FAILED_PRECONDITION)
@@ -408,7 +416,10 @@ class OrchestratorOptimizationServicer(
                         is_gradual_rollout=False,
                     )
                 else:
-                    return {"success": False, "message": f"Falha ao aplicar SLOs: {apply_error_message}"}
+                    return {
+                        "success": False,
+                        "message": f"Falha ao aplicar SLOs: {apply_error_message}",
+                    }
 
             applied_at = int(time.time() * 1000)
             is_gradual = gradual_rollout is not None and gradual_rollout < 100
@@ -420,7 +431,7 @@ class OrchestratorOptimizationServicer(
                     await self.mongodb_client.update_many(
                         "slo_configs",
                         {"service": service, "active": True},
-                        {"$set": {"active": False}}
+                        {"$set": {"active": False}},
                     )
 
                     # Inserir novos SLOs
@@ -437,7 +448,7 @@ class OrchestratorOptimizationServicer(
                             "gradual_rollout_percentage": gradual_rollout,
                             "last_updated_at": applied_at,
                             "active": True,
-                        }
+                        },
                     )
 
                     # Registrar no histórico
@@ -453,7 +464,7 @@ class OrchestratorOptimizationServicer(
                             "rl_confidence": rl_confidence,
                             "load_forecast": load_forecast,
                             "was_rolled_back": False,
-                        }
+                        },
                     )
 
             # Atualizar cache após aplicação e persistência bem-sucedidas
@@ -480,8 +491,7 @@ class OrchestratorOptimizationServicer(
             if self.metrics:
                 for service in slo_updates.keys():
                     self.metrics.increment_counter(
-                        "orchestrator_slo_updates_total",
-                        {"service": service, "status": "success"}
+                        "orchestrator_slo_updates_total", {"service": service, "status": "success"}
                     )
 
             logger.info(
@@ -533,12 +543,13 @@ class OrchestratorOptimizationServicer(
                 }
 
         except Exception as e:
-            logger.error("update_slos_failed", optimization_id=request.optimization_id, error=str(e))
+            logger.error(
+                "update_slos_failed", optimization_id=request.optimization_id, error=str(e)
+            )
 
             if self.metrics:
                 self.metrics.increment_counter(
-                    "orchestrator_slo_updates_total",
-                    {"service": "all", "status": "error"}
+                    "orchestrator_slo_updates_total", {"service": "all", "status": "error"}
                 )
 
             context.set_code(grpc.StatusCode.INTERNAL)
@@ -580,13 +591,15 @@ class OrchestratorOptimizationServicer(
             if PROTO_AVAILABLE:
                 errors = []
                 for error in result.get("errors", []):
-                    errors.append(orchestrator_extensions_pb2.SLOValidationError(
-                        service=error.get("service", ""),
-                        field=error.get("field", ""),
-                        description=error.get("description", ""),
-                        proposed_value=str(error.get("proposed_value", "")),
-                        allowed_range=str(error.get("allowed_range", "")),
-                    ))
+                    errors.append(
+                        orchestrator_extensions_pb2.SLOValidationError(
+                            service=error.get("service", ""),
+                            field=error.get("field", ""),
+                            description=error.get("description", ""),
+                            proposed_value=str(error.get("proposed_value", "")),
+                            allowed_range=str(error.get("allowed_range", "")),
+                        )
+                    )
 
                 impact_assessment = {}
                 for service, impact in result.get("impact_assessment", {}).items():
@@ -672,9 +685,7 @@ class OrchestratorOptimizationServicer(
 
                 # Restaurar SLOs anteriores
                 await self.mongodb_client.update_many(
-                    "slo_configs",
-                    {"service": service, "active": True},
-                    {"$set": {"active": False}}
+                    "slo_configs", {"service": service, "active": True}, {"$set": {"active": False}}
                 )
 
                 await self.mongodb_client.insert_one(
@@ -688,14 +699,14 @@ class OrchestratorOptimizationServicer(
                         "active": True,
                         "is_rollback": True,
                         "original_optimization_id": optimization_id,
-                    }
+                    },
                 )
 
                 # Marcar ajuste como revertido
                 await self.mongodb_client.update_one(
                     "slo_adjustments",
                     {"optimization_id": optimization_id, "service": service},
-                    {"$set": {"was_rolled_back": True, "rolled_back_at": rolled_back_at}}
+                    {"$set": {"was_rolled_back": True, "rolled_back_at": rolled_back_at}},
                 )
 
                 restored_slos[service] = slo_before
@@ -712,8 +723,7 @@ class OrchestratorOptimizationServicer(
             # Métricas
             if self.metrics:
                 self.metrics.increment_counter(
-                    "orchestrator_slo_rollbacks_total",
-                    {"optimization_id": optimization_id}
+                    "orchestrator_slo_rollbacks_total", {"optimization_id": optimization_id}
                 )
 
             logger.info(
@@ -748,7 +758,9 @@ class OrchestratorOptimizationServicer(
                 }
 
         except Exception as e:
-            logger.error("rollback_slos_failed", optimization_id=request.optimization_id, error=str(e))
+            logger.error(
+                "rollback_slos_failed", optimization_id=request.optimization_id, error=str(e)
+            )
             if not context.code():
                 context.set_code(grpc.StatusCode.INTERNAL)
                 context.set_details(f"Falha no rollback: {str(e)}")
@@ -769,7 +781,9 @@ class OrchestratorOptimizationServicer(
             service = request.service
             time_range = request.time_range or "1h"
 
-            logger.info("get_slo_compliance_metrics_requested", service=service, time_range=time_range)
+            logger.info(
+                "get_slo_compliance_metrics_requested", service=service, time_range=time_range
+            )
 
             time_seconds = self._parse_time_range(time_range)
 
@@ -822,8 +836,7 @@ class OrchestratorOptimizationServicer(
             # Calcular compliance por métrica
             if self.mongodb_client:
                 slo_doc = await self.mongodb_client.find_one(
-                    "slo_configs",
-                    {"service": service, "active": True}
+                    "slo_configs", {"service": service, "active": True}
                 )
                 if slo_doc:
                     target_latency = slo_doc.get("target_latency_ms", 1000)
@@ -831,7 +844,9 @@ class OrchestratorOptimizationServicer(
                     target_error_rate = slo_doc.get("target_error_rate", 0.01)
 
                     # Latency compliance
-                    latency_compliance = min(1.0, target_latency / max(metrics_data["p95_latency_ms"], 1))
+                    latency_compliance = min(
+                        1.0, target_latency / max(metrics_data["p95_latency_ms"], 1)
+                    )
                     metrics_data["metric_compliance"]["latency"] = {
                         "metric_name": "latency_p95",
                         "target_value": target_latency,
@@ -841,7 +856,9 @@ class OrchestratorOptimizationServicer(
                     }
 
                     # Availability compliance
-                    availability_compliance = min(1.0, metrics_data["availability"] / target_availability)
+                    availability_compliance = min(
+                        1.0, metrics_data["availability"] / target_availability
+                    )
                     metrics_data["metric_compliance"]["availability"] = {
                         "metric_name": "availability",
                         "target_value": target_availability,
@@ -851,7 +868,9 @@ class OrchestratorOptimizationServicer(
                     }
 
                     # Error rate compliance
-                    error_rate_compliance = min(1.0, target_error_rate / max(metrics_data["error_rate"], 0.001))
+                    error_rate_compliance = min(
+                        1.0, target_error_rate / max(metrics_data["error_rate"], 0.001)
+                    )
                     metrics_data["metric_compliance"]["error_rate"] = {
                         "metric_name": "error_rate",
                         "target_value": target_error_rate,
@@ -929,8 +948,7 @@ class OrchestratorOptimizationServicer(
             # Calcular error budget baseado em SLO e métricas reais
             if self.mongodb_client:
                 slo_doc = await self.mongodb_client.find_one(
-                    "slo_configs",
-                    {"service": service, "active": True}
+                    "slo_configs", {"service": service, "active": True}
                 )
 
                 if slo_doc:
@@ -941,8 +959,7 @@ class OrchestratorOptimizationServicer(
                     # Buscar violations do último mês
                     month_ago = int(time.time() * 1000) - 2592000000
                     violation_count = await self.mongodb_client.count(
-                        "slo_violations",
-                        {"service": service, "timestamp": {"$gte": month_ago}}
+                        "slo_violations", {"service": service, "timestamp": {"$gte": month_ago}}
                     )
 
                     # Estimar budget consumido (simplificado)
@@ -951,7 +968,9 @@ class OrchestratorOptimizationServicer(
 
                     budget_data["total_budget"] = total_budget
                     budget_data["consumed_budget"] = consumed
-                    budget_data["remaining_budget_percentage"] = (remaining / total_budget) if total_budget > 0 else 1.0
+                    budget_data["remaining_budget_percentage"] = (
+                        (remaining / total_budget) if total_budget > 0 else 1.0
+                    )
 
                     # Calcular burn rate
                     if self.clickhouse_client:
@@ -965,7 +984,9 @@ class OrchestratorOptimizationServicer(
                                 """
                             )
                             if result and len(result) > 0:
-                                budget_data["burn_rate_per_hour"] = result[0].get("burn_rate", 0.001)
+                                budget_data["burn_rate_per_hour"] = result[0].get(
+                                    "burn_rate", 0.001
+                                )
                         except Exception as e:
                             logger.warning("clickhouse_burn_rate_query_failed", error=str(e))
 
@@ -975,7 +996,11 @@ class OrchestratorOptimizationServicer(
                             (remaining / budget_data["burn_rate_per_hour"]) * 3600
                         )
 
-            logger.info("error_budget_retrieved", service=service, remaining=budget_data["remaining_budget_percentage"])
+            logger.info(
+                "error_budget_retrieved",
+                service=service,
+                remaining=budget_data["remaining_budget_percentage"],
+            )
 
             if PROTO_AVAILABLE:
                 response = orchestrator_extensions_pb2.GetErrorBudgetResponse(
@@ -987,7 +1012,9 @@ class OrchestratorOptimizationServicer(
                     burn_rate_per_hour=budget_data["burn_rate_per_hour"],
                 )
                 if budget_data["estimated_depletion_seconds"] is not None:
-                    response.estimated_depletion_seconds = budget_data["estimated_depletion_seconds"]
+                    response.estimated_depletion_seconds = budget_data[
+                        "estimated_depletion_seconds"
+                    ]
                 return response
             else:
                 return budget_data
@@ -1040,17 +1067,19 @@ class OrchestratorOptimizationServicer(
                 )
 
                 async for doc in cursor:
-                    adjustments.append({
-                        "optimization_id": doc.get("optimization_id", ""),
-                        "adjusted_at": doc.get("adjusted_at", 0),
-                        "service": doc.get("service", ""),
-                        "slo_before": doc.get("slo_before", {}),
-                        "slo_after": doc.get("slo_after", {}),
-                        "justification": doc.get("justification", ""),
-                        "compliance_before": doc.get("compliance_before"),
-                        "compliance_after": doc.get("compliance_after"),
-                        "was_rolled_back": doc.get("was_rolled_back", False),
-                    })
+                    adjustments.append(
+                        {
+                            "optimization_id": doc.get("optimization_id", ""),
+                            "adjusted_at": doc.get("adjusted_at", 0),
+                            "service": doc.get("service", ""),
+                            "slo_before": doc.get("slo_before", {}),
+                            "slo_after": doc.get("slo_after", {}),
+                            "justification": doc.get("justification", ""),
+                            "compliance_before": doc.get("compliance_before"),
+                            "compliance_after": doc.get("compliance_after"),
+                            "was_rolled_back": doc.get("was_rolled_back", False),
+                        }
+                    )
 
             logger.info("slo_history_retrieved", count=len(adjustments), total=total)
 
@@ -1069,22 +1098,26 @@ class OrchestratorOptimizationServicer(
                     )
 
                     if slo_before:
-                        adjustment_proto.slo_before.CopyFrom(orchestrator_extensions_pb2.SLOConfig(
-                            target_latency_ms=slo_before.get("target_latency_ms", 1000),
-                            target_availability=slo_before.get("target_availability", 0.999),
-                            target_error_rate=slo_before.get("target_error_rate", 0.01),
-                            latency_percentile=slo_before.get("latency_percentile", 0.95),
-                            time_window_seconds=slo_before.get("time_window_seconds", 60),
-                        ))
+                        adjustment_proto.slo_before.CopyFrom(
+                            orchestrator_extensions_pb2.SLOConfig(
+                                target_latency_ms=slo_before.get("target_latency_ms", 1000),
+                                target_availability=slo_before.get("target_availability", 0.999),
+                                target_error_rate=slo_before.get("target_error_rate", 0.01),
+                                latency_percentile=slo_before.get("latency_percentile", 0.95),
+                                time_window_seconds=slo_before.get("time_window_seconds", 60),
+                            )
+                        )
 
                     if slo_after:
-                        adjustment_proto.slo_after.CopyFrom(orchestrator_extensions_pb2.SLOConfig(
-                            target_latency_ms=slo_after.get("target_latency_ms", 1000),
-                            target_availability=slo_after.get("target_availability", 0.999),
-                            target_error_rate=slo_after.get("target_error_rate", 0.01),
-                            latency_percentile=slo_after.get("latency_percentile", 0.95),
-                            time_window_seconds=slo_after.get("time_window_seconds", 60),
-                        ))
+                        adjustment_proto.slo_after.CopyFrom(
+                            orchestrator_extensions_pb2.SLOConfig(
+                                target_latency_ms=slo_after.get("target_latency_ms", 1000),
+                                target_availability=slo_after.get("target_availability", 0.999),
+                                target_error_rate=slo_after.get("target_error_rate", 0.01),
+                                latency_percentile=slo_after.get("latency_percentile", 0.95),
+                                time_window_seconds=slo_after.get("time_window_seconds", 60),
+                            )
+                        )
 
                     if adj.get("compliance_before") is not None:
                         adjustment_proto.compliance_before = adj["compliance_before"]
@@ -1106,7 +1139,9 @@ class OrchestratorOptimizationServicer(
             context.set_details(f"Falha ao obter histórico: {str(e)}")
             raise
 
-    async def _validate_slos(self, proposed_slos: Dict[str, Dict], check_error_budget: bool = True) -> Dict:
+    async def _validate_slos(
+        self, proposed_slos: dict[str, dict], check_error_budget: bool = True
+    ) -> dict:
         """
         Validar SLOs propostos.
 
@@ -1125,41 +1160,53 @@ class OrchestratorOptimizationServicer(
             # Validar latência
             latency = slo_config.get("target_latency_ms", 0)
             if latency < 100:
-                errors.append({
-                    "service": service,
-                    "field": "target_latency_ms",
-                    "description": "Latência mínima é 100ms",
-                    "proposed_value": latency,
-                    "allowed_range": ">= 100ms",
-                })
+                errors.append(
+                    {
+                        "service": service,
+                        "field": "target_latency_ms",
+                        "description": "Latência mínima é 100ms",
+                        "proposed_value": latency,
+                        "allowed_range": ">= 100ms",
+                    }
+                )
             elif latency < 200:
-                warnings.append(f"Latência muito baixa ({latency}ms) para {service}, pode causar SLO violations")
+                warnings.append(
+                    f"Latência muito baixa ({latency}ms) para {service}, pode causar SLO violations"
+                )
 
             # Validar disponibilidade
             availability = slo_config.get("target_availability", 0)
             if availability < 0.95:
-                errors.append({
-                    "service": service,
-                    "field": "target_availability",
-                    "description": "Disponibilidade mínima é 0.95 (95%)",
-                    "proposed_value": availability,
-                    "allowed_range": ">= 0.95",
-                })
+                errors.append(
+                    {
+                        "service": service,
+                        "field": "target_availability",
+                        "description": "Disponibilidade mínima é 0.95 (95%)",
+                        "proposed_value": availability,
+                        "allowed_range": ">= 0.95",
+                    }
+                )
             elif availability > 0.9999:
-                warnings.append(f"Disponibilidade muito alta ({availability}) para {service}, pode ser inatingível")
+                warnings.append(
+                    f"Disponibilidade muito alta ({availability}) para {service}, pode ser inatingível"
+                )
 
             # Validar error rate
             error_rate = slo_config.get("target_error_rate", 0)
             if error_rate > 0.10:
-                errors.append({
-                    "service": service,
-                    "field": "target_error_rate",
-                    "description": "Error rate máximo é 0.10 (10%)",
-                    "proposed_value": error_rate,
-                    "allowed_range": "<= 0.10",
-                })
+                errors.append(
+                    {
+                        "service": service,
+                        "field": "target_error_rate",
+                        "description": "Error rate máximo é 0.10 (10%)",
+                        "proposed_value": error_rate,
+                        "allowed_range": "<= 0.10",
+                    }
+                )
             elif error_rate < 0.001:
-                warnings.append(f"Error rate muito baixo ({error_rate}) para {service}, pode ser inatingível")
+                warnings.append(
+                    f"Error rate muito baixo ({error_rate}) para {service}, pode ser inatingível"
+                )
 
             # Verificar error budget se solicitado
             if check_error_budget and self.mongodb_client:
@@ -1167,14 +1214,15 @@ class OrchestratorOptimizationServicer(
                     # Simplificado: verificar se há budget suficiente
                     month_ago = int(time.time() * 1000) - 2592000000
                     violation_count = await self.mongodb_client.count(
-                        "slo_violations",
-                        {"service": service, "timestamp": {"$gte": month_ago}}
+                        "slo_violations", {"service": service, "timestamp": {"$gte": month_ago}}
                     )
 
                     target_availability = slo_config.get("target_availability", 0.999)
                     total_budget = 1 - target_availability
                     consumed = min(total_budget, violation_count * 0.0001)
-                    remaining_pct = (total_budget - consumed) / total_budget if total_budget > 0 else 1.0
+                    remaining_pct = (
+                        (total_budget - consumed) / total_budget if total_budget > 0 else 1.0
+                    )
 
                     if remaining_pct < 0.2:
                         warnings.append(
@@ -1195,19 +1243,26 @@ class OrchestratorOptimizationServicer(
             # Buscar SLO atual para calcular deltas
             if self.mongodb_client:
                 current_slo = await self.mongodb_client.find_one(
-                    "slo_configs",
-                    {"service": service, "active": True}
+                    "slo_configs", {"service": service, "active": True}
                 )
                 if current_slo:
                     current_latency = current_slo.get("target_latency_ms", 1000)
                     current_availability = current_slo.get("target_availability", 0.999)
 
-                    latency_delta = (latency - current_latency) / current_latency if current_latency > 0 else 0
-                    availability_delta = (availability - current_availability) / current_availability if current_availability > 0 else 0
+                    latency_delta = (
+                        (latency - current_latency) / current_latency if current_latency > 0 else 0
+                    )
+                    availability_delta = (
+                        (availability - current_availability) / current_availability
+                        if current_availability > 0
+                        else 0
+                    )
 
                     impact_assessment[service]["latency_impact"] = latency_delta
                     impact_assessment[service]["availability_impact"] = availability_delta
-                    impact_assessment[service]["estimated_risk"] = abs(latency_delta) * 0.3 + abs(availability_delta) * 0.7
+                    impact_assessment[service]["estimated_risk"] = (
+                        abs(latency_delta) * 0.3 + abs(availability_delta) * 0.7
+                    )
 
         is_valid = len(errors) == 0
         message = "Validação bem-sucedida" if is_valid else f"{len(errors)} erro(s) encontrado(s)"
@@ -1242,7 +1297,7 @@ class OrchestratorOptimizationServicer(
         except ValueError:
             return 3600  # Default: 1 hora
 
-    def _get_current_state(self, slo_updates: Dict) -> str:
+    def _get_current_state(self, slo_updates: dict) -> str:
         """
         Obter estado atual para consulta de Q-values.
 

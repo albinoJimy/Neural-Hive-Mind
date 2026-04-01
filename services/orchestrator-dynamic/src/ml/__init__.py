@@ -14,39 +14,39 @@ Components:
 Version: 1.0.0
 """
 
-__version__ = '1.0.0'
+__version__ = "1.0.0"
 
-from .duration_predictor import DurationPredictor
 from .anomaly_detector import AnomalyDetector
-from .model_registry import ModelRegistry
-from .ml_predictor import MLPredictor
-from .training_pipeline import TrainingPipeline
-from .model_promotion import ModelPromotionManager
-from .model_comparator import ModelComparator, ComparisonResult
-from .model_audit_logger import ModelAuditLogger, AuditEventContext, ModelLifecycleEvent
+from .duration_predictor import DurationPredictor
 from .feature_engineering import (
-    extract_ticket_features,
-    encode_risk_band,
-    encode_qos,
     compute_historical_stats,
-    normalize_features
+    encode_qos,
+    encode_risk_band,
+    extract_ticket_features,
+    normalize_features,
 )
+from .ml_predictor import MLPredictor
+from .model_audit_logger import AuditEventContext, ModelAuditLogger, ModelLifecycleEvent
+from .model_comparator import ComparisonResult, ModelComparator
+from .model_promotion import ModelPromotionManager
+from .model_registry import ModelRegistry
+from .training_pipeline import TrainingPipeline
 
 __all__ = [
-    'DurationPredictor',
-    'AnomalyDetector',
-    'ModelRegistry',
-    'MLPredictor',
-    'TrainingPipeline',
-    'ModelPromotionManager',
-    'ModelComparator',
-    'ComparisonResult',
-    'ModelAuditLogger',
-    'AuditEventContext',
-    'ModelLifecycleEvent',
-    'extract_ticket_features',
-    'encode_risk_band',
-    'encode_qos',
-    'compute_historical_stats',
-    'normalize_features'
+    "AnomalyDetector",
+    "AuditEventContext",
+    "ComparisonResult",
+    "DurationPredictor",
+    "MLPredictor",
+    "ModelAuditLogger",
+    "ModelComparator",
+    "ModelLifecycleEvent",
+    "ModelPromotionManager",
+    "ModelRegistry",
+    "TrainingPipeline",
+    "compute_historical_stats",
+    "encode_qos",
+    "encode_risk_band",
+    "extract_ticket_features",
+    "normalize_features",
 ]

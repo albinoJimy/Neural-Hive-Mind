@@ -11,9 +11,9 @@ import re
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
-import structlog
+from typing import Any
 
+import structlog
 
 logger = structlog.get_logger()
 
@@ -21,35 +21,37 @@ logger = structlog.get_logger()
 @dataclass
 class TestCase:
     """Representa um caso de teste individual."""
+
     name: str
     classname: str
     time: float
     status: str  # 'passed', 'failed', 'skipped', 'error'
-    message: Optional[str] = None
-    stack_trace: Optional[str] = None
-    stdout: Optional[str] = None
-    stderr: Optional[str] = None
+    message: str | None = None
+    stack_trace: str | None = None
+    stdout: str | None = None
+    stderr: str | None = None
 
     @property
     def passed(self) -> bool:
-        return self.status == 'passed'
+        return self.status == "passed"
 
     @property
     def failed(self) -> bool:
-        return self.status == 'failed'
+        return self.status == "failed"
 
 
 @dataclass
 class TestResults:
     """Resultado agregado de testes."""
+
     total: int
     passed: int
     failed: int
     skipped: int
     errors: int
     duration_seconds: float
-    test_cases: List[TestCase] = field(default_factory=list)
-    test_suites: List[Dict[str, Any]] = field(default_factory=list)
+    test_cases: list[TestCase] = field(default_factory=list)
+    test_suites: list[dict[str, Any]] = field(default_factory=list)
 
     @property
     def success_rate(self) -> float:
@@ -61,48 +63,49 @@ class TestResults:
     def all_passed(self) -> bool:
         return self.failed == 0 and self.errors == 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
-            'total': self.total,
-            'passed': self.passed,
-            'failed': self.failed,
-            'skipped': self.skipped,
-            'errors': self.errors,
-            'duration_seconds': self.duration_seconds,
-            'success_rate': self.success_rate,
-            'all_passed': self.all_passed,
-            'test_cases_count': len(self.test_cases)
+            "total": self.total,
+            "passed": self.passed,
+            "failed": self.failed,
+            "skipped": self.skipped,
+            "errors": self.errors,
+            "duration_seconds": self.duration_seconds,
+            "success_rate": self.success_rate,
+            "all_passed": self.all_passed,
+            "test_cases_count": len(self.test_cases),
         }
 
 
 @dataclass
 class CoverageResults:
     """Resultado de coverage."""
+
     line_coverage: float  # Percentual 0-100
-    branch_coverage: Optional[float] = None
-    function_coverage: Optional[float] = None
+    branch_coverage: float | None = None
+    function_coverage: float | None = None
     lines_covered: int = 0
     lines_total: int = 0
     branches_covered: int = 0
     branches_total: int = 0
     functions_covered: int = 0
     functions_total: int = 0
-    complexity: Optional[int] = None
-    files: List[Dict[str, Any]] = field(default_factory=list)
+    complexity: int | None = None
+    files: list[dict[str, Any]] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
-            'line_coverage': self.line_coverage,
-            'branch_coverage': self.branch_coverage,
-            'function_coverage': self.function_coverage,
-            'lines_covered': self.lines_covered,
-            'lines_total': self.lines_total,
-            'branches_covered': self.branches_covered,
-            'branches_total': self.branches_total,
-            'functions_covered': self.functions_covered,
-            'functions_total': self.functions_total,
-            'complexity': self.complexity,
-            'files_count': len(self.files)
+            "line_coverage": self.line_coverage,
+            "branch_coverage": self.branch_coverage,
+            "function_coverage": self.function_coverage,
+            "lines_covered": self.lines_covered,
+            "lines_total": self.lines_total,
+            "branches_covered": self.branches_covered,
+            "branches_total": self.branches_total,
+            "functions_covered": self.functions_covered,
+            "functions_total": self.functions_total,
+            "complexity": self.complexity,
+            "files_count": len(self.files),
         }
 
 
@@ -119,9 +122,9 @@ class JUnitXMLParser:
     """
 
     def __init__(self):
-        self.logger = logger.bind(parser='junit_xml')
+        self.logger = logger.bind(parser="junit_xml")
 
-    def parse(self, content: Union[str, bytes]) -> TestResults:
+    def parse(self, content: str | bytes) -> TestResults:
         """
         Parseia conteudo JUnit XML.
 
@@ -135,16 +138,16 @@ class JUnitXMLParser:
             ValueError: Se XML for invalido
         """
         if isinstance(content, bytes):
-            content = content.decode('utf-8', errors='replace')
+            content = content.decode("utf-8", errors="replace")
 
         try:
             root = ET.fromstring(content)
         except ET.ParseError as e:
-            self.logger.error('junit_xml_parse_error', error=str(e))
-            raise ValueError(f'Invalid JUnit XML: {e}')
+            self.logger.exception("junit_xml_parse_error", error=str(e))
+            raise ValueError(f"Invalid JUnit XML: {e}")
 
-        test_cases: List[TestCase] = []
-        test_suites: List[Dict[str, Any]] = []
+        test_cases: list[TestCase] = []
+        test_suites: list[dict[str, Any]] = []
         total_tests = 0
         total_passed = 0
         total_failed = 0
@@ -153,30 +156,32 @@ class JUnitXMLParser:
         total_time = 0.0
 
         # Handle both <testsuites> (multiple) and <testsuite> (single) root elements
-        if root.tag == 'testsuites':
-            suites = root.findall('testsuite')
-        elif root.tag == 'testsuite':
+        if root.tag == "testsuites":
+            suites = root.findall("testsuite")
+        elif root.tag == "testsuite":
             suites = [root]
         else:
-            self.logger.warning('junit_xml_unknown_root', tag=root.tag)
+            self.logger.warning("junit_xml_unknown_root", tag=root.tag)
             suites = []
 
         for suite in suites:
-            suite_name = suite.get('name', 'unknown')
-            suite_tests = int(suite.get('tests', 0))
-            suite_failures = int(suite.get('failures', 0))
-            suite_errors = int(suite.get('errors', 0))
-            suite_skipped = int(suite.get('skipped', 0))
-            suite_time = float(suite.get('time', 0))
+            suite_name = suite.get("name", "unknown")
+            suite_tests = int(suite.get("tests", 0))
+            suite_failures = int(suite.get("failures", 0))
+            suite_errors = int(suite.get("errors", 0))
+            suite_skipped = int(suite.get("skipped", 0))
+            suite_time = float(suite.get("time", 0))
 
-            test_suites.append({
-                'name': suite_name,
-                'tests': suite_tests,
-                'failures': suite_failures,
-                'errors': suite_errors,
-                'skipped': suite_skipped,
-                'time': suite_time
-            })
+            test_suites.append(
+                {
+                    "name": suite_name,
+                    "tests": suite_tests,
+                    "failures": suite_failures,
+                    "errors": suite_errors,
+                    "skipped": suite_skipped,
+                    "time": suite_time,
+                }
+            )
 
             total_tests += suite_tests
             total_failed += suite_failures
@@ -184,33 +189,33 @@ class JUnitXMLParser:
             total_skipped += suite_skipped
             total_time += suite_time
 
-            for testcase in suite.findall('testcase'):
+            for testcase in suite.findall("testcase"):
                 case = self._parse_testcase(testcase)
                 test_cases.append(case)
 
                 # Count passed tests (not failed, error, or skipped)
-                if case.status == 'passed':
+                if case.status == "passed":
                     total_passed += 1
 
         # If no explicit test count from attributes, calculate from test cases
         if total_tests == 0 and test_cases:
             total_tests = len(test_cases)
-            total_passed = sum(1 for tc in test_cases if tc.status == 'passed')
-            total_failed = sum(1 for tc in test_cases if tc.status == 'failed')
-            total_errors = sum(1 for tc in test_cases if tc.status == 'error')
-            total_skipped = sum(1 for tc in test_cases if tc.status == 'skipped')
+            total_passed = sum(1 for tc in test_cases if tc.status == "passed")
+            total_failed = sum(1 for tc in test_cases if tc.status == "failed")
+            total_errors = sum(1 for tc in test_cases if tc.status == "error")
+            total_skipped = sum(1 for tc in test_cases if tc.status == "skipped")
         elif total_tests > 0:
             # Calculate passed from totals
             total_passed = total_tests - total_failed - total_errors - total_skipped
 
         self.logger.info(
-            'junit_xml_parsed',
+            "junit_xml_parsed",
             total=total_tests,
             passed=total_passed,
             failed=total_failed,
             errors=total_errors,
             skipped=total_skipped,
-            suites=len(test_suites)
+            suites=len(test_suites),
         )
 
         return TestResults(
@@ -221,40 +226,40 @@ class JUnitXMLParser:
             errors=total_errors,
             duration_seconds=total_time,
             test_cases=test_cases,
-            test_suites=test_suites
+            test_suites=test_suites,
         )
 
     def _parse_testcase(self, element: ET.Element) -> TestCase:
         """Parseia um elemento <testcase>."""
-        name = element.get('name', 'unknown')
-        classname = element.get('classname', '')
-        time = float(element.get('time', 0))
+        name = element.get("name", "unknown")
+        classname = element.get("classname", "")
+        time = float(element.get("time", 0))
 
         # Determine status
-        status = 'passed'
+        status = "passed"
         message = None
         stack_trace = None
 
-        failure = element.find('failure')
+        failure = element.find("failure")
         if failure is not None:
-            status = 'failed'
-            message = failure.get('message', '')
+            status = "failed"
+            message = failure.get("message", "")
             stack_trace = failure.text
 
-        error = element.find('error')
+        error = element.find("error")
         if error is not None:
-            status = 'error'
-            message = error.get('message', '')
+            status = "error"
+            message = error.get("message", "")
             stack_trace = error.text
 
-        skipped = element.find('skipped')
+        skipped = element.find("skipped")
         if skipped is not None:
-            status = 'skipped'
-            message = skipped.get('message', skipped.text)
+            status = "skipped"
+            message = skipped.get("message", skipped.text)
 
         # Get stdout/stderr if present
-        stdout_el = element.find('system-out')
-        stderr_el = element.find('system-err')
+        stdout_el = element.find("system-out")
+        stderr_el = element.find("system-err")
 
         return TestCase(
             name=name,
@@ -264,10 +269,10 @@ class JUnitXMLParser:
             message=message,
             stack_trace=stack_trace,
             stdout=stdout_el.text if stdout_el is not None else None,
-            stderr=stderr_el.text if stderr_el is not None else None
+            stderr=stderr_el.text if stderr_el is not None else None,
         )
 
-    def parse_file(self, file_path: Union[str, Path]) -> TestResults:
+    def parse_file(self, file_path: str | Path) -> TestResults:
         """
         Parseia arquivo JUnit XML.
 
@@ -279,9 +284,9 @@ class JUnitXMLParser:
         """
         path = Path(file_path)
         if not path.exists():
-            raise FileNotFoundError(f'JUnit XML file not found: {file_path}')
+            raise FileNotFoundError(f"JUnit XML file not found: {file_path}")
 
-        content = path.read_text(encoding='utf-8', errors='replace')
+        content = path.read_text(encoding="utf-8", errors="replace")
         return self.parse(content)
 
 
@@ -297,9 +302,9 @@ class CoberturaXMLParser:
     """
 
     def __init__(self):
-        self.logger = logger.bind(parser='cobertura_xml')
+        self.logger = logger.bind(parser="cobertura_xml")
 
-    def parse(self, content: Union[str, bytes]) -> CoverageResults:
+    def parse(self, content: str | bytes) -> CoverageResults:
         """
         Parseia conteudo Cobertura XML.
 
@@ -313,18 +318,18 @@ class CoberturaXMLParser:
             ValueError: Se XML for invalido
         """
         if isinstance(content, bytes):
-            content = content.decode('utf-8', errors='replace')
+            content = content.decode("utf-8", errors="replace")
 
         try:
             root = ET.fromstring(content)
         except ET.ParseError as e:
-            self.logger.error('cobertura_xml_parse_error', error=str(e))
-            raise ValueError(f'Invalid Cobertura XML: {e}')
+            self.logger.exception("cobertura_xml_parse_error", error=str(e))
+            raise ValueError(f"Invalid Cobertura XML: {e}")
 
         # Get coverage attributes from root
-        line_rate = float(root.get('line-rate', 0))
-        branch_rate = float(root.get('branch-rate', 0)) if root.get('branch-rate') else None
-        complexity = int(root.get('complexity', 0)) if root.get('complexity') else None
+        line_rate = float(root.get("line-rate", 0))
+        branch_rate = float(root.get("branch-rate", 0)) if root.get("branch-rate") else None
+        complexity = int(root.get("complexity", 0)) if root.get("complexity") else None
 
         lines_covered = 0
         lines_total = 0
@@ -332,37 +337,39 @@ class CoberturaXMLParser:
         branches_total = 0
         functions_covered = 0
         functions_total = 0
-        files_data: List[Dict[str, Any]] = []
+        files_data: list[dict[str, Any]] = []
 
         # Parse packages -> classes -> lines
-        for package in root.findall('.//package'):
-            pkg_name = package.get('name', '')
+        for package in root.findall(".//package"):
+            pkg_name = package.get("name", "")
 
-            for cls in package.findall('classes/class'):
-                filename = cls.get('filename', '')
-                cls_line_rate = float(cls.get('line-rate', 0))
-                cls_branch_rate = float(cls.get('branch-rate', 0)) if cls.get('branch-rate') else None
-                cls_complexity = int(cls.get('complexity', 0)) if cls.get('complexity') else None
+            for cls in package.findall("classes/class"):
+                filename = cls.get("filename", "")
+                cls_line_rate = float(cls.get("line-rate", 0))
+                cls_branch_rate = (
+                    float(cls.get("branch-rate", 0)) if cls.get("branch-rate") else None
+                )
+                cls_complexity = int(cls.get("complexity", 0)) if cls.get("complexity") else None
 
                 file_lines_covered = 0
                 file_lines_total = 0
                 file_branches_covered = 0
                 file_branches_total = 0
 
-                for line in cls.findall('lines/line'):
+                for line in cls.findall("lines/line"):
                     file_lines_total += 1
                     lines_total += 1
 
-                    hits = int(line.get('hits', 0))
+                    hits = int(line.get("hits", 0))
                     if hits > 0:
                         file_lines_covered += 1
                         lines_covered += 1
 
                     # Branch coverage
-                    branch = line.get('branch', 'false').lower() == 'true'
+                    branch = line.get("branch", "false").lower() == "true"
                     if branch:
-                        cond_coverage = line.get('condition-coverage', '')
-                        match = re.search(r'(\d+)/(\d+)', cond_coverage)
+                        cond_coverage = line.get("condition-coverage", "")
+                        match = re.search(r"(\d+)/(\d+)", cond_coverage)
                         if match:
                             covered = int(match.group(1))
                             total = int(match.group(2))
@@ -372,33 +379,41 @@ class CoberturaXMLParser:
                             branches_total += total
 
                 # Count methods/functions
-                for method in cls.findall('methods/method'):
+                for method in cls.findall("methods/method"):
                     functions_total += 1
-                    method_line_rate = float(method.get('line-rate', 0))
+                    method_line_rate = float(method.get("line-rate", 0))
                     if method_line_rate > 0:
                         functions_covered += 1
 
-                files_data.append({
-                    'filename': filename,
-                    'package': pkg_name,
-                    'line_rate': cls_line_rate,
-                    'branch_rate': cls_branch_rate,
-                    'complexity': cls_complexity,
-                    'lines_covered': file_lines_covered,
-                    'lines_total': file_lines_total
-                })
+                files_data.append(
+                    {
+                        "filename": filename,
+                        "package": pkg_name,
+                        "line_rate": cls_line_rate,
+                        "branch_rate": cls_branch_rate,
+                        "complexity": cls_complexity,
+                        "lines_covered": file_lines_covered,
+                        "lines_total": file_lines_total,
+                    }
+                )
 
         # Calculate percentages
         line_coverage = (lines_covered / lines_total * 100) if lines_total > 0 else line_rate * 100
-        branch_coverage = (branches_covered / branches_total * 100) if branches_total > 0 else (branch_rate * 100 if branch_rate else None)
-        function_coverage = (functions_covered / functions_total * 100) if functions_total > 0 else None
+        branch_coverage = (
+            (branches_covered / branches_total * 100)
+            if branches_total > 0
+            else (branch_rate * 100 if branch_rate else None)
+        )
+        function_coverage = (
+            (functions_covered / functions_total * 100) if functions_total > 0 else None
+        )
 
         self.logger.info(
-            'cobertura_xml_parsed',
+            "cobertura_xml_parsed",
             line_coverage=line_coverage,
             branch_coverage=branch_coverage,
             function_coverage=function_coverage,
-            files=len(files_data)
+            files=len(files_data),
         )
 
         return CoverageResults(
@@ -412,10 +427,10 @@ class CoberturaXMLParser:
             functions_covered=functions_covered,
             functions_total=functions_total,
             complexity=complexity,
-            files=files_data
+            files=files_data,
         )
 
-    def parse_file(self, file_path: Union[str, Path]) -> CoverageResults:
+    def parse_file(self, file_path: str | Path) -> CoverageResults:
         """
         Parseia arquivo Cobertura XML.
 
@@ -427,9 +442,9 @@ class CoberturaXMLParser:
         """
         path = Path(file_path)
         if not path.exists():
-            raise FileNotFoundError(f'Cobertura XML file not found: {file_path}')
+            raise FileNotFoundError(f"Cobertura XML file not found: {file_path}")
 
-        content = path.read_text(encoding='utf-8', errors='replace')
+        content = path.read_text(encoding="utf-8", errors="replace")
         return self.parse(content)
 
 
@@ -444,9 +459,9 @@ class LCOVParser:
     """
 
     def __init__(self):
-        self.logger = logger.bind(parser='lcov')
+        self.logger = logger.bind(parser="lcov")
 
-    def parse(self, content: Union[str, bytes]) -> CoverageResults:
+    def parse(self, content: str | bytes) -> CoverageResults:
         """
         Parseia conteudo LCOV.
 
@@ -457,7 +472,7 @@ class LCOVParser:
             CoverageResults
         """
         if isinstance(content, bytes):
-            content = content.decode('utf-8', errors='replace')
+            content = content.decode("utf-8", errors="replace")
 
         lines_found = 0
         lines_hit = 0
@@ -465,7 +480,7 @@ class LCOVParser:
         functions_hit = 0
         branches_found = 0
         branches_hit = 0
-        files_data: List[Dict[str, Any]] = []
+        files_data: list[dict[str, Any]] = []
 
         current_file = None
         file_lines_found = 0
@@ -475,23 +490,27 @@ class LCOVParser:
         file_branches_found = 0
         file_branches_hit = 0
 
-        for line in content.strip().split('\n'):
+        for line in content.strip().split("\n"):
             line = line.strip()
 
-            if line.startswith('SF:'):
+            if line.startswith("SF:"):
                 # Start of file record
                 if current_file:
                     # Save previous file
-                    files_data.append({
-                        'filename': current_file,
-                        'lines_found': file_lines_found,
-                        'lines_hit': file_lines_hit,
-                        'functions_found': file_functions_found,
-                        'functions_hit': file_functions_hit,
-                        'branches_found': file_branches_found,
-                        'branches_hit': file_branches_hit,
-                        'line_rate': (file_lines_hit / file_lines_found * 100) if file_lines_found > 0 else 0
-                    })
+                    files_data.append(
+                        {
+                            "filename": current_file,
+                            "lines_found": file_lines_found,
+                            "lines_hit": file_lines_hit,
+                            "functions_found": file_functions_found,
+                            "functions_hit": file_functions_hit,
+                            "branches_found": file_branches_found,
+                            "branches_hit": file_branches_hit,
+                            "line_rate": (file_lines_hit / file_lines_found * 100)
+                            if file_lines_found > 0
+                            else 0,
+                        }
+                    )
                 current_file = line[3:]
                 file_lines_found = 0
                 file_lines_hit = 0
@@ -500,7 +519,7 @@ class LCOVParser:
                 file_branches_found = 0
                 file_branches_hit = 0
 
-            elif line.startswith('LF:'):
+            elif line.startswith("LF:"):
                 # Lines Found
                 try:
                     file_lines_found = int(line[3:])
@@ -508,7 +527,7 @@ class LCOVParser:
                 except ValueError:
                     pass
 
-            elif line.startswith('LH:'):
+            elif line.startswith("LH:"):
                 # Lines Hit
                 try:
                     file_lines_hit = int(line[3:])
@@ -516,7 +535,7 @@ class LCOVParser:
                 except ValueError:
                     pass
 
-            elif line.startswith('FNF:'):
+            elif line.startswith("FNF:"):
                 # Functions Found
                 try:
                     file_functions_found = int(line[4:])
@@ -524,7 +543,7 @@ class LCOVParser:
                 except ValueError:
                     pass
 
-            elif line.startswith('FNH:'):
+            elif line.startswith("FNH:"):
                 # Functions Hit
                 try:
                     file_functions_hit = int(line[4:])
@@ -532,7 +551,7 @@ class LCOVParser:
                 except ValueError:
                     pass
 
-            elif line.startswith('BRF:'):
+            elif line.startswith("BRF:"):
                 # Branches Found
                 try:
                     file_branches_found = int(line[4:])
@@ -540,7 +559,7 @@ class LCOVParser:
                 except ValueError:
                     pass
 
-            elif line.startswith('BRH:'):
+            elif line.startswith("BRH:"):
                 # Branches Hit
                 try:
                     file_branches_hit = int(line[4:])
@@ -548,19 +567,23 @@ class LCOVParser:
                 except ValueError:
                     pass
 
-            elif line == 'end_of_record':
+            elif line == "end_of_record":
                 # End of file record
                 if current_file:
-                    files_data.append({
-                        'filename': current_file,
-                        'lines_found': file_lines_found,
-                        'lines_hit': file_lines_hit,
-                        'functions_found': file_functions_found,
-                        'functions_hit': file_functions_hit,
-                        'branches_found': file_branches_found,
-                        'branches_hit': file_branches_hit,
-                        'line_rate': (file_lines_hit / file_lines_found * 100) if file_lines_found > 0 else 0
-                    })
+                    files_data.append(
+                        {
+                            "filename": current_file,
+                            "lines_found": file_lines_found,
+                            "lines_hit": file_lines_hit,
+                            "functions_found": file_functions_found,
+                            "functions_hit": file_functions_hit,
+                            "branches_found": file_branches_found,
+                            "branches_hit": file_branches_hit,
+                            "line_rate": (file_lines_hit / file_lines_found * 100)
+                            if file_lines_found > 0
+                            else 0,
+                        }
+                    )
                     current_file = None
 
         # Calculate percentages
@@ -569,11 +592,11 @@ class LCOVParser:
         branch_coverage = (branches_hit / branches_found * 100) if branches_found > 0 else None
 
         self.logger.info(
-            'lcov_parsed',
+            "lcov_parsed",
             line_coverage=line_coverage,
             function_coverage=function_coverage,
             branch_coverage=branch_coverage,
-            files=len(files_data)
+            files=len(files_data),
         )
 
         return CoverageResults(
@@ -586,10 +609,10 @@ class LCOVParser:
             branches_total=branches_found,
             functions_covered=functions_hit,
             functions_total=functions_found,
-            files=files_data
+            files=files_data,
         )
 
-    def parse_file(self, file_path: Union[str, Path]) -> CoverageResults:
+    def parse_file(self, file_path: str | Path) -> CoverageResults:
         """
         Parseia arquivo LCOV.
 
@@ -601,16 +624,13 @@ class LCOVParser:
         """
         path = Path(file_path)
         if not path.exists():
-            raise FileNotFoundError(f'LCOV file not found: {file_path}')
+            raise FileNotFoundError(f"LCOV file not found: {file_path}")
 
-        content = path.read_text(encoding='utf-8', errors='replace')
+        content = path.read_text(encoding="utf-8", errors="replace")
         return self.parse(content)
 
 
-def parse_test_report(
-    content: Union[str, bytes],
-    format: str = 'junit'
-) -> TestResults:
+def parse_test_report(content: str | bytes, format: str = "junit") -> TestResults:
     """
     Conveniencia para parsear relatorio de teste.
 
@@ -625,10 +645,7 @@ def parse_test_report(
     return parser.parse(content)
 
 
-def parse_coverage_report(
-    content: Union[str, bytes],
-    format: str = 'cobertura'
-) -> CoverageResults:
+def parse_coverage_report(content: str | bytes, format: str = "cobertura") -> CoverageResults:
     """
     Conveniencia para parsear relatorio de coverage.
 
@@ -639,14 +656,11 @@ def parse_coverage_report(
     Returns:
         CoverageResults
     """
-    if format == 'lcov':
-        parser = LCOVParser()
-    else:
-        parser = CoberturaXMLParser()
+    parser = LCOVParser() if format == "lcov" else CoberturaXMLParser()
     return parser.parse(content)
 
 
-def detect_report_format(content: Union[str, bytes]) -> str:
+def detect_report_format(content: str | bytes) -> str:
     """
     Detecta formato do relatorio automaticamente.
 
@@ -657,20 +671,22 @@ def detect_report_format(content: Union[str, bytes]) -> str:
         Nome do formato detectado
     """
     if isinstance(content, bytes):
-        content = content.decode('utf-8', errors='replace')
+        content = content.decode("utf-8", errors="replace")
 
     content_lower = content.strip().lower()
 
     # JUnit XML
-    if '<?xml' in content_lower and ('<testsuite' in content_lower or '<testsuites' in content_lower):
-        return 'junit'
+    if "<?xml" in content_lower and (
+        "<testsuite" in content_lower or "<testsuites" in content_lower
+    ):
+        return "junit"
 
     # Cobertura XML
-    if '<?xml' in content_lower and '<coverage' in content_lower:
-        return 'cobertura'
+    if "<?xml" in content_lower and "<coverage" in content_lower:
+        return "cobertura"
 
     # LCOV
-    if content.startswith('TN:') or content.startswith('SF:'):
-        return 'lcov'
+    if content.startswith(("TN:", "SF:")):
+        return "lcov"
 
-    return 'unknown'
+    return "unknown"

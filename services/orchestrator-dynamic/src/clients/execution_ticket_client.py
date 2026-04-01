@@ -3,22 +3,16 @@ Execution Ticket Service client com suporte a autenticação JWT-SVID via SPIFFE
 """
 
 import asyncio
-import sys
-from typing import Optional, Dict, List, Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Optional, TypedDict
 
 import grpc
 import structlog
-from tenacity import retry, stop_after_attempt, wait_exponential
 from opentelemetry import trace
-from neural_hive_observability.grpc_instrumentation import instrument_grpc_channel
+from tenacity import retry, stop_after_attempt, wait_exponential
+
 from neural_hive_observability.context import inject_context_to_metadata
-
+from neural_hive_observability.grpc_instrumentation import instrument_grpc_channel
 from src.config.settings import OrchestratorSettings
-
-if sys.version_info >= (3, 8):
-    from typing import TypedDict
-else:
-    from typing_extensions import TypedDict
 
 if TYPE_CHECKING:
     from neural_hive_security import SPIFFEManager
@@ -55,9 +49,7 @@ class ExecutionTicketClient:
     """
 
     def __init__(
-        self,
-        config: OrchestratorSettings,
-        spiffe_manager: Optional['SPIFFEManager'] = None
+        self, config: OrchestratorSettings, spiffe_manager: Optional["SPIFFEManager"] = None
     ):
         """
         Args:
@@ -66,12 +58,14 @@ class ExecutionTicketClient:
         """
         self.config = config
         self.spiffe_manager = spiffe_manager
-        self.logger = logger.bind(component='execution_ticket_client')
-        self.channel: Optional[grpc.aio.Channel] = None
+        self.logger = logger.bind(component="execution_ticket_client")
+        self.channel: grpc.aio.Channel | None = None
         self.stub = None
         self.target = f"{getattr(config, 'execution_ticket_service_host', 'execution-ticket-service.neural-hive.svc.cluster.local')}:{getattr(config, 'execution_ticket_service_port', 50052)}"
-        self.timeout_seconds = getattr(config, 'execution_ticket_timeout_seconds', 5)
-        self.channel_ready_timeout = getattr(config, 'execution_ticket_channel_ready_timeout', DEFAULT_CHANNEL_READY_TIMEOUT)
+        self.timeout_seconds = getattr(config, "execution_ticket_timeout_seconds", 5)
+        self.channel_ready_timeout = getattr(
+            config, "execution_ticket_channel_ready_timeout", DEFAULT_CHANNEL_READY_TIMEOUT
+        )
         self._available = False
 
     @property
@@ -89,77 +83,72 @@ class ExecutionTicketClient:
         do orchestrator.
         """
         try:
-            self.logger.info('initializing_execution_ticket_client', target=self.target)
+            self.logger.info("initializing_execution_ticket_client", target=self.target)
             self.channel = instrument_grpc_channel(
                 grpc.aio.insecure_channel(self.target),
                 service_name="orchestrator-dynamic",
-                target_service="execution-ticket-service"
+                target_service="execution-ticket-service",
             )
             self.stub = ticket_service_pb2_grpc.TicketServiceStub(self.channel)
 
             # Aguarda o canal ficar pronto com timeout
             try:
                 await asyncio.wait_for(
-                    self.channel.channel_ready(),
-                    timeout=self.channel_ready_timeout
+                    self.channel.channel_ready(), timeout=self.channel_ready_timeout
                 )
                 self._available = True
-                self.logger.info('execution_ticket_grpc_channel_ready', target=self.target)
-            except asyncio.TimeoutError:
+                self.logger.info("execution_ticket_grpc_channel_ready", target=self.target)
+            except TimeoutError:
                 self._available = False
                 self.logger.warning(
-                    'execution_ticket_client_channel_timeout',
+                    "execution_ticket_client_channel_timeout",
                     target=self.target,
                     timeout=self.channel_ready_timeout,
-                    message='Execution Ticket Service não disponível, operando em modo degradado'
+                    message="Execution Ticket Service não disponível, operando em modo degradado",
                 )
             except grpc.aio.AioRpcError as e:
                 self._available = False
                 self.logger.warning(
-                    'execution_ticket_client_channel_error',
+                    "execution_ticket_client_channel_error",
                     target=self.target,
                     error=str(e),
-                    message='Falha ao conectar ao Execution Ticket Service, operando em modo degradado'
+                    message="Falha ao conectar ao Execution Ticket Service, operando em modo degradado",
                 )
 
         except Exception as e:
             self._available = False
-            self.logger.error(
-                'execution_ticket_client_init_failed',
+            self.logger.exception(
+                "execution_ticket_client_init_failed",
                 error=str(e),
-                message='Falha na inicialização do cliente, operando em modo degradado'
+                message="Falha na inicialização do cliente, operando em modo degradado",
             )
 
-    async def _build_metadata(self) -> Optional[List[tuple]]:
+    async def _build_metadata(self) -> list[tuple] | None:
         """
         Constrói metadata gRPC com JWT-SVID se SPIFFE estiver habilitado.
         """
         metadata = []
-        if self.spiffe_manager and getattr(self.config, 'spiffe_enabled', False):
-            audience = 'execution-ticket-service.neural-hive.local'
+        if self.spiffe_manager and getattr(self.config, "spiffe_enabled", False):
+            audience = "execution-ticket-service.neural-hive.local"
             try:
                 jwt_svid = await self.spiffe_manager.fetch_jwt_svid(audience=audience)
-                metadata.append(('authorization', f'Bearer {jwt_svid.token}'))
+                metadata.append(("authorization", f"Bearer {jwt_svid.token}"))
                 self.logger.debug(
-                    'jwt_svid_attached',
+                    "jwt_svid_attached",
                     audience=audience,
-                    spiffe_id=getattr(jwt_svid, 'spiffe_id', None)
+                    spiffe_id=getattr(jwt_svid, "spiffe_id", None),
                 )
             except Exception as e:
                 from neural_hive_security.spiffe_manager import SPIFFEFetchError
 
-                fallback_allowed = getattr(self.config, 'spiffe_fallback_allowed', False)
+                fallback_allowed = getattr(self.config, "spiffe_fallback_allowed", False)
                 if isinstance(e, SPIFFEFetchError) and not fallback_allowed:
-                    self.logger.error(
-                        'jwt_auth_required_fallback_disabled',
-                        error=str(e)
+                    self.logger.exception("jwt_auth_required_fallback_disabled", error=str(e))
+                    raise RuntimeError(
+                        f"JWT-SVID authentication required but SPIFFE unavailable: {e}"
                     )
-                    raise RuntimeError(f"JWT-SVID authentication required but SPIFFE unavailable: {e}")
 
-                self.logger.warning(
-                    'jwt_svid_fetch_failed_fallback_unauthenticated',
-                    error=str(e)
-                )
+                self.logger.warning("jwt_svid_fetch_failed_fallback_unauthenticated", error=str(e))
 
         metadata = inject_context_to_metadata(metadata or [])
         return metadata if metadata else None
@@ -176,23 +165,25 @@ class ExecutionTicketClient:
         """
         if not self.is_available:
             self.logger.warning(
-                'execution_ticket_client_unavailable',
+                "execution_ticket_client_unavailable",
                 operation=operation,
-                message='Operação ignorada - cliente não disponível'
+                message="Operação ignorada - cliente não disponível",
             )
             return False
         return True
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=0.5, max=2))
-    async def get_ticket(self, ticket_id: str) -> Optional[ExecutionTicketDict]:
+    async def get_ticket(self, ticket_id: str) -> ExecutionTicketDict | None:
         """Busca ticket por ID."""
-        if not self._check_availability('get_ticket'):
+        if not self._check_availability("get_ticket"):
             return None
 
         request = ticket_service_pb2.GetTicketRequest(ticket_id=ticket_id)
         metadata = await self._build_metadata()
 
-        response = await self.stub.GetTicket(request, metadata=metadata, timeout=self.timeout_seconds)
+        response = await self.stub.GetTicket(
+            request, metadata=metadata, timeout=self.timeout_seconds
+        )
         if response.ticket:
             span = trace.get_current_span()
             span.set_attribute("rpc.service", "TicketService")
@@ -204,49 +195,45 @@ class ExecutionTicketClient:
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=0.5, max=2))
     async def list_tickets(
         self,
-        plan_id: Optional[str] = None,
-        status: Optional[str] = None,
+        plan_id: str | None = None,
+        status: str | None = None,
         offset: int = 0,
-        limit: int = 100
-    ) -> Dict[str, Any]:
+        limit: int = 100,
+    ) -> dict[str, Any]:
         """Lista tickets com filtros opcionais."""
-        if not self._check_availability('list_tickets'):
-            return {'tickets': [], 'total': 0}
+        if not self._check_availability("list_tickets"):
+            return {"tickets": [], "total": 0}
 
         request = ticket_service_pb2.ListTicketsRequest(
-            plan_id=plan_id or '',
-            status=status or '',
-            offset=offset,
-            limit=limit
+            plan_id=plan_id or "", status=status or "", offset=offset, limit=limit
         )
         metadata = await self._build_metadata()
 
-        response = await self.stub.ListTickets(request, metadata=metadata, timeout=self.timeout_seconds)
+        response = await self.stub.ListTickets(
+            request, metadata=metadata, timeout=self.timeout_seconds
+        )
         span = trace.get_current_span()
         span.set_attribute("rpc.service", "TicketService")
         span.set_attribute("rpc.method", "ListTickets")
         tickets = [self._convert_ticket(ticket_proto) for ticket_proto in response.tickets]
-        return {'tickets': tickets, 'total': response.total}
+        return {"tickets": tickets, "total": response.total}
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=0.5, max=2))
     async def update_status(
-        self,
-        ticket_id: str,
-        status: str,
-        error_message: Optional[str] = None
-    ) -> Optional[ExecutionTicketDict]:
+        self, ticket_id: str, status: str, error_message: str | None = None
+    ) -> ExecutionTicketDict | None:
         """Atualiza status do ticket."""
-        if not self._check_availability('update_status'):
+        if not self._check_availability("update_status"):
             return None
 
         request = ticket_service_pb2.UpdateTicketStatusRequest(
-            ticket_id=ticket_id,
-            status=status,
-            error_message=error_message or ''
+            ticket_id=ticket_id, status=status, error_message=error_message or ""
         )
         metadata = await self._build_metadata()
 
-        response = await self.stub.UpdateTicketStatus(request, metadata=metadata, timeout=self.timeout_seconds)
+        response = await self.stub.UpdateTicketStatus(
+            request, metadata=metadata, timeout=self.timeout_seconds
+        )
         if response.ticket:
             span = trace.get_current_span()
             span.set_attribute("rpc.service", "TicketService")
@@ -256,20 +243,22 @@ class ExecutionTicketClient:
         return None
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=0.5, max=2))
-    async def generate_token(self, ticket_id: str) -> Optional[Dict[str, Any]]:
+    async def generate_token(self, ticket_id: str) -> dict[str, Any] | None:
         """Gera token JWT para ticket."""
-        if not self._check_availability('generate_token'):
+        if not self._check_availability("generate_token"):
             return None
 
         request = ticket_service_pb2.GenerateTokenRequest(ticket_id=ticket_id)
         metadata = await self._build_metadata()
 
-        response = await self.stub.GenerateToken(request, metadata=metadata, timeout=self.timeout_seconds)
+        response = await self.stub.GenerateToken(
+            request, metadata=metadata, timeout=self.timeout_seconds
+        )
         span = trace.get_current_span()
         span.set_attribute("rpc.service", "TicketService")
         span.set_attribute("rpc.method", "GenerateToken")
         span.set_attribute("neural.hive.ticket.id", ticket_id)
-        return {'access_token': response.access_token, 'expires_at': response.expires_at}
+        return {"access_token": response.access_token, "expires_at": response.expires_at}
 
     async def close(self):
         """Fecha canal gRPC."""
@@ -289,5 +278,5 @@ class ExecutionTicketClient:
             description=ticket_proto.description,
             status=ticket_proto.status,
             priority=ticket_proto.priority,
-            created_at=ticket_proto.created_at
+            created_at=ticket_proto.created_at,
         )

@@ -1,12 +1,15 @@
-from typing import Dict, Optional
-
 from prometheus_client import Counter, Gauge, Histogram
 
 
 class OptimizerMetrics:
     """Prometheus metrics for Optimizer Agents."""
 
-    def __init__(self, service_name: str = "optimizer-agents", component: str = "optimizer", layer: str = "estrategica"):
+    def __init__(
+        self,
+        service_name: str = "optimizer-agents",
+        component: str = "optimizer",
+        layer: str = "estrategica",
+    ):
         self.service_name = service_name
         self.component = component
         self.layer = layer
@@ -19,7 +22,9 @@ class OptimizerMetrics:
         )
 
         self.experiments_submitted_total = Counter(
-            "optimizer_experiments_submitted_total", "Total experiments submitted", ["experiment_type"]
+            "optimizer_experiments_submitted_total",
+            "Total experiments submitted",
+            ["experiment_type"],
         )
 
         self.experiments_successful_total = Counter(
@@ -79,7 +84,9 @@ class OptimizerMetrics:
 
         self.q_table_size = Gauge("optimizer_q_table_size", "Size of Q-table for RL")
 
-        self.epsilon_value = Gauge("optimizer_epsilon_value", "Current epsilon value for exploration")
+        self.epsilon_value = Gauge(
+            "optimizer_epsilon_value", "Current epsilon value for exploration"
+        )
 
         # Histograms
         self.experiment_duration_seconds = Histogram(
@@ -107,17 +114,23 @@ class OptimizerMetrics:
         )
 
         self.slo_adjustment_percentage = Histogram(
-            "optimizer_slo_adjustment_percentage", "Percentage of SLO adjustments", buckets=(0.01, 0.05, 0.1, 0.2)
+            "optimizer_slo_adjustment_percentage",
+            "Percentage of SLO adjustments",
+            buckets=(0.01, 0.05, 0.1, 0.2),
         )
 
         # ML Subsystem Metrics
         # Counters para ML
         self.load_predictions_total = Counter(
-            "optimizer_load_predictions_total", "Total load predictions generated", ["horizon", "status"]
+            "optimizer_load_predictions_total",
+            "Total load predictions generated",
+            ["horizon", "status"],
         )
 
         self.scheduling_optimizations_applied_total = Counter(
-            "optimizer_scheduling_optimizations_applied_total", "Total scheduling optimizations applied", ["action"]
+            "optimizer_scheduling_optimizations_applied_total",
+            "Total scheduling optimizations applied",
+            ["action"],
         )
 
         self.ml_model_loads_total = Counter(
@@ -138,7 +151,8 @@ class OptimizerMetrics:
 
         # Gauges para ML
         self.load_forecast_accuracy_mape = Gauge(
-            "optimizer_load_forecast_accuracy_mape", "Load forecast MAPE (Mean Absolute Percentage Error)"
+            "optimizer_load_forecast_accuracy_mape",
+            "Load forecast MAPE (Mean Absolute Percentage Error)",
         )
 
         self.scheduling_policy_average_reward = Gauge(
@@ -146,7 +160,9 @@ class OptimizerMetrics:
         )
 
         self.ml_model_age_seconds = Gauge(
-            "optimizer_ml_model_age_seconds", "Age of currently loaded ML model in seconds", ["model_name"]
+            "optimizer_ml_model_age_seconds",
+            "Age of currently loaded ML model in seconds",
+            ["model_name"],
         )
 
         # Histograms para ML
@@ -304,7 +320,7 @@ class OptimizerMetrics:
             buckets=(0.1, 0.5, 1.0, 5.0, 10.0),
         )
 
-    def increment_counter(self, metric_name: str, labels: Optional[Dict[str, str]] = None):
+    def increment_counter(self, metric_name: str, labels: dict[str, str] | None = None):
         """Increment a counter metric."""
         counter = getattr(self, metric_name, None)
         if counter:
@@ -313,7 +329,7 @@ class OptimizerMetrics:
             else:
                 counter.inc()
 
-    def set_gauge(self, metric_name: str, value: float, labels: Optional[Dict[str, str]] = None):
+    def set_gauge(self, metric_name: str, value: float, labels: dict[str, str] | None = None):
         """Set a gauge metric."""
         gauge = getattr(self, metric_name, None)
         if gauge:
@@ -322,7 +338,9 @@ class OptimizerMetrics:
             else:
                 gauge.set(value)
 
-    def observe_histogram(self, metric_name: str, value: float, labels: Optional[Dict[str, str]] = None):
+    def observe_histogram(
+        self, metric_name: str, value: float, labels: dict[str, str] | None = None
+    ):
         """Observe a histogram metric."""
         histogram = getattr(self, metric_name, None)
         if histogram:
@@ -339,21 +357,29 @@ class OptimizerMetrics:
         """Record experiment submission."""
         self.experiments_submitted_total.labels(experiment_type=experiment_type).inc()
 
-    def record_optimization_applied(self, optimization_type: str, component: str, improvement: float):
+    def record_optimization_applied(
+        self, optimization_type: str, component: str, improvement: float
+    ):
         """Record optimization application."""
-        self.optimizations_applied_total.labels(optimization_type=optimization_type, component=component).inc()
+        self.optimizations_applied_total.labels(
+            optimization_type=optimization_type, component=component
+        ).inc()
         self.average_improvement_percentage.set(improvement)
 
     def record_rollback(self, optimization_type: str, component: str):
         """Record rollback."""
-        self.optimizations_rolled_back_total.labels(optimization_type=optimization_type, component=component).inc()
+        self.optimizations_rolled_back_total.labels(
+            optimization_type=optimization_type, component=component
+        ).inc()
 
     def record_ml_model_load(self, model_name: str, status: str, duration: float):
         """Record ML model load event."""
         self.ml_model_loads_total.labels(model_name=model_name, status=status).inc()
         self.ml_model_load_duration_seconds.observe(duration)
 
-    def record_load_prediction(self, horizon: int, status: str, duration: float, accuracy: Optional[float]):
+    def record_load_prediction(
+        self, horizon: int, status: str, duration: float, accuracy: float | None
+    ):
         """Record load prediction event."""
         self.load_predictions_total.labels(horizon=str(horizon), status=status).inc()
         self.ml_prediction_duration_seconds.observe(duration)
@@ -368,7 +394,7 @@ class OptimizerMetrics:
         """Record cache miss."""
         self.ml_cache_misses_total.labels(cache_name=cache_name).inc()
 
-    def record_ml_training(self, model_type: str, duration: float, metrics: Dict):
+    def record_ml_training(self, model_type: str, duration: float, metrics: dict):
         """Record ML training run."""
         status = "success" if metrics else "failed"
         self.ml_training_runs_total.labels(model_type=model_type, status=status).inc()
@@ -390,5 +416,6 @@ class OptimizerMetrics:
 def setup_metrics():
     """Configurar métricas Prometheus."""
     import structlog
+
     logger = structlog.get_logger()
     logger.info("prometheus_metrics_configured")

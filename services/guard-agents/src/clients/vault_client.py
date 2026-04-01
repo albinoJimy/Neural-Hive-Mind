@@ -8,10 +8,10 @@ Responsável por:
 - Auditoria de acessos a secrets
 """
 
-from typing import Optional, Dict
-import structlog
-from datetime import datetime, timedelta
 import time
+from datetime import datetime, timedelta, timezone
+
+import structlog
 
 logger = structlog.get_logger(__name__)
 
@@ -46,11 +46,11 @@ class GuardVaultClient:
         try:
             # Importar biblioteca neural_hive_security
             try:
-                from neural_hive_security import VaultClient, SPIFFEManager
+                from neural_hive_security import SPIFFEManager, VaultClient
             except ImportError:
                 logger.warning(
                     "guard_vault_client.neural_hive_security_not_available",
-                    message="Biblioteca neural_hive_security não disponível"
+                    message="Biblioteca neural_hive_security não disponível",
                 )
                 if not self.fail_open:
                     raise
@@ -61,15 +61,11 @@ class GuardVaultClient:
             await self.spiffe_manager.initialize()
 
             # Obter JWT-SVID para autenticação
-            jwt_svid = await self.spiffe_manager.get_jwt_svid(
-                audience=["vault"]
-            )
+            jwt_svid = await self.spiffe_manager.get_jwt_svid(audience=["vault"])
 
             # Inicializar Vault Client
             self.vault_client = VaultClient(
-                addr=self.vault_addr,
-                namespace=self.vault_namespace,
-                jwt_svid=jwt_svid
+                addr=self.vault_addr, namespace=self.vault_namespace, jwt_svid=jwt_svid
             )
 
             await self.vault_client.authenticate()
@@ -77,14 +73,12 @@ class GuardVaultClient:
             logger.info(
                 "guard_vault_client.initialized",
                 vault_addr=self.vault_addr,
-                namespace=self.vault_namespace
+                namespace=self.vault_namespace,
             )
 
         except Exception as e:
             logger.error(
-                "guard_vault_client.initialization_failed",
-                error=str(e),
-                vault_addr=self.vault_addr
+                "guard_vault_client.initialization_failed", error=str(e), vault_addr=self.vault_addr
             )
             if not self.fail_open:
                 raise
@@ -121,7 +115,7 @@ class GuardVaultClient:
         try:
             # Verificar cache
             cached_token = self._token_cache.get("opa_token")
-            if cached_token and cached_token["expires_at"] > datetime.utcnow():
+            if cached_token and cached_token["expires_at"] > datetime.now(timezone.utc):
                 return cached_token["token"]
 
             # Obter novo token do Vault
@@ -131,10 +125,7 @@ class GuardVaultClient:
                     return "mock-opa-token"
                 raise Exception("Vault client not initialized")
 
-            token_data = await self.vault_client.get_token(
-                role="guard-agents-opa",
-                ttl="1h"
-            )
+            token_data = await self.vault_client.get_token(role="guard-agents-opa", ttl="1h")
 
             token = token_data["token"]
             lease_duration = token_data.get("lease_duration", 3600)
@@ -142,7 +133,7 @@ class GuardVaultClient:
             # Cachear token
             self._token_cache["opa_token"] = {
                 "token": token,
-                "expires_at": datetime.utcnow() + timedelta(seconds=lease_duration - 300)
+                "expires_at": datetime.now(timezone.utc) + timedelta(seconds=lease_duration - 300),
             }
 
             logger.info("guard_vault_client.opa_token_obtained")
@@ -159,7 +150,11 @@ class GuardVaultClient:
         finally:
             # Registrar métricas
             try:
-                from src.observability.metrics import vault_requests_total, vault_request_duration_seconds
+                from src.observability.metrics import (
+                    vault_request_duration_seconds,
+                    vault_requests_total,
+                )
+
                 duration = time.time() - start_time
                 vault_requests_total.labels(operation="get_opa_token", status=status).inc()
                 vault_request_duration_seconds.observe(duration)
@@ -186,15 +181,13 @@ class GuardVaultClient:
                     return {"username": "mock", "password": "mock"}
                 raise Exception("Vault client not initialized")
 
-            credentials = await self.vault_client.get_secret(
-                path="secret/data/trivy/credentials"
-            )
+            credentials = await self.vault_client.get_secret(path="secret/data/trivy/credentials")
 
             logger.info("guard_vault_client.trivy_credentials_obtained")
 
             return {
                 "username": credentials["data"]["username"],
-                "password": credentials["data"]["password"]
+                "password": credentials["data"]["password"],
             }
 
         except Exception as e:
@@ -207,18 +200,18 @@ class GuardVaultClient:
         finally:
             # Registrar métricas
             try:
-                from src.observability.metrics import vault_requests_total, vault_request_duration_seconds
+                from src.observability.metrics import (
+                    vault_request_duration_seconds,
+                    vault_requests_total,
+                )
+
                 duration = time.time() - start_time
                 vault_requests_total.labels(operation="get_trivy_credentials", status=status).inc()
                 vault_request_duration_seconds.observe(duration)
             except Exception:
                 pass  # Não falhar se métricas falharem
 
-    async def validate_secret_access(
-        self,
-        ticket_id: str,
-        secret_path: str
-    ) -> bool:
+    async def validate_secret_access(self, ticket_id: str, secret_path: str) -> bool:
         """
         Valida se ticket tem permissão para acessar secret.
 
@@ -243,16 +236,13 @@ class GuardVaultClient:
                 raise Exception("Vault client not initialized")
 
             # Verificar ACL do secret
-            has_access = await self.vault_client.check_access(
-                path=secret_path,
-                operation="read"
-            )
+            has_access = await self.vault_client.check_access(path=secret_path, operation="read")
 
             logger.info(
                 "guard_vault_client.secret_access_validated",
                 ticket_id=ticket_id,
                 secret_path=secret_path,
-                has_access=has_access
+                has_access=has_access,
             )
 
             return has_access
@@ -263,7 +253,7 @@ class GuardVaultClient:
                 "guard_vault_client.validate_secret_access_failed",
                 error=str(e),
                 ticket_id=ticket_id,
-                secret_path=secret_path
+                secret_path=secret_path,
             )
             if self.fail_open:
                 return True
@@ -272,19 +262,18 @@ class GuardVaultClient:
         finally:
             # Registrar métricas
             try:
-                from src.observability.metrics import vault_requests_total, vault_request_duration_seconds
+                from src.observability.metrics import (
+                    vault_request_duration_seconds,
+                    vault_requests_total,
+                )
+
                 duration = time.time() - start_time
                 vault_requests_total.labels(operation="validate_secret_access", status=status).inc()
                 vault_request_duration_seconds.observe(duration)
             except Exception:
                 pass  # Não falhar se métricas falharem
 
-    async def audit_secret_access(
-        self,
-        ticket_id: str,
-        secret_path: str,
-        action: str
-    ) -> None:
+    async def audit_secret_access(self, ticket_id: str, secret_path: str, action: str) -> None:
         """
         Registra acesso a secrets para auditoria.
 
@@ -308,30 +297,32 @@ class GuardVaultClient:
                     "ticket_id": ticket_id,
                     "secret_path": secret_path,
                     "action": action,
-                    "timestamp": datetime.utcnow().isoformat(),
-                    "service": "guard-agents"
-                }
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "service": "guard-agents",
+                },
             )
 
             logger.info(
                 "guard_vault_client.secret_access_audited",
                 ticket_id=ticket_id,
                 secret_path=secret_path,
-                action=action
+                action=action,
             )
 
         except Exception as e:
             status = "error"
             logger.warning(
-                "guard_vault_client.audit_secret_access_failed",
-                error=str(e),
-                ticket_id=ticket_id
+                "guard_vault_client.audit_secret_access_failed", error=str(e), ticket_id=ticket_id
             )
 
         finally:
             # Registrar métricas
             try:
-                from src.observability.metrics import vault_requests_total, vault_request_duration_seconds
+                from src.observability.metrics import (
+                    vault_request_duration_seconds,
+                    vault_requests_total,
+                )
+
                 duration = time.time() - start_time
                 vault_requests_total.labels(operation="audit_secret_access", status=status).inc()
                 vault_request_duration_seconds.observe(duration)

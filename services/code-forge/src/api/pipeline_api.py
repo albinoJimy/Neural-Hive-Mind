@@ -5,16 +5,29 @@ Integra-se com PipelineEngine para execução real de pipelines
 de geração de código.
 """
 
+import asyncio
+import uuid
 from datetime import datetime
 from typing import Dict, Optional
-import uuid
-import asyncio
-from fastapi import APIRouter, HTTPException, Depends
-import structlog
 
-from ..services.pipeline_engine import PipelineEngine
-from ..models.execution_ticket import ExecutionTicket, TaskType, TicketStatus, Priority, RiskBand, SLA, QoS, SecurityLevel, DeliveryMode, Consistency, Durability
+import structlog
+from fastapi import APIRouter, Depends, HTTPException
+
 from ..clients.redis_client import RedisClient
+from ..models.execution_ticket import (
+    SLA,
+    Consistency,
+    DeliveryMode,
+    Durability,
+    ExecutionTicket,
+    Priority,
+    QoS,
+    RiskBand,
+    SecurityLevel,
+    TaskType,
+    TicketStatus,
+)
+from ..services.pipeline_engine import PipelineEngine
 
 logger = structlog.get_logger()
 router = APIRouter(prefix="/api/v1/pipelines", tags=["pipelines"])
@@ -72,6 +85,7 @@ def _serialize_value(value: any) -> str:
     """Serializa valor para armazenamento."""
     if isinstance(value, (dict, list)):
         import json
+
         return json.dumps(value)
     return str(value)
 
@@ -82,6 +96,7 @@ def _deserialize_value(value: str) -> any:
         return None
     try:
         import json
+
         return json.loads(value)
     except (json.JSONDecodeError, TypeError):
         return value
@@ -103,33 +118,28 @@ def _normalize_pipeline_status(status: str) -> str:
 
 
 def _create_ticket_from_request(
-    artifact_id: str,
-    parameters: Optional[Dict] = None
+    artifact_id: str, parameters: Optional[Dict] = None
 ) -> ExecutionTicket:
     """Cria ExecutionTicket a partir da requisição."""
     return ExecutionTicket(
         ticket_id=str(uuid.uuid4()),
-        plan_id=parameters.get('plan_id') if parameters else None,
-        intent_id=parameters.get('intent_id') if parameters else None,
-        decision_id=parameters.get('decision_id') if parameters else None,
+        plan_id=parameters.get("plan_id") if parameters else None,
+        intent_id=parameters.get("intent_id") if parameters else None,
+        decision_id=parameters.get("decision_id") if parameters else None,
         task_type=TaskType.BUILD,
         status=TicketStatus.PENDING,
         priority=Priority.NORMAL,
         risk_band=RiskBand.MEDIUM,
         parameters=parameters or {},
-        sla=SLA(
-            deadline=datetime.now(),
-            timeout_ms=300000,  # 5 minutos
-            max_retries=1
-        ),
+        sla=SLA(deadline=datetime.now(), timeout_ms=300000, max_retries=1),  # 5 minutos
         qos=QoS(
             delivery_mode=DeliveryMode.AT_LEAST_ONCE,
             consistency=Consistency.EVENTUAL,
-            durability=Durability.PERSISTENT
+            durability=Durability.PERSISTENT,
         ),
         security_level=SecurityLevel.INTERNAL,
         created_at=datetime.now(),
-        metadata={'artifact_id': artifact_id}
+        metadata={"artifact_id": artifact_id},
     )
 
 
@@ -137,7 +147,7 @@ def _create_ticket_from_request(
 async def trigger_pipeline(
     payload: Dict,
     pipeline_engine: Optional[PipelineEngine] = Depends(get_pipeline_engine),
-    redis_client: Optional[RedisClient] = Depends(get_redis_client)
+    redis_client: Optional[RedisClient] = Depends(get_redis_client),
 ):
     """
     Dispara pipeline CI/CD usando PipelineEngine real.
@@ -160,16 +170,10 @@ async def trigger_pipeline(
     # Se PipelineEngine está disponível, executar pipeline real
     if pipeline_engine:
         # Disparar execução em background
-        asyncio.create_task(_execute_pipeline_async(
-            pipeline_engine, ticket, redis_client
-        ))
+        asyncio.create_task(_execute_pipeline_async(pipeline_engine, ticket, redis_client))
 
         # Retornar estado inicial imediatamente
-        return {
-            "pipeline_id": ticket.ticket_id,
-            "status": "queued",
-            "ticket_id": ticket.ticket_id
-        }
+        return {"pipeline_id": ticket.ticket_id, "status": "queued", "ticket_id": ticket.ticket_id}
     else:
         # Fallback: modo mock se PipelineEngine não configurado
         state = {
@@ -179,7 +183,7 @@ async def trigger_pipeline(
             "stage": "QUEUED",
             "created_at": datetime.now().isoformat(),
             "updated_at": datetime.now().isoformat(),
-            "parameters": parameters
+            "parameters": parameters,
         }
 
         if redis_client:
@@ -187,7 +191,8 @@ async def trigger_pipeline(
         else:
             # Estado em memória (não recomendado para produção)
             import sys
-            if not hasattr(sys.modules[__name__], '_mock_pipelines'):
+
+            if not hasattr(sys.modules[__name__], "_mock_pipelines"):
                 sys.modules[__name__]._mock_pipelines = {}
             sys.modules[__name__]._mock_pipelines[state["pipeline_id"]] = state
 
@@ -196,9 +201,7 @@ async def trigger_pipeline(
 
 
 async def _execute_pipeline_async(
-    pipeline_engine: PipelineEngine,
-    ticket: ExecutionTicket,
-    redis_client: Optional[RedisClient]
+    pipeline_engine: PipelineEngine, ticket: ExecutionTicket, redis_client: Optional[RedisClient]
 ):
     """Executa pipeline em background e atualiza estado."""
     pipeline_id = ticket.ticket_id
@@ -208,15 +211,19 @@ async def _execute_pipeline_async(
 
         # Salvar estado inicial
         if redis_client:
-            await _save_pipeline_state(redis_client, pipeline_id, {
-                "pipeline_id": pipeline_id,
-                "artifact_id": ticket.metadata.get('artifact_id'),
-                "status": "running",
-                "stage": "BUILDING",
-                "created_at": ticket.created_at.isoformat(),
-                "updated_at": datetime.now().isoformat(),
-                "ticket_id": ticket.ticket_id
-            })
+            await _save_pipeline_state(
+                redis_client,
+                pipeline_id,
+                {
+                    "pipeline_id": pipeline_id,
+                    "artifact_id": ticket.metadata.get("artifact_id"),
+                    "status": "running",
+                    "stage": "BUILDING",
+                    "created_at": ticket.created_at.isoformat(),
+                    "updated_at": datetime.now().isoformat(),
+                    "ticket_id": ticket.ticket_id,
+                },
+            )
 
         # Executar pipeline real
         result = await pipeline_engine.execute_pipeline(ticket)
@@ -224,47 +231,51 @@ async def _execute_pipeline_async(
         # Salvar estado final (mapear estados terminais não reconhecidos)
         normalized_status = _normalize_pipeline_status(result.status.lower())
         if redis_client:
-            await _save_pipeline_state(redis_client, pipeline_id, {
-                "pipeline_id": pipeline_id,
-                "artifact_id": ticket.metadata.get('artifact_id'),
-                "status": normalized_status,
-                "stage": "COMPLETED" if result.status == "COMPLETED" else "FAILED",
-                "created_at": result.created_at.isoformat(),
-                "updated_at": (result.completed_at or datetime.now()).isoformat(),
-                "artifacts": [a.model_dump() for a in result.artifacts],
-                "duration_ms": result.total_duration_ms,
-                "error": result.error_message,
-                "ticket_id": ticket.ticket_id
-            })
+            await _save_pipeline_state(
+                redis_client,
+                pipeline_id,
+                {
+                    "pipeline_id": pipeline_id,
+                    "artifact_id": ticket.metadata.get("artifact_id"),
+                    "status": normalized_status,
+                    "stage": "COMPLETED" if result.status == "COMPLETED" else "FAILED",
+                    "created_at": result.created_at.isoformat(),
+                    "updated_at": (result.completed_at or datetime.now()).isoformat(),
+                    "artifacts": [a.model_dump() for a in result.artifacts],
+                    "duration_ms": result.total_duration_ms,
+                    "error": result.error_message,
+                    "ticket_id": ticket.ticket_id,
+                },
+            )
 
-        logger.info(
-            "pipeline_execution_completed",
-            pipeline_id=pipeline_id,
-            status=result.status
-        )
+        logger.info("pipeline_execution_completed", pipeline_id=pipeline_id, status=result.status)
 
     except Exception as e:
         logger.error("pipeline_execution_failed", pipeline_id=pipeline_id, error=str(e))
 
         # Salvar estado de erro
         if redis_client:
-            await _save_pipeline_state(redis_client, pipeline_id, {
-                "pipeline_id": pipeline_id,
-                "artifact_id": ticket.metadata.get('artifact_id'),
-                "status": "failed",
-                "stage": "FAILED",
-                "created_at": ticket.created_at.isoformat(),
-                "updated_at": datetime.now().isoformat(),
-                "error": str(e),
-                "ticket_id": ticket.ticket_id
-            })
+            await _save_pipeline_state(
+                redis_client,
+                pipeline_id,
+                {
+                    "pipeline_id": pipeline_id,
+                    "artifact_id": ticket.metadata.get("artifact_id"),
+                    "status": "failed",
+                    "stage": "FAILED",
+                    "created_at": ticket.created_at.isoformat(),
+                    "updated_at": datetime.now().isoformat(),
+                    "error": str(e),
+                    "ticket_id": ticket.ticket_id,
+                },
+            )
 
 
 @router.get("/{pipeline_id}")
 async def get_pipeline(
     pipeline_id: str,
     pipeline_engine: Optional[PipelineEngine] = Depends(get_pipeline_engine),
-    redis_client: Optional[RedisClient] = Depends(get_redis_client)
+    redis_client: Optional[RedisClient] = Depends(get_redis_client),
 ):
     """
     Retorna status do pipeline.
@@ -286,13 +297,9 @@ async def get_pipeline(
                 "duration_ms": active_context.calculate_duration(),
                 "artifacts": [a.model_dump() for a in active_context.generated_artifacts],
                 "stages": [
-                    {
-                        "name": s.stage_name,
-                        "status": s.status.lower(),
-                        "duration_ms": s.duration_ms
-                    }
+                    {"name": s.stage_name, "status": s.status.lower(), "duration_ms": s.duration_ms}
                     for s in active_context.pipeline_stages
-                ]
+                ],
             }
 
     # Buscar no Redis
@@ -307,12 +314,13 @@ async def get_pipeline(
                 "artifacts": state.get("artifacts", []),
                 "error": state.get("error"),
                 "created_at": state.get("created_at"),
-                "updated_at": state.get("updated_at")
+                "updated_at": state.get("updated_at"),
             }
 
     # Fallback em memória
     import sys
-    mock_pipelines = getattr(sys.modules[__name__], '_mock_pipelines', {})
+
+    mock_pipelines = getattr(sys.modules[__name__], "_mock_pipelines", {})
     state = mock_pipelines.get(pipeline_id)
 
     if state:
@@ -334,7 +342,7 @@ async def get_pipeline(
             "duration_ms": state.get("duration_ms", 0),
             "artifacts": state.get("artifacts", []),
             "created_at": state.get("created_at"),
-            "updated_at": state.get("updated_at")
+            "updated_at": state.get("updated_at"),
         }
 
     raise HTTPException(status_code=404, detail="Pipeline not found")

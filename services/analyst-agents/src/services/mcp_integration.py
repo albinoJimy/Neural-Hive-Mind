@@ -2,12 +2,12 @@
 MCP Client Integration for Analyst Agents.
 Integra com scout-mcp-server e optimizer-mcp-server.
 """
-import asyncio
 import json
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional
+
 import httpx
-from tenacity import retry, stop_after_attempt, wait_exponential
 import structlog
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 logger = structlog.get_logger()
 
@@ -64,7 +64,9 @@ class MCPIntegration:
             logger.error("mcp_json_error", url=url, error=str(e))
             raise MCPIntegrationError(f"JSON decode error: {e}")
 
-    async def scout_list_files(self, path: str = ".", pattern: Optional[str] = None) -> List[Dict[str, Any]]:
+    async def scout_list_files(
+        self, path: str = ".", pattern: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         """
         Listar arquivos via scout MCP server.
 
@@ -149,7 +151,9 @@ class MCPIntegration:
         result = await self._post(url, payload)
 
         if result.get("status") != "success":
-            raise MCPIntegrationError(f"Optimizer analyze_performance failed: {result.get('error')}")
+            raise MCPIntegrationError(
+                f"Optimizer analyze_performance failed: {result.get('error')}"
+            )
 
         return result.get("data", {})
 

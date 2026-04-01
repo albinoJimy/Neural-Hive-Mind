@@ -5,23 +5,23 @@ Previne chamadas a serviços que estão falhando repetidamente,
 permitindo que o sistema recupere sem sobrecarga.
 """
 
-import asyncio
-import time
-from datetime import datetime, timedelta
+from dataclasses import dataclass
+from datetime import datetime, timezone
 from enum import Enum
-from typing import Callable, TypeVar, Optional
-from dataclasses import dataclass, field
+from typing import Callable, Optional, TypeVar
+
 import structlog
 
 logger = structlog.get_logger()
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 class CircuitBreakerState(Enum):
     """Estados do Circuit Breaker."""
-    CLOSED = "CLOSED"      # Operação normal
-    OPEN = "OPEN"          # Serviço falhando, chamadas bloqueadas
+
+    CLOSED = "CLOSED"  # Operação normal
+    OPEN = "OPEN"  # Serviço falhando, chamadas bloqueadas
     HALF_OPEN = "HALF_OPEN"  # Testando recuperação
 
 
@@ -36,6 +36,7 @@ class CircuitBreakerOpenError(Exception):
 @dataclass
 class CircuitBreakerInfo:
     """Informações sobre o estado do Circuit Breaker."""
+
     service_name: str
     state: CircuitBreakerState
     failure_count: int
@@ -58,7 +59,7 @@ class CircuitBreaker:
         service_name: str,
         failure_threshold: int = 5,
         timeout_seconds: int = 60,
-        half_open_max_calls: int = 3
+        half_open_max_calls: int = 3,
     ):
         """
         Inicializa o Circuit Breaker.
@@ -77,13 +78,15 @@ class CircuitBreaker:
         self._state = CircuitBreakerState.CLOSED
         self._failure_count = 0
         self._last_failure_time: Optional[datetime] = None
-        self._last_state_change = datetime.utcnow()
+        self._last_state_change = datetime.now(timezone.utc)
         self._half_open_call_count = 0
 
-        logger.info("circuit_breaker.created",
-                   service=service_name,
-                   threshold=failure_threshold,
-                   timeout_seconds=timeout_seconds)
+        logger.info(
+            "circuit_breaker.created",
+            service=service_name,
+            threshold=failure_threshold,
+            timeout_seconds=timeout_seconds,
+        )
 
     @property
     def state(self) -> CircuitBreakerState:
@@ -108,13 +111,15 @@ class CircuitBreaker:
         """
         if self._state == CircuitBreakerState.HALF_OPEN:
             self._state = CircuitBreakerState.CLOSED
-            logger.info("circuit_breaker.closed_after_half_open",
-                       service=self.service_name,
-                       calls_in_half_open=self._half_open_call_count)
+            logger.info(
+                "circuit_breaker.closed_after_half_open",
+                service=self.service_name,
+                calls_in_half_open=self._half_open_call_count,
+            )
             self._half_open_call_count = 0
 
         self._failure_count = 0
-        self._last_state_change = datetime.utcnow()
+        self._last_state_change = datetime.now(timezone.utc)
 
     def record_failure(self, error_message: Optional[str] = None):
         """
@@ -124,13 +129,15 @@ class CircuitBreaker:
             error_message: Mensagem de erro opcional para logging
         """
         self._failure_count += 1
-        self._last_failure_time = datetime.utcnow()
+        self._last_failure_time = datetime.now(timezone.utc)
 
-        logger.warning("circuit_breaker.failure_recorded",
-                      service=self.service_name,
-                      failure_count=self._failure_count,
-                      threshold=self._failure_threshold,
-                      error=error_message)
+        logger.warning(
+            "circuit_breaker.failure_recorded",
+            service=self.service_name,
+            failure_count=self._failure_count,
+            threshold=self._failure_threshold,
+            error=error_message,
+        )
 
         if self._failure_count >= self._failure_threshold:
             self._open()
@@ -139,19 +146,20 @@ class CircuitBreaker:
         """Abre o circuit breaker."""
         if self._state != CircuitBreakerState.OPEN:
             self._state = CircuitBreakerState.OPEN
-            self._last_state_change = datetime.utcnow()
-            logger.error("circuit_breaker.opened",
-                        service=self.service_name,
-                        failure_count=self._failure_count)
+            self._last_state_change = datetime.now(timezone.utc)
+            logger.error(
+                "circuit_breaker.opened",
+                service=self.service_name,
+                failure_count=self._failure_count,
+            )
 
     def _half_open(self):
         """Transiciona para HALF_OPEN."""
         if self._state != CircuitBreakerState.HALF_OPEN:
             self._state = CircuitBreakerState.HALF_OPEN
-            self._last_state_change = datetime.utcnow()
+            self._last_state_change = datetime.now(timezone.utc)
             self._half_open_call_count = 0
-            logger.info("circuit_breaker.half_open",
-                       service=self.service_name)
+            logger.info("circuit_breaker.half_open", service=self.service_name)
 
     def call(self, func: Callable[..., T], *args, **kwargs) -> T:
         """
@@ -171,7 +179,7 @@ class CircuitBreaker:
         if self._state == CircuitBreakerState.OPEN:
             # Verificar se expirou o timeout
             if self._last_state_change:
-                elapsed = (datetime.utcnow() - self._last_state_change).total_seconds()
+                elapsed = (datetime.now(timezone.utc) - self._last_state_change).total_seconds()
                 if elapsed >= self._timeout_seconds:
                     self._half_open()
                 else:
@@ -212,7 +220,7 @@ class CircuitBreaker:
         if self._state == CircuitBreakerState.OPEN:
             # Verificar se expirou o timeout
             if self._last_state_change:
-                elapsed = (datetime.utcnow() - self._last_state_change).total_seconds()
+                elapsed = (datetime.now(timezone.utc) - self._last_state_change).total_seconds()
                 if elapsed >= self._timeout_seconds:
                     self._half_open()
                 else:
@@ -239,7 +247,7 @@ class CircuitBreaker:
         self._state = CircuitBreakerState.CLOSED
         self._failure_count = 0
         self._last_failure_time = None
-        self._last_state_change = datetime.utcnow()
+        self._last_state_change = datetime.now(timezone.utc)
         self._half_open_call_count = 0
         logger.info("circuit_breaker.reset", service=self.service_name)
 
@@ -249,8 +257,10 @@ class CircuitBreaker:
             "service_name": self.service_name,
             "state": self._state.value,
             "failure_count": self._failure_count,
-            "last_failure_time": self._last_failure_time.isoformat() if self._last_failure_time else None,
+            "last_failure_time": self._last_failure_time.isoformat()
+            if self._last_failure_time
+            else None,
             "last_state_change": self._last_state_change.isoformat(),
             "threshold": self._failure_threshold,
-            "timeout_seconds": self._timeout_seconds
+            "timeout_seconds": self._timeout_seconds,
         }

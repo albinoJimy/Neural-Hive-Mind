@@ -4,15 +4,15 @@ Integra validação JWT com certificados cliente
 """
 
 import logging
-from typing import Optional, Dict, Any, List
-from fastapi import Request, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from typing import Any
+
+from config.settings import get_settings
+from fastapi import HTTPException, Request, status
+from fastapi.security import HTTPBearer
+from opentelemetry import trace
+from security.oauth2_validator import TokenValidationError, get_oauth2_validator
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
-from opentelemetry import trace
-
-from security.oauth2_validator import get_oauth2_validator, TokenValidationError
-from config.settings import get_settings
 
 logger = logging.getLogger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -32,9 +32,7 @@ class AuthenticationError(Exception):
 class AuthMiddleware(BaseHTTPMiddleware):
     """Middleware de autenticação híbrida OAuth2 + mTLS"""
 
-    def __init__(
-        self, app, exclude_paths: Optional[List[str]] = None, rate_limiter=None
-    ):
+    def __init__(self, app, exclude_paths: list[str] | None = None, rate_limiter=None):
         super().__init__(app)
         self.settings = get_settings()
         self.rate_limiter = rate_limiter  # Injetar rate limiter
@@ -84,18 +82,14 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 response = await call_next(request)
 
                 # 6. Adicionar headers de rate limit à resposta de sucesso
-                response = self._add_rate_limit_headers_to_response(request, response)
-
-                return response
+                return self._add_rate_limit_headers_to_response(request, response)
 
         except AuthenticationError as e:
-            logger.warning(
-                f"Falha na autenticação para {request.url.path}: {e.message}"
-            )
+            logger.warning(f"Falha na autenticação para {request.url.path}: {e.message}")
             return self._create_auth_error_response(e, request)
 
         except Exception as e:
-            logger.error(f"Erro interno na autenticação: {e}")
+            logger.exception(f"Erro interno na autenticação: {e}")
             return self._create_auth_error_response(
                 AuthenticationError(
                     "Erro interno de autenticação",
@@ -108,7 +102,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         """Verificar se deve pular autenticação para o path"""
         return any(path.startswith(exclude_path) for exclude_path in self.exclude_paths)
 
-    async def _validate_jwt_token(self, request: Request) -> Dict[str, Any]:
+    async def _validate_jwt_token(self, request: Request) -> dict[str, Any]:
         """Validar token JWT OAuth2"""
 
         # Extrair token do header Authorization
@@ -126,9 +120,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
             validator = await get_oauth2_validator()
 
             # Determinar scopes obrigatórios baseados no endpoint
-            required_scopes = self._get_required_scopes(
-                request.url.path, request.method
-            )
+            required_scopes = self._get_required_scopes(request.url.path, request.method)
 
             # Validar token completo
             payload = await validator.validate_token(
@@ -148,9 +140,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         except TokenValidationError as e:
             raise AuthenticationError(f"Token inválido: {e}")
 
-    async def _validate_mtls_certificate(
-        self, request: Request
-    ) -> Optional[Dict[str, Any]]:
+    async def _validate_mtls_certificate(self, request: Request) -> dict[str, Any] | None:
         """Validar certificado mTLS (opcional)"""
         try:
             # Extrair informações do certificado cliente
@@ -183,7 +173,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
             logger.warning(f"Erro na validação mTLS: {e}")
             return None
 
-    def _get_required_scopes(self, path: str, method: str) -> List[str]:
+    def _get_required_scopes(self, path: str, method: str) -> list[str]:
         """Determinar scopes obrigatórios por endpoint"""
 
         # Mapeamento de endpoints para scopes
@@ -209,12 +199,9 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
         return []
 
-    async def _validate_endpoint_access(
-        self, request: Request, user_context: Dict[str, Any]
-    ):
+    async def _validate_endpoint_access(self, request: Request, user_context: dict[str, Any]):
         """Validar acesso específico por endpoint"""
         path = request.url.path
-        method = request.method
         user_roles = user_context.get("roles", [])
 
         # Endpoints administrativos
@@ -251,8 +238,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
     def _add_context_headers(
         self,
         request: Request,
-        user_context: Dict[str, Any],
-        mtls_context: Optional[Dict[str, Any]],
+        user_context: dict[str, Any],
+        mtls_context: dict[str, Any] | None,
     ):
         """Adicionar headers de contexto para downstream services"""
 
@@ -278,9 +265,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 }
             )
 
-    def _add_rate_limit_headers_to_response(
-        self, request: Request, response: Response
-    ) -> Response:
+    def _add_rate_limit_headers_to_response(self, request: Request, response: Response) -> Response:
         """Adicionar headers de rate limit à resposta de sucesso"""
         if hasattr(request, "state") and hasattr(request.state, "rate_limit_headers"):
             rate_limit_headers = request.state.rate_limit_headers
@@ -290,7 +275,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         return response
 
     def _create_auth_error_response(
-        self, error: AuthenticationError, request: Optional[Request] = None
+        self, error: AuthenticationError, request: Request | None = None
     ) -> Response:
         """Criar resposta de erro de autenticação"""
         import re
@@ -301,11 +286,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         }
 
         # Adicionar headers de rate limit se disponíveis
-        if (
-            request
-            and hasattr(request, "state")
-            and hasattr(request.state, "rate_limit_headers")
-        ):
+        if request and hasattr(request, "state") and hasattr(request.state, "rate_limit_headers"):
             headers.update(request.state.rate_limit_headers)
 
         # Se erro 429, adicionar Retry-After header
@@ -327,7 +308,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         )
 
 
-async def get_current_user(request: Request) -> Dict[str, Any]:
+async def get_current_user(request: Request) -> dict[str, Any]:
     """Dependency para obter usuário atual autenticado"""
     if not hasattr(request.state, "authenticated") or not request.state.authenticated:
         raise HTTPException(
@@ -337,7 +318,7 @@ async def get_current_user(request: Request) -> Dict[str, Any]:
     return request.state.user
 
 
-async def get_current_admin_user(request: Request) -> Dict[str, Any]:
+async def get_current_admin_user(request: Request) -> dict[str, Any]:
     """Dependency para obter usuário admin autenticado"""
     user = await get_current_user(request)
 
@@ -350,10 +331,10 @@ async def get_current_admin_user(request: Request) -> Dict[str, Any]:
     return user
 
 
-async def require_scopes(required_scopes: List[str]):
+async def require_scopes(required_scopes: list[str]):
     """Dependency factory para validar scopes específicos"""
 
-    async def _check_scopes(request: Request) -> Dict[str, Any]:
+    async def _check_scopes(request: Request) -> dict[str, Any]:
         user = await get_current_user(request)
         user_scopes = user.get("scopes", [])
 
@@ -399,7 +380,7 @@ class OptionalAuthMiddleware(BaseHTTPMiddleware):
 
 
 def create_auth_middleware(
-    exclude_paths: Optional[List[str]] = None, optional: bool = False, rate_limiter=None
+    exclude_paths: list[str] | None = None, optional: bool = False, rate_limiter=None
 ) -> BaseHTTPMiddleware:
     """Factory para criar middleware de autenticação"""
 

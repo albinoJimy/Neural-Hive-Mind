@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 # OpenTelemetry instrumentation - optional due to dependency issues
 try:
     from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+
     OTEL_AVAILABLE = True
 except ImportError:
     OTEL_AVAILABLE = False
@@ -104,8 +105,9 @@ def create_app(lifespan: Optional[asynccontextmanager] = None) -> FastAPI:
         }
 
     # Include routers
-    from src.api.tools import router as tools_router
     from src.api.selections import router as selections_router
+    from src.api.tools import router as tools_router
+
     app.include_router(tools_router)
     app.include_router(selections_router)
 

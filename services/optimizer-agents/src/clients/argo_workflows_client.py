@@ -1,5 +1,3 @@
-from typing import Dict, List, Optional
-
 import structlog
 from kubernetes import client as k8s_client
 from kubernetes import config as k8s_config
@@ -18,7 +16,7 @@ class ArgoWorkflowsClient:
 
     def __init__(self, settings=None):
         self.settings = settings or get_settings()
-        self.k8s_custom_api: Optional[k8s_client.CustomObjectsApi] = None
+        self.k8s_custom_api: k8s_client.CustomObjectsApi | None = None
         self.namespace = self.settings.argo_workflows_namespace
 
     async def connect(self):
@@ -40,7 +38,7 @@ class ArgoWorkflowsClient:
             logger.error("argo_workflows_client_connection_failed", error=str(e))
             raise
 
-    async def submit_workflow(self, workflow_name: str, experiment_config: Dict) -> Optional[str]:
+    async def submit_workflow(self, workflow_name: str, experiment_config: dict) -> str | None:
         """
         Submeter workflow de experimento.
 
@@ -80,7 +78,7 @@ class ArgoWorkflowsClient:
             logger.error("workflow_submission_failed", workflow_name=workflow_name, error=str(e))
             return None
 
-    def _build_experiment_workflow(self, workflow_name: str, experiment_config: Dict) -> Dict:
+    def _build_experiment_workflow(self, workflow_name: str, experiment_config: dict) -> dict:
         """
         Construir manifest de Workflow Argo.
 
@@ -165,7 +163,10 @@ class ArgoWorkflowsClient:
                             "command": ["python", "monitor_experiment.py"],
                             "env": [
                                 {"name": "DURATION_SECONDS", "value": str(duration_seconds)},
-                                {"name": "GUARDRAILS", "value": str(experiment_config.get("guardrails", []))},
+                                {
+                                    "name": "GUARDRAILS",
+                                    "value": str(experiment_config.get("guardrails", [])),
+                                },
                             ],
                         },
                     },
@@ -206,7 +207,7 @@ class ArgoWorkflowsClient:
 
         return workflow
 
-    async def get_workflow_status(self, workflow_uid: str) -> Optional[Dict]:
+    async def get_workflow_status(self, workflow_uid: str) -> dict | None:
         """
         Obter status de um workflow.
 
@@ -235,7 +236,11 @@ class ArgoWorkflowsClient:
                         "nodes": workflow.get("status", {}).get("nodes", {}),
                     }
 
-                    logger.debug("workflow_status_retrieved", workflow_uid=workflow_uid, phase=status["phase"])
+                    logger.debug(
+                        "workflow_status_retrieved",
+                        workflow_uid=workflow_uid,
+                        phase=status["phase"],
+                    )
                     return status
 
             logger.warning("workflow_not_found", workflow_uid=workflow_uid)
@@ -293,7 +298,9 @@ class ArgoWorkflowsClient:
             logger.error("abort_workflow_failed", workflow_uid=workflow_uid, error=str(e))
             return False
 
-    async def get_workflow_logs(self, workflow_uid: str, step_name: Optional[str] = None) -> Optional[str]:
+    async def get_workflow_logs(
+        self, workflow_uid: str, step_name: str | None = None
+    ) -> str | None:
         """
         Obter logs de um workflow.
 
@@ -328,7 +335,8 @@ class ArgoWorkflowsClient:
 
             # Listar pods do workflow
             pods = core_api.list_namespaced_pod(
-                namespace=self.namespace, label_selector=f"workflows.argoproj.io/workflow={workflow_name}"
+                namespace=self.namespace,
+                label_selector=f"workflows.argoproj.io/workflow={workflow_name}",
             )
 
             logs = []
@@ -340,20 +348,26 @@ class ArgoWorkflowsClient:
                     continue
 
                 try:
-                    pod_logs = core_api.read_namespaced_pod_log(name=pod_name, namespace=self.namespace)
+                    pod_logs = core_api.read_namespaced_pod_log(
+                        name=pod_name, namespace=self.namespace
+                    )
                     logs.append(f"=== Pod: {pod_name} ===\n{pod_logs}\n")
                 except Exception as e:
                     logger.warning("failed_to_get_pod_logs", pod_name=pod_name, error=str(e))
 
             combined_logs = "\n".join(logs)
-            logger.info("workflow_logs_retrieved", workflow_uid=workflow_uid, log_size=len(combined_logs))
+            logger.info(
+                "workflow_logs_retrieved", workflow_uid=workflow_uid, log_size=len(combined_logs)
+            )
             return combined_logs
 
         except Exception as e:
             logger.error("get_workflow_logs_failed", workflow_uid=workflow_uid, error=str(e))
             return None
 
-    async def list_workflows(self, labels: Optional[Dict[str, str]] = None, limit: int = 50) -> List[Dict]:
+    async def list_workflows(
+        self, labels: dict[str, str] | None = None, limit: int = 50
+    ) -> list[dict]:
         """
         Listar workflows.
 

@@ -8,10 +8,9 @@ Responsável por:
 - Sincronizar progresso
 """
 import asyncio
-import json
 from datetime import datetime, timedelta
-from pathlib import Path
-from typing import Dict, List, Optional, Set, Any
+from typing import Dict, List, Optional, Set
+
 import structlog
 
 logger = structlog.get_logger()
@@ -26,7 +25,7 @@ class Task:
         target: str,  # filepath ou directory
         task_type: str,  # 'scan_file', 'analyze_directory', 'detect_patterns'
         priority: float = 0.5,
-        metadata: Optional[Dict] = None
+        metadata: Optional[Dict] = None,
     ):
         self.task_id = task_id
         self.target = target
@@ -35,7 +34,7 @@ class Task:
         self.metadata = metadata or {}
         self.created_at = datetime.now()
         self.assigned_to: Optional[str] = None
-        self.status = 'pending'  # pending, assigned, completed, failed
+        self.status = "pending"  # pending, assigned, completed, failed
         self.started_at: Optional[datetime] = None
         self.completed_at: Optional[datetime] = None
         self.result: Optional[Dict] = None
@@ -43,17 +42,17 @@ class Task:
     def to_dict(self) -> Dict:
         """Converte para dicionário."""
         return {
-            'task_id': self.task_id,
-            'target': self.target,
-            'task_type': self.task_type,
-            'priority': self.priority,
-            'metadata': self.metadata,
-            'created_at': self.created_at.isoformat(),
-            'assigned_to': self.assigned_to,
-            'status': self.status,
-            'started_at': self.started_at.isoformat() if self.started_at else None,
-            'completed_at': self.completed_at.isoformat() if self.completed_at else None,
-            'result': self.result
+            "task_id": self.task_id,
+            "target": self.target,
+            "task_type": self.task_type,
+            "priority": self.priority,
+            "metadata": self.metadata,
+            "created_at": self.created_at.isoformat(),
+            "assigned_to": self.assigned_to,
+            "status": self.status,
+            "started_at": self.started_at.isoformat() if self.started_at else None,
+            "completed_at": self.completed_at.isoformat() if self.completed_at else None,
+            "result": self.result,
         }
 
 
@@ -61,10 +60,7 @@ class ScoutCoordinator:
     """Coordena múltiplos scouts para exploração paralela."""
 
     def __init__(
-        self,
-        coordinator_id: str,
-        max_concurrent_tasks: int = 10,
-        task_timeout: int = 300
+        self, coordinator_id: str, max_concurrent_tasks: int = 10, task_timeout: int = 300
     ):
         """
         Inicializa ScoutCoordinator.
@@ -90,11 +86,11 @@ class ScoutCoordinator:
 
         # Estatísticas
         self.stats = {
-            'tasks_created': 0,
-            'tasks_assigned': 0,
-            'tasks_completed': 0,
-            'tasks_failed': 0,
-            'tasks_timeout': 0
+            "tasks_created": 0,
+            "tasks_assigned": 0,
+            "tasks_completed": 0,
+            "tasks_failed": 0,
+            "tasks_timeout": 0,
         }
 
     async def register_scout(self, scout_id: str, capabilities: List[str]) -> bool:
@@ -109,17 +105,13 @@ class ScoutCoordinator:
             True se registrado com sucesso
         """
         self._scouts[scout_id] = {
-            'status': 'idle',
-            'capabilities': capabilities,
-            'last_heartbeat': datetime.now(),
-            'tasks_completed': 0
+            "status": "idle",
+            "capabilities": capabilities,
+            "last_heartbeat": datetime.now(),
+            "tasks_completed": 0,
         }
 
-        logger.info(
-            "scout_registered",
-            scout_id=scout_id,
-            capabilities=capabilities
-        )
+        logger.info("scout_registered", scout_id=scout_id, capabilities=capabilities)
 
         return True
 
@@ -133,9 +125,9 @@ class ScoutCoordinator:
         if scout_id in self._scouts:
             # Reatribuir tarefas ativas
             for task_id, task in self._tasks.items():
-                if task.assigned_to == scout_id and task.status == 'assigned':
+                if task.assigned_to == scout_id and task.status == "assigned":
                     task.assigned_to = None
-                    task.status = 'pending'
+                    task.status = "pending"
                     await self._enqueue_task(task)
 
             del self._scouts[scout_id]
@@ -143,11 +135,7 @@ class ScoutCoordinator:
             logger.info("scout_unregistered", scout_id=scout_id)
 
     async def create_task(
-        self,
-        target: str,
-        task_type: str,
-        priority: float = 0.5,
-        metadata: Optional[Dict] = None
+        self, target: str, task_type: str, priority: float = 0.5, metadata: Optional[Dict] = None
     ) -> str:
         """
         Cria uma nova tarefa de exploração.
@@ -168,20 +156,16 @@ class ScoutCoordinator:
             target=target,
             task_type=task_type,
             priority=priority,
-            metadata=metadata
+            metadata=metadata,
         )
 
         self._tasks[task_id] = task
-        self.stats['tasks_created'] += 1
+        self.stats["tasks_created"] += 1
 
         await self._enqueue_task(task)
 
         logger.info(
-            "task_created",
-            task_id=task_id,
-            target=target,
-            task_type=task_type,
-            priority=priority
+            "task_created", task_id=task_id, target=target, task_type=task_type, priority=priority
         )
 
         return task_id
@@ -206,7 +190,7 @@ class ScoutCoordinator:
         """
         # Atualizar heartbeat
         if scout_id in self._scouts:
-            self._scouts[scout_id]['last_heartbeat'] = datetime.now()
+            self._scouts[scout_id]["last_heartbeat"] = datetime.now()
 
         # Verificar limite de tarefas simultâneas
         if len(self._active_tasks) >= self.max_concurrent_tasks:
@@ -215,22 +199,16 @@ class ScoutCoordinator:
         # Tentar obter tarefa de alta prioridade primeiro
         task = None
         try:
-            task = await asyncio.wait_for(
-                self._high_priority_queue.get(),
-                timeout=0.1
-            )
+            task = await asyncio.wait_for(self._high_priority_queue.get(), timeout=0.1)
         except asyncio.TimeoutError:
             try:
-                task = await asyncio.wait_for(
-                    self._normal_priority_queue.get(),
-                    timeout=0.1
-                )
+                task = await asyncio.wait_for(self._normal_priority_queue.get(), timeout=0.1)
             except asyncio.TimeoutError:
                 return None
 
         if task and task.task_id not in self._active_tasks:
             # Verificar se scout tem capacidade necessária
-            required_capability = task.metadata.get('required_capability')
+            required_capability = task.metadata.get("required_capability")
             if required_capability and required_capability not in capabilities:
                 # Re-enfileir tarefa
                 await self._enqueue_task(task)
@@ -238,27 +216,18 @@ class ScoutCoordinator:
 
             # Atribuir tarefa
             task.assigned_to = scout_id
-            task.status = 'assigned'
+            task.status = "assigned"
             task.started_at = datetime.now()
             self._active_tasks.add(task.task_id)
-            self.stats['tasks_assigned'] += 1
+            self.stats["tasks_assigned"] += 1
 
-            logger.info(
-                "task_assigned",
-                task_id=task.task_id,
-                scout_id=scout_id
-            )
+            logger.info("task_assigned", task_id=task.task_id, scout_id=scout_id)
 
             return task.to_dict()
 
         return None
 
-    async def complete_task(
-        self,
-        task_id: str,
-        result: Dict,
-        success: bool = True
-    ):
+    async def complete_task(self, task_id: str, result: Dict, success: bool = True):
         """
         Marca tarefa como completada.
 
@@ -272,7 +241,7 @@ class ScoutCoordinator:
             return
 
         task = self._tasks[task_id]
-        task.status = 'completed' if success else 'failed'
+        task.status = "completed" if success else "failed"
         task.completed_at = datetime.now()
         task.result = result
 
@@ -282,19 +251,15 @@ class ScoutCoordinator:
         # Atualizar estatísticas do scout
         if task.assigned_to and task.assigned_to in self._scouts:
             if success:
-                self._scouts[task.assigned_to]['tasks_completed'] += 1
-            self._scouts[task.assigned_to]['status'] = 'idle'
+                self._scouts[task.assigned_to]["tasks_completed"] += 1
+            self._scouts[task.assigned_to]["status"] = "idle"
 
         if success:
-            self.stats['tasks_completed'] += 1
+            self.stats["tasks_completed"] += 1
         else:
-            self.stats['tasks_failed'] += 1
+            self.stats["tasks_failed"] += 1
 
-        logger.info(
-            "task_completed",
-            task_id=task_id,
-            success=success
-        )
+        logger.info("task_completed", task_id=task_id, success=success)
 
     async def timeout_stale_tasks(self):
         """Marca tarefas expiradas como failed."""
@@ -302,19 +267,14 @@ class ScoutCoordinator:
         timeout = timedelta(seconds=self.task_timeout)
 
         stale_tasks = [
-            task_id for task_id, task in self._tasks.items()
-            if task.status == 'assigned'
-            and task.started_at
-            and now - task.started_at > timeout
+            task_id
+            for task_id, task in self._tasks.items()
+            if task.status == "assigned" and task.started_at and now - task.started_at > timeout
         ]
 
         for task_id in stale_tasks:
-            await self.complete_task(
-                task_id,
-                {'error': 'timeout'},
-                success=False
-            )
-            self.stats['tasks_timeout'] += 1
+            await self.complete_task(task_id, {"error": "timeout"}, success=False)
+            self.stats["tasks_timeout"] += 1
 
             logger.warning("task_timeout", task_id=task_id)
 
@@ -348,20 +308,17 @@ class ScoutCoordinator:
         # Contar scouts por status
         scouts_by_status = {}
         for scout in self._scouts.values():
-            status = scout['status']
+            status = scout["status"]
             scouts_by_status[status] = scouts_by_status.get(status, 0) + 1
 
         return {
-            'coordinator_id': self.coordinator_id,
-            'stats': self.stats,
-            'tasks_by_status': tasks_by_status,
-            'scouts_by_status': scouts_by_status,
-            'active_tasks': len(self._active_tasks),
-            'queue_size': (
-                self._high_priority_queue.qsize() +
-                self._normal_priority_queue.qsize()
-            ),
-            'timestamp': datetime.now().isoformat()
+            "coordinator_id": self.coordinator_id,
+            "stats": self.stats,
+            "tasks_by_status": tasks_by_status,
+            "scouts_by_status": scouts_by_status,
+            "active_tasks": len(self._active_tasks),
+            "queue_size": (self._high_priority_queue.qsize() + self._normal_priority_queue.qsize()),
+            "timestamp": datetime.now().isoformat(),
         }
 
     async def broadcast_event(self, event_type: str, payload: Dict):
@@ -373,11 +330,7 @@ class ScoutCoordinator:
             payload: Payload do evento
         """
         for scout_id in self._scouts.keys():
-            logger.info(
-                "event_broadcast",
-                scout_id=scout_id,
-                event_type=event_type
-            )
+            logger.info("event_broadcast", scout_id=scout_id, event_type=event_type)
 
     async def redistribute_tasks(self):
         """
@@ -385,22 +338,19 @@ class ScoutCoordinator:
         """
         # Encontrar tarefas atribuídas a scouts inativos
         inactive_scouts = [
-            scout_id for scout_id, scout in self._scouts.items()
-            if datetime.now() - scout.get('last_heartbeat', datetime.now()) > timedelta(minutes=5)
+            scout_id
+            for scout_id, scout in self._scouts.items()
+            if datetime.now() - scout.get("last_heartbeat", datetime.now()) > timedelta(minutes=5)
         ]
 
         for task_id, task in self._tasks.items():
-            if task.assigned_to in inactive_scouts and task.status == 'assigned':
+            if task.assigned_to in inactive_scouts and task.status == "assigned":
                 # Reatribuir tarefa
                 task.assigned_to = None
-                task.status = 'pending'
+                task.status = "pending"
                 await self._enqueue_task(task)
 
-                logger.info(
-                    "task_redistributed",
-                    task_id=task_id,
-                    from_scout=task.assigned_to
-                )
+                logger.info("task_redistributed", task_id=task_id, from_scout=task.assigned_to)
 
     def reset(self):
         """Reset todo o estado do coordenador."""

@@ -1,11 +1,11 @@
 """MongoDB client for tool catalog persistence."""
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
 import structlog
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
-from pymongo import ASCENDING, DESCENDING
+from pymongo import DESCENDING
 
 from src.models.tool_descriptor import ToolCategory, ToolDescriptor
 
@@ -131,9 +131,7 @@ class MongoDBClient:
         """
         tool_dict = tool.to_dict()
 
-        await self.db.tools.update_one(
-            {"tool_id": tool.tool_id}, {"$set": tool_dict}, upsert=True
-        )
+        await self.db.tools.update_one({"tool_id": tool.tool_id}, {"$set": tool_dict}, upsert=True)
 
         logger.debug("tool_saved", tool_id=tool.tool_id, tool_name=tool.tool_name)
         return tool.tool_id
@@ -204,7 +202,7 @@ class MongoDBClient:
             {
                 "$set": {
                     "reputation_score": updated_reputation,
-                    "updated_at": int(datetime.utcnow().timestamp() * 1000),
+                    "updated_at": int(datetime.now(timezone.utc).timestamp() * 1000),
                 }
             },
         )
@@ -238,7 +236,7 @@ class MongoDBClient:
             "total_fitness_score": response.get("total_fitness_score"),
             "selection_method": response.get("selection_method"),
             "cached": response.get("cached", False),
-            "created_at": int(datetime.utcnow().timestamp() * 1000),
+            "created_at": int(datetime.now(timezone.utc).timestamp() * 1000),
         }
 
         result = await self.db.selections_history.insert_one(history_entry)

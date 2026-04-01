@@ -4,12 +4,10 @@ MongoDB Client para contexto operacional e dados de médio prazo
 Fornece interface assíncrona ao MongoDB para armazenamento de contexto e ledger.
 """
 
-import structlog
-from datetime import datetime, timedelta
-from typing import Dict, Optional, List, Any
-from motor.motor_asyncio import AsyncIOMotorClient
-from pymongo.errors import DuplicateKeyError
+from typing import Dict, List, Optional
 
+import structlog
+from motor.motor_asyncio import AsyncIOMotorClient
 
 logger = structlog.get_logger()
 
@@ -41,19 +39,15 @@ class MongoDBClient:
             maxPoolSize=self.max_pool_size,
             serverSelectionTimeoutMS=self.timeout_ms,
             retryWrites=True,
-            w='majority'  # Write concern para durabilidade
+            w="majority",  # Write concern para durabilidade
         )
 
         self.db = self.client[self.database_name]
 
         # Verifica conectividade
-        await self.client.admin.command('ping')
+        await self.client.admin.command("ping")
 
-        logger.info(
-            'MongoDB client inicializado',
-            uri=self.uri,
-            database=self.database_name
-        )
+        logger.info("MongoDB client inicializado", uri=self.uri, database=self.database_name)
 
     async def find_one(self, collection: str, filter: Dict) -> Optional[Dict]:
         """
@@ -69,7 +63,7 @@ class MongoDBClient:
         try:
             return await self.db[collection].find_one(filter)
         except Exception as e:
-            logger.error('Erro ao buscar documento', collection=collection, error=str(e))
+            logger.error("Erro ao buscar documento", collection=collection, error=str(e))
             return None
 
     async def find(
@@ -78,7 +72,7 @@ class MongoDBClient:
         filter: Dict,
         limit: int = 100,
         skip: int = 0,
-        sort: Optional[List[tuple]] = None
+        sort: Optional[List[tuple]] = None,
     ) -> List[Dict]:
         """
         Busca múltiplos documentos
@@ -99,7 +93,7 @@ class MongoDBClient:
                 cursor = cursor.sort(sort)
             return await cursor.to_list(length=limit)
         except Exception as e:
-            logger.error('Erro ao buscar documentos', collection=collection, error=str(e))
+            logger.error("Erro ao buscar documentos", collection=collection, error=str(e))
             return []
 
     async def insert_one(self, collection: str, document: Dict) -> Optional[str]:
@@ -115,10 +109,10 @@ class MongoDBClient:
         """
         try:
             result = await self.db[collection].insert_one(document)
-            logger.debug('Documento inserido', collection=collection, id=str(result.inserted_id))
+            logger.debug("Documento inserido", collection=collection, id=str(result.inserted_id))
             return str(result.inserted_id)
         except Exception as e:
-            logger.error('Erro ao inserir documento', collection=collection, error=str(e))
+            logger.error("Erro ao inserir documento", collection=collection, error=str(e))
             return None
 
     async def insert_many(self, collection: str, documents: List[Dict]) -> int:
@@ -135,18 +129,14 @@ class MongoDBClient:
         try:
             result = await self.db[collection].insert_many(documents)
             count = len(result.inserted_ids)
-            logger.debug('Documentos inseridos', collection=collection, count=count)
+            logger.debug("Documentos inseridos", collection=collection, count=count)
             return count
         except Exception as e:
-            logger.error('Erro ao inserir documentos', collection=collection, error=str(e))
+            logger.error("Erro ao inserir documentos", collection=collection, error=str(e))
             return 0
 
     async def update_one(
-        self,
-        collection: str,
-        filter: Dict,
-        update: Dict,
-        upsert: bool = False
+        self, collection: str, filter: Dict, update: Dict, upsert: bool = False
     ) -> bool:
         """
         Atualiza um documento
@@ -163,22 +153,17 @@ class MongoDBClient:
         try:
             result = await self.db[collection].update_one(filter, update, upsert=upsert)
             logger.debug(
-                'Documento atualizado',
+                "Documento atualizado",
                 collection=collection,
                 matched=result.matched_count,
-                modified=result.modified_count
+                modified=result.modified_count,
             )
             return result.modified_count > 0 or (upsert and result.upserted_id is not None)
         except Exception as e:
-            logger.error('Erro ao atualizar documento', collection=collection, error=str(e))
+            logger.error("Erro ao atualizar documento", collection=collection, error=str(e))
             return False
 
-    async def update_many(
-        self,
-        collection: str,
-        filter: Dict,
-        update: Dict
-    ) -> int:
+    async def update_many(self, collection: str, filter: Dict, update: Dict) -> int:
         """
         Atualiza múltiplos documentos
 
@@ -192,10 +177,12 @@ class MongoDBClient:
         """
         try:
             result = await self.db[collection].update_many(filter, update)
-            logger.debug('Documentos atualizados', collection=collection, count=result.modified_count)
+            logger.debug(
+                "Documentos atualizados", collection=collection, count=result.modified_count
+            )
             return result.modified_count
         except Exception as e:
-            logger.error('Erro ao atualizar documentos', collection=collection, error=str(e))
+            logger.error("Erro ao atualizar documentos", collection=collection, error=str(e))
             return 0
 
     async def delete_one(self, collection: str, filter: Dict) -> bool:
@@ -211,10 +198,10 @@ class MongoDBClient:
         """
         try:
             result = await self.db[collection].delete_one(filter)
-            logger.debug('Documento removido', collection=collection, count=result.deleted_count)
+            logger.debug("Documento removido", collection=collection, count=result.deleted_count)
             return result.deleted_count > 0
         except Exception as e:
-            logger.error('Erro ao remover documento', collection=collection, error=str(e))
+            logger.error("Erro ao remover documento", collection=collection, error=str(e))
             return False
 
     async def delete_many(self, collection: str, filter: Dict) -> int:
@@ -230,10 +217,10 @@ class MongoDBClient:
         """
         try:
             result = await self.db[collection].delete_many(filter)
-            logger.debug('Documentos removidos', collection=collection, count=result.deleted_count)
+            logger.debug("Documentos removidos", collection=collection, count=result.deleted_count)
             return result.deleted_count
         except Exception as e:
-            logger.error('Erro ao remover documentos', collection=collection, error=str(e))
+            logger.error("Erro ao remover documentos", collection=collection, error=str(e))
             return 0
 
     async def count_documents(self, collection: str, filter: Dict) -> int:
@@ -250,7 +237,7 @@ class MongoDBClient:
         try:
             return await self.db[collection].count_documents(filter)
         except Exception as e:
-            logger.error('Erro ao contar documentos', collection=collection, error=str(e))
+            logger.error("Erro ao contar documentos", collection=collection, error=str(e))
             return 0
 
     async def aggregate(self, collection: str, pipeline: List[Dict]) -> List[Dict]:
@@ -268,7 +255,7 @@ class MongoDBClient:
             cursor = self.db[collection].aggregate(pipeline)
             return await cursor.to_list(length=None)
         except Exception as e:
-            logger.error('Erro na agregação', collection=collection, error=str(e))
+            logger.error("Erro na agregação", collection=collection, error=str(e))
             return []
 
     async def create_index(self, collection: str, keys: List[tuple], unique: bool = False):
@@ -282,12 +269,12 @@ class MongoDBClient:
         """
         try:
             await self.db[collection].create_index(keys, unique=unique)
-            logger.debug('Índice criado', collection=collection, keys=keys, unique=unique)
+            logger.debug("Índice criado", collection=collection, keys=keys, unique=unique)
         except Exception as e:
-            logger.error('Erro ao criar índice', collection=collection, error=str(e))
+            logger.error("Erro ao criar índice", collection=collection, error=str(e))
 
     async def close(self):
         """Fecha conexão com MongoDB"""
         if self.client:
             self.client.close()
-            logger.info('MongoDB client fechado')
+            logger.info("MongoDB client fechado")

@@ -3,7 +3,7 @@ Testes para RiskHistory
 """
 
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from neural_hive_risk_scoring import (
     RiskHistory,
@@ -103,7 +103,7 @@ class TestRiskHistory:
 
     def test_get_history_with_time_range(self, risk_history):
         """Testa filtro por intervalo de tempo."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         # Registrar avaliação antiga
         old = RiskAssessment(
@@ -155,7 +155,7 @@ class TestRiskHistory:
 
     def test_analyze_trend_increasing(self, risk_history):
         """Testa análise de tendência crescente."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         # Criar tendência crescente
         for i in range(10):
@@ -177,7 +177,7 @@ class TestRiskHistory:
 
     def test_analyze_trend_decreasing(self, risk_history):
         """Testa análise de tendência decrescente."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         # Criar tendência decrescente
         for i in range(10):
@@ -214,7 +214,7 @@ class TestRiskHistory:
 
     def test_detect_anomaly(self, risk_history):
         """Testa detecção de anomalia."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         # Histórico normal (scores em torno de 0.5)
         for i in range(20):
@@ -309,7 +309,7 @@ class TestRiskHistory:
         # Criar histórico com retenção curta
         short_history = RiskHistory(retention_days=1)
 
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         # Snapshot antigo
         old = RiskAssessment(
@@ -361,7 +361,7 @@ class TestRiskHistory:
 
     def test_analyze_trend_stable(self, risk_history):
         """Testa análise de tendência estável."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         # Criar tendência estável
         for i in range(10):
@@ -383,7 +383,7 @@ class TestRiskHistory:
 
     def test_anomaly_no_detection(self, risk_history):
         """Testa não detecção quando score está dentro do esperado."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         # Histórico consistente
         for i in range(20):
@@ -533,7 +533,7 @@ class TestRiskHistory:
 
     def test_anomaly_severity_levels(self, risk_history):
         """Testa níveis de severidade de anomalia."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         # Histórico consistente em 0.5
         for i in range(20):
@@ -563,7 +563,7 @@ class TestRiskHistory:
 
     def test_trend_strength_calculation(self, risk_history):
         """Testa cálculo de força da tendência."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         # Criar tendência forte (linear perfeita)
         for i in range(10):
@@ -647,7 +647,7 @@ class TestRiskHistory:
 
     def test_trend_delta_percentage(self, risk_history):
         """Testa cálculo de delta percentual na tendência."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         # Criar mudança de 50% (0.4 -> 0.6)
         assessment1 = RiskAssessment(

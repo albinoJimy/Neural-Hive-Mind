@@ -1,5 +1,6 @@
 """Redis client for Guard Agents"""
 from typing import Optional
+
 import redis.asyncio as aioredis
 import structlog
 
@@ -23,7 +24,7 @@ class RedisClient:
                 f"redis://{self.host}:{self.port}/{self.db}",
                 password=self.password,
                 encoding="utf-8",
-                decode_responses=True
+                decode_responses=True,
             )
             # Testa conexão
             await self.client.ping()

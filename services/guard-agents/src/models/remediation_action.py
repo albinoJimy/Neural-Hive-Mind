@@ -1,9 +1,10 @@
+import hashlib
+import json
 from datetime import datetime
 from enum import Enum
 from typing import Optional
-import hashlib
-import json
-from pydantic import BaseModel, Field, ConfigDict
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ActionType(str, Enum):
@@ -50,7 +51,7 @@ class RemediationAction(BaseModel):
                 "incident_id": "550e8400-e29b-41d4-a716-446655440000",
                 "action_type": "RESTART_POD",
                 "status": "PENDING",
-                "playbook_name": "restart_pod"
+                "playbook_name": "restart_pod",
             }
         }
     )
@@ -108,7 +109,7 @@ class RemediationAction(BaseModel):
             "incident_id": self.incident_id,
             "action_type": self.action_type.value,
             "playbook_name": self.playbook_name,
-            "created_at": self.created_at.isoformat()
+            "created_at": self.created_at.isoformat(),
         }
         hash_string = json.dumps(hash_data, sort_keys=True)
         return hashlib.sha256(hash_string.encode()).hexdigest()
@@ -127,27 +128,27 @@ class RemediationAction(BaseModel):
 
     def to_avro_dict(self) -> dict:
         """Converte para formato Avro-compatível"""
-        data = self.model_dump(mode='json')
-        data['action_type'] = self.action_type.value
-        data['status'] = self.status.value
-        data['execution_mode'] = self.execution_mode.value
-        data['created_at'] = int(self.created_at.timestamp() * 1000)
+        data = self.model_dump(mode="json")
+        data["action_type"] = self.action_type.value
+        data["status"] = self.status.value
+        data["execution_mode"] = self.execution_mode.value
+        data["created_at"] = int(self.created_at.timestamp() * 1000)
         if self.started_at:
-            data['started_at'] = int(self.started_at.timestamp() * 1000)
+            data["started_at"] = int(self.started_at.timestamp() * 1000)
         if self.completed_at:
-            data['completed_at'] = int(self.completed_at.timestamp() * 1000)
+            data["completed_at"] = int(self.completed_at.timestamp() * 1000)
         if self.approval_timestamp:
-            data['approval_timestamp'] = int(self.approval_timestamp.timestamp() * 1000)
+            data["approval_timestamp"] = int(self.approval_timestamp.timestamp() * 1000)
         return data
 
     @classmethod
     def from_avro_dict(cls, data: dict) -> "RemediationAction":
         """Cria instância a partir de dict Avro"""
-        data['created_at'] = datetime.fromtimestamp(data['created_at'] / 1000)
-        if data.get('started_at'):
-            data['started_at'] = datetime.fromtimestamp(data['started_at'] / 1000)
-        if data.get('completed_at'):
-            data['completed_at'] = datetime.fromtimestamp(data['completed_at'] / 1000)
-        if data.get('approval_timestamp'):
-            data['approval_timestamp'] = datetime.fromtimestamp(data['approval_timestamp'] / 1000)
+        data["created_at"] = datetime.fromtimestamp(data["created_at"] / 1000)
+        if data.get("started_at"):
+            data["started_at"] = datetime.fromtimestamp(data["started_at"] / 1000)
+        if data.get("completed_at"):
+            data["completed_at"] = datetime.fromtimestamp(data["completed_at"] / 1000)
+        if data.get("approval_timestamp"):
+            data["approval_timestamp"] = datetime.fromtimestamp(data["approval_timestamp"] / 1000)
         return cls(**data)

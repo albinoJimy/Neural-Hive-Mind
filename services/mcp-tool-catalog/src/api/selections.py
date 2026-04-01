@@ -2,17 +2,16 @@
 API REST endpoints para seleção síncrona de ferramentas.
 """
 
-from typing import List, Optional, Dict, Any
+from typing import Any, Dict, List, Optional
+
+import structlog
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
-import structlog
 
 from ..models.tool_selection import (
-    ToolSelectionRequest,
-    ToolSelectionResponse,
-    SelectionMethod,
     ArtifactType,
-    SelectionConstraints
+    SelectionConstraints,
+    ToolSelectionRequest,
 )
 from ..services.genetic_tool_selector import GeneticToolSelector
 
@@ -22,8 +21,10 @@ router = APIRouter(prefix="/api/v1/selections", tags=["selections"])
 
 # ===== Request/Response Models =====
 
+
 class ToolSelectionAPIRequest(BaseModel):
     """Request para seleção de ferramentas via API."""
+
     request_id: str = Field(..., description="ID único da requisição")
     ticket_id: Optional[str] = Field(None, description="ID do execution ticket")
     plan_id: Optional[str] = Field(None, description="ID do cognitive plan")
@@ -35,23 +36,17 @@ class ToolSelectionAPIRequest(BaseModel):
     complexity_score: float = Field(..., ge=0.0, le=1.0, description="Score de complexidade")
 
     required_categories: List[str] = Field(
-        ...,
-        description="Categorias obrigatórias (GENERATION, VALIDATION, etc)"
+        ..., description="Categorias obrigatórias (GENERATION, VALIDATION, etc)"
     )
 
-    constraints: Dict[str, Any] = Field(
-        default_factory=dict,
-        description="Constraints da seleção"
-    )
+    constraints: Dict[str, Any] = Field(default_factory=dict, description="Constraints da seleção")
 
-    context: Dict[str, Any] = Field(
-        default_factory=dict,
-        description="Contexto adicional"
-    )
+    context: Dict[str, Any] = Field(default_factory=dict, description="Contexto adicional")
 
 
 class SelectedToolInfo(BaseModel):
     """Informações de uma ferramenta selecionada."""
+
     tool_id: str
     tool_name: str
     category: str
@@ -62,6 +57,7 @@ class SelectedToolInfo(BaseModel):
 
 class ToolSelectionAPIResponse(BaseModel):
     """Response da seleção de ferramentas via API."""
+
     request_id: str
     selection_method: str
     selected_tools: List[SelectedToolInfo]
@@ -83,6 +79,7 @@ def set_genetic_selector(selector: GeneticToolSelector):
 
 # ===== Endpoints =====
 
+
 @router.post("", response_model=ToolSelectionAPIResponse)
 async def select_tools(request: ToolSelectionAPIRequest):
     """
@@ -98,10 +95,7 @@ async def select_tools(request: ToolSelectionAPIRequest):
         Resposta com ferramentas selecionadas
     """
     if not genetic_selector:
-        raise HTTPException(
-            status_code=500,
-            detail="Genetic selector not initialized"
-        )
+        raise HTTPException(status_code=500, detail="Genetic selector not initialized")
 
     try:
         # Converter API request para ToolSelectionRequest interno
@@ -111,11 +105,15 @@ async def select_tools(request: ToolSelectionAPIRequest):
         except ValueError:
             raise HTTPException(
                 status_code=400,
-                detail=f"Invalid artifact_type: {request.artifact_type}. Valid: {[t.value for t in ArtifactType]}"
+                detail=f"Invalid artifact_type: {request.artifact_type}. Valid: {[t.value for t in ArtifactType]}",
             )
 
         # Convert constraints dict to SelectionConstraints
-        constraints = SelectionConstraints(**request.constraints) if request.constraints else SelectionConstraints()
+        constraints = (
+            SelectionConstraints(**request.constraints)
+            if request.constraints
+            else SelectionConstraints()
+        )
 
         selection_request = ToolSelectionRequest(
             request_id=request.request_id,
@@ -129,7 +127,7 @@ async def select_tools(request: ToolSelectionAPIRequest):
             complexity_score=request.complexity_score,
             required_categories=request.required_categories,
             constraints=constraints,
-            context=request.context
+            context=request.context,
         )
 
         # Executar seleção
@@ -137,7 +135,7 @@ async def select_tools(request: ToolSelectionAPIRequest):
             "api_tool_selection_started",
             request_id=request.request_id,
             complexity=request.complexity_score,
-            categories=request.required_categories
+            categories=request.required_categories,
         )
 
         response = await genetic_selector.select_tools(selection_request)
@@ -150,7 +148,7 @@ async def select_tools(request: ToolSelectionAPIRequest):
                 category=tool.category,
                 execution_order=tool.execution_order,
                 fitness_score=tool.fitness_score,
-                reasoning=tool.reasoning
+                reasoning=tool.reasoning,
             )
             for tool in response.selected_tools
         ]
@@ -161,7 +159,7 @@ async def select_tools(request: ToolSelectionAPIRequest):
             selected_tools=selected_tools_info,
             total_fitness_score=response.total_fitness_score,
             convergence_time_ms=response.convergence_time_ms,
-            cached=response.cached
+            cached=response.cached,
         )
 
         logger.info(
@@ -169,25 +167,19 @@ async def select_tools(request: ToolSelectionAPIRequest):
             request_id=request.request_id,
             method=response.selection_method.value,
             tools_count=len(selected_tools_info),
-            fitness=response.total_fitness_score
+            fitness=response.total_fitness_score,
         )
 
         return api_response
 
     except Exception as e:
-        logger.error(
-            "api_tool_selection_failed",
-            request_id=request.request_id,
-            error=str(e)
-        )
-        raise HTTPException(
-            status_code=500,
-            detail=f"Tool selection failed: {str(e)}"
-        )
+        logger.error("api_tool_selection_failed", request_id=request.request_id, error=str(e))
+        raise HTTPException(status_code=500, detail=f"Tool selection failed: {str(e)}")
 
 
 class SelectionStatusResponse(BaseModel):
     """Resposta de status de seleção."""
+
     request_id: str
     status: str  # "completed", "processing", "not_found"
     selected_tools: Optional[List[Dict[str, Any]]] = None
@@ -213,10 +205,7 @@ async def get_selection_status(request_id: str):
         Status da seleção com ferramentas selecionadas
     """
     if not genetic_selector:
-        raise HTTPException(
-            status_code=500,
-            detail="Genetic selector not initialized"
-        )
+        raise HTTPException(status_code=500, detail="Genetic selector not initialized")
 
     try:
         # Consultar histórico no MongoDB
@@ -228,7 +217,7 @@ async def get_selection_status(request_id: str):
             return SelectionStatusResponse(
                 request_id=request_id,
                 status="not_found",
-                error=f"No selection found for request_id: {request_id}"
+                error=f"No selection found for request_id: {request_id}",
             )
 
         # Retornar a entrada mais recente (já está ordenada por created_at descending)
@@ -242,16 +231,9 @@ async def get_selection_status(request_id: str):
             selection_method=entry.get("selection_method"),
             cached=entry.get("cached", False),
             created_at=entry.get("created_at"),
-            error=None
+            error=None,
         )
 
     except Exception as e:
-        logger.error(
-            "get_selection_status_failed",
-            request_id=request_id,
-            error=str(e)
-        )
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to get selection status: {str(e)}"
-        )
+        logger.error("get_selection_status_failed", request_id=request_id, error=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to get selection status: {str(e)}")

@@ -2,10 +2,10 @@
 Métricas Prometheus customizadas para o Orchestrator Dynamic.
 """
 from functools import lru_cache
-from typing import Dict, Optional, Any
+from typing import Any
 
-from prometheus_client import Counter, Histogram, Gauge
 import structlog
+from prometheus_client import Counter, Gauge, Histogram
 
 logger = structlog.get_logger()
 
@@ -13,7 +13,12 @@ logger = structlog.get_logger()
 class OrchestratorMetrics:
     """Métricas Prometheus do Orchestrator Dynamic."""
 
-    def __init__(self, service_name: str = 'orchestrator-dynamic', component: str = 'orchestration', layer: str = 'orchestration'):
+    def __init__(
+        self,
+        service_name: str = "orchestrator-dynamic",
+        component: str = "orchestration",
+        layer: str = "orchestration",
+    ):
         """
         Inicializa métricas Prometheus.
 
@@ -28,593 +33,579 @@ class OrchestratorMetrics:
 
         # Métricas de Workflows
         self.workflows_started_total = Counter(
-            'orchestration_workflows_started_total',
-            'Total de workflows iniciados',
-            ['status', 'risk_band']
+            "orchestration_workflows_started_total",
+            "Total de workflows iniciados",
+            ["status", "risk_band"],
         )
 
         self.workflows_completed_total = Counter(
-            'orchestration_workflows_completed_total',
-            'Total de workflows concluídos',
-            ['status', 'risk_band']
+            "orchestration_workflows_completed_total",
+            "Total de workflows concluídos",
+            ["status", "risk_band"],
         )
 
         self.workflow_duration_seconds = Histogram(
-            'orchestration_workflow_duration_seconds',
-            'Duração de workflows em segundos',
-            ['status', 'risk_band'],
-            buckets=[1, 5, 10, 30, 60, 300, 600, 1800, 3600, 7200, 14400]
+            "orchestration_workflow_duration_seconds",
+            "Duração de workflows em segundos",
+            ["status", "risk_band"],
+            buckets=[1, 5, 10, 30, 60, 300, 600, 1800, 3600, 7200, 14400],
         )
 
         self.workflows_active = Gauge(
-            'orchestration_workflows_active',
-            'Workflows ativos no momento'
+            "orchestration_workflows_active", "Workflows ativos no momento"
         )
 
         # MongoDB pool
         self.mongodb_pool_size = Gauge(
-            'mongodb_pool_size',
-            'MongoDB connection pool size',
-            ['pool_type']
+            "mongodb_pool_size", "MongoDB connection pool size", ["pool_type"]
         )
         self.mongodb_pool_checkedout = Gauge(
-            'mongodb_pool_checkedout',
-            'MongoDB connections checked out'
+            "mongodb_pool_checkedout", "MongoDB connections checked out"
         )
 
         # Métricas de Persistência MongoDB
         self.mongodb_persistence_errors_total = Counter(
-            'mongodb_persistence_errors_total',
-            'Total de erros de persistência MongoDB',
-            ['collection', 'operation', 'error_type']
+            "mongodb_persistence_errors_total",
+            "Total de erros de persistência MongoDB",
+            ["collection", "operation", "error_type"],
         )
 
         self.mongodb_persistence_duration_seconds = Histogram(
-            'mongodb_persistence_duration_seconds',
-            'Duração de operações de persistência MongoDB',
-            ['collection', 'operation'],
-            buckets=[0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0, 2.0]
+            "mongodb_persistence_duration_seconds",
+            "Duração de operações de persistência MongoDB",
+            ["collection", "operation"],
+            buckets=[0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0, 2.0],
         )
 
         self.mongodb_circuit_breaker_state = Gauge(
-            'mongodb_circuit_breaker_state',
-            'Estado do circuit breaker MongoDB (0=closed, 1=open, 2=half_open)',
-            ['circuit_name']
+            "mongodb_circuit_breaker_state",
+            "Estado do circuit breaker MongoDB (0=closed, 1=open, 2=half_open)",
+            ["circuit_name"],
         )
 
         self.mongodb_index_validation = Counter(
-            'mongodb_index_validation_total',
-            'Validação de índices MongoDB',
-            ['collection', 'status']  # status: validated, missing, error
+            "mongodb_index_validation_total",
+            "Validação de índices MongoDB",
+            ["collection", "status"],  # status: validated, missing, error
         )
 
         self.mongodb_persistence_fail_open = Counter(
-            'mongodb_persistence_fail_open_total',
-            'Ativações de fail-open de persistência MongoDB (erro ignorado)',
-            ['collection']
+            "mongodb_persistence_fail_open_total",
+            "Ativações de fail-open de persistência MongoDB (erro ignorado)",
+            ["collection"],
         )
 
         # Métricas de Tickets
         self.tickets_generated_total = Counter(
-            'orchestration_tickets_generated_total',
-            'Total de tickets gerados',
-            ['task_type', 'risk_band', 'priority']
+            "orchestration_tickets_generated_total",
+            "Total de tickets gerados",
+            ["task_type", "risk_band", "priority"],
         )
 
         self.tickets_published_total = Counter(
-            'orchestration_tickets_published_total',
-            'Total de tickets publicados no Kafka',
-            ['status']
+            "orchestration_tickets_published_total",
+            "Total de tickets publicados no Kafka",
+            ["status"],
         )
 
         self.tickets_completed_total = Counter(
-            'orchestration_tickets_completed_total',
-            'Total de tickets concluídos',
-            ['status', 'task_type']
+            "orchestration_tickets_completed_total",
+            "Total de tickets concluídos",
+            ["status", "task_type"],
         )
 
         self.ticket_generation_duration_seconds = Histogram(
-            'orchestration_ticket_generation_duration_seconds',
-            'Tempo de geração de tickets',
-            buckets=[0.01, 0.05, 0.1, 0.5, 1, 2, 5, 10]
+            "orchestration_ticket_generation_duration_seconds",
+            "Tempo de geração de tickets",
+            buckets=[0.01, 0.05, 0.1, 0.5, 1, 2, 5, 10],
         )
 
         # Métricas de Query Temporal
         self.workflow_query_total = Counter(
-            'orchestration_workflow_query_total',
-            'Total de queries de workflow executadas',
-            ['query_name', 'status']  # status: success, validation_error, fallback
+            "orchestration_workflow_query_total",
+            "Total de queries de workflow executadas",
+            ["query_name", "status"],  # status: success, validation_error, fallback
         )
 
         # Métricas de Fallback MongoDB
         self.mongodb_fallback_total = Counter(
-            'orchestration_mongodb_fallback_total',
-            'Total de usos de fallback MongoDB para tickets',
-            ['source', 'status']  # source: temporal_validation_error, status: success, not_found
+            "orchestration_mongodb_fallback_total",
+            "Total de usos de fallback MongoDB para tickets",
+            ["source", "status"],  # source: temporal_validation_error, status: success, not_found
         )
 
         # Métricas de SLA
         self.sla_violations_total = Counter(
-            'orchestration_sla_violations_total',
-            'Total de violações de SLA',
-            ['risk_band', 'task_type']
+            "orchestration_sla_violations_total",
+            "Total de violações de SLA",
+            ["risk_band", "task_type"],
         )
 
         self.sla_remaining_seconds = Gauge(
-            'orchestration_sla_remaining_seconds',
-            'Tempo restante de SLA em segundos',
-            ['workflow_id', 'risk_band']
+            "orchestration_sla_remaining_seconds",
+            "Tempo restante de SLA em segundos",
+            ["workflow_id", "risk_band"],
         )
 
         self.deadline_approaching_total = Counter(
-            'orchestration_deadline_approaching_total',
-            'Workflows próximos do deadline (>80% consumido)'
+            "orchestration_deadline_approaching_total",
+            "Workflows próximos do deadline (>80% consumido)",
         )
 
         # Métricas de SLA Monitoring
         self.sla_budget_remaining_percent = Gauge(
-            'orchestration_sla_budget_remaining_percent',
-            'Percentual de error budget restante',
-            ['service_name', 'slo_id']
+            "orchestration_sla_budget_remaining_percent",
+            "Percentual de error budget restante",
+            ["service_name", "slo_id"],
         )
 
         self.sla_budget_status = Gauge(
-            'orchestration_sla_budget_status',
-            'Status do budget (0=HEALTHY, 1=WARNING, 2=CRITICAL, 3=EXHAUSTED)',
-            ['service_name', 'slo_id']
+            "orchestration_sla_budget_status",
+            "Status do budget (0=HEALTHY, 1=WARNING, 2=CRITICAL, 3=EXHAUSTED)",
+            ["service_name", "slo_id"],
         )
 
         self.sla_burn_rate = Gauge(
-            'orchestration_sla_burn_rate',
-            'Taxa de consumo do error budget',
-            ['service_name', 'window_hours']
+            "orchestration_sla_burn_rate",
+            "Taxa de consumo do error budget",
+            ["service_name", "window_hours"],
         )
 
         self.sla_alerts_sent_total = Counter(
-            'orchestration_sla_alerts_sent_total',
-            'Total de alertas SLA enviados',
-            ['alert_type', 'severity']
+            "orchestration_sla_alerts_sent_total",
+            "Total de alertas SLA enviados",
+            ["alert_type", "severity"],
         )
 
         self.sla_violations_published_total = Counter(
-            'orchestration_sla_violations_published_total',
-            'Total de violações SLA publicadas no Kafka',
-            ['violation_type']
+            "orchestration_sla_violations_published_total",
+            "Total de violações SLA publicadas no Kafka",
+            ["violation_type"],
         )
 
         self.sla_monitor_errors_total = Counter(
-            'orchestration_sla_monitor_errors_total',
-            'Total de erros no SLA monitoring',
-            ['error_type']
+            "orchestration_sla_monitor_errors_total",
+            "Total de erros no SLA monitoring",
+            ["error_type"],
         )
 
         self.sla_alert_deduplication_hits_total = Counter(
-            'orchestration_sla_alert_deduplication_hits_total',
-            'Total de alertas bloqueados por deduplicação'
+            "orchestration_sla_alert_deduplication_hits_total",
+            "Total de alertas bloqueados por deduplicação",
         )
 
         self.sla_check_duration_seconds = Histogram(
-            'orchestration_sla_check_duration_seconds',
-            'Duração de verificações de SLA',
-            ['check_type'],
-            buckets=[0.01, 0.05, 0.1, 0.5, 1, 2, 5, 10]
+            "orchestration_sla_check_duration_seconds",
+            "Duração de verificações de SLA",
+            ["check_type"],
+            buckets=[0.01, 0.05, 0.1, 0.5, 1, 2, 5, 10],
         )
 
         # Métricas de Retry e Compensação
         self.retries_total = Counter(
-            'orchestration_retries_total',
-            'Total de retries',
-            ['task_type', 'retry_attempt']
+            "orchestration_retries_total", "Total de retries", ["task_type", "retry_attempt"]
         )
 
         self.compensations_triggered_total = Counter(
-            'orchestration_compensations_triggered_total',
-            'Total de compensações acionadas',
-            ['reason']
+            "orchestration_compensations_triggered_total",
+            "Total de compensações acionadas",
+            ["reason"],
         )
 
         self.compensations_executed_total = Counter(
-            'orchestration_compensations_executed_total',
-            'Total de compensações executadas',
-            ['reason', 'status']  # status: success, failed
+            "orchestration_compensations_executed_total",
+            "Total de compensações executadas",
+            ["reason", "status"],  # status: success, failed
         )
 
         # Compensation duration histogram
         self.compensation_duration_seconds = Histogram(
-            'orchestration_compensation_duration_seconds',
-            'Duração de compensações executadas',
-            ['reason', 'status'],  # status: success, failed
-            buckets=[0.1, 0.5, 1, 2, 5, 10, 30, 60, 120]
+            "orchestration_compensation_duration_seconds",
+            "Duração de compensações executadas",
+            ["reason", "status"],  # status: success, failed
+            buckets=[0.1, 0.5, 1, 2, 5, 10, 30, 60, 120],
         )
 
         # Métricas de Kafka
         self.kafka_messages_consumed_total = Counter(
-            'orchestration_kafka_messages_consumed_total',
-            'Total de mensagens consumidas de plans.consensus'
+            "orchestration_kafka_messages_consumed_total",
+            "Total de mensagens consumidas de plans.consensus",
         )
 
         self.kafka_messages_produced_total = Counter(
-            'orchestration_kafka_messages_produced_total',
-            'Total de mensagens produzidas em execution.tickets'
+            "orchestration_kafka_messages_produced_total",
+            "Total de mensagens produzidas em execution.tickets",
         )
 
-        self.kafka_consumer_lag = Gauge(
-            'orchestration_kafka_consumer_lag',
-            'Lag do consumer Kafka'
-        )
+        self.kafka_consumer_lag = Gauge("orchestration_kafka_consumer_lag", "Lag do consumer Kafka")
 
         self.kafka_errors_total = Counter(
-            'orchestration_kafka_errors_total',
-            'Total de erros Kafka',
-            ['operation', 'error_type']
+            "orchestration_kafka_errors_total", "Total de erros Kafka", ["operation", "error_type"]
         )
 
         # Métricas de distribuição de partitions Kafka
         self.kafka_partition_messages_total = Counter(
-            'neural_hive_kafka_partition_messages_total',
-            'Total de mensagens publicadas por partition',
-            ['topic', 'partition', 'service', 'component', 'layer']
+            "neural_hive_kafka_partition_messages_total",
+            "Total de mensagens publicadas por partition",
+            ["topic", "partition", "service", "component", "layer"],
         )
 
         self.kafka_partition_bytes_total = Counter(
-            'neural_hive_kafka_partition_bytes_total',
-            'Total de bytes publicados por partition',
-            ['topic', 'partition', 'service', 'component', 'layer']
+            "neural_hive_kafka_partition_bytes_total",
+            "Total de bytes publicados por partition",
+            ["topic", "partition", "service", "component", "layer"],
         )
 
         self.kafka_partition_distribution_gauge = Gauge(
-            'neural_hive_kafka_partition_distribution',
-            'Distribuição percentual de mensagens por partition (últimos 5min)',
-            ['topic', 'partition', 'service', 'component', 'layer']
+            "neural_hive_kafka_partition_distribution",
+            "Distribuição percentual de mensagens por partition (últimos 5min)",
+            ["topic", "partition", "service", "component", "layer"],
         )
 
         self.kafka_hot_partition_detected_total = Counter(
-            'neural_hive_kafka_hot_partition_detected_total',
-            'Total de hot partitions detectadas (partition > 2x média)',
-            ['topic', 'partition', 'service', 'component', 'layer']
+            "neural_hive_kafka_hot_partition_detected_total",
+            "Total de hot partitions detectadas (partition > 2x média)",
+            ["topic", "partition", "service", "component", "layer"],
         )
 
         # Métricas de Inicialização de Componentes
         self.component_initialization_total = Counter(
-            'neural_hive_component_initialization_total',
-            'Total de tentativas de inicialização de componentes',
-            ['service', 'component', 'layer', 'component_name', 'status']  # status: success, failed
+            "neural_hive_component_initialization_total",
+            "Total de tentativas de inicialização de componentes",
+            [
+                "service",
+                "component",
+                "layer",
+                "component_name",
+                "status",
+            ],  # status: success, failed
         )
 
         self.component_initialization_duration_seconds = Histogram(
-            'neural_hive_component_initialization_duration_seconds',
-            'Duração de inicialização de componentes',
-            ['service', 'component', 'layer', 'component_name', 'status'],
-            buckets=[0.01, 0.05, 0.1, 0.5, 1, 2, 5, 10, 30, 60]
+            "neural_hive_component_initialization_duration_seconds",
+            "Duração de inicialização de componentes",
+            ["service", "component", "layer", "component_name", "status"],
+            buckets=[0.01, 0.05, 0.1, 0.5, 1, 2, 5, 10, 30, 60],
         )
 
         self.circuit_breaker_initialization_errors_total = Counter(
-            'neural_hive_circuit_breaker_initialization_errors_total',
-            'Total de erros na inicialização de circuit breakers',
-            ['service', 'component', 'layer', 'circuit_name', 'error_type']
+            "neural_hive_circuit_breaker_initialization_errors_total",
+            "Total de erros na inicialização de circuit breakers",
+            ["service", "component", "layer", "circuit_name", "error_type"],
         )
 
         self.kafka_producer_config_validation_errors_total = Counter(
-            'neural_hive_kafka_producer_config_validation_errors_total',
-            'Total de erros de validação de config do Kafka Producer',
-            ['service', 'component', 'layer', 'validation_stage', 'missing_attribute']
+            "neural_hive_kafka_producer_config_validation_errors_total",
+            "Total de erros de validação de config do Kafka Producer",
+            ["service", "component", "layer", "validation_stage", "missing_attribute"],
         )
 
         # Gauge para Status de Inicialização de Componentes
         self.component_initialization_status = Gauge(
-            'neural_hive_component_initialization_status',
-            'Status de inicialização de componentes críticos (0=not_started, 1=in_progress, 2=success, 3=failed)',
-            ['service', 'component', 'layer', 'component_name']
+            "neural_hive_component_initialization_status",
+            "Status de inicialização de componentes críticos (0=not_started, 1=in_progress, 2=success, 3=failed)",
+            ["service", "component", "layer", "component_name"],
         )
 
         # Gauge para Status de Treinamento de Modelos ML (inicialização)
         self.ml_model_init_training_status = Gauge(
-            'neural_hive_ml_model_training_status',
-            'Status de treinamento de modelos ML (0=untrained, 1=trained, 2=failed)',
-            ['service', 'component', 'layer', 'model_name']
+            "neural_hive_ml_model_training_status",
+            "Status de treinamento de modelos ML (0=untrained, 1=trained, 2=failed)",
+            ["service", "component", "layer", "model_name"],
         )
 
         # Counter para Erros de Atividades Não Registradas
         self.temporal_activity_registration_errors_total = Counter(
-            'neural_hive_temporal_activity_registration_errors_total',
-            'Total de erros de activities não registradas no Temporal Worker',
-            ['service', 'component', 'layer', 'activity_name', 'workflow_name']
+            "neural_hive_temporal_activity_registration_errors_total",
+            "Total de erros de activities não registradas no Temporal Worker",
+            ["service", "component", "layer", "activity_name", "workflow_name"],
         )
 
         # Gauge para Estado de Circuit Breakers
         self.circuit_breaker_initialization_status = Gauge(
-            'neural_hive_circuit_breaker_initialization_status',
-            'Status de inicialização de circuit breakers (0=not_initialized, 1=initialized, 2=failed)',
-            ['service', 'component', 'layer', 'circuit_name']
+            "neural_hive_circuit_breaker_initialization_status",
+            "Status de inicialização de circuit breakers (0=not_initialized, 1=initialized, 2=failed)",
+            ["service", "component", "layer", "circuit_name"],
         )
 
         # Métricas de incidentes (Fluxo E)
         self.incident_publish_total = Counter(
-            'orchestration_incident_publish_total',
-            'Total de incidentes publicados para autocura',
-            ['incident_type', 'status']
+            "orchestration_incident_publish_total",
+            "Total de incidentes publicados para autocura",
+            ["incident_type", "status"],
         )
 
         self.incident_publish_errors = Counter(
-            'orchestration_incident_publish_errors',
-            'Falhas na publicação de incidentes para autocura',
-            ['incident_type', 'error_type']
+            "orchestration_incident_publish_errors",
+            "Falhas na publicação de incidentes para autocura",
+            ["incident_type", "error_type"],
         )
 
         self.incident_publish_duration_seconds = Histogram(
-            'orchestration_incident_publish_duration_seconds',
-            'Duração da publicação de incidentes no Kafka',
-            ['incident_type'],
-            buckets=[0.01, 0.05, 0.1, 0.5, 1, 2, 5, 10]
+            "orchestration_incident_publish_duration_seconds",
+            "Duração da publicação de incidentes no Kafka",
+            ["incident_type"],
+            buckets=[0.01, 0.05, 0.1, 0.5, 1, 2, 5, 10],
         )
 
         self.self_healing_triggered_total = Counter(
-            'orchestration_self_healing_triggered_total',
-            'Total de incidentes que acionaram autocura',
-            ['incident_type']
+            "orchestration_self_healing_triggered_total",
+            "Total de incidentes que acionaram autocura",
+            ["incident_type"],
         )
 
         # Métricas de Validação
         self.plan_validations_total = Counter(
-            'orchestration_plan_validations_total',
-            'Total de validações de planos',
-            ['result']
+            "orchestration_plan_validations_total", "Total de validações de planos", ["result"]
         )
 
         self.dag_optimizations_total = Counter(
-            'orchestration_dag_optimizations_total',
-            'Total de otimizações de DAG'
+            "orchestration_dag_optimizations_total", "Total de otimizações de DAG"
         )
 
         # Métricas de Recursos
         self.resource_allocations_total = Counter(
-            'orchestration_resource_allocations_total',
-            'Total de alocações de recursos',
-            ['status']
+            "orchestration_resource_allocations_total", "Total de alocações de recursos", ["status"]
         )
 
         self.burst_capacity_activations_total = Counter(
-            'orchestration_burst_capacity_activations_total',
-            'Total de ativações de burst capacity'
+            "orchestration_burst_capacity_activations_total", "Total de ativações de burst capacity"
         )
 
         # Métricas de correlation_id
         self.correlation_id_missing_total = Counter(
-            'neural_hive_orchestrator_correlation_id_missing_total',
-            'Total de workflows iniciados sem correlation_id na decisão consolidada',
+            "neural_hive_orchestrator_correlation_id_missing_total",
+            "Total de workflows iniciados sem correlation_id na decisão consolidada",
         )
 
         # Idempotency
         self.duplicates_detected_total = Counter(
-            'orchestrator_duplicates_detected_total',
-            'Total de decisões/tickets duplicados detectados',
-            ['component']
+            "orchestrator_duplicates_detected_total",
+            "Total de decisões/tickets duplicados detectados",
+            ["component"],
         )
 
         self.idempotency_cache_hits_total = Counter(
-            'orchestrator_idempotency_cache_hits_total',
-            'Total de cache hits na verificação de idempotência',
-            ['component']
+            "orchestrator_idempotency_cache_hits_total",
+            "Total de cache hits na verificação de idempotência",
+            ["component"],
         )
 
         # Métricas de Scheduler
         self.scheduler_allocations_total = Counter(
-            'orchestration_scheduler_allocations_total',
-            'Total de alocações pelo scheduler',
-            ['status', 'fallback', 'has_predictions']
+            "orchestration_scheduler_allocations_total",
+            "Total de alocações pelo scheduler",
+            ["status", "fallback", "has_predictions"],
         )
 
         self.fallback_stub_activations_total = Counter(
-            'orchestration_fallback_stub_activations_total',
-            'Total de ativações do fallback_stub no allocate_resources',
-            ['reason']
+            "orchestration_fallback_stub_activations_total",
+            "Total de ativações do fallback_stub no allocate_resources",
+            ["reason"],
         )
 
         self.scheduler_allocation_duration_seconds = Histogram(
-            'orchestration_scheduler_allocation_duration_seconds',
-            'Duração de alocações do scheduler',
-            buckets=[0.01, 0.05, 0.1, 0.5, 1, 2, 5, 10, 30]
+            "orchestration_scheduler_allocation_duration_seconds",
+            "Duração de alocações do scheduler",
+            buckets=[0.01, 0.05, 0.1, 0.5, 1, 2, 5, 10, 30],
         )
 
         self.scheduler_workers_discovered = Histogram(
-            'orchestration_scheduler_workers_discovered',
-            'Número de workers descobertos por alocação'
+            "orchestration_scheduler_workers_discovered",
+            "Número de workers descobertos por alocação",
         )
 
         self.scheduler_discovery_failures_total = Counter(
-            'orchestration_scheduler_discovery_failures_total',
-            'Total de falhas de discovery no Service Registry',
-            ['error_type']
+            "orchestration_scheduler_discovery_failures_total",
+            "Total de falhas de discovery no Service Registry",
+            ["error_type"],
         )
 
         self.scheduler_priority_score = Histogram(
-            'orchestration_scheduler_priority_score',
-            'Scores de prioridade calculados',
-            ['risk_band', 'boosted']
+            "orchestration_scheduler_priority_score",
+            "Scores de prioridade calculados",
+            ["risk_band", "boosted"],
         )
 
         self.scheduler_cache_hits_total = Counter(
-            'orchestration_scheduler_cache_hits_total',
-            'Total de cache hits em descobertas'
+            "orchestration_scheduler_cache_hits_total", "Total de cache hits em descobertas"
         )
 
         self.scheduler_rejections_total = Counter(
-            'orchestration_scheduler_rejections_total',
-            'Total de rejeições de alocação pelo scheduler',
-            ['reason']
+            "orchestration_scheduler_rejections_total",
+            "Total de rejeições de alocação pelo scheduler",
+            ["reason"],
         )
 
         # Preemption Metrics
         self.tasks_preempted_total = Counter(
-            'orchestration_tasks_preempted_total',
-            'Total de tasks preemptadas',
-            ['preempted_priority', 'preemptor_priority']
+            "orchestration_tasks_preempted_total",
+            "Total de tasks preemptadas",
+            ["preempted_priority", "preemptor_priority"],
         )
 
         self.preemption_attempts_total = Counter(
-            'orchestration_preemption_attempts_total',
-            'Total de tentativas de preempção',
-            ['success', 'reason']
+            "orchestration_preemption_attempts_total",
+            "Total de tentativas de preempção",
+            ["success", "reason"],
         )
 
         self.preemption_failures_total = Counter(
-            'orchestration_preemption_failures_total',
-            'Total de falhas de preempção',
-            ['reason']
+            "orchestration_preemption_failures_total", "Total de falhas de preempção", ["reason"]
         )
 
         self.preemption_duration_seconds = Histogram(
-            'orchestration_preemption_duration_seconds',
-            'Duração do processo de preempção',
-            buckets=[0.1, 0.5, 1, 2, 5, 10, 30, 60]
+            "orchestration_preemption_duration_seconds",
+            "Duração do processo de preempção",
+            buckets=[0.1, 0.5, 1, 2, 5, 10, 30, 60],
         )
 
         self.active_preemptions = Gauge(
-            'orchestration_active_preemptions',
-            'Número de preempções em andamento'
+            "orchestration_active_preemptions", "Número de preempções em andamento"
         )
 
         self.preempted_tasks_retried_total = Counter(
-            'orchestration_preempted_tasks_retried_total',
-            'Total de tasks preemptadas que foram reagendadas'
+            "orchestration_preempted_tasks_retried_total",
+            "Total de tasks preemptadas que foram reagendadas",
         )
 
         # Affinity/Anti-Affinity Metrics
         self.affinity_hits_total = Counter(
-            'neural_hive_orchestrator_affinity_hits_total',
-            'Total de alocações com affinity hit (co-location)',
-            ['affinity_type']  # plan, intent
+            "neural_hive_orchestrator_affinity_hits_total",
+            "Total de alocações com affinity hit (co-location)",
+            ["affinity_type"],  # plan, intent
         )
 
         self.affinity_misses_total = Counter(
-            'neural_hive_orchestrator_affinity_misses_total',
-            'Total de alocações sem affinity hit',
-            ['affinity_type']
+            "neural_hive_orchestrator_affinity_misses_total",
+            "Total de alocações sem affinity hit",
+            ["affinity_type"],
         )
 
         self.anti_affinity_enforced_total = Counter(
-            'neural_hive_orchestrator_anti_affinity_enforced_total',
-            'Total de alocações onde anti-affinity foi aplicado',
-            ['risk_band', 'priority']
+            "neural_hive_orchestrator_anti_affinity_enforced_total",
+            "Total de alocações onde anti-affinity foi aplicado",
+            ["risk_band", "priority"],
         )
 
         self.affinity_score_distribution = Histogram(
-            'neural_hive_orchestrator_affinity_score',
-            'Distribuição de affinity scores',
-            ['affinity_type'],
-            buckets=[0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
+            "neural_hive_orchestrator_affinity_score",
+            "Distribuição de affinity scores",
+            ["affinity_type"],
+            buckets=[0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
         )
 
         self.affinity_cache_operations_total = Counter(
-            'neural_hive_orchestrator_affinity_cache_operations_total',
-            'Total de operações no cache de affinity',
-            ['operation', 'status']  # operation: get_plan/get_intent/get_critical/record/cleanup, status: success/failure
+            "neural_hive_orchestrator_affinity_cache_operations_total",
+            "Total de operações no cache de affinity",
+            [
+                "operation",
+                "status",
+            ],  # operation: get_plan/get_intent/get_critical/record/cleanup, status: success/failure
         )
 
         # Métricas de OPA Policy Validation
         self.opa_validations_total = Counter(
-            'orchestration_opa_validations_total',
-            'Total de validações OPA',
-            ['policy_name', 'result']  # result: allowed, denied, error
+            "orchestration_opa_validations_total",
+            "Total de validações OPA",
+            ["policy_name", "result"],  # result: allowed, denied, error
         )
 
         self.opa_validation_duration_seconds = Histogram(
-            'orchestration_opa_validation_duration_seconds',
-            'Duração de validações OPA',
-            ['policy_name'],
-            buckets=[0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2, 5]
+            "orchestration_opa_validation_duration_seconds",
+            "Duração de validações OPA",
+            ["policy_name"],
+            buckets=[0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2, 5],
         )
 
         self.opa_policy_rejections_total = Counter(
-            'orchestration_opa_policy_rejections_total',
-            'Total de rejeições por políticas OPA',
-            ['policy_name', 'rule', 'severity']  # severity: critical, high, medium, low
+            "orchestration_opa_policy_rejections_total",
+            "Total de rejeições por políticas OPA",
+            ["policy_name", "rule", "severity"],  # severity: critical, high, medium, low
         )
 
         self.opa_policy_warnings_total = Counter(
-            'orchestration_opa_policy_warnings_total',
-            'Total de warnings de políticas OPA',
-            ['policy_name', 'rule']
+            "orchestration_opa_policy_warnings_total",
+            "Total de warnings de políticas OPA",
+            ["policy_name", "rule"],
         )
 
         self.opa_violations_by_policy = Counter(
-            'orchestration_opa_violations_by_policy_total',
-            'Total de violações OPA por política',
-            ['policy_name', 'rule', 'severity']  # severity: critical, high, medium, low
+            "orchestration_opa_violations_by_policy_total",
+            "Total de violações OPA por política",
+            ["policy_name", "rule", "severity"],  # severity: critical, high, medium, low
         )
 
         self.opa_evaluation_errors_total = Counter(
-            'orchestration_opa_evaluation_errors_total',
-            'Total de erros na avaliação OPA',
-            ['error_type']  # error_type: connection, timeout, policy_not_found, evaluation_error
+            "orchestration_opa_evaluation_errors_total",
+            "Total de erros na avaliação OPA",
+            ["error_type"],  # error_type: connection, timeout, policy_not_found, evaluation_error
         )
 
         self.opa_cache_hits_total = Counter(
-            'orchestration_opa_cache_hits_total',
-            'Total de cache hits em decisões OPA'
+            "orchestration_opa_cache_hits_total", "Total de cache hits em decisões OPA"
         )
 
         self.opa_feature_flags = Gauge(
-            'orchestration_opa_feature_flags',
-            'Status de feature flags (1=enabled, 0=disabled)',
-            ['flag_name', 'namespace']
+            "orchestration_opa_feature_flags",
+            "Status de feature flags (1=enabled, 0=disabled)",
+            ["flag_name", "namespace"],
         )
 
         self.opa_circuit_breaker_state = Gauge(
-            'orchestration_opa_circuit_breaker_state',
-            'Estado do circuit breaker OPA (0=closed, 1=half_open, 2=open)',
-            ['circuit_name']
+            "orchestration_opa_circuit_breaker_state",
+            "Estado do circuit breaker OPA (0=closed, 1=half_open, 2=open)",
+            ["circuit_name"],
         )
 
         # Métricas adicionais de OPA para observabilidade avançada
         self.opa_policy_decision_duration_seconds = Histogram(
-            'orchestration_opa_policy_decision_duration_seconds',
-            'Duração de decisões OPA por policy_path',
-            ['policy_path'],
-            buckets=[0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5]
+            "orchestration_opa_policy_decision_duration_seconds",
+            "Duração de decisões OPA por policy_path",
+            ["policy_path"],
+            buckets=[0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5],
         )
 
         self.opa_policy_violation_rate = Counter(
-            'orchestration_opa_policy_violation_rate_total',
-            'Taxa de violações por policy_name e rule',
-            ['policy_name', 'rule']
+            "orchestration_opa_policy_violation_rate_total",
+            "Taxa de violações por policy_name e rule",
+            ["policy_name", "rule"],
         )
 
         self.opa_cache_hit_ratio = Gauge(
-            'orchestration_opa_cache_hit_ratio',
-            'Razão de cache hits OPA (hits / (hits + misses))'
+            "orchestration_opa_cache_hit_ratio", "Razão de cache hits OPA (hits / (hits + misses))"
         )
 
         self.opa_circuit_breaker_transitions_total = Counter(
-            'orchestration_opa_circuit_breaker_transitions_total',
-            'Total de transições de estado do circuit breaker',
-            ['from_state', 'to_state']
+            "orchestration_opa_circuit_breaker_transitions_total",
+            "Total de transições de estado do circuit breaker",
+            ["from_state", "to_state"],
         )
 
         self.opa_batch_evaluation_size = Histogram(
-            'orchestration_opa_batch_evaluation_size',
-            'Tamanho de batch evaluations OPA',
-            buckets=[1, 2, 3, 4, 5, 10, 20, 50, 100]
+            "orchestration_opa_batch_evaluation_size",
+            "Tamanho de batch evaluations OPA",
+            buckets=[1, 2, 3, 4, 5, 10, 20, 50, 100],
         )
 
         # Authorization Audit Metrics
         self.authorization_audit_logged_total = Counter(
-            'neural_hive_authorization_audit_logged_total',
-            'Total de decisões de autorização auditadas',
-            ['service', 'component', 'layer', 'policy_path', 'decision', 'tenant_id']
+            "neural_hive_authorization_audit_logged_total",
+            "Total de decisões de autorização auditadas",
+            ["service", "component", "layer", "policy_path", "decision", "tenant_id"],
         )
 
         self.authorization_audit_errors_total = Counter(
-            'neural_hive_authorization_audit_errors_total',
-            'Total de erros ao auditar decisões',
-            ['service', 'component', 'layer', 'error_type']
+            "neural_hive_authorization_audit_errors_total",
+            "Total de erros ao auditar decisões",
+            ["service", "component", "layer", "error_type"],
         )
 
         self.authorization_audit_query_duration_seconds = Histogram(
-            'neural_hive_authorization_audit_query_duration_seconds',
-            'Duração de queries de auditoria',
-            ['service', 'component', 'layer', 'query_type'],
-            buckets=[0.01, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0]
+            "neural_hive_authorization_audit_query_duration_seconds",
+            "Duração de queries de auditoria",
+            ["service", "component", "layer", "query_type"],
+            buckets=[0.01, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0],
         )
 
         # Contadores internos para cálculo de hit ratio
@@ -623,300 +614,299 @@ class OrchestratorMetrics:
 
         # Security Metrics
         self.security_violations_total = Counter(
-            'orchestration_security_violations_total',
-            'Total de violações de segurança detectadas',
-            ['tenant_id', 'violation_type', 'severity']
+            "orchestration_security_violations_total",
+            "Total de violações de segurança detectadas",
+            ["tenant_id", "violation_type", "severity"],
         )
 
         self.security_authentication_failures_total = Counter(
-            'orchestration_security_authentication_failures_total',
-            'Total de falhas de autenticação',
-            ['tenant_id', 'reason']
+            "orchestration_security_authentication_failures_total",
+            "Total de falhas de autenticação",
+            ["tenant_id", "reason"],
         )
 
         self.security_authorization_denials_total = Counter(
-            'orchestration_security_authorization_denials_total',
-            'Total de negações de autorização',
-            ['tenant_id', 'user_id', 'capability']
+            "orchestration_security_authorization_denials_total",
+            "Total de negações de autorização",
+            ["tenant_id", "user_id", "capability"],
         )
 
         self.security_tenant_isolation_violations_total = Counter(
-            'orchestration_security_tenant_isolation_violations_total',
-            'Total de violações de isolamento de tenant',
-            ['source_tenant', 'target_tenant']
+            "orchestration_security_tenant_isolation_violations_total",
+            "Total de violações de isolamento de tenant",
+            ["source_tenant", "target_tenant"],
         )
 
         self.security_data_governance_violations_total = Counter(
-            'orchestration_security_data_governance_violations_total',
-            'Total de violações de governança de dados',
-            ['tenant_id', 'violation_type']
+            "orchestration_security_data_governance_violations_total",
+            "Total de violações de governança de dados",
+            ["tenant_id", "violation_type"],
         )
 
         self.security_rate_limit_exceeded_total = Counter(
-            'orchestration_security_rate_limit_exceeded_total',
-            'Total de rate limits excedidos',
-            ['tenant_id', 'limit_type']
+            "orchestration_security_rate_limit_exceeded_total",
+            "Total de rate limits excedidos",
+            ["tenant_id", "limit_type"],
         )
 
         # JWT validation failures
         self.jwt_validation_failures_total = Counter(
-            'orchestration_jwt_validation_failures_total',
-            'Total de falhas na validação de JWT',
-            ['tenant_id', 'reason']  # reason: expired, invalid_signature, invalid_issuer, invalid_audience, missing_claims
+            "orchestration_jwt_validation_failures_total",
+            "Total de falhas na validação de JWT",
+            [
+                "tenant_id",
+                "reason",
+            ],  # reason: expired, invalid_signature, invalid_issuer, invalid_audience, missing_claims
         )
 
         # mTLS handshake failures
         self.mtls_handshake_failures_total = Counter(
-            'orchestration_mtls_handshake_failures_total',
-            'Total de falhas em handshake mTLS',
-            ['service', 'reason']  # reason: invalid_cert, ca_mismatch, expired_cert, connection_error
+            "orchestration_mtls_handshake_failures_total",
+            "Total de falhas em handshake mTLS",
+            [
+                "service",
+                "reason",
+            ],  # reason: invalid_cert, ca_mismatch, expired_cert, connection_error
         )
 
         # ML Predictions Metrics
         self.ml_predictions_total = Counter(
-            'orchestration_ml_predictions_total',
-            'Total de predições ML executadas',
-            ['model_type', 'status']
+            "orchestration_ml_predictions_total",
+            "Total de predições ML executadas",
+            ["model_type", "status"],
         )
 
         self.ml_prediction_duration_seconds = Histogram(
-            'orchestration_ml_prediction_duration_seconds',
-            'Latência de predições ML',
-            ['model_type'],
-            buckets=[0.01, 0.05, 0.1, 0.5, 1, 2, 5]
+            "orchestration_ml_prediction_duration_seconds",
+            "Latência de predições ML",
+            ["model_type"],
+            buckets=[0.01, 0.05, 0.1, 0.5, 1, 2, 5],
         )
 
         # Usado para tracking de erro de predição de duração (compute_and_record_ml_error)
         self.ml_prediction_error = Histogram(
-            'orchestration_ml_prediction_error',
-            'Erro de predição (actual - predicted)',
-            ['model_type'],
-            buckets=[0, 1000, 5000, 10000, 30000, 60000, 120000, 300000]
+            "orchestration_ml_prediction_error",
+            "Erro de predição (actual - predicted)",
+            ["model_type"],
+            buckets=[0, 1000, 5000, 10000, 30000, 60000, 120000, 300000],
         )
 
         self.ml_anomalies_detected_total = Counter(
-            'orchestration_ml_anomalies_detected_total',
-            'Anomalias detectadas por tipo',
-            ['anomaly_type']
+            "orchestration_ml_anomalies_detected_total",
+            "Anomalias detectadas por tipo",
+            ["anomaly_type"],
         )
 
         self.ml_model_load_errors_total = Counter(
-            'orchestration_ml_model_load_errors_total',
-            'Erros ao carregar modelos',
-            ['model_name']
+            "orchestration_ml_model_load_errors_total", "Erros ao carregar modelos", ["model_name"]
         )
 
         self.ml_training_duration_seconds = Histogram(
-            'orchestration_ml_training_duration_seconds',
-            'Duração do treinamento de modelos',
-            ['model_type'],
-            buckets=[10, 30, 60, 120, 300, 600, 1800]
+            "orchestration_ml_training_duration_seconds",
+            "Duração do treinamento de modelos",
+            ["model_type"],
+            buckets=[10, 30, 60, 120, 300, 600, 1800],
         )
 
         self.ml_model_accuracy = Gauge(
-            'orchestration_ml_model_accuracy',
-            'Métricas de acurácia dos modelos',
-            ['model_name', 'metric_type']
+            "orchestration_ml_model_accuracy",
+            "Métricas de acurácia dos modelos",
+            ["model_name", "metric_type"],
         )
 
         self.ml_feature_extraction_errors_total = Counter(
-            'orchestration_ml_feature_extraction_errors_total',
-            'Erros ao extrair features para ML'
+            "orchestration_ml_feature_extraction_errors_total", "Erros ao extrair features para ML"
         )
 
         # ML Model Training Status Metrics
         self.ml_model_training_status = Gauge(
-            'orchestration_ml_model_training_status',
-            'Status de treinamento do modelo ML (1=trained, 0=untrained)',
-            ['model_name', 'status']
+            "orchestration_ml_model_training_status",
+            "Status de treinamento do modelo ML (1=trained, 0=untrained)",
+            ["model_name", "status"],
         )
 
         self.ml_model_quality_metrics = Gauge(
-            'orchestration_ml_model_quality_metrics',
-            'Métricas de qualidade do modelo (MAE, RMSE, R2)',
-            ['model_name', 'metric_type']
+            "orchestration_ml_model_quality_metrics",
+            "Métricas de qualidade do modelo (MAE, RMSE, R2)",
+            ["model_name", "metric_type"],
         )
 
         # ML Drift Detection Metrics
         self.ml_drift_score = Gauge(
-            'orchestration_ml_drift_score',
-            'Scores de drift detection (PSI, MAE ratio, K-S statistic)',
-            ['drift_type', 'feature', 'model_name']
+            "orchestration_ml_drift_score",
+            "Scores de drift detection (PSI, MAE ratio, K-S statistic)",
+            ["drift_type", "feature", "model_name"],
         )
 
         self.ml_drift_status = Gauge(
-            'orchestration_ml_drift_status',
-            'Status geral de drift (0=ok, 1=warning, 2=critical)',
-            ['model_name', 'drift_type']
+            "orchestration_ml_drift_status",
+            "Status geral de drift (0=ok, 1=warning, 2=critical)",
+            ["model_name", "drift_type"],
         )
 
         # ML Training Job Metrics
         self.ml_training_jobs_total = Counter(
-            'orchestration_ml_training_jobs_total',
-            'Total de jobs de treinamento executados',
-            ['status', 'trigger']
+            "orchestration_ml_training_jobs_total",
+            "Total de jobs de treinamento executados",
+            ["status", "trigger"],
         )
 
         self.ml_training_samples_used = Gauge(
-            'orchestration_ml_training_samples_used',
-            'Número de amostras usadas no treinamento',
-            ['model_name', 'data_source']
+            "orchestration_ml_training_samples_used",
+            "Número de amostras usadas no treinamento",
+            ["model_name", "data_source"],
         )
 
         self.ml_model_promotion_total = Counter(
-            'orchestration_ml_model_promotion_total',
-            'Total de promoções de modelos',
-            ['model_name', 'from_stage', 'to_stage', 'result']
+            "orchestration_ml_model_promotion_total",
+            "Total de promoções de modelos",
+            ["model_name", "from_stage", "to_stage", "result"],
         )
 
         self.ml_prediction_cache_hits_total = Counter(
-            'orchestration_ml_prediction_cache_hits_total',
-            'Cache hits de modelos ML',
-            ['model_name']
+            "orchestration_ml_prediction_cache_hits_total",
+            "Cache hits de modelos ML",
+            ["model_name"],
         )
 
         # Shadow Mode Metrics (usando prefixo neural_hive_shadow_* conforme requisito)
         self.ml_shadow_predictions_total = Counter(
-            'neural_hive_shadow_predictions_total',
-            'Total de predições shadow executadas',
-            ['model_name', 'model_version', 'status']
+            "neural_hive_shadow_predictions_total",
+            "Total de predições shadow executadas",
+            ["model_name", "model_version", "status"],
         )
 
         self.ml_shadow_agreement_rate = Gauge(
-            'neural_hive_shadow_agreement_rate',
-            'Taxa de agreement entre produção e shadow',
-            ['model_name', 'model_version', 'agreement_type']
+            "neural_hive_shadow_agreement_rate",
+            "Taxa de agreement entre produção e shadow",
+            ["model_name", "model_version", "agreement_type"],
         )
 
         self.ml_shadow_latency_seconds = Histogram(
-            'neural_hive_shadow_latency_seconds',
-            'Latência de predições shadow',
-            ['model_name', 'model_version'],
-            buckets=[0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0]
+            "neural_hive_shadow_latency_seconds",
+            "Latência de predições shadow",
+            ["model_name", "model_version"],
+            buckets=[0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0],
         )
 
         self.ml_shadow_comparison_errors = Counter(
-            'neural_hive_shadow_comparison_errors_total',
-            'Erros durante comparação shadow',
-            ['model_name', 'error_type']
+            "neural_hive_shadow_comparison_errors_total",
+            "Erros durante comparação shadow",
+            ["model_name", "error_type"],
         )
 
         self.ml_shadow_circuit_breaker_state = Gauge(
-            'neural_hive_shadow_circuit_breaker_state',
-            'Estado do circuit breaker shadow (0=closed, 1=open, 2=half-open)',
-            ['model_name']
+            "neural_hive_shadow_circuit_breaker_state",
+            "Estado do circuit breaker shadow (0=closed, 1=open, 2=half-open)",
+            ["model_name"],
         )
 
         # Model Comparison Metrics
         self.ml_model_comparison_total = Counter(
-            'neural_hive_model_comparison_total',
-            'Total de comparações de modelos executadas',
-            ['model_name', 'recommendation']
+            "neural_hive_model_comparison_total",
+            "Total de comparações de modelos executadas",
+            ["model_name", "recommendation"],
         )
 
         self.ml_model_comparison_duration_seconds = Histogram(
-            'neural_hive_model_comparison_duration_seconds',
-            'Duração da comparação de modelos',
-            ['model_name'],
-            buckets=[1, 5, 10, 30, 60, 120, 300]
+            "neural_hive_model_comparison_duration_seconds",
+            "Duração da comparação de modelos",
+            ["model_name"],
+            buckets=[1, 5, 10, 30, 60, 120, 300],
         )
 
         self.ml_model_comparison_confidence = Gauge(
-            'neural_hive_model_comparison_confidence',
-            'Confidence score da última comparação',
-            ['model_name']
+            "neural_hive_model_comparison_confidence",
+            "Confidence score da última comparação",
+            ["model_name"],
         )
 
         # Gradual Rollout Metrics
         self.ml_rollout_stage = Gauge(
-            'neural_hive_rollout_stage',
-            'Current rollout stage (1-4)',
-            ['model_name']
+            "neural_hive_rollout_stage", "Current rollout stage (1-4)", ["model_name"]
         )
 
         self.ml_rollout_traffic_pct = Gauge(
-            'neural_hive_rollout_traffic_pct',
-            'Current rollout traffic percentage',
-            ['model_name']
+            "neural_hive_rollout_traffic_pct", "Current rollout traffic percentage", ["model_name"]
         )
 
         self.ml_rollout_checkpoint_total = Counter(
-            'neural_hive_rollout_checkpoint_total',
-            'Total rollout checkpoints executed',
-            ['model_name', 'stage', 'status']
+            "neural_hive_rollout_checkpoint_total",
+            "Total rollout checkpoints executed",
+            ["model_name", "stage", "status"],
         )
 
         self.ml_rollout_degradation_total = Counter(
-            'neural_hive_rollout_degradation_total',
-            'Total rollout degradations detected',
-            ['model_name', 'stage', 'reason']
+            "neural_hive_rollout_degradation_total",
+            "Total rollout degradations detected",
+            ["model_name", "stage", "reason"],
         )
 
         # ML Model Audit Metrics
         self.ml_model_audit_events_total = Counter(
-            'neural_hive_model_audit_events_total',
-            'Total de eventos de auditoria de modelos ML',
-            ['model_name', 'event_type']
+            "neural_hive_model_audit_events_total",
+            "Total de eventos de auditoria de modelos ML",
+            ["model_name", "event_type"],
         )
 
         # ML Scheduling Optimization Metrics
         self.scheduler_ml_optimizations_applied_total = Counter(
-            'orchestration_scheduler_ml_optimizations_applied_total',
-            'Total de otimizações ML aplicadas',
-            ['optimization_type', 'source']  # source: remote, local, fallback
+            "orchestration_scheduler_ml_optimizations_applied_total",
+            "Total de otimizações ML aplicadas",
+            ["optimization_type", "source"],  # source: remote, local, fallback
         )
 
         self.scheduler_ml_optimization_latency_seconds = Histogram(
-            'orchestration_scheduler_ml_optimization_latency_seconds',
-            'Latência de otimizações ML de scheduling',
-            buckets=[0.01, 0.05, 0.1, 0.5, 1, 2, 5, 10]
+            "orchestration_scheduler_ml_optimization_latency_seconds",
+            "Latência de otimizações ML de scheduling",
+            buckets=[0.01, 0.05, 0.1, 0.5, 1, 2, 5, 10],
         )
 
         # Usado para tracking de erro de predição de queue time (record_allocation_outcome)
         self.scheduler_queue_prediction_error_ms = Histogram(
-            'orchestration_scheduler_queue_prediction_error_ms',
-            'Erro de predição de queue time (|predicted - actual|)',
-            buckets=[0, 500, 1000, 2000, 5000, 10000, 30000, 60000]
+            "orchestration_scheduler_queue_prediction_error_ms",
+            "Erro de predição de queue time (|predicted - actual|)",
+            buckets=[0, 500, 1000, 2000, 5000, 10000, 30000, 60000],
         )
 
         self.scheduler_load_prediction_accuracy = Gauge(
-            'orchestration_scheduler_load_prediction_accuracy',
-            'Acurácia de predição de carga (predicted vs actual)',
-            ['worker_id']
+            "orchestration_scheduler_load_prediction_accuracy",
+            "Acurácia de predição de carga (predicted vs actual)",
+            ["worker_id"],
         )
 
         # Usado para tracking de qualidade de alocação (record_allocation_outcome)
         self.scheduler_allocation_quality_score = Histogram(
-            'orchestration_scheduler_allocation_quality_score',
-            'Score de qualidade da alocação (0-1)',
-            ['used_ml_optimization'],
-            buckets=[0, 0.2, 0.4, 0.6, 0.7, 0.8, 0.9, 0.95, 1.0]
+            "orchestration_scheduler_allocation_quality_score",
+            "Score de qualidade da alocação (0-1)",
+            ["used_ml_optimization"],
+            buckets=[0, 0.2, 0.4, 0.6, 0.7, 0.8, 0.9, 0.95, 1.0],
         )
 
         self.scheduler_optimizer_availability = Gauge(
-            'orchestration_scheduler_optimizer_availability',
-            'Disponibilidade do optimizer-agents remoto (1=available, 0=unavailable)'
+            "orchestration_scheduler_optimizer_availability",
+            "Disponibilidade do optimizer-agents remoto (1=available, 0=unavailable)",
         )
 
         self.scheduler_predicted_queue_time_ms = Histogram(
-            'orchestration_scheduler_predicted_queue_time_ms',
-            'Queue times preditos pelos modelos ML',
-            ['source'],  # source: local, remote
-            buckets=[0, 100, 500, 1000, 2000, 5000, 10000, 30000, 60000]
+            "orchestration_scheduler_predicted_queue_time_ms",
+            "Queue times preditos pelos modelos ML",
+            ["source"],  # source: local, remote
+            buckets=[0, 100, 500, 1000, 2000, 5000, 10000, 30000, 60000],
         )
 
         self.scheduler_predicted_worker_load_pct = Histogram(
-            'orchestration_scheduler_predicted_worker_load_pct',
-            'Worker load predito como percentual (0-1)',
-            ['source'],  # source: local, remote
-            buckets=[0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+            "orchestration_scheduler_predicted_worker_load_pct",
+            "Worker load predito como percentual (0-1)",
+            ["source"],  # source: local, remote
+            buckets=[0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
         )
 
-        logger.info('Métricas Prometheus inicializadas', service=service_name, component=component)
+        logger.info("Métricas Prometheus inicializadas", service=service_name, component=component)
 
     # Métodos helper para registrar métricas
 
-    def record_workflow_started(self, risk_band: str, status: str = 'started'):
+    def record_workflow_started(self, risk_band: str, status: str = "started"):
         """Registra início de workflow."""
         self.workflows_started_total.labels(status=status, risk_band=risk_band).inc()
         self.workflows_active.inc()
@@ -924,18 +914,18 @@ class OrchestratorMetrics:
     def record_workflow_completed(self, status: str, risk_band: str, duration_seconds: float):
         """Registra conclusão de workflow."""
         self.workflows_completed_total.labels(status=status, risk_band=risk_band).inc()
-        self.workflow_duration_seconds.labels(status=status, risk_band=risk_band).observe(duration_seconds)
+        self.workflow_duration_seconds.labels(status=status, risk_band=risk_band).observe(
+            duration_seconds
+        )
         self.workflows_active.dec()
 
     def record_ticket_generated(self, task_type: str, risk_band: str, priority: str):
         """Registra geração de ticket."""
         self.tickets_generated_total.labels(
-            task_type=task_type,
-            risk_band=risk_band,
-            priority=priority
+            task_type=task_type, risk_band=risk_band, priority=priority
         ).inc()
 
-    def record_ticket_published(self, status: str = 'published'):
+    def record_ticket_published(self, status: str = "published"):
         """Registra publicação de ticket no Kafka."""
         self.tickets_published_total.labels(status=status).inc()
 
@@ -972,7 +962,9 @@ class OrchestratorMetrics:
             status: Status da compensação (success, failed)
             duration_seconds: Duração em segundos
         """
-        self.compensation_duration_seconds.labels(reason=reason, status=status).observe(duration_seconds)
+        self.compensation_duration_seconds.labels(reason=reason, status=status).observe(
+            duration_seconds
+        )
 
     def record_compensation_executed(self, reason: str, status: str):
         """
@@ -1028,7 +1020,7 @@ class OrchestratorMetrics:
             partition=partition_str,
             service=self.service_name,
             component=self.component,
-            layer=self.layer
+            layer=self.layer,
         ).inc()
 
         self.kafka_partition_bytes_total.labels(
@@ -1036,7 +1028,7 @@ class OrchestratorMetrics:
             partition=partition_str,
             service=self.service_name,
             component=self.component,
-            layer=self.layer
+            layer=self.layer,
         ).inc(message_size_bytes)
 
     def record_hot_partition_detected(self, topic: str, partition: int):
@@ -1046,19 +1038,26 @@ class OrchestratorMetrics:
             partition=str(partition),
             service=self.service_name,
             component=self.component,
-            layer=self.layer
+            layer=self.layer,
         ).inc()
 
-    def record_incident_publish(self, incident_type: str, success: bool, duration_seconds: float, error_type: Optional[str] = None):
+    def record_incident_publish(
+        self,
+        incident_type: str,
+        success: bool,
+        duration_seconds: float,
+        error_type: str | None = None,
+    ):
         """Registra métricas de publicação de incidentes para autocura."""
-        status = 'success' if success else 'failed'
+        status = "success" if success else "failed"
         self.incident_publish_total.labels(incident_type=incident_type, status=status).inc()
-        self.incident_publish_duration_seconds.labels(incident_type=incident_type).observe(duration_seconds)
+        self.incident_publish_duration_seconds.labels(incident_type=incident_type).observe(
+            duration_seconds
+        )
 
         if not success:
             self.incident_publish_errors.labels(
-                incident_type=incident_type,
-                error_type=error_type or 'unknown'
+                incident_type=incident_type, error_type=error_type or "unknown"
             ).inc()
 
     def record_self_healing_triggered(self, incident_type: str):
@@ -1095,12 +1094,12 @@ class OrchestratorMetrics:
         self.duplicates_detected_total.labels(component=component).inc()
         self.idempotency_cache_hits_total.labels(component=component).inc()
 
-    def record_scheduler_allocation(self, status: str, fallback: bool, duration_seconds: float, has_predictions: bool = False):
+    def record_scheduler_allocation(
+        self, status: str, fallback: bool, duration_seconds: float, has_predictions: bool = False
+    ):
         """Registra alocação do scheduler."""
         self.scheduler_allocations_total.labels(
-            status=status,
-            fallback=str(fallback),
-            has_predictions=str(has_predictions)
+            status=status, fallback=str(fallback), has_predictions=str(has_predictions)
         ).inc()
         self.scheduler_allocation_duration_seconds.observe(duration_seconds)
 
@@ -1114,7 +1113,9 @@ class OrchestratorMetrics:
 
     def record_priority_score(self, risk_band: str, score: float, boosted: bool = False):
         """Registra score de prioridade."""
-        self.scheduler_priority_score.labels(risk_band=risk_band, boosted=str(boosted)).observe(score)
+        self.scheduler_priority_score.labels(risk_band=risk_band, boosted=str(boosted)).observe(
+            score
+        )
 
     def record_cache_hit(self):
         """Registra cache hit."""
@@ -1144,8 +1145,7 @@ class OrchestratorMetrics:
             preemptor_priority: Prioridade da task que causou preempção
         """
         self.tasks_preempted_total.labels(
-            preempted_priority=preempted_priority,
-            preemptor_priority=preemptor_priority
+            preempted_priority=preempted_priority, preemptor_priority=preemptor_priority
         ).inc()
 
     def record_preemption_attempt(self, success: bool, reason: str):
@@ -1156,10 +1156,7 @@ class OrchestratorMetrics:
             success: Se a preempção foi bem-sucedida
             reason: Razão do sucesso/falha
         """
-        self.preemption_attempts_total.labels(
-            success=str(success).lower(),
-            reason=reason
-        ).inc()
+        self.preemption_attempts_total.labels(success=str(success).lower(), reason=reason).inc()
 
     def record_preemption_failure(self, reason: str):
         """
@@ -1220,10 +1217,7 @@ class OrchestratorMetrics:
             risk_band: Banda de risco do ticket
             priority: Prioridade do ticket
         """
-        self.anti_affinity_enforced_total.labels(
-            risk_band=risk_band,
-            priority=priority
-        ).inc()
+        self.anti_affinity_enforced_total.labels(risk_band=risk_band, priority=priority).inc()
 
     def record_affinity_score(self, affinity_type: str, score: float):
         """
@@ -1243,10 +1237,7 @@ class OrchestratorMetrics:
             operation: Tipo de operação (get_plan, get_intent, get_critical, record, cleanup)
             status: Status da operação (success, failure)
         """
-        self.affinity_cache_operations_total.labels(
-            operation=operation,
-            status=status
-        ).inc()
+        self.affinity_cache_operations_total.labels(operation=operation, status=status).inc()
 
     def record_ticket_rejected(self, rejection_reason: str):
         """
@@ -1256,14 +1247,9 @@ class OrchestratorMetrics:
             rejection_reason: Motivo da rejeição (no_workers, no_suitable_worker, scheduling_error)
         """
         self.scheduler_rejections_total.labels(reason=rejection_reason).inc()
-        self.tickets_published_total.labels(status='rejected').inc()
+        self.tickets_published_total.labels(status="rejected").inc()
 
-    def record_priority_adjustment(
-        self,
-        workflow_id: str,
-        old_priority: int,
-        new_priority: int
-    ):
+    def record_priority_adjustment(self, workflow_id: str, old_priority: int, new_priority: int):
         """
         Registra ajuste de prioridade de workflow.
 
@@ -1273,18 +1259,13 @@ class OrchestratorMetrics:
             new_priority: Nova prioridade
         """
         logger.info(
-            'workflow_priority_adjusted',
+            "workflow_priority_adjusted",
             workflow_id=workflow_id,
             old_priority=old_priority,
-            new_priority=new_priority
+            new_priority=new_priority,
         )
 
-    def record_resource_reallocation(
-        self,
-        workflow_id: str,
-        cpu_millicores: int,
-        memory_mb: int
-    ):
+    def record_resource_reallocation(self, workflow_id: str, cpu_millicores: int, memory_mb: int):
         """
         Registra realocação de recursos de workflow.
 
@@ -1293,20 +1274,22 @@ class OrchestratorMetrics:
             cpu_millicores: CPU alocada
             memory_mb: Memória alocada
         """
-        self.resource_allocations_total.labels(status='rebalanced').inc()
+        self.resource_allocations_total.labels(status="rebalanced").inc()
         logger.info(
-            'workflow_resources_reallocated',
+            "workflow_resources_reallocated",
             workflow_id=workflow_id,
             cpu_millicores=cpu_millicores,
-            memory_mb=memory_mb
+            memory_mb=memory_mb,
         )
 
     def record_mongodb_pool_metrics(self, client):
         """Registra métricas de pool do MongoDB."""
         try:
-            self.mongodb_pool_size.labels(pool_type='max').set(client.options.pool_options.max_pool_size)
+            self.mongodb_pool_size.labels(pool_type="max").set(
+                client.options.pool_options.max_pool_size
+            )
             min_pool = getattr(client.options.pool_options, "min_pool_size", 0)
-            self.mongodb_pool_size.labels(pool_type='min').set(min_pool)
+            self.mongodb_pool_size.labels(pool_type="min").set(min_pool)
 
             servers = []
             topology = getattr(client, "_topology", None)
@@ -1322,14 +1305,14 @@ class OrchestratorMetrics:
     def record_opa_validation(self, policy_name: str, result: str, duration_seconds: float):
         """Registra validação OPA."""
         self.opa_validations_total.labels(policy_name=policy_name, result=result).inc()
-        self.opa_validation_duration_seconds.labels(policy_name=policy_name).observe(duration_seconds)
+        self.opa_validation_duration_seconds.labels(policy_name=policy_name).observe(
+            duration_seconds
+        )
 
     def record_opa_rejection(self, policy_name: str, rule: str, severity: str):
         """Registra rejeição por política OPA."""
         self.opa_policy_rejections_total.labels(
-            policy_name=policy_name,
-            rule=rule,
-            severity=severity
+            policy_name=policy_name, rule=rule, severity=severity
         ).inc()
 
     def record_opa_violation_by_policy(self, policy_name: str, rule: str, severity: str):
@@ -1342,79 +1325,41 @@ class OrchestratorMetrics:
             severity: Severidade da violação (critical, high, medium, low)
         """
         self.opa_violations_by_policy.labels(
-            policy_name=policy_name,
-            rule=rule,
-            severity=severity
+            policy_name=policy_name, rule=rule, severity=severity
         ).inc()
 
-    def record_security_violation(
-        self,
-        tenant_id: str,
-        violation_type: str,
-        severity: str
-    ):
+    def record_security_violation(self, tenant_id: str, violation_type: str, severity: str):
         """Registrar violação de segurança."""
         self.security_violations_total.labels(
-            tenant_id=tenant_id,
-            violation_type=violation_type,
-            severity=severity
+            tenant_id=tenant_id, violation_type=violation_type, severity=severity
         ).inc()
 
-    def record_authentication_failure(
-        self,
-        tenant_id: str,
-        reason: str
-    ):
+    def record_authentication_failure(self, tenant_id: str, reason: str):
         """Registrar falha de autenticação."""
-        self.security_authentication_failures_total.labels(
-            tenant_id=tenant_id,
-            reason=reason
-        ).inc()
+        self.security_authentication_failures_total.labels(tenant_id=tenant_id, reason=reason).inc()
 
-    def record_authorization_denial(
-        self,
-        tenant_id: str,
-        user_id: str,
-        capability: str
-    ):
+    def record_authorization_denial(self, tenant_id: str, user_id: str, capability: str):
         """Registrar negação de autorização."""
         self.security_authorization_denials_total.labels(
-            tenant_id=tenant_id,
-            user_id=user_id,
-            capability=capability
+            tenant_id=tenant_id, user_id=user_id, capability=capability
         ).inc()
 
-    def record_tenant_isolation_violation(
-        self,
-        source_tenant: str,
-        target_tenant: str
-    ):
+    def record_tenant_isolation_violation(self, source_tenant: str, target_tenant: str):
         """Registrar violação de isolamento de tenant."""
         self.security_tenant_isolation_violations_total.labels(
-            source_tenant=source_tenant,
-            target_tenant=target_tenant
+            source_tenant=source_tenant, target_tenant=target_tenant
         ).inc()
 
-    def record_data_governance_violation(
-        self,
-        tenant_id: str,
-        violation_type: str
-    ):
+    def record_data_governance_violation(self, tenant_id: str, violation_type: str):
         """Registrar violação de governança de dados."""
         self.security_data_governance_violations_total.labels(
-            tenant_id=tenant_id,
-            violation_type=violation_type
+            tenant_id=tenant_id, violation_type=violation_type
         ).inc()
 
-    def record_rate_limit_exceeded(
-        self,
-        tenant_id: str,
-        limit_type: str
-    ):
+    def record_rate_limit_exceeded(self, tenant_id: str, limit_type: str):
         """Registrar rate limit excedido."""
         self.security_rate_limit_exceeded_total.labels(
-            tenant_id=tenant_id,
-            limit_type=limit_type
+            tenant_id=tenant_id, limit_type=limit_type
         ).inc()
 
     def record_ml_prediction(self, model_type: str, status: str, duration: float):
@@ -1431,45 +1376,45 @@ class OrchestratorMetrics:
         self.ml_training_duration_seconds.labels(model_type=model_type).observe(duration)
 
         # Atualiza gauges de acurácia
-        model_name = f'{model_type}-predictor'
-        if model_type == 'duration':
-            if 'mae_percentage' in metrics:
-                self.ml_model_accuracy.labels(model_name=model_name, metric_type='mae_pct').set(
-                    metrics['mae_percentage']
+        model_name = f"{model_type}-predictor"
+        if model_type == "duration":
+            if "mae_percentage" in metrics:
+                self.ml_model_accuracy.labels(model_name=model_name, metric_type="mae_pct").set(
+                    metrics["mae_percentage"]
                 )
-            if 'r2' in metrics:
-                self.ml_model_accuracy.labels(model_name=model_name, metric_type='r2').set(
-                    metrics['r2']
+            if "r2" in metrics:
+                self.ml_model_accuracy.labels(model_name=model_name, metric_type="r2").set(
+                    metrics["r2"]
                 )
-            if 'train_samples' in metrics:
-                self.ml_model_accuracy.labels(model_name=model_name, metric_type='train_samples').set(
-                    metrics['train_samples']
+            if "train_samples" in metrics:
+                self.ml_model_accuracy.labels(
+                    model_name=model_name, metric_type="train_samples"
+                ).set(metrics["train_samples"])
+            if "test_samples" in metrics:
+                self.ml_model_accuracy.labels(
+                    model_name=model_name, metric_type="test_samples"
+                ).set(metrics["test_samples"])
+        elif model_type == "anomaly":
+            if "precision" in metrics:
+                self.ml_model_accuracy.labels(model_name=model_name, metric_type="precision").set(
+                    metrics["precision"]
                 )
-            if 'test_samples' in metrics:
-                self.ml_model_accuracy.labels(model_name=model_name, metric_type='test_samples').set(
-                    metrics['test_samples']
+            if "recall" in metrics:
+                self.ml_model_accuracy.labels(model_name=model_name, metric_type="recall").set(
+                    metrics["recall"]
                 )
-        elif model_type == 'anomaly':
-            if 'precision' in metrics:
-                self.ml_model_accuracy.labels(model_name=model_name, metric_type='precision').set(
-                    metrics['precision']
+            if "f1_score" in metrics:
+                self.ml_model_accuracy.labels(model_name=model_name, metric_type="f1").set(
+                    metrics["f1_score"]
                 )
-            if 'recall' in metrics:
-                self.ml_model_accuracy.labels(model_name=model_name, metric_type='recall').set(
-                    metrics['recall']
-                )
-            if 'f1_score' in metrics:
-                self.ml_model_accuracy.labels(model_name=model_name, metric_type='f1').set(
-                    metrics['f1_score']
-                )
-            if 'train_samples' in metrics:
-                self.ml_model_accuracy.labels(model_name=model_name, metric_type='train_samples').set(
-                    metrics['train_samples']
-                )
-            if 'test_samples' in metrics:
-                self.ml_model_accuracy.labels(model_name=model_name, metric_type='test_samples').set(
-                    metrics['test_samples']
-                )
+            if "train_samples" in metrics:
+                self.ml_model_accuracy.labels(
+                    model_name=model_name, metric_type="train_samples"
+                ).set(metrics["train_samples"])
+            if "test_samples" in metrics:
+                self.ml_model_accuracy.labels(
+                    model_name=model_name, metric_type="test_samples"
+                ).set(metrics["test_samples"])
 
     def record_ml_prediction_error(self, model_type: str, error: float):
         """Registra erro de predição ML (actual - predicted)."""
@@ -1481,7 +1426,7 @@ class OrchestratorMetrics:
         error_ms: float,
         ticket_id: str,
         predicted_ms: float,
-        actual_ms: float
+        actual_ms: float,
     ):
         """
         Registra erro de predição ML com logging estruturado.
@@ -1504,50 +1449,39 @@ class OrchestratorMetrics:
 
         # Log estruturado
         logger.info(
-            'ml_prediction_error_recorded',
+            "ml_prediction_error_recorded",
             ticket_id=ticket_id,
             model_type=model_type,
             predicted_ms=predicted_ms,
             actual_ms=actual_ms,
             error_ms=error_ms,
-            error_pct=round(error_pct, 2)
+            error_pct=round(error_pct, 2),
         )
 
     def record_ml_prediction_accuracy(
-        self,
-        model_type: str,
-        predicted_ms: float,
-        actual_ms: float
+        self, model_type: str, predicted_ms: float, actual_ms: float
     ) -> None:
         """
         Registra acurácia de predição ML calculada como 1 - (|error| / actual).
         """
         error_ms = actual_ms - predicted_ms
-        if actual_ms > 0:
-            accuracy = max(0.0, 1 - (abs(error_ms) / actual_ms))
-        else:
-            accuracy = 0.0
+        accuracy = max(0.0, 1 - abs(error_ms) / actual_ms) if actual_ms > 0 else 0.0
 
-        self.ml_model_accuracy.labels(
-            model_name=model_type,
-            metric_type='prediction_accuracy'
-        ).set(accuracy)
+        self.ml_model_accuracy.labels(model_name=model_type, metric_type="prediction_accuracy").set(
+            accuracy
+        )
 
     def record_ml_error(self, error_type: str):
         """Registra erro ML."""
-        if error_type == 'model_load':
-            self.ml_model_load_errors_total.labels(model_name='unknown').inc()
-        elif error_type == 'feature_extraction':
+        if error_type == "model_load":
+            self.ml_model_load_errors_total.labels(model_name="unknown").inc()
+        elif error_type == "feature_extraction":
             self.ml_feature_extraction_errors_total.inc()
-        elif error_type in ['prediction', 'training']:
-            self.ml_predictions_total.labels(model_type='unknown', status='error').inc()
+        elif error_type in ["prediction", "training"]:
+            self.ml_predictions_total.labels(model_type="unknown", status="error").inc()
 
     def record_ml_model_training_status(
-        self,
-        model_name: str,
-        is_trained: bool,
-        has_estimators: bool = False,
-        failed: bool = False
+        self, model_name: str, is_trained: bool, has_estimators: bool = False, failed: bool = False
     ):
         """
         Registra status de treinamento do modelo.
@@ -1558,11 +1492,10 @@ class OrchestratorMetrics:
             has_estimators: Se modelo tem estimators_ (validação técnica)
             failed: Se o treinamento falhou
         """
-        status = 'trained' if is_trained and has_estimators else 'untrained'
-        self.ml_model_training_status.labels(
-            model_name=model_name,
-            status=status
-        ).set(1 if is_trained else 0)
+        status = "trained" if is_trained and has_estimators else "untrained"
+        self.ml_model_training_status.labels(model_name=model_name, status=status).set(
+            1 if is_trained else 0
+        )
 
         # Também atualizar o gauge neural_hive_ml_model_training_status usado nos alertas
         # 0=untrained, 1=trained, 2=failed
@@ -1574,19 +1507,16 @@ class OrchestratorMetrics:
             status_value = 0
 
         self.ml_model_init_training_status.labels(
-            service=self.service_name,
-            component='ml',
-            layer='intelligence',
-            model_name=model_name
+            service=self.service_name, component="ml", layer="intelligence", model_name=model_name
         ).set(status_value)
 
     def record_ml_model_quality(
         self,
         model_name: str,
-        mae: Optional[float] = None,
-        rmse: Optional[float] = None,
-        r2: Optional[float] = None,
-        mae_percentage: Optional[float] = None
+        mae: float | None = None,
+        rmse: float | None = None,
+        r2: float | None = None,
+        mae_percentage: float | None = None,
     ):
         """
         Registra métricas de qualidade do modelo.
@@ -1599,27 +1529,19 @@ class OrchestratorMetrics:
             mae_percentage: MAE como percentual da média
         """
         if mae is not None:
-            self.ml_model_quality_metrics.labels(
-                model_name=model_name,
-                metric_type='mae'
-            ).set(mae)
+            self.ml_model_quality_metrics.labels(model_name=model_name, metric_type="mae").set(mae)
 
         if rmse is not None:
-            self.ml_model_quality_metrics.labels(
-                model_name=model_name,
-                metric_type='rmse'
-            ).set(rmse)
+            self.ml_model_quality_metrics.labels(model_name=model_name, metric_type="rmse").set(
+                rmse
+            )
 
         if r2 is not None:
-            self.ml_model_quality_metrics.labels(
-                model_name=model_name,
-                metric_type='r2'
-            ).set(r2)
+            self.ml_model_quality_metrics.labels(model_name=model_name, metric_type="r2").set(r2)
 
         if mae_percentage is not None:
             self.ml_model_quality_metrics.labels(
-                model_name=model_name,
-                metric_type='mae_percentage'
+                model_name=model_name, metric_type="mae_percentage"
             ).set(mae_percentage)
 
     # ML Drift Detection Methods
@@ -1627,8 +1549,8 @@ class OrchestratorMetrics:
         self,
         drift_type: str,
         score: float,
-        feature: str = '',
-        model_name: str = 'duration-predictor'
+        feature: str = "",
+        model_name: str = "duration-predictor",
     ):
         """
         Registra score de drift detection.
@@ -1640,17 +1562,10 @@ class OrchestratorMetrics:
             model_name: Nome do modelo
         """
         self.ml_drift_score.labels(
-            drift_type=drift_type,
-            feature=feature,
-            model_name=model_name
+            drift_type=drift_type, feature=feature, model_name=model_name
         ).set(score)
 
-    def update_drift_status(
-        self,
-        model_name: str,
-        drift_type: str,
-        status: str
-    ):
+    def update_drift_status(self, model_name: str, drift_type: str, status: str):
         """
         Atualiza status de drift.
 
@@ -1659,14 +1574,11 @@ class OrchestratorMetrics:
             drift_type: Tipo de drift
             status: Status (ok, warning, critical)
         """
-        status_value = {'ok': 0, 'warning': 1, 'critical': 2}.get(status, 0)
-        self.ml_drift_status.labels(
-            model_name=model_name,
-            drift_type=drift_type
-        ).set(status_value)
+        status_value = {"ok": 0, "warning": 1, "critical": 2}.get(status, 0)
+        self.ml_drift_status.labels(model_name=model_name, drift_type=drift_type).set(status_value)
 
     # ML Training Job Methods
-    def record_training_job(self, status: str, trigger: str = 'scheduled'):
+    def record_training_job(self, status: str, trigger: str = "scheduled"):
         """
         Registra execução de job de treinamento.
 
@@ -1674,17 +1586,9 @@ class OrchestratorMetrics:
             status: Status (success, failure, timeout)
             trigger: Trigger do treinamento (scheduled, manual, drift)
         """
-        self.ml_training_jobs_total.labels(
-            status=status,
-            trigger=trigger
-        ).inc()
+        self.ml_training_jobs_total.labels(status=status, trigger=trigger).inc()
 
-    def record_training_samples(
-        self,
-        model_name: str,
-        samples: int,
-        data_source: str = 'mongodb'
-    ):
+    def record_training_samples(self, model_name: str, samples: int, data_source: str = "mongodb"):
         """
         Registra número de amostras usadas no treinamento.
 
@@ -1693,18 +1597,11 @@ class OrchestratorMetrics:
             samples: Número de amostras
             data_source: Fonte dos dados
         """
-        self.ml_training_samples_used.labels(
-            model_name=model_name,
-            data_source=data_source
-        ).set(samples)
+        self.ml_training_samples_used.labels(model_name=model_name, data_source=data_source).set(
+            samples
+        )
 
-    def record_model_promotion(
-        self,
-        model_name: str,
-        from_stage: str,
-        to_stage: str,
-        result: str
-    ):
+    def record_model_promotion(self, model_name: str, from_stage: str, to_stage: str, result: str):
         """
         Registra promoção de modelo.
 
@@ -1715,10 +1612,7 @@ class OrchestratorMetrics:
             result: Resultado (success, rejected)
         """
         self.ml_model_promotion_total.labels(
-            model_name=model_name,
-            from_stage=from_stage,
-            to_stage=to_stage,
-            result=result
+            model_name=model_name, from_stage=from_stage, to_stage=to_stage, result=result
         ).inc()
 
     def record_model_cache_hit(self, model_name: str):
@@ -1728,9 +1622,7 @@ class OrchestratorMetrics:
         Args:
             model_name: Nome do modelo
         """
-        self.ml_prediction_cache_hits_total.labels(
-            model_name=model_name
-        ).inc()
+        self.ml_prediction_cache_hits_total.labels(model_name=model_name).inc()
 
     def record_opa_warning(self, policy_name: str, rule: str):
         """Registra warning de política OPA."""
@@ -1760,7 +1652,9 @@ class OrchestratorMetrics:
 
     def record_opa_policy_decision_duration(self, policy_path: str, duration_seconds: float):
         """Registra duração de decisão OPA por policy_path."""
-        self.opa_policy_decision_duration_seconds.labels(policy_path=policy_path).observe(duration_seconds)
+        self.opa_policy_decision_duration_seconds.labels(policy_path=policy_path).observe(
+            duration_seconds
+        )
 
     def record_opa_violation_rate(self, policy_name: str, rule: str):
         """Registra violação para cálculo de taxa."""
@@ -1769,8 +1663,7 @@ class OrchestratorMetrics:
     def record_opa_circuit_breaker_transition(self, from_state: str, to_state: str):
         """Registra transição de estado do circuit breaker OPA."""
         self.opa_circuit_breaker_transitions_total.labels(
-            from_state=from_state,
-            to_state=to_state
+            from_state=from_state, to_state=to_state
         ).inc()
 
     def record_opa_batch_evaluation(self, batch_size: int):
@@ -1779,54 +1672,44 @@ class OrchestratorMetrics:
 
     def update_feature_flag(self, flag_name: str, namespace: str, enabled: bool):
         """Atualiza status de feature flag."""
-        self.opa_feature_flags.labels(flag_name=flag_name, namespace=namespace).set(1 if enabled else 0)
+        self.opa_feature_flags.labels(flag_name=flag_name, namespace=namespace).set(
+            1 if enabled else 0
+        )
 
     def record_opa_circuit_breaker_state(self, state: str, failure_count: int):
         """Registra estado do circuit breaker OPA."""
-        state_map = {'closed': 0, 'half_open': 1, 'open': 2}
-        self.opa_circuit_breaker_state.labels(circuit_name='opa_client').set(
+        state_map = {"closed": 0, "half_open": 1, "open": 2}
+        self.opa_circuit_breaker_state.labels(circuit_name="opa_client").set(
             state_map.get(state.lower(), -1)
         )
-        logger.info(
-            'opa_circuit_breaker_state_changed',
-            state=state,
-            failure_count=failure_count
-        )
+        logger.info("opa_circuit_breaker_state_changed", state=state, failure_count=failure_count)
 
     def update_budget_remaining(self, service_name: str, slo_id: str, percent: float):
         """Atualiza gauge de budget restante."""
-        self.sla_budget_remaining_percent.labels(
-            service_name=service_name,
-            slo_id=slo_id
-        ).set(percent)
+        self.sla_budget_remaining_percent.labels(service_name=service_name, slo_id=slo_id).set(
+            percent
+        )
 
     def update_budget_status(self, service_name: str, slo_id: str, status: str):
         """Atualiza gauge de status do budget."""
-        status_map = {'HEALTHY': 0, 'WARNING': 1, 'CRITICAL': 2, 'EXHAUSTED': 3}
-        self.sla_budget_status.labels(
-            service_name=service_name,
-            slo_id=slo_id
-        ).set(status_map.get(status, 0))
+        status_map = {"HEALTHY": 0, "WARNING": 1, "CRITICAL": 2, "EXHAUSTED": 3}
+        self.sla_budget_status.labels(service_name=service_name, slo_id=slo_id).set(
+            status_map.get(status, 0)
+        )
 
     def update_burn_rate(self, service_name: str, window_hours: int, rate: float):
         """Atualiza gauge de burn rate."""
-        self.sla_burn_rate.labels(
-            service_name=service_name,
-            window_hours=str(window_hours)
-        ).set(rate)
+        self.sla_burn_rate.labels(service_name=service_name, window_hours=str(window_hours)).set(
+            rate
+        )
 
     def record_sla_alert_sent(self, alert_type: str, severity: str):
         """Registra alerta SLA enviado."""
-        self.sla_alerts_sent_total.labels(
-            alert_type=alert_type,
-            severity=severity
-        ).inc()
+        self.sla_alerts_sent_total.labels(alert_type=alert_type, severity=severity).inc()
 
     def record_sla_violation_published(self, violation_type: str):
         """Registra violação SLA publicada."""
-        self.sla_violations_published_total.labels(
-            violation_type=violation_type
-        ).inc()
+        self.sla_violations_published_total.labels(violation_type=violation_type).inc()
 
     def record_sla_monitor_error(self, error_type: str):
         """Registra erro no SLA monitoring."""
@@ -1842,12 +1725,7 @@ class OrchestratorMetrics:
 
     # ML Scheduling Optimization Helper Methods
 
-    def record_ml_optimization(
-        self,
-        optimization_type: str,
-        source: str,
-        duration_seconds: float
-    ):
+    def record_ml_optimization(self, optimization_type: str, source: str, duration_seconds: float):
         """
         Registra aplicação de otimização ML.
 
@@ -1857,8 +1735,7 @@ class OrchestratorMetrics:
             duration_seconds: Duração da operação
         """
         self.scheduler_ml_optimizations_applied_total.labels(
-            optimization_type=optimization_type,
-            source=source
+            optimization_type=optimization_type, source=source
         ).inc()
         self.scheduler_ml_optimization_latency_seconds.observe(duration_seconds)
 
@@ -1894,7 +1771,7 @@ class OrchestratorMetrics:
         """
         self.scheduler_optimizer_availability.set(1.0 if available else 0.0)
 
-    def record_predicted_queue_time(self, predicted_ms: float, source: str = 'local'):
+    def record_predicted_queue_time(self, predicted_ms: float, source: str = "local"):
         """
         Registra queue time predito.
 
@@ -1904,7 +1781,7 @@ class OrchestratorMetrics:
         """
         self.scheduler_predicted_queue_time_ms.labels(source=source).observe(predicted_ms)
 
-    def record_predicted_worker_load(self, predicted_pct: float, source: str = 'local'):
+    def record_predicted_worker_load(self, predicted_pct: float, source: str = "local"):
         """
         Registra worker load predito.
 
@@ -1918,9 +1795,9 @@ class OrchestratorMetrics:
         self,
         model_type: str,
         predicted_value: float,
-        actual_value: Optional[float] = None,
+        actual_value: float | None = None,
         latency: float = 0.0,
-        confidence: float = 0.0
+        confidence: float = 0.0,
     ):
         """
         Registra predição ML centralizada.
@@ -1932,7 +1809,7 @@ class OrchestratorMetrics:
             latency: Latência da predição em segundos
             confidence: Score de confiança
         """
-        self.ml_predictions_total.labels(model_type=model_type, status='success').inc()
+        self.ml_predictions_total.labels(model_type=model_type, status="success").inc()
         if latency > 0:
             self.ml_prediction_duration_seconds.labels(model_type=model_type).observe(latency)
 
@@ -1948,11 +1825,7 @@ class OrchestratorMetrics:
         self.ml_anomalies_detected_total.labels(anomaly_type=anomaly_type).inc()
 
     async def record_load_forecast(
-        self,
-        horizon_minutes: int,
-        status: str,
-        latency: float,
-        mape: float
+        self, horizon_minutes: int, status: str, latency: float, mape: float
     ):
         """
         Registra geração de forecast de carga.
@@ -1963,23 +1836,19 @@ class OrchestratorMetrics:
             latency: Latência em segundos
             mape: Mean Absolute Percentage Error
         """
-        self.ml_predictions_total.labels(model_type='load', status=status).inc()
+        self.ml_predictions_total.labels(model_type="load", status=status).inc()
         if latency > 0:
-            self.ml_prediction_duration_seconds.labels(model_type='load').observe(latency)
+            self.ml_prediction_duration_seconds.labels(model_type="load").observe(latency)
 
     async def record_bottleneck_prediction(
-        self,
-        bottleneck_type: str,
-        severity: str,
-        timestamp: str
+        self, bottleneck_type: str, severity: str, timestamp: str
     ):
         """Registra predição de bottleneck (stub para compatibilidade)."""
-        pass
 
     async def record_forecast_cache_hit(self, hit: bool):
         """Registra cache hit/miss de forecast (stub para compatibilidade)."""
         if hit:
-            self.ml_prediction_cache_hits_total.labels(model_name='load-predictor').inc()
+            self.ml_prediction_cache_hits_total.labels(model_name="load-predictor").inc()
 
     # Shadow Mode Helper Methods
 
@@ -1989,7 +1858,7 @@ class OrchestratorMetrics:
         model_version: str,
         status: str,
         latency: float,
-        agreement: Optional[Dict[str, Any]] = None
+        agreement: dict[str, Any] | None = None,
     ):
         """
         Registra predição shadow.
@@ -2002,14 +1871,11 @@ class OrchestratorMetrics:
             agreement: Dict com agreement por tipo (optional)
         """
         self.ml_shadow_predictions_total.labels(
-            model_name=model_name,
-            model_version=model_version,
-            status=status
+            model_name=model_name, model_version=model_version, status=status
         ).inc()
 
         self.ml_shadow_latency_seconds.labels(
-            model_name=model_name,
-            model_version=model_version
+            model_name=model_name, model_version=model_version
         ).observe(latency)
 
         if agreement:
@@ -2017,7 +1883,7 @@ class OrchestratorMetrics:
                 self.ml_shadow_agreement_rate.labels(
                     model_name=model_name,
                     model_version=model_version,
-                    agreement_type=agreement_type
+                    agreement_type=agreement_type,
                 ).set(1.0 if agreed else 0.0)
 
     def record_shadow_error(self, model_name: str, error_type: str):
@@ -2028,10 +1894,7 @@ class OrchestratorMetrics:
             model_name: Nome do modelo
             error_type: Tipo do erro (prediction_error, comparison_error, timeout)
         """
-        self.ml_shadow_comparison_errors.labels(
-            model_name=model_name,
-            error_type=error_type
-        ).inc()
+        self.ml_shadow_comparison_errors.labels(model_name=model_name, error_type=error_type).inc()
 
     def set_shadow_circuit_breaker_state(self, model_name: str, state: str):
         """
@@ -2041,17 +1904,17 @@ class OrchestratorMetrics:
             model_name: Nome do modelo
             state: Estado do circuit breaker (closed, open, half_open)
         """
-        state_map = {'closed': 0, 'open': 1, 'half_open': 2}
-        self.ml_shadow_circuit_breaker_state.labels(
-            model_name=model_name
-        ).set(state_map.get(state, 0))
+        state_map = {"closed": 0, "open": 1, "half_open": 2}
+        self.ml_shadow_circuit_breaker_state.labels(model_name=model_name).set(
+            state_map.get(state, 0)
+        )
 
     def update_shadow_agreement_rate(
         self,
         model_name: str,
         model_version: str,
         agreement_rate: float,
-        agreement_type: str = 'overall'
+        agreement_type: str = "overall",
     ):
         """
         Atualiza gauge de taxa de agreement shadow.
@@ -2063,9 +1926,7 @@ class OrchestratorMetrics:
             agreement_type: Tipo de agreement (overall, duration, anomaly, confidence)
         """
         self.ml_shadow_agreement_rate.labels(
-            model_name=model_name,
-            model_version=model_version,
-            agreement_type=agreement_type
+            model_name=model_name, model_version=model_version, agreement_type=agreement_type
         ).set(agreement_rate)
 
     # Gradual Rollout Helper Methods
@@ -2073,18 +1934,14 @@ class OrchestratorMetrics:
     def set_rollout_stage(self, model_name: str, stage: int):
         """Define o estágio atual de rollout."""
         try:
-            self.ml_rollout_stage.labels(
-                model_name=model_name
-            ).set(stage)
+            self.ml_rollout_stage.labels(model_name=model_name).set(stage)
         except Exception as e:
             logger.warning("set_rollout_stage_failed", error=str(e))
 
     def set_rollout_traffic_pct(self, model_name: str, traffic_pct: float):
         """Define o percentual de tráfego atual do rollout."""
         try:
-            self.ml_rollout_traffic_pct.labels(
-                model_name=model_name
-            ).set(traffic_pct)
+            self.ml_rollout_traffic_pct.labels(model_name=model_name).set(traffic_pct)
         except Exception as e:
             logger.warning("set_rollout_traffic_pct_failed", error=str(e))
 
@@ -2092,9 +1949,7 @@ class OrchestratorMetrics:
         """Registra execução de checkpoint de rollout."""
         try:
             self.ml_rollout_checkpoint_total.labels(
-                model_name=model_name,
-                stage=stage,
-                status=status
+                model_name=model_name, stage=stage, status=status
             ).inc()
         except Exception as e:
             logger.warning("record_rollout_checkpoint_failed", error=str(e))
@@ -2103,9 +1958,7 @@ class OrchestratorMetrics:
         """Registra detecção de degradação durante rollout."""
         try:
             self.ml_rollout_degradation_total.labels(
-                model_name=model_name,
-                stage=stage,
-                reason=reason
+                model_name=model_name, stage=stage, reason=reason
             ).inc()
         except Exception as e:
             logger.warning("record_rollout_degradation_failed", error=str(e))
@@ -2113,11 +1966,7 @@ class OrchestratorMetrics:
     # Model Comparison Helper Methods
 
     def record_model_comparison(
-        self,
-        model_name: str,
-        recommendation: str,
-        duration_seconds: float,
-        confidence_score: float
+        self, model_name: str, recommendation: str, duration_seconds: float, confidence_score: float
     ):
         """
         Registra métricas de comparação de modelos.
@@ -2130,17 +1979,14 @@ class OrchestratorMetrics:
         """
         try:
             self.ml_model_comparison_total.labels(
-                model_name=model_name,
-                recommendation=recommendation
+                model_name=model_name, recommendation=recommendation
             ).inc()
 
-            self.ml_model_comparison_duration_seconds.labels(
-                model_name=model_name
-            ).observe(duration_seconds)
+            self.ml_model_comparison_duration_seconds.labels(model_name=model_name).observe(
+                duration_seconds
+            )
 
-            self.ml_model_comparison_confidence.labels(
-                model_name=model_name
-            ).set(confidence_score)
+            self.ml_model_comparison_confidence.labels(model_name=model_name).set(confidence_score)
         except Exception as e:
             logger.warning("record_model_comparison_failed", error=str(e))
 
@@ -2153,9 +1999,7 @@ class OrchestratorMetrics:
             confidence_score: Score de confiança (0-1)
         """
         try:
-            self.ml_model_comparison_confidence.labels(
-                model_name=model_name
-            ).set(confidence_score)
+            self.ml_model_comparison_confidence.labels(model_name=model_name).set(confidence_score)
         except Exception as e:
             logger.warning("update_model_comparison_confidence_failed", error=str(e))
 
@@ -2171,8 +2015,7 @@ class OrchestratorMetrics:
         """
         try:
             self.ml_model_audit_events_total.labels(
-                model_name=model_name,
-                event_type=event_type
+                model_name=model_name, event_type=event_type
             ).inc()
         except Exception as e:
             logger.warning("increment_model_audit_event_failed", error=str(e))
@@ -2189,12 +2032,12 @@ class OrchestratorMetrics:
             error_type: Tipo do erro (PyMongoError, CircuitBreakerError, etc)
         """
         self.mongodb_persistence_errors_total.labels(
-            collection=collection,
-            operation=operation,
-            error_type=error_type
+            collection=collection, operation=operation, error_type=error_type
         ).inc()
 
-    def record_mongodb_persistence_duration(self, collection: str, operation: str, duration_seconds: float):
+    def record_mongodb_persistence_duration(
+        self, collection: str, operation: str, duration_seconds: float
+    ):
         """
         Registra duração de operação de persistência MongoDB.
 
@@ -2204,8 +2047,7 @@ class OrchestratorMetrics:
             duration_seconds: Duração em segundos
         """
         self.mongodb_persistence_duration_seconds.labels(
-            collection=collection,
-            operation=operation
+            collection=collection, operation=operation
         ).observe(duration_seconds)
 
     def set_mongodb_circuit_breaker_state(self, circuit_name: str, state: str):
@@ -2216,10 +2058,10 @@ class OrchestratorMetrics:
             circuit_name: Nome do circuit breaker
             state: Estado (closed, open, half_open)
         """
-        state_map = {'closed': 0, 'open': 1, 'half_open': 2}
-        self.mongodb_circuit_breaker_state.labels(
-            circuit_name=circuit_name
-        ).set(state_map.get(state.lower(), 0))
+        state_map = {"closed": 0, "open": 1, "half_open": 2}
+        self.mongodb_circuit_breaker_state.labels(circuit_name=circuit_name).set(
+            state_map.get(state.lower(), 0)
+        )
 
     def record_mongodb_index_validation(self, collection: str, status: str, count: int):
         """
@@ -2230,10 +2072,7 @@ class OrchestratorMetrics:
             status: Status da validação (validated, missing, error)
             count: Número de índices (validados ou faltantes)
         """
-        self.mongodb_index_validation.labels(
-            collection=collection,
-            status=status
-        ).inc(count)
+        self.mongodb_index_validation.labels(collection=collection, status=status).inc(count)
 
     def record_mongodb_persistence_fail_open(self, collection: str):
         """
@@ -2244,13 +2083,8 @@ class OrchestratorMetrics:
         Args:
             collection: Nome da coleção onde ocorreu o erro
         """
-        self.mongodb_persistence_fail_open.labels(
-            collection=collection
-        ).inc()
-        logger.warning(
-            'mongodb_persistence_fail_open_metric_recorded',
-            collection=collection
-        )
+        self.mongodb_persistence_fail_open.labels(collection=collection).inc()
+        logger.warning("mongodb_persistence_fail_open_metric_recorded", collection=collection)
 
     def record_mongodb_fallback(self, source: str, status: str, tickets_count: int = 0):
         """
@@ -2261,15 +2095,12 @@ class OrchestratorMetrics:
             status: Status do fallback (success, not_found, error)
             tickets_count: Número de tickets encontrados (opcional)
         """
-        self.mongodb_fallback_total.labels(
-            source=source,
-            status=status
-        ).inc()
+        self.mongodb_fallback_total.labels(source=source, status=status).inc()
         logger.info(
-            'mongodb_fallback_metric_recorded',
+            "mongodb_fallback_metric_recorded",
             source=source,
             status=status,
-            tickets_count=tickets_count
+            tickets_count=tickets_count,
         )
 
     def record_workflow_query(self, query_name: str, status: str):
@@ -2280,14 +2111,13 @@ class OrchestratorMetrics:
             query_name: Nome da query executada (get_tickets, get_status)
             status: Status da query (success, validation_error, error)
         """
-        self.workflow_query_total.labels(
-            query_name=query_name,
-            status=status
-        ).inc()
+        self.workflow_query_total.labels(query_name=query_name, status=status).inc()
 
     # Authorization Audit Helper Methods
 
-    def record_authorization_audit_logged(self, policy_path: str, decision: str, tenant_id: str = 'unknown'):
+    def record_authorization_audit_logged(
+        self, policy_path: str, decision: str, tenant_id: str = "unknown"
+    ):
         """
         Registra auditoria de decisão de autorização.
 
@@ -2302,7 +2132,7 @@ class OrchestratorMetrics:
             layer=self.layer,
             policy_path=policy_path,
             decision=decision,
-            tenant_id=tenant_id or 'unknown'
+            tenant_id=tenant_id or "unknown",
         ).inc()
 
     def record_authorization_audit_error(self, error_type: str):
@@ -2316,7 +2146,7 @@ class OrchestratorMetrics:
             service=self.service_name,
             component=self.component,
             layer=self.layer,
-            error_type=error_type
+            error_type=error_type,
         ).inc()
 
     def record_authorization_audit_query_duration(self, query_type: str, duration_seconds: float):
@@ -2331,16 +2161,13 @@ class OrchestratorMetrics:
             service=self.service_name,
             component=self.component,
             layer=self.layer,
-            query_type=query_type
+            query_type=query_type,
         ).observe(duration_seconds)
 
     # Component Initialization Helper Methods
 
     def record_component_initialization(
-        self,
-        component_name: str,
-        status: str,
-        duration_seconds: float
+        self, component_name: str, status: str, duration_seconds: float
     ):
         """
         Registra inicialização de componente.
@@ -2355,7 +2182,7 @@ class OrchestratorMetrics:
             component=self.component,
             layer=self.layer,
             component_name=component_name,
-            status=status
+            status=status,
         ).inc()
 
         self.component_initialization_duration_seconds.labels(
@@ -2363,14 +2190,10 @@ class OrchestratorMetrics:
             component=self.component,
             layer=self.layer,
             component_name=component_name,
-            status=status
+            status=status,
         ).observe(duration_seconds)
 
-    def record_circuit_breaker_initialization_error(
-        self,
-        circuit_name: str,
-        error_type: str
-    ):
+    def record_circuit_breaker_initialization_error(self, circuit_name: str, error_type: str):
         """
         Registra erro na inicialização de circuit breaker.
 
@@ -2383,13 +2206,11 @@ class OrchestratorMetrics:
             component=self.component,
             layer=self.layer,
             circuit_name=circuit_name,
-            error_type=error_type
+            error_type=error_type,
         ).inc()
 
     def record_kafka_producer_config_validation_error(
-        self,
-        validation_stage: str,
-        missing_attribute: str
+        self, validation_stage: str, missing_attribute: str
     ):
         """
         Registra erro de validação de config do Kafka Producer.
@@ -2403,15 +2224,15 @@ class OrchestratorMetrics:
             component=self.component,
             layer=self.layer,
             validation_stage=validation_stage,
-            missing_attribute=missing_attribute
+            missing_attribute=missing_attribute,
         ).inc()
 
     def record_component_initialization_status(
         self,
         component_name: str,
         status: str,  # 'not_started', 'in_progress', 'success', 'failed'
-        component: str = 'orchestrator',
-        layer: str = 'orchestration'
+        component: str = "orchestrator",
+        layer: str = "orchestration",
     ):
         """
         Registra status de inicialização de componente.
@@ -2422,26 +2243,21 @@ class OrchestratorMetrics:
             component: Tipo de componente
             layer: Camada arquitetural
         """
-        status_map = {
-            'not_started': 0,
-            'in_progress': 1,
-            'success': 2,
-            'failed': 3
-        }
+        status_map = {"not_started": 0, "in_progress": 1, "success": 2, "failed": 3}
 
         self.component_initialization_status.labels(
             service=self.service_name,
             component=component,
             layer=layer,
-            component_name=component_name
+            component_name=component_name,
         ).set(status_map.get(status, 0))
 
     def record_ml_model_init_training_status(
         self,
         model_name: str,
         status: str,  # 'untrained', 'trained', 'failed'
-        component: str = 'ml',
-        layer: str = 'intelligence'
+        component: str = "ml",
+        layer: str = "intelligence",
     ):
         """
         Registra status de treinamento de modelo ML (para inicialização).
@@ -2452,25 +2268,18 @@ class OrchestratorMetrics:
             component: Tipo de componente
             layer: Camada arquitetural
         """
-        status_map = {
-            'untrained': 0,
-            'trained': 1,
-            'failed': 2
-        }
+        status_map = {"untrained": 0, "trained": 1, "failed": 2}
 
         self.ml_model_init_training_status.labels(
-            service=self.service_name,
-            component=component,
-            layer=layer,
-            model_name=model_name
+            service=self.service_name, component=component, layer=layer, model_name=model_name
         ).set(status_map.get(status, 0))
 
     def record_temporal_activity_registration_error(
         self,
         activity_name: str,
         workflow_name: str,
-        component: str = 'workflow',
-        layer: str = 'orchestration'
+        component: str = "workflow",
+        layer: str = "orchestration",
     ):
         """
         Registra erro de activity não registrada no Temporal Worker.
@@ -2486,15 +2295,15 @@ class OrchestratorMetrics:
             component=component,
             layer=layer,
             activity_name=activity_name,
-            workflow_name=workflow_name
+            workflow_name=workflow_name,
         ).inc()
 
     def record_circuit_breaker_initialization_status(
         self,
         circuit_name: str,
         status: str,  # 'not_initialized', 'initialized', 'failed'
-        component: str = 'circuit_breaker',
-        layer: str = 'infrastructure'
+        component: str = "circuit_breaker",
+        layer: str = "infrastructure",
     ):
         """
         Registra status de inicialização de circuit breaker.
@@ -2505,21 +2314,14 @@ class OrchestratorMetrics:
             component: Tipo de componente
             layer: Camada arquitetural
         """
-        status_map = {
-            'not_initialized': 0,
-            'initialized': 1,
-            'failed': 2
-        }
+        status_map = {"not_initialized": 0, "initialized": 1, "failed": 2}
 
         self.circuit_breaker_initialization_status.labels(
-            service=self.service_name,
-            component=component,
-            layer=layer,
-            circuit_name=circuit_name
+            service=self.service_name, component=component, layer=layer, circuit_name=circuit_name
         ).set(status_map.get(status, 0))
 
 
-@lru_cache()
+@lru_cache
 def get_metrics() -> OrchestratorMetrics:
     """
     Retorna instância singleton das métricas.

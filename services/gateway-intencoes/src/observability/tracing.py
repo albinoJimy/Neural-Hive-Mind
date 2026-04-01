@@ -4,11 +4,11 @@ Tracing integration for Gateway service using Neural Hive observability library.
 This module provides a thin wrapper around the shared library for service-specific tracing needs.
 """
 
-from typing import Dict, Any, Optional
-from functools import wraps
 import logging
+from functools import wraps
+from typing import Any
 
-from neural_hive_observability import get_tracer, get_context_manager
+from neural_hive_observability import get_context_manager, get_tracer
 from neural_hive_observability.correlation import CorrelationContext
 
 logger = logging.getLogger(__name__)
@@ -58,22 +58,16 @@ def trace_gateway_operation(operation_name: str, include_args: bool = False):
                     if include_args:
                         safe_args = _sanitize_args(args, kwargs)
                         for key, value in safe_args.items():
-                            span.set_attribute(
-                                f"args.{key}", str(value)[:100]
-                            )  # Limit length
+                            span.set_attribute(f"args.{key}", str(value)[:100])  # Limit length
 
                     result = await func(*args, **kwargs)
 
                     # Add result attributes if it's a dict
                     if isinstance(result, dict):
                         if "intent_id" in result:
-                            span.set_attribute(
-                                "neural.hive.intent.id", result["intent_id"]
-                            )
+                            span.set_attribute("neural.hive.intent.id", result["intent_id"])
                         if "confidence" in result:
-                            span.set_attribute(
-                                "neural.hive.confidence", result["confidence"]
-                            )
+                            span.set_attribute("neural.hive.confidence", result["confidence"])
                         if "domain" in result:
                             span.set_attribute("neural.hive.domain", result["domain"])
                         if "status" in result:
@@ -118,13 +112,12 @@ def trace_gateway_operation(operation_name: str, include_args: bool = False):
 
         if asyncio.iscoroutinefunction(func):
             return async_wrapper
-        else:
-            return sync_wrapper
+        return sync_wrapper
 
     return decorator
 
 
-def _sanitize_args(args, kwargs) -> Dict[str, Any]:
+def _sanitize_args(args, kwargs) -> dict[str, Any]:
     """
     Sanitize function arguments to avoid logging sensitive data.
 
@@ -153,10 +146,10 @@ def _sanitize_args(args, kwargs) -> Dict[str, Any]:
 
 def add_correlation_to_span(
     span,
-    intent_id: Optional[str] = None,
-    plan_id: Optional[str] = None,
-    user_id: Optional[str] = None,
-    domain: Optional[str] = None,
+    intent_id: str | None = None,
+    plan_id: str | None = None,
+    user_id: str | None = None,
+    domain: str | None = None,
 ):
     """
     Add correlation IDs to the current span.
@@ -179,10 +172,10 @@ def add_correlation_to_span(
 
 
 def create_correlation_context(
-    intent_id: Optional[str] = None,
-    plan_id: Optional[str] = None,
-    user_id: Optional[str] = None,
-    domain: Optional[str] = None,
+    intent_id: str | None = None,
+    plan_id: str | None = None,
+    user_id: str | None = None,
+    domain: str | None = None,
 ) -> CorrelationContext:
     """
     Create a correlation context for distributed tracing.
@@ -201,9 +194,8 @@ def create_correlation_context(
         return context_manager.correlation_context(
             intent_id=intent_id, plan_id=plan_id, user_id=user_id, domain=domain
         )
-    else:
-        logger.warning("Context manager not available, correlation context disabled")
-        return _dummy_context()
+    logger.warning("Context manager not available, correlation context disabled")
+    return _dummy_context()
 
 
 class _DummyContext:

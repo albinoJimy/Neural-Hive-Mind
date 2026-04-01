@@ -1,5 +1,5 @@
 """Bootstrap service to populate catalog with 87 initial tools."""
-from typing import List, Optional
+from typing import List
 
 from src.models.tool_descriptor import (
     AuthenticationMethod,
@@ -21,6 +21,7 @@ class ToolCatalogBootstrap:
         """Lazy load settings para evitar import circular."""
         if self._settings is None:
             from src.config.settings import get_settings
+
             self._settings = get_settings()
         return self._settings
 
@@ -249,7 +250,9 @@ class ToolCatalogBootstrap:
                 required_parameters={"project_id": "string", "scan_type": "string"},
                 output_format="xml",
                 integration_type=IntegrationType.REST_API,
-                endpoint_url=self._get_endpoint("CHECKMARX_URL", "https://checkmarx.example.com/api"),
+                endpoint_url=self._get_endpoint(
+                    "CHECKMARX_URL", "https://checkmarx.example.com/api"
+                ),
                 authentication_method=AuthenticationMethod.OAUTH2,
                 metadata={
                     "homepage": "https://checkmarx.com",
@@ -269,7 +272,9 @@ class ToolCatalogBootstrap:
                 required_parameters={"app_id": "string"},
                 output_format="xml",
                 integration_type=IntegrationType.REST_API,
-                endpoint_url=self._get_endpoint("VERACODE_URL", "https://analysiscenter.veracode.com/api"),
+                endpoint_url=self._get_endpoint(
+                    "VERACODE_URL", "https://analysiscenter.veracode.com/api"
+                ),
                 authentication_method=AuthenticationMethod.API_KEY,
                 metadata={
                     "homepage": "https://veracode.com",
@@ -310,7 +315,11 @@ class ToolCatalogBootstrap:
                 output_format="xml",
                 integration_type=IntegrationType.CLI,
                 authentication_method=AuthenticationMethod.NONE,
-                metadata={"homepage": "https://pmd.github.io", "license": "BSD-2-Clause", "cli_command": "pmd check"},
+                metadata={
+                    "homepage": "https://pmd.github.io",
+                    "license": "BSD-2-Clause",
+                    "cli_command": "pmd check",
+                },
             ),
             ToolDescriptor(
                 tool_id="spotbugs-001",
@@ -325,7 +334,11 @@ class ToolCatalogBootstrap:
                 output_format="xml",
                 integration_type=IntegrationType.CLI,
                 authentication_method=AuthenticationMethod.NONE,
-                metadata={"homepage": "https://spotbugs.github.io", "license": "LGPL-2.1", "cli_command": "spotbugs"},
+                metadata={
+                    "homepage": "https://spotbugs.github.io",
+                    "license": "LGPL-2.1",
+                    "cli_command": "spotbugs",
+                },
             ),
             ToolDescriptor(
                 tool_id="clang-analyzer-001",
@@ -340,7 +353,11 @@ class ToolCatalogBootstrap:
                 output_format="plist",
                 integration_type=IntegrationType.CLI,
                 authentication_method=AuthenticationMethod.NONE,
-                metadata={"homepage": "https://clang.llvm.org", "license": "Apache-2.0", "cli_command": "clang --analyze"},
+                metadata={
+                    "homepage": "https://clang.llvm.org",
+                    "license": "Apache-2.0",
+                    "cli_command": "clang --analyze",
+                },
             ),
             ToolDescriptor(
                 tool_id="hadolint-001",
@@ -441,7 +458,9 @@ class ToolCatalogBootstrap:
                 required_parameters={"prompt": "string", "language": "string"},
                 output_format="text",
                 integration_type=IntegrationType.REST_API,
-                endpoint_url=self._get_endpoint("GITHUB_COPILOT_URL", "https://api.github.com/copilot"),
+                endpoint_url=self._get_endpoint(
+                    "GITHUB_COPILOT_URL", "https://api.github.com/copilot"
+                ),
                 authentication_method=AuthenticationMethod.OAUTH2,
                 metadata={
                     "homepage": "https://github.com/features/copilot",
@@ -871,7 +890,11 @@ class ToolCatalogBootstrap:
                 output_format="text",
                 integration_type=IntegrationType.CLI,
                 authentication_method=AuthenticationMethod.NONE,
-                metadata={"homepage": "https://babeljs.io", "license": "MIT", "cli_command": "babel"},
+                metadata={
+                    "homepage": "https://babeljs.io",
+                    "license": "MIT",
+                    "cli_command": "babel",
+                },
             ),
             ToolDescriptor(
                 tool_id="tsc-001",
@@ -886,7 +909,11 @@ class ToolCatalogBootstrap:
                 output_format="text",
                 integration_type=IntegrationType.CLI,
                 authentication_method=AuthenticationMethod.NONE,
-                metadata={"homepage": "https://typescriptlang.org", "license": "Apache-2.0", "cli_command": "tsc"},
+                metadata={
+                    "homepage": "https://typescriptlang.org",
+                    "license": "Apache-2.0",
+                    "cli_command": "tsc",
+                },
             ),
             ToolDescriptor(
                 tool_id="webpack-001",
@@ -901,7 +928,11 @@ class ToolCatalogBootstrap:
                 output_format="files",
                 integration_type=IntegrationType.CLI,
                 authentication_method=AuthenticationMethod.NONE,
-                metadata={"homepage": "https://webpack.js.org", "license": "MIT", "cli_command": "webpack"},
+                metadata={
+                    "homepage": "https://webpack.js.org",
+                    "license": "MIT",
+                    "cli_command": "webpack",
+                },
             ),
             ToolDescriptor(
                 tool_id="rollup-001",
@@ -916,7 +947,11 @@ class ToolCatalogBootstrap:
                 output_format="files",
                 integration_type=IntegrationType.CLI,
                 authentication_method=AuthenticationMethod.NONE,
-                metadata={"homepage": "https://rollupjs.org", "license": "MIT", "cli_command": "rollup"},
+                metadata={
+                    "homepage": "https://rollupjs.org",
+                    "license": "MIT",
+                    "cli_command": "rollup",
+                },
             ),
             ToolDescriptor(
                 tool_id="parcel-001",
@@ -931,7 +966,11 @@ class ToolCatalogBootstrap:
                 output_format="files",
                 integration_type=IntegrationType.CLI,
                 authentication_method=AuthenticationMethod.NONE,
-                metadata={"homepage": "https://parceljs.org", "license": "MIT", "cli_command": "parcel build"},
+                metadata={
+                    "homepage": "https://parceljs.org",
+                    "license": "MIT",
+                    "cli_command": "parcel build",
+                },
             ),
             ToolDescriptor(
                 tool_id="ansible-lint-001",
@@ -946,7 +985,11 @@ class ToolCatalogBootstrap:
                 output_format="text",
                 integration_type=IntegrationType.CLI,
                 authentication_method=AuthenticationMethod.NONE,
-                metadata={"homepage": "https://ansible-lint.readthedocs.io", "license": "MIT", "cli_command": "ansible-lint"},
+                metadata={
+                    "homepage": "https://ansible-lint.readthedocs.io",
+                    "license": "MIT",
+                    "cli_command": "ansible-lint",
+                },
             ),
             ToolDescriptor(
                 tool_id="kustomize-001",
@@ -961,7 +1004,11 @@ class ToolCatalogBootstrap:
                 output_format="yaml",
                 integration_type=IntegrationType.CLI,
                 authentication_method=AuthenticationMethod.NONE,
-                metadata={"homepage": "https://kustomize.io", "license": "Apache-2.0", "cli_command": "kustomize build"},
+                metadata={
+                    "homepage": "https://kustomize.io",
+                    "license": "Apache-2.0",
+                    "cli_command": "kustomize build",
+                },
             ),
             ToolDescriptor(
                 tool_id="openapi-transformer-001",
@@ -1006,7 +1053,11 @@ class ToolCatalogBootstrap:
                 output_format="logs",
                 integration_type=IntegrationType.CLI,
                 authentication_method=AuthenticationMethod.NONE,
-                metadata={"homepage": "https://flywaydb.org", "license": "Apache-2.0", "cli_command": "flyway migrate"},
+                metadata={
+                    "homepage": "https://flywaydb.org",
+                    "license": "Apache-2.0",
+                    "cli_command": "flyway migrate",
+                },
             ),
             ToolDescriptor(
                 tool_id="liquibase-001",
@@ -1021,7 +1072,11 @@ class ToolCatalogBootstrap:
                 output_format="logs",
                 integration_type=IntegrationType.CLI,
                 authentication_method=AuthenticationMethod.NONE,
-                metadata={"homepage": "https://liquibase.org", "license": "Apache-2.0", "cli_command": "liquibase update"},
+                metadata={
+                    "homepage": "https://liquibase.org",
+                    "license": "Apache-2.0",
+                    "cli_command": "liquibase update",
+                },
             ),
             ToolDescriptor(
                 tool_id="uglifyjs-001",
@@ -1036,7 +1091,11 @@ class ToolCatalogBootstrap:
                 output_format="text",
                 integration_type=IntegrationType.CLI,
                 authentication_method=AuthenticationMethod.NONE,
-                metadata={"homepage": "https://github.com/mishoo/UglifyJS", "license": "BSD-2-Clause", "cli_command": "uglifyjs"},
+                metadata={
+                    "homepage": "https://github.com/mishoo/UglifyJS",
+                    "license": "BSD-2-Clause",
+                    "cli_command": "uglifyjs",
+                },
             ),
             ToolDescriptor(
                 tool_id="terser-001",
@@ -1051,7 +1110,11 @@ class ToolCatalogBootstrap:
                 output_format="text",
                 integration_type=IntegrationType.CLI,
                 authentication_method=AuthenticationMethod.NONE,
-                metadata={"homepage": "https://terser.org", "license": "BSD-2-Clause", "cli_command": "terser"},
+                metadata={
+                    "homepage": "https://terser.org",
+                    "license": "BSD-2-Clause",
+                    "cli_command": "terser",
+                },
             ),
             ToolDescriptor(
                 tool_id="docker-compose-converter-001",
@@ -1190,7 +1253,11 @@ class ToolCatalogBootstrap:
                 output_format="json",
                 integration_type=IntegrationType.CLI,
                 authentication_method=AuthenticationMethod.NONE,
-                metadata={"homepage": "https://cypress.io", "license": "MIT", "cli_command": "cypress run"},
+                metadata={
+                    "homepage": "https://cypress.io",
+                    "license": "MIT",
+                    "cli_command": "cypress run",
+                },
             ),
             ToolDescriptor(
                 tool_id="newman-001",
@@ -1224,7 +1291,11 @@ class ToolCatalogBootstrap:
                 output_format="json",
                 integration_type=IntegrationType.CLI,
                 authentication_method=AuthenticationMethod.NONE,
-                metadata={"homepage": "https://k6.io", "license": "AGPL-3.0", "cli_command": "k6 run"},
+                metadata={
+                    "homepage": "https://k6.io",
+                    "license": "AGPL-3.0",
+                    "cli_command": "k6 run",
+                },
             ),
             ToolDescriptor(
                 tool_id="locust-001",
@@ -1239,7 +1310,11 @@ class ToolCatalogBootstrap:
                 output_format="json",
                 integration_type=IntegrationType.CLI,
                 authentication_method=AuthenticationMethod.NONE,
-                metadata={"homepage": "https://locust.io", "license": "MIT", "cli_command": "locust"},
+                metadata={
+                    "homepage": "https://locust.io",
+                    "license": "MIT",
+                    "cli_command": "locust",
+                },
             ),
             ToolDescriptor(
                 tool_id="owasp-zap-001",
@@ -1515,7 +1590,10 @@ class ToolCatalogBootstrap:
                 output_format="logs",
                 integration_type=IntegrationType.LIBRARY,
                 authentication_method=AuthenticationMethod.NONE,
-                metadata={"homepage": "https://kubernetes.io/docs/concepts/extend-kubernetes/operator", "license": "Apache-2.0"},
+                metadata={
+                    "homepage": "https://kubernetes.io/docs/concepts/extend-kubernetes/operator",
+                    "license": "Apache-2.0",
+                },
             ),
             ToolDescriptor(
                 tool_id="helm-001",
@@ -1572,7 +1650,9 @@ class ToolCatalogBootstrap:
                 required_parameters={"dag_id": "string"},
                 output_format="json",
                 integration_type=IntegrationType.REST_API,
-                endpoint_url=self._get_endpoint("AIRFLOW_URL", "http://airflow-webserver:8080/api/v1"),
+                endpoint_url=self._get_endpoint(
+                    "AIRFLOW_URL", "http://airflow-webserver:8080/api/v1"
+                ),
                 authentication_method=AuthenticationMethod.API_KEY,
                 metadata={
                     "homepage": "https://airflow.apache.org",
@@ -1606,7 +1686,9 @@ class ToolCatalogBootstrap:
                 required_parameters={"flow": "string"},
                 output_format="logs",
                 integration_type=IntegrationType.REST_API,
-                endpoint_url=self._get_endpoint("MULESOFT_URL", "https://anypoint.mulesoft.com/api"),
+                endpoint_url=self._get_endpoint(
+                    "MULESOFT_URL", "https://anypoint.mulesoft.com/api"
+                ),
                 authentication_method=AuthenticationMethod.OAUTH2,
                 metadata={
                     "homepage": "https://mulesoft.com",
@@ -1664,7 +1746,9 @@ class ToolCatalogBootstrap:
                 required_parameters={"rule": "string"},
                 output_format="json",
                 integration_type=IntegrationType.REST_API,
-                endpoint_url=self._get_endpoint("AWS_EVENTBRIDGE_URL", "https://events.amazonaws.com"),
+                endpoint_url=self._get_endpoint(
+                    "AWS_EVENTBRIDGE_URL", "https://events.amazonaws.com"
+                ),
                 authentication_method=AuthenticationMethod.API_KEY,
                 metadata={
                     "homepage": "https://aws.amazon.com/eventbridge",
@@ -1684,7 +1768,9 @@ class ToolCatalogBootstrap:
                 required_parameters={"workflow": "string"},
                 output_format="json",
                 integration_type=IntegrationType.REST_API,
-                endpoint_url=self._get_endpoint("AZURE_LOGIC_APPS_URL", "https://management.azure.com"),
+                endpoint_url=self._get_endpoint(
+                    "AZURE_LOGIC_APPS_URL", "https://management.azure.com"
+                ),
                 authentication_method=AuthenticationMethod.OAUTH2,
                 metadata={
                     "homepage": "https://azure.microsoft.com/en-us/services/logic-apps",
@@ -1704,7 +1790,9 @@ class ToolCatalogBootstrap:
                 required_parameters={"workflow": "string"},
                 output_format="json",
                 integration_type=IntegrationType.REST_API,
-                endpoint_url=self._get_endpoint("GOOGLE_WORKFLOWS_URL", "https://workflowexecutions.googleapis.com"),
+                endpoint_url=self._get_endpoint(
+                    "GOOGLE_WORKFLOWS_URL", "https://workflowexecutions.googleapis.com"
+                ),
                 authentication_method=AuthenticationMethod.OAUTH2,
                 metadata={
                     "homepage": "https://cloud.google.com/workflows",

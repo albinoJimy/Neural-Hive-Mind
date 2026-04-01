@@ -1,13 +1,14 @@
-from fastapi import APIRouter, Request
-from typing import Dict, Any, List
+from typing import Any
+
 import structlog
+from fastapi import APIRouter, Request
 
 router = APIRouter(prefix="/api/v1/status", tags=["status"])
 logger = structlog.get_logger()
 
 
 @router.get("/system")
-async def get_system_status(request: Request) -> Dict[str, Any]:
+async def get_system_status(request: Request) -> dict[str, Any]:
     """Status geral do sistema"""
     telemetry_aggregator = request.app.state.app_state.telemetry_aggregator
 
@@ -27,7 +28,7 @@ async def get_system_status(request: Request) -> Dict[str, Any]:
         )
 
     except Exception as e:
-        logger.error("get_system_status_failed", error=str(e))
+        logger.exception("get_system_status_failed", error=str(e))
         return {
             "system_score": 0.0,
             "sla_compliance": 0.0,
@@ -40,30 +41,28 @@ async def get_system_status(request: Request) -> Dict[str, Any]:
 
 
 @router.get("/conflicts")
-async def get_active_conflicts(request: Request) -> List[Dict[str, Any]]:
+async def get_active_conflicts(request: Request) -> list[dict[str, Any]]:
     """Conflitos ativos"""
     neo4j_client = request.app.state.app_state.neo4j_client
 
     try:
-        conflicts = await neo4j_client.list_active_conflicts()
-        return conflicts
+        return await neo4j_client.list_active_conflicts()
 
     except Exception as e:
-        logger.error("get_active_conflicts_failed", error=str(e))
+        logger.exception("get_active_conflicts_failed", error=str(e))
         return []
 
 
 @router.get("/replanning")
-async def get_replanning_status(request: Request) -> Dict[str, Any]:
+async def get_replanning_status(request: Request) -> dict[str, Any]:
     """Status de replanejamentos"""
     replanning_coordinator = request.app.state.app_state.replanning_coordinator
 
     try:
-        stats = await replanning_coordinator.get_replanning_stats()
-        return stats
+        return await replanning_coordinator.get_replanning_stats()
 
     except Exception as e:
-        logger.error("get_replanning_status_failed", error=str(e))
+        logger.exception("get_replanning_status_failed", error=str(e))
         return {
             "total_replannings": 0,
             "active_replannings": 0,
@@ -73,7 +72,7 @@ async def get_replanning_status(request: Request) -> Dict[str, Any]:
 
 
 @router.get("/pheromones")
-async def get_pheromone_status(request: Request) -> List[Dict[str, Any]]:
+async def get_pheromone_status(request: Request) -> list[dict[str, Any]]:
     """Status de feromônios"""
     pheromone_client = request.app.state.app_state.pheromone_client
 
@@ -90,5 +89,5 @@ async def get_pheromone_status(request: Request) -> List[Dict[str, Any]]:
         return pheromone_data
 
     except Exception as e:
-        logger.error("get_pheromone_status_failed", error=str(e))
+        logger.exception("get_pheromone_status_failed", error=str(e))
         return []

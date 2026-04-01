@@ -1,10 +1,10 @@
 """Activity para publicar eventos de Saga no Kafka."""
 import logging
-from typing import Any, Dict
+from typing import Any
 
 from src.config.settings import get_settings
-from src.saga.saga_producer import SagaProducer
 from src.saga.saga_metrics import get_saga_metrics
+from src.saga.saga_producer import SagaProducer
 
 logger = logging.getLogger(__name__)
 
@@ -33,8 +33,8 @@ async def publish_saga_created(
     plan_id: str,
     intent_id: str,
     steps_count: int,
-    metadata: Dict[str, Any] = None
-) -> Dict[str, Any]:
+    metadata: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """
     Publica evento saga.created no Kafka para observabilidade.
 
@@ -50,8 +50,7 @@ async def publish_saga_created(
         Dict com status da publicação
     """
     logger.info(
-        f'publishing_saga_created saga_id={saga_id} '
-        f'workflow_id={workflow_id} plan_id={plan_id}'
+        f"publishing_saga_created saga_id={saga_id} " f"workflow_id={workflow_id} plan_id={plan_id}"
     )
 
     try:
@@ -69,43 +68,39 @@ async def publish_saga_created(
             steps=[],
             compensation_order=[],
             created_at=0,  # Não usado para evento
-            metadata=metadata or {}
+            metadata=metadata or {},
         )
 
         # Sobrescrever steps_count para o evento
         await producer.publish_saga_created(saga)
 
         logger.info(
-            f'saga_created_publishedSuccessfully saga_id={saga_id} '
-            f'workflow_id={workflow_id}'
+            f"saga_created_publishedSuccessfully saga_id={saga_id} " f"workflow_id={workflow_id}"
         )
 
         return {
-            'success': True,
-            'saga_id': saga_id,
-            'workflow_id': workflow_id,
+            "success": True,
+            "saga_id": saga_id,
+            "workflow_id": workflow_id,
         }
 
     except Exception as e:
-        logger.error(
-            f'failed_to_publish_saga_created saga_id={saga_id} '
-            f'workflow_id={workflow_id} error={e}'
+        logger.exception(
+            f"failed_to_publish_saga_created saga_id={saga_id} "
+            f"workflow_id={workflow_id} error={e}"
         )
         # Não falhar o workflow se a publicação falhar
         return {
-            'success': False,
-            'saga_id': saga_id,
-            'workflow_id': workflow_id,
-            'error': str(e),
+            "success": False,
+            "saga_id": saga_id,
+            "workflow_id": workflow_id,
+            "error": str(e),
         }
 
 
 async def publish_saga_started(
-    saga_id: str,
-    workflow_id: str,
-    plan_id: str,
-    steps_count: int
-) -> Dict[str, Any]:
+    saga_id: str, workflow_id: str, plan_id: str, steps_count: int
+) -> dict[str, Any]:
     """
     Publica evento saga.started no Kafka.
 
@@ -118,10 +113,7 @@ async def publish_saga_started(
     Returns:
         Dict com status da publicação
     """
-    logger.info(
-        f'publishing_saga_started saga_id={saga_id} '
-        f'workflow_id={workflow_id}'
-    )
+    logger.info(f"publishing_saga_started saga_id={saga_id} " f"workflow_id={workflow_id}")
 
     try:
         producer = await get_saga_producer()
@@ -132,7 +124,7 @@ async def publish_saga_started(
             saga_id=saga_id,
             workflow_id=workflow_id,
             plan_id=plan_id,
-            intent_id='',
+            intent_id="",
             status=SagaStatus.STARTED,
             steps=[],
             compensation_order=[],
@@ -142,32 +134,25 @@ async def publish_saga_started(
 
         await producer.publish_saga_started(saga)
 
-        logger.info(
-            f'saga_started_publishedSuccessfully saga_id={saga_id}'
-        )
+        logger.info(f"saga_started_publishedSuccessfully saga_id={saga_id}")
 
         return {
-            'success': True,
-            'saga_id': saga_id,
+            "success": True,
+            "saga_id": saga_id,
         }
 
     except Exception as e:
-        logger.error(
-            f'failed_to_publish_saga_started saga_id={saga_id} error={e}'
-        )
+        logger.exception(f"failed_to_publish_saga_started saga_id={saga_id} error={e}")
         return {
-            'success': False,
-            'saga_id': saga_id,
-            'error': str(e),
+            "success": False,
+            "saga_id": saga_id,
+            "error": str(e),
         }
 
 
 async def publish_saga_completed(
-    saga_id: str,
-    workflow_id: str,
-    plan_id: str,
-    steps_completed: int
-) -> Dict[str, Any]:
+    saga_id: str, workflow_id: str, plan_id: str, steps_completed: int
+) -> dict[str, Any]:
     """
     Publica evento saga.completed no Kafka.
 
@@ -181,8 +166,8 @@ async def publish_saga_completed(
         Dict com status da publicação
     """
     logger.info(
-        f'publishing_saga_completed saga_id={saga_id} '
-        f'workflow_id={workflow_id} steps={steps_completed}'
+        f"publishing_saga_completed saga_id={saga_id} "
+        f"workflow_id={workflow_id} steps={steps_completed}"
     )
 
     try:
@@ -194,7 +179,7 @@ async def publish_saga_completed(
             saga_id=saga_id,
             workflow_id=workflow_id,
             plan_id=plan_id,
-            intent_id='',
+            intent_id="",
             status=SagaStatus.COMPLETED,
             steps=[],
             compensation_order=[],
@@ -204,23 +189,19 @@ async def publish_saga_completed(
 
         await producer.publish_saga_completed(saga)
 
-        logger.info(
-            f'saga_completed_publishedSuccessfully saga_id={saga_id}'
-        )
+        logger.info(f"saga_completed_publishedSuccessfully saga_id={saga_id}")
 
         return {
-            'success': True,
-            'saga_id': saga_id,
+            "success": True,
+            "saga_id": saga_id,
         }
 
     except Exception as e:
-        logger.error(
-            f'failed_to_publish_saga_completed saga_id={saga_id} error={e}'
-        )
+        logger.exception(f"failed_to_publish_saga_completed saga_id={saga_id} error={e}")
         return {
-            'success': False,
-            'saga_id': saga_id,
-            'error': str(e),
+            "success": False,
+            "saga_id": saga_id,
+            "error": str(e),
         }
 
 
@@ -230,8 +211,8 @@ async def publish_saga_failed(
     plan_id: str,
     error: str,
     retry_count: int = 0,
-    max_retries: int = 1
-) -> Dict[str, Any]:
+    max_retries: int = 1,
+) -> dict[str, Any]:
     """
     Publica evento saga.failed no Kafka.
 
@@ -247,8 +228,7 @@ async def publish_saga_failed(
         Dict com status da publicação
     """
     logger.info(
-        f'publishing_saga_failed saga_id={saga_id} '
-        f'workflow_id={workflow_id} error={error}'
+        f"publishing_saga_failed saga_id={saga_id} " f"workflow_id={workflow_id} error={error}"
     )
 
     try:
@@ -260,7 +240,7 @@ async def publish_saga_failed(
             saga_id=saga_id,
             workflow_id=workflow_id,
             plan_id=plan_id,
-            intent_id='',
+            intent_id="",
             status=SagaStatus.FAILED,
             steps=[],
             compensation_order=[],
@@ -273,21 +253,17 @@ async def publish_saga_failed(
 
         await producer.publish_saga_failed(saga, error)
 
-        logger.info(
-            f'saga_failed_publishedSuccessfully saga_id={saga_id}'
-        )
+        logger.info(f"saga_failed_publishedSuccessfully saga_id={saga_id}")
 
         return {
-            'success': True,
-            'saga_id': saga_id,
+            "success": True,
+            "saga_id": saga_id,
         }
 
     except Exception as e:
-        logger.error(
-            f'failed_to_publish_saga_failed saga_id={saga_id} error={e}'
-        )
+        logger.exception(f"failed_to_publish_saga_failed saga_id={saga_id} error={e}")
         return {
-            'success': False,
-            'saga_id': saga_id,
-            'error': str(e),
+            "success": False,
+            "saga_id": saga_id,
+            "error": str(e),
         }

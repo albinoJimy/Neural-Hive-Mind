@@ -6,8 +6,8 @@ de versões antigas.
 """
 
 from typing import Dict, List, Any, Optional
-from datetime import datetime
-from pydantic import BaseModel, Field, field_validator
+from datetime import datetime, timezone
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -119,8 +119,8 @@ class OpinionDocumentV2(BaseModel):
         None, description="Consentimento GDPR se aplicável"
     )
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "schema_version": "2.0.0",
                 "opinion_id": "abc123...",
@@ -146,6 +146,7 @@ class OpinionDocumentV2(BaseModel):
                 "digital_signature": "sig123...",
             }
         }
+    )
 
 
 class SchemaVersionManager:
@@ -214,7 +215,7 @@ class SchemaVersionManager:
             trace_id=v1_document.get("trace_id"),
             span_id=v1_document.get("span_id"),
             evaluated_at=v1_document["evaluated_at"],
-            created_at=v1_document.get("created_at", datetime.utcnow()),
+            created_at=v1_document.get("created_at", datetime.now(timezone.utc)),
             processing_time_ms=v1_document["processing_time_ms"],
             buffered=v1_document.get("buffered", False),
             content_hash=v1_document.get("content_hash", ""),

@@ -1,18 +1,22 @@
 import uuid
-from datetime import datetime
-from typing import Dict, List, Optional
+from datetime import UTC, datetime
 
 import structlog
 
 from src.clients.consensus_engine_grpc_client import ConsensusEngineGrpcClient
 from src.clients.orchestrator_grpc_client import OrchestratorGrpcClient
 from src.config.settings import get_settings
-from src.models.experiment_request import ComparisonOperator, ExperimentRequest, ExperimentType, RandomizationStrategy
-from src.models.optimization_hypothesis import OptimizationHypothesis, OptimizationType
 from src.experimentation.ab_testing_engine import ABTestingEngine
 from src.experimentation.guardrails import GuardrailMonitor
-from src.experimentation.sample_size_calculator import SampleSizeCalculator
 from src.experimentation.randomization import RandomizationStrategyType
+from src.experimentation.sample_size_calculator import SampleSizeCalculator
+from src.models.experiment_request import (
+    ComparisonOperator,
+    ExperimentRequest,
+    ExperimentType,
+    RandomizationStrategy,
+)
+from src.models.optimization_hypothesis import OptimizationHypothesis
 
 logger = structlog.get_logger()
 
@@ -31,8 +35,8 @@ class ExperimentManager:
         argo_client=None,
         mongodb_client=None,
         redis_client=None,
-        consensus_engine_client: Optional[ConsensusEngineGrpcClient] = None,
-        orchestrator_client: Optional[OrchestratorGrpcClient] = None,
+        consensus_engine_client: ConsensusEngineGrpcClient | None = None,
+        orchestrator_client: OrchestratorGrpcClient | None = None,
     ):
         self.settings = settings or get_settings()
         self.argo_client = argo_client  # ArgoWorkflowsClient (a ser implementado)
@@ -52,7 +56,9 @@ class ExperimentManager:
         self.guardrail_monitor = GuardrailMonitor(
             mongodb_client=mongodb_client,
             redis_client=redis_client,
-            min_sample_size=self.settings.ab_test_min_sample_size if hasattr(self.settings, 'ab_test_min_sample_size') else 100,
+            min_sample_size=self.settings.ab_test_min_sample_size
+            if hasattr(self.settings, "ab_test_min_sample_size")
+            else 100,
         )
 
         # Inicializar SampleSizeCalculator para calculo de tamanho de amostra
@@ -60,7 +66,7 @@ class ExperimentManager:
 
         logger.info("experiment_manager_initialized")
 
-    async def submit_experiment(self, hypothesis: OptimizationHypothesis) -> Optional[str]:
+    async def submit_experiment(self, hypothesis: OptimizationHypothesis) -> str | None:
         """
         Submeter experimento baseado em hipótese.
 
@@ -112,12 +118,16 @@ class ExperimentManager:
 
             # Solicitar aprovação de compliance se necessário
             if experiment_request.ethical_approval_required:
-                logger.info("ethical_approval_required", experiment_id=experiment_request.experiment_id)
+                logger.info(
+                    "ethical_approval_required", experiment_id=experiment_request.experiment_id
+                )
                 experiment_request.approved_by_compliance = False  # Pendente
 
             # Para A/B tests, criar o teste via ABTestingEngine
             if experiment_request.experiment_type == ExperimentType.A_B_TEST:
-                ab_test_config = await self._create_ab_test_from_request(experiment_request, hypothesis)
+                ab_test_config = await self._create_ab_test_from_request(
+                    experiment_request, hypothesis
+                )
                 logger.info(
                     "ab_test_created_via_engine",
                     experiment_id=experiment_request.experiment_id,
@@ -127,14 +137,18 @@ class ExperimentManager:
 
             # Submeter workflow via Argo Workflows
             if self.argo_client:
-                workflow_name = await self.argo_client.submit_experiment_workflow(experiment_request)
+                workflow_name = await self.argo_client.submit_experiment_workflow(
+                    experiment_request
+                )
                 logger.info(
                     "experiment_submitted_to_argo",
                     experiment_id=experiment_request.experiment_id,
                     workflow=workflow_name,
                 )
             else:
-                logger.warning("argo_client_not_configured", experiment_id=experiment_request.experiment_id)
+                logger.warning(
+                    "argo_client_not_configured", experiment_id=experiment_request.experiment_id
+                )
 
             # Persistir no MongoDB
             if self.mongodb_client:
@@ -151,13 +165,15 @@ class ExperimentManager:
             return experiment_request.experiment_id
 
         except Exception as e:
-            logger.error("experiment_submission_failed", hypothesis_id=hypothesis.hypothesis_id, error=str(e))
+            logger.error(
+                "experiment_submission_failed", hypothesis_id=hypothesis.hypothesis_id, error=str(e)
+            )
             # Liberar lock em caso de erro
             if self.redis_client:
                 await self.redis_client.unlock_component(hypothesis.target_component)
             return None
 
-    async def monitor_experiment(self, experiment_id: str) -> Optional[Dict]:
+    async def monitor_experiment(self, experiment_id: str) -> dict | None:
         """
         Monitorar experimento em andamento.
 
@@ -187,15 +203,19 @@ class ExperimentManager:
             experiment = ExperimentRequest.from_avro_dict(experiment_doc)
 
             # Calcular tempo decorrido
-            now_millis = int(datetime.utcnow().timestamp() * 1000)
+            now_millis = int(datetime.now(UTC).timestamp() * 1000)
             created_at = experiment_doc.get("created_at", now_millis)
             elapsed_time = (now_millis - created_at) / 1000  # em segundos
 
             # Obter status do Argo Workflows
             workflow_status = "UNKNOWN"
             if self.argo_client:
-                workflow_status = await self.argo_client.get_workflow_status(f"experiment-{experiment_id}")
-                logger.debug("experiment_status_checked", experiment_id=experiment_id, status=workflow_status)
+                workflow_status = await self.argo_client.get_workflow_status(
+                    f"experiment-{experiment_id}"
+                )
+                logger.debug(
+                    "experiment_status_checked", experiment_id=experiment_id, status=workflow_status
+                )
 
             # Obter metricas coletadas para verificacao de guardrails
             control_metrics = {}
@@ -213,7 +233,7 @@ class ExperimentManager:
                 current_sample_size = min(control_size, treatment_size)
 
             # Converter guardrails para formato esperado pelo GuardrailMonitor
-            guardrails_config = experiment.guardrails if hasattr(experiment, 'guardrails') else []
+            guardrails_config = experiment.guardrails if hasattr(experiment, "guardrails") else []
 
             # Verificar guardrails via GuardrailMonitor
             guardrail_result = await self.guardrail_monitor.should_abort(
@@ -232,7 +252,7 @@ class ExperimentManager:
                 # Usar a maior degradacao encontrada
                 for violation in guardrail_result["violations"]:
                     degradation_str = violation.get("degradation", "0%")
-                    degradation_val = float(degradation_str.rstrip('%')) / 100
+                    degradation_val = float(degradation_str.rstrip("%")) / 100
                     performance_degradation = max(performance_degradation, degradation_val)
 
             # Abortar automaticamente se guardrails indicarem abort
@@ -245,11 +265,15 @@ class ExperimentManager:
                 await self.abort_experiment(experiment_id, guardrail_result["reason"])
 
             # Calcular progresso em relacao ao tamanho de amostra requerido
-            required_sample_size = experiment.sample_size if hasattr(experiment, 'sample_size') else 1000
+            required_sample_size = (
+                experiment.sample_size if hasattr(experiment, "sample_size") else 1000
+            )
             sample_progress = {
                 "current": current_sample_size,
                 "required": required_sample_size,
-                "percentage": min((current_sample_size / required_sample_size) * 100, 100) if required_sample_size > 0 else 0,
+                "percentage": min((current_sample_size / required_sample_size) * 100, 100)
+                if required_sample_size > 0
+                else 0,
                 "is_sufficient": current_sample_size >= required_sample_size,
             }
 
@@ -266,7 +290,7 @@ class ExperimentManager:
             logger.error("experiment_monitoring_failed", experiment_id=experiment_id, error=str(e))
             return None
 
-    async def analyze_experiment_results(self, experiment_id: str) -> Optional[Dict]:
+    async def analyze_experiment_results(self, experiment_id: str) -> dict | None:
         """
         Analisar resultados de experimento concluído.
 
@@ -295,13 +319,18 @@ class ExperimentManager:
 
             # Para A/B tests, delegar analise para ABTestingEngine
             experiment_type = experiment_doc.get("experiment_type", "")
-            if experiment_type == "A_B_TEST" or (hasattr(experiment, 'experiment_type') and experiment.experiment_type == ExperimentType.A_B_TEST):
+            if experiment_type == "A_B_TEST" or (
+                hasattr(experiment, "experiment_type")
+                and experiment.experiment_type == ExperimentType.A_B_TEST
+            ):
                 ab_results = await self.ab_testing_engine.analyze_results(experiment_id)
 
                 # Converter ABTestResults para formato de dicionario
                 analysis = {
                     "success": ab_results.statistical_recommendation == "APPLY",
-                    "improvement_percentage": self._calculate_improvement_from_ab_results(ab_results),
+                    "improvement_percentage": self._calculate_improvement_from_ab_results(
+                        ab_results
+                    ),
                     "confidence": ab_results.confidence_level,
                     "recommendation": ab_results.statistical_recommendation,
                     "primary_metrics_analysis": ab_results.primary_metrics_analysis,
@@ -354,14 +383,18 @@ class ExperimentManager:
             success_criteria_met = self._check_success_criteria(experiment, experimental_metrics)
 
             # Calcular significância estatística (simplificado)
-            confidence = self._calculate_statistical_confidence(baseline_metrics, experimental_metrics)
+            confidence = self._calculate_statistical_confidence(
+                baseline_metrics, experimental_metrics
+            )
 
             # Gerar recomendação
             recommendation = "APPLY" if success_criteria_met and confidence > 0.95 else "REJECT"
 
             analysis = {
                 "success": success_criteria_met,
-                "improvement_percentage": sum(improvements.values()) / len(improvements) if improvements else 0.0,
+                "improvement_percentage": sum(improvements.values()) / len(improvements)
+                if improvements
+                else 0.0,
                 "confidence": confidence,
                 "recommendation": recommendation,
                 "baseline_metrics": baseline_metrics,
@@ -424,14 +457,18 @@ class ExperimentManager:
                 if locked:
                     await self.redis_client.unlock_component(hypothesis.target_component)
                 else:
-                    logger.warning("component_already_locked", component=hypothesis.target_component)
+                    logger.warning(
+                        "component_already_locked", component=hypothesis.target_component
+                    )
                     return False
 
             logger.debug("hypothesis_validated", hypothesis_id=hypothesis.hypothesis_id)
             return True
 
         except Exception as e:
-            logger.error("hypothesis_validation_failed", hypothesis_id=hypothesis.hypothesis_id, error=str(e))
+            logger.error(
+                "hypothesis_validation_failed", hypothesis_id=hypothesis.hypothesis_id, error=str(e)
+            )
             return False
 
     async def abort_experiment(self, experiment_id: str, reason: str):
@@ -470,7 +507,7 @@ class ExperimentManager:
         except Exception as e:
             logger.error("experiment_abort_failed", experiment_id=experiment_id, error=str(e))
 
-    async def get_experiment_status(self, experiment_id: str) -> Optional[str]:
+    async def get_experiment_status(self, experiment_id: str) -> str | None:
         """Obter status de experimento."""
         try:
             if self.argo_client:
@@ -485,7 +522,7 @@ class ExperimentManager:
             logger.error("get_experiment_status_failed", experiment_id=experiment_id, error=str(e))
             return None
 
-    async def list_active_experiments(self) -> List[Dict]:
+    async def list_active_experiments(self) -> list[dict]:
         """Listar experimentos ativos."""
         try:
             if self.mongodb_client:
@@ -500,7 +537,7 @@ class ExperimentManager:
             logger.error("list_active_experiments_failed", error=str(e))
             return []
 
-    async def rollback_experiment(self, experiment_id: str) -> Dict:
+    async def rollback_experiment(self, experiment_id: str) -> dict:
         """
         Realizar rollback de experimento com degradação detectada.
 
@@ -521,7 +558,7 @@ class ExperimentManager:
                 return {
                     "success": False,
                     "rollback_completed": False,
-                    "reason": "mongodb_client_not_configured"
+                    "reason": "mongodb_client_not_configured",
                 }
 
             experiment_doc = await self.mongodb_client.get_experiment(experiment_id)
@@ -530,7 +567,7 @@ class ExperimentManager:
                 return {
                     "success": False,
                     "rollback_completed": False,
-                    "reason": "experiment_not_found"
+                    "reason": "experiment_not_found",
                 }
 
             component = experiment_doc.get("target_component", "unknown")
@@ -541,7 +578,9 @@ class ExperimentManager:
                     await self.argo_client.delete_workflow(f"experiment-{experiment_id}")
                     logger.info("argo_workflow_deleted", experiment_id=experiment_id)
                 except Exception as e:
-                    logger.warning("argo_workflow_deletion_failed", experiment_id=experiment_id, error=str(e))
+                    logger.warning(
+                        "argo_workflow_deletion_failed", experiment_id=experiment_id, error=str(e)
+                    )
 
             # Recuperar configuração baseline para rollback
             baseline_config = experiment_doc.get("baseline_configuration", {})
@@ -555,14 +594,14 @@ class ExperimentManager:
                 "experiment_rollback_initiated",
                 experiment_id=experiment_id,
                 component=component,
-                baseline_config=baseline_config
+                baseline_config=baseline_config,
             )
 
             # Atualizar status no MongoDB
             rollback_result = {
                 "rollback_reason": "degradation_detected",
-                "rollback_timestamp": int(datetime.utcnow().timestamp() * 1000),
-                "baseline_configuration": baseline_config
+                "rollback_timestamp": int(datetime.now(UTC).timestamp() * 1000),
+                "baseline_configuration": baseline_config,
             }
 
             await self.mongodb_client.update_experiment_status(
@@ -581,7 +620,7 @@ class ExperimentManager:
                 "rollback_completed": True,
                 "component": component,
                 "reason": "degradation_detected",
-                "baseline_config": baseline_config
+                "baseline_config": baseline_config,
             }
 
         except Exception as e:
@@ -589,12 +628,14 @@ class ExperimentManager:
             return {
                 "success": False,
                 "rollback_completed": False,
-                "reason": f"rollback_failed: {str(e)}"
+                "reason": f"rollback_failed: {str(e)}",
             }
 
     # Helper methods
 
-    def _hypothesis_to_experiment_request(self, hypothesis: OptimizationHypothesis) -> ExperimentRequest:
+    def _hypothesis_to_experiment_request(
+        self, hypothesis: OptimizationHypothesis
+    ) -> ExperimentRequest:
         """
         Converter hipótese para ExperimentRequest.
 
@@ -602,31 +643,37 @@ class ExperimentManager:
         baseline/MDE/power/alpha ao inves de valor constante.
         """
         experiment_id = str(uuid.uuid4())
-        now_millis = int(datetime.utcnow().timestamp() * 1000)
+        now_millis = int(datetime.now(UTC).timestamp() * 1000)
 
         # Gerar success criteria baseado em métricas alvo
         success_criteria = []
         for metric_name, target_value in hypothesis.target_metrics.items():
             baseline_value = hypothesis.baseline_metrics.get(metric_name, 0.0)
 
-            operator = ComparisonOperator.GTE if target_value >= baseline_value else ComparisonOperator.LTE
+            operator = (
+                ComparisonOperator.GTE if target_value >= baseline_value else ComparisonOperator.LTE
+            )
 
-            success_criteria.append({
-                "metric_name": metric_name,
-                "operator": operator,
-                "threshold": target_value,
-                "confidence_level": hypothesis.confidence_score,
-            })
+            success_criteria.append(
+                {
+                    "metric_name": metric_name,
+                    "operator": operator,
+                    "threshold": target_value,
+                    "confidence_level": hypothesis.confidence_score,
+                }
+            )
 
         # Gerar guardrails (máximo 5% de degradação em métricas críticas)
         guardrails = []
         for metric_name in ["error_rate", "latency_p95"]:
             if metric_name in hypothesis.baseline_metrics:
-                guardrails.append({
-                    "metric_name": metric_name,
-                    "max_degradation_percentage": 0.05,
-                    "abort_threshold": 0.02,
-                })
+                guardrails.append(
+                    {
+                        "metric_name": metric_name,
+                        "max_degradation_percentage": 0.05,
+                        "abort_threshold": 0.02,
+                    }
+                )
 
         # Calcular sample_size via SampleSizeCalculator com base nas metricas da hipotese
         sample_size = self._calculate_required_sample_size(hypothesis)
@@ -680,7 +727,9 @@ class ExperimentManager:
 
         # Coletar metricas atuais do Redis para ambos os grupos
         control_metrics = await self._get_experiment_metrics(experiment.experiment_id, "control")
-        treatment_metrics = await self._get_experiment_metrics(experiment.experiment_id, "treatment")
+        treatment_metrics = await self._get_experiment_metrics(
+            experiment.experiment_id, "treatment"
+        )
 
         # Verificar cada guardrail configurado
         all_guardrails_ok = True
@@ -714,6 +763,7 @@ class ExperimentManager:
             # Calcular medias
             try:
                 import numpy as np
+
                 control_mean = float(np.mean(control_data))
                 treatment_mean = float(np.mean(treatment_data))
             except ImportError:
@@ -758,7 +808,9 @@ class ExperimentManager:
 
         return all_guardrails_ok
 
-    def _check_success_criteria(self, experiment: ExperimentRequest, experimental_metrics: Dict) -> bool:
+    def _check_success_criteria(
+        self, experiment: ExperimentRequest, experimental_metrics: dict
+    ) -> bool:
         """Verificar se success criteria foram atendidos."""
         for criterion in experiment.success_criteria:
             metric_value = experimental_metrics.get(criterion.metric_name)
@@ -768,18 +820,26 @@ class ExperimentManager:
             # Verificar operador
             if criterion.operator == ComparisonOperator.GT and metric_value <= criterion.threshold:
                 return False
-            elif criterion.operator == ComparisonOperator.LT and metric_value >= criterion.threshold:
+            elif (
+                criterion.operator == ComparisonOperator.LT and metric_value >= criterion.threshold
+            ):
                 return False
-            elif criterion.operator == ComparisonOperator.GTE and metric_value < criterion.threshold:
+            elif (
+                criterion.operator == ComparisonOperator.GTE and metric_value < criterion.threshold
+            ):
                 return False
-            elif criterion.operator == ComparisonOperator.LTE and metric_value > criterion.threshold:
+            elif (
+                criterion.operator == ComparisonOperator.LTE and metric_value > criterion.threshold
+            ):
                 return False
-            elif criterion.operator == ComparisonOperator.EQ and metric_value != criterion.threshold:
+            elif (
+                criterion.operator == ComparisonOperator.EQ and metric_value != criterion.threshold
+            ):
                 return False
 
         return True
 
-    def _calculate_statistical_confidence(self, baseline: Dict, experimental: Dict) -> float:
+    def _calculate_statistical_confidence(self, baseline: dict, experimental: dict) -> float:
         """Calcular confiança estatística (simplificado - usar t-test em produção)."""
         # Simplificação: retornar confiança baseada em número de métricas melhoradas
         improved = 0
@@ -814,8 +874,8 @@ class ExperimentManager:
             sample_size calculado por grupo
         """
         # Parametros padroes de teste estatistico
-        alpha = getattr(self.settings, 'ab_test_default_alpha', 0.05)
-        power = getattr(self.settings, 'ab_test_default_power', 0.80)
+        alpha = getattr(self.settings, "ab_test_default_alpha", 0.05)
+        power = getattr(self.settings, "ab_test_default_power", 0.80)
         default_mde_percentage = 0.05  # 5% MDE padrao
 
         max_sample_size = 0
@@ -874,7 +934,7 @@ class ExperimentManager:
                 )
 
         # Garantir minimo de 100 amostras por grupo
-        min_sample_size = getattr(self.settings, 'ab_test_min_sample_size', 100)
+        min_sample_size = getattr(self.settings, "ab_test_min_sample_size", 100)
         return max(max_sample_size, min_sample_size)
 
     def _is_binary_metric(self, metric_name: str, value: float) -> bool:
@@ -889,8 +949,8 @@ class ExperimentManager:
             True se metrica for binaria, False caso contrario
         """
         # Sufixos que indicam metricas binarias
-        binary_suffixes = ['_rate', '_ratio', '_percentage', '_pct', '_conversion']
-        binary_prefixes = ['error_', 'success_', 'failure_', 'conversion_']
+        binary_suffixes = ["_rate", "_ratio", "_percentage", "_pct", "_conversion"]
+        binary_prefixes = ["error_", "success_", "failure_", "conversion_"]
 
         metric_lower = metric_name.lower()
 
@@ -909,7 +969,7 @@ class ExperimentManager:
 
         return False
 
-    def _validate_calculated_sample_size(self, experiment_request: ExperimentRequest) -> Dict:
+    def _validate_calculated_sample_size(self, experiment_request: ExperimentRequest) -> dict:
         """
         Validar se sample_size calculado atende aos requisitos minimos.
 
@@ -919,7 +979,7 @@ class ExperimentManager:
         Returns:
             Dict com is_valid, required e reason
         """
-        min_sample_size = getattr(self.settings, 'ab_test_min_sample_size', 100)
+        min_sample_size = getattr(self.settings, "ab_test_min_sample_size", 100)
         sample_size = experiment_request.sample_size
 
         if sample_size < min_sample_size:
@@ -962,27 +1022,31 @@ class ExperimentManager:
         # Se success_criteria for lista de objetos SuccessCriterion
         if not primary_metrics and experiment_request.success_criteria:
             primary_metrics = [
-                getattr(criterion, 'metric_name', '')
+                getattr(criterion, "metric_name", "")
                 for criterion in experiment_request.success_criteria
-                if hasattr(criterion, 'metric_name')
+                if hasattr(criterion, "metric_name")
             ]
 
         # Extrair guardrails
         guardrails_config = []
-        if hasattr(experiment_request, 'guardrails'):
+        if hasattr(experiment_request, "guardrails"):
             for guardrail in experiment_request.guardrails:
                 if isinstance(guardrail, dict):
                     guardrails_config.append(guardrail)
-                elif hasattr(guardrail, 'metric_name'):
-                    guardrails_config.append({
-                        "metric_name": guardrail.metric_name,
-                        "max_degradation_percentage": getattr(guardrail, 'max_degradation_percentage', 0.05),
-                        "abort_threshold": getattr(guardrail, 'abort_threshold', 0.10),
-                    })
+                elif hasattr(guardrail, "metric_name"):
+                    guardrails_config.append(
+                        {
+                            "metric_name": guardrail.metric_name,
+                            "max_degradation_percentage": getattr(
+                                guardrail, "max_degradation_percentage", 0.05
+                            ),
+                            "abort_threshold": getattr(guardrail, "abort_threshold", 0.10),
+                        }
+                    )
 
         # Mapear estrategia de randomizacao
         strategy = RandomizationStrategyType.RANDOM
-        if hasattr(experiment_request, 'randomization_strategy'):
+        if hasattr(experiment_request, "randomization_strategy"):
             strategy_map = {
                 RandomizationStrategy.RANDOM: RandomizationStrategyType.RANDOM,
                 RandomizationStrategy.STRATIFIED: RandomizationStrategyType.STRATIFIED,
@@ -1016,7 +1080,9 @@ class ExperimentManager:
 
         return ab_config
 
-    async def _get_experiment_metrics(self, experiment_id: str, group: str) -> Dict[str, List[float]]:
+    async def _get_experiment_metrics(
+        self, experiment_id: str, group: str
+    ) -> dict[str, list[float]]:
         """
         Obter metricas coletadas para um grupo do experimento.
 
@@ -1097,7 +1163,7 @@ class ExperimentManager:
 
         return sum(improvements) / len(improvements) if improvements else 0.0
 
-    async def _execute_rollback(self, experiment_id: str) -> Dict[str, bool]:
+    async def _execute_rollback(self, experiment_id: str) -> dict[str, bool]:
         """
         Executar rollback de otimização baseada no tipo de experimento.
 
@@ -1122,7 +1188,9 @@ class ExperimentManager:
         try:
             # Recuperar experimento do MongoDB
             if not self.mongodb_client:
-                logger.warning("rollback_skipped_mongodb_client_not_available", experiment_id=experiment_id)
+                logger.warning(
+                    "rollback_skipped_mongodb_client_not_available", experiment_id=experiment_id
+                )
                 return rollback_result
 
             experiment_doc = await self.mongodb_client.get_experiment(experiment_id)
@@ -1136,14 +1204,13 @@ class ExperimentManager:
             target_component = experiment_doc.get("target_component", "")
 
             # Determinar tipo de otimização baseado no objective ou experimental_configuration
-            is_weight_recalibration = (
-                "weight" in optimization_type_str.lower() or
-                any("weight" in str(k).lower() for k in baseline_config.keys())
+            is_weight_recalibration = "weight" in optimization_type_str.lower() or any(
+                "weight" in str(k).lower() for k in baseline_config.keys()
             )
             is_slo_adjustment = (
-                "slo" in optimization_type_str.lower() or
-                "latency" in optimization_type_str.lower() or
-                "timeout" in optimization_type_str.lower()
+                "slo" in optimization_type_str.lower()
+                or "latency" in optimization_type_str.lower()
+                or "timeout" in optimization_type_str.lower()
             )
 
             logger.info(
@@ -1220,13 +1287,12 @@ class ExperimentManager:
             else:
                 # Marcar sucesso se pelo menos um rollback foi executado
                 rollback_result["success"] = (
-                    rollback_result["weights_rolled_back"] or
-                    rollback_result["slos_rolled_back"]
+                    rollback_result["weights_rolled_back"] or rollback_result["slos_rolled_back"]
                 )
 
             # Atualizar documento do experimento com info de rollback
             rollback_metadata = {
-                "rollback_timestamp": int(datetime.utcnow().timestamp() * 1000),
+                "rollback_timestamp": int(datetime.now(UTC).timestamp() * 1000),
                 "baseline_configuration_restored": baseline_config,
                 "weights_rolled_back": rollback_result["weights_rolled_back"],
                 "slos_rolled_back": rollback_result["slos_rolled_back"],

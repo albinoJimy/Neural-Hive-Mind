@@ -1,9 +1,10 @@
+import hashlib
+import json
 from datetime import datetime
 from enum import Enum
 from typing import Optional
-import hashlib
-import json
-from pydantic import BaseModel, Field, ConfigDict
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class IncidentType(str, Enum):
@@ -72,7 +73,7 @@ class SecurityIncident(BaseModel):
                 "incident_type": "ANOMALY_DETECTED",
                 "severity": "HIGH",
                 "status": "DETECTED",
-                "description": "High error rate detected in worker-agents service"
+                "description": "High error rate detected in worker-agents service",
             }
         }
     )
@@ -127,35 +128,35 @@ class SecurityIncident(BaseModel):
                 {
                     "entity_type": e.entity_type.value,
                     "entity_id": e.entity_id,
-                    "entity_name": e.entity_name
+                    "entity_name": e.entity_name,
                 }
                 for e in self.affected_entities
-            ]
+            ],
         }
         hash_string = json.dumps(hash_data, sort_keys=True)
         return hashlib.sha256(hash_string.encode()).hexdigest()
 
     def to_avro_dict(self) -> dict:
         """Converte para formato Avro-compatível"""
-        data = self.model_dump(mode='json')
+        data = self.model_dump(mode="json")
         # Converte enums para strings
-        data['incident_type'] = self.incident_type.value
-        data['severity'] = self.severity.value
-        data['status'] = self.status.value
-        data['detection_source']['source_type'] = self.detection_source.source_type.value
-        for entity in data['affected_entities']:
-            entity['entity_type'] = entity['entity_type']
+        data["incident_type"] = self.incident_type.value
+        data["severity"] = self.severity.value
+        data["status"] = self.status.value
+        data["detection_source"]["source_type"] = self.detection_source.source_type.value
+        for entity in data["affected_entities"]:
+            entity["entity_type"] = entity["entity_type"]
         # Converte timestamps
-        data['detected_at'] = int(self.detected_at.timestamp() * 1000)
+        data["detected_at"] = int(self.detected_at.timestamp() * 1000)
         if self.resolved_at:
-            data['resolved_at'] = int(self.resolved_at.timestamp() * 1000)
+            data["resolved_at"] = int(self.resolved_at.timestamp() * 1000)
         return data
 
     @classmethod
     def from_avro_dict(cls, data: dict) -> "SecurityIncident":
         """Cria instância a partir de dict Avro"""
         # Converte timestamps
-        data['detected_at'] = datetime.fromtimestamp(data['detected_at'] / 1000)
-        if data.get('resolved_at'):
-            data['resolved_at'] = datetime.fromtimestamp(data['resolved_at'] / 1000)
+        data["detected_at"] = datetime.fromtimestamp(data["detected_at"] / 1000)
+        if data.get("resolved_at"):
+            data["resolved_at"] = datetime.fromtimestamp(data["resolved_at"] / 1000)
         return cls(**data)

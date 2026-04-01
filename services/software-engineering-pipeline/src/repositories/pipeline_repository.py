@@ -1,14 +1,15 @@
 from datetime import datetime, timedelta, timezone
+
 from motor.motor_asyncio import AsyncIOMotorClient
 
-from src.repositories.base import BaseRepository
 from src.models.pipeline import (
-    PipelineManifest,
-    PipelineRun,
     Anomaly,
     InsightsReport,
+    PipelineManifest,
+    PipelineRun,
 )
 from src.models.schemas import PipelineStatus
+from src.repositories.base import BaseRepository
 
 
 class PipelineManifestRepository(BaseRepository[PipelineManifest]):
@@ -26,9 +27,7 @@ class PipelineManifestRepository(BaseRepository[PipelineManifest]):
             }
         )
 
-    async def upsert_by_repo(
-        self, repo_url: str, branch: str, manifest: PipelineManifest
-    ) -> str:
+    async def upsert_by_repo(self, repo_url: str, branch: str, manifest: PipelineManifest) -> str:
         """Insere ou atualiza um manifesto para um repositório."""
         existing = await self.find_by_repo(repo_url, branch)
 
@@ -52,9 +51,7 @@ class PipelineRunRepository(BaseRepository[PipelineRun]):
             await self.create_index([("repo_url", 1), ("started_at", -1)])
             await self.create_index([("git_sha", 1)])
             await self.create_index([("status", 1), ("started_at", -1)])
-            await self.create_index(
-                [("finished_at", 1)], expireAfterSeconds=2592000
-            )  # 30 days TTL
+            await self.create_index([("finished_at", 1)], expireAfterSeconds=2592000)  # 30 days TTL
         except Exception:
             # Indexes might already exist, ignore
             pass
@@ -67,9 +64,7 @@ class PipelineRunRepository(BaseRepository[PipelineRun]):
             limit=limit,
         )
 
-    async def find_by_status(
-        self, status: PipelineStatus, limit: int = 100
-    ) -> list[dict]:
+    async def find_by_status(self, status: PipelineStatus, limit: int = 100) -> list[dict]:
         """Encontra execuções com um status específico."""
         return await self.find_many(
             filter_dict={"status": status.value},
@@ -92,9 +87,7 @@ class PipelineRunRepository(BaseRepository[PipelineRun]):
             sort=[("started_at", -1)],
         )
 
-    async def update_status(
-        self, run_id: str, status: PipelineStatus, **kwargs
-    ) -> bool:
+    async def update_status(self, run_id: str, status: PipelineStatus, **kwargs) -> bool:
         """Atualiza o status de uma execução."""
         updates = {"status": status.value, **kwargs}
         return await self.update(run_id, updates)

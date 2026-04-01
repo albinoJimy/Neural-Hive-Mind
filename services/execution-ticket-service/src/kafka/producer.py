@@ -3,8 +3,8 @@
 This module provides a producer that publishes newly created tickets via HTTP
 to the Kafka topic so worker agents can consume them.
 """
-import json
 import asyncio
+import json
 from typing import Optional
 
 from aiokafka import AIOKafkaProducer
@@ -38,27 +38,29 @@ class KafkaTicketProducer:
         self._logger.info(
             "starting_kafka_producer",
             bootstrap_servers=self._settings.kafka_bootstrap_servers,
-            topic=self._topic
+            topic=self._topic,
         )
 
         producer_config = {
-            'bootstrap_servers': self._settings.kafka_bootstrap_servers,
-            'value_serializer': lambda v: json.dumps(v).encode('utf-8'),
-            'key_serializer': lambda k: k.encode('utf-8') if k else None,
-            'acks': 'all',  # Wait for all replicas
-            'compression_type': 'gzip',  # Compress messages (built-in, no extra deps)
-            'linger_ms': 10,  # Batch up to 10ms for efficiency
-            'max_request_size': 1048576,  # 1MB max request size
+            "bootstrap_servers": self._settings.kafka_bootstrap_servers,
+            "value_serializer": lambda v: json.dumps(v).encode("utf-8"),
+            "key_serializer": lambda k: k.encode("utf-8") if k else None,
+            "acks": "all",  # Wait for all replicas
+            "compression_type": "gzip",  # Compress messages (built-in, no extra deps)
+            "linger_ms": 10,  # Batch up to 10ms for efficiency
+            "max_request_size": 1048576,  # 1MB max request size
         }
 
         # Add SASL if configured
-        if self._settings.kafka_security_protocol != 'PLAINTEXT':
-            producer_config.update({
-                'security_protocol': self._settings.kafka_security_protocol,
-                'sasl_mechanism': self._settings.kafka_sasl_mechanism,
-                'sasl_plain_username': self._settings.kafka_sasl_username,
-                'sasl_plain_password': self._settings.kafka_sasl_password,
-            })
+        if self._settings.kafka_security_protocol != "PLAINTEXT":
+            producer_config.update(
+                {
+                    "security_protocol": self._settings.kafka_security_protocol,
+                    "sasl_mechanism": self._settings.kafka_sasl_mechanism,
+                    "sasl_plain_username": self._settings.kafka_sasl_username,
+                    "sasl_plain_password": self._settings.kafka_sasl_password,
+                }
+            )
 
         retry_count = 0
         last_error = None
@@ -70,7 +72,7 @@ class KafkaTicketProducer:
                 self._logger.info(
                     "kafka_producer_started",
                     bootstrap_servers=self._settings.kafka_bootstrap_servers,
-                    topic=self._topic
+                    topic=self._topic,
                 )
                 return
 
@@ -82,7 +84,7 @@ class KafkaTicketProducer:
                     error=str(e),
                     retry_count=retry_count,
                     max_retries=max_retries,
-                    attempt=f"{retry_count}/{max_retries}"
+                    attempt=f"{retry_count}/{max_retries}",
                 )
                 if retry_count < max_retries:
                     await asyncio.sleep(initial_delay * (2 ** (retry_count - 1)))
@@ -91,9 +93,11 @@ class KafkaTicketProducer:
         self._logger.error(
             "kafka_producer_start_failed_all_retries",
             error=str(last_error),
-            max_retries=max_retries
+            max_retries=max_retries,
         )
-        raise RuntimeError(f"Failed to start Kafka producer after {max_retries} attempts: {last_error}")
+        raise RuntimeError(
+            f"Failed to start Kafka producer after {max_retries} attempts: {last_error}"
+        )
 
     async def stop(self):
         """Stop the Kafka producer gracefully."""
@@ -104,10 +108,7 @@ class KafkaTicketProducer:
         self._producer = None
 
     async def publish_ticket(
-        self,
-        ticket: dict,
-        key: Optional[str] = None,
-        timeout_ms: int = 5000
+        self, ticket: dict, key: Optional[str] = None, timeout_ms: int = 5000
     ) -> bool:
         """
         Publish ticket to Kafka topic.
@@ -121,45 +122,41 @@ class KafkaTicketProducer:
             True if published successfully, False otherwise
         """
         if not self._producer:
-            self._logger.warning("kafka_producer_not_initialized", ticket_id=ticket.get('ticket_id'))
+            self._logger.warning(
+                "kafka_producer_not_initialized", ticket_id=ticket.get("ticket_id")
+            )
             return False
 
         # Use ticket_id as key for consistent partitioning
         if key is None:
-            key = ticket.get('ticket_id')
+            key = ticket.get("ticket_id")
 
         try:
             await asyncio.wait_for(
-                self._producer.send_and_wait(
-                    self._topic,
-                    value=ticket,
-                    key=key
-                ),
-                timeout=timeout_ms / 1000.0
+                self._producer.send_and_wait(self._topic, value=ticket, key=key),
+                timeout=timeout_ms / 1000.0,
             )
 
             self._logger.info(
                 "ticket_published_to_kafka",
-                ticket_id=ticket.get('ticket_id'),
+                ticket_id=ticket.get("ticket_id"),
                 topic=self._topic,
-                key=key
+                key=key,
             )
             return True
 
         except asyncio.TimeoutError:
             self._logger.error(
-                "ticket_publish_timeout",
-                ticket_id=ticket.get('ticket_id'),
-                timeout_ms=timeout_ms
+                "ticket_publish_timeout", ticket_id=ticket.get("ticket_id"), timeout_ms=timeout_ms
             )
             return False
 
         except Exception as e:
             self._logger.error(
                 "ticket_publish_failed",
-                ticket_id=ticket.get('ticket_id'),
+                ticket_id=ticket.get("ticket_id"),
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
             return False
 

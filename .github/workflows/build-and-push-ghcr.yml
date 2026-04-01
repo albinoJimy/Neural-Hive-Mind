@@ -477,6 +477,17 @@ jobs:
           if [[ "${{ needs.detect-changes.outputs.has_changes }}" == "true" ]]; then
             echo "### Servicos Buildados" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
+
+      - name: Trigger FluxCD Image Update
+        if: |
+          always() &&
+          github.event_name != 'pull_request' &&
+          needs.detect-changes.outputs.has_changes == 'true'
+        uses: ./.github/workflows/fluxcd-image-update.yml
+        with:
+          image_name: ${{ matrix.service }}
+          image_tag: ${{ inputs.version_tag || 'latest' }}
+          environment: ${{ github.ref_name == 'main' && 'production' || 'development' }}
             echo "| Servico | Imagem |" >> $GITHUB_STEP_SUMMARY
             echo "|---------|--------|" >> $GITHUB_STEP_SUMMARY
 

@@ -1,27 +1,31 @@
 """Policy enforcement service with OPA and Istio integration (Fluxo E3)"""
-from typing import Dict, Any, Optional, List
-import structlog
 from datetime import datetime, timezone
 from enum import Enum
+from typing import Any, Dict, List
+
+import structlog
 
 logger = structlog.get_logger()
 
 
 # Importa clientes OPA e Istio quando disponíveis
 try:
-    from src.clients.opa_client import OPAClient
     from src.clients.istio_client import IstioClient
+    from src.clients.opa_client import OPAClient
+
     OPA_AVAILABLE = True
     ISTIO_AVAILABLE = True
 except ImportError:
     OPA_AVAILABLE = False
     ISTIO_AVAILABLE = False
-    logger.warning("policy_enforcer.clients_not_available",
-                   opa=OPA_AVAILABLE, istio=ISTIO_AVAILABLE)
+    logger.warning(
+        "policy_enforcer.clients_not_available", opa=OPA_AVAILABLE, istio=ISTIO_AVAILABLE
+    )
 
 
 class EnforcementAction(str, Enum):
     """Ações de enforcement"""
+
     ALLOW = "allow"
     DENY = "deny"
     BLOCK_IP = "block_ip"
@@ -34,6 +38,7 @@ class EnforcementAction(str, Enum):
 
 class PolicyType(str, Enum):
     """Tipos de políticas"""
+
     SECURITY = "security"
     COMPLIANCE = "compliance"
     RESOURCE_QUOTA = "resource_quota"
@@ -53,7 +58,7 @@ class PolicyEnforcer:
         keycloak_client=None,
         mongodb_client=None,
         opa_enabled: bool = True,
-        istio_enabled: bool = True
+        istio_enabled: bool = True,
     ):
         self.k8s = k8s_client
         self.redis = redis_client
@@ -106,9 +111,7 @@ class PolicyEnforcer:
             },
         }
 
-    async def enforce_policy(
-        self, incident: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    async def enforce_policy(self, incident: Dict[str, Any]) -> Dict[str, Any]:
         """
         Enforça política para incidente (E3: Selecionar playbook & Executar políticas)
 
@@ -129,7 +132,7 @@ class PolicyEnforcer:
                 incident_id=incident_id,
                 threat_type=threat_type,
                 severity=severity,
-                runbook_id=runbook_id
+                runbook_id=runbook_id,
             )
 
             # E3: Selecionar playbook baseado em severidade e catálogos
@@ -143,16 +146,14 @@ class PolicyEnforcer:
                 logger.warning(
                     "policy_enforcer.opa_denied",
                     incident_id=incident_id,
-                    reason=opa_decision.get("reason")
+                    reason=opa_decision.get("reason"),
                 )
                 return self._create_enforcement_result(
                     incident, enforcement_plan, success=False, reason="OPA denied"
                 )
 
             # E3: Executar ações atomicamente
-            enforcement_result = await self._execute_enforcement_actions(
-                incident, enforcement_plan
-            )
+            enforcement_result = await self._execute_enforcement_actions(incident, enforcement_plan)
 
             # Registrar enforcement
             await self._record_enforcement(incident, enforcement_plan, enforcement_result)
@@ -161,7 +162,7 @@ class PolicyEnforcer:
                 "policy_enforcer.enforced",
                 incident_id=incident_id,
                 actions_executed=len(enforcement_result.get("actions", [])),
-                success=enforcement_result.get("success")
+                success=enforcement_result.get("success"),
             )
 
             return enforcement_result
@@ -170,7 +171,7 @@ class PolicyEnforcer:
             logger.error(
                 "policy_enforcer.enforcement_failed",
                 incident_id=incident.get("incident_id"),
-                error=str(e)
+                error=str(e),
             )
             # E3: Falha > 2 tentativas → escalar para humano
             raise
@@ -188,9 +189,7 @@ class PolicyEnforcer:
 
         if not policy:
             logger.warning(
-                "policy_enforcer.no_policy_found",
-                threat_type=threat_type,
-                runbook_id=runbook_id
+                "policy_enforcer.no_policy_found", threat_type=threat_type, runbook_id=runbook_id
             )
             # E3: Playbook inexistente → criar stub e notificar engenharia
             return self._create_stub_playbook(threat_type, severity, runbook_id)
@@ -216,15 +215,12 @@ class PolicyEnforcer:
             "policy_enforcer.validating_opa",
             opa_policy=opa_policy,
             incident_id=incident.get("incident_id"),
-            opa_enabled=self.opa_enabled
+            opa_enabled=self.opa_enabled,
         )
 
         # Se OPA não estiver disponível ou desabilitado, permitir com aviso
         if not self.opa_enabled or not self.opa_client:
-            logger.warning(
-                "policy_enforcer.opa_disabled",
-                incident_id=incident.get("incident_id")
-            )
+            logger.warning("policy_enforcer.opa_disabled", incident_id=incident.get("incident_id"))
             return {
                 "allowed": True,
                 "policy": opa_policy,
@@ -240,33 +236,32 @@ class PolicyEnforcer:
                     "threat_type": incident.get("threat_type"),
                     "severity": incident.get("severity"),
                     "affected_resources": incident.get("affected_resources", []),
-                    "anomaly": incident.get("anomaly", {})
+                    "anomaly": incident.get("anomaly", {}),
                 },
                 "enforcement": {
                     "runbook_id": enforcement_plan.get("runbook_id"),
                     "action": enforcement_plan.get("primary_action"),
-                    "severity": enforcement_plan.get("severity")
-                }
+                    "severity": enforcement_plan.get("severity"),
+                },
             }
 
             # Avaliar política OPA
             result = await self.opa_client.evaluate_policy(
-                policy_path=opa_policy.replace("data.", ""),
-                input_data=input_data
+                policy_path=opa_policy.replace("data.", ""), input_data=input_data
             )
 
             decision = {
                 "allowed": result.get("allowed", False),
                 "policy": opa_policy,
                 "reason": result.get("reason", "OPA evaluation completed"),
-                "error": result.get("error", False)
+                "error": result.get("error", False),
             }
 
             logger.info(
                 "policy_enforcer.opa_decision",
                 incident_id=incident.get("incident_id"),
                 allowed=decision["allowed"],
-                reason=decision["reason"]
+                reason=decision["reason"],
             )
 
             return decision
@@ -275,14 +270,14 @@ class PolicyEnforcer:
             logger.error(
                 "policy_enforcer.opa_validation_error",
                 incident_id=incident.get("incident_id"),
-                error=str(e)
+                error=str(e),
             )
             # Fail-safe: negar em caso de erro crítico
             return {
                 "allowed": False,
                 "policy": opa_policy,
                 "reason": f"OPA validation error: {str(e)}",
-                "error": True
+                "error": True,
             }
 
     async def _execute_enforcement_actions(
@@ -315,14 +310,13 @@ class PolicyEnforcer:
                     "policy_enforcer.action_retry",
                     attempt=attempt,
                     max_attempts=max_attempts,
-                    error=str(e)
+                    error=str(e),
                 )
 
         # E3: Falha > 2 tentativas → escalar para humano
         if attempt > max_attempts:
             logger.error(
-                "policy_enforcer.max_retries_exceeded",
-                incident_id=incident.get("incident_id")
+                "policy_enforcer.max_retries_exceeded", incident_id=incident.get("incident_id")
             )
             return {
                 "success": False,
@@ -345,7 +339,7 @@ class PolicyEnforcer:
         logger.info(
             "policy_enforcer.executing_action",
             action=action,
-            incident_id=incident.get("incident_id")
+            incident_id=incident.get("incident_id"),
         )
 
         if action == EnforcementAction.BLOCK_IP:
@@ -366,9 +360,7 @@ class PolicyEnforcer:
             logger.warning("policy_enforcer.unknown_action", action=action)
             return {"success": False, "action": action, "reason": "Unknown action"}
 
-    async def _block_ip(
-        self, incident: Dict[str, Any], plan: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    async def _block_ip(self, incident: Dict[str, Any], plan: Dict[str, Any]) -> Dict[str, Any]:
         """Bloqueia IP usando Istio/NetworkPolicy"""
         source_ip = incident.get("anomaly", {}).get("details", {}).get("source_ip")
 
@@ -384,43 +376,30 @@ class PolicyEnforcer:
         if self.istio_enabled and self.istio_client:
             try:
                 result = await self.istio_client.block_ip(
-                    source_ip=source_ip,
-                    workload_selector={"app": "neural-hive"}
+                    source_ip=source_ip, workload_selector={"app": "neural-hive"}
                 )
                 success = result.get("success", False)
                 details["istio_policy"] = result.get("name")
                 logger.info(
                     "policy_enforcer.ip_blocked_istio",
                     source_ip=source_ip,
-                    policy=result.get("name")
+                    policy=result.get("name"),
                 )
             except Exception as e:
                 logger.error(
-                    "policy_enforcer.istio_block_failed",
-                    source_ip=source_ip,
-                    error=str(e)
+                    "policy_enforcer.istio_block_failed", source_ip=source_ip, error=str(e)
                 )
         else:
-            logger.warning(
-                "policy_enforcer.istio_not_available",
-                action="block_ip"
-            )
+            logger.warning("policy_enforcer.istio_not_available", action="block_ip")
             success = True  # Fallback considera sucesso para não bloquear fluxo
 
         # Cachear bloqueio no Redis
         if self.redis:
             try:
-                await self.redis.set(
-                    f"blocked_ip:{source_ip}",
-                    "true",
-                    ex=3600  # 1 hora
-                )
+                await self.redis.set(f"blocked_ip:{source_ip}", "true", ex=3600)  # 1 hora
                 details["cached"] = True
             except Exception as e:
-                logger.warning(
-                    "policy_enforcer.redis_cache_failed",
-                    error=str(e)
-                )
+                logger.warning("policy_enforcer.redis_cache_failed", error=str(e))
 
         return {
             "success": success,
@@ -453,16 +432,13 @@ class PolicyEnforcer:
                     success = True
                     details["keycloak_action"] = "sessions_revoked"
                     details["timestamp"] = revoke_result.get("timestamp")
-                    logger.info(
-                        "policy_enforcer.sessions_revoked",
-                        user_id=user_id
-                    )
+                    logger.info("policy_enforcer.sessions_revoked", user_id=user_id)
                 else:
                     # Fallback: desabilitar usuario se revogacao de sessao falhar
                     logger.warning(
                         "policy_enforcer.revoke_failed_trying_disable",
                         user_id=user_id,
-                        reason=revoke_result.get("reason")
+                        reason=revoke_result.get("reason"),
                     )
 
                     disable_result = await self.keycloak_client.disable_user(user_id)
@@ -470,31 +446,21 @@ class PolicyEnforcer:
                         success = True
                         details["keycloak_action"] = "user_disabled"
                         details["timestamp"] = disable_result.get("timestamp")
-                        logger.info(
-                            "policy_enforcer.user_disabled",
-                            user_id=user_id
-                        )
+                        logger.info("policy_enforcer.user_disabled", user_id=user_id)
                     else:
                         details["error"] = disable_result.get("reason")
                         logger.error(
                             "policy_enforcer.disable_failed",
                             user_id=user_id,
-                            reason=disable_result.get("reason")
+                            reason=disable_result.get("reason"),
                         )
 
             except Exception as e:
-                logger.error(
-                    "policy_enforcer.keycloak_revoke_error",
-                    user_id=user_id,
-                    error=str(e)
-                )
+                logger.error("policy_enforcer.keycloak_revoke_error", user_id=user_id, error=str(e))
                 details["error"] = str(e)
         else:
             # Keycloak nao disponivel - log e considera sucesso para nao bloquear fluxo
-            logger.warning(
-                "policy_enforcer.keycloak_not_available",
-                action="revoke_access"
-            )
+            logger.warning("policy_enforcer.keycloak_not_available", action="revoke_access")
             success = True
             details["keycloak_action"] = "bypassed"
 
@@ -507,18 +473,14 @@ class PolicyEnforcer:
                     "incident_id": incident.get("incident_id"),
                     "success": success,
                     "details": details,
-                    "timestamp": datetime.now(timezone.utc).isoformat()
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
                 }
                 await self.mongodb.remediation_collection.insert_one(audit_record)
                 logger.debug(
-                    "policy_enforcer.revoke_audit_logged",
-                    incident_id=incident.get("incident_id")
+                    "policy_enforcer.revoke_audit_logged", incident_id=incident.get("incident_id")
                 )
             except Exception as e:
-                logger.warning(
-                    "policy_enforcer.audit_log_failed",
-                    error=str(e)
-                )
+                logger.warning("policy_enforcer.audit_log_failed", error=str(e))
 
         return {
             "success": success,
@@ -546,13 +508,11 @@ class PolicyEnforcer:
             return {
                 "success": False,
                 "action": "quarantine",
-                "reason": "No resources to quarantine"
+                "reason": "No resources to quarantine",
             }
 
         logger.info(
-            "policy_enforcer.quarantining_resources",
-            resources=resources,
-            incident_id=incident_id
+            "policy_enforcer.quarantining_resources", resources=resources, incident_id=incident_id
         )
 
         quarantined_pods = []
@@ -571,30 +531,30 @@ class PolicyEnforcer:
                             pod_name,
                             {
                                 "guard-agents/quarantine": "true",
-                                "guard-agents/incident-id": incident_id[:63]  # Max label length
+                                "guard-agents/incident-id": incident_id[:63],  # Max label length
                             },
-                            namespace
+                            namespace,
                         )
 
                         if labels_applied:
-                            quarantined_pods.append({
-                                "pod": pod_name,
-                                "namespace": namespace or self.k8s.namespace,
-                                "labels_applied": True
-                            })
+                            quarantined_pods.append(
+                                {
+                                    "pod": pod_name,
+                                    "namespace": namespace or self.k8s.namespace,
+                                    "labels_applied": True,
+                                }
+                            )
                             logger.info(
                                 "policy_enforcer.pod_quarantine_labeled",
                                 pod=pod_name,
-                                namespace=namespace
+                                namespace=namespace,
                             )
                         else:
                             errors.append(f"Failed to apply quarantine labels to {pod_name}")
 
                     except Exception as e:
                         logger.error(
-                            "policy_enforcer.quarantine_label_failed",
-                            pod=pod_name,
-                            error=str(e)
+                            "policy_enforcer.quarantine_label_failed", pod=pod_name, error=str(e)
                         )
                         errors.append(f"Error labeling {pod_name}: {str(e)}")
 
@@ -605,51 +565,45 @@ class PolicyEnforcer:
                     policy_spec = {
                         "target": "isolate",
                         "pod_selector": {"guard-agents/quarantine": "true"},
-                        "type": "quarantine"
+                        "type": "quarantine",
                     }
 
                     # Usar o primeiro namespace encontrado ou default
                     policy_namespace = quarantined_pods[0].get("namespace")
 
                     policy_result = await self.k8s.apply_network_policy(
-                        policy_name,
-                        policy_spec,
-                        policy_namespace
+                        policy_name, policy_spec, policy_namespace
                     )
 
                     if policy_result.get("success"):
                         policy_applied = {
                             "name": policy_name,
                             "namespace": policy_namespace,
-                            "action": policy_result.get("action")
+                            "action": policy_result.get("action"),
                         }
                         logger.info(
                             "policy_enforcer.quarantine_policy_applied",
                             policy=policy_name,
-                            namespace=policy_namespace
+                            namespace=policy_namespace,
                         )
                     else:
-                        errors.append(f"Failed to apply NetworkPolicy: {policy_result.get('error')}")
+                        errors.append(
+                            f"Failed to apply NetworkPolicy: {policy_result.get('error')}"
+                        )
 
                 except Exception as e:
-                    logger.error(
-                        "policy_enforcer.quarantine_policy_failed",
-                        error=str(e)
-                    )
+                    logger.error("policy_enforcer.quarantine_policy_failed", error=str(e))
                     errors.append(f"NetworkPolicy error: {str(e)}")
         else:
-            logger.warning(
-                "policy_enforcer.k8s_not_available",
-                action="quarantine"
-            )
+            logger.warning("policy_enforcer.k8s_not_available", action="quarantine")
             # Graceful degradation - nao bloquear fluxo
             return {
                 "success": True,
                 "action": "quarantine",
                 "details": {
                     "resources": resources,
-                    "warning": "Kubernetes client not available - quarantine simulated"
-                }
+                    "warning": "Kubernetes client not available - quarantine simulated",
+                },
             }
 
         success = len(quarantined_pods) > 0 and len(errors) == 0
@@ -661,8 +615,8 @@ class PolicyEnforcer:
                 "quarantined_pods": quarantined_pods,
                 "network_policy": policy_applied,
                 "resources": resources,
-                "errors": errors if errors else None
-            }
+                "errors": errors if errors else None,
+            },
         }
 
     def _parse_resource(self, resource: str) -> tuple:
@@ -691,9 +645,7 @@ class PolicyEnforcer:
 
         return (None, None)
 
-    async def _isolate_pod(
-        self, incident: Dict[str, Any], plan: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    async def _isolate_pod(self, incident: Dict[str, Any], plan: Dict[str, Any]) -> Dict[str, Any]:
         """
         Isola pod usando NetworkPolicy para bloquear todo tráfego ingress/egress.
 
@@ -708,11 +660,7 @@ class PolicyEnforcer:
         incident_id = incident.get("incident_id", "unknown")
 
         if not resources:
-            return {
-                "success": False,
-                "action": "isolate_pod",
-                "reason": "No resources to isolate"
-            }
+            return {"success": False, "action": "isolate_pod", "reason": "No resources to isolate"}
 
         logger.info("policy_enforcer.isolating_pods", resources=resources, incident_id=incident_id)
 
@@ -744,27 +692,31 @@ class PolicyEnforcer:
                                 policy_spec={
                                     "target": "isolate",
                                     "pod_selector": pod_selector,
-                                    "type": "remediation"
+                                    "type": "remediation",
                                 },
-                                namespace=namespace
+                                namespace=namespace,
                             )
 
                             if policy_result.get("success"):
-                                policies_created.append({
-                                    "policy_name": policy_name,
-                                    "namespace": namespace,
-                                    "action": policy_result.get("action", "created")
-                                })
+                                policies_created.append(
+                                    {
+                                        "policy_name": policy_name,
+                                        "namespace": namespace,
+                                        "action": policy_result.get("action", "created"),
+                                    }
+                                )
                                 isolated_pods.append(pod_name)
 
                                 logger.info(
                                     "policy_enforcer.pod_isolated",
                                     pod=pod_name,
                                     namespace=namespace,
-                                    policy=policy_name
+                                    policy=policy_name,
                                 )
                             else:
-                                errors.append(f"Failed to create policy for {pod_name}: {policy_result.get('error')}")
+                                errors.append(
+                                    f"Failed to create policy for {pod_name}: {policy_result.get('error')}"
+                                )
                         else:
                             errors.append(f"Pod {pod_name} not found in {namespace}")
 
@@ -773,14 +725,14 @@ class PolicyEnforcer:
                             "policy_enforcer.isolate_pod_failed",
                             pod=pod_name,
                             namespace=namespace,
-                            error=str(e)
+                            error=str(e),
                         )
                         errors.append(f"Error isolating {pod_name}: {str(e)}")
         else:
             return {
                 "success": False,
                 "action": "isolate_pod",
-                "reason": "Kubernetes client not available"
+                "reason": "Kubernetes client not available",
             }
 
         return {
@@ -790,7 +742,7 @@ class PolicyEnforcer:
                 "isolated_pods": isolated_pods,
                 "policies_created": policies_created,
                 "resources": resources,
-                "errors": errors
+                "errors": errors,
             },
         }
 
@@ -814,7 +766,7 @@ class PolicyEnforcer:
             return {
                 "success": False,
                 "action": "scale_down",
-                "reason": "No resources to scale down"
+                "reason": "No resources to scale down",
             }
 
         logger.info("policy_enforcer.scaling_down", resources=resources, incident_id=incident_id)
@@ -831,24 +783,24 @@ class PolicyEnforcer:
                     try:
                         # Tentar scale down deployment para 0 replicas
                         scale_result = await self.k8s.scale_deployment(
-                            deployment_name=resource_name,
-                            replicas=0,
-                            namespace=namespace
+                            deployment_name=resource_name, replicas=0, namespace=namespace
                         )
 
                         if scale_result:
-                            scaled_deployments.append({
-                                "deployment": resource_name,
-                                "namespace": namespace,
-                                "previous_replicas": "unknown",
-                                "new_replicas": 0
-                            })
+                            scaled_deployments.append(
+                                {
+                                    "deployment": resource_name,
+                                    "namespace": namespace,
+                                    "previous_replicas": "unknown",
+                                    "new_replicas": 0,
+                                }
+                            )
 
                             logger.info(
                                 "policy_enforcer.deployment_scaled_down",
                                 deployment=resource_name,
                                 namespace=namespace,
-                                replicas=0
+                                replicas=0,
                             )
                         else:
                             errors.append(f"Failed to scale down {resource_name}")
@@ -858,14 +810,14 @@ class PolicyEnforcer:
                             "policy_enforcer.scale_down_failed",
                             resource=resource_name,
                             namespace=namespace,
-                            error=str(e)
+                            error=str(e),
                         )
                         errors.append(f"Error scaling down {resource_name}: {str(e)}")
         else:
             return {
                 "success": False,
                 "action": "scale_down",
-                "reason": "Kubernetes client not available"
+                "reason": "Kubernetes client not available",
             }
 
         return {
@@ -874,7 +826,7 @@ class PolicyEnforcer:
             "details": {
                 "scaled_deployments": scaled_deployments,
                 "resources": resources,
-                "errors": errors
+                "errors": errors,
             },
         }
 
@@ -897,25 +849,16 @@ class PolicyEnforcer:
                     name=f"rate-limit-{incident.get('incident_id', 'default')}",
                     workload_selector={"app": "neural-hive"},
                     requests_per_unit=100,
-                    unit="MINUTE"
+                    unit="MINUTE",
                 )
                 success = result.get("success", False)
                 details["envoy_filter"] = result.get("name")
                 details["rate_limit"] = result.get("rate_limit")
-                logger.info(
-                    "policy_enforcer.rate_limit_applied",
-                    filter=result.get("name")
-                )
+                logger.info("policy_enforcer.rate_limit_applied", filter=result.get("name"))
             except Exception as e:
-                logger.error(
-                    "policy_enforcer.rate_limit_failed",
-                    error=str(e)
-                )
+                logger.error("policy_enforcer.rate_limit_failed", error=str(e))
         else:
-            logger.warning(
-                "policy_enforcer.istio_not_available",
-                action="rate_limit"
-            )
+            logger.warning("policy_enforcer.istio_not_available", action="rate_limit")
             success = True  # Fallback
 
         return {
@@ -925,9 +868,7 @@ class PolicyEnforcer:
             "istio_rule": plan.get("istio_rule"),
         }
 
-    async def _deny_request(
-        self, incident: Dict[str, Any], plan: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    async def _deny_request(self, incident: Dict[str, Any], plan: Dict[str, Any]) -> Dict[str, Any]:
         """Nega requisição específica"""
         logger.info("policy_enforcer.denying_request")
 
@@ -951,9 +892,7 @@ class PolicyEnforcer:
     ) -> Dict[str, Any]:
         """E3: Cria stub de playbook quando inexistente"""
         logger.warning(
-            "policy_enforcer.creating_stub_playbook",
-            threat_type=threat_type,
-            runbook_id=runbook_id
+            "policy_enforcer.creating_stub_playbook", threat_type=threat_type, runbook_id=runbook_id
         )
 
         return {

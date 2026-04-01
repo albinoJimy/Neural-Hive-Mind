@@ -1,24 +1,25 @@
-from pydantic import BaseModel, Field
-from typing import List, Dict, Optional
-from enum import Enum
-from datetime import datetime
 import hashlib
 import json
+from datetime import datetime, timezone
+from enum import Enum
+from typing import Dict, List, Optional
+
+from pydantic import BaseModel, Field
 
 
 class InsightType(str, Enum):
-    STRATEGIC = 'STRATEGIC'
-    OPERATIONAL = 'OPERATIONAL'
-    PREDICTIVE = 'PREDICTIVE'
-    CAUSAL = 'CAUSAL'
-    ANOMALY = 'ANOMALY'
+    STRATEGIC = "STRATEGIC"
+    OPERATIONAL = "OPERATIONAL"
+    PREDICTIVE = "PREDICTIVE"
+    CAUSAL = "CAUSAL"
+    ANOMALY = "ANOMALY"
 
 
 class Priority(str, Enum):
-    LOW = 'LOW'
-    MEDIUM = 'MEDIUM'
-    HIGH = 'HIGH'
-    CRITICAL = 'CRITICAL'
+    LOW = "LOW"
+    MEDIUM = "MEDIUM"
+    HIGH = "HIGH"
+    CRITICAL = "CRITICAL"
 
 
 class Recommendation(BaseModel):
@@ -39,8 +40,8 @@ class TimeWindow(BaseModel):
 
 
 class AnalystInsight(BaseModel):
-    insight_id: str = Field(..., description='UUID único do insight')
-    version: str = Field(default='1.0.0', description='Versão do schema')
+    insight_id: str = Field(..., description="UUID único do insight")
+    version: str = Field(default="1.0.0", description="Versão do schema")
     correlation_id: str
     trace_id: str
     span_id: str
@@ -56,16 +57,18 @@ class AnalystInsight(BaseModel):
     recommendations: List[Recommendation]
     related_entities: List[RelatedEntity]
     time_window: TimeWindow
-    created_at: int = Field(default_factory=lambda: int(datetime.utcnow().timestamp() * 1000))
+    created_at: int = Field(
+        default_factory=lambda: int(datetime.now(timezone.utc).timestamp() * 1000)
+    )
     valid_until: Optional[int] = None
     tags: List[str] = Field(default_factory=list)
     metadata: Dict[str, str] = Field(default_factory=dict)
-    hash: str = Field(default='')
+    hash: str = Field(default="")
     schema_version: int = Field(default=1)
 
     def calculate_hash(self) -> str:
         """Calcular hash SHA-256 para integridade"""
-        data = self.model_dump(exclude={'hash'})
+        data = self.model_dump(exclude={"hash"})
         json_str = json.dumps(data, sort_keys=True)
         return hashlib.sha256(json_str.encode()).hexdigest()
 

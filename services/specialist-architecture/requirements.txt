@@ -1,27 +1,16 @@
-# Base (via neural_hive_specialists)
-# neuralHiveSpecialists @ file:///app/libraries/python/neural_hive_specialists
+# Dependências base consolidadas para Neural-Hive-Mind
+# Uso: Adicionar no topo de requirements.txt de cada serviço:
+#   -r ../../requirements-base.txt
+-r ../../requirements-base.txt
 
-# HTTP server and client
-fastapi==0.115.10
-uvicorn[standard]==0.34.0
-requests>=2.31.0
-
-# Data validation
-pydantic==2.10.4
-pydantic-settings==2.6.1  # 2.7.x has _lenient_issubclass bug
-
-# Circuit breaker and resilience
-tenacity==9.0.0
+# Specialist-specific dependencies
 pybreaker>=1.0.1
-
-# Business-specific
 pandas==2.2.3
-numpy==1.26.4
 scikit-learn==1.5.2
 
-# Nota: Dependências de process mining (pm4py), time series forecasting (prophet, statsmodels),
-# e optimization (pulp) foram removidas pois não são utilizadas pelos specialists.
-# Estas dependências estão disponíveis no optimizer-agents onde são realmente necessárias.
+# Nota: As seguintes dependências já estão em requirements-base.txt:
+# - fastapi, uvicorn, requests
+# - pydantic, pydantic-settings
+# - tenacity, structlog
+# - numpy (já em requirements-base.txt)
 
-# Logging
-structlog==24.4.0

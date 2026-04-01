@@ -1,14 +1,13 @@
 import json
+import shutil
 import subprocess
 import time
-import shutil
 from datetime import datetime, timedelta
-from typing import Optional, TYPE_CHECKING
-from functools import lru_cache
+from typing import TYPE_CHECKING, Optional
 
 import structlog
 
-from ..models.artifact import ValidationResult, ValidationType, ValidationStatus
+from ..models.artifact import ValidationResult, ValidationStatus, ValidationType
 
 if TYPE_CHECKING:
     from ..observability.metrics import CodeForgeMetrics
@@ -19,16 +18,16 @@ logger = structlog.get_logger()
 class TrivyClient:
     """Cliente para Trivy (scanner de vulnerabilidades em containers e IaC)"""
 
-    TRIVY_VERSION = '0.45.0'
+    TRIVY_VERSION = "0.45.0"
 
     def __init__(
         self,
         enabled: bool = True,
-        severity: str = 'CRITICAL,HIGH',
+        severity: str = "CRITICAL,HIGH",
         timeout: int = 600,
         fail_on_threshold: int = 0,
         cache_ttl_seconds: int = 3600,
-        metrics: Optional['CodeForgeMetrics'] = None
+        metrics: Optional["CodeForgeMetrics"] = None,
     ):
         """
         Inicializa cliente Trivy.
@@ -49,17 +48,14 @@ class TrivyClient:
         self.metrics = metrics
 
         # Verificar instalação do Trivy
-        self.trivy_path = shutil.which('trivy')
+        self.trivy_path = shutil.which("trivy")
         self._trivy_available = self.trivy_path is not None
 
         # Cache simples: {target: (result, timestamp)}
         self._cache: dict = {}
 
         if not self._trivy_available:
-            logger.warning(
-                'trivy_not_found',
-                note='Scans usarão fallback com mock'
-            )
+            logger.warning("trivy_not_found", note="Scans usarão fallback com mock")
 
     def _get_cache_key(self, scan_type: str, target: str) -> str:
         """Gera chave de cache para o scan."""
@@ -71,7 +67,9 @@ class TrivyClient:
             result, timestamp = self._cache[cache_key]
             age = datetime.now() - timestamp
             if age < timedelta(seconds=self.cache_ttl_seconds):
-                logger.debug('trivy_cache_hit', cache_key=cache_key, age_seconds=age.total_seconds())
+                logger.debug(
+                    "trivy_cache_hit", cache_key=cache_key, age_seconds=age.total_seconds()
+                )
                 return result
             else:
                 # Cache expirado
@@ -98,34 +96,31 @@ class TrivyClient:
             Dict com resultado do scan
         """
         if not self._trivy_available:
-            return {'error': 'Trivy CLI not installed', 'returncode': -1}
+            return {"error": "Trivy CLI not installed", "returncode": -1}
 
         cmd = [
-            self.trivy_path or 'trivy',
+            self.trivy_path or "trivy",
             scan_type,
-            '--format', 'json',
-            '--severity', self.severity,
-            target
+            "--format",
+            "json",
+            "--severity",
+            self.severity,
+            target,
         ]
 
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=self.timeout
-        )
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=self.timeout)
 
         if result.stdout:
             try:
                 return json.loads(result.stdout)
             except json.JSONDecodeError:
-                logger.warning('trivy_json_parse_failed', stdout=result.stdout[:500])
-                return {'error': 'JSON parse failed', 'stdout': result.stdout}
+                logger.warning("trivy_json_parse_failed", stdout=result.stdout[:500])
+                return {"error": "JSON parse failed", "stdout": result.stdout}
 
         if result.returncode != 0:
-            return {'error': result.stderr or 'Unknown error', 'returncode': result.returncode}
+            return {"error": result.stderr or "Unknown error", "returncode": result.returncode}
 
-        return {'Results': []}
+        return {"Results": []}
 
     def _parse_vulnerabilities(self, trivy_output: dict) -> dict:
         """
@@ -137,75 +132,66 @@ class TrivyClient:
         Returns:
             Dict com contagem por severidade
         """
-        counts = {
-            'critical': 0,
-            'high': 0,
-            'medium': 0,
-            'low': 0
-        }
+        counts = {"critical": 0, "high": 0, "medium": 0, "low": 0}
 
-        results = trivy_output.get('Results', [])
+        results = trivy_output.get("Results", [])
         for result in results:
-            vulnerabilities = result.get('Vulnerabilities', [])
+            vulnerabilities = result.get("Vulnerabilities", [])
             if vulnerabilities is None:
                 continue
 
             for vuln in vulnerabilities:
-                severity = vuln.get('Severity', 'LOW').upper()
-                if severity == 'CRITICAL':
-                    counts['critical'] += 1
-                elif severity == 'HIGH':
-                    counts['high'] += 1
-                elif severity == 'MEDIUM':
-                    counts['medium'] += 1
-                elif severity == 'LOW':
-                    counts['low'] += 1
+                severity = vuln.get("Severity", "LOW").upper()
+                if severity == "CRITICAL":
+                    counts["critical"] += 1
+                elif severity == "HIGH":
+                    counts["high"] += 1
+                elif severity == "MEDIUM":
+                    counts["medium"] += 1
+                elif severity == "LOW":
+                    counts["low"] += 1
 
-            misconfigurations = result.get('Misconfigurations', [])
+            misconfigurations = result.get("Misconfigurations", [])
             if misconfigurations is None:
                 continue
 
             for misconfig in misconfigurations:
-                severity = misconfig.get('Severity', 'LOW').upper()
-                if severity == 'CRITICAL':
-                    counts['critical'] += 1
-                elif severity == 'HIGH':
-                    counts['high'] += 1
-                elif severity == 'MEDIUM':
-                    counts['medium'] += 1
-                elif severity == 'LOW':
-                    counts['low'] += 1
+                severity = misconfig.get("Severity", "LOW").upper()
+                if severity == "CRITICAL":
+                    counts["critical"] += 1
+                elif severity == "HIGH":
+                    counts["high"] += 1
+                elif severity == "MEDIUM":
+                    counts["medium"] += 1
+                elif severity == "LOW":
+                    counts["low"] += 1
 
         return counts
 
     def _create_result(
-        self,
-        status: ValidationStatus,
-        score: float,
-        counts: dict,
-        duration_ms: int
+        self, status: ValidationStatus, score: float, counts: dict, duration_ms: int
     ) -> ValidationResult:
         """Helper para criar ValidationResult"""
         return ValidationResult(
             validation_type=ValidationType.SECURITY_SCAN,
-            tool_name='Trivy',
+            tool_name="Trivy",
             tool_version=self.TRIVY_VERSION,
             status=status,
             score=score,
             issues_count=sum(counts.values()),
-            critical_issues=counts['critical'],
-            high_issues=counts['high'],
-            medium_issues=counts['medium'],
-            low_issues=counts['low'],
+            critical_issues=counts["critical"],
+            high_issues=counts["high"],
+            medium_issues=counts["medium"],
+            low_issues=counts["low"],
             executed_at=datetime.now(),
-            duration_ms=duration_ms
+            duration_ms=duration_ms,
         )
 
     def _create_skipped_result(self) -> ValidationResult:
         """Helper para resultado de scan pulado"""
         return ValidationResult(
             validation_type=ValidationType.SECURITY_SCAN,
-            tool_name='Trivy',
+            tool_name="Trivy",
             tool_version=self.TRIVY_VERSION,
             status=ValidationStatus.SKIPPED,
             score=None,
@@ -215,14 +201,14 @@ class TrivyClient:
             medium_issues=0,
             low_issues=0,
             executed_at=datetime.now(),
-            duration_ms=0
+            duration_ms=0,
         )
 
     def _create_failed_result(self, duration_ms: int) -> ValidationResult:
         """Helper para resultado de scan falho"""
         return ValidationResult(
             validation_type=ValidationType.SECURITY_SCAN,
-            tool_name='Trivy',
+            tool_name="Trivy",
             tool_version=self.TRIVY_VERSION,
             status=ValidationStatus.FAILED,
             score=0.0,
@@ -232,7 +218,7 @@ class TrivyClient:
             medium_issues=0,
             low_issues=0,
             executed_at=datetime.now(),
-            duration_ms=duration_ms
+            duration_ms=duration_ms,
         )
 
     def _determine_status_and_score(self, counts: dict) -> tuple:
@@ -247,18 +233,20 @@ class TrivyClient:
         if self.fail_on_threshold > 0 and total_issues >= self.fail_on_threshold:
             return ValidationStatus.FAILED, 0.4
         # Vulnerabilidades críticas sempre falham
-        elif counts['critical'] > 0:
+        elif counts["critical"] > 0:
             return ValidationStatus.FAILED, 0.3
-        elif counts['high'] > 0:
+        elif counts["high"] > 0:
             return ValidationStatus.WARNING, 0.6
-        elif counts['medium'] > 0:
+        elif counts["medium"] > 0:
             return ValidationStatus.WARNING, 0.8
-        elif counts['low'] > 0:
+        elif counts["low"] > 0:
             return ValidationStatus.PASSED, 0.9
         else:
             return ValidationStatus.PASSED, 1.0
 
-    async def _execute_scan(self, scan_type: str, target: str, context_info: str) -> ValidationResult:
+    async def _execute_scan(
+        self, scan_type: str, target: str, context_info: str
+    ) -> ValidationResult:
         """
         Executa scan genérico do Trivy
 
@@ -280,25 +268,25 @@ class TrivyClient:
             return cached_result
 
         start_time = time.monotonic()
-        logger.info(f'trivy_{scan_type}_scan_started', target=context_info)
+        logger.info(f"trivy_{scan_type}_scan_started", target=context_info)
 
         try:
             trivy_output = self._run_trivy_cli(scan_type, target)
             duration_ms = int((time.monotonic() - start_time) * 1000)
             duration_seconds = duration_ms / 1000.0
 
-            if 'error' in trivy_output and 'Results' not in trivy_output:
+            if "error" in trivy_output and "Results" not in trivy_output:
                 if self.metrics:
-                    self.metrics.trivy_scan_duration_seconds.labels(
-                        scan_type=scan_type
-                    ).observe(duration_seconds)
+                    self.metrics.trivy_scan_duration_seconds.labels(scan_type=scan_type).observe(
+                        duration_seconds
+                    )
                     self.metrics.external_tool_errors_total.labels(
-                        tool='trivy', error_type='cli_error'
+                        tool="trivy", error_type="cli_error"
                     ).inc()
                 logger.error(
-                    f'trivy_{scan_type}_scan_failed',
-                    error=trivy_output.get('error'),
-                    duration_ms=duration_ms
+                    f"trivy_{scan_type}_scan_failed",
+                    error=trivy_output.get("error"),
+                    duration_ms=duration_ms,
                 )
                 return self._create_failed_result(duration_ms)
 
@@ -307,19 +295,19 @@ class TrivyClient:
 
             # Observar métricas de duração e sucesso
             if self.metrics:
-                self.metrics.trivy_scan_duration_seconds.labels(
-                    scan_type=scan_type
-                ).observe(duration_seconds)
+                self.metrics.trivy_scan_duration_seconds.labels(scan_type=scan_type).observe(
+                    duration_seconds
+                )
 
             logger.info(
-                f'trivy_{scan_type}_scan_completed',
+                f"trivy_{scan_type}_scan_completed",
                 target=context_info,
                 issues=sum(counts.values()),
-                critical=counts['critical'],
-                high=counts['high'],
-                medium=counts['medium'],
-                low=counts['low'],
-                duration_ms=duration_ms
+                critical=counts["critical"],
+                high=counts["high"],
+                medium=counts["medium"],
+                low=counts["low"],
+                duration_ms=duration_ms,
             )
 
             result = self._create_result(status, score, counts, duration_ms)
@@ -333,26 +321,28 @@ class TrivyClient:
             duration_ms = int((time.monotonic() - start_time) * 1000)
             duration_seconds = duration_ms / 1000.0
             if self.metrics:
-                self.metrics.trivy_scan_duration_seconds.labels(
-                    scan_type=scan_type
-                ).observe(duration_seconds)
+                self.metrics.trivy_scan_duration_seconds.labels(scan_type=scan_type).observe(
+                    duration_seconds
+                )
                 self.metrics.external_tool_errors_total.labels(
-                    tool='trivy', error_type='timeout'
+                    tool="trivy", error_type="timeout"
                 ).inc()
-            logger.error(f'trivy_{scan_type}_scan_timeout', timeout=self.timeout, duration_ms=duration_ms)
+            logger.error(
+                f"trivy_{scan_type}_scan_timeout", timeout=self.timeout, duration_ms=duration_ms
+            )
             return self._create_failed_result(duration_ms)
 
         except Exception as e:
             duration_ms = int((time.monotonic() - start_time) * 1000)
             duration_seconds = duration_ms / 1000.0
             if self.metrics:
-                self.metrics.trivy_scan_duration_seconds.labels(
-                    scan_type=scan_type
-                ).observe(duration_seconds)
+                self.metrics.trivy_scan_duration_seconds.labels(scan_type=scan_type).observe(
+                    duration_seconds
+                )
                 self.metrics.external_tool_errors_total.labels(
-                    tool='trivy', error_type='cli_error'
+                    tool="trivy", error_type="cli_error"
                 ).inc()
-            logger.error(f'trivy_{scan_type}_scan_failed', error=str(e), duration_ms=duration_ms)
+            logger.error(f"trivy_{scan_type}_scan_failed", error=str(e), duration_ms=duration_ms)
             return self._create_failed_result(duration_ms)
 
     async def scan_container_image(self, image_uri: str) -> ValidationResult:
@@ -365,7 +355,7 @@ class TrivyClient:
         Returns:
             ValidationResult com vulnerabilidades
         """
-        return await self._execute_scan('image', image_uri, image_uri)
+        return await self._execute_scan("image", image_uri, image_uri)
 
     async def scan_iac(self, iac_path: str) -> ValidationResult:
         """
@@ -377,7 +367,7 @@ class TrivyClient:
         Returns:
             ValidationResult com misconfigurations
         """
-        return await self._execute_scan('config', iac_path, iac_path)
+        return await self._execute_scan("config", iac_path, iac_path)
 
     async def scan_filesystem(self, path: str) -> ValidationResult:
         """
@@ -389,7 +379,7 @@ class TrivyClient:
         Returns:
             ValidationResult com vulnerabilidades
         """
-        return await self._execute_scan('fs', path, path)
+        return await self._execute_scan("fs", path, path)
 
     def is_available(self) -> bool:
         """Verifica se Trivy CLI está disponível."""
@@ -410,12 +400,12 @@ class TrivyClient:
     def get_cache_stats(self) -> dict:
         """Retorna estatísticas do cache."""
         return {
-            'cache_size': len(self._cache),
-            'cache_ttl_seconds': self.cache_ttl_seconds,
-            'cached_keys': list(self._cache.keys())
+            "cache_size": len(self._cache),
+            "cache_ttl_seconds": self.cache_ttl_seconds,
+            "cached_keys": list(self._cache.keys()),
         }
 
     async def clear_cache(self):
         """Limpa o cache de resultados."""
         self._clear_cache()
-        logger.info('trivy_cache_cleared')
+        logger.info("trivy_cache_cleared")

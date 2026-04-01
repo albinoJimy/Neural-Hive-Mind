@@ -1,30 +1,26 @@
 """Keycloak Admin Client for token revocation and user management"""
-from typing import Dict, Any, Optional
-import structlog
 from datetime import datetime, timezone
+from typing import Any, Dict, Optional
+
 import httpx
-from tenacity import (
-    retry,
-    stop_after_attempt,
-    wait_exponential,
-    retry_if_exception_type
-)
+import structlog
 from prometheus_client import Counter, Histogram
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 logger = structlog.get_logger()
 
 # Prometheus metrics
 keycloak_operations_total = Counter(
-    'guard_agents_keycloak_operations_total',
-    'Total de operacoes Keycloak Admin',
-    ['operation', 'status']
+    "guard_agents_keycloak_operations_total",
+    "Total de operacoes Keycloak Admin",
+    ["operation", "status"],
 )
 
 keycloak_operation_duration = Histogram(
-    'guard_agents_keycloak_operation_duration_seconds',
-    'Duracao das operacoes Keycloak Admin',
-    ['operation'],
-    buckets=(0.01, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0)
+    "guard_agents_keycloak_operation_duration_seconds",
+    "Duracao das operacoes Keycloak Admin",
+    ["operation"],
+    buckets=(0.01, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0),
 )
 
 
@@ -38,9 +34,9 @@ class KeycloakAdminClient:
         client_id: str,
         client_secret: str,
         timeout_seconds: int = 10,
-        token_cache_ttl_seconds: int = 300
+        token_cache_ttl_seconds: int = 300,
     ):
-        self.keycloak_url = keycloak_url.rstrip('/')
+        self.keycloak_url = keycloak_url.rstrip("/")
         self.realm = realm
         self.client_id = client_id
         self.client_secret = client_secret
@@ -53,17 +49,10 @@ class KeycloakAdminClient:
     async def connect(self):
         """Inicializa conexao com Keycloak"""
         try:
-            self._http_client = httpx.AsyncClient(
-                timeout=self.timeout,
-                follow_redirects=True
-            )
+            self._http_client = httpx.AsyncClient(timeout=self.timeout, follow_redirects=True)
             # Obter token admin inicial
             await self._ensure_token()
-            logger.info(
-                "keycloak_admin.connected",
-                url=self.keycloak_url,
-                realm=self.realm
-            )
+            logger.info("keycloak_admin.connected", url=self.keycloak_url, realm=self.realm)
         except Exception as e:
             logger.error("keycloak_admin.connection_failed", error=str(e))
             raise
@@ -96,7 +85,7 @@ class KeycloakAdminClient:
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=1, max=10),
-        retry=retry_if_exception_type((httpx.HTTPError, httpx.TimeoutException))
+        retry=retry_if_exception_type((httpx.HTTPError, httpx.TimeoutException)),
     )
     async def _refresh_admin_token(self):
         """Obtem novo token admin via client credentials"""
@@ -108,9 +97,9 @@ class KeycloakAdminClient:
                 data={
                     "grant_type": "client_credentials",
                     "client_id": self.client_id,
-                    "client_secret": self.client_secret
+                    "client_secret": self.client_secret,
                 },
-                headers={"Content-Type": "application/x-www-form-urlencoded"}
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
             )
             response.raise_for_status()
 
@@ -119,24 +108,19 @@ class KeycloakAdminClient:
 
             # Calcular expiracao (usar token_cache_ttl ou expires_in do token)
             expires_in = min(
-                token_data.get("expires_in", self.token_cache_ttl),
-                self.token_cache_ttl
+                token_data.get("expires_in", self.token_cache_ttl), self.token_cache_ttl
             )
             self._token_expires_at = datetime.fromtimestamp(
-                datetime.now(timezone.utc).timestamp() + expires_in,
-                tz=timezone.utc
+                datetime.now(timezone.utc).timestamp() + expires_in, tz=timezone.utc
             )
 
-            logger.debug(
-                "keycloak_admin.token_refreshed",
-                expires_in=expires_in
-            )
+            logger.debug("keycloak_admin.token_refreshed", expires_in=expires_in)
 
         except httpx.HTTPStatusError as e:
             logger.error(
                 "keycloak_admin.token_refresh_failed",
                 status_code=e.response.status_code,
-                error=str(e)
+                error=str(e),
             )
             raise
         except Exception as e:
@@ -145,15 +129,12 @@ class KeycloakAdminClient:
 
     def _get_auth_headers(self) -> Dict[str, str]:
         """Retorna headers de autenticacao"""
-        return {
-            "Authorization": f"Bearer {self._admin_token}",
-            "Content-Type": "application/json"
-        }
+        return {"Authorization": f"Bearer {self._admin_token}", "Content-Type": "application/json"}
 
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=1, max=10),
-        retry=retry_if_exception_type((httpx.HTTPError, httpx.TimeoutException))
+        retry=retry_if_exception_type((httpx.HTTPError, httpx.TimeoutException)),
     )
     async def revoke_user_sessions(self, user_id: str) -> Dict[str, Any]:
         """
@@ -171,99 +152,76 @@ class KeycloakAdminClient:
 
                 # Endpoint para logout de todas as sessoes do usuario
                 logout_url = (
-                    f"{self.keycloak_url}/admin/realms/{self.realm}"
-                    f"/users/{user_id}/logout"
+                    f"{self.keycloak_url}/admin/realms/{self.realm}" f"/users/{user_id}/logout"
                 )
 
-                logger.info(
-                    "keycloak_admin.revoking_sessions",
-                    user_id=user_id
-                )
+                logger.info("keycloak_admin.revoking_sessions", user_id=user_id)
 
                 response = await self._http_client.post(
-                    logout_url,
-                    headers=self._get_auth_headers()
+                    logout_url, headers=self._get_auth_headers()
                 )
 
                 if response.status_code == 204:
                     # Sucesso - sem conteudo
                     keycloak_operations_total.labels(
-                        operation="revoke_sessions",
-                        status="success"
+                        operation="revoke_sessions", status="success"
                     ).inc()
 
-                    logger.info(
-                        "keycloak_admin.sessions_revoked",
-                        user_id=user_id
-                    )
+                    logger.info("keycloak_admin.sessions_revoked", user_id=user_id)
 
                     return {
                         "success": True,
                         "user_id": user_id,
                         "action": "revoke_sessions",
-                        "timestamp": datetime.now(timezone.utc).isoformat()
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
                     }
 
                 elif response.status_code == 404:
                     # Usuario nao encontrado
                     keycloak_operations_total.labels(
-                        operation="revoke_sessions",
-                        status="user_not_found"
+                        operation="revoke_sessions", status="user_not_found"
                     ).inc()
 
-                    logger.warning(
-                        "keycloak_admin.user_not_found",
-                        user_id=user_id
-                    )
+                    logger.warning("keycloak_admin.user_not_found", user_id=user_id)
 
                     return {
                         "success": False,
                         "user_id": user_id,
                         "reason": "User not found",
-                        "timestamp": datetime.now(timezone.utc).isoformat()
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
                     }
 
                 else:
                     response.raise_for_status()
 
             except httpx.HTTPStatusError as e:
-                keycloak_operations_total.labels(
-                    operation="revoke_sessions",
-                    status="error"
-                ).inc()
+                keycloak_operations_total.labels(operation="revoke_sessions", status="error").inc()
 
                 logger.error(
                     "keycloak_admin.revoke_sessions_failed",
                     user_id=user_id,
                     status_code=e.response.status_code,
-                    error=str(e)
+                    error=str(e),
                 )
 
                 return {
                     "success": False,
                     "user_id": user_id,
                     "reason": f"HTTP error: {e.response.status_code}",
-                    "timestamp": datetime.now(timezone.utc).isoformat()
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
                 }
 
             except Exception as e:
-                keycloak_operations_total.labels(
-                    operation="revoke_sessions",
-                    status="error"
-                ).inc()
+                keycloak_operations_total.labels(operation="revoke_sessions", status="error").inc()
 
-                logger.error(
-                    "keycloak_admin.revoke_sessions_error",
-                    user_id=user_id,
-                    error=str(e)
-                )
+                logger.error("keycloak_admin.revoke_sessions_error", user_id=user_id, error=str(e))
 
                 raise
 
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=1, max=10),
-        retry=retry_if_exception_type((httpx.HTTPError, httpx.TimeoutException))
+        retry=retry_if_exception_type((httpx.HTTPError, httpx.TimeoutException)),
     )
     async def disable_user(self, user_id: str) -> Dict[str, Any]:
         """
@@ -280,93 +238,70 @@ class KeycloakAdminClient:
                 await self._ensure_token()
 
                 # Endpoint para atualizar usuario
-                user_url = (
-                    f"{self.keycloak_url}/admin/realms/{self.realm}"
-                    f"/users/{user_id}"
-                )
+                user_url = f"{self.keycloak_url}/admin/realms/{self.realm}" f"/users/{user_id}"
 
-                logger.info(
-                    "keycloak_admin.disabling_user",
-                    user_id=user_id
-                )
+                logger.info("keycloak_admin.disabling_user", user_id=user_id)
 
                 response = await self._http_client.put(
-                    user_url,
-                    headers=self._get_auth_headers(),
-                    json={"enabled": False}
+                    user_url, headers=self._get_auth_headers(), json={"enabled": False}
                 )
 
                 if response.status_code == 204:
                     keycloak_operations_total.labels(
-                        operation="disable_user",
-                        status="success"
+                        operation="disable_user", status="success"
                     ).inc()
 
-                    logger.info(
-                        "keycloak_admin.user_disabled",
-                        user_id=user_id
-                    )
+                    logger.info("keycloak_admin.user_disabled", user_id=user_id)
 
                     return {
                         "success": True,
                         "user_id": user_id,
                         "action": "disable_user",
-                        "timestamp": datetime.now(timezone.utc).isoformat()
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
                     }
 
                 elif response.status_code == 404:
                     keycloak_operations_total.labels(
-                        operation="disable_user",
-                        status="user_not_found"
+                        operation="disable_user", status="user_not_found"
                     ).inc()
 
                     return {
                         "success": False,
                         "user_id": user_id,
                         "reason": "User not found",
-                        "timestamp": datetime.now(timezone.utc).isoformat()
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
                     }
 
                 else:
                     response.raise_for_status()
 
             except httpx.HTTPStatusError as e:
-                keycloak_operations_total.labels(
-                    operation="disable_user",
-                    status="error"
-                ).inc()
+                keycloak_operations_total.labels(operation="disable_user", status="error").inc()
 
                 logger.error(
                     "keycloak_admin.disable_user_failed",
                     user_id=user_id,
-                    status_code=e.response.status_code
+                    status_code=e.response.status_code,
                 )
 
                 return {
                     "success": False,
                     "user_id": user_id,
                     "reason": f"HTTP error: {e.response.status_code}",
-                    "timestamp": datetime.now(timezone.utc).isoformat()
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
                 }
 
             except Exception as e:
-                keycloak_operations_total.labels(
-                    operation="disable_user",
-                    status="error"
-                ).inc()
+                keycloak_operations_total.labels(operation="disable_user", status="error").inc()
 
-                logger.error(
-                    "keycloak_admin.disable_user_error",
-                    user_id=user_id,
-                    error=str(e)
-                )
+                logger.error("keycloak_admin.disable_user_error", user_id=user_id, error=str(e))
 
                 raise
 
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=1, max=10),
-        retry=retry_if_exception_type((httpx.HTTPError, httpx.TimeoutException))
+        retry=retry_if_exception_type((httpx.HTTPError, httpx.TimeoutException)),
     )
     async def logout_user(self, user_id: str) -> Dict[str, Any]:
         """
@@ -395,20 +330,17 @@ class KeycloakAdminClient:
                 await self._ensure_token()
 
                 sessions_url = (
-                    f"{self.keycloak_url}/admin/realms/{self.realm}"
-                    f"/users/{user_id}/sessions"
+                    f"{self.keycloak_url}/admin/realms/{self.realm}" f"/users/{user_id}/sessions"
                 )
 
                 response = await self._http_client.get(
-                    sessions_url,
-                    headers=self._get_auth_headers()
+                    sessions_url, headers=self._get_auth_headers()
                 )
 
                 if response.status_code == 200:
                     sessions = response.json()
                     keycloak_operations_total.labels(
-                        operation="get_sessions",
-                        status="success"
+                        operation="get_sessions", status="success"
                     ).inc()
 
                     return {
@@ -416,13 +348,12 @@ class KeycloakAdminClient:
                         "user_id": user_id,
                         "sessions": sessions,
                         "session_count": len(sessions),
-                        "timestamp": datetime.now(timezone.utc).isoformat()
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
                     }
 
                 elif response.status_code == 404:
                     keycloak_operations_total.labels(
-                        operation="get_sessions",
-                        status="user_not_found"
+                        operation="get_sessions", status="user_not_found"
                     ).inc()
 
                     return {
@@ -430,30 +361,23 @@ class KeycloakAdminClient:
                         "user_id": user_id,
                         "reason": "User not found",
                         "sessions": [],
-                        "timestamp": datetime.now(timezone.utc).isoformat()
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
                     }
 
                 else:
                     response.raise_for_status()
 
             except Exception as e:
-                keycloak_operations_total.labels(
-                    operation="get_sessions",
-                    status="error"
-                ).inc()
+                keycloak_operations_total.labels(operation="get_sessions", status="error").inc()
 
-                logger.error(
-                    "keycloak_admin.get_sessions_error",
-                    user_id=user_id,
-                    error=str(e)
-                )
+                logger.error("keycloak_admin.get_sessions_error", user_id=user_id, error=str(e))
 
                 return {
                     "success": False,
                     "user_id": user_id,
                     "reason": str(e),
                     "sessions": [],
-                    "timestamp": datetime.now(timezone.utc).isoformat()
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
                 }
 
     async def enable_user(self, user_id: str) -> Dict[str, Any]:
@@ -470,66 +394,49 @@ class KeycloakAdminClient:
             try:
                 await self._ensure_token()
 
-                user_url = (
-                    f"{self.keycloak_url}/admin/realms/{self.realm}"
-                    f"/users/{user_id}"
-                )
+                user_url = f"{self.keycloak_url}/admin/realms/{self.realm}" f"/users/{user_id}"
 
                 response = await self._http_client.put(
-                    user_url,
-                    headers=self._get_auth_headers(),
-                    json={"enabled": True}
+                    user_url, headers=self._get_auth_headers(), json={"enabled": True}
                 )
 
                 if response.status_code == 204:
                     keycloak_operations_total.labels(
-                        operation="enable_user",
-                        status="success"
+                        operation="enable_user", status="success"
                     ).inc()
 
-                    logger.info(
-                        "keycloak_admin.user_enabled",
-                        user_id=user_id
-                    )
+                    logger.info("keycloak_admin.user_enabled", user_id=user_id)
 
                     return {
                         "success": True,
                         "user_id": user_id,
                         "action": "enable_user",
-                        "timestamp": datetime.now(timezone.utc).isoformat()
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
                     }
 
                 elif response.status_code == 404:
                     keycloak_operations_total.labels(
-                        operation="enable_user",
-                        status="user_not_found"
+                        operation="enable_user", status="user_not_found"
                     ).inc()
 
                     return {
                         "success": False,
                         "user_id": user_id,
                         "reason": "User not found",
-                        "timestamp": datetime.now(timezone.utc).isoformat()
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
                     }
 
                 else:
                     response.raise_for_status()
 
             except Exception as e:
-                keycloak_operations_total.labels(
-                    operation="enable_user",
-                    status="error"
-                ).inc()
+                keycloak_operations_total.labels(operation="enable_user", status="error").inc()
 
-                logger.error(
-                    "keycloak_admin.enable_user_error",
-                    user_id=user_id,
-                    error=str(e)
-                )
+                logger.error("keycloak_admin.enable_user_error", user_id=user_id, error=str(e))
 
                 return {
                     "success": False,
                     "user_id": user_id,
                     "reason": str(e),
-                    "timestamp": datetime.now(timezone.utc).isoformat()
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
                 }

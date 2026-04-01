@@ -2,16 +2,13 @@
 API REST para validação manual e consulta de validações de segurança.
 """
 
-from typing import Optional, List
-from fastapi import APIRouter, HTTPException, Query, Depends, Request
-from pydantic import BaseModel
-import structlog
+from typing import List, Optional
 
-from src.models.security_validation import (
-    SecurityValidation,
-    ValidationStatus,
-    ValidatorType
-)
+import structlog
+from fastapi import APIRouter, HTTPException, Query, Request
+from pydantic import BaseModel
+
+from src.models.security_validation import SecurityValidation
 
 logger = structlog.get_logger(__name__)
 
@@ -20,17 +17,20 @@ router = APIRouter()
 
 class ValidateTicketRequest(BaseModel):
     """Request para validação manual de ticket."""
+
     ticket: dict
 
 
 class ApprovalRequest(BaseModel):
     """Request para aprovação/rejeição de validação."""
+
     reason: Optional[str] = None
     approved_by: str
 
 
 class ValidationStatistics(BaseModel):
     """Estatísticas agregadas de validações."""
+
     total_validations: int
     approved_count: int
     rejected_count: int
@@ -53,11 +53,8 @@ async def validate_ticket(request: ValidateTicketRequest, fastapi_request: Reque
         SecurityValidation resultado
     """
     try:
-        from fastapi import Request
-
         logger.info(
-            "validation_api.validate_ticket_requested",
-            ticket_id=request.ticket.get("ticket_id")
+            "validation_api.validate_ticket_requested", ticket_id=request.ticket.get("ticket_id")
         )
 
         # Obter security_validator do app state
@@ -71,10 +68,7 @@ async def validate_ticket(request: ValidateTicketRequest, fastapi_request: Reque
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(
-            "validation_api.validate_ticket_failed",
-            error=str(e)
-        )
+        logger.error("validation_api.validate_ticket_failed", error=str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -91,14 +85,12 @@ async def get_validation(validation_id: str, fastapi_request: Request):
         SecurityValidation
     """
     try:
-        logger.info(
-            "validation_api.get_validation_requested",
-            validation_id=validation_id
-        )
+        logger.info("validation_api.get_validation_requested", validation_id=validation_id)
 
         # Obter MongoDB do app state
         mongodb = fastapi_request.app.state.mongodb
         from src.config.settings import get_settings
+
         settings = get_settings()
 
         # Buscar validação
@@ -117,9 +109,7 @@ async def get_validation(validation_id: str, fastapi_request: Request):
         raise
     except Exception as e:
         logger.error(
-            "validation_api.get_validation_failed",
-            validation_id=validation_id,
-            error=str(e)
+            "validation_api.get_validation_failed", validation_id=validation_id, error=str(e)
         )
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -131,7 +121,7 @@ async def list_validations(
     status: Optional[str] = Query(None),
     validator_type: Optional[str] = Query(None),
     limit: int = Query(50, ge=1, le=100),
-    offset: int = Query(0, ge=0)
+    offset: int = Query(0, ge=0),
 ):
     """
     Lista validações com filtros e paginação.
@@ -153,12 +143,13 @@ async def list_validations(
             ticket_id=ticket_id,
             status=status,
             limit=limit,
-            offset=offset
+            offset=offset,
         )
 
         # Obter MongoDB do app state
         mongodb = fastapi_request.app.state.mongodb
         from src.config.settings import get_settings
+
         settings = get_settings()
 
         # Construir query
@@ -175,32 +166,25 @@ async def list_validations(
         cursor = collection.find(query).skip(offset).limit(limit)
         validations_data = await cursor.to_list(length=limit)
 
-        validations = [
-            SecurityValidation.from_avro_dict(v) for v in validations_data
-        ]
+        validations = [SecurityValidation.from_avro_dict(v) for v in validations_data]
 
         return {
             "validations": validations,
             "count": len(validations),
             "offset": offset,
-            "limit": limit
+            "limit": limit,
         }
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(
-            "validation_api.list_validations_failed",
-            error=str(e)
-        )
+        logger.error("validation_api.list_validations_failed", error=str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/validations/{validation_id}/approve")
 async def approve_validation(
-    validation_id: str,
-    request: ApprovalRequest,
-    fastapi_request: Request
+    validation_id: str, request: ApprovalRequest, fastapi_request: Request
 ):
     """
     Aprova validação pendente.
@@ -217,13 +201,14 @@ async def approve_validation(
         logger.info(
             "validation_api.approve_validation_requested",
             validation_id=validation_id,
-            approved_by=request.approved_by
+            approved_by=request.approved_by,
         )
 
         # Obter MongoDB e producer do app state
         mongodb = fastapi_request.app.state.mongodb
         validation_producer = fastapi_request.app.state.validation_producer
         from src.config.settings import get_settings
+
         settings = get_settings()
 
         # 1. Buscar validação no MongoDB
@@ -237,17 +222,19 @@ async def approve_validation(
         if validation_data.get("validation_status") != "REQUIRES_APPROVAL":
             raise HTTPException(
                 status_code=400,
-                detail=f"Validation status is {validation_data.get('validation_status')}, expected REQUIRES_APPROVAL"
+                detail=f"Validation status is {validation_data.get('validation_status')}, expected REQUIRES_APPROVAL",
             )
 
         # 3. Atualizar status para APPROVED
         await collection.update_one(
             {"validation_id": validation_id},
-            {"$set": {
-                "validation_status": "APPROVED",
-                "approved_by": request.approved_by,
-                "approval_reason": request.reason
-            }}
+            {
+                "$set": {
+                    "validation_status": "APPROVED",
+                    "approved_by": request.approved_by,
+                    "approval_reason": request.reason,
+                }
+            },
         )
 
         # Buscar validação atualizada
@@ -263,14 +250,14 @@ async def approve_validation(
                 "ticket_id": validation.ticket_id,
                 "validation_id": validation.validation_id,
                 "status": "APPROVED",
-                "approved_by": request.approved_by
-            }
+                "approved_by": request.approved_by,
+            },
         )
 
         logger.info(
             "validation_api.validation_approved",
             validation_id=validation_id,
-            approved_by=request.approved_by
+            approved_by=request.approved_by,
         )
 
         return validation
@@ -279,19 +266,13 @@ async def approve_validation(
         raise
     except Exception as e:
         logger.error(
-            "validation_api.approve_validation_failed",
-            validation_id=validation_id,
-            error=str(e)
+            "validation_api.approve_validation_failed", validation_id=validation_id, error=str(e)
         )
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/validations/{validation_id}/reject")
-async def reject_validation(
-    validation_id: str,
-    request: ApprovalRequest,
-    fastapi_request: Request
-):
+async def reject_validation(validation_id: str, request: ApprovalRequest, fastapi_request: Request):
     """
     Rejeita validação pendente.
 
@@ -307,13 +288,14 @@ async def reject_validation(
         logger.info(
             "validation_api.reject_validation_requested",
             validation_id=validation_id,
-            reason=request.reason
+            reason=request.reason,
         )
 
         # Obter MongoDB e producer do app state
         mongodb = fastapi_request.app.state.mongodb
         validation_producer = fastapi_request.app.state.validation_producer
         from src.config.settings import get_settings
+
         settings = get_settings()
 
         # 1. Buscar validação no MongoDB
@@ -327,17 +309,19 @@ async def reject_validation(
         if validation_data.get("validation_status") != "REQUIRES_APPROVAL":
             raise HTTPException(
                 status_code=400,
-                detail=f"Validation status is {validation_data.get('validation_status')}, expected REQUIRES_APPROVAL"
+                detail=f"Validation status is {validation_data.get('validation_status')}, expected REQUIRES_APPROVAL",
             )
 
         # 3. Atualizar status para REJECTED
         await collection.update_one(
             {"validation_id": validation_id},
-            {"$set": {
-                "validation_status": "REJECTED",
-                "rejected_by": request.approved_by,
-                "rejection_reason": request.reason
-            }}
+            {
+                "$set": {
+                    "validation_status": "REJECTED",
+                    "rejected_by": request.approved_by,
+                    "rejection_reason": request.reason,
+                }
+            },
         )
 
         # Buscar validação atualizada
@@ -354,14 +338,14 @@ async def reject_validation(
                 "status": "REJECTED",
                 "rejected_by": request.approved_by,
                 "rejection_reason": request.reason,
-                "violations": [v.to_dict() for v in validation.violations]
-            }
+                "violations": [v.to_dict() for v in validation.violations],
+            },
         )
 
         logger.warning(
             "validation_api.validation_rejected",
             validation_id=validation_id,
-            rejected_by=request.approved_by
+            rejected_by=request.approved_by,
         )
 
         return validation
@@ -370,9 +354,7 @@ async def reject_validation(
         raise
     except Exception as e:
         logger.error(
-            "validation_api.reject_validation_failed",
-            validation_id=validation_id,
-            error=str(e)
+            "validation_api.reject_validation_failed", validation_id=validation_id, error=str(e)
         )
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -394,6 +376,7 @@ async def get_statistics(fastapi_request: Request):
         # Obter MongoDB do app state
         mongodb = fastapi_request.app.state.mongodb
         from src.config.settings import get_settings
+
         settings = get_settings()
 
         collection = mongodb.db[settings.mongodb_validations_collection]
@@ -402,15 +385,9 @@ async def get_statistics(fastapi_request: Request):
         total = await collection.count_documents({})
 
         # Contagem por status
-        approved = await collection.count_documents(
-            {"validation_status": "APPROVED"}
-        )
-        rejected = await collection.count_documents(
-            {"validation_status": "REJECTED"}
-        )
-        pending = await collection.count_documents(
-            {"validation_status": "REQUIRES_APPROVAL"}
-        )
+        approved = await collection.count_documents({"validation_status": "APPROVED"})
+        rejected = await collection.count_documents({"validation_status": "REJECTED"})
+        pending = await collection.count_documents({"validation_status": "REQUIRES_APPROVAL"})
 
         # Approval rate
         approval_rate = approved / total if total > 0 else 0.0
@@ -418,22 +395,16 @@ async def get_statistics(fastapi_request: Request):
         # Top violations (agregação)
         pipeline = [
             {"$unwind": "$violations"},
-            {"$group": {
-                "_id": "$violations.violation_type",
-                "count": {"$sum": 1}
-            }},
+            {"$group": {"_id": "$violations.violation_type", "count": {"$sum": 1}}},
             {"$sort": {"count": -1}},
-            {"$limit": 10}
+            {"$limit": 10},
         ]
         top_violations_cursor = collection.aggregate(pipeline)
         top_violations = await top_violations_cursor.to_list(length=10)
 
         # Risk score médio
         pipeline = [
-            {"$group": {
-                "_id": None,
-                "avg_risk_score": {"$avg": "$risk_assessment.risk_score"}
-            }}
+            {"$group": {"_id": None, "avg_risk_score": {"$avg": "$risk_assessment.risk_score"}}}
         ]
         avg_cursor = collection.aggregate(pipeline)
         avg_result = await avg_cursor.to_list(length=1)
@@ -446,14 +417,11 @@ async def get_statistics(fastapi_request: Request):
             pending_approval_count=pending,
             approval_rate=approval_rate,
             top_violations=top_violations,
-            avg_risk_score=avg_risk_score
+            avg_risk_score=avg_risk_score,
         )
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(
-            "validation_api.get_statistics_failed",
-            error=str(e)
-        )
+        logger.error("validation_api.get_statistics_failed", error=str(e))
         raise HTTPException(status_code=500, detail=str(e))

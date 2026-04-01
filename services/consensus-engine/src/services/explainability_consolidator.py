@@ -1,8 +1,9 @@
-import uuid
 import asyncio
-from typing import List, Dict, Any, Tuple, Optional
-from datetime import datetime
+import uuid
 from collections import Counter
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Tuple
+
 import structlog
 from src.models.consolidated_decision import ConsensusMethod
 
@@ -10,7 +11,7 @@ logger = structlog.get_logger()
 
 
 class ExplainabilityConsolidator:
-    '''Consolidador de explicabilidade para decisões de consenso'''
+    """Consolidador de explicabilidade para decisões de consenso"""
 
     def __init__(self, mongodb_client):
         self.mongodb = mongodb_client
@@ -23,9 +24,9 @@ class ExplainabilityConsolidator:
         divergence: float,
         final_decision: str,
         consensus_method: ConsensusMethod,
-        violations: List[str]
+        violations: List[str],
     ) -> Tuple[str, str]:
-        '''Gera token e resumo de explicabilidade consolidada'''
+        """Gera token e resumo de explicabilidade consolidada"""
         # Gerar token único
         explainability_token = str(uuid.uuid4())
 
@@ -37,7 +38,7 @@ class ExplainabilityConsolidator:
             divergence,
             final_decision,
             consensus_method,
-            violations
+            violations,
         )
 
         # Gerar explicação detalhada
@@ -48,7 +49,7 @@ class ExplainabilityConsolidator:
             divergence,
             final_decision,
             consensus_method,
-            violations
+            violations,
         )
 
         # Persistir explicação de forma assíncrona (fire-and-forget)
@@ -56,9 +57,7 @@ class ExplainabilityConsolidator:
         try:
             loop = asyncio.get_running_loop()
             # Se há um loop rodando, cria a task
-            loop.create_task(
-                self._persist_explanation(explainability_token, detailed_explanation)
-            )
+            loop.create_task(self._persist_explanation(explainability_token, detailed_explanation))
         except RuntimeError:
             # Não há loop rodando (e.g., em testes síncronos)
             # Ignorar persistência assíncrona - será testado separadamente
@@ -74,28 +73,28 @@ class ExplainabilityConsolidator:
         divergence: float,
         final_decision: str,
         consensus_method: ConsensusMethod,
-        violations: List[str]
+        violations: List[str],
     ) -> str:
-        '''Gera resumo narrativo da decisão'''
+        """Gera resumo narrativo da decisão"""
         # Contar recomendações
-        recommendations = [op['opinion']['recommendation'] for op in opinions]
+        recommendations = [op["opinion"]["recommendation"] for op in opinions]
         rec_counts = Counter(recommendations)
 
-        summary = f'Decisão de consenso: {final_decision}. '
-        summary += f'Método: {consensus_method.value}. '
-        summary += f'Avaliado por {len(opinions)} especialistas. '
-        summary += f'Confiança agregada: {aggregated_confidence:.2f}, '
-        summary += f'Risco agregado: {aggregated_risk:.2f}, '
-        summary += f'Divergência: {divergence:.2f}. '
+        summary = f"Decisão de consenso: {final_decision}. "
+        summary += f"Método: {consensus_method.value}. "
+        summary += f"Avaliado por {len(opinions)} especialistas. "
+        summary += f"Confiança agregada: {aggregated_confidence:.2f}, "
+        summary += f"Risco agregado: {aggregated_risk:.2f}, "
+        summary += f"Divergência: {divergence:.2f}. "
 
         # Distribuição de recomendações
-        summary += f'Recomendações: '
+        summary += "Recomendações: "
         for rec, count in rec_counts.items():
-            summary += f'{rec}={count}, '
+            summary += f"{rec}={count}, "
 
         # Violações de compliance
         if violations:
-            summary += f'Violações de compliance: {len(violations)}. '
+            summary += f"Violações de compliance: {len(violations)}. "
 
         return summary
 
@@ -107,123 +106,114 @@ class ExplainabilityConsolidator:
         divergence: float,
         final_decision: str,
         consensus_method: ConsensusMethod,
-        violations: List[str]
+        violations: List[str],
     ) -> Dict[str, Any]:
-        '''Gera explicação detalhada para auditoria'''
+        """Gera explicação detalhada para auditoria"""
         # Extrair campos hierárquicos das opiniões
         seniority_distribution = self._extract_seniority_distribution(opinions)
         specialist_opinions = self._build_specialist_opinions(opinions)
 
         return {
-            'consensus_process': {
-                'method': consensus_method.value,
-                'num_specialists': len(opinions),
-                'aggregation': {
-                    'confidence': aggregated_confidence,
-                    'risk': aggregated_risk,
-                    'divergence': divergence
+            "consensus_process": {
+                "method": consensus_method.value,
+                "num_specialists": len(opinions),
+                "aggregation": {
+                    "confidence": aggregated_confidence,
+                    "risk": aggregated_risk,
+                    "divergence": divergence,
                 },
                 # GAPS-04: Adicionar distribuição hierárquica
-                'seniority_distribution': seniority_distribution,
-                'hierarchical_weights_enabled': len(seniority_distribution) > 0
+                "seniority_distribution": seniority_distribution,
+                "hierarchical_weights_enabled": len(seniority_distribution) > 0,
             },
-            'specialist_opinions': specialist_opinions,
-            'final_decision': {
-                'decision': final_decision,
-                'rationale': self._generate_decision_rationale(
-                    final_decision,
-                    aggregated_confidence,
-                    aggregated_risk,
-                    divergence
-                )
+            "specialist_opinions": specialist_opinions,
+            "final_decision": {
+                "decision": final_decision,
+                "rationale": self._generate_decision_rationale(
+                    final_decision, aggregated_confidence, aggregated_risk, divergence
+                ),
             },
-            'compliance': {
-                'is_compliant': len(violations) == 0,
-                'violations': violations
-            },
-            'timestamp': datetime.utcnow().isoformat(),
-            'version': '1.1.0'  # Incrementado para GAPS-04
+            "compliance": {"is_compliant": len(violations) == 0, "violations": violations},
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "version": "1.1.0",  # Incrementado para GAPS-04
         }
 
     def _extract_seniority_distribution(self, opinions: List[Dict[str, Any]]) -> Dict[str, int]:
-        '''Extrai distribuição de senioridade das opiniões'''
+        """Extrai distribuição de senioridade das opiniões"""
         distribution: Dict[str, int] = {}
 
         for op in opinions:
-            seniority = op.get('seniority_level', 'unknown')
+            seniority = op.get("seniority_level", "unknown")
             distribution[seniority] = distribution.get(seniority, 0) + 1
 
         return distribution
 
     def _build_specialist_opinions(self, opinions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        '''Constrói lista de opiniões especialistas com campos hierárquicos'''
+        """Constrói lista de opiniões especialistas com campos hierárquicos"""
         result = []
 
         for op in opinions:
             opinion_data = {
-                'specialist_type': op['specialist_type'],
-                'opinion_id': op['opinion_id'],
-                'confidence': op['opinion']['confidence_score'],
-                'risk': op['opinion']['risk_score'],
-                'recommendation': op['opinion']['recommendation'],
-                'reasoning_summary': op['opinion'].get('reasoning_summary', ''),
-                'explainability_token': op['opinion'].get('explainability_token')
+                "specialist_type": op["specialist_type"],
+                "opinion_id": op["opinion_id"],
+                "confidence": op["opinion"]["confidence_score"],
+                "risk": op["opinion"]["risk_score"],
+                "recommendation": op["opinion"]["recommendation"],
+                "reasoning_summary": op["opinion"].get("reasoning_summary", ""),
+                "explainability_token": op["opinion"].get("explainability_token"),
             }
 
             # GAPS-04: Adicionar campos hierárquicos se presentes
-            if 'seniority_level' in op:
-                opinion_data['seniority_level'] = op['seniority_level']
+            if "seniority_level" in op:
+                opinion_data["seniority_level"] = op["seniority_level"]
 
-            if 'seniority_multiplier' in op:
-                opinion_data['seniority_multiplier'] = op['seniority_multiplier']
+            if "seniority_multiplier" in op:
+                opinion_data["seniority_multiplier"] = op["seniority_multiplier"]
 
             # Calcular peso final se houver multiplicador
-            if 'seniority_multiplier' in op:
-                opinion_data['final_weight'] = self._calculate_final_weight(
-                    op['seniority_multiplier'],
-                    op['opinion']['confidence_score']
+            if "seniority_multiplier" in op:
+                opinion_data["final_weight"] = self._calculate_final_weight(
+                    op["seniority_multiplier"], op["opinion"]["confidence_score"]
                 )
             else:
                 # Peso base apenas na confiança
-                opinion_data['weight'] = op['opinion']['confidence_score']
+                opinion_data["weight"] = op["opinion"]["confidence_score"]
 
             result.append(opinion_data)
 
         return result
 
     def _calculate_final_weight(self, seniority_multiplier: float, confidence: float) -> float:
-        '''Calcula peso final considerando senioridade e confiança'''
+        """Calcula peso final considerando senioridade e confiança"""
         # Peso = confiança × multiplicador de senioridade (normalizado)
         # O máximo teórico seria 1.0 × 2.0 = 2.0, então normalizamos para [0, 1]
         raw_weight = confidence * seniority_multiplier
         return min(1.0, raw_weight / 2.0)
 
     def _generate_decision_rationale(
-        self,
-        decision: str,
-        confidence: float,
-        risk: float,
-        divergence: float
+        self, decision: str, confidence: float, risk: float, divergence: float
     ) -> str:
-        '''Gera justificativa da decisão final'''
-        if decision == 'approve':
-            return f'Plano aprovado com confiança {confidence:.2f} e risco {risk:.2f}. Divergência aceitável ({divergence:.2f}).'
-        elif decision == 'reject':
-            return f'Plano rejeitado devido a risco elevado ({risk:.2f}) ou baixa confiança ({confidence:.2f}).'
-        elif decision == 'review_required':
-            return f'Revisão humana necessária devido a divergência ({divergence:.2f}) ou violações de compliance.'
+        """Gera justificativa da decisão final"""
+        if decision == "approve":
+            return f"Plano aprovado com confiança {confidence:.2f} e risco {risk:.2f}. Divergência aceitável ({divergence:.2f})."
+        elif decision == "reject":
+            return f"Plano rejeitado devido a risco elevado ({risk:.2f}) ou baixa confiança ({confidence:.2f})."
+        elif decision == "review_required":
+            return f"Revisão humana necessária devido a divergência ({divergence:.2f}) ou violações de compliance."
         else:  # conditional
-            return f'Aprovação condicional com confiança {confidence:.2f} e risco {risk:.2f}. Requer monitoramento.'
+            return f"Aprovação condicional com confiança {confidence:.2f} e risco {risk:.2f}. Requer monitoramento."
 
     async def _persist_explanation(self, token: str, explanation: Dict):
-        '''Persiste explicação detalhada no MongoDB'''
+        """Persiste explicação detalhada no MongoDB"""
         try:
-            collection = self.mongodb.db['consensus_explainability']
-            await collection.insert_one({
-                'token': token,
-                'explanation': explanation,
-                'timestamp': datetime.utcnow()
-            })
-            logger.info('Explicação consolidada persistida', token=token)
+            collection = self.mongodb.db["consensus_explainability"]
+            await collection.insert_one(
+                {
+                    "token": token,
+                    "explanation": explanation,
+                    "timestamp": datetime.now(timezone.utc),
+                }
+            )
+            logger.info("Explicação consolidada persistida", token=token)
         except Exception as e:
-            logger.error('Erro persistindo explicação', token=token, error=str(e))
+            logger.error("Erro persistindo explicação", token=token, error=str(e))

@@ -7,8 +7,7 @@ de 18 meses para treinamento de modelos ML.
 
 import asyncio
 import logging
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional
+from datetime import datetime
 
 from clickhouse_driver import Client as SyncClickHouseClient
 
@@ -26,7 +25,7 @@ class ClickHouseClient:
     - Eventos de bottleneck
     """
 
-    def __init__(self, redis_client, config: Dict):
+    def __init__(self, redis_client, config: dict):
         """
         Args:
             redis_client: Cliente Redis para caching
@@ -36,14 +35,14 @@ class ClickHouseClient:
         self.config = config
 
         # Configurações de conexão
-        self.host = config.get('clickhouse_host', 'clickhouse.clickhouse.svc.cluster.local')
-        self.port = config.get('clickhouse_port', 9000)
-        self.user = config.get('clickhouse_user', 'default')
-        self.password = config.get('clickhouse_password', '')
-        self.database = config.get('clickhouse_database', 'neural_hive')
+        self.host = config.get("clickhouse_host", "clickhouse.clickhouse.svc.cluster.local")
+        self.port = config.get("clickhouse_port", 9000)
+        self.user = config.get("clickhouse_user", "default")
+        self.password = config.get("clickhouse_password", "")
+        self.database = config.get("clickhouse_database", "neural_hive")
 
         # Cliente síncrono (wrappado em async)
-        self.client: Optional[SyncClickHouseClient] = None
+        self.client: SyncClickHouseClient | None = None
 
         # Cache TTL
         self.cache_ttl = 300  # 5 minutos
@@ -65,10 +64,7 @@ class ClickHouseClient:
             try:
                 # Executar em thread pool (driver é síncrono)
                 loop = asyncio.get_event_loop()
-                self.client = await loop.run_in_executor(
-                    None,
-                    self._create_sync_client
-                )
+                self.client = await loop.run_in_executor(None, self._create_sync_client)
 
                 # Testar conexão
                 await self._execute_query("SELECT 1")
@@ -80,7 +76,7 @@ class ClickHouseClient:
             except Exception as e:
                 logger.error(f"Falha na conexão (tentativa {attempt+1}/{max_retries}): {e}")
                 if attempt < max_retries - 1:
-                    await asyncio.sleep(2 ** attempt)  # Backoff exponencial
+                    await asyncio.sleep(2**attempt)  # Backoff exponencial
                 else:
                     raise
 
@@ -97,11 +93,8 @@ class ClickHouseClient:
         )
 
     async def query_execution_timeseries(
-        self,
-        start_timestamp: datetime,
-        end_timestamp: datetime,
-        aggregation_interval: str = '1h'
-    ) -> List[Dict]:
+        self, start_timestamp: datetime, end_timestamp: datetime, aggregation_interval: str = "1h"
+    ) -> list[dict]:
         """
         Query série temporal de execuções de tickets.
 
@@ -126,11 +119,11 @@ class ClickHouseClient:
 
         # Mapear intervalo para função ClickHouse
         interval_map = {
-            '1m': 'toStartOfMinute',
-            '1h': 'toStartOfHour',
-            '1d': 'toStartOfDay',
+            "1m": "toStartOfMinute",
+            "1h": "toStartOfHour",
+            "1d": "toStartOfDay",
         }
-        interval_func = interval_map.get(aggregation_interval, 'toStartOfHour')
+        interval_func = interval_map.get(aggregation_interval, "toStartOfHour")
 
         query = f"""
         SELECT
@@ -148,8 +141,8 @@ class ClickHouseClient:
         """
 
         params = {
-            'start_time': start_timestamp,
-            'end_time': end_timestamp,
+            "start_time": start_timestamp,
+            "end_time": end_timestamp,
         }
 
         try:
@@ -158,13 +151,13 @@ class ClickHouseClient:
             # Converter para lista de dicts
             data = [
                 {
-                    'timestamp': row[0],
-                    'ticket_count': row[1],
-                    'avg_duration_ms': row[2],
-                    'resource_cpu_avg': row[3],
-                    'resource_memory_avg': row[4],
-                    'task_type': row[5],
-                    'risk_band': row[6],
+                    "timestamp": row[0],
+                    "ticket_count": row[1],
+                    "avg_duration_ms": row[2],
+                    "resource_cpu_avg": row[3],
+                    "resource_memory_avg": row[4],
+                    "task_type": row[5],
+                    "risk_band": row[6],
                 }
                 for row in results
             ]
@@ -180,10 +173,8 @@ class ClickHouseClient:
             return []
 
     async def query_resource_utilization(
-        self,
-        start_timestamp: datetime,
-        end_timestamp: datetime
-    ) -> List[Dict]:
+        self, start_timestamp: datetime, end_timestamp: datetime
+    ) -> list[dict]:
         """
         Query utilização de recursos (CPU, memória, workers ativos).
 
@@ -214,8 +205,8 @@ class ClickHouseClient:
         """
 
         params = {
-            'start_time': start_timestamp,
-            'end_time': end_timestamp,
+            "start_time": start_timestamp,
+            "end_time": end_timestamp,
         }
 
         try:
@@ -223,11 +214,11 @@ class ClickHouseClient:
 
             data = [
                 {
-                    'timestamp': row[0],
-                    'avg_value': row[1],
-                    'max_value': row[2],
-                    'metric_name': row[3],
-                    'service': row[4],
+                    "timestamp": row[0],
+                    "avg_value": row[1],
+                    "max_value": row[2],
+                    "metric_name": row[3],
+                    "service": row[4],
                 }
                 for row in results
             ]
@@ -242,10 +233,8 @@ class ClickHouseClient:
             return []
 
     async def query_sla_compliance(
-        self,
-        start_timestamp: datetime,
-        end_timestamp: datetime
-    ) -> List[Dict]:
+        self, start_timestamp: datetime, end_timestamp: datetime
+    ) -> list[dict]:
         """
         Query compliance de SLA por serviço.
 
@@ -274,8 +263,8 @@ class ClickHouseClient:
         """
 
         params = {
-            'start_time': start_timestamp,
-            'end_time': end_timestamp,
+            "start_time": start_timestamp,
+            "end_time": end_timestamp,
         }
 
         try:
@@ -283,10 +272,10 @@ class ClickHouseClient:
 
             data = [
                 {
-                    'date': row[0],
-                    'service': row[1],
-                    'compliance_percentage': row[2],
-                    'total_tickets': row[3],
+                    "date": row[0],
+                    "service": row[1],
+                    "compliance_percentage": row[2],
+                    "total_tickets": row[3],
                 }
                 for row in results
             ]
@@ -301,10 +290,8 @@ class ClickHouseClient:
             return []
 
     async def query_bottleneck_events(
-        self,
-        start_timestamp: datetime,
-        end_timestamp: datetime
-    ) -> List[Dict]:
+        self, start_timestamp: datetime, end_timestamp: datetime
+    ) -> list[dict]:
         """
         Query eventos de bottleneck (saturação de workers, filas longas).
 
@@ -338,8 +325,8 @@ class ClickHouseClient:
         """
 
         params = {
-            'start_time': start_timestamp,
-            'end_time': end_timestamp,
+            "start_time": start_timestamp,
+            "end_time": end_timestamp,
         }
 
         try:
@@ -347,11 +334,13 @@ class ClickHouseClient:
 
             data = [
                 {
-                    'timestamp': row[0],
-                    'metric_name': row[1],
-                    'metric_value': row[2],
-                    'service': row[3],
-                    'bottleneck_type': 'queue_saturation' if row[1] == 'queue_depth' else 'worker_saturation',
+                    "timestamp": row[0],
+                    "metric_name": row[1],
+                    "metric_value": row[2],
+                    "service": row[3],
+                    "bottleneck_type": "queue_saturation"
+                    if row[1] == "queue_depth"
+                    else "worker_saturation",
                 }
                 for row in results
             ]
@@ -365,7 +354,7 @@ class ClickHouseClient:
             logger.error(f"Erro em query_bottleneck_events: {e}")
             return []
 
-    async def _execute_query(self, query: str, params: Optional[Dict] = None) -> List:
+    async def _execute_query(self, query: str, params: dict | None = None) -> list:
         """
         Executa query ClickHouse de forma assíncrona.
 
@@ -384,8 +373,7 @@ class ClickHouseClient:
 
         try:
             results = await loop.run_in_executor(
-                None,
-                lambda: self.client.execute(query, params or {})
+                None, lambda: self.client.execute(query, params or {})
             )
 
             return results
@@ -395,10 +383,11 @@ class ClickHouseClient:
             logger.debug(f"Query: {query}")
             raise
 
-    async def _get_cached_result(self, cache_key: str) -> Optional[List[Dict]]:
+    async def _get_cached_result(self, cache_key: str) -> list[dict] | None:
         """Recupera resultado do cache Redis."""
         try:
             import json
+
             cached = await self.redis.get(cache_key)
             if cached:
                 logger.debug(f"Cache hit: {cache_key}")
@@ -407,10 +396,11 @@ class ClickHouseClient:
             logger.warning(f"Erro ao ler cache: {e}")
         return None
 
-    async def _cache_result(self, cache_key: str, data: List[Dict], ttl: int) -> None:
+    async def _cache_result(self, cache_key: str, data: list[dict], ttl: int) -> None:
         """Armazena resultado no cache Redis."""
         try:
             import json
+
             # Converter datetimes para strings
             serializable_data = []
             for item in data:

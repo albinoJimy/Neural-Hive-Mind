@@ -5,11 +5,12 @@ Fornece interface assíncrona ao MongoDB via Motor para armazenamento de artefat
 """
 
 import time
-from typing import Optional, Dict, Any, List, TYPE_CHECKING
-from datetime import datetime
+from datetime import datetime, timezone
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
+
 import structlog
 from motor.motor_asyncio import AsyncIOMotorClient
-from pymongo.errors import DuplicateKeyError, ConnectionFailure, OperationFailure
+from pymongo.errors import ConnectionFailure, DuplicateKeyError
 
 if TYPE_CHECKING:
     from ..observability.metrics import CodeForgeMetrics
@@ -26,7 +27,7 @@ class MongoDBClient:
         db_name: str,
         max_pool_size: int = 50,
         server_selection_timeout_ms: int = 5000,
-        metrics: Optional['CodeForgeMetrics'] = None
+        metrics: Optional["CodeForgeMetrics"] = None,
     ):
         """
         Inicializa o cliente MongoDB.
@@ -54,51 +55,42 @@ class MongoDBClient:
                 maxPoolSize=self.max_pool_size,
                 serverSelectionTimeoutMS=self.server_selection_timeout_ms,
                 retryWrites=True,
-                w='majority'
+                w="majority",
             )
 
             self.db = self.client[self.db_name]
 
             # Valida conexão
-            await self.client.admin.command('ping')
+            await self.client.admin.command("ping")
 
             # Cria índices necessários
             await self._create_indexes()
 
-            logger.info(
-                'mongodb_client_started',
-                db=self.db_name,
-                max_pool_size=self.max_pool_size
-            )
+            logger.info("mongodb_client_started", db=self.db_name, max_pool_size=self.max_pool_size)
 
         except ConnectionFailure as e:
-            logger.error('mongodb_connection_failed', error=str(e))
+            logger.error("mongodb_connection_failed", error=str(e))
             raise
         except Exception as e:
-            logger.error('mongodb_start_failed', error=str(e))
+            logger.error("mongodb_start_failed", error=str(e))
             raise
 
     async def _create_indexes(self):
         """Cria índices para otimizar consultas."""
         try:
             # Índice único para artifact_id
-            await self.db.artifacts.create_index(
-                [('artifact_id', 1)],
-                unique=True
-            )
+            await self.db.artifacts.create_index([("artifact_id", 1)], unique=True)
 
             # Índice para buscar por ticket_id
-            await self.db.artifacts.create_index([('ticket_id', 1)])
+            await self.db.artifacts.create_index([("ticket_id", 1)])
 
             # Índice para pipeline_logs
-            await self.db.pipeline_logs.create_index(
-                [('pipeline_id', 1), ('created_at', -1)]
-            )
+            await self.db.pipeline_logs.create_index([("pipeline_id", 1), ("created_at", -1)])
 
-            logger.debug('mongodb_indexes_created')
+            logger.debug("mongodb_indexes_created")
 
         except Exception as e:
-            logger.warning('mongodb_index_creation_failed', error=str(e))
+            logger.warning("mongodb_index_creation_failed", error=str(e))
 
     async def stop(self):
         """Fecha conexão com MongoDB."""
@@ -106,9 +98,11 @@ class MongoDBClient:
             self.client.close()
             self.client = None
             self.db = None
-            logger.info('mongodb_client_stopped')
+            logger.info("mongodb_client_stopped")
 
-    async def save_artifact_content(self, artifact_id: str, content: str, metadata: Optional[Dict[str, Any]] = None):
+    async def save_artifact_content(
+        self, artifact_id: str, content: str, metadata: Optional[Dict[str, Any]] = None
+    ):
         """
         Salva conteúdo de artefato.
 
@@ -118,50 +112,58 @@ class MongoDBClient:
             metadata: Metadados adicionais opcionais
         """
         if not self.db:
-            raise RuntimeError('MongoDB client not started')
+            raise RuntimeError("MongoDB client not started")
 
         start_time = time.perf_counter()
         try:
             document = {
-                'artifact_id': artifact_id,
-                'content': content,
-                'created_at': datetime.utcnow(),
+                "artifact_id": artifact_id,
+                "content": content,
+                "created_at": datetime.now(timezone.utc),
             }
 
             if metadata:
-                document['metadata'] = metadata
+                document["metadata"] = metadata
 
             # Usa upsert para atualizar se já existir
             await self.db.artifacts.update_one(
-                {'artifact_id': artifact_id},
-                {'$set': document},
-                upsert=True
+                {"artifact_id": artifact_id}, {"$set": document}, upsert=True
             )
 
-            logger.info('artifact_content_saved', artifact_id=artifact_id)
+            logger.info("artifact_content_saved", artifact_id=artifact_id)
 
             if self.metrics:
                 duration = time.perf_counter() - start_time
-                self.metrics.mongodb_operations_total.labels(operation='save_artifact', status='success').inc()
-                self.metrics.mongodb_operation_duration_seconds.labels(operation='save_artifact').observe(duration)
+                self.metrics.mongodb_operations_total.labels(
+                    operation="save_artifact", status="success"
+                ).inc()
+                self.metrics.mongodb_operation_duration_seconds.labels(
+                    operation="save_artifact"
+                ).observe(duration)
 
         except DuplicateKeyError:
             # Fallback para update se houver race condition
             await self.db.artifacts.update_one(
-                {'artifact_id': artifact_id},
-                {'$set': {'content': content, 'updated_at': datetime.utcnow()}}
+                {"artifact_id": artifact_id},
+                {"$set": {"content": content, "updated_at": datetime.now(timezone.utc)}},
             )
-            logger.info('artifact_content_updated', artifact_id=artifact_id)
+            logger.info("artifact_content_updated", artifact_id=artifact_id)
 
             if self.metrics:
                 duration = time.perf_counter() - start_time
-                self.metrics.mongodb_operations_total.labels(operation='save_artifact', status='success').inc()
-                self.metrics.mongodb_operation_duration_seconds.labels(operation='save_artifact').observe(duration)
+                self.metrics.mongodb_operations_total.labels(
+                    operation="save_artifact", status="success"
+                ).inc()
+                self.metrics.mongodb_operation_duration_seconds.labels(
+                    operation="save_artifact"
+                ).observe(duration)
 
         except Exception as e:
             if self.metrics:
-                self.metrics.mongodb_operations_total.labels(operation='save_artifact', status='failure').inc()
-            logger.error('save_artifact_content_failed', artifact_id=artifact_id, error=str(e))
+                self.metrics.mongodb_operations_total.labels(
+                    operation="save_artifact", status="failure"
+                ).inc()
+            logger.error("save_artifact_content_failed", artifact_id=artifact_id, error=str(e))
             raise
 
     async def get_artifact_content(self, artifact_id: str) -> Optional[str]:
@@ -175,28 +177,34 @@ class MongoDBClient:
             Conteúdo do artefato ou None se não encontrado
         """
         if not self.db:
-            raise RuntimeError('MongoDB client not started')
+            raise RuntimeError("MongoDB client not started")
 
         start_time = time.perf_counter()
         try:
-            doc = await self.db.artifacts.find_one({'artifact_id': artifact_id})
+            doc = await self.db.artifacts.find_one({"artifact_id": artifact_id})
 
             if self.metrics:
                 duration = time.perf_counter() - start_time
-                self.metrics.mongodb_operations_total.labels(operation='get_artifact', status='success').inc()
-                self.metrics.mongodb_operation_duration_seconds.labels(operation='get_artifact').observe(duration)
+                self.metrics.mongodb_operations_total.labels(
+                    operation="get_artifact", status="success"
+                ).inc()
+                self.metrics.mongodb_operation_duration_seconds.labels(
+                    operation="get_artifact"
+                ).observe(duration)
 
             if doc:
-                logger.debug('artifact_content_found', artifact_id=artifact_id)
-                return doc.get('content')
+                logger.debug("artifact_content_found", artifact_id=artifact_id)
+                return doc.get("content")
 
-            logger.debug('artifact_content_not_found', artifact_id=artifact_id)
+            logger.debug("artifact_content_not_found", artifact_id=artifact_id)
             return None
 
         except Exception as e:
             if self.metrics:
-                self.metrics.mongodb_operations_total.labels(operation='get_artifact', status='failure').inc()
-            logger.error('get_artifact_content_failed', artifact_id=artifact_id, error=str(e))
+                self.metrics.mongodb_operations_total.labels(
+                    operation="get_artifact", status="failure"
+                ).inc()
+            logger.error("get_artifact_content_failed", artifact_id=artifact_id, error=str(e))
             return None
 
     async def delete_artifact(self, artifact_id: str) -> bool:
@@ -210,16 +218,16 @@ class MongoDBClient:
             True se removido com sucesso
         """
         if not self.db:
-            raise RuntimeError('MongoDB client not started')
+            raise RuntimeError("MongoDB client not started")
 
         try:
-            result = await self.db.artifacts.delete_one({'artifact_id': artifact_id})
+            result = await self.db.artifacts.delete_one({"artifact_id": artifact_id})
             deleted = result.deleted_count > 0
-            logger.info('artifact_deleted', artifact_id=artifact_id, deleted=deleted)
+            logger.info("artifact_deleted", artifact_id=artifact_id, deleted=deleted)
             return deleted
 
         except Exception as e:
-            logger.error('delete_artifact_failed', artifact_id=artifact_id, error=str(e))
+            logger.error("delete_artifact_failed", artifact_id=artifact_id, error=str(e))
             return False
 
     async def get_artifact_sbom(self, artifact_id: str) -> Optional[Dict[str, Any]]:
@@ -233,55 +241,62 @@ class MongoDBClient:
             Dados do SBOM ou None se não encontrado
         """
         if not self.db:
-            raise RuntimeError('MongoDB client not started')
+            raise RuntimeError("MongoDB client not started")
 
         start_time = time.perf_counter()
         try:
-            doc = await self.db.artifacts.find_one({'artifact_id': artifact_id})
+            doc = await self.db.artifacts.find_one({"artifact_id": artifact_id})
 
             if self.metrics:
                 duration = time.perf_counter() - start_time
-                self.metrics.mongodb_operations_total.labels(operation='get_sbom', status='success').inc()
-                self.metrics.mongodb_operation_duration_seconds.labels(operation='get_sbom').observe(duration)
+                self.metrics.mongodb_operations_total.labels(
+                    operation="get_sbom", status="success"
+                ).inc()
+                self.metrics.mongodb_operation_duration_seconds.labels(
+                    operation="get_sbom"
+                ).observe(duration)
 
             if doc:
                 # Tentar encontrar SBOM no documento
                 # Pode estar em 'metadata.sbom', 'sbom', ou embutido no conteúdo
                 sbom = None
 
-                if 'metadata' in doc and isinstance(doc['metadata'], dict):
-                    sbom = doc['metadata'].get('sbom')
+                if "metadata" in doc and isinstance(doc["metadata"], dict):
+                    sbom = doc["metadata"].get("sbom")
 
                 if not sbom:
-                    sbom = doc.get('sbom')
+                    sbom = doc.get("sbom")
 
                 if sbom:
-                    logger.debug('artifact_sbom_found', artifact_id=artifact_id)
-                    return sbom if isinstance(sbom, dict) else {'data': sbom}
+                    logger.debug("artifact_sbom_found", artifact_id=artifact_id)
+                    return sbom if isinstance(sbom, dict) else {"data": sbom}
 
                 # Se não encontrou SBOM separado, tentar extrair do conteúdo
-                content = doc.get('content')
+                content = doc.get("content")
                 if content and isinstance(content, str):
                     # Verificar se o conteúdo é um SBOM JSON válido
                     try:
                         import json
+
                         potential_sbom = json.loads(content)
                         if self._is_sbom_document(potential_sbom):
-                            logger.debug('sbom_extracted_from_content', artifact_id=artifact_id)
+                            logger.debug("sbom_extracted_from_content", artifact_id=artifact_id)
                             return potential_sbom
                     except (json.JSONDecodeError, TypeError):
                         pass
 
-                logger.debug('artifact_sbom_not_found', artifact_id=artifact_id)
+                logger.debug("artifact_sbom_not_found", artifact_id=artifact_id)
                 return None
 
-            logger.debug('artifact_not_found_for_sbom', artifact_id=artifact_id)
+            logger.debug("artifact_not_found_for_sbom", artifact_id=artifact_id)
             return None
 
         except Exception as e:
             if self.metrics:
-                self.metrics.mongodb_operations_total.labels(operation='get_sbom', status='failure').inc()
-            logger.error('get_artifact_sbom_failed', artifact_id=artifact_id, error=str(e))
+                self.metrics.mongodb_operations_total.labels(
+                    operation="get_sbom", status="failure"
+                ).inc()
+            logger.error("get_artifact_sbom_failed", artifact_id=artifact_id, error=str(e))
             return None
 
     def _is_sbom_document(self, data: Dict[str, Any]) -> bool:
@@ -298,15 +313,15 @@ class MongoDBClient:
             return False
 
         # SPDX tem spdxVersion
-        if 'spdxVersion' in data:
+        if "spdxVersion" in data:
             return True
 
         # CycloneDX tem bomFormat ou component
-        if 'bomFormat' in data or 'components' in data:
+        if "bomFormat" in data or "components" in data:
             return True
 
         # Formato genérico com licenças
-        if 'licenses' in data or 'packages' in data:
+        if "licenses" in data or "packages" in data:
             return True
 
         return False
@@ -320,28 +335,34 @@ class MongoDBClient:
             logs: Lista de entradas de log
         """
         if not self.db:
-            raise RuntimeError('MongoDB client not started')
+            raise RuntimeError("MongoDB client not started")
 
         start_time = time.perf_counter()
         try:
             document = {
-                'pipeline_id': pipeline_id,
-                'logs': logs,
-                'created_at': datetime.utcnow(),
+                "pipeline_id": pipeline_id,
+                "logs": logs,
+                "created_at": datetime.now(timezone.utc),
             }
 
             await self.db.pipeline_logs.insert_one(document)
-            logger.info('pipeline_logs_saved', pipeline_id=pipeline_id, log_count=len(logs))
+            logger.info("pipeline_logs_saved", pipeline_id=pipeline_id, log_count=len(logs))
 
             if self.metrics:
                 duration = time.perf_counter() - start_time
-                self.metrics.mongodb_operations_total.labels(operation='save_logs', status='success').inc()
-                self.metrics.mongodb_operation_duration_seconds.labels(operation='save_logs').observe(duration)
+                self.metrics.mongodb_operations_total.labels(
+                    operation="save_logs", status="success"
+                ).inc()
+                self.metrics.mongodb_operation_duration_seconds.labels(
+                    operation="save_logs"
+                ).observe(duration)
 
         except Exception as e:
             if self.metrics:
-                self.metrics.mongodb_operations_total.labels(operation='save_logs', status='failure').inc()
-            logger.error('save_pipeline_logs_failed', pipeline_id=pipeline_id, error=str(e))
+                self.metrics.mongodb_operations_total.labels(
+                    operation="save_logs", status="failure"
+                ).inc()
+            logger.error("save_pipeline_logs_failed", pipeline_id=pipeline_id, error=str(e))
             raise
 
     async def get_pipeline_logs(self, pipeline_id: str, limit: int = 100) -> List[Dict[str, Any]]:
@@ -356,19 +377,21 @@ class MongoDBClient:
             Lista de documentos de log
         """
         if not self.db:
-            raise RuntimeError('MongoDB client not started')
+            raise RuntimeError("MongoDB client not started")
 
         try:
-            cursor = self.db.pipeline_logs.find(
-                {'pipeline_id': pipeline_id}
-            ).sort('created_at', -1).limit(limit)
+            cursor = (
+                self.db.pipeline_logs.find({"pipeline_id": pipeline_id})
+                .sort("created_at", -1)
+                .limit(limit)
+            )
 
             logs = await cursor.to_list(length=limit)
-            logger.debug('pipeline_logs_retrieved', pipeline_id=pipeline_id, count=len(logs))
+            logger.debug("pipeline_logs_retrieved", pipeline_id=pipeline_id, count=len(logs))
             return logs
 
         except Exception as e:
-            logger.error('get_pipeline_logs_failed', pipeline_id=pipeline_id, error=str(e))
+            logger.error("get_pipeline_logs_failed", pipeline_id=pipeline_id, error=str(e))
             return []
 
     async def append_pipeline_log(self, pipeline_id: str, log_entry: Dict[str, Any]):
@@ -380,24 +403,24 @@ class MongoDBClient:
             log_entry: Entrada de log a adicionar
         """
         if not self.db:
-            raise RuntimeError('MongoDB client not started')
+            raise RuntimeError("MongoDB client not started")
 
         try:
-            log_entry['timestamp'] = datetime.utcnow()
+            log_entry["timestamp"] = datetime.now(timezone.utc)
 
             await self.db.pipeline_logs.update_one(
-                {'pipeline_id': pipeline_id},
+                {"pipeline_id": pipeline_id},
                 {
-                    '$push': {'logs': log_entry},
-                    '$setOnInsert': {'created_at': datetime.utcnow()}
+                    "$push": {"logs": log_entry},
+                    "$setOnInsert": {"created_at": datetime.now(timezone.utc)},
                 },
-                upsert=True
+                upsert=True,
             )
 
-            logger.debug('pipeline_log_appended', pipeline_id=pipeline_id)
+            logger.debug("pipeline_log_appended", pipeline_id=pipeline_id)
 
         except Exception as e:
-            logger.error('append_pipeline_log_failed', pipeline_id=pipeline_id, error=str(e))
+            logger.error("append_pipeline_log_failed", pipeline_id=pipeline_id, error=str(e))
             raise
 
     async def health_check(self) -> bool:
@@ -412,14 +435,20 @@ class MongoDBClient:
 
         start_time = time.perf_counter()
         try:
-            await self.client.admin.command('ping')
+            await self.client.admin.command("ping")
             if self.metrics:
                 duration = time.perf_counter() - start_time
-                self.metrics.mongodb_operations_total.labels(operation='health_check', status='success').inc()
-                self.metrics.mongodb_operation_duration_seconds.labels(operation='health_check').observe(duration)
+                self.metrics.mongodb_operations_total.labels(
+                    operation="health_check", status="success"
+                ).inc()
+                self.metrics.mongodb_operation_duration_seconds.labels(
+                    operation="health_check"
+                ).observe(duration)
             return True
         except Exception as e:
             if self.metrics:
-                self.metrics.mongodb_operations_total.labels(operation='health_check', status='failure').inc()
-            logger.warning('mongodb_health_check_failed', error=str(e))
+                self.metrics.mongodb_operations_total.labels(
+                    operation="health_check", status="failure"
+                ).inc()
+            logger.warning("mongodb_health_check_failed", error=str(e))
             return False

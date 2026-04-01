@@ -1,6 +1,5 @@
 """Cliente unificado para OpenAI e Anthropic LLMs."""
 
-import json
 from typing import Optional
 
 from src.config.settings import get_settings
@@ -18,9 +17,7 @@ class LLMClient:
         self.timeout = settings.llm.timeout_seconds
         self.max_tokens = settings.llm.max_tokens
 
-    async def generate(
-        self, prompt: str, system_prompt: Optional[str] = None
-    ) -> str:
+    async def generate(self, prompt: str, system_prompt: Optional[str] = None) -> str:
         """Gera resposta do LLM.
 
         Args:
@@ -41,9 +38,7 @@ class LLMClient:
         else:
             return self._get_default_response(prompt)
 
-    async def _generate_openai(
-        self, prompt: str, system_prompt: Optional[str] = None
-    ) -> str:
+    async def _generate_openai(self, prompt: str, system_prompt: Optional[str] = None) -> str:
         """Gera resposta usando OpenAI.
 
         Args:
@@ -70,13 +65,11 @@ class LLMClient:
                 timeout=self.timeout,
             )
             return response.choices[0].message.content
-        except Exception as e:
+        except Exception:
             # Fallback em erro
             return self._get_default_response(prompt)
 
-    async def _generate_anthropic(
-        self, prompt: str, system_prompt: Optional[str] = None
-    ) -> str:
+    async def _generate_anthropic(self, prompt: str, system_prompt: Optional[str] = None) -> str:
         """Gera resposta usando Anthropic.
 
         Args:
@@ -100,7 +93,7 @@ class LLMClient:
                 messages=messages,
             )
             return response.content[0].text
-        except Exception as e:
+        except Exception:
             return self._get_default_response(prompt)
 
     def _get_default_response(self, prompt: str) -> str:

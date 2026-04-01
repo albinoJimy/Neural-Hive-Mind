@@ -1,7 +1,8 @@
 """MongoDB client for Guard Agents"""
-from typing import Optional, Dict, Any
-from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase, AsyncIOMotorCollection
+from typing import Any, Dict, Optional
+
 import structlog
+from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorCollection, AsyncIOMotorDatabase
 
 logger = structlog.get_logger()
 
@@ -22,7 +23,7 @@ class MongoDBClient:
         self,
         incidents_coll: str = "security_incidents",
         remediation_coll: str = "remediation_actions",
-        postmortems_coll: str = "incident_postmortems"
+        postmortems_coll: str = "incident_postmortems",
     ):
         """Conecta ao MongoDB e inicializa colecoes"""
         try:
@@ -33,7 +34,7 @@ class MongoDBClient:
             self.postmortems_collection = self.db[postmortems_coll]
 
             # Testa conexao
-            await self.client.admin.command('ping')
+            await self.client.admin.command("ping")
             logger.info("mongodb.connected", database=self.database_name)
 
             # Cria indices
@@ -92,16 +93,13 @@ class MongoDBClient:
 
         try:
             await self.postmortems_collection.insert_one(postmortem)
-            logger.info(
-                "mongodb.postmortem_inserted",
-                incident_id=postmortem.get("incident_id")
-            )
+            logger.info("mongodb.postmortem_inserted", incident_id=postmortem.get("incident_id"))
             return True
         except Exception as e:
             logger.error(
                 "mongodb.insert_postmortem_failed",
                 incident_id=postmortem.get("incident_id"),
-                error=str(e)
+                error=str(e),
             )
             return False
 
@@ -121,9 +119,5 @@ class MongoDBClient:
         try:
             return await self.postmortems_collection.find_one({"incident_id": incident_id})
         except Exception as e:
-            logger.error(
-                "mongodb.get_postmortem_failed",
-                incident_id=incident_id,
-                error=str(e)
-            )
+            logger.error("mongodb.get_postmortem_failed", incident_id=incident_id, error=str(e))
             return None

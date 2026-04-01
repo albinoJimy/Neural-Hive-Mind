@@ -1,14 +1,14 @@
+from typing import Any
+
 import structlog
-from neo4j import AsyncGraphDatabase, AsyncDriver
-from typing import Any, Dict, List, Optional
+from neo4j import AsyncDriver, AsyncGraphDatabase
 
 from neural_hive_resilience.circuit_breaker import (
-    MonitoredCircuitBreaker,
     CircuitBreakerError,
+    MonitoredCircuitBreaker,
 )
-from ..config import Settings
-from ..models import StrategicDecision
-
+from src.config import Settings
+from src.models import StrategicDecision
 
 logger = structlog.get_logger()
 
@@ -18,11 +18,9 @@ class Neo4jClient:
 
     def __init__(self, settings: Settings):
         self.settings = settings
-        self.driver: Optional[AsyncDriver] = None
-        self.neo4j_breaker: Optional[MonitoredCircuitBreaker] = None
-        self.circuit_breaker_enabled: bool = getattr(
-            settings, "CIRCUIT_BREAKER_ENABLED", False
-        )
+        self.driver: AsyncDriver | None = None
+        self.neo4j_breaker: MonitoredCircuitBreaker | None = None
+        self.circuit_breaker_enabled: bool = getattr(settings, "CIRCUIT_BREAKER_ENABLED", False)
 
     async def initialize(self) -> None:
         """Conectar ao Neo4j"""
@@ -47,7 +45,7 @@ class Neo4jClient:
             logger.info("neo4j_initialized")
 
         except Exception as e:
-            logger.error("neo4j_initialization_failed", error=str(e))
+            logger.exception("neo4j_initialization_failed", error=str(e))
             raise
 
     async def close(self) -> None:
@@ -56,14 +54,12 @@ class Neo4jClient:
             await self.driver.close()
             logger.info("neo4j_closed")
 
-    async def query_strategic_context(self, plan_ids: List[str]) -> Dict[str, Any]:
+    async def query_strategic_context(self, plan_ids: list[str]) -> dict[str, Any]:
         """Consultar contexto estratégico de múltiplos planos"""
         try:
 
             async def _query():
-                async with self.driver.session(
-                    database=self.settings.NEO4J_DATABASE
-                ) as session:
+                async with self.driver.session(database=self.settings.NEO4J_DATABASE) as session:
                     query = """
                     MATCH (p:CognitivePlan)
                     WHERE p.plan_id IN $plan_ids
@@ -96,17 +92,15 @@ class Neo4jClient:
             logger.warning("neo4j_circuit_open", operation="query_strategic_context")
             return {}
         except Exception as e:
-            logger.error("strategic_context_query_failed", error=str(e))
+            logger.exception("strategic_context_query_failed", error=str(e))
             return {}
 
-    async def get_plan_dependencies(self, plan_id: str) -> List[Dict[str, Any]]:
+    async def get_plan_dependencies(self, plan_id: str) -> list[dict[str, Any]]:
         """Obter grafo de dependências de um plano"""
         try:
 
             async def _query():
-                async with self.driver.session(
-                    database=self.settings.NEO4J_DATABASE
-                ) as session:
+                async with self.driver.session(database=self.settings.NEO4J_DATABASE) as session:
                     query = """
                     MATCH path = (p:CognitivePlan {plan_id: $plan_id})-[:DEPENDS_ON*1..3]->(dep)
                     RETURN path
@@ -126,24 +120,18 @@ class Neo4jClient:
             return await self._execute_with_breaker(self.neo4j_breaker, _query)
 
         except CircuitBreakerError:
-            logger.warning(
-                "neo4j_circuit_open", operation="get_plan_dependencies", plan_id=plan_id
-            )
+            logger.warning("neo4j_circuit_open", operation="get_plan_dependencies", plan_id=plan_id)
             return []
         except Exception as e:
-            logger.error(
-                "plan_dependencies_query_failed", plan_id=plan_id, error=str(e)
-            )
+            logger.exception("plan_dependencies_query_failed", plan_id=plan_id, error=str(e))
             return []
 
-    async def get_domain_conflicts(self, domains: List[str]) -> List[Dict[str, Any]]:
+    async def get_domain_conflicts(self, domains: list[str]) -> list[dict[str, Any]]:
         """Identificar conflitos históricos entre domínios"""
         try:
 
             async def _query():
-                async with self.driver.session(
-                    database=self.settings.NEO4J_DATABASE
-                ) as session:
+                async with self.driver.session(database=self.settings.NEO4J_DATABASE) as session:
                     query = """
                     MATCH (d1:Domain)-[r:CONFLICTS_WITH]->(d2:Domain)
                     WHERE d1.name IN $domains AND d2.name IN $domains
@@ -174,19 +162,15 @@ class Neo4jClient:
             logger.warning("neo4j_circuit_open", operation="get_domain_conflicts")
             return []
         except Exception as e:
-            logger.error("domain_conflicts_query_failed", error=str(e))
+            logger.exception("domain_conflicts_query_failed", error=str(e))
             return []
 
-    async def get_success_patterns(
-        self, domain: str, limit: int = 10
-    ) -> List[Dict[str, Any]]:
+    async def get_success_patterns(self, domain: str, limit: int = 10) -> list[dict[str, Any]]:
         """Buscar padrões de sucesso para um domínio"""
         try:
 
             async def _query():
-                async with self.driver.session(
-                    database=self.settings.NEO4J_DATABASE
-                ) as session:
+                async with self.driver.session(database=self.settings.NEO4J_DATABASE) as session:
                     query = """
                     MATCH (d:Domain {name: $domain})-[:HAS_PATTERN]->(p:SuccessPattern)
                     RETURN p
@@ -197,30 +181,23 @@ class Neo4jClient:
                     result = await session.run(query, domain=domain, limit=limit)
                     records = await result.data()
 
-                    patterns = [
-                        dict(record["p"]) for record in records if "p" in record
-                    ]
-                    return patterns
+                    return [dict(record["p"]) for record in records if "p" in record]
 
             return await self._execute_with_breaker(self.neo4j_breaker, _query)
 
         except CircuitBreakerError:
-            logger.warning(
-                "neo4j_circuit_open", operation="get_success_patterns", domain=domain
-            )
+            logger.warning("neo4j_circuit_open", operation="get_success_patterns", domain=domain)
             return []
         except Exception as e:
-            logger.error("success_patterns_query_failed", domain=domain, error=str(e))
+            logger.exception("success_patterns_query_failed", domain=domain, error=str(e))
             return []
 
-    async def get_critical_paths(self) -> List[Dict[str, Any]]:
+    async def get_critical_paths(self) -> list[dict[str, Any]]:
         """Identificar caminhos críticos no grafo de execução"""
         try:
 
             async def _query():
-                async with self.driver.session(
-                    database=self.settings.NEO4J_DATABASE
-                ) as session:
+                async with self.driver.session(database=self.settings.NEO4J_DATABASE) as session:
                     query = """
                     MATCH path = (start:CognitivePlan)-[:DEPENDS_ON*]->(end:CognitivePlan)
                     WHERE NOT (start)<-[:DEPENDS_ON]-() AND NOT (end)-[:DEPENDS_ON]->()
@@ -250,7 +227,7 @@ class Neo4jClient:
             logger.warning("neo4j_circuit_open", operation="get_critical_paths")
             return []
         except Exception as e:
-            logger.error("critical_paths_query_failed", error=str(e))
+            logger.exception("critical_paths_query_failed", error=str(e))
             return []
 
     async def record_strategic_decision(self, decision: StrategicDecision) -> None:
@@ -258,9 +235,7 @@ class Neo4jClient:
         try:
 
             async def _record():
-                async with self.driver.session(
-                    database=self.settings.NEO4J_DATABASE
-                ) as session:
+                async with self.driver.session(database=self.settings.NEO4J_DATABASE) as session:
                     query = """
                     CREATE (d:StrategicDecision {
                         decision_id: $decision_id,
@@ -282,9 +257,7 @@ class Neo4jClient:
                     )
 
             await self._execute_with_breaker(self.neo4j_breaker, _record)
-            logger.info(
-                "strategic_decision_recorded_in_neo4j", decision_id=decision.decision_id
-            )
+            logger.info("strategic_decision_recorded_in_neo4j", decision_id=decision.decision_id)
 
         except CircuitBreakerError:
             logger.warning(
@@ -294,20 +267,18 @@ class Neo4jClient:
             )
             raise
         except Exception as e:
-            logger.error(
+            logger.exception(
                 "strategic_decision_record_failed",
                 decision_id=decision.decision_id,
                 error=str(e),
             )
 
-    async def list_active_conflicts(self) -> List[Dict[str, Any]]:
+    async def list_active_conflicts(self) -> list[dict[str, Any]]:
         """Listar conflitos ativos entre decisões"""
         try:
 
             async def _query():
-                async with self.driver.session(
-                    database=self.settings.NEO4J_DATABASE
-                ) as session:
+                async with self.driver.session(database=self.settings.NEO4J_DATABASE) as session:
                     query = """
                     MATCH (d:Decision)-[:CONFLICTS_WITH]->(d2:Decision)
                     WHERE d.resolved = false
@@ -336,11 +307,11 @@ class Neo4jClient:
             logger.warning("neo4j_circuit_open", operation="list_active_conflicts")
             return []
         except Exception as e:
-            logger.error("list_active_conflicts_failed", error=str(e))
+            logger.exception("list_active_conflicts_failed", error=str(e))
             return []
 
     async def _execute_with_breaker(
-        self, breaker: Optional[MonitoredCircuitBreaker], func, *args, **kwargs
+        self, breaker: MonitoredCircuitBreaker | None, func, *args, **kwargs
     ):
         """Executa operação Neo4j protegida por circuit breaker quando habilitado."""
         if not self.circuit_breaker_enabled or breaker is None:

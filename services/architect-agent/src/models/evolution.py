@@ -2,9 +2,9 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import List, Optional
+from typing import List
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from .validation import Severity
 
@@ -41,15 +41,11 @@ class EvolutionHistory(BaseModel):
     history_id: str = Field(..., description="ID único do histórico")
     plan_id: str = Field(..., description="ID do plano de arquitetura")
     version: int = Field(..., ge=1, description="Versão do plano")
-    changes: List[str] = Field(
-        default_factory=list, description="Lista de mudanças aplicadas"
-    )
+    changes: List[str] = Field(default_factory=list, description="Lista de mudanças aplicadas")
     drifts: List[DriftDetection] = Field(
         default_factory=list, description="Lista de divergências detectadas"
     )
-    created_at: datetime = Field(
-        default_factory=datetime.utcnow, description="Data de criação"
-    )
+    created_at: datetime = Field(default_factory=datetime.utcnow, description="Data de criação")
     created_by: str = Field(
         default="architect-agent",
         description="Autor da mudança (architect-agent ou user)",
@@ -66,15 +62,7 @@ class ArchitectureDiff(BaseModel):
 
     plan_id_old: str = Field(..., description="ID do plano antigo")
     plan_id_new: str = Field(..., description="ID do plano novo")
-    additions: List[str] = Field(
-        default_factory=list, description="Elementos adicionados"
-    )
-    removals: List[str] = Field(
-        default_factory=list, description="Elementos removidos"
-    )
-    modifications: List[str] = Field(
-        default_factory=list, description="Elementos modificados"
-    )
-    requires_migration: bool = Field(
-        default=False, description="Se requer migração de dados/infra"
-    )
+    additions: List[str] = Field(default_factory=list, description="Elementos adicionados")
+    removals: List[str] = Field(default_factory=list, description="Elementos removidos")
+    modifications: List[str] = Field(default_factory=list, description="Elementos modificados")
+    requires_migration: bool = Field(default=False, description="Se requer migração de dados/infra")

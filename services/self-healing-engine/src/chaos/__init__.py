@@ -15,10 +15,10 @@ from .chaos_engine import ChaosEngine
 from .chaos_models import (
     ChaosExperiment,
     ChaosExperimentStatus,
+    ExperimentReport,
     FaultInjection,
     FaultType,
     ValidationResult,
-    ExperimentReport,
 )
 
 __all__ = [

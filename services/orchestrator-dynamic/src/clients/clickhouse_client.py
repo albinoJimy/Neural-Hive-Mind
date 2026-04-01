@@ -7,11 +7,10 @@ usado para feature engineering e treinamento de modelos ML.
 
 import asyncio
 import json
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any
+from typing import Any
 
-from clickhouse_driver import Client as SyncClickHouseClient
 import structlog
+from clickhouse_driver import Client as SyncClickHouseClient
 
 logger = structlog.get_logger(__name__)
 
@@ -37,14 +36,14 @@ class ClickHouseClient:
         self.redis = redis_client
 
         # Configurações de conexão
-        self.host = getattr(config, 'clickhouse_host', 'clickhouse.clickhouse.svc.cluster.local')
-        self.port = getattr(config, 'clickhouse_port', 9000)
-        self.user = getattr(config, 'clickhouse_user', 'default')
-        self.password = getattr(config, 'clickhouse_password', '')
-        self.database = getattr(config, 'clickhouse_database', 'neural_hive_analytics')
+        self.host = getattr(config, "clickhouse_host", "clickhouse.clickhouse.svc.cluster.local")
+        self.port = getattr(config, "clickhouse_port", 9000)
+        self.user = getattr(config, "clickhouse_user", "default")
+        self.password = getattr(config, "clickhouse_password", "")
+        self.database = getattr(config, "clickhouse_database", "neural_hive_analytics")
 
         # Cliente síncrono (wrappado em async)
-        self.client: Optional[SyncClickHouseClient] = None
+        self.client: SyncClickHouseClient | None = None
 
         # Cache TTL (1 hora para estatísticas)
         self.cache_ttl = 3600
@@ -61,10 +60,7 @@ class ClickHouseClient:
             return
 
         self.logger.info(
-            "clickhouse_connecting",
-            host=self.host,
-            port=self.port,
-            database=self.database
+            "clickhouse_connecting", host=self.host, port=self.port, database=self.database
         )
 
         max_retries = 3
@@ -72,10 +68,7 @@ class ClickHouseClient:
             try:
                 # Executar em thread pool (driver é síncrono)
                 loop = asyncio.get_event_loop()
-                self.client = await loop.run_in_executor(
-                    None,
-                    self._create_sync_client
-                )
+                self.client = await loop.run_in_executor(None, self._create_sync_client)
 
                 # Testar conexão
                 await self._execute_query("SELECT 1")
@@ -89,12 +82,12 @@ class ClickHouseClient:
                     "clickhouse_connection_failed",
                     attempt=attempt + 1,
                     max_retries=max_retries,
-                    error=str(e)
+                    error=str(e),
                 )
                 if attempt < max_retries - 1:
-                    await asyncio.sleep(2 ** attempt)
+                    await asyncio.sleep(2**attempt)
                 else:
-                    self.logger.error("clickhouse_connection_exhausted", error=str(e))
+                    self.logger.exception("clickhouse_connection_exhausted", error=str(e))
                     raise
 
     def _create_sync_client(self) -> SyncClickHouseClient:
@@ -110,9 +103,8 @@ class ClickHouseClient:
         )
 
     async def query_duration_stats_by_task_type(
-        self,
-        window_days: int = 30
-    ) -> Dict[str, Dict[str, Dict[str, float]]]:
+        self, window_days: int = 30
+    ) -> dict[str, dict[str, dict[str, float]]]:
         """
         Query estatísticas de duração agrupadas por task_type e risk_band.
 
@@ -149,46 +141,43 @@ class ClickHouseClient:
         """
 
         try:
-            results = await self._execute_query(query, {'window_days': window_days})
+            results = await self._execute_query(query, {"window_days": window_days})
 
             stats = {}
             for row in results:
-                task_type = row[0] or 'UNKNOWN'
-                risk_band = row[1] or 'medium'
+                task_type = row[0] or "UNKNOWN"
+                risk_band = row[1] or "medium"
 
                 if task_type not in stats:
                     stats[task_type] = {}
 
                 stats[task_type][risk_band] = {
-                    'sample_count': int(row[2]),
-                    'avg_duration_ms': float(row[3] or 60000.0),
-                    'std_duration_ms': float(row[4] or 15000.0),
-                    'p50_duration_ms': float(row[5] or 60000.0),
-                    'p95_duration_ms': float(row[6] or 120000.0),
-                    'p99_duration_ms': float(row[7] or 180000.0),
-                    'success_rate': float(row[8] or 0.95),
-                    'min_duration_ms': float(row[9] or 1000.0),
-                    'max_duration_ms': float(row[10] or 300000.0)
+                    "sample_count": int(row[2]),
+                    "avg_duration_ms": float(row[3] or 60000.0),
+                    "std_duration_ms": float(row[4] or 15000.0),
+                    "p50_duration_ms": float(row[5] or 60000.0),
+                    "p95_duration_ms": float(row[6] or 120000.0),
+                    "p99_duration_ms": float(row[7] or 180000.0),
+                    "success_rate": float(row[8] or 0.95),
+                    "min_duration_ms": float(row[9] or 1000.0),
+                    "max_duration_ms": float(row[10] or 300000.0),
                 }
 
             await self._cache_result(cache_key, stats, ttl=self.cache_ttl)
 
             self.logger.info(
-                "duration_stats_queried",
-                task_types=len(stats),
-                window_days=window_days
+                "duration_stats_queried", task_types=len(stats), window_days=window_days
             )
 
             return stats
 
         except Exception as e:
-            self.logger.error("duration_stats_query_failed", error=str(e))
+            self.logger.exception("duration_stats_query_failed", error=str(e))
             return {}
 
     async def query_success_rate_by_hour(
-        self,
-        window_days: int = 30
-    ) -> Dict[int, Dict[str, float]]:
+        self, window_days: int = 30
+    ) -> dict[int, dict[str, float]]:
         """
         Query taxa de sucesso por hora do dia.
 
@@ -217,35 +206,32 @@ class ClickHouseClient:
         """
 
         try:
-            results = await self._execute_query(query, {'window_days': window_days})
+            results = await self._execute_query(query, {"window_days": window_days})
 
             hourly_stats = {}
             for row in results:
                 hour = int(row[0])
                 hourly_stats[hour] = {
-                    'ticket_count': int(row[1]),
-                    'avg_duration_ms': float(row[2] or 60000.0),
-                    'success_rate': float(row[3] or 0.95)
+                    "ticket_count": int(row[1]),
+                    "avg_duration_ms": float(row[2] or 60000.0),
+                    "success_rate": float(row[3] or 0.95),
                 }
 
             await self._cache_result(cache_key, hourly_stats, ttl=self.cache_ttl)
 
             self.logger.debug(
-                "success_by_hour_queried",
-                hours=len(hourly_stats),
-                window_days=window_days
+                "success_by_hour_queried", hours=len(hourly_stats), window_days=window_days
             )
 
             return hourly_stats
 
         except Exception as e:
-            self.logger.error("success_by_hour_query_failed", error=str(e))
+            self.logger.exception("success_by_hour_query_failed", error=str(e))
             return {}
 
     async def query_resource_utilization_patterns(
-        self,
-        window_days: int = 7
-    ) -> Dict[str, List[Dict]]:
+        self, window_days: int = 7
+    ) -> dict[str, list[dict]]:
         """
         Query padrões de utilização de recursos.
 
@@ -274,38 +260,38 @@ class ClickHouseClient:
         """
 
         try:
-            results = await self._execute_query(query, {'window_days': window_days})
+            results = await self._execute_query(query, {"window_days": window_days})
 
             data = []
             for row in results:
-                data.append({
-                    'timestamp': row[0].isoformat() if hasattr(row[0], 'isoformat') else str(row[0]),
-                    'avg_cpu': float(row[1] or 0.0),
-                    'avg_memory': float(row[2] or 0.0),
-                    'concurrent_tickets': int(row[3]),
-                    'running_tickets': int(row[4])
-                })
+                data.append(
+                    {
+                        "timestamp": row[0].isoformat()
+                        if hasattr(row[0], "isoformat")
+                        else str(row[0]),
+                        "avg_cpu": float(row[1] or 0.0),
+                        "avg_memory": float(row[2] or 0.0),
+                        "concurrent_tickets": int(row[3]),
+                        "running_tickets": int(row[4]),
+                    }
+                )
 
-            result = {'timeseries': data}
+            result = {"timeseries": data}
             await self._cache_result(cache_key, result, ttl=self.cache_ttl // 4)  # 15 min TTL
 
             self.logger.debug(
-                "resource_utilization_queried",
-                datapoints=len(data),
-                window_days=window_days
+                "resource_utilization_queried", datapoints=len(data), window_days=window_days
             )
 
             return result
 
         except Exception as e:
-            self.logger.error("resource_utilization_query_failed", error=str(e))
-            return {'timeseries': []}
+            self.logger.exception("resource_utilization_query_failed", error=str(e))
+            return {"timeseries": []}
 
     async def query_ticket_metrics_for_training(
-        self,
-        window_days: int = 540,
-        limit: int = 100000
-    ) -> List[Dict[str, Any]]:
+        self, window_days: int = 540, limit: int = 100000
+    ) -> list[dict[str, Any]]:
         """
         Query métricas de tickets para treinamento de modelos ML.
 
@@ -342,49 +328,43 @@ class ClickHouseClient:
         """
 
         try:
-            results = await self._execute_query(query, {
-                'window_days': window_days,
-                'limit': limit
-            })
+            results = await self._execute_query(query, {"window_days": window_days, "limit": limit})
 
             data = []
             for row in results:
-                data.append({
-                    'ticket_id': row[0],
-                    'task_type': row[1],
-                    'risk_band': row[2],
-                    'hour_of_day': int(row[3]),
-                    'day_of_week': int(row[4]),
-                    'actual_duration_ms': float(row[5]),
-                    'estimated_duration_ms': float(row[6] or 60000.0),
-                    'status': row[7],
-                    'retry_count': int(row[8] or 0),
-                    'resource_cpu': float(row[9] or 0.0),
-                    'resource_memory': float(row[10] or 0.0),
-                    'capabilities_count': int(row[11] or 1),
-                    'parameters_size': int(row[12] or 0),
-                    'sla_timeout_ms': float(row[13] or 300000.0),
-                    'queue_wait_ms': float(row[14] or 0.0)
-                })
+                data.append(
+                    {
+                        "ticket_id": row[0],
+                        "task_type": row[1],
+                        "risk_band": row[2],
+                        "hour_of_day": int(row[3]),
+                        "day_of_week": int(row[4]),
+                        "actual_duration_ms": float(row[5]),
+                        "estimated_duration_ms": float(row[6] or 60000.0),
+                        "status": row[7],
+                        "retry_count": int(row[8] or 0),
+                        "resource_cpu": float(row[9] or 0.0),
+                        "resource_memory": float(row[10] or 0.0),
+                        "capabilities_count": int(row[11] or 1),
+                        "parameters_size": int(row[12] or 0),
+                        "sla_timeout_ms": float(row[13] or 300000.0),
+                        "queue_wait_ms": float(row[14] or 0.0),
+                    }
+                )
 
             self.logger.info(
-                "training_data_queried_from_clickhouse",
-                records=len(data),
-                window_days=window_days
+                "training_data_queried_from_clickhouse", records=len(data), window_days=window_days
             )
 
             return data
 
         except Exception as e:
-            self.logger.error("training_data_query_failed", error=str(e))
+            self.logger.exception("training_data_query_failed", error=str(e))
             return []
 
     async def query_duration_percentiles(
-        self,
-        task_type: str,
-        risk_band: str,
-        window_days: int = 30
-    ) -> Dict[str, float]:
+        self, task_type: str, risk_band: str, window_days: int = 30
+    ) -> dict[str, float]:
         """
         Query percentis de duração para um task_type/risk_band específico.
 
@@ -417,31 +397,29 @@ class ClickHouseClient:
         """
 
         try:
-            results = await self._execute_query(query, {
-                'window_days': window_days,
-                'task_type': task_type,
-                'risk_band': risk_band
-            })
+            results = await self._execute_query(
+                query, {"window_days": window_days, "task_type": task_type, "risk_band": risk_band}
+            )
 
             if results and results[0][5] > 0:
                 row = results[0]
                 percentiles = {
-                    'p50': float(row[0] or 60000.0),
-                    'p75': float(row[1] or 90000.0),
-                    'p90': float(row[2] or 120000.0),
-                    'p95': float(row[3] or 150000.0),
-                    'p99': float(row[4] or 200000.0),
-                    'sample_count': int(row[5])
+                    "p50": float(row[0] or 60000.0),
+                    "p75": float(row[1] or 90000.0),
+                    "p90": float(row[2] or 120000.0),
+                    "p95": float(row[3] or 150000.0),
+                    "p99": float(row[4] or 200000.0),
+                    "sample_count": int(row[5]),
                 }
             else:
                 # Defaults se não houver dados
                 percentiles = {
-                    'p50': 60000.0,
-                    'p75': 90000.0,
-                    'p90': 120000.0,
-                    'p95': 150000.0,
-                    'p99': 200000.0,
-                    'sample_count': 0
+                    "p50": 60000.0,
+                    "p75": 90000.0,
+                    "p90": 120000.0,
+                    "p95": 150000.0,
+                    "p99": 200000.0,
+                    "sample_count": 0,
                 }
 
             await self._cache_result(cache_key, percentiles, ttl=self.cache_ttl)
@@ -449,22 +427,19 @@ class ClickHouseClient:
             return percentiles
 
         except Exception as e:
-            self.logger.error(
-                "percentiles_query_failed",
-                task_type=task_type,
-                risk_band=risk_band,
-                error=str(e)
+            self.logger.exception(
+                "percentiles_query_failed", task_type=task_type, risk_band=risk_band, error=str(e)
             )
             return {
-                'p50': 60000.0,
-                'p75': 90000.0,
-                'p90': 120000.0,
-                'p95': 150000.0,
-                'p99': 200000.0,
-                'sample_count': 0
+                "p50": 60000.0,
+                "p75": 90000.0,
+                "p90": 120000.0,
+                "p95": 150000.0,
+                "p99": 200000.0,
+                "sample_count": 0,
             }
 
-    async def _execute_query(self, query: str, params: Optional[Dict] = None) -> List:
+    async def _execute_query(self, query: str, params: dict | None = None) -> list:
         """
         Executa query ClickHouse de forma assíncrona.
 
@@ -485,18 +460,15 @@ class ClickHouseClient:
         loop = asyncio.get_event_loop()
 
         try:
-            results = await loop.run_in_executor(
-                None,
-                lambda: self.client.execute(query, params or {})
+            return await loop.run_in_executor(
+                None, lambda: self.client.execute(query, params or {})
             )
 
-            return results
-
         except Exception as e:
-            self.logger.error("clickhouse_query_failed", error=str(e))
+            self.logger.exception("clickhouse_query_failed", error=str(e))
             raise
 
-    async def _get_cached_result(self, cache_key: str) -> Optional[Any]:
+    async def _get_cached_result(self, cache_key: str) -> Any | None:
         """Recupera resultado do cache Redis."""
         if not self.redis:
             return None
@@ -538,7 +510,7 @@ class ClickHouseClient:
                 await loop.run_in_executor(None, self.client.disconnect)
                 self.logger.info("clickhouse_disconnected")
             except Exception as e:
-                self.logger.error("clickhouse_disconnect_failed", error=str(e))
+                self.logger.exception("clickhouse_disconnect_failed", error=str(e))
 
             self.client = None
             self._initialized = False

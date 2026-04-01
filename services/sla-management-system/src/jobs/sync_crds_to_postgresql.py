@@ -11,15 +11,16 @@ Uso:
     python sync_crds_to_postgresql.py [--namespace NAMESPACE] [--dry-run]
 """
 
-import asyncio
 import argparse
+import asyncio
 import sys
+
 import structlog
 
-from ..config.settings import get_settings
+from ..clients.kubernetes_client import KubernetesClient
 from ..clients.postgresql_client import PostgreSQLClient
 from ..clients.prometheus_client import PrometheusClient
-from ..clients.kubernetes_client import KubernetesClient
+from ..config.settings import get_settings
 from ..services.slo_manager import SLOManager
 
 logger = structlog.get_logger()
@@ -42,16 +43,13 @@ async def main(namespace: str | None = None, dry_run: bool = False) -> int:
         "crd_sync_job.starting",
         namespace=namespace or "all",
         dry_run=dry_run,
-        environment=settings.environment
+        environment=settings.environment,
     )
 
     # Inicializar clientes
     postgresql_client = PostgreSQLClient(settings.postgresql)
     prometheus_client = PrometheusClient(settings.prometheus)
-    kubernetes_client = KubernetesClient(
-        in_cluster=True,
-        namespace=settings.kubernetes.namespace
-    )
+    kubernetes_client = KubernetesClient(in_cluster=True, namespace=settings.kubernetes.namespace)
 
     try:
         # Conectar aos clientes
@@ -67,7 +65,7 @@ async def main(namespace: str | None = None, dry_run: bool = False) -> int:
             logger.info(
                 "crd_sync_job.dry_run_complete",
                 crd_count=len(crds),
-                message="Nenhuma alteracao foi feita (dry-run)"
+                message="Nenhuma alteracao foi feita (dry-run)",
             )
             for crd in crds:
                 crd_name = crd.get("metadata", {}).get("name", "unknown")
@@ -77,7 +75,7 @@ async def main(namespace: str | None = None, dry_run: bool = False) -> int:
                     "crd_sync_job.dry_run_crd",
                     crd_name=crd_name,
                     crd_namespace=crd_namespace,
-                    spec_name=spec_name
+                    spec_name=spec_name,
                 )
             return 0
 
@@ -85,25 +83,17 @@ async def main(namespace: str | None = None, dry_run: bool = False) -> int:
         slo_manager = SLOManager(
             postgresql_client=postgresql_client,
             prometheus_client=prometheus_client,
-            kubernetes_client=kubernetes_client
+            kubernetes_client=kubernetes_client,
         )
 
         synced_ids = await slo_manager.sync_from_crds(namespace)
 
-        logger.info(
-            "crd_sync_job.completed",
-            synced_count=len(synced_ids),
-            synced_ids=synced_ids
-        )
+        logger.info("crd_sync_job.completed", synced_count=len(synced_ids), synced_ids=synced_ids)
 
         return 0
 
     except Exception as e:
-        logger.error(
-            "crd_sync_job.failed",
-            error=str(e),
-            error_type=type(e).__name__
-        )
+        logger.error("crd_sync_job.failed", error=str(e), error_type=type(e).__name__)
         return 1
 
     finally:
@@ -121,13 +111,9 @@ def parse_args() -> argparse.Namespace:
         "--namespace",
         type=str,
         default=None,
-        help="Namespace especifico para sincronizar (default: todos)"
+        help="Namespace especifico para sincronizar (default: todos)",
     )
-    parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Simular sem persistir alteracoes"
-    )
+    parser.add_argument("--dry-run", action="store_true", help="Simular sem persistir alteracoes")
     return parser.parse_args()
 
 

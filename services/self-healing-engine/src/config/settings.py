@@ -1,4 +1,5 @@
 from functools import lru_cache
+
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -7,9 +8,7 @@ class Settings(BaseSettings):
     """Self-Healing Engine configuration"""
 
     model_config = SettingsConfigDict(
-        env_file='.env',
-        env_file_encoding='utf-8',
-        case_sensitive=False
+        env_file=".env", env_file_encoding="utf-8", case_sensitive=False
     )
 
     # Service Config
@@ -45,7 +44,9 @@ class Settings(BaseSettings):
     otel_service_name: str = "self-healing-engine"
 
     # Execution Ticket Service Config
-    execution_ticket_service_url: str = "http://execution-ticket-service.neural-hive.svc.cluster.local:8000"
+    execution_ticket_service_url: str = (
+        "http://execution-ticket-service.neural-hive.svc.cluster.local:8000"
+    )
     execution_ticket_service_timeout: int = 30
     execution_ticket_circuit_breaker_threshold: int = 5
     execution_ticket_circuit_breaker_reset_seconds: int = 60
@@ -79,14 +80,14 @@ class Settings(BaseSettings):
     chaos_require_opa_approval: bool = True
     chaos_blast_radius_limit: int = 5
 
-    @model_validator(mode='after')
-    def validate_chaos_in_production(self) -> 'Settings':
+    @model_validator(mode="after")
+    def validate_chaos_in_production(self) -> "Settings":
         """
         Valida que Chaos Engineering NUNCA é activado em producao.
         So permite em staging/development.
         """
-        env = (self.environment or '').lower()
-        is_production = env in ('production', 'prod')
+        env = (self.environment or "").lower()
+        is_production = env in ("production", "prod")
 
         if is_production and self.chaos_enabled:
             # Override para False em producao por seguranca

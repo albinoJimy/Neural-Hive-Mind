@@ -1,26 +1,6 @@
-# Core Framework
-fastapi==0.115.10
-uvicorn[standard]==0.34.0
+# Dependências base consolidadas para Neural-Hive-Mind
+-r ../../requirements-base.txt
 
-# Kafka
-aiokafka==0.12.0
-
-# Databases
-motor==3.7.1
-redis[hiredis]==5.2.1
-
-# Kubernetes Client
+# Service-specific dependencies
 kubernetes>=28.1.0
-
-# Playbook execution
 jinja2>=3.1.2
-pyyaml>=6.0.1
-
-prometheus-client==0.21.1
-structlog==24.4.0
-
-# Utilities
-httpx==0.28.1
-aiohttp>=3.9.0
-python-json-logger>=2.0.7
-python-dotenv==1.0.1

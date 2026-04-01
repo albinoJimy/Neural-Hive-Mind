@@ -13,12 +13,7 @@ from typing import Any, Optional
 class MCPError(Exception):
     """Exceção base para erros MCP."""
 
-    def __init__(
-        self,
-        message: str,
-        code: int = -32603,
-        data: Optional[Any] = None
-    ) -> None:
+    def __init__(self, message: str, code: int = -32603, data: Optional[Any] = None) -> None:
         super().__init__(message)
         self.message = message
         self.code = code
@@ -38,11 +33,7 @@ class MCPServerError(MCPError):
 class MCPTransportError(MCPError):
     """Erro de transporte (timeout, conexão recusada, circuit breaker aberto)."""
 
-    def __init__(
-        self,
-        message: str,
-        data: Optional[Any] = None
-    ) -> None:
+    def __init__(self, message: str, data: Optional[Any] = None) -> None:
         super().__init__(message, code=-32000, data=data)
 
     def __str__(self) -> str:
@@ -52,11 +43,7 @@ class MCPTransportError(MCPError):
 class MCPProtocolError(MCPError):
     """Erro de protocolo (resposta inválida, JSON malformado)."""
 
-    def __init__(
-        self,
-        message: str,
-        data: Optional[Any] = None
-    ) -> None:
+    def __init__(self, message: str, data: Optional[Any] = None) -> None:
         super().__init__(message, code=-32700, data=data)
 
     def __str__(self) -> str:
@@ -66,16 +53,8 @@ class MCPProtocolError(MCPError):
 class MCPToolNotFoundError(MCPServerError):
     """Ferramenta não encontrada no servidor MCP."""
 
-    def __init__(
-        self,
-        tool_name: str,
-        data: Optional[Any] = None
-    ) -> None:
-        super().__init__(
-            message=f"Tool not found: {tool_name}",
-            code=-32601,
-            data=data
-        )
+    def __init__(self, tool_name: str, data: Optional[Any] = None) -> None:
+        super().__init__(message=f"Tool not found: {tool_name}", code=-32601, data=data)
         self.tool_name = tool_name
 
     def __str__(self) -> str:
@@ -85,11 +64,7 @@ class MCPToolNotFoundError(MCPServerError):
 class MCPInvalidParamsError(MCPServerError):
     """Parâmetros inválidos na chamada de ferramenta."""
 
-    def __init__(
-        self,
-        message: str = "Invalid parameters",
-        data: Optional[Any] = None
-    ) -> None:
+    def __init__(self, message: str = "Invalid parameters", data: Optional[Any] = None) -> None:
         super().__init__(message=message, code=-32602, data=data)
 
     def __str__(self) -> str:

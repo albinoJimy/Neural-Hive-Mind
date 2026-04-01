@@ -1,13 +1,14 @@
 from datetime import datetime
-from enum import Enum
-from typing import Any, Dict, Optional, Union
-from pydantic import BaseModel, Field
+from enum import StrEnum
+from typing import Any
 from uuid import uuid4
 
-from ..proto import orchestrator_strategic_pb2
+from pydantic import BaseModel, Field
+
+from src.proto import orchestrator_strategic_pb2
 
 
-class AdjustmentType(str, Enum):
+class AdjustmentType(StrEnum):
     """Tipos de ajustes de QoS"""
 
     INCREASE_PRIORITY = "INCREASE_PRIORITY"
@@ -31,27 +32,18 @@ class QoSAdjustment(BaseModel):
     target_workflow_id: str = Field(..., description="Workflow Temporal a ajustar")
     target_plan_id: str = Field(default="", description="Plano cognitivo relacionado")
 
-    parameters: Dict[str, Any] = Field(
-        default_factory=dict, description="Parâmetros do ajuste"
-    )
+    parameters: dict[str, Any] = Field(default_factory=dict, description="Parâmetros do ajuste")
     reason: str = Field(..., description="Motivo do ajuste")
 
     requested_by: str = Field(default="queen-agent", description="Quem solicitou")
 
-    applied_at: Optional[datetime] = Field(None, description="Quando foi aplicado")
+    applied_at: datetime | None = Field(None, description="Quando foi aplicado")
     status: str = Field(default="PENDING", description="Status da aplicação")
-    error_message: Optional[str] = Field(None, description="Mensagem de erro se falhou")
+    error_message: str | None = Field(None, description="Mensagem de erro se falhou")
 
     def to_grpc_request(
         self,
-    ) -> Union[
-        orchestrator_strategic_pb2.AdjustPrioritiesRequest,
-        orchestrator_strategic_pb2.PauseWorkflowRequest,
-        orchestrator_strategic_pb2.ResumeWorkflowRequest,
-        orchestrator_strategic_pb2.RebalanceResourcesRequest,
-        orchestrator_strategic_pb2.TriggerReplanningRequest,
-        Dict[str, Any],
-    ]:
+    ) -> orchestrator_strategic_pb2.AdjustPrioritiesRequest | orchestrator_strategic_pb2.PauseWorkflowRequest | orchestrator_strategic_pb2.ResumeWorkflowRequest | orchestrator_strategic_pb2.RebalanceResourcesRequest | orchestrator_strategic_pb2.TriggerReplanningRequest | dict[str, Any]:
         """
         Converter para mensagem gRPC proto para Orchestrator.
 
@@ -76,7 +68,7 @@ class QoSAdjustment(BaseModel):
                 adjustment_id=self.adjustment_id,
             )
 
-        elif self.adjustment_type == AdjustmentType.PAUSE_EXECUTION:
+        if self.adjustment_type == AdjustmentType.PAUSE_EXECUTION:
             # Pausar workflow
             return orchestrator_strategic_pb2.PauseWorkflowRequest(
                 workflow_id=self.target_workflow_id,
@@ -85,7 +77,7 @@ class QoSAdjustment(BaseModel):
                 adjustment_id=self.adjustment_id,
             )
 
-        elif self.adjustment_type == AdjustmentType.RESUME_EXECUTION:
+        if self.adjustment_type == AdjustmentType.RESUME_EXECUTION:
             # Retomar workflow
             return orchestrator_strategic_pb2.ResumeWorkflowRequest(
                 workflow_id=self.target_workflow_id,
@@ -93,15 +85,13 @@ class QoSAdjustment(BaseModel):
                 adjustment_id=self.adjustment_id,
             )
 
-        elif self.adjustment_type == AdjustmentType.ALLOCATE_MORE_RESOURCES:
+        if self.adjustment_type == AdjustmentType.ALLOCATE_MORE_RESOURCES:
             # Rebalancear recursos
             allocation = {
                 self.target_workflow_id: orchestrator_strategic_pb2.ResourceAllocation(
                     cpu_millicores=self.parameters.get("cpu_millicores", 2000),
                     memory_mb=self.parameters.get("memory_mb", 4096),
-                    max_parallel_tickets=self.parameters.get(
-                        "max_parallel_tickets", 20
-                    ),
+                    max_parallel_tickets=self.parameters.get("max_parallel_tickets", 20),
                     scheduling_priority=self.parameters.get("scheduling_priority", 8),
                 )
             }
@@ -113,7 +103,7 @@ class QoSAdjustment(BaseModel):
                 force=self.parameters.get("force", False),
             )
 
-        elif self.adjustment_type == AdjustmentType.TRIGGER_REPLANNING:
+        if self.adjustment_type == AdjustmentType.TRIGGER_REPLANNING:
             # Acionar replanejamento
             trigger_type = orchestrator_strategic_pb2.TRIGGER_TYPE_STRATEGIC
             trigger_str = self.parameters.get("trigger_type", "STRATEGIC").upper()
@@ -138,16 +128,15 @@ class QoSAdjustment(BaseModel):
                 priority=self.parameters.get("priority", 5),
             )
 
-        else:
-            # Fallback para dict genérico (compatibilidade)
-            return {
-                "adjustment_id": self.adjustment_id,
-                "adjustment_type": self.adjustment_type.value,
-                "workflow_id": self.target_workflow_id,
-                "plan_id": self.target_plan_id,
-                "parameters": self.parameters,
-                "reason": self.reason,
-            }
+        # Fallback para dict genérico (compatibilidade)
+        return {
+            "adjustment_id": self.adjustment_id,
+            "adjustment_type": self.adjustment_type.value,
+            "workflow_id": self.target_workflow_id,
+            "plan_id": self.target_plan_id,
+            "parameters": self.parameters,
+            "reason": self.reason,
+        }
 
     def mark_applied(self) -> None:
         """Marcar como aplicado"""

@@ -5,8 +5,9 @@ Combina feromônios, senioridade e domínio para calcular
 o peso final de cada especialista no processo de consenso.
 """
 
-import structlog
 from typing import Dict, List, Optional
+
+import structlog
 
 # Mock UnifiedDomain para contornar dependência de Python >=3.11
 try:
@@ -15,18 +16,19 @@ except ImportError:
     from enum import Enum
 
     class UnifiedDomain(str, Enum):
-        BUSINESS = 'BUSINESS'
-        TECHNICAL = 'TECHNICAL'
-        SECURITY = 'SECURITY'
-        INFRASTRUCTURE = 'INFRASTRUCTURE'
-        BEHAVIOR = 'BEHAVIOR'
-        OPERATIONAL = 'OPERATIONAL'
-        COMPLIANCE = 'COMPLIANCE'
-        ARCHITECTURE = 'ARCHITECTURE'
+        BUSINESS = "BUSINESS"
+        TECHNICAL = "TECHNICAL"
+        SECURITY = "SECURITY"
+        INFRASTRUCTURE = "INFRASTRUCTURE"
+        BEHAVIOR = "BEHAVIOR"
+        OPERATIONAL = "OPERATIONAL"
+        COMPLIANCE = "COMPLIANCE"
+        ARCHITECTURE = "ARCHITECTURE"
+
 
 from src.models.seniority import (
-    SeniorityLevel,
     SENIORITY_MULTIPLIERS,
+    SeniorityLevel,
     parse_seniority_level,
 )
 
@@ -55,14 +57,14 @@ class HierarchicalWeightCalculator:
         """
         self.config = config
         self.multipliers = SENIORITY_MULTIPLIERS
-        self.domain_weights = getattr(config, 'domain_specialist_weights', {})
+        self.domain_weights = getattr(config, "domain_specialist_weights", {})
 
     def calculate_hierarchical_weight(
         self,
         specialist_type: str,
         domain: UnifiedDomain,
         pheromone_weight: float,
-        seniority: Optional[SeniorityLevel] = None
+        seniority: Optional[SeniorityLevel] = None,
     ) -> float:
         """
         Calcula peso final hierárquico para um especialista.
@@ -81,14 +83,13 @@ class HierarchicalWeightCalculator:
             Peso final calculado (0.0 - 1.0)
         """
         # Se feature flag desabilitado, retornar peso normalizado do feromônio
-        if not getattr(self.config, 'enable_hierarchical_consensus', True):
+        if not getattr(self.config, "enable_hierarchical_consensus", True):
             return pheromone_weight
 
         # Determinar senioridade
         if seniority is None:
             seniority_str = self.config.specialist_seniority.get(
-                specialist_type,
-                'mid_level'  # Padrão
+                specialist_type, "mid_level"  # Padrão
             )
             seniority = parse_seniority_level(seniority_str)
 
@@ -106,14 +107,14 @@ class HierarchicalWeightCalculator:
         normalized_weight = min(1.0, raw_weight / 2.0)
 
         logger.debug(
-            'hierarchical_weight_calculated',
+            "hierarchical_weight_calculated",
             specialist_type=specialist_type,
             domain=domain.value,
             pheromone_weight=pheromone_weight,
             seniority=seniority.value,
             seniority_multiplier=seniority_multiplier,
             domain_weight=domain_weight,
-            final_weight=normalized_weight
+            final_weight=normalized_weight,
         )
 
         return normalized_weight
@@ -122,7 +123,7 @@ class HierarchicalWeightCalculator:
         self,
         specialist_opinions: List[Dict[str, any]],
         domain: UnifiedDomain,
-        base_pheromone_weights: Dict[str, float]
+        base_pheromone_weights: Dict[str, float],
     ) -> Dict[str, float]:
         """
         Calcula pesos para múltiplos especialistas em lote.
@@ -138,19 +139,19 @@ class HierarchicalWeightCalculator:
         weights = {}
 
         for opinion in specialist_opinions:
-            specialist_type = opinion['specialist_type']
+            specialist_type = opinion["specialist_type"]
             pheromone_weight = base_pheromone_weights.get(specialist_type, 0.2)
 
             # Usar senioridade individual se fornecida na opinião
             seniority = None
-            if 'seniority_level' in opinion:
-                seniority = parse_seniority_level(opinion['seniority_level'])
+            if "seniority_level" in opinion:
+                seniority = parse_seniority_level(opinion["seniority_level"])
 
             weight = self.calculate_hierarchical_weight(
                 specialist_type=specialist_type,
                 domain=domain,
                 pheromone_weight=pheromone_weight,
-                seniority=seniority
+                seniority=seniority,
             )
 
             weights[specialist_type] = weight

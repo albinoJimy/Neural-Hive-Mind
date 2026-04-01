@@ -2,7 +2,7 @@
 import asyncio
 import json
 from io import BytesIO
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 import structlog
 from aiokafka import AIOKafkaConsumer
@@ -13,8 +13,8 @@ except Exception:  # noqa: BLE001
     schemaless_reader = None
 
 from src.models.remediation_models import RemediationRequest
-from src.services.remediation_manager import RemediationManager
 from src.services.playbook_executor import PlaybookExecutor
+from src.services.remediation_manager import RemediationManager
 
 logger = structlog.get_logger()
 
@@ -29,7 +29,7 @@ class OrchestrationIncidentConsumer:
         topic: str,
         playbook_executor: PlaybookExecutor,
         remediation_manager: RemediationManager,
-        incident_schema: Optional[Dict[str, Any]] = None
+        incident_schema: Optional[Dict[str, Any]] = None,
     ):
         self.bootstrap_servers = bootstrap_servers
         self.group_id = group_id
@@ -50,7 +50,7 @@ class OrchestrationIncidentConsumer:
                 bootstrap_servers=self.bootstrap_servers,
                 group_id=self.group_id,
                 auto_offset_reset="earliest",
-                enable_auto_commit=False
+                enable_auto_commit=False,
             )
             await self.consumer.start()
             self._running = True
@@ -74,12 +74,14 @@ class OrchestrationIncidentConsumer:
                     await self.consumer.commit()
                     continue
 
-                playbook_name = incident.get("recommended_playbook") or self._recommend_playbook(incident.get("incident_type"))
+                playbook_name = incident.get("recommended_playbook") or self._recommend_playbook(
+                    incident.get("incident_type")
+                )
                 if not playbook_name:
                     logger.warning(
                         "incident_consumer.no_playbook_mapped",
                         incident_type=incident.get("incident_type"),
-                        incident_id=incident.get("incident_id")
+                        incident_id=incident.get("incident_id"),
                     )
                     await self.consumer.commit()
                     continue
@@ -89,13 +91,17 @@ class OrchestrationIncidentConsumer:
                     remediation_id=incident.get("incident_id"),
                     incident_id=incident.get("incident_id"),
                     playbook_name=playbook_name,
-                    parameters=parameters
+                    parameters=parameters,
                 )
 
                 metadata = self.playbook_executor.get_playbook_metadata(playbook_name)
                 total_actions = len(metadata.get("actions", []))
-                state = self.remediation_manager.start_remediation(remediation_request, total_actions=total_actions)
-                await self.remediation_manager.execute_remediation(state, self.playbook_executor, remediation_request)
+                state = self.remediation_manager.start_remediation(
+                    remediation_request, total_actions=total_actions
+                )
+                await self.remediation_manager.execute_remediation(
+                    state, self.playbook_executor, remediation_request
+                )
 
                 await self.consumer.commit()
         except Exception as exc:  # noqa: BLE001
@@ -118,7 +124,7 @@ class OrchestrationIncidentConsumer:
         mapping = {
             "TICKET_TIMEOUT": "ticket_timeout_recovery",
             "WORKER_FAILURE": "worker_failure_recovery",
-            "SLA_VIOLATION": "sla_violation_mitigation"
+            "SLA_VIOLATION": "sla_violation_mitigation",
         }
         return mapping.get(incident_type or "")
 
@@ -129,31 +135,41 @@ class OrchestrationIncidentConsumer:
         params: Dict[str, Any] = {
             "workflow_id": incident.get("workflow_id"),
             "incident_type": incident_type,
-            "affected_tickets": affected_tickets
+            "affected_tickets": affected_tickets,
         }
 
         if incident_type == "TICKET_TIMEOUT":
-            ticket_id = affected_tickets[0] if affected_tickets else incident.get("ticket_id") or "unknown-ticket"
-            params.update({
-                "ticket_id": ticket_id,
-                "worker_id": incident.get("worker_id") or "unknown-worker",
-                "previous_worker_id": incident.get("worker_id") or "unknown-worker",
-                "namespace": namespace
-            })
+            ticket_id = (
+                affected_tickets[0]
+                if affected_tickets
+                else incident.get("ticket_id") or "unknown-ticket"
+            )
+            params.update(
+                {
+                    "ticket_id": ticket_id,
+                    "worker_id": incident.get("worker_id") or "unknown-worker",
+                    "previous_worker_id": incident.get("worker_id") or "unknown-worker",
+                    "namespace": namespace,
+                }
+            )
         elif incident_type == "WORKER_FAILURE":
-            params.update({
-                "worker_id": incident.get("worker_id") or "unknown-worker",
-                "previous_worker_id": incident.get("worker_id") or "unknown-worker",
-                "namespace": namespace,
-                "affected_tickets": affected_tickets
-            })
+            params.update(
+                {
+                    "worker_id": incident.get("worker_id") or "unknown-worker",
+                    "previous_worker_id": incident.get("worker_id") or "unknown-worker",
+                    "namespace": namespace,
+                    "affected_tickets": affected_tickets,
+                }
+            )
         elif incident_type == "SLA_VIOLATION":
-            params.update({
-                "workflow_id": incident.get("workflow_id"),
-                "service_name": incident.get("service_name") or "orchestrator-dynamic",
-                "violation_type": incident.get("violation_type") or "SLA_VIOLATION",
-                "delay_ms": incident.get("delay_ms") or 0
-            })
+            params.update(
+                {
+                    "workflow_id": incident.get("workflow_id"),
+                    "service_name": incident.get("service_name") or "orchestrator-dynamic",
+                    "violation_type": incident.get("violation_type") or "SLA_VIOLATION",
+                    "delay_ms": incident.get("delay_ms") or 0,
+                }
+            )
 
         return params
 

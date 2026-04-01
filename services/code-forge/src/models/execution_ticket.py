@@ -1,124 +1,136 @@
 from datetime import datetime
 from enum import Enum
-from typing import Optional, Dict, Any
-from pydantic import BaseModel, Field
+from typing import Any, Dict, Optional
+
+from pydantic import BaseModel, ConfigDict, Field
+from pydantic.functional_serializers import field_serializer
 
 
 class TaskType(str, Enum):
     """Tipos de tarefas de execução"""
-    BUILD = 'BUILD'
-    DEPLOY = 'DEPLOY'
-    TEST = 'TEST'
-    VALIDATE = 'VALIDATE'
-    EXECUTE = 'EXECUTE'
-    COMPENSATE = 'COMPENSATE'
-    QUERY = 'QUERY'
-    TRANSFORM = 'TRANSFORM'
+
+    BUILD = "BUILD"
+    DEPLOY = "DEPLOY"
+    TEST = "TEST"
+    VALIDATE = "VALIDATE"
+    EXECUTE = "EXECUTE"
+    COMPENSATE = "COMPENSATE"
+    QUERY = "QUERY"
+    TRANSFORM = "TRANSFORM"
 
 
 class TicketStatus(str, Enum):
     """Status de um Execution Ticket"""
-    PENDING = 'PENDING'
-    RUNNING = 'RUNNING'
-    COMPLETED = 'COMPLETED'
-    FAILED = 'FAILED'
-    COMPENSATING = 'COMPENSATING'
-    COMPENSATED = 'COMPENSATED'
+
+    PENDING = "PENDING"
+    RUNNING = "RUNNING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+    COMPENSATING = "COMPENSATING"
+    COMPENSATED = "COMPENSATED"
 
 
 class Priority(str, Enum):
     """Prioridade de execução"""
-    LOW = 'LOW'
-    NORMAL = 'NORMAL'
-    HIGH = 'HIGH'
-    CRITICAL = 'CRITICAL'
+
+    LOW = "LOW"
+    NORMAL = "NORMAL"
+    HIGH = "HIGH"
+    CRITICAL = "CRITICAL"
 
 
 class RiskBand(str, Enum):
     """Banda de risco"""
-    LOW = 'low'
-    MEDIUM = 'medium'
-    HIGH = 'high'
-    CRITICAL = 'critical'
+
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
 
 
 class DeliveryMode(str, Enum):
     """Modo de entrega"""
-    AT_MOST_ONCE = 'AT_MOST_ONCE'
-    AT_LEAST_ONCE = 'AT_LEAST_ONCE'
-    EXACTLY_ONCE = 'EXACTLY_ONCE'
+
+    AT_MOST_ONCE = "AT_MOST_ONCE"
+    AT_LEAST_ONCE = "AT_LEAST_ONCE"
+    EXACTLY_ONCE = "EXACTLY_ONCE"
 
 
 class Consistency(str, Enum):
     """Nível de consistência"""
-    EVENTUAL = 'EVENTUAL'
-    STRONG = 'STRONG'
+
+    EVENTUAL = "EVENTUAL"
+    STRONG = "STRONG"
 
 
 class Durability(str, Enum):
     """Durabilidade"""
-    TRANSIENT = 'TRANSIENT'
-    PERSISTENT = 'PERSISTENT'
+
+    TRANSIENT = "TRANSIENT"
+    PERSISTENT = "PERSISTENT"
 
 
 class SecurityLevel(str, Enum):
     """Nível de segurança"""
-    PUBLIC = 'PUBLIC'
-    INTERNAL = 'INTERNAL'
-    CONFIDENTIAL = 'CONFIDENTIAL'
-    RESTRICTED = 'RESTRICTED'
+
+    PUBLIC = "PUBLIC"
+    INTERNAL = "INTERNAL"
+    CONFIDENTIAL = "CONFIDENTIAL"
+    RESTRICTED = "RESTRICTED"
 
 
 class SLA(BaseModel):
     """Service Level Agreement"""
-    deadline: datetime = Field(..., description='Prazo final de execução')
-    timeout_ms: int = Field(..., description='Timeout em milissegundos', ge=0)
-    max_retries: int = Field(..., description='Número máximo de tentativas', ge=0)
+
+    deadline: datetime = Field(..., description="Prazo final de execução")
+    timeout_ms: int = Field(..., description="Timeout em milissegundos", ge=0)
+    max_retries: int = Field(..., description="Número máximo de tentativas", ge=0)
 
 
 class QoS(BaseModel):
     """Quality of Service"""
-    delivery_mode: DeliveryMode = Field(..., description='Modo de entrega')
-    consistency: Consistency = Field(..., description='Nível de consistência')
-    durability: Durability = Field(..., description='Durabilidade')
+
+    delivery_mode: DeliveryMode = Field(..., description="Modo de entrega")
+    consistency: Consistency = Field(..., description="Nível de consistência")
+    durability: Durability = Field(..., description="Durabilidade")
 
 
 class ExecutionTicket(BaseModel):
     """Modelo Pydantic para Execution Ticket"""
 
-    ticket_id: str = Field(..., description='Identificador único do ticket')
-    plan_id: Optional[str] = Field(None, description='ID do plano cognitivo')
-    intent_id: Optional[str] = Field(None, description='ID da intenção')
-    decision_id: Optional[str] = Field(None, description='ID da decisão')
+    ticket_id: str = Field(..., description="Identificador único do ticket")
+    plan_id: Optional[str] = Field(None, description="ID do plano cognitivo")
+    intent_id: Optional[str] = Field(None, description="ID da intenção")
+    decision_id: Optional[str] = Field(None, description="ID da decisão")
 
-    correlation_id: Optional[str] = Field(None, description='ID de correlação')
-    trace_id: Optional[str] = Field(None, description='ID de trace OpenTelemetry')
-    span_id: Optional[str] = Field(None, description='ID de span OpenTelemetry')
+    correlation_id: Optional[str] = Field(None, description="ID de correlação")
+    trace_id: Optional[str] = Field(None, description="ID de trace OpenTelemetry")
+    span_id: Optional[str] = Field(None, description="ID de span OpenTelemetry")
 
-    task_type: TaskType = Field(..., description='Tipo de tarefa')
-    status: TicketStatus = Field(..., description='Status atual do ticket')
-    priority: Priority = Field(..., description='Prioridade de execução')
+    task_type: TaskType = Field(..., description="Tipo de tarefa")
+    status: TicketStatus = Field(..., description="Status atual do ticket")
+    priority: Priority = Field(..., description="Prioridade de execução")
 
-    risk_band: RiskBand = Field(..., description='Banda de risco')
+    risk_band: RiskBand = Field(..., description="Banda de risco")
 
-    parameters: Dict[str, Any] = Field(default_factory=dict, description='Parâmetros da tarefa')
+    parameters: Dict[str, Any] = Field(default_factory=dict, description="Parâmetros da tarefa")
 
-    sla: SLA = Field(..., description='Service Level Agreement')
-    qos: QoS = Field(..., description='Quality of Service')
+    sla: SLA = Field(..., description="Service Level Agreement")
+    qos: QoS = Field(..., description="Quality of Service")
 
-    security_level: SecurityLevel = Field(..., description='Nível de segurança')
+    security_level: SecurityLevel = Field(..., description="Nível de segurança")
 
-    dependencies: list[str] = Field(default_factory=list, description='IDs de tickets dependentes')
+    dependencies: list[str] = Field(default_factory=list, description="IDs de tickets dependentes")
 
-    compensation_ticket_id: Optional[str] = Field(None, description='ID do ticket de compensação')
+    compensation_ticket_id: Optional[str] = Field(None, description="ID do ticket de compensação")
 
-    created_at: datetime = Field(..., description='Timestamp de criação')
-    updated_at: Optional[datetime] = Field(None, description='Timestamp de atualização')
-    expires_at: Optional[datetime] = Field(None, description='Timestamp de expiração')
+    created_at: datetime = Field(..., description="Timestamp de criação")
+    updated_at: Optional[datetime] = Field(None, description="Timestamp de atualização")
+    expires_at: Optional[datetime] = Field(None, description="Timestamp de expiração")
 
-    metadata: Dict[str, str] = Field(default_factory=dict, description='Metadados adicionais')
+    metadata: Dict[str, str] = Field(default_factory=dict, description="Metadados adicionais")
 
-    schema_version: int = Field(default=1, description='Versão do schema')
+    schema_version: int = Field(default=1, description="Versão do schema")
 
     def is_build_task(self) -> bool:
         """Verifica se é uma tarefa de BUILD"""
@@ -134,8 +146,10 @@ class ExecutionTicket(BaseModel):
         """Converte para dicionário"""
         return self.model_dump()
 
-    class Config:
-        use_enum_values = True
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }
+    model_config = ConfigDict(use_enum_values=True)
+
+    @field_serializer("created_at", "updated_at", "expires_at", "deadline")
+    @classmethod
+    def serialize_datetime(cls, dt: datetime) -> str:
+        """Serialize datetime to ISO format"""
+        return dt.isoformat() if dt else None

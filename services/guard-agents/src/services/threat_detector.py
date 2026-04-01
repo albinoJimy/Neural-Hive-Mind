@@ -1,9 +1,10 @@
 """Threat detection service for identifying security anomalies (Fluxo E1)"""
-from typing import Dict, Any, Optional, List, TYPE_CHECKING
-import structlog
 import time
 from datetime import datetime, timezone
 from enum import Enum
+from typing import TYPE_CHECKING, Any, Dict, Optional
+
+import structlog
 
 if TYPE_CHECKING:
     from neural_hive_ml.predictive_models import AnomalyDetector
@@ -15,6 +16,7 @@ logger = structlog.get_logger()
 
 class ThreatType(str, Enum):
     """Types of threats detected"""
+
     UNAUTHORIZED_ACCESS = "unauthorized_access"
     ANOMALOUS_BEHAVIOR = "anomalous_behavior"
     POLICY_VIOLATION = "policy_violation"
@@ -72,7 +74,7 @@ class ThreatDetector:
             logger.debug(
                 "threat_detector.analyzing_event",
                 event_type=event_type,
-                event_id=event.get("event_id")
+                event_id=event.get("event_id"),
             )
 
             # Múltiplos métodos de detecção
@@ -89,7 +91,7 @@ class ThreatDetector:
                     "threat_detector.anomaly_detected",
                     anomaly_type=anomaly.get("threat_type"),
                     severity=anomaly.get("severity"),
-                    event_id=event.get("event_id")
+                    event_id=event.get("event_id"),
                 )
 
                 # Cache para análise rápida
@@ -100,9 +102,7 @@ class ThreatDetector:
 
         except Exception as e:
             logger.error(
-                "threat_detector.detection_failed",
-                error=str(e),
-                event_id=event.get("event_id")
+                "threat_detector.detection_failed", error=str(e), event_id=event.get("event_id")
             )
             raise
 
@@ -132,9 +132,7 @@ class ThreatDetector:
 
         return None
 
-    async def _detect_rate_anomaly(
-        self, event: Dict[str, Any]
-    ) -> Optional[Dict[str, Any]]:
+    async def _detect_rate_anomaly(self, event: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Detecta anomalias de taxa de requisições"""
         if event.get("type") != "request_metrics":
             return None
@@ -157,9 +155,7 @@ class ThreatDetector:
 
         return None
 
-    async def _detect_pattern_anomaly(
-        self, event: Dict[str, Any]
-    ) -> Optional[Dict[str, Any]]:
+    async def _detect_pattern_anomaly(self, event: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Detecta padrões maliciosos no payload"""
         import re
 
@@ -183,9 +179,7 @@ class ThreatDetector:
 
         return None
 
-    async def _detect_resource_anomaly(
-        self, event: Dict[str, Any]
-    ) -> Optional[Dict[str, Any]]:
+    async def _detect_resource_anomaly(self, event: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Detecta anomalias de uso de recursos (thresholds adaptativos)"""
         if event.get("type") != "resource_metrics":
             return None
@@ -228,9 +222,7 @@ class ThreatDetector:
 
         return None
 
-    async def _detect_behavioral_anomaly(
-        self, event: Dict[str, Any]
-    ) -> Optional[Dict[str, Any]]:
+    async def _detect_behavioral_anomaly(self, event: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Detecta anomalias comportamentais usando ML"""
 
         # Se temos modelo ML, usar detecção avançada
@@ -245,28 +237,28 @@ class ThreatDetector:
 
                 # Registrar metricas de ML
                 latency_seconds = time.perf_counter() - start_time
-                model_type = result.get('model_type', 'isolation_forest')
-                is_anomaly = result.get('is_anomaly', False)
-                anomaly_score = result.get('anomaly_score', 0.0)
+                model_type = result.get("model_type", "isolation_forest")
+                is_anomaly = result.get("is_anomaly", False)
+                anomaly_score = result.get("anomaly_score", 0.0)
 
                 MetricsCollector.record_anomaly_detection(
                     model_type=model_type,
                     is_anomaly=is_anomaly,
                     anomaly_score=anomaly_score,
-                    latency_seconds=latency_seconds
+                    latency_seconds=latency_seconds,
                 )
 
-                if result.get('is_anomaly'):
+                if result.get("is_anomaly"):
                     return {
                         "threat_type": ThreatType.ANOMALOUS_BEHAVIOR,
-                        "severity": self._map_severity(result.get('anomaly_score', 0)),
-                        "confidence": result.get('anomaly_score', 0),
+                        "severity": self._map_severity(result.get("anomaly_score", 0)),
+                        "confidence": result.get("anomaly_score", 0),
                         "details": {
-                            "anomaly_type": result.get('anomaly_type'),
-                            "explanation": result.get('explanation'),
-                            "model_type": result.get('model_type'),
+                            "anomaly_type": result.get("anomaly_type"),
+                            "explanation": result.get("explanation"),
+                            "model_type": result.get("model_type"),
                             "features": event.get("features", {}),
-                            "inference_latency_ms": latency_seconds * 1000
+                            "inference_latency_ms": latency_seconds * 1000,
                         },
                         "detected_at": datetime.now(timezone.utc).isoformat(),
                         "raw_event": event,
@@ -286,7 +278,7 @@ class ThreatDetector:
                     "anomaly_score": anomaly_score,
                     "threshold": self.detection_rules["anomaly_score_threshold"],
                     "features": event.get("features", {}),
-                    "detection_method": "heuristic"
+                    "detection_method": "heuristic",
                 },
                 "detected_at": datetime.now(timezone.utc).isoformat(),
                 "raw_event": event,
@@ -306,7 +298,7 @@ class ThreatDetector:
             "timestamp": event.get("timestamp", datetime.now(timezone.utc).timestamp()),
             "estimated_duration_ms": event.get("estimated_duration_ms", 0),
             "sla_timeout_ms": event.get("sla_timeout_ms", 300000),
-            "retry_count": event.get("retry_count", 0)
+            "retry_count": event.get("retry_count", 0),
         }
 
     def _map_severity(self, score: float) -> str:
@@ -327,12 +319,11 @@ class ThreatDetector:
 
         try:
             import json
-            anomaly_id = f"anomaly:{anomaly.get('threat_type')}:{datetime.now(timezone.utc).timestamp()}"
-            await self.redis.set(
-                anomaly_id,
-                json.dumps(anomaly),
-                ex=3600  # 1 hora
+
+            anomaly_id = (
+                f"anomaly:{anomaly.get('threat_type')}:{datetime.now(timezone.utc).timestamp()}"
             )
+            await self.redis.set(anomaly_id, json.dumps(anomaly), ex=3600)  # 1 hora
         except Exception as e:
             logger.warning("threat_detector.cache_failed", error=str(e))
 
@@ -353,10 +344,11 @@ class ThreatDetector:
             # Salvar novos thresholds
             if self.redis:
                 import json
+
                 await self.redis.set(
                     "adaptive_thresholds",
                     json.dumps(self.adaptive_thresholds),
-                    ex=86400  # 24 horas
+                    ex=86400,  # 24 horas
                 )
 
         except Exception as e:

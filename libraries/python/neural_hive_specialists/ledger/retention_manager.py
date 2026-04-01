@@ -6,7 +6,7 @@ e conformidade com GDPR/LGPD para o ledger cognitivo.
 """
 
 from typing import Dict, List, Any, Optional, Set
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
 import structlog
@@ -216,7 +216,7 @@ class RetentionManager:
         stats = {"processed": 0, "masked": 0, "deleted": 0, "errors": 0}
 
         try:
-            cutoff_date = datetime.utcnow() - timedelta(days=policy.retention_days)
+            cutoff_date = datetime.now(timezone.utc) - timedelta(days=policy.retention_days)
 
             # Query documentos que excedem período de retenção
             query: Dict[str, Any] = {"evaluated_at": {"$lt": cutoff_date}}
@@ -340,7 +340,7 @@ class RetentionManager:
 
             # Adicionar metadados de mascaramento
             document["masked_fields"] = masked_fields
-            document["masked_at"] = datetime.utcnow()
+            document["masked_at"] = datetime.now(timezone.utc)
             document["retention_policy"] = "gdpr_compliant_masking"
             document["compliance_enhanced"] = (
                 self.pii_detector is not None or self.field_encryptor is not None
@@ -456,7 +456,7 @@ class RetentionManager:
 
             audit_record = {
                 "correlation_id": correlation_id,
-                "deleted_at": datetime.utcnow(),
+                "deleted_at": datetime.now(timezone.utc),
                 "reason": reason,
                 "documents_count": count,
             }
@@ -535,7 +535,7 @@ class RetentionManager:
             # Contar documentos por política
             policy_stats = {}
             for policy in self.policies:
-                cutoff_date = datetime.utcnow() - timedelta(days=policy.retention_days)
+                cutoff_date = datetime.now(timezone.utc) - timedelta(days=policy.retention_days)
                 query: Dict[str, Any] = {"evaluated_at": {"$lt": cutoff_date}}
 
                 if policy.apply_to_recommendations:

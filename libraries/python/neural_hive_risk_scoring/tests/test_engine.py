@@ -3,7 +3,7 @@ Testes para RiskScoringEngine e RiskScoringMetrics
 """
 
 import pytest
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import Mock, patch, MagicMock
 
 from neural_hive_risk_scoring import (
@@ -520,9 +520,9 @@ class TestRiskScoringEngineMetricsIntegration:
         """Testa que assessed_at é datetime recente."""
         entity = {"id": "test"}
 
-        before = datetime.utcnow()
+        before = datetime.now(timezone.utc)
         assessment = engine.score(entity, UnifiedDomain.BUSINESS)
-        after = datetime.utcnow()
+        after = datetime.now(timezone.utc)
 
         # assessed_at deve estar entre antes e depois
         assert before <= assessment.assessed_at <= after

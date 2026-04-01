@@ -8,10 +8,11 @@ Detecta problemas que requerem remediação automática:
 """
 
 import asyncio
-from datetime import datetime, timedelta
-from typing import Optional, Dict, Any, List
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta, timezone
 from enum import Enum
+from typing import Any, Dict, List, Optional
+
 import structlog
 
 logger = structlog.get_logger()
@@ -19,6 +20,7 @@ logger = structlog.get_logger()
 
 class IncidentType(Enum):
     """Tipos de incidentes detectados."""
+
     DEADLOCK = "deadlock"
     MEMORY_LEAK = "memory_leak"
     KAFKA_LAG = "kafka_lag"
@@ -28,6 +30,7 @@ class IncidentType(Enum):
 
 class Severity(Enum):
     """Níveis de severidade."""
+
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -37,6 +40,7 @@ class Severity(Enum):
 @dataclass
 class DeadlockStatus:
     """Resultado de detecção de deadlock."""
+
     workflow_id: str
     has_deadlock: bool
     stuck_duration_seconds: int = 0
@@ -52,13 +56,14 @@ class DeadlockStatus:
             "stuck_duration_seconds": self.stuck_duration_seconds,
             "suspected_tickets": self.suspected_tickets,
             "detected_at": self.detected_at.isoformat(),
-            "metadata": self.metadata
+            "metadata": self.metadata,
         }
 
 
 @dataclass
 class MemoryStatus:
     """Resultado de detecção de memory leak."""
+
     pod_name: str
     namespace: str
     has_leak: bool
@@ -82,13 +87,14 @@ class MemoryStatus:
             "duration_above_threshold_seconds": self.duration_above_threshold_seconds,
             "detected_at": self.detected_at.isoformat(),
             "container_name": self.container_name,
-            "metadata": self.metadata
+            "metadata": self.metadata,
         }
 
 
 @dataclass
 class RemediationTrigger:
     """Trigger para execução de remediação."""
+
     incident_type: str
     severity: str
     detected_at: datetime
@@ -116,7 +122,7 @@ class RemediationTrigger:
             "topic": self.topic,
             "connection_string": self.connection_string,
             "playbook_name": self.playbook_name,
-            "metadata": self.metadata
+            "metadata": self.metadata,
         }
 
 
@@ -135,7 +141,7 @@ class DetectionService:
         memory_threshold_percent: float = 90.0,
         memory_duration_seconds: int = 300,
         workflow_timeout_seconds: int = 1800,
-        lag_threshold: int = 10000
+        lag_threshold: int = 10000,
     ):
         """
         Inicializa o DetectionService.
@@ -180,12 +186,11 @@ class DetectionService:
                 return DeadlockStatus(
                     workflow_id=workflow_id,
                     has_deadlock=False,
-                    metadata={"error": "Orchestrator client not available"}
+                    metadata={"error": "Orchestrator client not available"},
                 )
 
             response = await self.orchestrator_client.get_workflow_status(
-                workflow_id=workflow_id,
-                include_tickets=True
+                workflow_id=workflow_id, include_tickets=True
             )
 
             # Se veio como mock, pode vir various formatos
@@ -195,19 +200,19 @@ class DetectionService:
                 tickets = response.get("tickets", [])
             else:
                 # gRPC response object
-                status = getattr(response, 'status', '')
-                last_progress = getattr(response, 'last_progress_at', None)
-                tickets = getattr(response, 'tickets', [])
+                status = getattr(response, "status", "")
+                last_progress = getattr(response, "last_progress_at", None)
+                tickets = getattr(response, "tickets", [])
 
             # Verificar se há progresso recente
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
             stuck_duration = 0
             suspected_tickets = []
 
             if last_progress:
                 try:
                     if isinstance(last_progress, str):
-                        progress_time = datetime.fromisoformat(last_progress.replace('Z', '+00:00'))
+                        progress_time = datetime.fromisoformat(last_progress.replace("Z", "+00:00"))
                     else:
                         progress_time = last_progress
 
@@ -222,14 +227,14 @@ class DetectionService:
                     ticket_id = ticket.get("ticket_id")
                     updated_at = ticket.get("updated_at")
                 else:
-                    ticket_status = getattr(ticket, 'status', None)
-                    ticket_id = getattr(ticket, 'ticket_id', None)
-                    updated_at = getattr(ticket, 'updated_at', None)
+                    ticket_status = getattr(ticket, "status", None)
+                    ticket_id = getattr(ticket, "ticket_id", None)
+                    updated_at = getattr(ticket, "updated_at", None)
 
                 if ticket_status == "IN_PROGRESS" and updated_at:
                     try:
                         if isinstance(updated_at, str):
-                            ticket_time = datetime.fromisoformat(updated_at.replace('Z', '+00:00'))
+                            ticket_time = datetime.fromisoformat(updated_at.replace("Z", "+00:00"))
                         else:
                             ticket_time = updated_at
 
@@ -239,30 +244,22 @@ class DetectionService:
                     except Exception:
                         pass
 
-            has_deadlock = (
-                status == "RUNNING" and
-                stuck_duration >= self.workflow_timeout_seconds
-            )
+            has_deadlock = status == "RUNNING" and stuck_duration >= self.workflow_timeout_seconds
 
             return DeadlockStatus(
                 workflow_id=workflow_id,
                 has_deadlock=has_deadlock,
                 stuck_duration_seconds=stuck_duration,
                 suspected_tickets=suspected_tickets,
-                metadata={
-                    "workflow_status": status,
-                    "ticket_count": len(tickets)
-                }
+                metadata={"workflow_status": status, "ticket_count": len(tickets)},
             )
 
         except Exception as e:
-            logger.error("detection_service.deadlock_check_failed",
-                        workflow_id=workflow_id,
-                        error=str(e))
+            logger.error(
+                "detection_service.deadlock_check_failed", workflow_id=workflow_id, error=str(e)
+            )
             return DeadlockStatus(
-                workflow_id=workflow_id,
-                has_deadlock=False,
-                metadata={"error": str(e)}
+                workflow_id=workflow_id, has_deadlock=False, metadata={"error": str(e)}
             )
 
     async def detect_memory_leak(
@@ -271,7 +268,7 @@ class DetectionService:
         namespace: str,
         memory_limit_bytes: int,
         container_name: Optional[str] = None,
-        check_duration_seconds: int = 0
+        check_duration_seconds: int = 0,
     ) -> MemoryStatus:
         """
         Detecta se um pod tem memory leak.
@@ -302,7 +299,7 @@ class DetectionService:
                     usage_bytes=0,
                     usage_percent=0.0,
                     limit_bytes=memory_limit_bytes,
-                    metadata={"error": "Metrics API not available"}
+                    metadata={"error": "Metrics API not available"},
                 )
 
             usage_bytes = 0
@@ -316,7 +313,9 @@ class DetectionService:
                     target_container = c_name
                     break
 
-            usage_percent = (usage_bytes / memory_limit_bytes) * 100 if memory_limit_bytes > 0 else 0
+            usage_percent = (
+                (usage_bytes / memory_limit_bytes) * 100 if memory_limit_bytes > 0 else 0
+            )
 
             # Verificar se está acima do threshold
             above_threshold = usage_percent >= self.memory_threshold_percent
@@ -326,7 +325,7 @@ class DetectionService:
 
             if above_threshold:
                 key = f"{namespace}/{pod_name}/{target_container or 'main'}"
-                now = datetime.utcnow()
+                now = datetime.now(timezone.utc)
 
                 if key not in self._memory_history:
                     self._memory_history[key] = []
@@ -336,9 +335,7 @@ class DetectionService:
 
                 # Limpar timestamps antigos (mais de 2x a duração)
                 cutoff = now - timedelta(seconds=self.memory_duration_seconds * 2)
-                self._memory_history[key] = [
-                    t for t in self._memory_history[key] if t > cutoff
-                ]
+                self._memory_history[key] = [t for t in self._memory_history[key] if t > cutoff]
 
                 # Verificar se está acima há tempo suficiente
                 if self._memory_history[key]:
@@ -356,14 +353,16 @@ class DetectionService:
                 usage_percent=round(usage_percent, 2),
                 limit_bytes=memory_limit_bytes,
                 duration_above_threshold_seconds=duration_above,
-                container_name=target_container
+                container_name=target_container,
             )
 
         except Exception as e:
-            logger.error("detection_service.memory_leak_check_failed",
-                        pod_name=pod_name,
-                        namespace=namespace,
-                        error=str(e))
+            logger.error(
+                "detection_service.memory_leak_check_failed",
+                pod_name=pod_name,
+                namespace=namespace,
+                error=str(e),
+            )
             return MemoryStatus(
                 pod_name=pod_name,
                 namespace=namespace,
@@ -371,7 +370,7 @@ class DetectionService:
                 usage_bytes=0,
                 usage_percent=0.0,
                 limit_bytes=memory_limit_bytes,
-                metadata={"error": str(e)}
+                metadata={"error": str(e)},
             )
 
     async def _get_pod_metrics(self, pod_name: str, namespace: str) -> Dict[str, Any]:
@@ -383,7 +382,7 @@ class DetectionService:
                 namespace=namespace,
                 group="metrics.k8s.io",
                 version="v1beta1",
-                plural="pods"
+                plural="pods",
             )
             return metrics
         except Exception as e:
@@ -396,28 +395,26 @@ class DetectionService:
         mem_str = mem_str.strip().upper()
 
         units = {
-            'KI': 1024,
-            'MI': 1024 ** 2,
-            'GI': 1024 ** 3,
-            'TI': 1024 ** 4,
-            'K': 1000,
-            'M': 1000 ** 2,
-            'G': 1000 ** 3,
-            'T': 1000 ** 4,
+            "KI": 1024,
+            "MI": 1024**2,
+            "GI": 1024**3,
+            "TI": 1024**4,
+            "K": 1000,
+            "M": 1000**2,
+            "G": 1000**3,
+            "T": 1000**4,
         }
 
         for suffix, multiplier in units.items():
             if mem_str.endswith(suffix):
-                number = float(mem_str[:-len(suffix)])
+                number = float(mem_str[: -len(suffix)])
                 return int(number * multiplier)
 
         # Sem sufixo = bytes
         return int(mem_str)
 
     async def trigger_remediation(
-        self,
-        trigger: RemediationTrigger,
-        playbook_executor=None
+        self, trigger: RemediationTrigger, playbook_executor=None
     ) -> Dict[str, Any]:
         """
         Dispara remediação baseado em um trigger detectado.
@@ -429,9 +426,11 @@ class DetectionService:
         Returns:
             Resultado da execução da remediação
         """
-        logger.info("detection_service.triggering_remediation",
-                   incident_type=trigger.incident_type,
-                   severity=trigger.severity)
+        logger.info(
+            "detection_service.triggering_remediation",
+            incident_type=trigger.incident_type,
+            severity=trigger.severity,
+        )
 
         try:
             # Selecionar playbook baseado no tipo de incidente
@@ -441,16 +440,13 @@ class DetectionService:
 
             if not playbook_executor:
                 logger.warning("detection_service.no_playbook_executor")
-                return {
-                    "success": False,
-                    "error": "Playbook executor not available"
-                }
+                return {"success": False, "error": "Playbook executor not available"}
 
             # Preparar contexto
             context = {
                 "incident_type": trigger.incident_type,
                 "severity": trigger.severity,
-                "detected_at": trigger.detected_at.isoformat()
+                "detected_at": trigger.detected_at.isoformat(),
             }
 
             if trigger.workflow_id:
@@ -466,24 +462,24 @@ class DetectionService:
 
             # Executar playbook
             result = await playbook_executor.execute_playbook(
-                playbook_name=playbook_name,
-                context=context
+                playbook_name=playbook_name, context=context
             )
 
-            logger.info("detection_service.remediation_completed",
-                       playbook=playbook_name,
-                       success=result.get("success"))
+            logger.info(
+                "detection_service.remediation_completed",
+                playbook=playbook_name,
+                success=result.get("success"),
+            )
 
             return result
 
         except Exception as e:
-            logger.error("detection_service.remediation_failed",
-                        incident_type=trigger.incident_type,
-                        error=str(e))
-            return {
-                "success": False,
-                "error": str(e)
-            }
+            logger.error(
+                "detection_service.remediation_failed",
+                incident_type=trigger.incident_type,
+                error=str(e),
+            )
+            return {"success": False, "error": str(e)}
 
     def _get_playbook_for_incident(self, incident_type: str) -> str:
         """Retorna o playbook apropriado para o tipo de incidente."""
@@ -492,7 +488,7 @@ class DetectionService:
             "memory_leak": "memory_leak_recovery",
             "kafka_lag": "kafka_lag_recovery",
             "database_connection": "database_connection_recovery",
-            "pod_crash_loop": "restart_pod"
+            "pod_crash_loop": "restart_pod",
         }
         return playbooks.get(incident_type, "generic_recovery")
 
@@ -500,7 +496,7 @@ class DetectionService:
         self,
         workflows: List[str],
         pods: List[tuple[str, str]],  # (pod_name, namespace)
-        interval_seconds: int = 60
+        interval_seconds: int = 60,
     ):
         """
         Executa loop de detecção contínua.
@@ -510,9 +506,9 @@ class DetectionService:
             pods: Lista de tuplas (pod_name, namespace) para monitorar
             interval_seconds: Intervalo entre verificações
         """
-        logger.info("detection_service.starting_loop",
-                   workflow_count=len(workflows),
-                   pod_count=len(pods))
+        logger.info(
+            "detection_service.starting_loop", workflow_count=len(workflows), pod_count=len(pods)
+        )
 
         while True:
             try:
@@ -523,9 +519,9 @@ class DetectionService:
                         trigger = RemediationTrigger(
                             incident_type="deadlock",
                             severity="high",
-                            detected_at=datetime.utcnow(),
+                            detected_at=datetime.now(timezone.utc),
                             workflow_id=workflow_id,
-                            metadata={"stuck_duration_seconds": status.stuck_duration_seconds}
+                            metadata={"stuck_duration_seconds": status.stuck_duration_seconds},
                         )
                         await self.trigger_remediation(trigger)
 
@@ -536,17 +532,15 @@ class DetectionService:
                     limit_bytes = 1073741824  # 1GB default
 
                     status = await self.detect_memory_leak(
-                        pod_name=pod_name,
-                        namespace=namespace,
-                        memory_limit_bytes=limit_bytes
+                        pod_name=pod_name, namespace=namespace, memory_limit_bytes=limit_bytes
                     )
                     if status.has_leak:
                         trigger = RemediationTrigger(
                             incident_type="memory_leak",
                             severity="medium",
-                            detected_at=datetime.utcnow(),
+                            detected_at=datetime.now(timezone.utc),
                             pod_name=pod_name,
-                            namespace=namespace
+                            namespace=namespace,
                         )
                         await self.trigger_remediation(trigger)
 

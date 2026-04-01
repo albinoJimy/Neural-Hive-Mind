@@ -1,37 +1,59 @@
 from datetime import datetime
-from typing import Optional, Dict, List, Any
-from pydantic import BaseModel, Field
+from typing import Any, Dict, List, Optional
 
+from pydantic import BaseModel, ConfigDict, Field
+
+from .artifact import (
+    CodeForgeArtifact,
+    PipelineResult,
+    PipelineStage,
+    PipelineStatus,
+    StageStatus,
+    ValidationResult,
+)
 from .execution_ticket import ExecutionTicket
-from .artifact import CodeForgeArtifact, ValidationResult, PipelineStage, PipelineResult, PipelineStatus, StageStatus
 from .template import Template
 
 
 class PipelineContext(BaseModel):
     """Contexto de execução de um pipeline Code Forge"""
 
-    pipeline_id: str = Field(..., description='UUID do pipeline')
-    ticket: ExecutionTicket = Field(..., description='Ticket de entrada')
+    pipeline_id: str = Field(..., description="UUID do pipeline")
+    ticket: ExecutionTicket = Field(..., description="Ticket de entrada")
 
-    trace_id: str = Field(..., description='Trace ID OpenTelemetry')
-    span_id: str = Field(..., description='Span ID OpenTelemetry')
+    trace_id: str = Field(..., description="Trace ID OpenTelemetry")
+    span_id: str = Field(..., description="Span ID OpenTelemetry")
 
-    selected_template: Optional[Template] = Field(None, description='Template selecionado')
-    generated_artifacts: List[CodeForgeArtifact] = Field(default_factory=list, description='Artefatos gerados')
-    validation_results: List[ValidationResult] = Field(default_factory=list, description='Resultados de validações')
-    pipeline_stages: List[PipelineStage] = Field(default_factory=list, description='Status dos stages')
+    selected_template: Optional[Template] = Field(None, description="Template selecionado")
+    generated_artifacts: List[CodeForgeArtifact] = Field(
+        default_factory=list, description="Artefatos gerados"
+    )
+    validation_results: List[ValidationResult] = Field(
+        default_factory=list, description="Resultados de validações"
+    )
+    pipeline_stages: List[PipelineStage] = Field(
+        default_factory=list, description="Status dos stages"
+    )
 
-    code_workspace_path: Optional[str] = Field(None, description='Path do workspace onde código foi materializado')
-    mcp_selection_id: Optional[str] = Field(None, description='ID da seleção MCP')
-    selected_tools: List[Dict[str, Any]] = Field(default_factory=list, description='Ferramentas selecionadas pelo MCP')
-    generation_method: Optional[str] = Field(None, description='Método de geração (LLM, HYBRID, TEMPLATE, HEURISTIC)')
-    mcp_feedback_sent: bool = Field(False, description='Flag indicando se feedback foi enviado ao MCP')
-    metadata: Dict[str, Any] = Field(default_factory=dict, description='Metadados adicionais')
+    code_workspace_path: Optional[str] = Field(
+        None, description="Path do workspace onde código foi materializado"
+    )
+    mcp_selection_id: Optional[str] = Field(None, description="ID da seleção MCP")
+    selected_tools: List[Dict[str, Any]] = Field(
+        default_factory=list, description="Ferramentas selecionadas pelo MCP"
+    )
+    generation_method: Optional[str] = Field(
+        None, description="Método de geração (LLM, HYBRID, TEMPLATE, HEURISTIC)"
+    )
+    mcp_feedback_sent: bool = Field(
+        False, description="Flag indicando se feedback foi enviado ao MCP"
+    )
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="Metadados adicionais")
 
-    started_at: datetime = Field(default_factory=datetime.now, description='Timestamp de início')
-    completed_at: Optional[datetime] = Field(None, description='Timestamp de conclusão')
+    started_at: datetime = Field(default_factory=datetime.now, description="Timestamp de início")
+    completed_at: Optional[datetime] = Field(None, description="Timestamp de conclusão")
 
-    error: Optional[Exception] = Field(None, description='Erro se falhou')
+    error: Optional[Exception] = Field(None, description="Erro se falhou")
 
     def add_artifact(self, artifact: CodeForgeArtifact):
         """Adiciona um artefato gerado"""
@@ -91,26 +113,30 @@ class PipelineContext(BaseModel):
         """Verifica se há issues críticos"""
         return any(vr.has_critical_issues() for vr in self.validation_results)
 
-    def should_require_manual_review(self, auto_approval_threshold: float, min_quality_score: float) -> tuple[bool, Optional[str]]:
+    def should_require_manual_review(
+        self, auto_approval_threshold: float, min_quality_score: float
+    ) -> tuple[bool, Optional[str]]:
         """Determina se requer aprovação manual"""
         quality_score = self.calculate_quality_score()
 
         # Rejeição automática
         if quality_score < min_quality_score:
-            return True, f'Score de qualidade muito baixo: {quality_score:.2f}'
+            return True, f"Score de qualidade muito baixo: {quality_score:.2f}"
 
         # Issues críticos bloqueiam
         if self.has_critical_issues():
-            return True, 'Issues críticos encontrados em validações'
+            return True, "Issues críticos encontrados em validações"
 
         # Aprovação automática
         if quality_score >= auto_approval_threshold:
             return False, None
 
         # Faixa intermediária requer revisão
-        return True, f'Score de qualidade requer revisão: {quality_score:.2f}'
+        return True, f"Score de qualidade requer revisão: {quality_score:.2f}"
 
-    def to_pipeline_result(self, auto_approval_threshold: float, min_quality_score: float) -> PipelineResult:
+    def to_pipeline_result(
+        self, auto_approval_threshold: float, min_quality_score: float
+    ) -> PipelineResult:
         """Converte contexto para PipelineResult"""
         requires_review, review_reason = self.should_require_manual_review(
             auto_approval_threshold, min_quality_score
@@ -142,17 +168,16 @@ class PipelineContext(BaseModel):
             approval_required=requires_review,
             approval_reason=review_reason,
             error_message=str(self.error) if self.error else None,
-            git_mr_url=self.metadata.get('git_mr_url'),
+            git_mr_url=self.metadata.get("git_mr_url"),
             created_at=self.started_at,
             completed_at=self.completed_at,
             metadata={
                 **{k: str(v) for k, v in self.metadata.items()},
-                'mcp_selection_id': self.mcp_selection_id or '',
-                'generation_method': self.generation_method or '',
-                'mcp_tools_count': str(len(self.selected_tools))
+                "mcp_selection_id": self.mcp_selection_id or "",
+                "generation_method": self.generation_method or "",
+                "mcp_tools_count": str(len(self.selected_tools)),
             },
-            schema_version=1
+            schema_version=1,
         )
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)

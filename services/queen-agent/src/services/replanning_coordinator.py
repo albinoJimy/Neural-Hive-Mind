@@ -1,12 +1,12 @@
-import structlog
-from typing import Dict, Any
 from datetime import datetime
+from typing import Any
+
+import structlog
 
 from neural_hive_resilience.circuit_breaker import CircuitBreakerError
-from ..config import Settings
-from ..models import QoSAdjustment, AdjustmentType
-from ..clients import OrchestratorClient, RedisClient
-
+from src.clients import OrchestratorClient, RedisClient
+from src.config import Settings
+from src.models import QoSAdjustment
 
 logger = structlog.get_logger()
 
@@ -24,9 +24,7 @@ class ReplanningCoordinator:
         self.redis_client = redis_client
         self.settings = settings
 
-    async def trigger_replanning(
-        self, plan_id: str, reason: str, decision_id: str
-    ) -> bool:
+    async def trigger_replanning(self, plan_id: str, reason: str, decision_id: str) -> bool:
         """Acionar replanejamento de um plano cognitivo"""
         try:
             # Verificar cooldown
@@ -56,12 +54,10 @@ class ReplanningCoordinator:
             return success
 
         except CircuitBreakerError:
-            logger.warning(
-                "trigger_replanning_circuit_open", plan_id=plan_id, reason=reason
-            )
+            logger.warning("trigger_replanning_circuit_open", plan_id=plan_id, reason=reason)
             return False
         except Exception as e:
-            logger.error("trigger_replanning_failed", plan_id=plan_id, error=str(e))
+            logger.exception("trigger_replanning_failed", plan_id=plan_id, error=str(e))
             return False
 
     async def adjust_qos(self, adjustment: QoSAdjustment) -> bool:
@@ -79,20 +75,16 @@ class ReplanningCoordinator:
                 )
             else:
                 adjustment.mark_failed("Orchestrator rejected adjustment")
-                logger.error(
-                    "qos_adjustment_failed", adjustment_id=adjustment.adjustment_id
-                )
+                logger.error("qos_adjustment_failed", adjustment_id=adjustment.adjustment_id)
 
             return success
 
         except CircuitBreakerError:
-            logger.warning(
-                "qos_adjustment_circuit_open", adjustment_id=adjustment.adjustment_id
-            )
+            logger.warning("qos_adjustment_circuit_open", adjustment_id=adjustment.adjustment_id)
             adjustment.mark_failed("circuit_open")
             return False
         except Exception as e:
-            logger.error("adjust_qos_failed", error=str(e))
+            logger.exception("adjust_qos_failed", error=str(e))
             adjustment.mark_failed(str(e))
             return False
 
@@ -110,14 +102,10 @@ class ReplanningCoordinator:
             return success
 
         except CircuitBreakerError:
-            logger.warning(
-                "pause_execution_circuit_open", workflow_id=workflow_id, reason=reason
-            )
+            logger.warning("pause_execution_circuit_open", workflow_id=workflow_id, reason=reason)
             return False
         except Exception as e:
-            logger.error(
-                "pause_execution_failed", workflow_id=workflow_id, error=str(e)
-            )
+            logger.exception("pause_execution_failed", workflow_id=workflow_id, error=str(e))
             return False
 
     async def resume_execution(self, workflow_id: str) -> bool:
@@ -132,9 +120,7 @@ class ReplanningCoordinator:
             logger.warning("resume_execution_circuit_open", workflow_id=workflow_id)
             return False
         except Exception as e:
-            logger.error(
-                "resume_execution_failed", workflow_id=workflow_id, error=str(e)
-            )
+            logger.exception("resume_execution_failed", workflow_id=workflow_id, error=str(e))
             return False
 
     async def check_replanning_cooldown(self, plan_id: str) -> bool:
@@ -146,7 +132,7 @@ class ReplanningCoordinator:
             return data is not None
 
         except Exception as e:
-            logger.error("check_cooldown_failed", plan_id=plan_id, error=str(e))
+            logger.exception("check_cooldown_failed", plan_id=plan_id, error=str(e))
             return False
 
     async def record_replanning_event(self, plan_id: str, decision_id: str) -> None:
@@ -165,14 +151,12 @@ class ReplanningCoordinator:
                 ttl_seconds=self.settings.REPLANNING_COOLDOWN_SECONDS,
             )
 
-            logger.debug(
-                "replanning_event_recorded", plan_id=plan_id, decision_id=decision_id
-            )
+            logger.debug("replanning_event_recorded", plan_id=plan_id, decision_id=decision_id)
 
         except Exception as e:
-            logger.error("record_replanning_event_failed", error=str(e))
+            logger.exception("record_replanning_event_failed", error=str(e))
 
-    async def get_replanning_stats(self) -> Dict[str, Any]:
+    async def get_replanning_stats(self) -> dict[str, Any]:
         """Obter estatísticas de replanejamento do Redis"""
         try:
             # Buscar todas as chaves de cooldown ativas usando SCAN
@@ -205,7 +189,7 @@ class ReplanningCoordinator:
             }
 
         except Exception as e:
-            logger.error("get_replanning_stats_failed", error=str(e))
+            logger.exception("get_replanning_stats_failed", error=str(e))
             return {
                 "total_replannings": 0,
                 "active_replannings": 0,

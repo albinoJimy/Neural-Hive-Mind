@@ -1,6 +1,3 @@
-import asyncio
-from typing import Optional
-
 import grpc
 import structlog
 from neural_hive_observability import create_instrumented_grpc_server
@@ -12,8 +9,10 @@ logger = structlog.get_logger()
 
 # Proto imports - will be available after `make proto` compilation
 try:
-    from src.proto import optimizer_agent_pb2_grpc
     from grpc_reflection.v1alpha import reflection
+
+    from src.proto import optimizer_agent_pb2_grpc
+
     PROTO_AVAILABLE = True
 except ImportError:
     PROTO_AVAILABLE = False
@@ -23,18 +22,25 @@ except ImportError:
 try:
     from grpc_health.v1 import health_pb2, health_pb2_grpc
     from grpc_health.v1.health import HealthServicer
+
     HEALTH_CHECK_AVAILABLE = True
 except ImportError:
     HEALTH_CHECK_AVAILABLE = False
-    logger.warning("grpc_health_not_available", message="grpc-health-checking package not installed")
+    logger.warning(
+        "grpc_health_not_available", message="grpc-health-checking package not installed"
+    )
 
 # Extension proto imports
 try:
     from proto import consensus_engine_extensions_pb2_grpc, orchestrator_extensions_pb2_grpc
+
     EXTENSION_PROTO_AVAILABLE = True
 except ImportError:
     EXTENSION_PROTO_AVAILABLE = False
-    logger.warning("extension_proto_not_compiled", message="Run 'make proto' to compile extension protocol buffers")
+    logger.warning(
+        "extension_proto_not_compiled",
+        message="Run 'make proto' to compile extension protocol buffers",
+    )
 
 
 class GrpcServer:
@@ -59,8 +65,8 @@ class GrpcServer:
         self.consensus_servicer = consensus_servicer
         self.orchestrator_servicer = orchestrator_servicer
         self.settings = settings or get_settings()
-        self.server: Optional[grpc.aio.Server] = None
-        self.health_servicer: Optional[HealthServicer] = None
+        self.server: grpc.aio.Server | None = None
+        self.health_servicer: HealthServicer | None = None
 
     async def start(self):
         """Iniciar servidor gRPC."""
@@ -87,8 +93,9 @@ class GrpcServer:
 
                 # Habilitar reflexão gRPC para debugging
                 from src.proto import optimizer_agent_pb2
+
                 SERVICE_NAMES = [
-                    optimizer_agent_pb2.DESCRIPTOR.services_by_name['OptimizerAgent'].full_name,
+                    optimizer_agent_pb2.DESCRIPTOR.services_by_name["OptimizerAgent"].full_name,
                     reflection.SERVICE_NAME,
                 ]
 
@@ -98,8 +105,11 @@ class GrpcServer:
                         self.consensus_servicer, self.server
                     )
                     from proto import consensus_engine_extensions_pb2
+
                     SERVICE_NAMES.append(
-                        consensus_engine_extensions_pb2.DESCRIPTOR.services_by_name['ConsensusOptimization'].full_name
+                        consensus_engine_extensions_pb2.DESCRIPTOR.services_by_name[
+                            "ConsensusOptimization"
+                        ].full_name
                     )
                     logger.info("consensus_optimization_servicer_registered")
 
@@ -109,13 +119,20 @@ class GrpcServer:
                         self.orchestrator_servicer, self.server
                     )
                     from proto import orchestrator_extensions_pb2
+
                     SERVICE_NAMES.append(
-                        orchestrator_extensions_pb2.DESCRIPTOR.services_by_name['OrchestratorOptimization'].full_name
+                        orchestrator_extensions_pb2.DESCRIPTOR.services_by_name[
+                            "OrchestratorOptimization"
+                        ].full_name
                     )
                     logger.info("orchestrator_optimization_servicer_registered")
 
                 reflection.enable_server_reflection(SERVICE_NAMES, self.server)
-                logger.info("grpc_servicer_registered", reflection_enabled=True, services_count=len(SERVICE_NAMES))
+                logger.info(
+                    "grpc_servicer_registered",
+                    reflection_enabled=True,
+                    services_count=len(SERVICE_NAMES),
+                )
             else:
                 logger.warning("grpc_servicer_not_registered", reason="proto_not_compiled")
 
@@ -125,21 +142,20 @@ class GrpcServer:
                 health_pb2_grpc.add_HealthServicer_to_server(self.health_servicer, self.server)
 
                 # Definir status inicial como SERVING para todos os servicos
-                self.health_servicer.set('', health_pb2.HealthCheckResponse.SERVING)
+                self.health_servicer.set("", health_pb2.HealthCheckResponse.SERVING)
                 if PROTO_AVAILABLE:
                     self.health_servicer.set(
-                        'optimizer_agent.OptimizerAgent',
-                        health_pb2.HealthCheckResponse.SERVING
+                        "optimizer_agent.OptimizerAgent", health_pb2.HealthCheckResponse.SERVING
                     )
                 if EXTENSION_PROTO_AVAILABLE and self.consensus_servicer:
                     self.health_servicer.set(
-                        'consensus_engine_extensions.ConsensusOptimization',
-                        health_pb2.HealthCheckResponse.SERVING
+                        "consensus_engine_extensions.ConsensusOptimization",
+                        health_pb2.HealthCheckResponse.SERVING,
                     )
                 if EXTENSION_PROTO_AVAILABLE and self.orchestrator_servicer:
                     self.health_servicer.set(
-                        'orchestrator_extensions.OrchestratorOptimization',
-                        health_pb2.HealthCheckResponse.SERVING
+                        "orchestrator_extensions.OrchestratorOptimization",
+                        health_pb2.HealthCheckResponse.SERVING,
                     )
                 logger.info("grpc_health_check_registered")
 
@@ -169,7 +185,7 @@ class GrpcServer:
         if self.server:
             # Atualizar health check para NOT_SERVING antes de parar
             if HEALTH_CHECK_AVAILABLE and self.health_servicer:
-                self.health_servicer.set('', health_pb2.HealthCheckResponse.NOT_SERVING)
+                self.health_servicer.set("", health_pb2.HealthCheckResponse.NOT_SERVING)
                 logger.info("grpc_health_check_set_not_serving")
 
             logger.info("grpc_server_stopping", grace_period=grace_period)

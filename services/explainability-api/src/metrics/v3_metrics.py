@@ -11,9 +11,10 @@ explicabilidade, incluindo:
 Explainability API v3 - Task 7
 """
 
-from prometheus_client import Counter, Histogram, Gauge
 from typing import Optional
+
 import structlog
+from prometheus_client import Counter, Gauge, Histogram
 
 logger = structlog.get_logger(__name__)
 
@@ -26,13 +27,13 @@ v3_generation_duration = Histogram(
     "neural_hive_v3_generation_duration_seconds",
     "Duração da geração de explicações v3 por componente",
     ["component"],
-    buckets=[0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.0, 5.0, 10.0]
+    buckets=[0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.0, 5.0, 10.0],
 )
 
 v3_explanations_generated = Counter(
     "neural_hive_v3_explanations_generated_total",
     "Total de explicações v3 geradas por formato e componentes",
-    ["format", "components"]
+    ["format", "components"],
 )
 
 
@@ -43,13 +44,13 @@ v3_explanations_generated = Counter(
 consensus_strength_gauge = Gauge(
     "neural_hive_v3_consensus_strength",
     "Força do consenso hierárquico actual (0.0 a 1.0)",
-    ["dominant_level"]
+    ["dominant_level"],
 )
 
 dominant_level_counter = Counter(
     "neural_hive_v3_dominant_level_total",
     "Total de decisões por nível hierárquico dominante",
-    ["level"]
+    ["level"],
 )
 
 
@@ -60,13 +61,14 @@ dominant_level_counter = Counter(
 counterfactual_outcome_counter = Counter(
     "neural_hive_v3_counterfactual_outcome_total",
     "Total de outcomes de análises contrafactuais",
-    ["scenario_type", "outcome"]
+    ["scenario_type", "outcome"],
 )
 
 
 # =============================================================================
 # WRAPPER CLASS PARA CONVENIENCIA
 # =============================================================================
+
 
 class V3Metrics:
     """
@@ -110,10 +112,7 @@ class V3Metrics:
     ]
 
     @staticmethod
-    def observe_generation_duration(
-        duration_seconds: float,
-        component: str
-    ) -> None:
+    def observe_generation_duration(duration_seconds: float, component: str) -> None:
         """
         Regista duração de geração de explicação.
 
@@ -125,16 +124,13 @@ class V3Metrics:
             logger.warning(
                 "invalid_component_label",
                 component=component,
-                valid_components=V3Metrics.VALID_COMPONENTS
+                valid_components=V3Metrics.VALID_COMPONENTS,
             )
 
         v3_generation_duration.labels(component=component).observe(duration_seconds)
 
     @staticmethod
-    def increment_explanations_generated(
-        format_type: str,
-        components: str
-    ) -> None:
+    def increment_explanations_generated(format_type: str, components: str) -> None:
         """
         Incrementa contador de explicações geradas.
 
@@ -146,19 +142,13 @@ class V3Metrics:
             logger.warning(
                 "invalid_format_label",
                 format_type=format_type,
-                valid_formats=V3Metrics.VALID_FORMATS
+                valid_formats=V3Metrics.VALID_FORMATS,
             )
 
-        v3_explanations_generated.labels(
-            format=format_type,
-            components=components
-        ).inc()
+        v3_explanations_generated.labels(format=format_type, components=components).inc()
 
     @staticmethod
-    def set_consensus_strength(
-        strength: float,
-        dominant_level: Optional[str] = None
-    ) -> None:
+    def set_consensus_strength(strength: float, dominant_level: Optional[str] = None) -> None:
         """
         Define força de consenso actual.
 
@@ -170,9 +160,7 @@ class V3Metrics:
 
         if level_label not in V3Metrics.VALID_LEVELS:
             logger.warning(
-                "invalid_level_label",
-                level=level_label,
-                valid_levels=V3Metrics.VALID_LEVELS
+                "invalid_level_label", level=level_label, valid_levels=V3Metrics.VALID_LEVELS
             )
 
         # Clamp value entre 0.0 e 1.0
@@ -189,20 +177,13 @@ class V3Metrics:
             level: Nível hierárquico dominante na decisão
         """
         if level not in V3Metrics.VALID_LEVELS:
-            logger.warning(
-                "invalid_level_label",
-                level=level,
-                valid_levels=V3Metrics.VALID_LEVELS
-            )
+            logger.warning("invalid_level_label", level=level, valid_levels=V3Metrics.VALID_LEVELS)
 
         level_label = level or "unknown"
         dominant_level_counter.labels(level=level_label).inc()
 
     @staticmethod
-    def increment_counterfactual_outcome(
-        scenario_type: str,
-        outcome: str
-    ) -> None:
+    def increment_counterfactual_outcome(scenario_type: str, outcome: str) -> None:
         """
         Incrementa contador de outcomes contrafactuais.
 
@@ -214,20 +195,15 @@ class V3Metrics:
             logger.warning(
                 "invalid_scenario_type_label",
                 scenario_type=scenario_type,
-                valid_types=V3Metrics.VALID_SCENARIO_TYPES
+                valid_types=V3Metrics.VALID_SCENARIO_TYPES,
             )
 
         if outcome not in V3Metrics.VALID_OUTCOMES:
             logger.warning(
-                "invalid_outcome_label",
-                outcome=outcome,
-                valid_outcomes=V3Metrics.VALID_OUTCOMES
+                "invalid_outcome_label", outcome=outcome, valid_outcomes=V3Metrics.VALID_OUTCOMES
             )
 
-        counterfactual_outcome_counter.labels(
-            scenario_type=scenario_type,
-            outcome=outcome
-        ).inc()
+        counterfactual_outcome_counter.labels(scenario_type=scenario_type, outcome=outcome).inc()
 
     # Métodos compostos para operações comuns
 
@@ -236,7 +212,7 @@ class V3Metrics:
         duration_seconds: float,
         component: str,
         format_type: str = "json",
-        components_used: str = "hierarchical"
+        components_used: str = "hierarchical",
     ) -> None:
         """
         Regista geração completa de explicação (duração + contagem).
@@ -251,10 +227,7 @@ class V3Metrics:
         V3Metrics.increment_explanations_generated(format_type, components_used)
 
     @staticmethod
-    def record_hierarchical_consensus(
-        strength: float,
-        dominant_level: Optional[str]
-    ) -> None:
+    def record_hierarchical_consensus(strength: float, dominant_level: Optional[str]) -> None:
         """
         Regista métricas completas de consenso hierárquico.
 
@@ -267,10 +240,7 @@ class V3Metrics:
             V3Metrics.increment_dominant_level(dominant_level)
 
     @staticmethod
-    def record_counterfactual_analysis(
-        scenario_type: str,
-        outcome: str
-    ) -> None:
+    def record_counterfactual_analysis(scenario_type: str, outcome: str) -> None:
         """
         Registra outcome de análise contrafactual.
 

@@ -4,16 +4,17 @@ Cliente Kafka Producer para publicação de Execution Tickets.
 import asyncio
 import json
 from pathlib import Path
-from typing import Dict, Any, Optional
 from time import perf_counter
-from confluent_kafka import Producer, KafkaError
-from confluent_kafka.serialization import SerializationContext, MessageField
+from typing import Any
+
+import structlog
+from confluent_kafka import KafkaError, Producer
 from confluent_kafka.schema_registry import SchemaRegistryClient
 from confluent_kafka.schema_registry.avro import AvroSerializer
-import structlog
+from confluent_kafka.serialization import MessageField, SerializationContext
 
 from neural_hive_observability import instrument_kafka_producer
-from neural_hive_resilience.circuit_breaker import MonitoredCircuitBreaker, CircuitBreakerError
+from neural_hive_resilience.circuit_breaker import CircuitBreakerError, MonitoredCircuitBreaker
 
 logger = structlog.get_logger()
 
@@ -63,9 +64,9 @@ class KafkaProducerClient:
 
         # Validação: atributos obrigatórios (kafka_schema_registry_url é opcional - fallback JSON)
         required_attrs = {
-            'service_name': getattr(config, 'service_name', None),
-            'kafka_bootstrap_servers': getattr(config, 'kafka_bootstrap_servers', None),
-            'kafka_tickets_topic': getattr(config, 'kafka_tickets_topic', None),
+            "service_name": getattr(config, "service_name", None),
+            "kafka_bootstrap_servers": getattr(config, "kafka_bootstrap_servers", None),
+            "kafka_tickets_topic": getattr(config, "kafka_tickets_topic", None),
         }
 
         missing = [attr for attr, value in required_attrs.items() if not value]
@@ -73,31 +74,39 @@ class KafkaProducerClient:
             raise ValueError(f"Atributos obrigatórios ausentes em config: {', '.join(missing)}")
 
         # kafka_schema_registry_url é opcional (permite fallback JSON)
-        schema_registry_url = getattr(config, 'kafka_schema_registry_url', None)
+        schema_registry_url = getattr(config, "kafka_schema_registry_url", None)
 
         logger.info(
-            'kafka_producer_config_validated',
-            service_name=required_attrs['service_name'],
-            bootstrap_servers=required_attrs['kafka_bootstrap_servers'],
-            topic=required_attrs['kafka_tickets_topic'],
-            schema_registry_url=schema_registry_url or 'NOT_CONFIGURED (JSON fallback)',
+            "kafka_producer_config_validated",
+            service_name=required_attrs["service_name"],
+            bootstrap_servers=required_attrs["kafka_bootstrap_servers"],
+            topic=required_attrs["kafka_tickets_topic"],
+            schema_registry_url=schema_registry_url or "NOT_CONFIGURED (JSON fallback)",
         )
 
         self.config = config
-        self.producer: Optional[Producer] = None
-        self.schema_registry_client: Optional[SchemaRegistryClient] = None
-        self.avro_serializer: Optional[AvroSerializer] = None
-        self.incident_avro_serializer: Optional[AvroSerializer] = None
+        self.producer: Producer | None = None
+        self.schema_registry_client: SchemaRegistryClient | None = None
+        self.avro_serializer: AvroSerializer | None = None
+        self.incident_avro_serializer: AvroSerializer | None = None
         self.metrics = None
-        self.sasl_username = sasl_username_override if sasl_username_override is not None else config.kafka_sasl_username
-        self.sasl_password = sasl_password_override if sasl_password_override is not None else config.kafka_sasl_password
-        self.circuit_breaker_enabled = getattr(config, 'KAFKA_CIRCUIT_BREAKER_ENABLED', True)
-        self.producer_breaker: Optional[MonitoredCircuitBreaker] = None
+        self.sasl_username = (
+            sasl_username_override
+            if sasl_username_override is not None
+            else config.kafka_sasl_username
+        )
+        self.sasl_password = (
+            sasl_password_override
+            if sasl_password_override is not None
+            else config.kafka_sasl_password
+        )
+        self.circuit_breaker_enabled = getattr(config, "KAFKA_CIRCUIT_BREAKER_ENABLED", True)
+        self.producer_breaker: MonitoredCircuitBreaker | None = None
 
     async def initialize(self):
         """Inicializa o producer Kafka."""
         start_time = perf_counter()
-        initialization_status = 'failed'  # Assume falha até sucesso
+        initialization_status = "failed"  # Assume falha até sucesso
 
         try:
             # Re-validação defensiva (defesa em profundidade)
@@ -109,9 +118,9 @@ class KafkaProducerClient:
 
             # Validar TODAS as dependências críticas antes de prosseguir
             critical_dependencies = {
-                'service_name': getattr(self.config, 'service_name', None),
-                'kafka_bootstrap_servers': getattr(self.config, 'kafka_bootstrap_servers', None),
-                'kafka_tickets_topic': getattr(self.config, 'kafka_tickets_topic', None),
+                "service_name": getattr(self.config, "service_name", None),
+                "kafka_bootstrap_servers": getattr(self.config, "kafka_bootstrap_servers", None),
+                "kafka_tickets_topic": getattr(self.config, "kafka_tickets_topic", None),
             }
 
             missing_deps = [dep for dep, value in critical_dependencies.items() if not value]
@@ -121,15 +130,20 @@ class KafkaProducerClient:
                     f"Verifique a configuração do serviço."
                 )
                 logger.error(
-                    'kafka_producer_initialization_failed_missing_dependencies',
+                    "kafka_producer_initialization_failed_missing_dependencies",
                     missing_dependencies=missing_deps,
                     config_snapshot={
-                        'service_name': critical_dependencies.get('service_name', 'MISSING'),
-                        'bootstrap_servers': critical_dependencies.get('kafka_bootstrap_servers', 'MISSING'),
-                        'topic': critical_dependencies.get('kafka_tickets_topic', 'MISSING'),
-                        'schema_registry_url': getattr(self.config, 'kafka_schema_registry_url', None) or 'NOT_CONFIGURED',
-                        'circuit_breaker_enabled': self.circuit_breaker_enabled,
-                    }
+                        "service_name": critical_dependencies.get("service_name", "MISSING"),
+                        "bootstrap_servers": critical_dependencies.get(
+                            "kafka_bootstrap_servers", "MISSING"
+                        ),
+                        "topic": critical_dependencies.get("kafka_tickets_topic", "MISSING"),
+                        "schema_registry_url": getattr(
+                            self.config, "kafka_schema_registry_url", None
+                        )
+                        or "NOT_CONFIGURED",
+                        "circuit_breaker_enabled": self.circuit_breaker_enabled,
+                    },
                 )
 
                 # Registrar métrica de erro de validação
@@ -137,33 +151,34 @@ class KafkaProducerClient:
                 if metrics:
                     for dep in missing_deps:
                         metrics.record_kafka_producer_config_validation_error(
-                            validation_stage='initialize',
-                            missing_attribute=dep
+                            validation_stage="initialize", missing_attribute=dep
                         )
 
                 raise RuntimeError(error_msg)
 
             # Log detalhado do estado completo do config (sanitizado)
-            schema_registry_url = getattr(self.config, 'kafka_schema_registry_url', None)
+            schema_registry_url = getattr(self.config, "kafka_schema_registry_url", None)
             logger.info(
-                'kafka_producer_initialization_started',
+                "kafka_producer_initialization_started",
                 config_snapshot={
-                    'service_name': critical_dependencies['service_name'],
-                    'bootstrap_servers': critical_dependencies['kafka_bootstrap_servers'],
-                    'topic': critical_dependencies['kafka_tickets_topic'],
-                    'schema_registry_url': schema_registry_url or 'NOT_CONFIGURED (JSON fallback)',
-                    'circuit_breaker_enabled': self.circuit_breaker_enabled,
-                    'sasl_username_provided': bool(self.sasl_username),
-                    'sasl_password_provided': bool(self.sasl_password),
-                    'security_protocol': getattr(self.config, 'kafka_security_protocol', 'PLAINTEXT'),
-                }
+                    "service_name": critical_dependencies["service_name"],
+                    "bootstrap_servers": critical_dependencies["kafka_bootstrap_servers"],
+                    "topic": critical_dependencies["kafka_tickets_topic"],
+                    "schema_registry_url": schema_registry_url or "NOT_CONFIGURED (JSON fallback)",
+                    "circuit_breaker_enabled": self.circuit_breaker_enabled,
+                    "sasl_username_provided": bool(self.sasl_username),
+                    "sasl_password_provided": bool(self.sasl_password),
+                    "security_protocol": getattr(
+                        self.config, "kafka_security_protocol", "PLAINTEXT"
+                    ),
+                },
             )
 
             producer_config = {
-                'bootstrap.servers': self.config.kafka_bootstrap_servers,
-                'enable.idempotence': True,
-                'acks': 'all',
-                'compression.type': 'gzip'
+                "bootstrap.servers": self.config.kafka_bootstrap_servers,
+                "enable.idempotence": True,
+                "acks": "all",
+                "compression.type": "gzip",
             }
 
             producer_config.update(self._configure_security())
@@ -172,6 +187,7 @@ class KafkaProducerClient:
             # Instrumentar producer para injetar headers de tracing (traceparent W3C)
             try:
                 from neural_hive_observability import get_config
+
                 obs_config = get_config()
 
                 if obs_config is None:
@@ -181,49 +197,62 @@ class KafkaProducerClient:
                     )
                 else:
                     self.producer = instrument_kafka_producer(self.producer, obs_config)
-                    logger.info('Kafka producer instrumentado com OpenTelemetry')
+                    logger.info("Kafka producer instrumentado com OpenTelemetry")
             except Exception as e:
                 logger.warning(
-                    'Falha ao instrumentar Kafka producer, continuando sem tracing',
-                    error=str(e)
+                    "Falha ao instrumentar Kafka producer, continuando sem tracing", error=str(e)
                 )
 
             try:
                 # Configurar conf para Schema Registry com suporte SSL
-                conf = {'url': self.config.kafka_schema_registry_url}
-                if self.config.kafka_schema_registry_url.startswith('https://'):
+                conf = {"url": self.config.kafka_schema_registry_url}
+                if self.config.kafka_schema_registry_url.startswith("https://"):
                     # Adicionar configuração SSL para HTTPS
-                    conf['ssl.ca.location'] = '/etc/ssl/certs/ca-bundle.crt'
-                    conf['ssl.check.hostname'] = 'false'
-                    conf['ssl.endpoint.identification.algorithm'] = 'none'
-                    logger.debug("using_ssl_for_schema_registry", url=self.config.kafka_schema_registry_url)
+                    conf["ssl.ca.location"] = "/etc/ssl/certs/ca-bundle.crt"
+                    conf["ssl.check.hostname"] = "false"
+                    conf["ssl.endpoint.identification.algorithm"] = "none"
+                    logger.debug(
+                        "using_ssl_for_schema_registry", url=self.config.kafka_schema_registry_url
+                    )
 
                 self.schema_registry_client = SchemaRegistryClient(conf)
 
                 # Serializer de Execution Tickets
-                ticket_schema_path = Path(self.config.schemas_base_path) / 'execution-ticket' / 'execution-ticket.avsc'
+                ticket_schema_path = (
+                    Path(self.config.schemas_base_path)
+                    / "execution-ticket"
+                    / "execution-ticket.avsc"
+                )
                 ticket_schema_str = ticket_schema_path.read_text()
-                self.avro_serializer = AvroSerializer(self.schema_registry_client, ticket_schema_str)
+                self.avro_serializer = AvroSerializer(
+                    self.schema_registry_client, ticket_schema_str
+                )
 
                 # Serializer de incidentes de orquestração (Fluxo E)
-                incident_schema_path = Path(self.config.schemas_base_path) / 'orchestration-incident' / 'orchestration-incident.avsc'
+                incident_schema_path = (
+                    Path(self.config.schemas_base_path)
+                    / "orchestration-incident"
+                    / "orchestration-incident.avsc"
+                )
                 try:
                     incident_schema_str = incident_schema_path.read_text()
-                    self.incident_avro_serializer = AvroSerializer(self.schema_registry_client, incident_schema_str)
+                    self.incident_avro_serializer = AvroSerializer(
+                        self.schema_registry_client, incident_schema_str
+                    )
                 except Exception as incident_exc:
                     logger.warning(
-                        'incident_schema_unavailable_fallback_json',
+                        "incident_schema_unavailable_fallback_json",
                         error=str(incident_exc),
-                        schema_path=str(incident_schema_path)
+                        schema_path=str(incident_schema_path),
                     )
                     self.incident_avro_serializer = None
 
-                logger.info('Schema Registry habilitado para producer', url=self.config.kafka_schema_registry_url)
-            except Exception as exc:
-                logger.warning(
-                    'Schema Registry indisponível - fallback para JSON',
-                    error=str(exc)
+                logger.info(
+                    "Schema Registry habilitado para producer",
+                    url=self.config.kafka_schema_registry_url,
                 )
+            except Exception as exc:
+                logger.warning("Schema Registry indisponível - fallback para JSON", error=str(exc))
                 self.schema_registry_client = None
                 self.avro_serializer = None
                 self.incident_avro_serializer = None
@@ -231,17 +260,19 @@ class KafkaProducerClient:
             # Inicializar circuit breaker APÓS producer e schema registry estarem prontos
             if self.circuit_breaker_enabled:
                 try:
-                    service_name = critical_dependencies['service_name']  # Já validado acima
+                    service_name = critical_dependencies["service_name"]  # Já validado acima
 
                     self.producer_breaker = MonitoredCircuitBreaker(
                         service_name=service_name,
-                        circuit_name='kafka_producer',
-                        fail_max=getattr(self.config, 'KAFKA_CIRCUIT_BREAKER_FAIL_MAX', 5),
-                        timeout_duration=getattr(self.config, 'KAFKA_CIRCUIT_BREAKER_TIMEOUT', 60),
-                        recovery_timeout=getattr(self.config, 'KAFKA_CIRCUIT_BREAKER_RECOVERY_TIMEOUT', 30)
+                        circuit_name="kafka_producer",
+                        fail_max=getattr(self.config, "KAFKA_CIRCUIT_BREAKER_FAIL_MAX", 5),
+                        timeout_duration=getattr(self.config, "KAFKA_CIRCUIT_BREAKER_TIMEOUT", 60),
+                        recovery_timeout=getattr(
+                            self.config, "KAFKA_CIRCUIT_BREAKER_RECOVERY_TIMEOUT", 30
+                        ),
                     )
                     logger.info(
-                        'kafka_producer_circuit_breaker_enabled',
+                        "kafka_producer_circuit_breaker_enabled",
                         service_name=service_name,
                         fail_max=self.producer_breaker.fail_max,
                         timeout=self.producer_breaker.recovery_timeout,
@@ -251,32 +282,31 @@ class KafkaProducerClient:
                     metrics = self._get_metrics()
                     if metrics:
                         metrics.record_circuit_breaker_initialization_status(
-                            circuit_name='kafka_producer',
-                            status='initialized',
-                            component='messaging',
-                            layer='infrastructure'
+                            circuit_name="kafka_producer",
+                            status="initialized",
+                            component="messaging",
+                            layer="infrastructure",
                         )
                 except Exception as cb_error:
                     logger.warning(
-                        'kafka_producer_circuit_breaker_init_failed',
+                        "kafka_producer_circuit_breaker_init_failed",
                         error=str(cb_error),
                         error_type=type(cb_error).__name__,
-                        fallback='circuit_breaker_disabled',
+                        fallback="circuit_breaker_disabled",
                     )
 
                     # Registrar métrica de erro de circuit breaker
                     metrics = self._get_metrics()
                     if metrics:
                         metrics.record_circuit_breaker_initialization_error(
-                            circuit_name='kafka_producer',
-                            error_type=type(cb_error).__name__
+                            circuit_name="kafka_producer", error_type=type(cb_error).__name__
                         )
                         # Registrar status de circuit breaker como falha
                         metrics.record_circuit_breaker_initialization_status(
-                            circuit_name='kafka_producer',
-                            status='failed',
-                            component='messaging',
-                            layer='infrastructure'
+                            circuit_name="kafka_producer",
+                            status="failed",
+                            component="messaging",
+                            layer="infrastructure",
                         )
 
                     # Fail-open: desabilitar circuit breaker mas continuar operação
@@ -287,17 +317,17 @@ class KafkaProducerClient:
                 metrics = self._get_metrics()
                 if metrics:
                     metrics.record_circuit_breaker_initialization_status(
-                        circuit_name='kafka_producer',
-                        status='not_initialized',
-                        component='messaging',
-                        layer='infrastructure'
+                        circuit_name="kafka_producer",
+                        status="not_initialized",
+                        component="messaging",
+                        layer="infrastructure",
                     )
 
             # Marcar inicialização como bem-sucedida
-            initialization_status = 'success'
+            initialization_status = "success"
 
             logger.info(
-                'kafka_producer_initialized',
+                "kafka_producer_initialized",
                 avro_enabled=self.avro_serializer is not None,
                 circuit_breaker_enabled=self.circuit_breaker_enabled,
                 schema_registry_enabled=self.schema_registry_client is not None,
@@ -308,16 +338,14 @@ class KafkaProducerClient:
             metrics = self._get_metrics()
             if metrics:
                 metrics.record_component_initialization(
-                    component_name='kafka_producer',
+                    component_name="kafka_producer",
                     status=initialization_status,
-                    duration_seconds=duration
+                    duration_seconds=duration,
                 )
 
     async def publish_ticket(
-        self,
-        ticket: Dict[str, Any],
-        topic: str = None
-    ) -> Dict[str, Any]:
+        self, ticket: dict[str, Any], topic: str | None = None
+    ) -> dict[str, Any]:
         """
         Publica um Execution Ticket no tópico Kafka.
 
@@ -337,72 +365,68 @@ class KafkaProducerClient:
             KafkaError: Em caso de falha na publicação
         """
         if not self.producer:
-            raise RuntimeError('Producer não inicializado. Chame initialize() primeiro.')
+            raise RuntimeError("Producer não inicializado. Chame initialize() primeiro.")
 
         topic = topic or self.config.kafka_tickets_topic
-        ticket_id = ticket['ticket_id']
+        ticket_id = ticket["ticket_id"]
 
         # Determinar partition key (plan_id > intent_id > ticket_id)
-        partition_key = ticket.get('plan_id') or ticket.get('intent_id') or ticket_id
-        partition_key_type = 'plan_id' if ticket.get('plan_id') else (
-            'intent_id' if ticket.get('intent_id') else 'ticket_id'
+        partition_key = ticket.get("plan_id") or ticket.get("intent_id") or ticket_id
+        partition_key_type = (
+            "plan_id"
+            if ticket.get("plan_id")
+            else ("intent_id" if ticket.get("intent_id") else "ticket_id")
         )
 
         try:
             serialized_value = self._serialize_value(ticket, topic)
-            key_bytes = partition_key.encode('utf-8') if partition_key else None
+            key_bytes = partition_key.encode("utf-8") if partition_key else None
 
             async def _do_produce():
                 return await asyncio.get_event_loop().run_in_executor(
-                    None,
-                    lambda: self._produce_sync(topic, serialized_value, key_bytes, ticket_id)
+                    None, lambda: self._produce_sync(topic, serialized_value, key_bytes, ticket_id)
                 )
 
             result = await self._execute_with_breaker(_do_produce)
 
             # Registrar métricas de partition
             self._record_partition_metrics(
-                topic=result.get('topic'),
-                partition=result.get('partition'),
-                message_size=len(serialized_value)
+                topic=result.get("topic"),
+                partition=result.get("partition"),
+                message_size=len(serialized_value),
             )
 
             logger.info(
-                'Ticket publicado com sucesso no Kafka',
+                "Ticket publicado com sucesso no Kafka",
                 ticket_id=ticket_id,
-                plan_id=ticket.get('plan_id'),
+                plan_id=ticket.get("plan_id"),
                 partition_key=partition_key,
                 partition_key_type=partition_key_type,
-                topic=result.get('topic'),
-                partition=result.get('partition'),
-                offset=result.get('offset')
+                topic=result.get("topic"),
+                partition=result.get("partition"),
+                offset=result.get("offset"),
             )
 
             return result
 
         except CircuitBreakerError:
-            logger.error(
-                'Kafka producer circuit breaker aberto',
-                ticket_id=ticket_id,
-                topic=topic
+            logger.exception(
+                "Kafka producer circuit breaker aberto", ticket_id=ticket_id, topic=topic
             )
             raise
         except KafkaError as e:
             logger.error(
-                'Erro ao publicar ticket no Kafka',
+                "Erro ao publicar ticket no Kafka",
                 ticket_id=ticket_id,
                 topic=topic,
                 error=str(e),
-                exc_info=True
+                exc_info=True,
             )
             raise
 
     async def send(
-        self,
-        topic: str,
-        value: Dict[str, Any],
-        key: str = None
-    ) -> Dict[str, Any]:
+        self, topic: str, value: dict[str, Any], key: str | None = None
+    ) -> dict[str, Any]:
         """
         Publica uma mensagem genérica no tópico Kafka.
 
@@ -421,135 +445,136 @@ class KafkaProducerClient:
             KafkaError: Em caso de falha na publicação
         """
         if not self.producer:
-            raise RuntimeError('Producer não inicializado. Chame initialize() primeiro.')
+            raise RuntimeError("Producer não inicializado. Chame initialize() primeiro.")
 
         try:
             serialized_value = self._serialize_value(value, topic)
-            key_bytes = key.encode('utf-8') if key else None
+            key_bytes = key.encode("utf-8") if key else None
 
             async def _do_produce():
                 return await asyncio.get_event_loop().run_in_executor(
-                    None,
-                    lambda: self._produce_sync(topic, serialized_value, key_bytes, key)
+                    None, lambda: self._produce_sync(topic, serialized_value, key_bytes, key)
                 )
 
             result = await self._execute_with_breaker(_do_produce)
 
             logger.debug(
-                'Mensagem publicada com sucesso no Kafka',
-                topic=result.get('topic'),
-                partition=result.get('partition'),
-                offset=result.get('offset'),
-                key=key
+                "Mensagem publicada com sucesso no Kafka",
+                topic=result.get("topic"),
+                partition=result.get("partition"),
+                offset=result.get("offset"),
+                key=key,
             )
 
             return result
 
         except CircuitBreakerError:
-            logger.error(
-                'Kafka producer circuit breaker aberto',
-                topic=topic,
-                key=key
-            )
+            logger.exception("Kafka producer circuit breaker aberto", topic=topic, key=key)
             raise
         except KafkaError as e:
             logger.error(
-                'Erro ao publicar mensagem no Kafka',
+                "Erro ao publicar mensagem no Kafka",
                 topic=topic,
                 key=key,
                 error=str(e),
-                exc_info=True
+                exc_info=True,
             )
             raise
 
-    async def publish_incident_avro(self, incident_event: Dict[str, Any]) -> bool:
+    async def publish_incident_avro(self, incident_event: dict[str, Any]) -> bool:
         """
         Publica um incidente de orquestração (Fluxo E) usando Avro com Schema Registry.
 
         Fail-open: retorna False em caso de falha após retries.
         """
         if not self.producer:
-            raise RuntimeError('Producer não inicializado. Chame initialize() primeiro.')
+            raise RuntimeError("Producer não inicializado. Chame initialize() primeiro.")
 
-        topic = getattr(self.config, 'kafka_incidents_topic', 'orchestration.incidents')
-        incident_id = incident_event.get('incident_id')
-        incident_type = incident_event.get('incident_type', 'UNKNOWN')
-        key = incident_id or incident_event.get('workflow_id')
+        topic = getattr(self.config, "kafka_incidents_topic", "orchestration.incidents")
+        incident_id = incident_event.get("incident_id")
+        incident_type = incident_event.get("incident_type", "UNKNOWN")
+        key = incident_id or incident_event.get("workflow_id")
 
         attempt = 0
         start_time = perf_counter()
-        last_error: Optional[Exception] = None
+        last_error: Exception | None = None
 
         while attempt < 3:
             attempt += 1
             try:
                 serialized_value = self._serialize_incident_value(incident_event, topic)
-                key_bytes = key.encode('utf-8') if key else None
+                key_bytes = key.encode("utf-8") if key else None
 
                 async def _do_produce():
                     return await asyncio.get_event_loop().run_in_executor(
                         None,
-                        lambda: self._produce_sync(topic, serialized_value, key_bytes, incident_id)
+                        lambda: self._produce_sync(topic, serialized_value, key_bytes, incident_id),
                     )
 
                 await self._execute_with_breaker(_do_produce)
 
                 duration = perf_counter() - start_time
-                self._record_incident_metrics(success=True, duration_seconds=duration, incident_type=incident_type)
+                self._record_incident_metrics(
+                    success=True, duration_seconds=duration, incident_type=incident_type
+                )
                 logger.info(
-                    'self_healing.incident_published',
+                    "self_healing.incident_published",
                     incident_id=incident_id,
-                    workflow_id=incident_event.get('workflow_id'),
+                    workflow_id=incident_event.get("workflow_id"),
                     incident_type=incident_type,
-                    playbook=incident_event.get('recommended_playbook'),
-                    duration_seconds=round(duration, 4)
+                    playbook=incident_event.get("recommended_playbook"),
+                    duration_seconds=round(duration, 4),
                 )
                 return True
             except CircuitBreakerError:
                 duration = perf_counter() - start_time
-                self._record_incident_metrics(success=False, duration_seconds=duration, incident_type=incident_type)
-                logger.error(
-                    'self_healing.kafka_circuit_breaker_open',
+                self._record_incident_metrics(
+                    success=False, duration_seconds=duration, incident_type=incident_type
+                )
+                logger.exception(
+                    "self_healing.kafka_circuit_breaker_open",
                     incident_id=incident_id,
-                    workflow_id=incident_event.get('workflow_id'),
-                    incident_type=incident_type
+                    workflow_id=incident_event.get("workflow_id"),
+                    incident_type=incident_type,
                 )
                 return False
             except Exception as exc:
                 last_error = exc
                 duration = perf_counter() - start_time
-                self._record_incident_metrics(success=False, duration_seconds=duration, incident_type=incident_type)
+                self._record_incident_metrics(
+                    success=False, duration_seconds=duration, incident_type=incident_type
+                )
 
                 if attempt >= 3:
                     logger.warning(
-                        'self_healing.kafka_publish_failed',
-                        workflow_id=incident_event.get('workflow_id'),
+                        "self_healing.kafka_publish_failed",
+                        workflow_id=incident_event.get("workflow_id"),
                         incident_id=incident_id,
                         incident_type=incident_type,
                         error=str(exc),
-                        retry_count=attempt
+                        retry_count=attempt,
                     )
                     break
 
-                sleep_seconds = min(10, 2 ** attempt)
+                sleep_seconds = min(10, 2**attempt)
                 logger.warning(
-                    'self_healing.incident_publish_retry',
+                    "self_healing.incident_publish_retry",
                     incident_id=incident_id,
-                    workflow_id=incident_event.get('workflow_id'),
+                    workflow_id=incident_event.get("workflow_id"),
                     incident_type=incident_type,
                     retry_count=attempt,
                     sleep_seconds=sleep_seconds,
-                    error=str(exc)
+                    error=str(exc),
                 )
                 await asyncio.sleep(sleep_seconds)
 
         if last_error:
             logger.error(
-                'self_healing.incident_buffered',
+                "self_healing.incident_buffered",
                 incident_id=incident_id,
-                workflow_id=incident_event.get('workflow_id'),
+                workflow_id=incident_event.get("workflow_id"),
                 incident_type=incident_type,
-                error=str(last_error)
+                error=str(last_error),
             )
 
         return False
@@ -558,94 +583,98 @@ class KafkaProducerClient:
         """Fecha o producer Kafka gracefully."""
         if self.producer:
             await asyncio.get_event_loop().run_in_executor(None, self.producer.flush)
-            logger.info('Kafka producer fechado')
+            logger.info("Kafka producer fechado")
 
-    def _serialize_value(self, value: Dict[str, Any], topic: str) -> bytes:
+    def _serialize_value(self, value: dict[str, Any], topic: str) -> bytes:
         """Serializa o payload usando Avro se disponível, caso contrário JSON."""
         if self.avro_serializer:
             context = SerializationContext(topic, MessageField.VALUE)
             return self.avro_serializer(value, context)
 
-        return json.dumps(value).encode('utf-8')
+        return json.dumps(value).encode("utf-8")
 
-    def _serialize_incident_value(self, value: Dict[str, Any], topic: str) -> bytes:
+    def _serialize_incident_value(self, value: dict[str, Any], topic: str) -> bytes:
         """Serializa incidentes usando schema dedicado ou faz fallback para JSON."""
         if self.incident_avro_serializer:
             context = SerializationContext(topic, MessageField.VALUE)
             return self.incident_avro_serializer(value, context)
 
-        return json.dumps(value).encode('utf-8')
+        return json.dumps(value).encode("utf-8")
 
-    def _produce_sync(self, topic: str, value: bytes, key: Optional[bytes], ticket_id: Optional[str] = None) -> Dict[str, Any]:
+    def _produce_sync(
+        self, topic: str, value: bytes, key: bytes | None, ticket_id: str | None = None
+    ) -> dict[str, Any]:
         """Publica mensagem de forma síncrona e retorna metadata."""
-        delivery_result: Dict[str, Any] = {}
+        delivery_result: dict[str, Any] = {}
 
         def callback(err, msg):
             self._delivery_callback(err, msg, ticket_id)
-            delivery_result['error'] = err
-            delivery_result['message'] = msg
+            delivery_result["error"] = err
+            delivery_result["message"] = msg
 
         self.producer.produce(topic=topic, key=key, value=value, on_delivery=callback)
         self.producer.flush()
 
-        if delivery_result.get('error'):
-            raise delivery_result['error']
+        if delivery_result.get("error"):
+            raise delivery_result["error"]
 
-        msg = delivery_result.get('message')
+        msg = delivery_result.get("message")
         if msg:
             return {
-                'published': True,
-                'ticket_id': ticket_id,
-                'topic': msg.topic(),
-                'partition': msg.partition(),
-                'offset': msg.offset(),
-                'timestamp': msg.timestamp()[1]
+                "published": True,
+                "ticket_id": ticket_id,
+                "topic": msg.topic(),
+                "partition": msg.partition(),
+                "offset": msg.offset(),
+                "timestamp": msg.timestamp()[1],
             }
 
-        return {'published': True, 'ticket_id': ticket_id, 'topic': topic}
+        return {"published": True, "ticket_id": ticket_id, "topic": topic}
 
-    def _delivery_callback(self, err, msg, ticket_id: Optional[str]):
+    def _delivery_callback(self, err, msg, ticket_id: str | None):
         """Callback de entrega para logging."""
         if err:
             logger.error(
-                'Falha na entrega da mensagem Kafka',
+                "Falha na entrega da mensagem Kafka",
                 ticket_id=ticket_id,
                 topic=msg.topic() if msg else None,
-                error=str(err)
+                error=str(err),
             )
         else:
             logger.debug(
-                'Mensagem entregue no Kafka',
+                "Mensagem entregue no Kafka",
                 ticket_id=ticket_id,
                 topic=msg.topic(),
                 partition=msg.partition(),
-                offset=msg.offset()
+                offset=msg.offset(),
             )
 
-    def _configure_security(self) -> Dict[str, Any]:
+    def _configure_security(self) -> dict[str, Any]:
         """Configura parâmetros de segurança Kafka (SASL/SSL)."""
-        security_config: Dict[str, Any] = {
-            'security.protocol': self.config.kafka_security_protocol
-        }
+        security_config: dict[str, Any] = {"security.protocol": self.config.kafka_security_protocol}
 
-        if self.config.kafka_security_protocol in ['SASL_SSL', 'SASL_PLAINTEXT']:
-            if getattr(self.config, 'kafka_sasl_mechanism', None):
-                security_config['sasl.mechanism'] = self.config.kafka_sasl_mechanism
+        if self.config.kafka_security_protocol in ["SASL_SSL", "SASL_PLAINTEXT"]:
+            if getattr(self.config, "kafka_sasl_mechanism", None):
+                security_config["sasl.mechanism"] = self.config.kafka_sasl_mechanism
             if self.sasl_username and self.sasl_password:
-                security_config['sasl.username'] = self.sasl_username
-                security_config['sasl.password'] = self.sasl_password
+                security_config["sasl.username"] = self.sasl_username
+                security_config["sasl.password"] = self.sasl_password
 
-        if self.config.kafka_security_protocol in ['SSL', 'SASL_SSL']:
-            if getattr(self.config, 'kafka_ssl_ca_location', None):
-                security_config['ssl.ca.location'] = self.config.kafka_ssl_ca_location
-            if getattr(self.config, 'kafka_ssl_certificate_location', None):
-                security_config['ssl.certificate.location'] = self.config.kafka_ssl_certificate_location
-            if getattr(self.config, 'kafka_ssl_key_location', None):
-                security_config['ssl.key.location'] = self.config.kafka_ssl_key_location
+        if self.config.kafka_security_protocol in ["SSL", "SASL_SSL"]:
+            if getattr(self.config, "kafka_ssl_ca_location", None):
+                security_config["ssl.ca.location"] = self.config.kafka_ssl_ca_location
+            if getattr(self.config, "kafka_ssl_certificate_location", None):
+                security_config[
+                    "ssl.certificate.location"
+                ] = self.config.kafka_ssl_certificate_location
+            if getattr(self.config, "kafka_ssl_key_location", None):
+                security_config["ssl.key.location"] = self.config.kafka_ssl_key_location
 
         return security_config
 
-    def _record_incident_metrics(self, success: bool, duration_seconds: Optional[float], incident_type: str):
+    def _record_incident_metrics(
+        self, success: bool, duration_seconds: float | None, incident_type: str
+    ):
         """Registra métricas de publicação de incidentes (fail-open)."""
         metrics = self._get_metrics()
         if not metrics:
@@ -653,12 +682,10 @@ class KafkaProducerClient:
 
         try:
             metrics.record_incident_publish(
-                incident_type=incident_type,
-                success=success,
-                duration_seconds=duration_seconds or 0
+                incident_type=incident_type, success=success, duration_seconds=duration_seconds or 0
             )
         except Exception as exc:
-            logger.warning('incident_metrics_record_failed', error=str(exc))
+            logger.warning("incident_metrics_record_failed", error=str(exc))
 
     def _get_metrics(self):
         """Inicializa métricas Prometheus sob demanda (fail-open)."""
@@ -670,7 +697,7 @@ class KafkaProducerClient:
 
             self.metrics = get_metrics()
         except Exception as exc:
-            logger.warning('metrics_unavailable_incident_publish', error=str(exc))
+            logger.warning("metrics_unavailable_incident_publish", error=str(exc))
             self.metrics = None
 
         return self.metrics
@@ -683,12 +710,10 @@ class KafkaProducerClient:
 
         try:
             metrics.record_kafka_partition_message(
-                topic=topic,
-                partition=partition,
-                message_size_bytes=message_size
+                topic=topic, partition=partition, message_size_bytes=message_size
             )
         except Exception as exc:
-            logger.warning('partition_metrics_record_failed', error=str(exc))
+            logger.warning("partition_metrics_record_failed", error=str(exc))
 
     async def _execute_with_breaker(self, func, *args, **kwargs):
         """

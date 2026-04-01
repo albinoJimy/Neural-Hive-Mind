@@ -9,8 +9,9 @@ Estende a API existente com novos endpoints e funcionalidades:
 GAPS-04 Task 5
 """
 
-from typing import Dict, Any, Optional, List
-from datetime import datetime
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
+
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -41,13 +42,12 @@ class ExplainabilityAPIExtensions:
             reasoning_extractor: ReasoningExtractor opcional
         """
         self.db = mongodb_client
+        self.mongodb_client = mongodb_client  # Alias para compatibilidade com testes
         self.shap_calculator = shap_calculator
         self.quality_scorer = quality_scorer
         self.reasoning_extractor = reasoning_extractor
 
-    async def get_explainability_by_decision_id(
-        self, decision_id: str
-    ) -> Dict[str, Any]:
+    async def get_explainability_by_decision_id(self, decision_id: str) -> Dict[str, Any]:
         """
         Busca explicação por decision_id com campos extendidos.
 
@@ -58,9 +58,7 @@ class ExplainabilityAPIExtensions:
             Dicionário com explicação completa incluindo campos hierárquicos
         """
         # Buscar explicação no MongoDB
-        explanation = await self.db.explainability_ledger.find_one(
-            {"decision_id": decision_id}
-        )
+        explanation = await self.db.explainability_ledger.find_one({"decision_id": decision_id})
 
         if not explanation:
             # Tentar buscar por token como fallback
@@ -76,9 +74,7 @@ class ExplainabilityAPIExtensions:
 
         # Adicionar campos de qualidade se não presentes
         if "explanation_quality" not in explanation and self.quality_scorer:
-            explanation["explanation_quality"] = self.quality_scorer.score_explanation(
-                explanation
-            )
+            explanation["explanation_quality"] = self.quality_scorer.score_explanation(explanation)
 
         return explanation
 
@@ -105,7 +101,7 @@ class ExplainabilityAPIExtensions:
         # Construir explicação base
         explanation = {
             "decision_id": decision_id,
-            "generated_at": datetime.utcnow().isoformat(),
+            "generated_at": datetime.now(timezone.utc).isoformat(),
             "format": output_format,
         }
 
@@ -127,9 +123,7 @@ class ExplainabilityAPIExtensions:
         if request.get("include_reasoning_extraction") and self.reasoning_extractor:
             reasoning_text = request.get("reasoning_text", "")
             if reasoning_text:
-                factors = self.reasoning_extractor.extract_and_categorize(
-                    reasoning_text
-                )
+                factors = self.reasoning_extractor.extract_and_categorize(reasoning_text)
                 explanation["reasoning_factors"] = factors["factors"]
 
         # Calcular score de qualidade
@@ -137,11 +131,7 @@ class ExplainabilityAPIExtensions:
             # Usar dados da requisição ou defaults
             quality_input = request.get(
                 "explanation",
-                {
-                    "final_decision": {
-                        "decision": request.get("final_decision", "approve")
-                    }
-                },
+                {"final_decision": {"decision": request.get("final_decision", "approve")}},
             )
             quality_scores = self.quality_scorer.score_explanation(quality_input)
             explanation["explanation_quality"] = quality_scores
@@ -159,9 +149,7 @@ class ExplainabilityAPIExtensions:
         else:
             return explanation
 
-    def format_explanation(
-        self, explanation: Dict[str, Any], output_format: str
-    ) -> Dict[str, Any]:
+    def format_explanation(self, explanation: Dict[str, Any], output_format: str) -> Dict[str, Any]:
         """
         Formata explicação em diferentes formatos.
 
@@ -201,22 +189,16 @@ class ExplainabilityAPIExtensions:
             narrative_lines.append("Atribuição de Features (SHAP):")
             for feature, value in explanation["shap_values"].items():
                 direction = "positivamente" if value > 0 else "negativamente"
-                narrative_lines.append(
-                    f"  - {feature}: influencia {direction} ({value:+.2f})"
-                )
+                narrative_lines.append(f"  - {feature}: influencia {direction} ({value:+.2f})")
             narrative_lines.append("")
 
         # Quality scores
         if "explanation_quality" in explanation:
             quality = explanation["explanation_quality"]
             narrative_lines.append("Qualidade da Explicação:")
-            narrative_lines.append(
-                f"  - Completude: {quality.get('completeness', 0):.2f}"
-            )
+            narrative_lines.append(f"  - Completude: {quality.get('completeness', 0):.2f}")
             narrative_lines.append(f"  - Clareza: {quality.get('clarity', 0):.2f}")
-            narrative_lines.append(
-                f"  - Especificidade: {quality.get('specificity', 0):.2f}"
-            )
+            narrative_lines.append(f"  - Especificidade: {quality.get('specificity', 0):.2f}")
             narrative_lines.append(f"  - Score Geral: {quality.get('overall', 0):.2f}")
 
         return {
@@ -245,9 +227,7 @@ class ExplainabilityAPIExtensions:
 
         # Decision Info
         html_parts.append('<div class="section">')
-        html_parts.append(
-            f'<h3>ID da Decisão: {explanation.get("decision_id", "N/A")}</h3>'
-        )
+        html_parts.append(f'<h3>ID da Decisão: {explanation.get("decision_id", "N/A")}</h3>')
         html_parts.append(f'<p>Gerado em: {explanation.get("generated_at", "N/A")}</p>')
         html_parts.append("</div>")
 
@@ -269,13 +249,9 @@ class ExplainabilityAPIExtensions:
             quality = explanation["explanation_quality"]
             html_parts.append('<div class="section">')
             html_parts.append("<h3>Métricas de Qualidade</h3>")
-            html_parts.append(
-                f'<p>Completude: {quality.get("completeness", 0):.2f}</p>'
-            )
+            html_parts.append(f'<p>Completude: {quality.get("completeness", 0):.2f}</p>')
             html_parts.append(f'<p>Clareza: {quality.get("clarity", 0):.2f}</p>')
-            html_parts.append(
-                f'<p>Especificidade: {quality.get("specificity", 0):.2f}</p>'
-            )
+            html_parts.append(f'<p>Especificidade: {quality.get("specificity", 0):.2f}</p>')
             html_parts.append(
                 f'<p><strong>Score Geral: {quality.get("overall", 0):.2f}</strong></p>'
             )
@@ -337,7 +313,7 @@ def setup_extensions(
     @app.post("/api/v1/explainability/generate")
     async def generate_explanation_endpoint(request: Dict[str, Any]):
         """Gera nova explicação sob demanda."""
-        from pydantic import BaseModel
+        from pydantic import BaseModel, ConfigDict
 
         class GenerateRequest(BaseModel):
             decision_id: str
@@ -349,8 +325,7 @@ def setup_extensions(
             reasoning_text: Optional[str] = None
             final_decision: Optional[str] = None
 
-            class Config:
-                extra = "allow"
+            model_config = ConfigDict(extra="allow")
 
         # Nota: Em produção, usar o modelo Pydantic corretamente
         # Por ora, processamos diretamente para simplicidade

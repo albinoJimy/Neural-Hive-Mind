@@ -1,14 +1,15 @@
+from typing import Any
+
+import structlog
 from fastapi import APIRouter, Request, status
 from fastapi.responses import JSONResponse
-from typing import Dict, Any
-import structlog
 
 logger = structlog.get_logger()
 router = APIRouter()
 
 
 @router.get("/health", status_code=status.HTTP_200_OK)
-async def health() -> Dict[str, Any]:
+async def health() -> dict[str, Any]:
     """Liveness probe - verifica se o serviço está ativo"""
     return {"status": "healthy", "service": "queen-agent", "version": "1.0.0"}
 
@@ -20,7 +21,7 @@ async def ready(request: Request) -> JSONResponse:
     Retorna 503 se alguma dependência crítica não estiver disponível
     """
     app_state = request.app.state.app_state
-    checks: Dict[str, bool] = {}
+    checks: dict[str, bool] = {}
 
     # MongoDB - dependência crítica
     try:
@@ -30,7 +31,7 @@ async def ready(request: Request) -> JSONResponse:
         else:
             checks["mongodb"] = False
     except Exception as e:
-        logger.error("health_check_mongodb_failed", error=str(e))
+        logger.exception("health_check_mongodb_failed", error=str(e))
         checks["mongodb"] = False
 
     # Redis - dependência crítica
@@ -41,7 +42,7 @@ async def ready(request: Request) -> JSONResponse:
         else:
             checks["redis"] = False
     except Exception as e:
-        logger.error("health_check_redis_failed", error=str(e))
+        logger.exception("health_check_redis_failed", error=str(e))
         checks["redis"] = False
 
     # Neo4j - dependência crítica
@@ -52,7 +53,7 @@ async def ready(request: Request) -> JSONResponse:
         else:
             checks["neo4j"] = False
     except Exception as e:
-        logger.error("health_check_neo4j_failed", error=str(e))
+        logger.exception("health_check_neo4j_failed", error=str(e))
         checks["neo4j"] = False
 
     # Kafka consumers - verifica se foram inicializados
@@ -63,16 +64,14 @@ async def ready(request: Request) -> JSONResponse:
             and app_state.incident_consumer is not None
         )
     except Exception as e:
-        logger.error("health_check_kafka_failed", error=str(e))
+        logger.exception("health_check_kafka_failed", error=str(e))
         checks["kafka"] = False
 
     # Prometheus - dependência opcional
     try:
         if app_state.prometheus_client:
             result = await app_state.prometheus_client.query("up")
-            checks["prometheus"] = (
-                result.get("status") == "success" if result else False
-            )
+            checks["prometheus"] = result.get("status") == "success" if result else False
         else:
             checks["prometheus"] = False
     except Exception as e:
@@ -83,27 +82,25 @@ async def ready(request: Request) -> JSONResponse:
     try:
         checks["grpc"] = app_state.grpc_server is not None
     except Exception as e:
-        logger.error("health_check_grpc_failed", error=str(e))
+        logger.exception("health_check_grpc_failed", error=str(e))
         checks["grpc"] = False
 
     # Leader Election - opcional, verifica se está rodando
     try:
         checks["leader_election"] = (
-            app_state.leader_election is not None
-            and app_state.leader_election.is_running
+            app_state.leader_election is not None and app_state.leader_election.is_running
         )
     except Exception as e:
-        logger.error("health_check_leader_election_failed", error=str(e))
+        logger.exception("health_check_leader_election_failed", error=str(e))
         checks["leader_election"] = False
 
     # Load Balancer - opcional, verifica se está rodando
     try:
         checks["load_balancer"] = (
-            app_state.load_balancer is not None
-            and app_state.load_balancer.is_running
+            app_state.load_balancer is not None and app_state.load_balancer.is_running
         )
     except Exception as e:
-        logger.error("health_check_load_balancer_failed", error=str(e))
+        logger.exception("health_check_load_balancer_failed", error=str(e))
         checks["load_balancer"] = False
 
     # Dependências críticas: MongoDB, Redis, Neo4j, Kafka

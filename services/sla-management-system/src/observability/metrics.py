@@ -2,8 +2,8 @@
 Métricas Prometheus para SLA Management System.
 """
 
+
 from prometheus_client import Counter, Gauge, Histogram
-from typing import Dict
 
 from ..models.error_budget import ErrorBudget
 
@@ -16,135 +16,125 @@ class SLAMetrics:
         self.calculations_total = Counter(
             "sla_calculations_total",
             "Total de cálculos de budget executados",
-            ["slo_id", "service_name", "status"]
+            ["slo_id", "service_name", "status"],
         )
 
         self.calculation_duration = Histogram(
             "sla_calculation_duration_seconds",
             "Duração dos cálculos de budget",
             ["slo_id", "service_name"],
-            buckets=[0.1, 0.5, 1, 2, 5, 10]
+            buckets=[0.1, 0.5, 1, 2, 5, 10],
         )
 
         # Error Budgets
         self.budget_remaining = Gauge(
             "sla_budget_remaining_percent",
             "Percentual de budget restante",
-            ["slo_id", "service_name", "slo_type"]
+            ["slo_id", "service_name", "slo_type"],
         )
 
         self.budget_consumed = Gauge(
             "sla_budget_consumed_percent",
             "Percentual de budget consumido",
-            ["slo_id", "service_name", "slo_type"]
+            ["slo_id", "service_name", "slo_type"],
         )
 
         self.budget_status = Gauge(
             "sla_budget_status",
             "Status do budget (0=HEALTHY, 1=WARNING, 2=CRITICAL, 3=EXHAUSTED)",
-            ["slo_id", "service_name"]
+            ["slo_id", "service_name"],
         )
 
         self.burn_rate = Gauge(
-            "sla_burn_rate",
-            "Taxa de consumo do budget",
-            ["slo_id", "service_name", "window_hours"]
+            "sla_burn_rate", "Taxa de consumo do budget", ["slo_id", "service_name", "window_hours"]
         )
 
         # Freezes
         self.freezes_active = Gauge(
-            "sla_freezes_active",
-            "Número de freezes ativos",
-            ["service_name", "scope"]
+            "sla_freezes_active", "Número de freezes ativos", ["service_name", "scope"]
         )
 
         self.freezes_activated_total = Counter(
             "sla_freezes_activated_total",
             "Total de freezes acionados",
-            ["service_name", "policy_id", "scope"]
+            ["service_name", "policy_id", "scope"],
         )
 
         self.freezes_resolved_total = Counter(
             "sla_freezes_resolved_total",
             "Total de freezes resolvidos",
-            ["service_name", "policy_id", "scope"]
+            ["service_name", "policy_id", "scope"],
         )
 
         self.freeze_duration = Histogram(
             "sla_freeze_duration_seconds",
             "Duração dos freezes",
             ["service_name", "policy_id"],
-            buckets=[60, 300, 600, 1800, 3600, 7200]
+            buckets=[60, 300, 600, 1800, 3600, 7200],
         )
 
         # SLOs
         self.slos_total = Gauge(
-            "sla_slos_total",
-            "Total de SLOs definidos",
-            ["slo_type", "enabled"]
+            "sla_slos_total", "Total de SLOs definidos", ["slo_type", "enabled"]
         )
 
         self.slo_violations_total = Counter(
             "sla_slo_violations_total",
             "Total de violações de SLO",
-            ["slo_id", "service_name", "severity"]
+            ["slo_id", "service_name", "severity"],
         )
 
         # Políticas
         self.policies_total = Gauge(
-            "sla_policies_total",
-            "Total de políticas definidas",
-            ["scope", "enabled"]
+            "sla_policies_total", "Total de políticas definidas", ["scope", "enabled"]
         )
 
         self.policy_evaluations_total = Counter(
             "sla_policy_evaluations_total",
             "Total de avaliações de política",
-            ["policy_id", "result"]
+            ["policy_id", "result"],
         )
 
         # Integrações
         self.prometheus_queries_total = Counter(
             "sla_prometheus_queries_total",
             "Total de queries ao Prometheus",
-            ["query_type", "status"]
+            ["query_type", "status"],
         )
 
         self.prometheus_query_duration = Histogram(
             "sla_prometheus_query_duration_seconds",
             "Duração das queries ao Prometheus",
             ["query_type"],
-            buckets=[0.1, 0.5, 1, 2, 5, 10, 30]
+            buckets=[0.1, 0.5, 1, 2, 5, 10, 30],
         )
 
         self.alertmanager_webhooks_total = Counter(
             "sla_alertmanager_webhooks_received_total",
             "Total de webhooks recebidos do Alertmanager",
-            ["status"]
+            ["status"],
         )
 
         self.kafka_events_published_total = Counter(
             "sla_kafka_events_published_total",
             "Total de eventos publicados no Kafka",
-            ["topic", "event_type"]
+            ["topic", "event_type"],
         )
 
         # Erros de conexão
         self.postgresql_connection_errors_total = Counter(
-            "sla_postgresql_connection_errors_total",
-            "Total de erros de conexão com PostgreSQL"
+            "sla_postgresql_connection_errors_total", "Total de erros de conexão com PostgreSQL"
         )
 
         self.redis_connection_errors_total = Counter(
-            "sla_redis_connection_errors_total",
-            "Total de erros de conexão com Redis"
+            "sla_redis_connection_errors_total", "Total de erros de conexão com Redis"
         )
 
         # Erros de sincronização de CRD
         self.crd_sync_errors_total = Counter(
             "sla_crd_sync_errors_total",
             "Total de erros ao sincronizar CRDs com PostgreSQL",
-            ["crd_type"]
+            ["crd_type"],
         )
 
         # Métricas de histórico de budgets
@@ -152,55 +142,48 @@ class SLAMetrics:
             "sla_budget_history_query_duration_seconds",
             "Duração das queries de histórico de budget",
             ["aggregation", "days_range"],
-            buckets=[0.1, 0.5, 1.0, 2.0, 5.0, 10.0]
+            buckets=[0.1, 0.5, 1.0, 2.0, 5.0, 10.0],
         )
 
         self.budget_history_queries_total = Counter(
             "sla_budget_history_queries_total",
             "Total de queries de histórico de budget",
-            ["aggregation", "status"]
+            ["aggregation", "status"],
         )
 
         self.budget_history_result_size = Gauge(
             "sla_budget_history_result_size",
             "Número de registros retornados em queries de histórico",
-            ["slo_id", "aggregation"]
+            ["slo_id", "aggregation"],
         )
 
         # Métricas de view materializada
         self.materialized_view_last_refresh = Gauge(
             "materialized_view_last_refresh_timestamp",
             "Timestamp Unix do último refresh da view materializada",
-            ["view_name"]
+            ["view_name"],
         )
 
         self.materialized_view_refresh_duration = Histogram(
             "materialized_view_refresh_duration_seconds",
             "Duração do refresh da view materializada",
             ["view_name"],
-            buckets=[1.0, 5.0, 10.0, 30.0, 60.0, 120.0, 300.0]
+            buckets=[1.0, 5.0, 10.0, 30.0, 60.0, 120.0, 300.0],
         )
 
     def record_calculation(
-        self,
-        slo_id: str,
-        service_name: str,
-        duration: float,
-        success: bool
+        self, slo_id: str, service_name: str, duration: float, success: bool
     ) -> None:
         """Registra execução de cálculo."""
         status = "success" if success else "error"
         self.calculations_total.labels(
-            slo_id=slo_id,
-            service_name=service_name,
-            status=status
+            slo_id=slo_id, service_name=service_name, status=status
         ).inc()
 
         if success:
-            self.calculation_duration.labels(
-                slo_id=slo_id,
-                service_name=service_name
-            ).observe(duration)
+            self.calculation_duration.labels(slo_id=slo_id, service_name=service_name).observe(
+                duration
+            )
 
     def update_budget_metrics(self, budget: ErrorBudget) -> None:
         """Atualiza métricas de budget."""
@@ -208,114 +191,65 @@ class SLAMetrics:
         slo_type = budget.metadata.get("slo_type", "CUSTOM")
 
         self.budget_remaining.labels(
-            slo_id=budget.slo_id,
-            service_name=budget.service_name,
-            slo_type=slo_type
+            slo_id=budget.slo_id, service_name=budget.service_name, slo_type=slo_type
         ).set(budget.error_budget_remaining)
 
         self.budget_consumed.labels(
-            slo_id=budget.slo_id,
-            service_name=budget.service_name,
-            slo_type=slo_type
+            slo_id=budget.slo_id, service_name=budget.service_name, slo_type=slo_type
         ).set(budget.error_budget_consumed)
 
         # Status numérico
-        status_map = {
-            "HEALTHY": 0,
-            "WARNING": 1,
-            "CRITICAL": 2,
-            "EXHAUSTED": 3
-        }
+        status_map = {"HEALTHY": 0, "WARNING": 1, "CRITICAL": 2, "EXHAUSTED": 3}
         status_value = status_map.get(budget.status.value, 0)
 
-        self.budget_status.labels(
-            slo_id=budget.slo_id,
-            service_name=budget.service_name
-        ).set(status_value)
+        self.budget_status.labels(slo_id=budget.slo_id, service_name=budget.service_name).set(
+            status_value
+        )
 
         # Burn rates
         for burn_rate in budget.burn_rates:
             self.burn_rate.labels(
                 slo_id=budget.slo_id,
                 service_name=budget.service_name,
-                window_hours=str(burn_rate.window_hours)
+                window_hours=str(burn_rate.window_hours),
             ).set(burn_rate.rate)
 
-    def record_freeze_activated(
-        self,
-        service_name: str,
-        policy_id: str,
-        scope: str
-    ) -> None:
+    def record_freeze_activated(self, service_name: str, policy_id: str, scope: str) -> None:
         """Registra freeze acionado."""
         self.freezes_activated_total.labels(
-            service_name=service_name,
-            policy_id=policy_id,
-            scope=scope
+            service_name=service_name, policy_id=policy_id, scope=scope
         ).inc()
 
     def record_freeze_resolved(
-        self,
-        service_name: str,
-        policy_id: str,
-        scope: str,
-        duration: float
+        self, service_name: str, policy_id: str, scope: str, duration: float
     ) -> None:
         """Registra freeze resolvido."""
         self.freezes_resolved_total.labels(
-            service_name=service_name,
-            policy_id=policy_id,
-            scope=scope
+            service_name=service_name, policy_id=policy_id, scope=scope
         ).inc()
 
-        self.freeze_duration.labels(
-            service_name=service_name,
-            policy_id=policy_id
-        ).observe(duration)
+        self.freeze_duration.labels(service_name=service_name, policy_id=policy_id).observe(
+            duration
+        )
 
-    def update_freeze_active_count(
-        self,
-        service_name: str,
-        scope: str,
-        count: int
-    ) -> None:
+    def update_freeze_active_count(self, service_name: str, scope: str, count: int) -> None:
         """Atualiza contador de freezes ativos."""
-        self.freezes_active.labels(
-            service_name=service_name,
-            scope=scope
-        ).set(count)
+        self.freezes_active.labels(service_name=service_name, scope=scope).set(count)
 
-    def record_slo_violation(
-        self,
-        slo_id: str,
-        service_name: str,
-        severity: str
-    ) -> None:
+    def record_slo_violation(self, slo_id: str, service_name: str, severity: str) -> None:
         """Registra violação de SLO."""
         self.slo_violations_total.labels(
-            slo_id=slo_id,
-            service_name=service_name,
-            severity=severity
+            slo_id=slo_id, service_name=service_name, severity=severity
         ).inc()
 
-    def record_prometheus_query(
-        self,
-        query_type: str,
-        duration: float,
-        success: bool
-    ) -> None:
+    def record_prometheus_query(self, query_type: str, duration: float, success: bool) -> None:
         """Registra query ao Prometheus."""
         status = "success" if success else "error"
 
-        self.prometheus_queries_total.labels(
-            query_type=query_type,
-            status=status
-        ).inc()
+        self.prometheus_queries_total.labels(query_type=query_type, status=status).inc()
 
         if success:
-            self.prometheus_query_duration.labels(
-                query_type=query_type
-            ).observe(duration)
+            self.prometheus_query_duration.labels(query_type=query_type).observe(duration)
 
     def record_webhook_received(self, success: bool) -> None:
         """Registra webhook recebido."""
@@ -324,10 +258,7 @@ class SLAMetrics:
 
     def record_kafka_event(self, topic: str, event_type: str) -> None:
         """Registra evento publicado no Kafka."""
-        self.kafka_events_published_total.labels(
-            topic=topic,
-            event_type=event_type
-        ).inc()
+        self.kafka_events_published_total.labels(topic=topic, event_type=event_type).inc()
 
     def record_postgresql_error(self) -> None:
         """Registra erro de conexão com PostgreSQL."""
@@ -348,7 +279,7 @@ class SLAMetrics:
         duration: float,
         success: bool,
         result_count: int = 0,
-        slo_id: str = ""
+        slo_id: str = "",
     ) -> None:
         """Registra query de histórico de budget."""
         agg_label = aggregation or "none"
@@ -356,38 +287,26 @@ class SLAMetrics:
         status = "success" if success else "error"
 
         self.budget_history_query_duration.labels(
-            aggregation=agg_label,
-            days_range=days_range
+            aggregation=agg_label, days_range=days_range
         ).observe(duration)
 
-        self.budget_history_queries_total.labels(
-            aggregation=agg_label,
-            status=status
-        ).inc()
+        self.budget_history_queries_total.labels(aggregation=agg_label, status=status).inc()
 
         if success and slo_id:
-            self.budget_history_result_size.labels(
-                slo_id=slo_id,
-                aggregation=agg_label
-            ).set(result_count)
+            self.budget_history_result_size.labels(slo_id=slo_id, aggregation=agg_label).set(
+                result_count
+            )
 
     def record_materialized_view_refresh(
-        self,
-        view_name: str,
-        duration: float,
-        success: bool
+        self, view_name: str, duration: float, success: bool
     ) -> None:
         """Registra refresh de view materializada."""
         import time
 
         if success:
-            self.materialized_view_last_refresh.labels(
-                view_name=view_name
-            ).set(time.time())
+            self.materialized_view_last_refresh.labels(view_name=view_name).set(time.time())
 
-            self.materialized_view_refresh_duration.labels(
-                view_name=view_name
-            ).observe(duration)
+            self.materialized_view_refresh_duration.labels(view_name=view_name).observe(duration)
 
 
 # Instância global

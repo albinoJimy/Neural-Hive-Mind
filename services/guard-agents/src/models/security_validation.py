@@ -2,17 +2,19 @@
 Modelos Pydantic para validação proativa de segurança de execution tickets.
 """
 
-from enum import Enum
-from typing import Optional, Dict, List
-from datetime import datetime
-from pydantic import BaseModel, Field, ConfigDict
 import hashlib
 import json
 import uuid
+from datetime import datetime
+from enum import Enum
+from typing import Dict, List, Optional
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ViolationType(str, Enum):
     """Tipos de violações de segurança detectadas."""
+
     SECRET_EXPOSED = "SECRET_EXPOSED"
     RBAC_VIOLATION = "RBAC_VIOLATION"
     COMPLIANCE_BREACH = "COMPLIANCE_BREACH"
@@ -22,6 +24,7 @@ class ViolationType(str, Enum):
 
 class ValidationStatus(str, Enum):
     """Status da validação de segurança."""
+
     APPROVED = "APPROVED"
     REJECTED = "REJECTED"
     REQUIRES_APPROVAL = "REQUIRES_APPROVAL"
@@ -29,6 +32,7 @@ class ValidationStatus(str, Enum):
 
 class ValidatorType(str, Enum):
     """Tipos de validadores de segurança."""
+
     OPA_POLICY = "OPA_POLICY"
     RBAC = "RBAC"
     SECRETS_SCAN = "SECRETS_SCAN"
@@ -38,6 +42,7 @@ class ValidatorType(str, Enum):
 
 class Severity(str, Enum):
     """Níveis de severidade."""
+
     CRITICAL = "CRITICAL"
     HIGH = "HIGH"
     MEDIUM = "MEDIUM"
@@ -67,8 +72,8 @@ class GuardrailViolation(BaseModel):
                 "evidence": {
                     "secret_type": "aws-access-key",
                     "location": "parameters.aws_credentials",
-                    "pattern_matched": "AKIA[0-9A-Z]{16}"
-                }
+                    "pattern_matched": "AKIA[0-9A-Z]{16}",
+                },
             }
         }
     )
@@ -82,7 +87,7 @@ class GuardrailViolation(BaseModel):
             "description": self.description,
             "remediation_suggestion": self.remediation_suggestion,
             "detected_by": self.detected_by,
-            "evidence": self.evidence
+            "evidence": self.evidence,
         }
 
 
@@ -98,7 +103,7 @@ class RiskAssessment(BaseModel):
             "example": {
                 "risk_score": 0.85,
                 "severity": "HIGH",
-                "impact": "Exposição de credenciais pode comprometer infraestrutura AWS"
+                "impact": "Exposição de credenciais pode comprometer infraestrutura AWS",
             }
         }
     )
@@ -140,12 +145,12 @@ class SecurityValidation(BaseModel):
                 "risk_assessment": {
                     "risk_score": 0.95,
                     "severity": "CRITICAL",
-                    "impact": "Credenciais expostas"
+                    "impact": "Credenciais expostas",
                 },
                 "approval_required": False,
                 "metadata": {"validator_version": "1.0.0"},
                 "hash": "abc123...",
-                "schema_version": 1
+                "schema_version": 1,
             }
         }
     )
@@ -165,8 +170,8 @@ class SecurityValidation(BaseModel):
             "violations": [v.to_dict() for v in self.violations],
             "risk_assessment": {
                 "risk_score": self.risk_assessment.risk_score,
-                "severity": self.risk_assessment.severity.value
-            }
+                "severity": self.risk_assessment.severity.value,
+            },
         }
 
         hash_input = json.dumps(critical_fields, sort_keys=True)
@@ -205,13 +210,13 @@ class SecurityValidation(BaseModel):
             "risk_assessment": {
                 "risk_score": self.risk_assessment.risk_score,
                 "severity": self.risk_assessment.severity.value,
-                "impact": self.risk_assessment.impact
+                "impact": self.risk_assessment.impact,
             },
             "approval_required": self.approval_required,
             "approval_reason": self.approval_reason,
             "metadata": self.metadata,
             "hash": self.hash,
-            "schema_version": self.schema_version
+            "schema_version": self.schema_version,
         }
 
     @classmethod
@@ -237,7 +242,7 @@ class SecurityValidation(BaseModel):
                 description=v["description"],
                 remediation_suggestion=v["remediation_suggestion"],
                 detected_by=v["detected_by"],
-                evidence=v["evidence"]
+                evidence=v["evidence"],
             )
             for v in data.get("violations", [])
         ]
@@ -247,7 +252,7 @@ class SecurityValidation(BaseModel):
         risk_assessment = RiskAssessment(
             risk_score=risk_data["risk_score"],
             severity=Severity(risk_data["severity"]),
-            impact=risk_data["impact"]
+            impact=risk_data["impact"],
         )
 
         return cls(
@@ -267,7 +272,7 @@ class SecurityValidation(BaseModel):
             approval_reason=data.get("approval_reason"),
             metadata=data.get("metadata", {}),
             hash=data.get("hash", ""),
-            schema_version=data.get("schema_version", 1)
+            schema_version=data.get("schema_version", 1),
         )
 
     def requires_human_approval(self) -> bool:
@@ -282,10 +287,7 @@ class SecurityValidation(BaseModel):
             return True
 
         # Aprovação necessária se há violações CRITICAL
-        critical_violations = [
-            v for v in self.violations
-            if v.severity == Severity.CRITICAL
-        ]
+        critical_violations = [v for v in self.violations if v.severity == Severity.CRITICAL]
         if critical_violations:
             return True
 

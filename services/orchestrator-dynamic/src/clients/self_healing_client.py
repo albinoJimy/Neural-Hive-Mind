@@ -3,11 +3,11 @@ Cliente HTTP para integração com Self-Healing Engine (Fluxo E).
 """
 import asyncio
 import time
-from typing import Dict, Any, Optional
+from typing import Any
+from uuid import uuid4
 
 import httpx
 import structlog
-from uuid import uuid4
 
 logger = structlog.get_logger()
 
@@ -47,12 +47,14 @@ class SelfHealingClient:
         base_url: str,
         timeout: float = 30.0,
         failure_threshold: int = 3,
-        reset_timeout: int = 60
+        reset_timeout: int = 60,
     ):
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
-        self.circuit_breaker = CircuitBreaker(failure_threshold=failure_threshold, reset_timeout=reset_timeout)
-        self._client: Optional[httpx.AsyncClient] = None
+        self.circuit_breaker = CircuitBreaker(
+            failure_threshold=failure_threshold, reset_timeout=reset_timeout
+        )
+        self._client: httpx.AsyncClient | None = None
         self._lock = asyncio.Lock()
 
     async def _get_client(self) -> httpx.AsyncClient:
@@ -65,17 +67,14 @@ class SelfHealingClient:
             self._client = httpx.AsyncClient(
                 base_url=self.base_url,
                 timeout=self.timeout,
-                limits=httpx.Limits(max_keepalive_connections=10, max_connections=50)
+                limits=httpx.Limits(max_keepalive_connections=10, max_connections=50),
             )
             return self._client
 
-    async def trigger_remediation(self, incident: Dict[str, Any]) -> Optional[str]:
+    async def trigger_remediation(self, incident: dict[str, Any]) -> str | None:
         """Aciona remediação via Self-Healing Engine."""
         if self.circuit_breaker.is_open():
-            logger.warning(
-                "self_healing_client.circuit_open",
-                base_url=self.base_url
-            )
+            logger.warning("self_healing_client.circuit_open", base_url=self.base_url)
             return None
 
         remediation_id = incident.get("remediation_id") or str(uuid4())
@@ -84,7 +83,7 @@ class SelfHealingClient:
             "incident_id": incident.get("incident_id"),
             "playbook_name": incident.get("recommended_playbook"),
             "parameters": incident.get("parameters", {}),
-            "execution_mode": incident.get("execution_mode", "AUTOMATIC")
+            "execution_mode": incident.get("execution_mode", "AUTOMATIC"),
         }
 
         try:
@@ -96,19 +95,17 @@ class SelfHealingClient:
             logger.info(
                 "self_healing_client.remediation_triggered",
                 remediation_id=remediation_id,
-                playbook=payload.get("playbook_name")
+                playbook=payload.get("playbook_name"),
             )
             return remediation_id
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             self.circuit_breaker.record_failure()
             logger.warning(
-                "self_healing_client.trigger_failed",
-                remediation_id=remediation_id,
-                error=str(exc)
+                "self_healing_client.trigger_failed", remediation_id=remediation_id, error=str(exc)
             )
             return None
 
-    async def get_remediation_status(self, remediation_id: str) -> Dict[str, Any]:
+    async def get_remediation_status(self, remediation_id: str) -> dict[str, Any]:
         """Consulta status de remediação (fail-open)."""
         if self.circuit_breaker.is_open():
             return {"remediation_id": remediation_id, "status": "circuit_open"}
@@ -119,12 +116,10 @@ class SelfHealingClient:
             response.raise_for_status()
             self.circuit_breaker.record_success()
             return response.json()
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             self.circuit_breaker.record_failure()
             logger.warning(
-                "self_healing_client.status_failed",
-                remediation_id=remediation_id,
-                error=str(exc)
+                "self_healing_client.status_failed", remediation_id=remediation_id, error=str(exc)
             )
             return {"remediation_id": remediation_id, "status": "unknown", "error": str(exc)}
 

@@ -3,21 +3,31 @@ Cliente de integração Vault para worker-agents service
 """
 
 import asyncio
-from typing import Dict, Optional, Callable, Any
-from datetime import datetime, timedelta
+from collections.abc import Callable
+from datetime import UTC, datetime, timedelta
+from typing import Any, Optional
+
 import structlog
 from prometheus_client import Counter
 
 # Import security library components
 try:
-    from neural_hive_security import VaultClient, SPIFFEManager, VaultConfig, SPIFFEConfig
-    from neural_hive_security import VaultConnectionError, VaultAuthenticationError
+    from neural_hive_security import (
+        SPIFFEConfig,
+        SPIFFEManager,
+        VaultAuthenticationError,
+        VaultClient,
+        VaultConfig,
+        VaultConnectionError,
+    )
+
     SECURITY_LIB_AVAILABLE = True
 except ImportError:
     SECURITY_LIB_AVAILABLE = False
 
-from src.config.settings import WorkerAgentSettings
+import contextlib
 
+from src.config.settings import WorkerAgentSettings
 
 logger = structlog.get_logger(__name__)
 
@@ -25,12 +35,12 @@ logger = structlog.get_logger(__name__)
 vault_credentials_fetched_total = Counter(
     "worker_vault_credentials_fetched_total",
     "Total de buscas de credenciais do Vault",
-    ["credential_type", "status"]
+    ["credential_type", "status"],
 )
 vault_renewal_task_runs_total = Counter(
     "worker_vault_renewal_task_runs_total",
     "Execuções do task de renovação de credenciais",
-    ["status"]
+    ["status"],
 )
 
 
@@ -44,7 +54,9 @@ class WorkerVaultClient:
     - Armazenamento de resultados sensíveis
     """
 
-    def __init__(self, config: WorkerAgentSettings, spiffe_manager: Optional["SPIFFEManager"] = None):
+    def __init__(
+        self, config: WorkerAgentSettings, spiffe_manager: Optional["SPIFFEManager"] = None
+    ):
         if not SECURITY_LIB_AVAILABLE:
             raise ImportError("neural-hive-security library not available")
 
@@ -68,24 +80,28 @@ class WorkerVaultClient:
             jwt_ttl_seconds=config.spiffe_jwt_ttl_seconds,
         )
 
-        self.vault_client: Optional[VaultClient] = VaultClient(vault_config) if config.vault_enabled else None
+        self.vault_client: VaultClient | None = (
+            VaultClient(vault_config) if config.vault_enabled else None
+        )
         self._owns_spiffe = spiffe_manager is None
         if spiffe_manager is not None:
             self.spiffe_manager = spiffe_manager
         else:
-            self.spiffe_manager: Optional[SPIFFEManager] = SPIFFEManager(spiffe_config) if config.spiffe_enabled else None
+            self.spiffe_manager: SPIFFEManager | None = (
+                SPIFFEManager(spiffe_config) if config.spiffe_enabled else None
+            )
 
         # Cache de credenciais Kafka para gerenciar renovação
-        self._kafka_credentials: Optional[Dict[str, Any]] = None
-        self._kafka_credentials_expiry: Optional[datetime] = None
-        self._renewal_task: Optional[asyncio.Task] = None
+        self._kafka_credentials: dict[str, Any] | None = None
+        self._kafka_credentials_expiry: datetime | None = None
+        self._renewal_task: asyncio.Task | None = None
 
         # Callback para atualização de credenciais Kafka
-        self._kafka_credential_update_callback: Optional[Callable] = None
+        self._kafka_credential_update_callback: Callable | None = None
 
         # Threshold para renovação (renovar quando 75% do TTL consumido)
         self._credential_renewal_threshold = getattr(
-            config, 'vault_credential_renewal_threshold', 0.75
+            config, "vault_credential_renewal_threshold", 0.75
         )
 
     def set_kafka_credential_callback(self, callback: Callable):
@@ -123,10 +139,9 @@ class WorkerVaultClient:
         except Exception as e:
             if not self.config.vault_fail_open:
                 raise
-            else:
-                self.logger.warning("vault_initialization_failed_failopen", error=str(e))
+            self.logger.warning("vault_initialization_failed_failopen", error=str(e))
 
-    async def get_execution_credentials(self, task_type: str) -> Dict[str, str]:
+    async def get_execution_credentials(self, task_type: str) -> dict[str, str]:
         """
         Busca credenciais de execução específicas por tipo de task
 
@@ -144,12 +159,14 @@ class WorkerVaultClient:
             secret = await self.vault_client.read_secret(path)
             return secret if secret else {}
         except Exception as e:
-            self.logger.error("execution_credentials_fetch_failed", task_type=task_type, error=str(e))
+            self.logger.exception(
+                "execution_credentials_fetch_failed", task_type=task_type, error=str(e)
+            )
             if self.config.vault_fail_open:
                 return {}
             raise
 
-    async def get_kafka_credentials(self) -> Dict[str, Optional[str]]:
+    async def get_kafka_credentials(self) -> dict[str, str | None]:
         """
         Busca credenciais Kafka do Vault com cache e TTL.
 
@@ -170,38 +187,44 @@ class WorkerVaultClient:
                 self._kafka_credentials = {
                     "username": secret.get("username"),
                     "password": secret.get("password"),
-                    "ttl": ttl
+                    "ttl": ttl,
                 }
                 if ttl > 0:
-                    self._kafka_credentials_expiry = datetime.utcnow() + timedelta(seconds=ttl)
+                    self._kafka_credentials_expiry = datetime.now(UTC) + timedelta(
+                        seconds=ttl
+                    )
 
                 self.logger.info("kafka_credentials_fetched", ttl=ttl)
-                vault_credentials_fetched_total.labels(credential_type="kafka", status="success").inc()
+                vault_credentials_fetched_total.labels(
+                    credential_type="kafka", status="success"
+                ).inc()
 
                 return self._kafka_credentials
 
             return {"username": None, "password": None, "ttl": 0}
 
         except Exception as e:
-            self.logger.error("kafka_credentials_fetch_failed", error=str(e))
+            self.logger.exception("kafka_credentials_fetch_failed", error=str(e))
             vault_credentials_fetched_total.labels(credential_type="kafka", status="error").inc()
             if self.config.vault_fail_open:
                 return {"username": None, "password": None, "ttl": 0}
             raise
 
-    async def get_service_registry_token(self) -> Optional[str]:
+    async def get_service_registry_token(self) -> str | None:
         """Busca JWT token para autenticação no Service Registry"""
         if not self.spiffe_manager or not self.config.spiffe_enabled:
             return None
 
         try:
-            jwt_svid = await self.spiffe_manager.fetch_jwt_svid("service-registry.neural-hive.local")
+            jwt_svid = await self.spiffe_manager.fetch_jwt_svid(
+                "service-registry.neural-hive.local"
+            )
             return jwt_svid.token
         except Exception as e:
-            self.logger.error("service_registry_token_fetch_failed", error=str(e))
+            self.logger.exception("service_registry_token_fetch_failed", error=str(e))
             return None
 
-    async def store_execution_result(self, ticket_id: str, result: Dict) -> bool:
+    async def store_execution_result(self, ticket_id: str, result: dict) -> bool:
         """
         Armazena resultado sensível de execução no Vault
 
@@ -221,7 +244,7 @@ class WorkerVaultClient:
             self.logger.info("execution_result_stored", ticket_id=ticket_id)
             return True
         except Exception as e:
-            self.logger.error("execution_result_store_failed", ticket_id=ticket_id, error=str(e))
+            self.logger.exception("execution_result_store_failed", ticket_id=ticket_id, error=str(e))
             return False
 
     async def _renew_credentials_loop(self):
@@ -254,7 +277,7 @@ class WorkerVaultClient:
                 self.logger.info("credential_renewal_task_cancelled")
                 break
             except Exception as e:
-                self.logger.error("credential_renewal_error", error=str(e))
+                self.logger.exception("credential_renewal_error", error=str(e))
                 vault_renewal_task_runs_total.labels(status="error").inc()
                 await asyncio.sleep(60)  # Backoff em caso de erro
 
@@ -266,7 +289,9 @@ class WorkerVaultClient:
             Intervalo em segundos até a próxima verificação
         """
         if self._kafka_credentials_expiry:
-            time_until_expiry = (self._kafka_credentials_expiry - datetime.utcnow()).total_seconds()
+            time_until_expiry = (
+                self._kafka_credentials_expiry - datetime.now(UTC)
+            ).total_seconds()
             if time_until_expiry > 0:
                 # Verificar quando atingir o threshold
                 check_at = time_until_expiry * (1 - self._credential_renewal_threshold)
@@ -282,9 +307,13 @@ class WorkerVaultClient:
         if not self._kafka_credentials_expiry:
             return
 
-        time_until_expiry = (self._kafka_credentials_expiry - datetime.utcnow()).total_seconds()
+        time_until_expiry = (
+            self._kafka_credentials_expiry - datetime.now(UTC)
+        ).total_seconds()
         if time_until_expiry <= 0:
-            self.logger.warning("kafka_credentials_expired", expired_seconds_ago=abs(time_until_expiry))
+            self.logger.warning(
+                "kafka_credentials_expired", expired_seconds_ago=abs(time_until_expiry)
+            )
             await self._fetch_and_update_kafka_credentials()
             return
 
@@ -298,7 +327,7 @@ class WorkerVaultClient:
             self.logger.info(
                 "renewing_kafka_credentials",
                 time_until_expiry=time_until_expiry,
-                consumed_ratio=consumed_ratio
+                consumed_ratio=consumed_ratio,
             )
             await self._fetch_and_update_kafka_credentials()
 
@@ -314,19 +343,21 @@ class WorkerVaultClient:
                 new_creds = {
                     "username": secret.get("username"),
                     "password": secret.get("password"),
-                    "ttl": ttl
+                    "ttl": ttl,
                 }
 
                 self._kafka_credentials = new_creds
                 if ttl > 0:
-                    self._kafka_credentials_expiry = datetime.utcnow() + timedelta(seconds=ttl)
+                    self._kafka_credentials_expiry = datetime.now(UTC) + timedelta(
+                        seconds=ttl
+                    )
 
                 self.logger.info(
-                    "kafka_credentials_renewed",
-                    ttl=ttl,
-                    username=secret.get("username")
+                    "kafka_credentials_renewed", ttl=ttl, username=secret.get("username")
                 )
-                vault_credentials_fetched_total.labels(credential_type="kafka", status="renewed").inc()
+                vault_credentials_fetched_total.labels(
+                    credential_type="kafka", status="renewed"
+                ).inc()
 
                 # Notificar callback para atualização do producer Kafka
                 if self._kafka_credential_update_callback:
@@ -334,21 +365,18 @@ class WorkerVaultClient:
                         await self._kafka_credential_update_callback(new_creds)
                         self.logger.info(
                             "kafka_credentials_callback_executed",
-                            note="Kafka producer atualizado via callback"
+                            note="Kafka producer atualizado via callback",
                         )
                     except Exception as cb_error:
-                        self.logger.error(
-                            "kafka_credentials_callback_failed",
-                            error=str(cb_error)
-                        )
+                        self.logger.exception("kafka_credentials_callback_failed", error=str(cb_error))
                 else:
                     self.logger.warning(
                         "kafka_credentials_renewed_no_callback",
-                        note="Nenhum callback registrado para atualização do Kafka producer"
+                        note="Nenhum callback registrado para atualização do Kafka producer",
                     )
 
         except Exception as e:
-            self.logger.error("kafka_credentials_renewal_failed", error=str(e))
+            self.logger.exception("kafka_credentials_renewal_failed", error=str(e))
             vault_credentials_fetched_total.labels(credential_type="kafka", status="error").inc()
             raise
 
@@ -359,10 +387,8 @@ class WorkerVaultClient:
         # Cancelar task de renovação
         if self._renewal_task:
             self._renewal_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._renewal_task
-            except asyncio.CancelledError:
-                pass
 
         if self.vault_client:
             await self.vault_client.close()

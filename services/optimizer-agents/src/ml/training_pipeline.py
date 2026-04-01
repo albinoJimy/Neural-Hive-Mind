@@ -7,8 +7,7 @@ SchedulingOptimizer (Q-learning) usando dados históricos.
 
 import asyncio
 import logging
-from datetime import datetime, timedelta
-from typing import Dict, Optional
+from datetime import UTC, datetime, timedelta
 
 import numpy as np
 
@@ -34,7 +33,7 @@ class TrainingPipeline:
         mongodb_client,
         model_registry,
         metrics,
-        config: Dict
+        config: dict,
     ):
         """
         Args:
@@ -55,12 +54,12 @@ class TrainingPipeline:
         self.config = config
 
         # Configurações de treinamento
-        self.training_interval_hours = config.get('ml_training_interval_hours', 24)
-        self.training_window_days = config.get('ml_training_window_days', 540)  # 18 meses
-        self.min_training_samples = config.get('ml_min_training_samples', 1000)
+        self.training_interval_hours = config.get("ml_training_interval_hours", 24)
+        self.training_window_days = config.get("ml_training_window_days", 540)  # 18 meses
+        self.min_training_samples = config.get("ml_min_training_samples", 1000)
 
         # Controle de execução
-        self._training_task: Optional[asyncio.Task] = None
+        self._training_task: asyncio.Task | None = None
         self._stop_event = asyncio.Event()
 
     async def start_periodic_training(self) -> None:
@@ -69,7 +68,9 @@ class TrainingPipeline:
             logger.warning("Pipeline de treinamento já em execução")
             return
 
-        logger.info(f"Iniciando pipeline de treinamento (intervalo={self.training_interval_hours}h)")
+        logger.info(
+            f"Iniciando pipeline de treinamento (intervalo={self.training_interval_hours}h)"
+        )
 
         # Criar tarefa assíncrona
         self._training_task = asyncio.create_task(self._training_loop())
@@ -96,11 +97,8 @@ class TrainingPipeline:
 
                 # Aguardar com possibilidade de interrupção
                 try:
-                    await asyncio.wait_for(
-                        self._stop_event.wait(),
-                        timeout=interval_seconds
-                    )
-                except asyncio.TimeoutError:
+                    await asyncio.wait_for(self._stop_event.wait(), timeout=interval_seconds)
+                except TimeoutError:
                     continue  # Timeout normal, continuar loop
 
             except Exception as e:
@@ -111,7 +109,7 @@ class TrainingPipeline:
     async def _run_training_cycle(self) -> None:
         """Executa ciclo completo de treinamento."""
         logger.info("=== Iniciando ciclo de treinamento ===")
-        start_time = datetime.utcnow()
+        start_time = datetime.now(UTC)
 
         results = {}
 
@@ -119,25 +117,25 @@ class TrainingPipeline:
             # 1. Treinar LoadPredictor
             logger.info("1/2 - Treinando LoadPredictor")
             load_results = await self.train_load_predictor()
-            results['load_predictor'] = load_results
+            results["load_predictor"] = load_results
 
             # 2. Treinar SchedulingOptimizer
             logger.info("2/2 - Treinando SchedulingOptimizer")
             scheduling_results = await self.train_scheduling_optimizer()
-            results['scheduling_optimizer'] = scheduling_results
+            results["scheduling_optimizer"] = scheduling_results
 
             # Registrar métricas
-            duration = (datetime.utcnow() - start_time).total_seconds()
-            self.metrics.record_ml_training('training_cycle', duration, results)
+            duration = (datetime.now(UTC) - start_time).total_seconds()
+            self.metrics.record_ml_training("training_cycle", duration, results)
 
             logger.info(f"=== Ciclo de treinamento concluído em {duration:.2f}s ===")
 
         except Exception as e:
             logger.error(f"Erro no ciclo de treinamento: {e}")
-            duration = (datetime.utcnow() - start_time).total_seconds()
-            self.metrics.record_ml_training('training_cycle', duration, {'error': str(e)})
+            duration = (datetime.now(UTC) - start_time).total_seconds()
+            self.metrics.record_ml_training("training_cycle", duration, {"error": str(e)})
 
-    async def train_load_predictor(self) -> Dict:
+    async def train_load_predictor(self) -> dict:
         """
         Treina modelos de previsão de carga.
 
@@ -145,7 +143,7 @@ class TrainingPipeline:
             Dict com resultados de treinamento por horizonte
         """
         logger.info(f"Treinando LoadPredictor (janela={self.training_window_days} dias)")
-        start_time = datetime.utcnow()
+        start_time = datetime.now(UTC)
 
         try:
             # 1. Buscar dados históricos do ClickHouse
@@ -158,12 +156,12 @@ class TrainingPipeline:
             logger.info("Validando qualidade dos dados")
             validation = self._validate_data_quality(historical_data)
 
-            if not validation['is_valid']:
+            if not validation["is_valid"]:
                 logger.error(f"Dados inválidos: {validation['issues']}")
                 return {
-                    'success': False,
-                    'error': 'Invalid data quality',
-                    'issues': validation['issues']
+                    "success": False,
+                    "error": "Invalid data quality",
+                    "issues": validation["issues"],
                 }
 
             # 3. Backfill missing data (interpolação de gaps)
@@ -178,26 +176,26 @@ class TrainingPipeline:
 
             # 5. Avaliar e promover se necessário
             for horizon, metrics in training_results.items():
-                if metrics['mape'] < 20.0:
+                if metrics["mape"] < 20.0:
                     logger.info(f"Modelo {horizon}m aprovado (MAPE={metrics['mape']:.2f}%)")
                 else:
                     logger.warning(f"Modelo {horizon}m não aprovado (MAPE={metrics['mape']:.2f}%)")
 
-            duration = (datetime.utcnow() - start_time).total_seconds()
+            duration = (datetime.now(UTC) - start_time).total_seconds()
 
             return {
-                'success': True,
-                'results': training_results,
-                'data_points': len(historical_data),
-                'duration_seconds': duration,
+                "success": True,
+                "results": training_results,
+                "data_points": len(historical_data),
+                "duration_seconds": duration,
             }
 
         except Exception as e:
             logger.error(f"Erro ao treinar LoadPredictor: {e}")
             # Retry logic
-            return await self._retry_training('load_predictor', e)
+            return await self._retry_training("load_predictor", e)
 
-    async def train_scheduling_optimizer(self) -> Dict:
+    async def train_scheduling_optimizer(self) -> dict:
         """
         Treina política de agendamento via batch Q-learning.
 
@@ -207,7 +205,7 @@ class TrainingPipeline:
             Dict com resultados de treinamento
         """
         logger.info("Treinando SchedulingOptimizer")
-        start_time = datetime.utcnow()
+        start_time = datetime.now(UTC)
 
         try:
             # 1. Buscar histórico de otimizações do MongoDB
@@ -217,9 +215,9 @@ class TrainingPipeline:
             if len(optimization_history) < 100:
                 logger.warning(f"Dados insuficientes: {len(optimization_history)} < 100")
                 return {
-                    'success': False,
-                    'error': 'Insufficient optimization history',
-                    'data_points': len(optimization_history)
+                    "success": False,
+                    "error": "Insufficient optimization history",
+                    "data_points": len(optimization_history),
                 }
 
             # 2. Extrair state-action-reward tuples
@@ -239,21 +237,21 @@ class TrainingPipeline:
             logger.info("Salvando snapshot da política")
             await self.scheduling_optimizer._save_q_table_snapshot()
 
-            duration = (datetime.utcnow() - start_time).total_seconds()
+            duration = (datetime.now(UTC) - start_time).total_seconds()
 
             return {
-                'success': True,
-                'tuples_processed': len(tuples),
-                'q_table_size': len(self.scheduling_optimizer.q_table),
-                'average_reward': evaluation.get('average_reward', 0),
-                'duration_seconds': duration,
+                "success": True,
+                "tuples_processed": len(tuples),
+                "q_table_size": len(self.scheduling_optimizer.q_table),
+                "average_reward": evaluation.get("average_reward", 0),
+                "duration_seconds": duration,
             }
 
         except Exception as e:
             logger.error(f"Erro ao treinar SchedulingOptimizer: {e}")
-            return await self._retry_training('scheduling_optimizer', e)
+            return await self._retry_training("scheduling_optimizer", e)
 
-    def _validate_data_quality(self, data: list) -> Dict:
+    def _validate_data_quality(self, data: list) -> dict:
         """
         Valida qualidade dos dados históricos.
 
@@ -268,13 +266,13 @@ class TrainingPipeline:
 
         # Verificar campos obrigatórios
         if data:
-            required = {'timestamp', 'ticket_count'}
+            required = {"timestamp", "ticket_count"}
             if not required.issubset(data[0].keys()):
                 issues.append(f"Campos faltando: {required - set(data[0].keys())}")
 
         # Verificar gaps temporais (>10% missing)
         if len(data) > 1:
-            timestamps = [d['timestamp'] for d in data]
+            timestamps = [d["timestamp"] for d in data]
             expected_intervals = len(data) - 1
             # Calcular gaps
             # (Simplificado: assumir 1 ponto por hora)
@@ -286,7 +284,7 @@ class TrainingPipeline:
 
         # Verificar outliers extremos
         if data:
-            counts = [d['ticket_count'] for d in data if 'ticket_count' in d]
+            counts = [d["ticket_count"] for d in data if "ticket_count" in d]
             if counts:
                 median = np.median(counts)
                 outliers = sum(1 for c in counts if c > 10 * median)
@@ -294,9 +292,9 @@ class TrainingPipeline:
                     issues.append(f"Muitos outliers: {outliers} ({100*outliers/len(counts):.1f}%)")
 
         return {
-            'is_valid': len(issues) == 0,
-            'issues': issues,
-            'data_points': len(data),
+            "is_valid": len(issues) == 0,
+            "issues": issues,
+            "data_points": len(data),
         }
 
     async def _backfill_missing_data(self, data: list) -> list:
@@ -314,45 +312,42 @@ class TrainingPipeline:
 
         # Converter para DataFrame pandas para facilitar interpolação
         import pandas as pd
+
         df = pd.DataFrame(data)
 
-        if 'timestamp' not in df.columns:
+        if "timestamp" not in df.columns:
             return data
 
         # Ordenar por timestamp
-        df['timestamp'] = pd.to_datetime(df['timestamp'])
-        df = df.sort_values('timestamp').reset_index(drop=True)
+        df["timestamp"] = pd.to_datetime(df["timestamp"])
+        df = df.sort_values("timestamp").reset_index(drop=True)
 
         # Criar range completo
         full_range = pd.date_range(
-            start=df['timestamp'].min(),
-            end=df['timestamp'].max(),
-            freq='H'  # 1 hora
+            start=df["timestamp"].min(), end=df["timestamp"].max(), freq="H"  # 1 hora
         )
 
         # Reindexar
-        df = df.set_index('timestamp').reindex(full_range)
+        df = df.set_index("timestamp").reindex(full_range)
 
         # Interpolar valores numéricos
         numeric_cols = df.select_dtypes(include=[np.number]).columns
-        df[numeric_cols] = df[numeric_cols].interpolate(method='linear')
+        df[numeric_cols] = df[numeric_cols].interpolate(method="linear")
 
         # Converter de volta para lista de dicts
         df = df.reset_index()
-        df = df.rename(columns={'index': 'timestamp'})
+        df = df.rename(columns={"index": "timestamp"})
 
-        return df.to_dict('records')
+        return df.to_dict("records")
 
     async def _fetch_clickhouse_training_data(self, window_days: int) -> list:
         """Busca dados de treinamento do ClickHouse."""
-        end_time = datetime.utcnow()
+        end_time = datetime.now(UTC)
         start_time = end_time - timedelta(days=window_days)
 
         try:
             data = await self.clickhouse.query_execution_timeseries(
-                start_timestamp=start_time,
-                end_timestamp=end_time,
-                aggregation_interval='1h'
+                start_timestamp=start_time, end_timestamp=end_time, aggregation_interval="1h"
             )
 
             logger.info(f"Buscados {len(data)} pontos do ClickHouse")
@@ -365,12 +360,15 @@ class TrainingPipeline:
     async def _fetch_optimization_history(self, days: int) -> list:
         """Busca histórico de otimizações do MongoDB."""
         try:
-            cutoff = datetime.utcnow() - timedelta(days=days)
+            cutoff = datetime.now(UTC) - timedelta(days=days)
 
-            cursor = self.mongodb.db.optimization_ledger.find({
-                'timestamp': {'$gte': cutoff},
-                'optimization_type': 'scheduling'
-            }).sort('timestamp', -1).limit(10000)
+            cursor = (
+                self.mongodb.db.optimization_ledger.find(
+                    {"timestamp": {"$gte": cutoff}, "optimization_type": "scheduling"}
+                )
+                .sort("timestamp", -1)
+                .limit(10000)
+            )
 
             history = await cursor.to_list(length=10000)
 
@@ -397,14 +395,15 @@ class TrainingPipeline:
             record = optimization_history[i]
             next_record = optimization_history[i + 1]
 
-            state = record.get('state_before', {})
-            action = record.get('action', '')
-            reward = record.get('reward', 0)
-            next_state = next_record.get('state_before', {})
+            state = record.get("state_before", {})
+            action = record.get("action", "")
+            reward = record.get("reward", 0)
+            next_state = next_record.get("state_before", {})
 
             if state and action and next_state:
                 # Converter action string para enum
                 from .scheduling_optimizer import SchedulingAction
+
                 try:
                     action_enum = SchedulingAction(action)
                     tuples.append((state, action_enum, reward, next_state))
@@ -414,7 +413,7 @@ class TrainingPipeline:
         logger.debug(f"Extraídos {len(tuples)} SAR tuples")
         return tuples
 
-    async def _evaluate_policy_simulation(self, tuples: list) -> Dict:
+    async def _evaluate_policy_simulation(self, tuples: list) -> dict:
         """
         Avalia política usando simulação com tuples históricos.
 
@@ -425,7 +424,7 @@ class TrainingPipeline:
             Dict com métricas de avaliação
         """
         if not tuples:
-            return {'average_reward': 0, 'success_rate': 0}
+            return {"average_reward": 0, "success_rate": 0}
 
         # Simular aplicação da política atual
         correct_actions = 0
@@ -434,11 +433,10 @@ class TrainingPipeline:
         for state, actual_action, actual_reward, next_state in tuples:
             # Prever ação usando política atual
             recommendation = await self.scheduling_optimizer.optimize_scheduling(
-                current_state=state,
-                load_forecast=None
+                current_state=state, load_forecast=None
             )
 
-            predicted_action = recommendation.get('action', '')
+            predicted_action = recommendation.get("action", "")
 
             # Verificar se coincide
             if predicted_action == actual_action.value:
@@ -450,12 +448,14 @@ class TrainingPipeline:
         average_reward = total_reward / len(tuples) if tuples else 0
 
         return {
-            'average_reward': average_reward,
-            'success_rate': success_rate,
-            'tuples_evaluated': len(tuples),
+            "average_reward": average_reward,
+            "success_rate": success_rate,
+            "tuples_evaluated": len(tuples),
         }
 
-    async def _retry_training(self, model_type: str, error: Exception, max_retries: int = 3) -> Dict:
+    async def _retry_training(
+        self, model_type: str, error: Exception, max_retries: int = 3
+    ) -> dict:
         """
         Retry logic para treinamento com backoff exponencial.
 
@@ -471,21 +471,17 @@ class TrainingPipeline:
             logger.warning(f"Retry {attempt+1}/{max_retries} para {model_type}")
 
             # Backoff exponencial
-            await asyncio.sleep(2 ** attempt * 60)  # 1min, 2min, 4min
+            await asyncio.sleep(2**attempt * 60)  # 1min, 2min, 4min
 
             try:
-                if model_type == 'load_predictor':
+                if model_type == "load_predictor":
                     return await self.train_load_predictor()
-                elif model_type == 'scheduling_optimizer':
+                elif model_type == "scheduling_optimizer":
                     return await self.train_scheduling_optimizer()
             except Exception as e:
                 logger.error(f"Retry falhou: {e}")
                 if attempt == max_retries - 1:
                     # Última tentativa falhou
-                    return {
-                        'success': False,
-                        'error': str(e),
-                        'retries': max_retries
-                    }
+                    return {"success": False, "error": str(e), "retries": max_retries}
 
-        return {'success': False, 'error': 'Max retries exceeded'}
+        return {"success": False, "error": "Max retries exceeded"}

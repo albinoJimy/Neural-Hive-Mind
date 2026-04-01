@@ -7,13 +7,12 @@ Define estruturas de tasks para cada tipo de intent, garantindo:
 3. Tasks atômicas e verificáveis
 """
 
-import structlog
-from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, field
-from enum import Enum
+from typing import Any
 
-from src.services.intent_classifier import IntentType, IntentClassification
+import structlog
 from src.models.cognitive_plan import TaskNode
+from src.services.intent_classifier import IntentClassification, IntentType
 
 logger = structlog.get_logger(__name__)
 
@@ -21,24 +20,26 @@ logger = structlog.get_logger(__name__)
 @dataclass
 class TaskTemplate:
     """Template de uma task individual."""
+
     id: str  # ID relativo dentro do template (ex: "inventory", "requirements")
     task_type: str  # Tipo da task (query, transform, validate, etc.)
     description_template: str  # Template com placeholders {subject}, {target}, etc.
     semantic_domain: str  # Domínio semântico principal (security, architecture, etc.)
-    dependencies: List[str] = field(default_factory=list)  # IDs das tasks dependentes
+    dependencies: list[str] = field(default_factory=list)  # IDs das tasks dependentes
     estimated_duration_ms: int = 500
-    required_capabilities: List[str] = field(default_factory=list)
+    required_capabilities: list[str] = field(default_factory=list)
     is_parallelizable: bool = True
 
 
 @dataclass
 class DecompositionTemplate:
     """Template completo de decomposição para um tipo de intent."""
+
     intent_type: IntentType
     name: str
     description: str
-    tasks: List[TaskTemplate]
-    parallel_groups: List[List[str]] = field(default_factory=list)  # Grupos de tasks paralelas
+    tasks: list[TaskTemplate]
+    parallel_groups: list[list[str]] = field(default_factory=list)  # Grupos de tasks paralelas
 
 
 class DecompositionTemplates:
@@ -53,7 +54,7 @@ class DecompositionTemplates:
     """
 
     # Templates organizados por tipo de intent
-    TEMPLATES: Dict[IntentType, DecompositionTemplate] = {}
+    TEMPLATES: dict[IntentType, DecompositionTemplate] = {}
 
     @classmethod
     def _init_templates(cls):
@@ -76,7 +77,7 @@ class DecompositionTemplates:
                     semantic_domain="architecture",
                     dependencies=[],
                     estimated_duration_ms=800,
-                    required_capabilities=["read", "analyze"]
+                    required_capabilities=["read", "analyze"],
                 ),
                 TaskTemplate(
                     id="requirements",
@@ -85,7 +86,7 @@ class DecompositionTemplates:
                     semantic_domain="architecture",
                     dependencies=[],
                     estimated_duration_ms=600,
-                    required_capabilities=["read", "analyze"]
+                    required_capabilities=["read", "analyze"],
                 ),
                 TaskTemplate(
                     id="dependencies",
@@ -94,7 +95,7 @@ class DecompositionTemplates:
                     semantic_domain="architecture",
                     dependencies=[],
                     estimated_duration_ms=700,
-                    required_capabilities=["read", "analyze"]
+                    required_capabilities=["read", "analyze"],
                 ),
                 TaskTemplate(
                     id="security_impact",
@@ -103,7 +104,7 @@ class DecompositionTemplates:
                     semantic_domain="security",
                     dependencies=["inventory", "requirements"],
                     estimated_duration_ms=900,
-                    required_capabilities=["read", "analyze", "security"]
+                    required_capabilities=["read", "analyze", "security"],
                 ),
                 TaskTemplate(
                     id="complexity",
@@ -112,7 +113,7 @@ class DecompositionTemplates:
                     semantic_domain="architecture",
                     dependencies=["inventory", "requirements", "dependencies"],
                     estimated_duration_ms=800,
-                    required_capabilities=["read", "analyze"]
+                    required_capabilities=["read", "analyze"],
                 ),
                 TaskTemplate(
                     id="effort",
@@ -121,7 +122,7 @@ class DecompositionTemplates:
                     semantic_domain="quality",
                     dependencies=["complexity"],
                     estimated_duration_ms=600,
-                    required_capabilities=["read", "analyze"]
+                    required_capabilities=["read", "analyze"],
                 ),
                 TaskTemplate(
                     id="risks",
@@ -130,7 +131,7 @@ class DecompositionTemplates:
                     semantic_domain="security",
                     dependencies=["security_impact", "complexity"],
                     estimated_duration_ms=700,
-                    required_capabilities=["read", "analyze", "security"]
+                    required_capabilities=["read", "analyze", "security"],
                 ),
                 TaskTemplate(
                     id="report",
@@ -139,14 +140,14 @@ class DecompositionTemplates:
                     semantic_domain="quality",
                     dependencies=["effort", "risks"],
                     estimated_duration_ms=500,
-                    required_capabilities=["write", "analyze"]
-                )
+                    required_capabilities=["write", "analyze"],
+                ),
             ],
             parallel_groups=[
                 ["inventory", "requirements", "dependencies"],  # Grupo 1: paralelo
                 ["security_impact", "complexity"],  # Grupo 2: após grupo 1
                 ["effort", "risks"],  # Grupo 3: após grupo 2
-            ]
+            ],
         )
 
         # ========================================
@@ -164,7 +165,7 @@ class DecompositionTemplates:
                     semantic_domain="architecture",
                     dependencies=[],
                     estimated_duration_ms=800,
-                    required_capabilities=["read", "analyze"]
+                    required_capabilities=["read", "analyze"],
                 ),
                 TaskTemplate(
                     id="target_spec",
@@ -173,7 +174,7 @@ class DecompositionTemplates:
                     semantic_domain="architecture",
                     dependencies=[],
                     estimated_duration_ms=700,
-                    required_capabilities=["read", "analyze"]
+                    required_capabilities=["read", "analyze"],
                 ),
                 TaskTemplate(
                     id="data_mapping",
@@ -182,7 +183,7 @@ class DecompositionTemplates:
                     semantic_domain="architecture",
                     dependencies=["source_analysis", "target_spec"],
                     estimated_duration_ms=900,
-                    required_capabilities=["read", "analyze", "transform"]
+                    required_capabilities=["read", "analyze", "transform"],
                 ),
                 TaskTemplate(
                     id="security_validation",
@@ -191,7 +192,7 @@ class DecompositionTemplates:
                     semantic_domain="security",
                     dependencies=["target_spec"],
                     estimated_duration_ms=800,
-                    required_capabilities=["read", "security"]
+                    required_capabilities=["read", "security"],
                 ),
                 TaskTemplate(
                     id="migration_plan",
@@ -200,7 +201,7 @@ class DecompositionTemplates:
                     semantic_domain="quality",
                     dependencies=["data_mapping", "security_validation"],
                     estimated_duration_ms=700,
-                    required_capabilities=["write", "analyze"]
+                    required_capabilities=["write", "analyze"],
                 ),
                 TaskTemplate(
                     id="testing_strategy",
@@ -209,7 +210,7 @@ class DecompositionTemplates:
                     semantic_domain="quality",
                     dependencies=["migration_plan"],
                     estimated_duration_ms=600,
-                    required_capabilities=["read", "analyze"]
+                    required_capabilities=["read", "analyze"],
                 ),
                 TaskTemplate(
                     id="execution_checklist",
@@ -218,7 +219,7 @@ class DecompositionTemplates:
                     semantic_domain="quality",
                     dependencies=["testing_strategy"],
                     estimated_duration_ms=500,
-                    required_capabilities=["write"]
+                    required_capabilities=["write"],
                 ),
                 TaskTemplate(
                     id="rollback_plan",
@@ -227,14 +228,14 @@ class DecompositionTemplates:
                     semantic_domain="security",
                     dependencies=["migration_plan"],
                     estimated_duration_ms=600,
-                    required_capabilities=["write", "analyze"]
-                )
+                    required_capabilities=["write", "analyze"],
+                ),
             ],
             parallel_groups=[
                 ["source_analysis", "target_spec"],
                 ["data_mapping", "security_validation"],
-                ["testing_strategy", "rollback_plan"]
-            ]
+                ["testing_strategy", "rollback_plan"],
+            ],
         )
 
         # ========================================
@@ -252,7 +253,7 @@ class DecompositionTemplates:
                     semantic_domain="security",
                     dependencies=[],
                     estimated_duration_ms=500,
-                    required_capabilities=["read", "security"]
+                    required_capabilities=["read", "security"],
                 ),
                 TaskTemplate(
                     id="vulnerability_scan",
@@ -261,7 +262,7 @@ class DecompositionTemplates:
                     semantic_domain="security",
                     dependencies=["scope_definition"],
                     estimated_duration_ms=1200,
-                    required_capabilities=["read", "security", "scan"]
+                    required_capabilities=["read", "security", "scan"],
                 ),
                 TaskTemplate(
                     id="auth_review",
@@ -270,7 +271,7 @@ class DecompositionTemplates:
                     semantic_domain="security",
                     dependencies=["scope_definition"],
                     estimated_duration_ms=800,
-                    required_capabilities=["read", "security"]
+                    required_capabilities=["read", "security"],
                 ),
                 TaskTemplate(
                     id="data_protection",
@@ -279,7 +280,7 @@ class DecompositionTemplates:
                     semantic_domain="security",
                     dependencies=["scope_definition"],
                     estimated_duration_ms=700,
-                    required_capabilities=["read", "security"]
+                    required_capabilities=["read", "security"],
                 ),
                 TaskTemplate(
                     id="compliance_check",
@@ -288,7 +289,7 @@ class DecompositionTemplates:
                     semantic_domain="security",
                     dependencies=["auth_review", "data_protection"],
                     estimated_duration_ms=900,
-                    required_capabilities=["read", "security", "compliance"]
+                    required_capabilities=["read", "security", "compliance"],
                 ),
                 TaskTemplate(
                     id="risk_assessment",
@@ -297,7 +298,7 @@ class DecompositionTemplates:
                     semantic_domain="security",
                     dependencies=["vulnerability_scan", "compliance_check"],
                     estimated_duration_ms=800,
-                    required_capabilities=["read", "analyze", "security"]
+                    required_capabilities=["read", "analyze", "security"],
                 ),
                 TaskTemplate(
                     id="remediation_plan",
@@ -306,12 +307,10 @@ class DecompositionTemplates:
                     semantic_domain="quality",
                     dependencies=["risk_assessment"],
                     estimated_duration_ms=600,
-                    required_capabilities=["write", "security"]
-                )
+                    required_capabilities=["write", "security"],
+                ),
             ],
-            parallel_groups=[
-                ["vulnerability_scan", "auth_review", "data_protection"]
-            ]
+            parallel_groups=[["vulnerability_scan", "auth_review", "data_protection"]],
         )
 
         # ========================================
@@ -329,7 +328,7 @@ class DecompositionTemplates:
                     semantic_domain="quality",
                     dependencies=[],
                     estimated_duration_ms=500,
-                    required_capabilities=["read", "analyze"]
+                    required_capabilities=["read", "analyze"],
                 ),
                 TaskTemplate(
                     id="design",
@@ -338,7 +337,7 @@ class DecompositionTemplates:
                     semantic_domain="architecture",
                     dependencies=["requirements"],
                     estimated_duration_ms=700,
-                    required_capabilities=["analyze", "write"]
+                    required_capabilities=["analyze", "write"],
                 ),
                 TaskTemplate(
                     id="implementation",
@@ -347,7 +346,7 @@ class DecompositionTemplates:
                     semantic_domain="architecture",
                     dependencies=["design"],
                     estimated_duration_ms=2000,
-                    required_capabilities=["write", "code"]
+                    required_capabilities=["write", "code"],
                 ),
                 TaskTemplate(
                     id="testing",
@@ -356,7 +355,7 @@ class DecompositionTemplates:
                     semantic_domain="quality",
                     dependencies=["implementation"],
                     estimated_duration_ms=1000,
-                    required_capabilities=["read", "test"]
+                    required_capabilities=["read", "test"],
                 ),
                 TaskTemplate(
                     id="documentation",
@@ -365,12 +364,10 @@ class DecompositionTemplates:
                     semantic_domain="quality",
                     dependencies=["implementation"],
                     estimated_duration_ms=400,
-                    required_capabilities=["write"]
-                )
+                    required_capabilities=["write"],
+                ),
             ],
-            parallel_groups=[
-                ["testing", "documentation"]
-            ]
+            parallel_groups=[["testing", "documentation"]],
         )
 
         # ========================================
@@ -388,7 +385,7 @@ class DecompositionTemplates:
                     semantic_domain="architecture",
                     dependencies=[],
                     estimated_duration_ms=600,
-                    required_capabilities=["read", "analyze"]
+                    required_capabilities=["read", "analyze"],
                 ),
                 TaskTemplate(
                     id="target_architecture",
@@ -397,7 +394,7 @@ class DecompositionTemplates:
                     semantic_domain="architecture",
                     dependencies=["current_state"],
                     estimated_duration_ms=800,
-                    required_capabilities=["analyze", "write"]
+                    required_capabilities=["analyze", "write"],
                 ),
                 TaskTemplate(
                     id="capacity_planning",
@@ -406,7 +403,7 @@ class DecompositionTemplates:
                     semantic_domain="performance",
                     dependencies=["target_architecture"],
                     estimated_duration_ms=600,
-                    required_capabilities=["analyze"]
+                    required_capabilities=["analyze"],
                 ),
                 TaskTemplate(
                     id="security_config",
@@ -415,7 +412,7 @@ class DecompositionTemplates:
                     semantic_domain="security",
                     dependencies=["target_architecture"],
                     estimated_duration_ms=700,
-                    required_capabilities=["security", "write"]
+                    required_capabilities=["security", "write"],
                 ),
                 TaskTemplate(
                     id="provisioning",
@@ -424,7 +421,7 @@ class DecompositionTemplates:
                     semantic_domain="architecture",
                     dependencies=["capacity_planning", "security_config"],
                     estimated_duration_ms=1200,
-                    required_capabilities=["write", "deploy"]
+                    required_capabilities=["write", "deploy"],
                 ),
                 TaskTemplate(
                     id="validation",
@@ -433,12 +430,10 @@ class DecompositionTemplates:
                     semantic_domain="quality",
                     dependencies=["provisioning"],
                     estimated_duration_ms=500,
-                    required_capabilities=["read", "test"]
-                )
+                    required_capabilities=["read", "test"],
+                ),
             ],
-            parallel_groups=[
-                ["capacity_planning", "security_config"]
-            ]
+            parallel_groups=[["capacity_planning", "security_config"]],
         )
 
         # ========================================
@@ -456,7 +451,7 @@ class DecompositionTemplates:
                     semantic_domain="architecture",
                     dependencies=[],
                     estimated_duration_ms=500,
-                    required_capabilities=["read", "analyze"]
+                    required_capabilities=["read", "analyze"],
                 ),
                 TaskTemplate(
                     id="planning",
@@ -465,7 +460,7 @@ class DecompositionTemplates:
                     semantic_domain="quality",
                     dependencies=["analysis"],
                     estimated_duration_ms=400,
-                    required_capabilities=["analyze", "write"]
+                    required_capabilities=["analyze", "write"],
                 ),
                 TaskTemplate(
                     id="execution",
@@ -474,7 +469,7 @@ class DecompositionTemplates:
                     semantic_domain="architecture",
                     dependencies=["planning"],
                     estimated_duration_ms=1000,
-                    required_capabilities=["write"]
+                    required_capabilities=["write"],
                 ),
                 TaskTemplate(
                     id="validation",
@@ -483,16 +478,13 @@ class DecompositionTemplates:
                     semantic_domain="quality",
                     dependencies=["execution"],
                     estimated_duration_ms=400,
-                    required_capabilities=["read", "test"]
-                )
+                    required_capabilities=["read", "test"],
+                ),
             ],
-            parallel_groups=[]
+            parallel_groups=[],
         )
 
-        logger.info(
-            "DecompositionTemplates initialized",
-            num_templates=len(cls.TEMPLATES)
-        )
+        logger.info("DecompositionTemplates initialized", num_templates=len(cls.TEMPLATES))
 
     def __init__(self):
         """Inicializa templates."""
@@ -516,9 +508,9 @@ class DecompositionTemplates:
         task_template: TaskTemplate,
         subject: str,
         target: str,
-        entities: List[str],
-        intent_text: str
-    ) -> Dict[str, Any]:
+        entities: list[str],
+        intent_text: str,
+    ) -> dict[str, Any]:
         """
         Constrói parâmetros específicos para cada tipo de task.
 
@@ -533,41 +525,37 @@ class DecompositionTemplates:
             Dicionário de parâmetros para a task
         """
         # Parâmetros base
-        base_params = {
-            "subject": subject,
-            "target": target,
-            "entities": entities
-        }
+        base_params = {"subject": subject, "target": target, "entities": entities}
 
         # Adicionar parâmetros específicos por tipo
-        if task_template.task_type == 'query':
+        if task_template.task_type == "query":
             # Inferir coleção MongoDB baseado no subject
             collection = self._infer_collection(subject, entities)
-            base_params.update({
-                "collection": collection,
-                "filter": self._build_filter(subject, entities),
-                "limit": 100
-            })
+            base_params.update(
+                {
+                    "collection": collection,
+                    "filter": self._build_filter(subject, entities),
+                    "limit": 100,
+                }
+            )
 
-        elif task_template.task_type == 'transform':
+        elif task_template.task_type == "transform":
             # Para transform, input_data será preenchido durante execução
             # ou pode ter origem em tasks QUERY anteriores
-            base_params.update({
-                "input_data": None,  # Será populado pelo executor
-                "operations": []
-            })
+            base_params.update(
+                {"input_data": None, "operations": []}  # Será populado pelo executor
+            )
 
-        elif task_template.task_type == 'validate':
+        elif task_template.task_type == "validate":
             # Mapear para política OPA apropriada
             policy_path = self._get_policy_path(subject, task_template.semantic_domain)
-            base_params.update({
-                "policy_path": policy_path,
-                "input_data": None  # Será populado pelo executor
-            })
+            base_params.update(
+                {"policy_path": policy_path, "input_data": None}  # Será populado pelo executor
+            )
 
         return base_params
 
-    def _infer_collection(self, subject: str, entities: List[str]) -> str:
+    def _infer_collection(self, subject: str, entities: list[str]) -> str:
         """
         Infere nome da coleção MongoDB baseado no subject.
 
@@ -580,15 +568,14 @@ class DecompositionTemplates:
         """
         # Mapeamento de subjects para coleções
         collection_map = {
-            'sap': 'sap_infrastructure',
-            'kubernetes': 'kubernetes_clusters',
-            'k8s': 'kubernetes_clusters',
-            'infraestrutura': 'infrastructure_inventory',
-            'infraestrutura': 'infrastructure_inventory',
-            'sistema': 'systems_catalog',
-            'system': 'systems_catalog',
-            'servico': 'services_catalog',
-            'service': 'services_catalog'
+            "sap": "sap_infrastructure",
+            "kubernetes": "kubernetes_clusters",
+            "k8s": "kubernetes_clusters",
+            "infraestrutura": "infrastructure_inventory",
+            "sistema": "systems_catalog",
+            "system": "systems_catalog",
+            "servico": "services_catalog",
+            "service": "services_catalog",
         }
 
         subject_lower = subject.lower()
@@ -598,12 +585,12 @@ class DecompositionTemplates:
 
         # Fallback: usar primeira entidade ou nome derivado
         if entities:
-            return entities[0].lower().replace(' ', '_')
+            return entities[0].lower().replace(" ", "_")
 
         # Último fallback: coleção genérica
-        return 'default'
+        return "default"
 
-    def _build_filter(self, subject: str, entities: List[str]) -> Dict[str, Any]:
+    def _build_filter(self, subject: str, entities: list[str]) -> dict[str, Any]:
         """
         Constrói filtro MongoDB baseado no subject e entidades.
 
@@ -623,11 +610,7 @@ class DecompositionTemplates:
 
         return filter_query
 
-    def _get_policy_path(
-        self,
-        subject: str,
-        semantic_domain: str
-    ) -> str:
+    def _get_policy_path(self, subject: str, semantic_domain: str) -> str:
         """
         Retorna caminho da política OPA baseado no domínio semântico.
 
@@ -639,22 +622,22 @@ class DecompositionTemplates:
             Caminho da política OPA
         """
         policy_map = {
-            'security': '/neural_hive/security/validation',
-            'architecture': '/neural_hive/architecture/compliance',
-            'quality': '/neural_hive/quality/standards',
-            'performance': '/neural_hive/performance/limits',
-            'operational': '/neural_hive/operational/procedures'
+            "security": "/neural_hive/security/validation",
+            "architecture": "/neural_hive/architecture/compliance",
+            "quality": "/neural_hive/quality/standards",
+            "performance": "/neural_hive/performance/limits",
+            "operational": "/neural_hive/operational/procedures",
         }
 
-        return policy_map.get(semantic_domain, '/neural_hive/default/validation')
+        return policy_map.get(semantic_domain, "/neural_hive/default/validation")
 
     def generate_tasks(
         self,
         classification: IntentClassification,
         intent_text: str,
-        entities: List[str],
-        base_task_id: int = 0
-    ) -> List[TaskNode]:
+        entities: list[str],
+        base_task_id: int = 0,
+    ) -> list[TaskNode]:
         """
         Gera TaskNodes a partir do template.
 
@@ -680,16 +663,11 @@ class DecompositionTemplates:
             id_mapping[task_template.id] = task_id
 
             # Preencher template da descrição
-            description = task_template.description_template.format(
-                subject=subject,
-                target=target
-            )
+            description = task_template.description_template.format(subject=subject, target=target)
 
             # Mapear dependências para IDs reais
             dependencies = [
-                id_mapping[dep_id]
-                for dep_id in task_template.dependencies
-                if dep_id in id_mapping
+                id_mapping[dep_id] for dep_id in task_template.dependencies if dep_id in id_mapping
             ]
 
             task = TaskNode(
@@ -707,8 +685,8 @@ class DecompositionTemplates:
                     "semantic_domain": task_template.semantic_domain,
                     "intent_type": classification.intent_type.value,
                     "decomposition_method": "template_based",
-                    "is_parallelizable": task_template.is_parallelizable
-                }
+                    "is_parallelizable": task_template.is_parallelizable,
+                },
             )
 
             tasks.append(task)
@@ -719,16 +697,12 @@ class DecompositionTemplates:
             template_name=template.name,
             num_tasks=len(tasks),
             subject=subject,
-            target=target
+            target=target,
         )
 
         return tasks
 
-    def _extract_subject_target(
-        self,
-        intent_text: str,
-        entities: List[str]
-    ) -> tuple[str, str]:
+    def _extract_subject_target(self, intent_text: str, entities: list[str]) -> tuple[str, str]:
         """
         Extrai subject e target do intent.
 
@@ -758,10 +732,10 @@ class DecompositionTemplates:
                 if from_idx < to_idx:
                     subject_start = from_idx + len(from_marker)
                     subject = intent_text[subject_start:to_idx].strip()
-                    target = intent_text[to_idx + len(to_marker):].strip()
+                    target = intent_text[to_idx + len(to_marker) :].strip()
 
                     # Limpar pontuação final
-                    target = target.rstrip('.,;:')
+                    target = target.rstrip(".,;:")
 
                     if subject and target:
                         return subject, target
@@ -778,7 +752,7 @@ class DecompositionTemplates:
 
         return subject, target
 
-    def get_semantic_coverage(self, intent_type: IntentType) -> Dict[str, int]:
+    def get_semantic_coverage(self, intent_type: IntentType) -> dict[str, int]:
         """
         Retorna cobertura de domínios semânticos para um tipo de intent.
 

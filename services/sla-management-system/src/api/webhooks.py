@@ -2,16 +2,16 @@
 Router FastAPI para webhooks (Alertmanager).
 """
 
-from typing import List, Dict, Any
-from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel
-import structlog
+from typing import Dict, List
 
-from ..services.slo_manager import SLOManager
+import structlog
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+
+from ..clients.postgresql_client import PostgreSQLClient
 from ..services.budget_calculator import BudgetCalculator
 from ..services.policy_enforcer import PolicyEnforcer
-from ..clients.postgresql_client import PostgreSQLClient
-
+from ..services.slo_manager import SLOManager
 
 router = APIRouter(prefix="/webhooks", tags=["Webhooks"])
 logger = structlog.get_logger(__name__)
@@ -54,10 +54,10 @@ def get_slo_manager() -> SLOManager:
     Este fallback acessa o singleton do módulo diretamente.
     """
     from .. import main
+
     if main.slo_manager is None:
         raise HTTPException(
-            status_code=503,
-            detail="SLOManager não inicializado. Serviço iniciando."
+            status_code=503, detail="SLOManager não inicializado. Serviço iniciando."
         )
     return main.slo_manager
 
@@ -70,10 +70,10 @@ def get_budget_calculator() -> BudgetCalculator:
     Este fallback acessa o singleton do módulo diretamente.
     """
     from .. import main
+
     if main.budget_calculator is None:
         raise HTTPException(
-            status_code=503,
-            detail="BudgetCalculator não inicializado. Serviço iniciando."
+            status_code=503, detail="BudgetCalculator não inicializado. Serviço iniciando."
         )
     return main.budget_calculator
 
@@ -86,10 +86,10 @@ def get_policy_enforcer() -> PolicyEnforcer:
     Este fallback acessa o singleton do módulo diretamente.
     """
     from .. import main
+
     if main.policy_enforcer is None:
         raise HTTPException(
-            status_code=503,
-            detail="PolicyEnforcer não inicializado. Serviço iniciando."
+            status_code=503, detail="PolicyEnforcer não inicializado. Serviço iniciando."
         )
     return main.policy_enforcer
 
@@ -102,10 +102,10 @@ def get_postgresql_client() -> PostgreSQLClient:
     Este fallback acessa o singleton do módulo diretamente.
     """
     from .. import main
+
     if main.postgresql_client is None:
         raise HTTPException(
-            status_code=503,
-            detail="PostgreSQLClient não inicializado. Serviço iniciando."
+            status_code=503, detail="PostgreSQLClient não inicializado. Serviço iniciando."
         )
     return main.postgresql_client
 
@@ -116,7 +116,7 @@ async def alertmanager_webhook(
     slo_manager: SLOManager = Depends(get_slo_manager),
     budget_calculator: BudgetCalculator = Depends(get_budget_calculator),
     policy_enforcer: PolicyEnforcer = Depends(get_policy_enforcer),
-    pg_client: PostgreSQLClient = Depends(get_postgresql_client)
+    pg_client: PostgreSQLClient = Depends(get_postgresql_client),
 ):
     """
     Webhook receiver para Alertmanager.
@@ -126,9 +126,7 @@ async def alertmanager_webhook(
     alerts_processed = 0
 
     logger.info(
-        "alertmanager_webhook_received",
-        status=payload.status,
-        alerts_count=len(payload.alerts)
+        "alertmanager_webhook_received", status=payload.status, alerts_count=len(payload.alerts)
     )
 
     for alert in payload.alerts:
@@ -147,7 +145,7 @@ async def alertmanager_webhook(
                 logger.warning(
                     "slo_not_found_for_alert",
                     slo_label=slo_label,
-                    service=alert.labels.get("service")
+                    service=alert.labels.get("service"),
                 )
                 continue
 
@@ -169,7 +167,7 @@ async def alertmanager_webhook(
                         "freeze_triggered_by_alert",
                         slo_id=slo.slo_id,
                         service=slo.service_name,
-                        freeze_events=len(freeze_events)
+                        freeze_events=len(freeze_events),
                     )
 
             alerts_processed += 1
@@ -179,18 +177,11 @@ async def alertmanager_webhook(
                 alertname=alert.labels.get("alertname"),
                 slo=slo_label,
                 severity=alert.labels.get("severity"),
-                status=alert.status
+                status=alert.status,
             )
 
         except Exception as e:
-            logger.error(
-                "alert_processing_failed",
-                slo_label=slo_label,
-                error=str(e)
-            )
+            logger.error("alert_processing_failed", slo_label=slo_label, error=str(e))
             continue
 
-    return WebhookResponse(
-        message="Webhook processed",
-        alerts_processed=alerts_processed
-    )
+    return WebhookResponse(message="Webhook processed", alerts_processed=alerts_processed)

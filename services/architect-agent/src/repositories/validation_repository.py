@@ -1,12 +1,13 @@
 """Repositório para relatórios de validação."""
 
-from typing import List, Optional
 from datetime import datetime, timezone
+from typing import List, Optional
+
 from pymongo.errors import DuplicateKeyError
 
+from src.config.settings import get_settings
 from src.models.validation import ValidationReport
 from src.repositories.base import BaseRepository
-from src.config.settings import get_settings
 
 
 class ValidationRepository(BaseRepository[ValidationReport]):
@@ -44,23 +45,15 @@ class ValidationRepository(BaseRepository[ValidationReport]):
             return self._doc_to_model(doc)
         return None
 
-    async def get_by_repo_url(
-        self, repo_url: str, limit: int = 10
-    ) -> List[ValidationReport]:
+    async def get_by_repo_url(self, repo_url: str, limit: int = 10) -> List[ValidationReport]:
         """Busca relatórios por URL de repositório."""
-        cursor = (
-            self.collection.find({"repo_url": repo_url})
-            .sort("created_at", -1)
-            .limit(limit)
-        )
+        cursor = self.collection.find({"repo_url": repo_url}).sort("created_at", -1).limit(limit)
         docs = await cursor.to_list(length=limit)
         return [self._doc_to_model(doc) for doc in docs]
 
     async def get_latest_by_repo(self, repo_url: str) -> Optional[ValidationReport]:
         """Obtém relatório mais recente de um repositório."""
-        doc = await self.collection.find_one(
-            {"repo_url": repo_url}, sort=[("created_at", -1)]
-        )
+        doc = await self.collection.find_one({"repo_url": repo_url}, sort=[("created_at", -1)])
         if doc:
             return self._doc_to_model(doc)
         return None
@@ -82,9 +75,7 @@ class ValidationRepository(BaseRepository[ValidationReport]):
         pipeline: List[dict] = []
         if repo_url:
             pipeline.append({"$match": {"repo_url": repo_url}})
-        pipeline.append(
-            {"$group": {"_id": None, "avg_score": {"$avg": "$health_score"}}}
-        )
+        pipeline.append({"$group": {"_id": None, "avg_score": {"$avg": "$health_score"}}})
 
         cursor = self.collection.aggregate(pipeline)
         result = await cursor.to_list(length=1)

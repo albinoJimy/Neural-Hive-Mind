@@ -1,15 +1,15 @@
 """
 Temporal Worker para executar workflows e activities.
 """
+import structlog
 from temporalio.client import Client
 from temporalio.worker import Worker
-import structlog
 
-from src.scheduler import IntelligentScheduler, PriorityCalculator, ResourceAllocator
-from src.scheduler.affinity_tracker import AffinityTracker
 from src.clients.service_registry_client import ServiceRegistryClient
 from src.observability.metrics import get_metrics
 from src.policies import OPAClient, PolicyValidator
+from src.scheduler import IntelligentScheduler, PriorityCalculator, ResourceAllocator
+from src.scheduler.affinity_tracker import AffinityTracker
 
 logger = structlog.get_logger()
 
@@ -29,7 +29,7 @@ class TemporalWorkerManager:
         scheduling_predictor=None,
         load_predictor=None,
         anomaly_detector=None,
-        self_healing_client=None
+        self_healing_client=None,
     ):
         """
         Inicializa o worker manager.
@@ -68,27 +68,24 @@ class TemporalWorkerManager:
 
     async def initialize(self):
         """Inicializa o Temporal Worker."""
-        logger.info('Inicializando Temporal Worker', task_queue=self.config.temporal_task_queue)
+        logger.info("Inicializando Temporal Worker", task_queue=self.config.temporal_task_queue)
 
         # Inicializar Service Registry Client e Intelligent Scheduler se habilitado
         if self.config.enable_intelligent_scheduler:
-            logger.info('Inicializando Service Registry Client para scheduler')
+            logger.info("Inicializando Service Registry Client para scheduler")
 
             try:
                 # Obter SPIFFE manager do Vault client se disponível
                 spiffe_manager = None
-                if self.vault_client and hasattr(self.vault_client, 'spiffe_manager'):
+                if self.vault_client and hasattr(self.vault_client, "spiffe_manager"):
                     spiffe_manager = self.vault_client.spiffe_manager
                     logger.info(
-                        'SPIFFE manager disponível para Service Registry authentication',
-                        spiffe_enabled=self.config.spiffe_enabled
+                        "SPIFFE manager disponível para Service Registry authentication",
+                        spiffe_enabled=self.config.spiffe_enabled,
                     )
 
                 # Criar Service Registry Client com SPIFFE manager
-                registry_client = ServiceRegistryClient(
-                    self.config,
-                    spiffe_manager=spiffe_manager
-                )
+                registry_client = ServiceRegistryClient(self.config, spiffe_manager=spiffe_manager)
                 await registry_client.initialize()
                 self.registry_client = registry_client
 
@@ -102,13 +99,16 @@ class TemporalWorkerManager:
 
                 # Inicializar SchedulingOptimizer se habilitado
                 scheduling_optimizer = None
-                if self.config.ml_local_load_prediction_enabled or self.config.enable_optimizer_integration:
-                    logger.info('Inicializando ML Scheduling Optimizer')
+                if (
+                    self.config.ml_local_load_prediction_enabled
+                    or self.config.enable_optimizer_integration
+                ):
+                    logger.info("Inicializando ML Scheduling Optimizer")
 
                     try:
+                        from src.clients.redis_client import get_redis_client
                         from src.ml.load_predictor import LoadPredictor
                         from src.ml.scheduling_optimizer import SchedulingOptimizer
-                        from src.clients.redis_client import get_redis_client
 
                         # Criar Redis client para cache
                         redis_client = await get_redis_client(self.config)
@@ -118,7 +118,7 @@ class TemporalWorkerManager:
                             config=self.config,
                             mongodb_client=self.mongodb_client,  # Pode ser None
                             redis_client=redis_client,
-                            metrics=metrics
+                            metrics=metrics,
                         )
 
                         # Criar SchedulingOptimizer com remote + local
@@ -127,63 +127,64 @@ class TemporalWorkerManager:
                             optimizer_client=self.optimizer_client,  # Pode ser None
                             local_predictor=load_predictor,
                             kafka_producer=self.kafka_producer,
-                            metrics=metrics
+                            metrics=metrics,
                         )
 
                         # Log de inicialização com status de dependências
                         logger.info(
-                            'ML Scheduling Optimizer inicializado',
+                            "ML Scheduling Optimizer inicializado",
                             local_enabled=self.config.ml_local_load_prediction_enabled,
                             remote_enabled=self.config.enable_optimizer_integration,
                             mongodb_available=self.mongodb_client is not None,
                             redis_available=redis_client is not None,
-                            mode='degraded' if not self.mongodb_client else 'full'
+                            mode="degraded" if not self.mongodb_client else "full",
                         )
 
                         if not self.mongodb_client:
                             logger.warning(
-                                'ML Scheduling Optimizer rodando em modo degradado (sem MongoDB)',
-                                impact='Predições locais usarão apenas defaults, sem dados históricos'
+                                "ML Scheduling Optimizer rodando em modo degradado (sem MongoDB)",
+                                impact="Predições locais usarão apenas defaults, sem dados históricos",
                             )
 
                     except Exception as e:
                         logger.warning(
-                            'Falha ao inicializar Scheduling Optimizer, usando scheduler sem ML',
-                            error=str(e)
+                            "Falha ao inicializar Scheduling Optimizer, usando scheduler sem ML",
+                            error=str(e),
                         )
                         scheduling_optimizer = None
 
                 # Criar AffinityTracker se affinity habilitado
                 affinity_tracker = None
-                if getattr(self.config, 'scheduler_enable_affinity', False):
+                if getattr(self.config, "scheduler_enable_affinity", False):
                     try:
                         # Obter Redis client de forma independente se não foi criado pelo bloco de ML
                         if redis_client is None:
                             from src.clients.redis_client import get_redis_client
+
                             redis_client = await get_redis_client(self.config)
                             logger.info(
-                                'Redis client inicializado independentemente para AffinityTracker',
-                                ml_enabled=False
+                                "Redis client inicializado independentemente para AffinityTracker",
+                                ml_enabled=False,
                             )
 
                         if redis_client is not None:
                             affinity_tracker = AffinityTracker(
-                                redis_client=redis_client,
-                                config=self.config,
-                                metrics=metrics
+                                redis_client=redis_client, config=self.config, metrics=metrics
                             )
                             logger.info(
-                                'AffinityTracker inicializado',
-                                cache_ttl_seconds=getattr(self.config, 'scheduler_affinity_cache_ttl_seconds', 14400)
+                                "AffinityTracker inicializado",
+                                cache_ttl_seconds=getattr(
+                                    self.config, "scheduler_affinity_cache_ttl_seconds", 14400
+                                ),
                             )
                         else:
                             logger.warning(
-                                'AffinityTracker não inicializado - Redis client indisponível'
+                                "AffinityTracker não inicializado - Redis client indisponível"
                             )
                     except Exception as e:
                         logger.warning(
-                            'Falha ao inicializar AffinityTracker, continuando sem affinity',
-                            error=str(e)
+                            "Falha ao inicializar AffinityTracker, continuando sem affinity",
+                            error=str(e),
                         )
                         affinity_tracker = None
 
@@ -193,7 +194,7 @@ class TemporalWorkerManager:
                     config=self.config,
                     metrics=metrics,
                     scheduling_optimizer=scheduling_optimizer,
-                    affinity_tracker=affinity_tracker
+                    affinity_tracker=affinity_tracker,
                 )
 
                 # Criar Intelligent Scheduler (com modelos centralizados se disponíveis)
@@ -205,21 +206,21 @@ class TemporalWorkerManager:
                     scheduling_optimizer=scheduling_optimizer,
                     scheduling_predictor=self.scheduling_predictor,
                     load_predictor=self.load_predictor,
-                    anomaly_detector=self.anomaly_detector
+                    anomaly_detector=self.anomaly_detector,
                 )
 
-                logger.info('Intelligent Scheduler inicializado')
+                logger.info("Intelligent Scheduler inicializado")
 
             except Exception as e:
                 logger.warning(
-                    'Falha ao inicializar Intelligent Scheduler, scheduler desabilitado',
-                    error=str(e)
+                    "Falha ao inicializar Intelligent Scheduler, scheduler desabilitado",
+                    error=str(e),
                 )
                 self.intelligent_scheduler = None
 
         # Inicializar OPA Client e PolicyValidator se habilitado
         if self.config.opa_enabled:
-            logger.info('Inicializando OPA Policy Engine')
+            logger.info("Inicializando OPA Policy Engine")
 
             try:
                 # Criar OPA Client com MongoDB para audit logging
@@ -230,26 +231,31 @@ class TemporalWorkerManager:
                 self.policy_validator = PolicyValidator(self.opa_client, self.config)
 
                 logger.info(
-                    'OPA Policy Engine inicializado',
+                    "OPA Policy Engine inicializado",
                     opa_host=self.config.opa_host,
-                    audit_logging_enabled=self.mongodb_client is not None
+                    audit_logging_enabled=self.mongodb_client is not None,
                 )
 
             except Exception as e:
-                logger.error(f'Falha ao inicializar OPA: {e}', exc_info=True)
+                logger.error(f"Falha ao inicializar OPA: {e}", exc_info=True)
                 if not self.config.opa_fail_open:
                     raise
-                logger.warning('OPA desabilitado devido a erro de inicialização (fail-open)')
+                logger.warning("OPA desabilitado devido a erro de inicialização (fail-open)")
                 self.policy_validator = None
         else:
-            logger.info('OPA Policy Engine desabilitado por configuração')
+            logger.info("OPA Policy Engine desabilitado por configuração")
 
         # Inicializar ML Predictor se habilitado
         if self.config.ml_predictions_enabled and self.mongodb_client:
-            logger.info('Inicializando ML Predictor')
+            logger.info("Inicializando ML Predictor")
 
             try:
-                from src.ml import ModelRegistry, MLPredictor, TrainingPipeline, ModelPromotionManager
+                from src.ml import (
+                    MLPredictor,
+                    ModelPromotionManager,
+                    ModelRegistry,
+                    TrainingPipeline,
+                )
 
                 # Criar Model Registry
                 model_registry = ModelRegistry(self.config)
@@ -261,7 +267,7 @@ class TemporalWorkerManager:
                     config=self.config,
                     mongodb_client=self.mongodb_client,
                     model_registry=model_registry,
-                    metrics=metrics
+                    metrics=metrics,
                 )
                 await ml_predictor.initialize()
                 self.ml_predictor = ml_predictor
@@ -272,7 +278,7 @@ class TemporalWorkerManager:
                         config=self.config,
                         mongodb_client=self.mongodb_client,
                         model_registry=model_registry,
-                        metrics=metrics
+                        metrics=metrics,
                     )
                     await promotion_manager.initialize()
                     self.promotion_manager = promotion_manager
@@ -282,13 +288,13 @@ class TemporalWorkerManager:
                     ml_predictor.anomaly_detector.promotion_manager = promotion_manager
 
                     logger.info(
-                        'ModelPromotionManager inicializado com Shadow Mode',
+                        "ModelPromotionManager inicializado com Shadow Mode",
                         shadow_mode_duration_minutes=self.config.ml_shadow_mode_duration_minutes,
-                        shadow_mode_min_predictions=self.config.ml_shadow_mode_min_predictions
+                        shadow_mode_min_predictions=self.config.ml_shadow_mode_min_predictions,
                     )
                 else:
                     self.promotion_manager = None
-                    logger.info('Shadow Mode desabilitado por configuração')
+                    logger.info("Shadow Mode desabilitado por configuração")
 
                 # Criar Training Pipeline
                 training_pipeline = TrainingPipeline(
@@ -297,7 +303,7 @@ class TemporalWorkerManager:
                     model_registry=model_registry,
                     duration_predictor=ml_predictor.duration_predictor,
                     anomaly_detector=ml_predictor.anomaly_detector,
-                    metrics=metrics
+                    metrics=metrics,
                 )
                 self.training_pipeline = training_pipeline
 
@@ -309,72 +315,68 @@ class TemporalWorkerManager:
                 # Verificar e treinar modelos se necessário (startup check)
                 models_status = await ml_predictor.ensure_models_trained()
                 logger.info(
-                    'ml_models_startup_check_completed',
-                    duration_model_ready=models_status.get('duration'),
-                    anomaly_model_ready=models_status.get('anomaly')
+                    "ml_models_startup_check_completed",
+                    duration_model_ready=models_status.get("duration"),
+                    anomaly_model_ready=models_status.get("anomaly"),
                 )
 
                 logger.info(
-                    'ML Predictor inicializado com sucesso',
-                    training_interval_hours=self.config.ml_training_interval_hours
+                    "ML Predictor inicializado com sucesso",
+                    training_interval_hours=self.config.ml_training_interval_hours,
                 )
 
             except Exception as e:
                 logger.warning(
-                    'Falha ao inicializar ML Predictor (continuando sem predições)',
-                    error=str(e)
+                    "Falha ao inicializar ML Predictor (continuando sem predições)", error=str(e)
                 )
                 self.ml_predictor = None
                 self.training_pipeline = None
+        elif not self.config.ml_predictions_enabled:
+            logger.info("ML Predictions desabilitado por configuração")
         else:
-            if not self.config.ml_predictions_enabled:
-                logger.info('ML Predictions desabilitado por configuração')
-            else:
-                logger.warning('ML Predictions desabilitado - MongoDB não disponível')
+            logger.warning("ML Predictions desabilitado - MongoDB não disponível")
 
         # Import workflows e activities
-        from src.workflows.orchestration_workflow import OrchestrationWorkflow
         from src.activities.plan_validation import (
-            validate_cognitive_plan,
             audit_validation,
             optimize_dag,
-            set_activity_dependencies as set_validation_deps
-        )
-        from src.activities.ticket_generation import (
-            generate_execution_tickets,
-            allocate_resources,
-            publish_ticket_to_kafka,
-            set_activity_dependencies as set_generation_deps
+            set_activity_dependencies as set_validation_deps,
+            validate_cognitive_plan,
         )
         from src.activities.result_consolidation import (
-            consolidate_results,
-            trigger_self_healing,
-            publish_telemetry,
             buffer_telemetry,
-            set_activity_dependencies as set_consolidation_deps
+            consolidate_results,
+            publish_telemetry,
+            set_activity_dependencies as set_consolidation_deps,
+            trigger_self_healing,
         )
         from src.activities.sla_monitoring import check_workflow_sla_proactive
+        from src.activities.ticket_generation import (
+            allocate_resources,
+            generate_execution_tickets,
+            publish_ticket_to_kafka,
+            set_activity_dependencies as set_generation_deps,
+        )
+        from src.workflows.orchestration_workflow import OrchestrationWorkflow
 
         # Injetar PolicyValidator e MongoDB nas activities de validação (fail-open)
         if self.policy_validator:
             set_validation_deps(
                 policy_validator=self.policy_validator,
                 config=self.config,
-                mongodb_client=self.mongodb_client
+                mongodb_client=self.mongodb_client,
             )
-            logger.info('PolicyValidator injetado em plan_validation activities')
+            logger.info("PolicyValidator injetado em plan_validation activities")
         else:
             set_validation_deps(
-                policy_validator=None,
-                config=self.config,
-                mongodb_client=self.mongodb_client
+                policy_validator=None, config=self.config, mongodb_client=self.mongodb_client
             )
-            logger.info('plan_validation activities configuradas sem PolicyValidator')
+            logger.info("plan_validation activities configuradas sem PolicyValidator")
 
         # Injetar dependências em ticket_generation (requer Kafka e MongoDB)
         if self.kafka_producer and self.mongodb_client:
             # Extrair scheduling_optimizer do intelligent_scheduler se disponível
-            scheduling_optimizer = getattr(self.intelligent_scheduler, 'scheduling_optimizer', None)
+            scheduling_optimizer = getattr(self.intelligent_scheduler, "scheduling_optimizer", None)
 
             set_generation_deps(
                 self.kafka_producer,
@@ -384,30 +386,33 @@ class TemporalWorkerManager:
                 self.policy_validator,
                 self.config,
                 self.ml_predictor,
-                scheduling_optimizer
+                scheduling_optimizer,
             )
 
             logger.info(
-                'Dependências injetadas nas ticket_generation activities',
+                "Dependências injetadas nas ticket_generation activities",
                 kafka_enabled=True,
                 mongodb_enabled=True,
                 registry_enabled=self.registry_client is not None,
                 scheduler_enabled=self.intelligent_scheduler is not None,
                 opa_enabled=self.policy_validator is not None,
                 ml_predictor_enabled=self.ml_predictor is not None,
-                scheduling_optimizer_enabled=scheduling_optimizer is not None
+                scheduling_optimizer_enabled=scheduling_optimizer is not None,
             )
         else:
-            logger.warning('Kafka Producer ou MongoDB Client não fornecidos - ticket_generation activities podem falhar')
+            logger.warning(
+                "Kafka Producer ou MongoDB Client não fornecidos - ticket_generation activities podem falhar"
+            )
 
         # Injetar dependências em result_consolidation (fail-open)
         set_consolidation_deps(
-            scheduling_optimizer=getattr(self.intelligent_scheduler, 'scheduling_optimizer', None)
-            if self.intelligent_scheduler else None,
+            scheduling_optimizer=getattr(self.intelligent_scheduler, "scheduling_optimizer", None)
+            if self.intelligent_scheduler
+            else None,
             config=self.config,
             mongodb_client=self.mongodb_client,
             kafka_producer=self.kafka_producer,
-            self_healing_client=self.self_healing_client
+            self_healing_client=self.self_healing_client,
         )
 
         # Criar Worker
@@ -426,74 +431,74 @@ class TemporalWorkerManager:
                 trigger_self_healing,
                 publish_telemetry,
                 buffer_telemetry,
-                check_workflow_sla_proactive
+                check_workflow_sla_proactive,
             ],
             max_concurrent_workflow_tasks=10,
-            max_concurrent_activities=50
+            max_concurrent_activities=50,
         )
 
-        logger.info('Temporal Worker inicializado com sucesso')
+        logger.info("Temporal Worker inicializado com sucesso")
 
         logger.info(
-            'SLA monitoring activity registrada no Worker',
-            activity='check_workflow_sla_proactive',
-            sla_management_enabled=self.config.sla_management_enabled
+            "SLA monitoring activity registrada no Worker",
+            activity="check_workflow_sla_proactive",
+            sla_management_enabled=self.config.sla_management_enabled,
         )
 
     async def start(self):
         """Inicia o worker."""
         if not self.worker:
-            raise RuntimeError('Worker não foi inicializado. Chame initialize() primeiro.')
+            raise RuntimeError("Worker não foi inicializado. Chame initialize() primeiro.")
 
-        logger.info('Iniciando Temporal Worker')
+        logger.info("Iniciando Temporal Worker")
         self.running = True
 
         await self.worker.run()
 
     async def stop(self):
         """Para o worker gracefully."""
-        logger.info('Parando Temporal Worker')
+        logger.info("Parando Temporal Worker")
         self.running = False
 
         # Fechar Service Registry Client se existir
         if self.registry_client:
-            logger.info('Fechando Service Registry Client')
+            logger.info("Fechando Service Registry Client")
             try:
                 await self.registry_client.close()
             except Exception as e:
-                logger.warning('Erro ao fechar Service Registry Client', error=str(e))
+                logger.warning("Erro ao fechar Service Registry Client", error=str(e))
 
         # Fechar OPA Client se existir
         if self.opa_client:
-            logger.info('Fechando OPA Client')
+            logger.info("Fechando OPA Client")
             try:
                 await self.opa_client.close()
             except Exception as e:
-                logger.warning('Erro ao fechar OPA Client', error=str(e))
+                logger.warning("Erro ao fechar OPA Client", error=str(e))
 
         # Fechar Model Promotion Manager se existir
         if self.promotion_manager:
-            logger.info('Fechando Model Promotion Manager')
+            logger.info("Fechando Model Promotion Manager")
             try:
                 await self.promotion_manager.close()
             except Exception as e:
-                logger.warning('Erro ao fechar Model Promotion Manager', error=str(e))
+                logger.warning("Erro ao fechar Model Promotion Manager", error=str(e))
 
         # Parar Training Pipeline se existir
         if self.training_pipeline:
-            logger.info('Parando Training Pipeline')
+            logger.info("Parando Training Pipeline")
             try:
                 await self.training_pipeline.stop_periodic_training()
             except Exception as e:
-                logger.warning('Erro ao parar Training Pipeline', error=str(e))
+                logger.warning("Erro ao parar Training Pipeline", error=str(e))
 
         # Fechar ML Predictor se existir
         if self.ml_predictor:
-            logger.info('Fechando ML Predictor')
+            logger.info("Fechando ML Predictor")
             try:
                 await self.ml_predictor.close()
             except Exception as e:
-                logger.warning('Erro ao fechar ML Predictor', error=str(e))
+                logger.warning("Erro ao fechar ML Predictor", error=str(e))
 
         # Temporal SDK gerencia shutdown automaticamente
 
@@ -513,11 +518,11 @@ def _build_temporal_target(host: str, port: int) -> str:
         Target URL no formato host:port
     """
     # Se host já contém porta (formato host:port), usar diretamente
-    if ':' in host:
+    if ":" in host:
         return host
 
     # Caso contrário, concatenar host e port
-    return f'{host}:{port}'
+    return f"{host}:{port}"
 
 
 async def create_temporal_client(config, postgres_user=None, postgres_password=None) -> Client:
@@ -539,19 +544,15 @@ async def create_temporal_client(config, postgres_user=None, postgres_password=N
         Exception: Se conexão falhar e temporal_enabled=True
     """
     # Verificar se Temporal está habilitado
-    temporal_enabled = getattr(config, 'temporal_enabled', True)
+    temporal_enabled = getattr(config, "temporal_enabled", True)
     if not temporal_enabled:
-        logger.info('Temporal desabilitado via configuração (temporal_enabled=False)')
+        logger.info("Temporal desabilitado via configuração (temporal_enabled=False)")
         return None
 
     # Construir target URL de forma robusta (evita porta duplicada)
     target = _build_temporal_target(config.temporal_host, config.temporal_port)
 
-    logger.info(
-        'Conectando ao Temporal Server',
-        target=target,
-        namespace=config.temporal_namespace
-    )
+    logger.info("Conectando ao Temporal Server", target=target, namespace=config.temporal_namespace)
 
     try:
         # Workers requerem conexão eager (lazy=False é o padrão)
@@ -563,9 +564,11 @@ async def create_temporal_client(config, postgres_user=None, postgres_password=N
             # tls=config.temporal_tls_enabled  # Configurar TLS para produção
         )
 
-        logger.info('Cliente Temporal conectado com sucesso', target=target)
+        logger.info("Cliente Temporal conectado com sucesso", target=target)
         return client
 
     except Exception as e:
-        logger.error('Erro ao conectar ao Temporal Server', error=str(e), target=target, exc_info=True)
+        logger.error(
+            "Erro ao conectar ao Temporal Server", error=str(e), target=target, exc_info=True
+        )
         raise

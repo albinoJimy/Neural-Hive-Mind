@@ -10,8 +10,9 @@ GAPS-04 Task 4
 """
 
 import re
-from typing import Dict, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
+from typing import Any, Dict, Optional
+
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -27,30 +28,30 @@ class ExplanationQualityScorer:
 
     # Pesos padrão para score agregado
     DEFAULT_WEIGHTS = {
-        'completeness': 0.4,  # Completude é mais importante
-        'clarity': 0.35,
-        'specificity': 0.25
+        "completeness": 0.4,  # Completude é mais importante
+        "clarity": 0.35,
+        "specificity": 0.25,
     }
 
     # Campos obrigatórios para completude máxima
     REQUIRED_FIELDS = {
-        'consensus_process': ['method', 'num_specialists'],
-        'specialist_opinions': ['specialist_type', 'confidence'],
-        'final_decision': ['decision']
+        "consensus_process": ["method", "num_specialists"],
+        "specialist_opinions": ["specialist_type", "confidence"],
+        "final_decision": ["decision"],
     }
 
     # Padrões para detecção de clareza
     VAGUE_PATTERNS = [
-        r'\b(ok|tudo bem|sim|não|talvez|possivelmente)\b\.?\s*$',
-        r'^\s*[a-zA-Z]{1,3}\.?\s*$'  # Respostas muito curtas
+        r"\b(ok|tudo bem|sim|não|talvez|possivelmente)\b\.?\s*$",
+        r"^\s*[a-zA-Z]{1,3}\.?\s*$",  # Respostas muito curtas
     ]
 
     # Padrões para detecção de especificidade (números, métricas)
     SPECIFICITY_PATTERNS = [
-        r'\b\d+\.?\d*%?\b',  # Números e porcentagens
-        r'\b\d+ms\b',  # Tempo em ms
-        r'\b\d+s\b',  # Tempo em segundos
-        r'\b\d+(?:,\d{3})*\b',  # Números grandes com vírgula
+        r"\b\d+\.?\d*%?\b",  # Números e porcentagens
+        r"\b\d+ms\b",  # Tempo em ms
+        r"\b\d+s\b",  # Tempo em segundos
+        r"\b\d+(?:,\d{3})*\b",  # Números grandes com vírgula
     ]
 
     def __init__(self, mongodb_client=None):
@@ -226,29 +227,27 @@ class ExplanationQualityScorer:
         texts = []
 
         # Adicionar reasoning_summary se existir
-        if 'reasoning_summary' in explanation:
-            texts.append(explanation['reasoning_summary'])
+        if "reasoning_summary" in explanation:
+            texts.append(explanation["reasoning_summary"])
 
         # Adicionar reasoning de specialist_opinions
-        if 'specialist_opinions' in explanation:
-            for opinion in explanation['specialist_opinions']:
-                if 'reasoning' in opinion:
-                    texts.append(str(opinion['reasoning']))
-                elif 'reasoning_summary' in opinion:
-                    texts.append(str(opinion['reasoning_summary']))
+        if "specialist_opinions" in explanation:
+            for opinion in explanation["specialist_opinions"]:
+                if "reasoning" in opinion:
+                    texts.append(str(opinion["reasoning"]))
+                elif "reasoning_summary" in opinion:
+                    texts.append(str(opinion["reasoning_summary"]))
 
         # Adicionar rationale de final_decision
-        if 'final_decision' in explanation:
-            decision = explanation['final_decision']
-            if isinstance(decision, dict) and 'rationale' in decision:
-                texts.append(str(decision['rationale']))
+        if "final_decision" in explanation:
+            decision = explanation["final_decision"]
+            if isinstance(decision, dict) and "rationale" in decision:
+                texts.append(str(decision["rationale"]))
 
         return texts
 
     def calculate_overall_score(
-        self,
-        scores: Dict[str, float],
-        weights: Optional[Dict[str, float]] = None
+        self, scores: Dict[str, float], weights: Optional[Dict[str, float]] = None
     ) -> float:
         """
         Calcula score agregado a partir dos scores individuais.
@@ -277,9 +276,7 @@ class ExplanationQualityScorer:
         return min(1.0, weighted_sum / total_weight)
 
     def score_explanation(
-        self,
-        explanation: Dict[str, Any],
-        weights: Optional[Dict[str, float]] = None
+        self, explanation: Dict[str, Any], weights: Optional[Dict[str, float]] = None
     ) -> Dict[str, float]:
         """
         Calcula todas as métricas de qualidade para uma explicação.
@@ -292,20 +289,16 @@ class ExplanationQualityScorer:
             Dicionário com todos os scores e overall
         """
         scores = {
-            'completeness': self.score_completeness(explanation),
-            'clarity': self.score_clarity(explanation),
-            'specificity': self.score_specificity(explanation)
+            "completeness": self.score_completeness(explanation),
+            "clarity": self.score_clarity(explanation),
+            "specificity": self.score_specificity(explanation),
         }
 
-        scores['overall'] = self.calculate_overall_score(scores, weights)
+        scores["overall"] = self.calculate_overall_score(scores, weights)
 
         return scores
 
-    def save_scores(
-        self,
-        explanation_id: str,
-        scores: Dict[str, float]
-    ) -> bool:
+    def save_scores(self, explanation_id: str, scores: Dict[str, float]) -> bool:
         """
         Salva scores no MongoDB.
 
@@ -321,34 +314,47 @@ class ExplanationQualityScorer:
             return False
 
         try:
-            collection = self.mongodb.db['explanation_quality']
+            collection = self.mongodb.db["explanation_quality"]
 
             document = {
-                'explanation_id': explanation_id,
-                'completeness': scores.get('completeness', 0.0),
-                'clarity': scores.get('clarity', 0.0),
-                'specificity': scores.get('specificity', 0.0),
-                'overall': scores.get('overall', 0.0),
-                'timestamp': datetime.utcnow()
+                "explanation_id": explanation_id,
+                "completeness": scores.get("completeness", 0.0),
+                "clarity": scores.get("clarity", 0.0),
+                "specificity": scores.get("specificity", 0.0),
+                "overall": scores.get("overall", 0.0),
+                "timestamp": datetime.now(timezone.utc),
             }
 
             collection.update_one(
-                {'explanation_id': explanation_id},
-                {'$set': document},
-                upsert=True
+                {"explanation_id": explanation_id}, {"$set": document}, upsert=True
             )
 
-            logger.info("Quality scores saved", explanation_id=explanation_id, overall_score=scores.get('overall'))
+            logger.info(
+                "Quality scores saved",
+                explanation_id=explanation_id,
+                overall_score=scores.get("overall"),
+            )
             return True
 
         except Exception as e:
             logger.error("Error saving quality scores", explanation_id=explanation_id, error=str(e))
             return False
 
+    async def get_overall_score(self, explanation: Dict[str, Any]) -> float:
+        """
+        Calcula score geral de uma explicação (async wrapper).
+
+        Args:
+            explanation: Dicionário com dados da explicação
+
+        Returns:
+            Score geral entre 0.0 e 1.0
+        """
+        scores = self.score_explanation(explanation)
+        return scores.get("overall", 0.0)
+
     def batch_score_explanations(
-        self,
-        explanations: list,
-        weights: Optional[Dict[str, float]] = None
+        self, explanations: list, weights: Optional[Dict[str, float]] = None
     ) -> list:
         """
         Calcula scores para múltiplas explicações.
@@ -363,10 +369,14 @@ class ExplanationQualityScorer:
         results = []
 
         for i, explanation in enumerate(explanations):
-            exp_id = explanation.get('explainability_token') or explanation.get('decision_id') or f'exp-{i}'
+            exp_id = (
+                explanation.get("explainability_token")
+                or explanation.get("decision_id")
+                or f"exp-{i}"
+            )
 
             scores = self.score_explanation(explanation, weights)
-            scores['explanation_id'] = exp_id
+            scores["explanation_id"] = exp_id
 
             # Salvar no MongoDB
             self.save_scores(exp_id, scores)

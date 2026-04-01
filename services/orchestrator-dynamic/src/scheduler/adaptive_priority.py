@@ -6,11 +6,11 @@ Ajusta prioridade de tickets considerando histórico de execução:
 - Taxa de falha
 - Consumo de recursos
 """
-import structlog
-from typing import Dict, Any, Optional, List
-from datetime import datetime, timezone, timedelta
 from collections import defaultdict
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
+import structlog
 
 logger = structlog.get_logger(__name__)
 
@@ -45,40 +45,27 @@ class AdaptivePriorityCalculator:
             config: Configurações (opcional)
         """
         self.config = config
-        self.logger = logger.bind(component='adaptive_priority')
+        self.logger = logger.bind(component="adaptive_priority")
 
         # Histórico de execuções (em produção, viria do MongoDB/Redis)
-        self.execution_history: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+        self.execution_history: dict[str, list[dict[str, Any]]] = defaultdict(list)
 
         # Configurações customizáveis
         self.history_window_days = getattr(
-            config,
-            'adaptive_history_window_days',
-            self.HISTORY_WINDOW_DAYS
+            config, "adaptive_history_window_days", self.HISTORY_WINDOW_DAYS
         )
 
         self.execution_time_threshold = getattr(
-            config,
-            'adaptive_execution_time_threshold',
-            self.EXECUTION_TIME_THRESHOLD
+            config, "adaptive_execution_time_threshold", self.EXECUTION_TIME_THRESHOLD
         )
 
         self.failure_rate_threshold = getattr(
-            config,
-            'adaptive_failure_rate_threshold',
-            self.FAILURE_RATE_THRESHOLD
+            config, "adaptive_failure_rate_threshold", self.FAILURE_RATE_THRESHOLD
         )
 
-        self.enabled = getattr(
-            config,
-            'adaptive_priority_enabled',
-            True
-        )
+        self.enabled = getattr(config, "adaptive_priority_enabled", True)
 
-    def calculate_adaptive_adjustment(
-        self,
-        ticket: Dict[str, Any]
-    ) -> float:
+    def calculate_adaptive_adjustment(self, ticket: dict[str, Any]) -> float:
         """
         Calcula ajuste adaptativo de prioridade.
 
@@ -92,7 +79,7 @@ class AdaptivePriorityCalculator:
         if not self.enabled:
             return 0.0
 
-        ticket_id = ticket.get('ticket_id', 'unknown')
+        ticket_id = ticket.get("ticket_id", "unknown")
         ticket_type = self._get_ticket_type(ticket)
 
         # Obter histórico deste tipo de ticket
@@ -100,9 +87,7 @@ class AdaptivePriorityCalculator:
 
         if not history:
             self.logger.debug(
-                'adaptive_priority_no_history',
-                ticket_id=ticket_id,
-                ticket_type=ticket_type
+                "adaptive_priority_no_history", ticket_id=ticket_id, ticket_type=ticket_type
             )
             return 0.0
 
@@ -118,18 +103,18 @@ class AdaptivePriorityCalculator:
         total_adjustment = max(min(total_adjustment, 0.2), -0.2)
 
         self.logger.debug(
-            'adaptive_priority_calculated',
+            "adaptive_priority_calculated",
             ticket_id=ticket_id,
             ticket_type=ticket_type,
             execution_time_factor=execution_time_factor,
             failure_rate_factor=failure_rate_factor,
             resource_factor=resource_factor,
-            total_adjustment=total_adjustment
+            total_adjustment=total_adjustment,
         )
 
         return total_adjustment
 
-    def _get_ticket_type(self, ticket: Dict[str, Any]) -> str:
+    def _get_ticket_type(self, ticket: dict[str, Any]) -> str:
         """
         Identifica tipo do ticket para agrupar histórico.
 
@@ -140,18 +125,18 @@ class AdaptivePriorityCalculator:
             Tipo do ticket (para agrupamento de histórico)
         """
         # Usar task_type ou action como tipo
-        task_type = ticket.get('task_type')
+        task_type = ticket.get("task_type")
         if task_type:
             return task_type
 
-        action = ticket.get('action', '')
+        action = ticket.get("action", "")
         if action:
             return action
 
         # Fallback: usar risk_band
         return f"risk_{ticket.get('risk_band', 'normal')}"
 
-    def _get_recent_history(self, ticket_type: str) -> List[Dict[str, Any]]:
+    def _get_recent_history(self, ticket_type: str) -> list[dict[str, Any]]:
         """
         Obtém histórico recente de um tipo de ticket.
 
@@ -164,19 +149,16 @@ class AdaptivePriorityCalculator:
         history = self.execution_history.get(ticket_type, [])
 
         # Filtrar por janela de tempo
-        cutoff = datetime.now(timezone.utc) - timedelta(days=self.history_window_days)
+        cutoff = datetime.now(UTC) - timedelta(days=self.history_window_days)
 
-        recent = [
-            entry for entry in history
-            if datetime.fromtimestamp(entry.get('timestamp', 0) / 1000, timezone.utc) > cutoff
+        return [
+            entry
+            for entry in history
+            if datetime.fromtimestamp(entry.get("timestamp", 0) / 1000, UTC) > cutoff
         ]
 
-        return recent
-
     def _calculate_execution_time_factor(
-        self,
-        history: List[Dict[str, Any]],
-        ticket: Dict[str, Any]
+        self, history: list[dict[str, Any]], ticket: dict[str, Any]
     ) -> float:
         """
         Calcula fator de ajuste baseado em tempo de execução.
@@ -193,9 +175,9 @@ class AdaptivePriorityCalculator:
 
         # Calcular tempo médio de execução
         execution_times = [
-            entry.get('execution_time_ms', 0)
+            entry.get("execution_time_ms", 0)
             for entry in history
-            if entry.get('execution_time_ms', 0) > 0
+            if entry.get("execution_time_ms", 0) > 0
         ]
 
         if not execution_times:
@@ -204,7 +186,7 @@ class AdaptivePriorityCalculator:
         avg_execution_time = sum(execution_times) / len(execution_times)
 
         # Obter tempo esperado do ticket
-        expected_time_ms = ticket.get('sla', {}).get('timeout_ms', 300000)  # 5 min default
+        expected_time_ms = ticket.get("sla", {}).get("timeout_ms", 300000)  # 5 min default
 
         # Calcular razão
         if expected_time_ms == 0:
@@ -221,7 +203,7 @@ class AdaptivePriorityCalculator:
 
         return 0.0
 
-    def _calculate_failure_rate_factor(self, history: List[Dict[str, Any]]) -> float:
+    def _calculate_failure_rate_factor(self, history: list[dict[str, Any]]) -> float:
         """
         Calcula fator de ajuste baseado em taxa de falha.
 
@@ -235,10 +217,7 @@ class AdaptivePriorityCalculator:
             return 0.0
 
         # Contar falhas
-        failures = sum(
-            1 for entry in history
-            if entry.get('status') == 'FAILED'
-        )
+        failures = sum(1 for entry in history if entry.get("status") == "FAILED")
 
         failure_rate = failures / len(history)
 
@@ -251,7 +230,7 @@ class AdaptivePriorityCalculator:
 
         return 0.0
 
-    def _calculate_resource_factor(self, history: List[Dict[str, Any]]) -> float:
+    def _calculate_resource_factor(self, history: list[dict[str, Any]]) -> float:
         """
         Calcula fator de ajuste baseado em consumo de recursos.
 
@@ -266,9 +245,9 @@ class AdaptivePriorityCalculator:
 
         # Calcular consumo médio de recursos
         resource_usages = [
-            entry.get('resource_usage', 0.5)
+            entry.get("resource_usage", 0.5)
             for entry in history
-            if entry.get('resource_usage') is not None
+            if entry.get("resource_usage") is not None
         ]
 
         if not resource_usages:
@@ -280,17 +259,17 @@ class AdaptivePriorityCalculator:
         # Se consumo muito baixo, pode aumentar (tickets leves primeiro)
         if avg_resource_usage > 0.8:
             return -0.05  # Penalidade leve para tickets pesados
-        elif avg_resource_usage < 0.3:
+        if avg_resource_usage < 0.3:
             return 0.03  # Pequeno boost para tickets leves
 
         return 0.0
 
     def record_execution(
         self,
-        ticket: Dict[str, Any],
+        ticket: dict[str, Any],
         execution_time_ms: int,
         status: str,
-        resource_usage: Optional[float] = None
+        resource_usage: float | None = None,
     ):
         """
         Registra execução de um ticket no histórico.
@@ -302,31 +281,31 @@ class AdaptivePriorityCalculator:
             resource_usage: Uso de recursos [0.0, 1.0] (opcional)
         """
         ticket_type = self._get_ticket_type(ticket)
-        ticket_id = ticket.get('ticket_id', 'unknown')
+        ticket_id = ticket.get("ticket_id", "unknown")
 
         entry = {
-            'ticket_id': ticket_id,
-            'timestamp': self._get_timestamp(),
-            'execution_time_ms': execution_time_ms,
-            'status': status,
-            'resource_usage': resource_usage
+            "ticket_id": ticket_id,
+            "timestamp": self._get_timestamp(),
+            "execution_time_ms": execution_time_ms,
+            "status": status,
+            "resource_usage": resource_usage,
         }
 
         self.execution_history[ticket_type].append(entry)
 
         self.logger.debug(
-            'adaptive_priority_execution_recorded',
+            "adaptive_priority_execution_recorded",
             ticket_id=ticket_id,
             ticket_type=ticket_type,
             execution_time_ms=execution_time_ms,
-            status=status
+            status=status,
         )
 
     def _get_timestamp(self) -> int:
         """Retorna timestamp atual em milissegundos."""
-        return int(datetime.now(timezone.utc).timestamp() * 1000)
+        return int(datetime.now(UTC).timestamp() * 1000)
 
-    def get_history_statistics(self) -> Dict[str, Any]:
+    def get_history_statistics(self) -> dict[str, Any]:
         """
         Retorna estatísticas do histórico.
 
@@ -337,11 +316,11 @@ class AdaptivePriorityCalculator:
 
         # Contar por status
         completed = sum(
-            sum(1 for e in entries if e.get('status') == 'COMPLETED')
+            sum(1 for e in entries if e.get("status") == "COMPLETED")
             for entries in self.execution_history.values()
         )
         failed = sum(
-            sum(1 for e in entries if e.get('status') == 'FAILED')
+            sum(1 for e in entries if e.get("status") == "FAILED")
             for entries in self.execution_history.values()
         )
 
@@ -349,23 +328,21 @@ class AdaptivePriorityCalculator:
         all_times = []
         for entries in self.execution_history.values():
             all_times.extend(
-                e.get('execution_time_ms', 0)
-                for e in entries
-                if e.get('execution_time_ms', 0) > 0
+                e.get("execution_time_ms", 0) for e in entries if e.get("execution_time_ms", 0) > 0
             )
 
         avg_execution_time = sum(all_times) / len(all_times) if all_times else 0
 
         return {
-            'total_entries': total_entries,
-            'ticket_types': len(self.execution_history),
-            'completed': completed,
-            'failed': failed,
-            'success_rate': round(completed / total_entries * 100, 1) if total_entries > 0 else 0,
-            'avg_execution_time_ms': round(avg_execution_time, 0)
+            "total_entries": total_entries,
+            "ticket_types": len(self.execution_history),
+            "completed": completed,
+            "failed": failed,
+            "success_rate": round(completed / total_entries * 100, 1) if total_entries > 0 else 0,
+            "avg_execution_time_ms": round(avg_execution_time, 0),
         }
 
-    def clear_old_history(self, days: Optional[int] = None):
+    def clear_old_history(self, days: int | None = None):
         """
         Limpa entradas antigas do histórico.
 
@@ -373,20 +350,19 @@ class AdaptivePriorityCalculator:
             days: Dias de retenção (default: history_window_days)
         """
         retention_days = days or self.history_window_days
-        cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
+        cutoff = datetime.now(UTC) - timedelta(days=retention_days)
         cutoff_ms = int(cutoff.timestamp() * 1000)
 
         removed = 0
         for ticket_type, entries in self.execution_history.items():
             original_len = len(entries)
             self.execution_history[ticket_type] = [
-                e for e in entries
-                if e.get('timestamp', 0) > cutoff_ms
+                e for e in entries if e.get("timestamp", 0) > cutoff_ms
             ]
             removed += original_len - len(self.execution_history[ticket_type])
 
         self.logger.info(
-            'adaptive_priority_history_cleaned',
+            "adaptive_priority_history_cleaned",
             entries_removed=removed,
-            retention_days=retention_days
+            retention_days=retention_days,
         )

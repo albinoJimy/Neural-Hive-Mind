@@ -8,7 +8,8 @@ Responsável por:
 - Sinalizar conclusão/falha de workflows
 """
 
-from typing import Dict, List, Any, Optional
+from typing import Any, Dict, List, Optional
+
 import structlog
 
 logger = structlog.get_logger()
@@ -17,12 +18,7 @@ logger = structlog.get_logger()
 class OrchestratorDynamicIntegration:
     """Integração entre Scout Orchestrator e Orchestrator Dynamic."""
 
-    def __init__(
-        self,
-        scout_orchestrator,
-        temporal_client,
-        scout_ledger=None
-    ):
+    def __init__(self, scout_orchestrator, temporal_client, scout_ledger=None):
         """
         Inicializa a integração.
 
@@ -40,7 +36,7 @@ class OrchestratorDynamicIntegration:
         plan_id: str,
         intent_text: str,
         scouts: Optional[List[str]] = None,
-        timeout_ms: Optional[int] = None
+        timeout_ms: Optional[int] = None,
     ) -> Dict[str, Any]:
         """
         Solicita uma exploração ao Scout Orchestrator.
@@ -54,17 +50,10 @@ class OrchestratorDynamicIntegration:
         Returns:
             Dict com exploration_id e status
         """
-        logger.info(
-            "requesting_scout_exploration",
-            plan_id=plan_id,
-            scouts=scouts
-        )
+        logger.info("requesting_scout_exploration", plan_id=plan_id, scouts=scouts)
 
         exploration = await self.scout_orchestrator.coordinate_exploration(
-            plan_id=plan_id,
-            intent_text=intent_text,
-            scouts=scouts,
-            timeout_ms=timeout_ms
+            plan_id=plan_id, intent_text=intent_text, scouts=scouts, timeout_ms=timeout_ms
         )
 
         # Salvar no ledger se disponível
@@ -73,10 +62,7 @@ class OrchestratorDynamicIntegration:
 
         return exploration
 
-    async def get_exploration_results(
-        self,
-        exploration_id: str
-    ) -> Dict[str, Any]:
+    async def get_exploration_results(self, exploration_id: str) -> Dict[str, Any]:
         """
         Obtém resultados de uma exploração.
 
@@ -94,8 +80,7 @@ class OrchestratorDynamicIntegration:
         return await self.scout_orchestrator.get_exploration_status(exploration_id)
 
     def translate_to_workflow_activities(
-        self,
-        scout_results: Dict[str, Any]
+        self, scout_results: Dict[str, Any]
     ) -> List[Dict[str, Any]]:
         """
         Traduz resultados de scouts para atividades Temporal.
@@ -109,36 +94,34 @@ class OrchestratorDynamicIntegration:
         activities = []
 
         # Traduzir padrões descobertos
-        patterns = scout_results.get('patterns_found', [])
+        patterns = scout_results.get("patterns_found", [])
         for pattern in patterns:
-            activities.append({
-                'name': f"Apply {pattern.get('name', 'pattern')}",
-                'type': 'refactoring',
-                'description': f"Implement {pattern.get('name')} pattern",
-                'priority': 'medium' if pattern.get('confidence', 0.5) < 0.8 else 'high'
-            })
+            activities.append(
+                {
+                    "name": f"Apply {pattern.get('name', 'pattern')}",
+                    "type": "refactoring",
+                    "description": f"Implement {pattern.get('name')} pattern",
+                    "priority": "medium" if pattern.get("confidence", 0.5) < 0.8 else "high",
+                }
+            )
 
         # Traduzir recomendações
-        recommendations = scout_results.get('recommendations', [])
+        recommendations = scout_results.get("recommendations", [])
         for rec in recommendations:
-            activities.append({
-                'name': rec.get('action', 'Execute action'),
-                'type': 'implementation',
-                'description': rec.get('description', ''),
-                'priority': rec.get('priority', 'medium')
-            })
+            activities.append(
+                {
+                    "name": rec.get("action", "Execute action"),
+                    "type": "implementation",
+                    "description": rec.get("description", ""),
+                    "priority": rec.get("priority", "medium"),
+                }
+            )
 
-        logger.info(
-            "translated_to_activities",
-            activities_count=len(activities)
-        )
+        logger.info("translated_to_activities", activities_count=len(activities))
 
         return activities
 
-    def translate_to_tickets(
-        self,
-        scout_results: Dict[str, Any]
-    ) -> List[Dict[str, Any]]:
+    def translate_to_tickets(self, scout_results: Dict[str, Any]) -> List[Dict[str, Any]]:
         """
         Traduz recomendações em tickets de execução.
 
@@ -150,30 +133,25 @@ class OrchestratorDynamicIntegration:
         """
         tickets = []
 
-        recommendations = scout_results.get('recommendations', [])
+        recommendations = scout_results.get("recommendations", [])
         for i, rec in enumerate(recommendations):
             ticket = {
-                'ticket_id': f'ticket-{i}',
-                'action': rec.get('action', 'unknown'),
-                'target': rec.get('target', ''),
-                'description': rec.get('description', rec.get('reason', '')),
-                'priority': rec.get('priority', 'medium'),
-                'effort': rec.get('effort', 'medium'),
-                'status': 'pending'
+                "ticket_id": f"ticket-{i}",
+                "action": rec.get("action", "unknown"),
+                "target": rec.get("target", ""),
+                "description": rec.get("description", rec.get("reason", "")),
+                "priority": rec.get("priority", "medium"),
+                "effort": rec.get("effort", "medium"),
+                "status": "pending",
             }
             tickets.append(ticket)
 
-        logger.info(
-            "created_tickets",
-            count=len(tickets)
-        )
+        logger.info("created_tickets", count=len(tickets))
 
         return tickets
 
     async def signal_workflow_completion(
-        self,
-        workflow_id: str,
-        exploration_id: str
+        self, workflow_id: str, exploration_id: str
     ) -> Dict[str, Any]:
         """
         Sinaliza conclusão do workflow com dados da exploração.
@@ -186,24 +164,14 @@ class OrchestratorDynamicIntegration:
             Dict com confirmação
         """
         logger.info(
-            "signaling_workflow_completion",
-            workflow_id=workflow_id,
-            exploration_id=exploration_id
+            "signaling_workflow_completion", workflow_id=workflow_id, exploration_id=exploration_id
         )
 
         # Em produção: await self.temporal_client.complete_workflow(...)
         # Para testes, retornamos mock
-        return {
-            'signaled': True,
-            'workflow_id': workflow_id,
-            'exploration_id': exploration_id
-        }
+        return {"signaled": True, "workflow_id": workflow_id, "exploration_id": exploration_id}
 
-    async def signal_workflow_failure(
-        self,
-        workflow_id: str,
-        error: str
-    ) -> Dict[str, Any]:
+    async def signal_workflow_failure(self, workflow_id: str, error: str) -> Dict[str, Any]:
         """
         Sinaliza falha no workflow.
 
@@ -214,23 +182,13 @@ class OrchestratorDynamicIntegration:
         Returns:
             Dict com confirmação
         """
-        logger.error(
-            "signaling_workflow_failure",
-            workflow_id=workflow_id,
-            error=error
-        )
+        logger.error("signaling_workflow_failure", workflow_id=workflow_id, error=error)
 
         # Em produção: await self.temporal_client.fail_workflow(...)
-        return {
-            'signaled': True,
-            'workflow_id': workflow_id,
-            'error': error
-        }
+        return {"signaled": True, "workflow_id": workflow_id, "error": error}
 
     def enrich_context(
-        self,
-        base_context: Dict[str, Any],
-        scout_data: Dict[str, Any]
+        self, base_context: Dict[str, Any], scout_data: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
         Enriquece o contexto base com descobertas dos scouts.
@@ -245,25 +203,28 @@ class OrchestratorDynamicIntegration:
         enriched = dict(base_context)
 
         # Adicionar padrões descobertos
-        if 'patterns' in scout_data:
-            enriched['scout_patterns'] = scout_data['patterns']
+        if "patterns" in scout_data:
+            enriched["scout_patterns"] = scout_data["patterns"]
 
         # Adicionar dependências
-        if 'dependencies' in scout_data:
-            enriched['dependencies'] = scout_data['dependencies']
+        if "dependencies" in scout_data:
+            enriched["dependencies"] = scout_data["dependencies"]
 
         # Adicionar métricas de código
-        if 'complexity' in scout_data:
-            enriched['code_metrics'] = scout_data['complexity']
+        if "complexity" in scout_data:
+            enriched["code_metrics"] = scout_data["complexity"]
 
         # Adicionar recomendações
-        if 'recommendations' in scout_data:
-            enriched['scout_recommendations'] = scout_data['recommendations']
+        if "recommendations" in scout_data:
+            enriched["scout_recommendations"] = scout_data["recommendations"]
 
         logger.info(
             "context_enriched",
-            plan_id=base_context.get('plan_id'),
-            added_keys=list(set(scout_data.keys()) & {'patterns', 'dependencies', 'complexity', 'recommendations'})
+            plan_id=base_context.get("plan_id"),
+            added_keys=list(
+                set(scout_data.keys())
+                & {"patterns", "dependencies", "complexity", "recommendations"}
+            ),
         )
 
         return enriched

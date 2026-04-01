@@ -5,9 +5,10 @@ Detecta problemas de saúde nos serviços e componentes do Neural Hive-Mind.
 """
 
 import asyncio
-from datetime import datetime, timedelta
-from typing import Optional, Dict, Any
 from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Any, Dict, Optional
+
 import aiohttp
 import structlog
 
@@ -17,6 +18,7 @@ logger = structlog.get_logger()
 @dataclass
 class HealthStatus:
     """Resultado de verificação de saúde de um serviço."""
+
     service_name: str
     healthy: bool
     checked_at: datetime = field(default_factory=datetime.utcnow)
@@ -32,13 +34,14 @@ class HealthStatus:
             "checked_at": self.checked_at.isoformat(),
             "response_time_ms": self.response_time_ms,
             "error_message": self.error_message,
-            "metadata": self.metadata
+            "metadata": self.metadata,
         }
 
 
 @dataclass
 class LagStatus:
     """Resultado de verificação de lag de consumidor Kafka."""
+
     consumer_group: str
     topic: str
     lag: int
@@ -56,13 +59,14 @@ class LagStatus:
             "threshold": self.threshold,
             "within_threshold": self.within_threshold,
             "checked_at": self.checked_at.isoformat(),
-            "partitions": self.partitions
+            "partitions": self.partitions,
         }
 
 
 @dataclass
 class ConnectionStatus:
     """Resultado de verificação de conexão com banco de dados."""
+
     connection_string: str
     connected: bool
     database_type: str
@@ -80,7 +84,7 @@ class ConnectionStatus:
             "checked_at": self.checked_at.isoformat(),
             "response_time_ms": self.response_time_ms,
             "error": self.error,
-            "database_info": self.database_info
+            "database_info": self.database_info,
         }
 
 
@@ -97,7 +101,7 @@ class HealthMonitor:
         check_interval_seconds: int = 30,
         kafka_bootstrap_servers: str = "kafka:9092",
         default_lag_threshold: int = 10000,
-        http_timeout_seconds: int = 5
+        http_timeout_seconds: int = 5,
     ):
         self.service_registry_client = service_registry_client
         self.check_interval_seconds = check_interval_seconds
@@ -122,7 +126,7 @@ class HealthMonitor:
         self,
         service_name: str,
         namespace: str = "neural-hive-orchestration",
-        health_endpoint: str = "/health"
+        health_endpoint: str = "/health",
     ) -> HealthStatus:
         """
         Verifica se um serviço está saudável.
@@ -145,7 +149,7 @@ class HealthMonitor:
                     return HealthStatus(
                         service_name=service_name,
                         healthy=False,
-                        error_message=f"Service {service_name} not found in registry"
+                        error_message=f"Service {service_name} not found in registry",
                     )
                 url = f"{address}{health_endpoint}"
             else:
@@ -161,34 +165,23 @@ class HealthMonitor:
                         service_name=service_name,
                         healthy=True,
                         response_time_ms=elapsed_ms,
-                        metadata={"url": url}
+                        metadata={"url": url},
                     )
                 else:
                     return HealthStatus(
                         service_name=service_name,
                         healthy=False,
                         response_time_ms=elapsed_ms,
-                        error_message=f"HTTP {response.status}"
+                        error_message=f"HTTP {response.status}",
                     )
 
         except asyncio.TimeoutError:
-            return HealthStatus(
-                service_name=service_name,
-                healthy=False,
-                error_message="Timeout"
-            )
+            return HealthStatus(service_name=service_name, healthy=False, error_message="Timeout")
         except Exception as e:
-            return HealthStatus(
-                service_name=service_name,
-                healthy=False,
-                error_message=str(e)
-            )
+            return HealthStatus(service_name=service_name, healthy=False, error_message=str(e))
 
     async def check_kafka_consumer_lag(
-        self,
-        consumer_group: str,
-        topic: str,
-        threshold: Optional[int] = None
+        self, consumer_group: str, topic: str, threshold: Optional[int] = None
     ) -> LagStatus:
         """
         Verifica lag de consumidor Kafka.
@@ -209,7 +202,7 @@ class HealthMonitor:
             consumer = AIOKafkaConsumer(
                 bootstrap_servers=self.kafka_bootstrap_servers,
                 group_id=consumer_group,
-                enable_auto_commit=False
+                enable_auto_commit=False,
             )
 
             # Obter partições do tópico
@@ -221,11 +214,10 @@ class HealthMonitor:
                     lag=0,
                     threshold=threshold,
                     within_threshold=True,
-                    partitions={}
+                    partitions={},
                 )
 
             # Buscar offsets
-            from aiokafka.consumer.fetcher import ConsumerRecord
             from aiokafka.structs import TopicPartition
 
             tps = [TopicPartition(topic, p) for p in partitions]
@@ -253,27 +245,27 @@ class HealthMonitor:
                 lag=total_lag,
                 threshold=threshold,
                 within_threshold=total_lag < threshold,
-                partitions=partition_lags
+                partitions=partition_lags,
             )
 
         except Exception as e:
-            logger.error("health_monitor.kafka_lag_check_failed",
-                        consumer_group=consumer_group,
-                        topic=topic,
-                        error=str(e))
+            logger.error(
+                "health_monitor.kafka_lag_check_failed",
+                consumer_group=consumer_group,
+                topic=topic,
+                error=str(e),
+            )
             # Em caso de erro, retornar lag zero para evitar falsos positivos
             return LagStatus(
                 consumer_group=consumer_group,
                 topic=topic,
                 lag=0,
                 threshold=threshold,
-                within_threshold=True
+                within_threshold=True,
             )
 
     async def check_database_connection(
-        self,
-        connection_string: str,
-        database_type: str = "mongodb"
+        self, connection_string: str, database_type: str = "mongodb"
     ) -> ConnectionStatus:
         """
         Verifica conectividade com banco de dados.
@@ -291,27 +283,29 @@ class HealthMonitor:
             if database_type == "mongodb":
                 import motor.motor_asyncio
 
-                client = motor.motor_asyncio.AsyncIOMotorClient(connection_string, serverSelectionTimeoutMS=5)
+                client = motor.motor_asyncio.AsyncIOMotorClient(
+                    connection_string, serverSelectionTimeoutMS=5
+                )
 
                 # Ping para testar conexão
-                result = await client.admin.command('ping')
+                result = await client.admin.command("ping")
 
                 elapsed_ms = (asyncio.get_event_loop().time() - start_time) * 1000
 
-                if result.get('ok') == 1.0:
+                if result.get("ok") == 1.0:
                     return ConnectionStatus(
                         connection_string=connection_string,
                         connected=True,
                         database_type=database_type,
                         response_time_ms=elapsed_ms,
-                        database_info={"version": result.get("version")}
+                        database_info={"version": result.get("version")},
                     )
                 else:
                     return ConnectionStatus(
                         connection_string=connection_string,
                         connected=False,
                         database_type=database_type,
-                        error="Ping failed"
+                        error="Ping failed",
                     )
 
             elif database_type == "postgresql":
@@ -325,7 +319,7 @@ class HealthMonitor:
                     connection_string=connection_string,
                     connected=True,
                     database_type=database_type,
-                    response_time_ms=elapsed_ms
+                    response_time_ms=elapsed_ms,
                 )
 
             else:
@@ -333,7 +327,7 @@ class HealthMonitor:
                     connection_string=connection_string,
                     connected=False,
                     database_type=database_type,
-                    error=f"Unsupported database type: {database_type}"
+                    error=f"Unsupported database type: {database_type}",
                 )
 
         except Exception as e:
@@ -341,7 +335,7 @@ class HealthMonitor:
                 connection_string=connection_string,
                 connected=False,
                 database_type=database_type,
-                error=str(e)
+                error=str(e),
             )
 
     async def run_periodic_checks(self, services: list[str]) -> Dict[str, HealthStatus]:
@@ -362,9 +356,7 @@ class HealthMonitor:
         for service, status in zip(services, statuses):
             if isinstance(status, Exception):
                 results[service] = HealthStatus(
-                    service_name=service,
-                    healthy=False,
-                    error_message=str(status)
+                    service_name=service, healthy=False, error_message=str(status)
                 )
             else:
                 results[service] = status

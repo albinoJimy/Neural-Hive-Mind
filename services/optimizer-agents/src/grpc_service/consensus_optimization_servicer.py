@@ -5,7 +5,6 @@ Implementa os métodos RPC definidos em consensus_engine_extensions.proto.
 Expõe APIs para que o Consensus Engine solicite otimizações de pesos.
 """
 import time
-from typing import Dict, Optional
 
 import grpc
 import structlog
@@ -24,14 +23,19 @@ logger = structlog.get_logger()
 # Proto imports - disponíveis após `make proto` compilation
 try:
     from proto import consensus_engine_extensions_pb2, consensus_engine_extensions_pb2_grpc
+
     PROTO_AVAILABLE = True
 except ImportError:
     PROTO_AVAILABLE = False
-    logger.warning("consensus_proto_not_compiled", message="Run 'make proto' to compile protocol buffers")
+    logger.warning(
+        "consensus_proto_not_compiled", message="Run 'make proto' to compile protocol buffers"
+    )
 
 
 class ConsensusOptimizationServicer(
-    consensus_engine_extensions_pb2_grpc.ConsensusOptimizationServicer if PROTO_AVAILABLE else object
+    consensus_engine_extensions_pb2_grpc.ConsensusOptimizationServicer
+    if PROTO_AVAILABLE
+    else object
 ):
     """
     Servicer gRPC para otimização de pesos de especialistas.
@@ -42,11 +46,11 @@ class ConsensusOptimizationServicer(
 
     def __init__(
         self,
-        weight_recalibrator: Optional[WeightRecalibrator] = None,
-        mongodb_client: Optional[MongoDBClient] = None,
-        redis_client: Optional[RedisClient] = None,
-        clickhouse_client: Optional[ClickHouseClient] = None,
-        consensus_client: Optional[ConsensusEngineGrpcClient] = None,
+        weight_recalibrator: WeightRecalibrator | None = None,
+        mongodb_client: MongoDBClient | None = None,
+        redis_client: RedisClient | None = None,
+        clickhouse_client: ClickHouseClient | None = None,
+        consensus_client: ConsensusEngineGrpcClient | None = None,
         scheduling_optimizer=None,
         settings=None,
         metrics=None,
@@ -75,7 +79,9 @@ class ConsensusOptimizationServicer(
             GetCurrentWeightsResponse
         """
         try:
-            specialist_type = request.specialist_type if request.HasField("specialist_type") else None
+            specialist_type = (
+                request.specialist_type if request.HasField("specialist_type") else None
+            )
 
             logger.info("get_current_weights_requested", specialist_type=specialist_type)
 
@@ -103,9 +109,7 @@ class ConsensusOptimizationServicer(
                     self.metrics.increment_cache_miss("consensus_weights")
 
                 weight_doc = await self.mongodb_client.find_one(
-                    "consensus_weights",
-                    {"active": True},
-                    sort=[("last_updated_at", -1)]
+                    "consensus_weights", {"active": True}, sort=[("last_updated_at", -1)]
                 )
 
                 if weight_doc:
@@ -118,8 +122,12 @@ class ConsensusOptimizationServicer(
                         try:
                             await self.redis_client.set_json(
                                 self._weights_cache_key,
-                                {"weights": weights, "last_updated_at": last_updated_at, "optimization_id": optimization_id},
-                                ttl=self.settings.redis_cache_ttl
+                                {
+                                    "weights": weights,
+                                    "last_updated_at": last_updated_at,
+                                    "optimization_id": optimization_id,
+                                },
+                                ttl=self.settings.redis_cache_ttl,
                             )
                         except Exception as e:
                             logger.warning("redis_cache_set_error", error=str(e))
@@ -139,7 +147,9 @@ class ConsensusOptimizationServicer(
             if specialist_type and specialist_type in weights:
                 weights = {specialist_type: weights[specialist_type]}
 
-            logger.info("current_weights_retrieved", weights=weights, optimization_id=optimization_id)
+            logger.info(
+                "current_weights_retrieved", weights=weights, optimization_id=optimization_id
+            )
 
             if PROTO_AVAILABLE:
                 return consensus_engine_extensions_pb2.GetCurrentWeightsResponse(
@@ -148,7 +158,11 @@ class ConsensusOptimizationServicer(
                     optimization_id=optimization_id,
                 )
             else:
-                return {"weights": weights, "last_updated_at": last_updated_at, "optimization_id": optimization_id}
+                return {
+                    "weights": weights,
+                    "last_updated_at": last_updated_at,
+                    "optimization_id": optimization_id,
+                }
 
         except Exception as e:
             logger.error("get_current_weights_failed", error=str(e))
@@ -204,9 +218,7 @@ class ConsensusOptimizationServicer(
             previous_weights = {}
             if self.mongodb_client:
                 prev_doc = await self.mongodb_client.find_one(
-                    "consensus_weights",
-                    {"active": True},
-                    sort=[("last_updated_at", -1)]
+                    "consensus_weights", {"active": True}, sort=[("last_updated_at", -1)]
                 )
                 if prev_doc:
                     previous_weights = prev_doc.get("weights", {})
@@ -256,7 +268,9 @@ class ConsensusOptimizationServicer(
                             optimization_id=optimization_id,
                         )
                     else:
-                        apply_error_message = "WeightRecalibrator failed to apply weight recalibration"
+                        apply_error_message = (
+                            "WeightRecalibrator failed to apply weight recalibration"
+                        )
                         logger.error(
                             "weight_recalibration_via_recalibrator_failed",
                             optimization_id=optimization_id,
@@ -282,7 +296,9 @@ class ConsensusOptimizationServicer(
                             optimization_id=optimization_id,
                         )
                     else:
-                        apply_error_message = "ConsensusEngineGrpcClient failed to apply weight update"
+                        apply_error_message = (
+                            "ConsensusEngineGrpcClient failed to apply weight update"
+                        )
                         logger.error(
                             "weight_recalibration_via_consensus_client_failed",
                             optimization_id=optimization_id,
@@ -295,7 +311,9 @@ class ConsensusOptimizationServicer(
                         error=str(e),
                     )
             else:
-                apply_error_message = "Neither WeightRecalibrator nor ConsensusEngineGrpcClient available"
+                apply_error_message = (
+                    "Neither WeightRecalibrator nor ConsensusEngineGrpcClient available"
+                )
                 logger.error(
                     "no_weight_application_mechanism_available",
                     optimization_id=optimization_id,
@@ -312,7 +330,7 @@ class ConsensusOptimizationServicer(
                 if self.metrics:
                     self.metrics.increment_counter(
                         "consensus_weight_updates_total",
-                        {"specialist_type": "all", "status": "application_failed"}
+                        {"specialist_type": "all", "status": "application_failed"},
                     )
 
                 context.set_code(grpc.StatusCode.FAILED_PRECONDITION)
@@ -327,7 +345,10 @@ class ConsensusOptimizationServicer(
                         applied_at=0,
                     )
                 else:
-                    return {"success": False, "message": f"Falha ao aplicar pesos: {apply_error_message}"}
+                    return {
+                        "success": False,
+                        "message": f"Falha ao aplicar pesos: {apply_error_message}",
+                    }
 
             applied_at = int(time.time() * 1000)
 
@@ -335,9 +356,7 @@ class ConsensusOptimizationServicer(
             if self.mongodb_client:
                 # Desativar pesos anteriores
                 await self.mongodb_client.update_many(
-                    "consensus_weights",
-                    {"active": True},
-                    {"$set": {"active": False}}
+                    "consensus_weights", {"active": True}, {"$set": {"active": False}}
                 )
 
                 # Inserir novos pesos
@@ -352,7 +371,7 @@ class ConsensusOptimizationServicer(
                         "rl_confidence": rl_confidence,
                         "last_updated_at": applied_at,
                         "active": True,
-                    }
+                    },
                 )
 
                 # Registrar no histórico
@@ -366,7 +385,7 @@ class ConsensusOptimizationServicer(
                         "justification": justification,
                         "rl_confidence": rl_confidence,
                         "was_rolled_back": False,
-                    }
+                    },
                 )
 
             # Atualizar cache após aplicação e persistência bem-sucedidas
@@ -374,8 +393,12 @@ class ConsensusOptimizationServicer(
                 try:
                     await self.redis_client.set_json(
                         self._weights_cache_key,
-                        {"weights": weights, "last_updated_at": applied_at, "optimization_id": optimization_id},
-                        ttl=self.settings.redis_cache_ttl
+                        {
+                            "weights": weights,
+                            "last_updated_at": applied_at,
+                            "optimization_id": optimization_id,
+                        },
+                        ttl=self.settings.redis_cache_ttl,
                     )
                 except Exception as e:
                     logger.warning("redis_cache_update_error", error=str(e))
@@ -395,7 +418,7 @@ class ConsensusOptimizationServicer(
             if self.metrics:
                 self.metrics.increment_counter(
                     "consensus_weight_updates_total",
-                    {"specialist_type": "all", "status": "success"}
+                    {"specialist_type": "all", "status": "success"},
                 )
 
             logger.info(
@@ -423,12 +446,13 @@ class ConsensusOptimizationServicer(
                 }
 
         except Exception as e:
-            logger.error("update_weights_failed", optimization_id=request.optimization_id, error=str(e))
+            logger.error(
+                "update_weights_failed", optimization_id=request.optimization_id, error=str(e)
+            )
 
             if self.metrics:
                 self.metrics.increment_counter(
-                    "consensus_weight_updates_total",
-                    {"specialist_type": "all", "status": "error"}
+                    "consensus_weight_updates_total", {"specialist_type": "all", "status": "error"}
                 )
 
             context.set_code(grpc.StatusCode.INTERNAL)
@@ -456,12 +480,14 @@ class ConsensusOptimizationServicer(
             if PROTO_AVAILABLE:
                 errors = []
                 for error in result.get("errors", []):
-                    errors.append(consensus_engine_extensions_pb2.ValidationError(
-                        field=error.get("field", ""),
-                        description=error.get("description", ""),
-                        current_value=str(error.get("current_value", "")),
-                        expected_value=str(error.get("expected_value", "")),
-                    ))
+                    errors.append(
+                        consensus_engine_extensions_pb2.ValidationError(
+                            field=error.get("field", ""),
+                            description=error.get("description", ""),
+                            current_value=str(error.get("current_value", "")),
+                            expected_value=str(error.get("expected_value", "")),
+                        )
+                    )
 
                 return consensus_engine_extensions_pb2.ValidateWeightAdjustmentResponse(
                     is_valid=result.get("is_valid", False),
@@ -502,8 +528,7 @@ class ConsensusOptimizationServicer(
 
             # Buscar ajuste original
             adjustment = await self.mongodb_client.find_one(
-                "weight_adjustments",
-                {"optimization_id": optimization_id}
+                "weight_adjustments", {"optimization_id": optimization_id}
             )
 
             if not adjustment:
@@ -521,9 +546,7 @@ class ConsensusOptimizationServicer(
 
             # Restaurar pesos anteriores
             await self.mongodb_client.update_many(
-                "consensus_weights",
-                {"active": True},
-                {"$set": {"active": False}}
+                "consensus_weights", {"active": True}, {"$set": {"active": False}}
             )
 
             await self.mongodb_client.insert_one(
@@ -537,14 +560,14 @@ class ConsensusOptimizationServicer(
                     "active": True,
                     "is_rollback": True,
                     "original_optimization_id": optimization_id,
-                }
+                },
             )
 
             # Marcar ajuste como revertido
             await self.mongodb_client.update_one(
                 "weight_adjustments",
                 {"optimization_id": optimization_id},
-                {"$set": {"was_rolled_back": True, "rolled_back_at": rolled_back_at}}
+                {"$set": {"was_rolled_back": True, "rolled_back_at": rolled_back_at}},
             )
 
             # Invalidar cache
@@ -557,8 +580,7 @@ class ConsensusOptimizationServicer(
             # Métricas
             if self.metrics:
                 self.metrics.increment_counter(
-                    "consensus_weight_rollbacks_total",
-                    {"optimization_id": optimization_id}
+                    "consensus_weight_rollbacks_total", {"optimization_id": optimization_id}
                 )
 
             logger.info(
@@ -583,7 +605,9 @@ class ConsensusOptimizationServicer(
                 }
 
         except Exception as e:
-            logger.error("rollback_weights_failed", optimization_id=request.optimization_id, error=str(e))
+            logger.error(
+                "rollback_weights_failed", optimization_id=request.optimization_id, error=str(e)
+            )
             if not context.code():
                 context.set_code(grpc.StatusCode.INTERNAL)
                 context.set_details(f"Falha no rollback: {str(e)}")
@@ -661,9 +685,7 @@ class ConsensusOptimizationServicer(
             # Adicionar pesos atuais às métricas de especialistas
             if self.mongodb_client:
                 weight_doc = await self.mongodb_client.find_one(
-                    "consensus_weights",
-                    {"active": True},
-                    sort=[("last_updated_at", -1)]
+                    "consensus_weights", {"active": True}, sort=[("last_updated_at", -1)]
                 )
                 if weight_doc:
                     current_weights = weight_doc.get("weights", {})
@@ -731,7 +753,9 @@ class ConsensusOptimizationServicer(
             GetWeightHistoryResponse
         """
         try:
-            specialist_type = request.specialist_type if request.HasField("specialist_type") else None
+            specialist_type = (
+                request.specialist_type if request.HasField("specialist_type") else None
+            )
             limit = request.limit or 50
             offset = request.offset or 0
 
@@ -764,15 +788,17 @@ class ConsensusOptimizationServicer(
                 )
 
                 async for doc in cursor:
-                    adjustments.append({
-                        "optimization_id": doc.get("optimization_id", ""),
-                        "adjusted_at": doc.get("adjusted_at", 0),
-                        "weights_before": doc.get("weights_before", {}),
-                        "weights_after": doc.get("weights_after", {}),
-                        "justification": doc.get("justification", ""),
-                        "improvement": doc.get("improvement"),
-                        "was_rolled_back": doc.get("was_rolled_back", False),
-                    })
+                    adjustments.append(
+                        {
+                            "optimization_id": doc.get("optimization_id", ""),
+                            "adjusted_at": doc.get("adjusted_at", 0),
+                            "weights_before": doc.get("weights_before", {}),
+                            "weights_after": doc.get("weights_after", {}),
+                            "justification": doc.get("justification", ""),
+                            "improvement": doc.get("improvement"),
+                            "was_rolled_back": doc.get("was_rolled_back", False),
+                        }
+                    )
 
             logger.info("weight_history_retrieved", count=len(adjustments), total=total)
 
@@ -804,7 +830,7 @@ class ConsensusOptimizationServicer(
             context.set_details(f"Falha ao obter histórico: {str(e)}")
             raise
 
-    async def _validate_weights(self, proposed_weights: Dict[str, float]) -> Dict:
+    async def _validate_weights(self, proposed_weights: dict[str, float]) -> dict:
         """
         Validar pesos propostos.
 
@@ -820,35 +846,41 @@ class ConsensusOptimizationServicer(
         # Verificar se somam 1.0 (±0.01 tolerância)
         total = sum(proposed_weights.values())
         if not (0.99 <= total <= 1.01):
-            errors.append({
-                "field": "weights_total",
-                "description": "Soma dos pesos deve ser 1.0",
-                "current_value": str(round(total, 4)),
-                "expected_value": "1.0 (±0.01)",
-            })
+            errors.append(
+                {
+                    "field": "weights_total",
+                    "description": "Soma dos pesos deve ser 1.0",
+                    "current_value": str(round(total, 4)),
+                    "expected_value": "1.0 (±0.01)",
+                }
+            )
 
         # Verificar range individual [0, 1]
         for specialist, weight in proposed_weights.items():
             if weight < 0 or weight > 1:
-                errors.append({
-                    "field": specialist,
-                    "description": "Peso deve estar entre 0 e 1",
-                    "current_value": str(weight),
-                    "expected_value": "0.0 - 1.0",
-                })
+                errors.append(
+                    {
+                        "field": specialist,
+                        "description": "Peso deve estar entre 0 e 1",
+                        "current_value": str(weight),
+                        "expected_value": "0.0 - 1.0",
+                    }
+                )
 
             # Warning se peso muito baixo ou muito alto
             if weight < 0.05:
-                warnings.append(f"Peso de {specialist} muito baixo ({weight}), pode prejudicar consenso")
+                warnings.append(
+                    f"Peso de {specialist} muito baixo ({weight}), pode prejudicar consenso"
+                )
             elif weight > 0.5:
-                warnings.append(f"Peso de {specialist} muito alto ({weight}), pode dominar consenso")
+                warnings.append(
+                    f"Peso de {specialist} muito alto ({weight}), pode dominar consenso"
+                )
 
         # Verificar delta máximo (se tivermos pesos anteriores)
         if self.mongodb_client:
             prev_doc = await self.mongodb_client.find_one(
-                "consensus_weights",
-                {"active": True},
-                sort=[("last_updated_at", -1)]
+                "consensus_weights", {"active": True}, sort=[("last_updated_at", -1)]
             )
             if prev_doc:
                 previous_weights = prev_doc.get("weights", {})
@@ -859,12 +891,14 @@ class ConsensusOptimizationServicer(
                     delta = abs(new_weight - old_weight)
 
                     if delta > max_delta:
-                        errors.append({
-                            "field": specialist,
-                            "description": f"Delta de ajuste excede máximo permitido ({max_delta})",
-                            "current_value": str(round(delta, 4)),
-                            "expected_value": f"<= {max_delta}",
-                        })
+                        errors.append(
+                            {
+                                "field": specialist,
+                                "description": f"Delta de ajuste excede máximo permitido ({max_delta})",
+                                "current_value": str(round(delta, 4)),
+                                "expected_value": f"<= {max_delta}",
+                            }
+                        )
 
         is_valid = len(errors) == 0
         message = "Validação bem-sucedida" if is_valid else f"{len(errors)} erro(s) encontrado(s)"

@@ -1,9 +1,10 @@
 """Remediation coordinator for self-healing playbooks (Fluxo E4)"""
 import asyncio
-from typing import Dict, Any, Optional, List, Tuple
-import structlog
 from datetime import datetime, timezone
 from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple
+
+import structlog
 
 logger = structlog.get_logger()
 
@@ -11,6 +12,7 @@ logger = structlog.get_logger()
 # Importa cliente Self-Healing quando disponível
 try:
     from src.clients.self_healing_client import SelfHealingClient
+
     SH_CLIENT_AVAILABLE = True
 except ImportError:
     SH_CLIENT_AVAILABLE = False
@@ -19,6 +21,7 @@ except ImportError:
 
 class RemediationStatus(str, Enum):
     """Status de remediação"""
+
     PENDING = "pending"
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
@@ -28,6 +31,7 @@ class RemediationStatus(str, Enum):
 
 class RemediationType(str, Enum):
     """Tipos de remediação"""
+
     RESTART_POD = "restart_pod"
     SCALE_DEPLOYMENT = "scale_deployment"
     ROLLBACK_DEPLOYMENT = "rollback_deployment"
@@ -49,7 +53,7 @@ class RemediationCoordinator:
         redis_client=None,
         chaosmesh_client=None,
         script_executor=None,
-        use_self_healing_engine: bool = True
+        use_self_healing_engine: bool = True,
     ):
         self.k8s = k8s_client
         self.mongodb = mongodb_client
@@ -120,18 +124,13 @@ class RemediationCoordinator:
             runbook_id = incident.get("runbook_id")
 
             logger.info(
-                "remediation_coordinator.starting",
-                incident_id=incident_id,
-                runbook_id=runbook_id
+                "remediation_coordinator.starting", incident_id=incident_id, runbook_id=runbook_id
             )
 
             # Buscar playbook
             playbook = self.playbooks.get(runbook_id)
             if not playbook:
-                logger.warning(
-                    "remediation_coordinator.playbook_not_found",
-                    runbook_id=runbook_id
-                )
+                logger.warning("remediation_coordinator.playbook_not_found", runbook_id=runbook_id)
                 playbook = await self._create_generic_playbook(incident)
 
             # Iniciar remediação
@@ -151,7 +150,7 @@ class RemediationCoordinator:
             logger.info(
                 "remediation_coordinator.completed",
                 remediation_id=remediation_id,
-                status=remediation_result.get("status")
+                status=remediation_result.get("status"),
             )
 
             return remediation_result
@@ -160,16 +159,16 @@ class RemediationCoordinator:
             logger.error(
                 "remediation_coordinator.failed",
                 incident_id=incident.get("incident_id"),
-                error=str(e)
+                error=str(e),
             )
             # E4: Falha > 2 tentativas → escalar para humano
             raise
 
-    async def _start_remediation(
-        self, incident: Dict[str, Any], playbook: Dict[str, Any]
-    ) -> str:
+    async def _start_remediation(self, incident: Dict[str, Any], playbook: Dict[str, Any]) -> str:
         """Inicia remediação e retorna ID"""
-        remediation_id = f"REM-{incident.get('incident_id')}-{int(datetime.now(timezone.utc).timestamp())}"
+        remediation_id = (
+            f"REM-{incident.get('incident_id')}-{int(datetime.now(timezone.utc).timestamp())}"
+        )
 
         self.active_remediations[remediation_id] = {
             "remediation_id": remediation_id,
@@ -184,7 +183,7 @@ class RemediationCoordinator:
         logger.info(
             "remediation_coordinator.started",
             remediation_id=remediation_id,
-            playbook=playbook.get("name")
+            playbook=playbook.get("name"),
         )
 
         return remediation_id
@@ -194,7 +193,7 @@ class RemediationCoordinator:
         remediation_id: str,
         incident: Dict[str, Any],
         playbook: Dict[str, Any],
-        enforcement_result: Dict[str, Any]
+        enforcement_result: Dict[str, Any],
     ) -> Dict[str, Any]:
         """E4: Executar ações do playbook atomicamente"""
         # Se usar self-healing engine, delegar execução
@@ -213,42 +212,40 @@ class RemediationCoordinator:
         remediation_id: str,
         incident: Dict[str, Any],
         playbook: Dict[str, Any],
-        enforcement_result: Dict[str, Any]
+        enforcement_result: Dict[str, Any],
     ) -> Dict[str, Any]:
         """Delega execução para Self-Healing Engine"""
         try:
             logger.info(
                 "remediation_coordinator.delegating_to_engine",
                 remediation_id=remediation_id,
-                playbook=playbook.get("name")
+                playbook=playbook.get("name"),
             )
 
             # Mapear runbook_id para playbook_id do engine
             playbook_id = incident.get("runbook_id", "generic")
 
             # Solicitar execução ao engine
-            result = await self.self_healing_client.trigger_remediation(
+            await self.self_healing_client.trigger_remediation(
                 remediation_id=remediation_id,
                 incident_id=incident.get("incident_id"),
                 playbook_id=playbook_id,
                 parameters={
                     "incident": incident,
                     "enforcement": enforcement_result,
-                    "playbook": playbook
-                }
+                    "playbook": playbook,
+                },
             )
 
             # Aguardar conclusão (com timeout de 5 minutos)
             final_result = await self.self_healing_client.wait_for_completion(
-                remediation_id=remediation_id,
-                poll_interval=2.0,
-                max_wait=300.0
+                remediation_id=remediation_id, poll_interval=2.0, max_wait=300.0
             )
 
             logger.info(
                 "remediation_coordinator.engine_execution_complete",
                 remediation_id=remediation_id,
-                status=final_result.get("status")
+                status=final_result.get("status"),
             )
 
             # Mapear status do engine para formato esperado
@@ -274,12 +271,11 @@ class RemediationCoordinator:
             logger.error(
                 "remediation_coordinator.engine_execution_failed",
                 remediation_id=remediation_id,
-                error=str(e)
+                error=str(e),
             )
             # Fallback para execução local
             logger.info(
-                "remediation_coordinator.falling_back_to_local",
-                remediation_id=remediation_id
+                "remediation_coordinator.falling_back_to_local", remediation_id=remediation_id
             )
             return await self._execute_actions_locally(
                 remediation_id, incident, playbook, enforcement_result
@@ -290,19 +286,18 @@ class RemediationCoordinator:
         remediation_id: str,
         incident: Dict[str, Any],
         playbook: Dict[str, Any],
-        enforcement_result: Dict[str, Any]
+        enforcement_result: Dict[str, Any],
     ) -> Dict[str, Any]:
         """Executa ações localmente (fallback ou modo direto)"""
         actions = playbook.get("actions", [])
         executed_actions = []
         errors = []
-        attempt = 0
         max_attempts = 2
 
         logger.info(
             "remediation_coordinator.executing_locally",
             remediation_id=remediation_id,
-            actions_count=len(actions)
+            actions_count=len(actions),
         )
 
         for action in actions:
@@ -314,7 +309,7 @@ class RemediationCoordinator:
                         "remediation_coordinator.executing_action",
                         remediation_id=remediation_id,
                         action_type=action.get("type"),
-                        attempt=action_attempt
+                        attempt=action_attempt,
                     )
 
                     action_result = await self._execute_remediation_action(
@@ -331,11 +326,7 @@ class RemediationCoordinator:
                         break
 
                 except Exception as e:
-                    errors.append({
-                        "action": action,
-                        "attempt": action_attempt,
-                        "error": str(e)
-                    })
+                    errors.append({"action": action, "attempt": action_attempt, "error": str(e)})
                     action_attempt += 1
 
                     logger.warning(
@@ -343,7 +334,7 @@ class RemediationCoordinator:
                         remediation_id=remediation_id,
                         action_type=action.get("type"),
                         attempt=action_attempt,
-                        max_attempts=max_attempts
+                        max_attempts=max_attempts,
                     )
 
             # E4: Falha > 2 tentativas → escalar para humano
@@ -351,7 +342,7 @@ class RemediationCoordinator:
                 logger.error(
                     "remediation_coordinator.action_max_retries",
                     remediation_id=remediation_id,
-                    action=action
+                    action=action,
                 )
 
                 # Rollback
@@ -386,7 +377,7 @@ class RemediationCoordinator:
         logger.info(
             "remediation_coordinator.action_executing",
             action_type=action_type,
-            remediation_id=remediation_id
+            remediation_id=remediation_id,
         )
 
         if action_type == RemediationType.RESTART_POD:
@@ -404,11 +395,7 @@ class RemediationCoordinator:
         elif action_type == RemediationType.EXEC_SCRIPT:
             return await self._exec_script(action, incident)
         else:
-            return {
-                "success": False,
-                "action_type": action_type,
-                "reason": "Unknown action type"
-            }
+            return {"success": False, "action_type": action_type, "reason": "Unknown action type"}
 
     async def _restart_pod(
         self, action: Dict[str, Any], incident: Dict[str, Any]
@@ -448,9 +435,7 @@ class RemediationCoordinator:
                         details["pod_deleted"] = pod_name
                         details["namespace"] = namespace
                         logger.info(
-                            "remediation_coordinator.pod_deleted",
-                            pod=pod_name,
-                            namespace=namespace
+                            "remediation_coordinator.pod_deleted", pod=pod_name, namespace=namespace
                         )
 
                         # Wait for replacement pod to reach Running status
@@ -460,7 +445,7 @@ class RemediationCoordinator:
                             pod_labels=pod_labels,
                             namespace=namespace,
                             timeout=60.0,
-                            poll_interval=2.0
+                            poll_interval=2.0,
                         )
 
                         if replacement_result.get("success"):
@@ -471,18 +456,20 @@ class RemediationCoordinator:
                                 "remediation_coordinator.pod_restarted",
                                 pod=pod_name,
                                 replacement=replacement_result.get("replacement_pod"),
-                                namespace=namespace
+                                namespace=namespace,
                             )
                         else:
                             # Pod deleted but replacement not ready within timeout
                             success = False
-                            details["warning"] = replacement_result.get("reason", "Replacement pod not ready")
+                            details["warning"] = replacement_result.get(
+                                "reason", "Replacement pod not ready"
+                            )
                             details["replacement_pod"] = replacement_result.get("replacement_pod")
                             logger.warning(
                                 "remediation_coordinator.replacement_pod_not_ready",
                                 pod=pod_name,
                                 namespace=namespace,
-                                reason=replacement_result.get("reason")
+                                reason=replacement_result.get("reason"),
                             )
                     else:
                         details["error"] = "Failed to delete pod"
@@ -492,13 +479,10 @@ class RemediationCoordinator:
                         "remediation_coordinator.restart_pod_failed",
                         pod=pod_name,
                         namespace=namespace,
-                        error=str(e)
+                        error=str(e),
                     )
             else:
-                logger.warning(
-                    "remediation_coordinator.no_pod_found",
-                    resources=resources
-                )
+                logger.warning("remediation_coordinator.no_pod_found", resources=resources)
                 success = True  # Nao bloquear fluxo
                 details["warning"] = "No pod name found in affected_resources"
         else:
@@ -506,11 +490,7 @@ class RemediationCoordinator:
             success = True
             details["warning"] = "Kubernetes client not available"
 
-        return {
-            "success": success,
-            "action_type": RemediationType.RESTART_POD,
-            "details": details
-        }
+        return {"success": success, "action_type": RemediationType.RESTART_POD, "details": details}
 
     def _parse_pod_resource(self, resources: List[str]) -> Tuple[Optional[str], Optional[str]]:
         """
@@ -558,7 +538,7 @@ class RemediationCoordinator:
         pod_labels: Dict[str, str],
         namespace: Optional[str],
         timeout: float = 60.0,
-        poll_interval: float = 2.0
+        poll_interval: float = 2.0,
     ) -> Dict[str, Any]:
         """
         Wait for a replacement pod to reach Running status after deletion.
@@ -591,7 +571,7 @@ class RemediationCoordinator:
             pod_prefix=pod_prefix,
             label_selector=label_selector,
             namespace=namespace,
-            timeout=timeout
+            timeout=timeout,
         )
 
         while (asyncio.get_event_loop().time() - start_time) < timeout:
@@ -604,10 +584,7 @@ class RemediationCoordinator:
                 continue
 
             # List pods matching the label selector or prefix
-            pods = await self.k8s.list_pods(
-                namespace=namespace,
-                label_selector=label_selector
-            )
+            pods = await self.k8s.list_pods(namespace=namespace, label_selector=label_selector)
 
             # Find a replacement pod (different name, Running status)
             for pod in pods:
@@ -625,20 +602,22 @@ class RemediationCoordinator:
                     if pod_phase == "Running":
                         # Check container statuses for readiness
                         container_statuses = pod.get("status", {}).get("containerStatuses", [])
-                        all_ready = all(
-                            cs.get("ready", False) for cs in container_statuses
-                        ) if container_statuses else False
+                        all_ready = (
+                            all(cs.get("ready", False) for cs in container_statuses)
+                            if container_statuses
+                            else False
+                        )
 
                         if all_ready or not container_statuses:
                             logger.info(
                                 "remediation_coordinator.replacement_pod_ready",
                                 replacement_pod=replacement_pod,
-                                phase=pod_phase
+                                phase=pod_phase,
                             )
                             return {
                                 "success": True,
                                 "replacement_pod": replacement_pod,
-                                "status": pod_phase
+                                "status": pod_phase,
                             }
 
         # Timeout reached
@@ -646,13 +625,13 @@ class RemediationCoordinator:
             "remediation_coordinator.replacement_pod_timeout",
             pod_name=pod_name,
             replacement_pod=replacement_pod,
-            timeout=timeout
+            timeout=timeout,
         )
 
         return {
             "success": False,
             "replacement_pod": replacement_pod,
-            "reason": f"Timeout after {timeout}s waiting for replacement pod to reach Running status"
+            "reason": f"Timeout after {timeout}s waiting for replacement pod to reach Running status",
         }
 
     async def _scale_deployment(
@@ -685,7 +664,7 @@ class RemediationCoordinator:
                         logger.info(
                             "remediation_coordinator.deployment_scaled",
                             deployment=deployment_name,
-                            replicas=replicas
+                            replicas=replicas,
                         )
                     else:
                         details["error"] = "Failed to scale deployment"
@@ -694,13 +673,10 @@ class RemediationCoordinator:
                     logger.error(
                         "remediation_coordinator.scale_deployment_failed",
                         deployment=deployment_name,
-                        error=str(e)
+                        error=str(e),
                     )
             else:
-                logger.warning(
-                    "remediation_coordinator.no_deployment_found",
-                    resources=resources
-                )
+                logger.warning("remediation_coordinator.no_deployment_found", resources=resources)
                 success = True
                 details["warning"] = "No deployment name found in affected_resources"
         else:
@@ -711,7 +687,7 @@ class RemediationCoordinator:
         return {
             "success": success,
             "action_type": RemediationType.SCALE_DEPLOYMENT,
-            "details": details
+            "details": details,
         }
 
     async def _rollback_deployment(
@@ -748,7 +724,7 @@ class RemediationCoordinator:
                         logger.info(
                             "remediation_coordinator.deployment_rolled_back",
                             deployment=deployment_name,
-                            revision=revision_str
+                            revision=revision_str,
                         )
                     else:
                         details["error"] = result.get("error", "Rollback failed")
@@ -757,13 +733,10 @@ class RemediationCoordinator:
                     logger.error(
                         "remediation_coordinator.rollback_deployment_failed",
                         deployment=deployment_name,
-                        error=str(e)
+                        error=str(e),
                     )
             else:
-                logger.warning(
-                    "remediation_coordinator.no_deployment_found",
-                    resources=resources
-                )
+                logger.warning("remediation_coordinator.no_deployment_found", resources=resources)
                 success = True
                 details["warning"] = "No deployment name found in affected_resources"
         else:
@@ -774,7 +747,7 @@ class RemediationCoordinator:
         return {
             "success": success,
             "action_type": RemediationType.ROLLBACK_DEPLOYMENT,
-            "details": details
+            "details": details,
         }
 
     async def _apply_network_policy(
@@ -800,11 +773,7 @@ class RemediationCoordinator:
             if resource_name:
                 pod_selector = {"app": resource_name.split("-")[0]}
 
-            policy_spec = {
-                "target": target,
-                "pod_selector": pod_selector,
-                "type": "remediation"
-            }
+            policy_spec = {"target": target, "pod_selector": pod_selector, "type": "remediation"}
 
             try:
                 result = await self.k8s.apply_network_policy(policy_name, policy_spec)
@@ -815,7 +784,7 @@ class RemediationCoordinator:
                     logger.info(
                         "remediation_coordinator.network_policy_applied",
                         policy=policy_name,
-                        target=target
+                        target=target,
                     )
                 else:
                     details["error"] = result.get("error", "Failed to apply policy")
@@ -824,7 +793,7 @@ class RemediationCoordinator:
                 logger.error(
                     "remediation_coordinator.apply_network_policy_failed",
                     policy=policy_name,
-                    error=str(e)
+                    error=str(e),
                 )
         else:
             logger.warning("remediation_coordinator.k8s_not_available")
@@ -834,7 +803,7 @@ class RemediationCoordinator:
         return {
             "success": success,
             "action_type": RemediationType.APPLY_NETWORK_POLICY,
-            "details": details
+            "details": details,
         }
 
     async def _clear_cache(
@@ -858,14 +827,11 @@ class RemediationCoordinator:
             "remediation_coordinator.clearing_cache",
             cache_type=cache_type,
             pattern=pattern,
-            incident_id=incident_id
+            incident_id=incident_id,
         )
 
         success = False
-        details = {
-            "cache_type": cache_type,
-            "incident_id": incident_id
-        }
+        details = {"cache_type": cache_type, "incident_id": incident_id}
 
         if cache_type == "redis":
             # Usar redis_client injetado via construtor
@@ -878,9 +844,7 @@ class RemediationCoordinator:
 
                         while True:
                             cursor, keys = await self.redis_client.client.scan(
-                                cursor=cursor,
-                                match=pattern,
-                                count=100
+                                cursor=cursor, match=pattern, count=100
                             )
 
                             if keys:
@@ -897,7 +861,7 @@ class RemediationCoordinator:
                         logger.info(
                             "remediation_coordinator.cache_cleared_pattern",
                             pattern=pattern,
-                            keys_deleted=keys_deleted
+                            keys_deleted=keys_deleted,
                         )
                     else:
                         # Flush entire database (use with caution)
@@ -906,23 +870,17 @@ class RemediationCoordinator:
                         details["keys_deleted"] = "all"
                         success = True
 
-                        logger.info(
-                            "remediation_coordinator.cache_flushed",
-                            cache_type=cache_type
-                        )
+                        logger.info("remediation_coordinator.cache_flushed", cache_type=cache_type)
 
                 except Exception as e:
                     logger.error(
                         "remediation_coordinator.cache_clear_failed",
                         cache_type=cache_type,
-                        error=str(e)
+                        error=str(e),
                     )
                     details["error"] = str(e)
             else:
-                logger.warning(
-                    "remediation_coordinator.redis_not_available",
-                    action="clear_cache"
-                )
+                logger.warning("remediation_coordinator.redis_not_available", action="clear_cache")
                 # Graceful degradation
                 success = True
                 details["warning"] = "Redis client not available - cache clear simulated"
@@ -930,25 +888,17 @@ class RemediationCoordinator:
         elif cache_type == "memcached":
             # Memcached não está implementado - stub com warning
             logger.warning(
-                "remediation_coordinator.memcached_not_implemented",
-                action="clear_cache"
+                "remediation_coordinator.memcached_not_implemented", action="clear_cache"
             )
             success = True
             details["warning"] = "Memcached clearing not implemented - requires memcached client"
 
         else:
-            logger.warning(
-                "remediation_coordinator.unknown_cache_type",
-                cache_type=cache_type
-            )
+            logger.warning("remediation_coordinator.unknown_cache_type", cache_type=cache_type)
             details["warning"] = f"Unknown cache type: {cache_type}"
             success = True  # Não bloquear fluxo
 
-        return {
-            "success": success,
-            "action_type": RemediationType.CLEAR_CACHE,
-            "details": details
-        }
+        return {"success": success, "action_type": RemediationType.CLEAR_CACHE, "details": details}
 
     async def _trigger_chaos(
         self, action: Dict[str, Any], incident: Dict[str, Any]
@@ -972,14 +922,13 @@ class RemediationCoordinator:
             "remediation_coordinator.triggering_chaos",
             chaos_type=chaos_type,
             duration=duration,
-            incident_id=incident_id
+            incident_id=incident_id,
         )
 
         # Usar chaosmesh_client injetado via construtor
         if not self.chaosmesh_client or not self.chaosmesh_client.is_healthy():
             logger.warning(
-                "remediation_coordinator.chaosmesh_not_available",
-                action="trigger_chaos"
+                "remediation_coordinator.chaosmesh_not_available", action="trigger_chaos"
             )
             # Graceful degradation - retornar sucesso simulado
             return {
@@ -988,16 +937,18 @@ class RemediationCoordinator:
                 "details": {
                     "chaos_type": chaos_type,
                     "warning": "ChaosMesh not available - requires ChaosMesh installed in cluster",
-                    "simulated": True
-                }
+                    "simulated": True,
+                },
             }
 
-        experiment_name = f"guard-chaos-{incident_id[:8]}-{int(datetime.now(timezone.utc).timestamp())}"
+        experiment_name = (
+            f"guard-chaos-{incident_id[:8]}-{int(datetime.now(timezone.utc).timestamp())}"
+        )
         details = {
             "chaos_type": chaos_type,
             "experiment_name": experiment_name,
             "duration": duration,
-            "incident_id": incident_id
+            "incident_id": incident_id,
         }
 
         try:
@@ -1005,10 +956,7 @@ class RemediationCoordinator:
                 # Criar PodChaos
                 action_type = "pod-kill" if "kill" in chaos_type else "pod-failure"
                 result = await self.chaosmesh_client.create_pod_chaos(
-                    name=experiment_name,
-                    action=action_type,
-                    selector=selector,
-                    duration=duration
+                    name=experiment_name, action=action_type, selector=selector, duration=duration
                 )
 
             elif chaos_type in ["network_delay", "network-delay"]:
@@ -1019,7 +967,7 @@ class RemediationCoordinator:
                     action="delay",
                     selector=selector,
                     duration=duration,
-                    delay_latency=latency
+                    delay_latency=latency,
                 )
                 details["latency"] = latency
 
@@ -1031,22 +979,19 @@ class RemediationCoordinator:
                     action="loss",
                     selector=selector,
                     duration=duration,
-                    loss_percentage=loss_percentage
+                    loss_percentage=loss_percentage,
                 )
                 details["loss_percentage"] = loss_percentage
 
             else:
-                logger.warning(
-                    "remediation_coordinator.unknown_chaos_type",
-                    chaos_type=chaos_type
-                )
+                logger.warning("remediation_coordinator.unknown_chaos_type", chaos_type=chaos_type)
                 return {
                     "success": True,
                     "action_type": RemediationType.TRIGGER_CHAOS,
                     "details": {
                         "chaos_type": chaos_type,
-                        "warning": f"Unknown chaos type: {chaos_type} - no experiment created"
-                    }
+                        "warning": f"Unknown chaos type: {chaos_type} - no experiment created",
+                    },
                 }
 
             if result.get("success"):
@@ -1055,34 +1000,32 @@ class RemediationCoordinator:
                 logger.info(
                     "remediation_coordinator.chaos_experiment_created",
                     experiment_name=experiment_name,
-                    chaos_type=chaos_type
+                    chaos_type=chaos_type,
                 )
             else:
                 details["error"] = result.get("error")
                 logger.error(
                     "remediation_coordinator.chaos_experiment_failed",
                     experiment_name=experiment_name,
-                    error=result.get("error")
+                    error=result.get("error"),
                 )
 
             return {
                 "success": result.get("success", False),
                 "action_type": RemediationType.TRIGGER_CHAOS,
-                "details": details
+                "details": details,
             }
 
         except Exception as e:
             logger.error(
-                "remediation_coordinator.trigger_chaos_failed",
-                chaos_type=chaos_type,
-                error=str(e)
+                "remediation_coordinator.trigger_chaos_failed", chaos_type=chaos_type, error=str(e)
             )
             details["error"] = str(e)
 
             return {
                 "success": False,
                 "action_type": RemediationType.TRIGGER_CHAOS,
-                "details": details
+                "details": details,
             }
 
     async def _exec_script(
@@ -1109,14 +1052,13 @@ class RemediationCoordinator:
             "remediation_coordinator.executing_script",
             script=script,
             incident_id=incident_id,
-            timeout=timeout_seconds
+            timeout=timeout_seconds,
         )
 
         # Usar script_executor injetado via construtor
         if not self.script_executor or not self.script_executor.is_healthy():
             logger.warning(
-                "remediation_coordinator.script_executor_not_available",
-                action="exec_script"
+                "remediation_coordinator.script_executor_not_available", action="exec_script"
             )
             # Graceful degradation
             return {
@@ -1125,15 +1067,11 @@ class RemediationCoordinator:
                 "details": {
                     "script": script,
                     "warning": "Script executor not available - requires Kubernetes Job execution permissions",
-                    "simulated": True
-                }
+                    "simulated": True,
+                },
             }
 
-        details = {
-            "script": script,
-            "incident_id": incident_id,
-            "timeout_seconds": timeout_seconds
-        }
+        details = {"script": script, "incident_id": incident_id, "timeout_seconds": timeout_seconds}
 
         try:
             # Determinar conteúdo do script
@@ -1148,9 +1086,7 @@ class RemediationCoordinator:
                 return {
                     "success": False,
                     "action_type": RemediationType.EXEC_SCRIPT,
-                    "details": {
-                        "error": "No script or script_content specified"
-                    }
+                    "details": {"error": "No script or script_content specified"},
                 }
 
             # Executar script via Kubernetes Job
@@ -1160,7 +1096,7 @@ class RemediationCoordinator:
                 env_vars=env_vars,
                 timeout_seconds=timeout_seconds,
                 image=image,
-                incident_id=incident_id
+                incident_id=incident_id,
             )
 
             if result.get("success"):
@@ -1173,7 +1109,7 @@ class RemediationCoordinator:
                     "remediation_coordinator.script_executed",
                     script=script,
                     job_name=result.get("job_name"),
-                    exit_code=result.get("exit_code")
+                    exit_code=result.get("exit_code"),
                 )
             else:
                 details["error"] = result.get("error")
@@ -1182,34 +1118,26 @@ class RemediationCoordinator:
                 logger.error(
                     "remediation_coordinator.script_execution_failed",
                     script=script,
-                    error=result.get("error")
+                    error=result.get("error"),
                 )
 
             return {
                 "success": result.get("success", False),
                 "action_type": RemediationType.EXEC_SCRIPT,
-                "details": details
+                "details": details,
             }
 
         except Exception as e:
-            logger.error(
-                "remediation_coordinator.exec_script_failed",
-                script=script,
-                error=str(e)
-            )
+            logger.error("remediation_coordinator.exec_script_failed", script=script, error=str(e))
             details["error"] = str(e)
 
             return {
                 "success": False,
                 "action_type": RemediationType.EXEC_SCRIPT,
-                "details": details
+                "details": details,
             }
 
-    def _get_predefined_script(
-        self,
-        script_name: str,
-        incident: Dict[str, Any]
-    ) -> str:
+    def _get_predefined_script(self, script_name: str, incident: Dict[str, Any]) -> str:
         """
         Retorna conteúdo de scripts pré-definidos.
 
@@ -1244,15 +1172,14 @@ exit 0
 echo "Running health check"
 # Add actual health check logic here
 exit 0
-"""
+""",
         }
 
         script_content = scripts.get(script_name)
 
         if not script_content:
             logger.warning(
-                "remediation_coordinator.unknown_predefined_script",
-                script_name=script_name
+                "remediation_coordinator.unknown_predefined_script", script_name=script_name
             )
             # Retornar script genérico que apenas loga
             return f"""#!/bin/sh
@@ -1265,16 +1192,10 @@ exit 0
         return script_content
 
     async def _rollback_remediation(
-        self,
-        remediation_id: str,
-        playbook: Dict[str, Any],
-        executed_actions: List[Dict[str, Any]]
+        self, remediation_id: str, playbook: Dict[str, Any], executed_actions: List[Dict[str, Any]]
     ):
         """E4: Rollback automático em caso de falha"""
-        logger.warning(
-            "remediation_coordinator.rolling_back",
-            remediation_id=remediation_id
-        )
+        logger.warning("remediation_coordinator.rolling_back", remediation_id=remediation_id)
 
         rollback_actions = playbook.get("rollback_actions", [])
 
@@ -1286,77 +1207,61 @@ exit 0
                     "remediation_coordinator.rollback_failed",
                     remediation_id=remediation_id,
                     action=action,
-                    error=str(e)
+                    error=str(e),
                 )
 
         self.active_remediations[remediation_id]["status"] = RemediationStatus.ROLLED_BACK
 
-    async def _persist_remediation_result(
-        self, remediation_id: str, result: Dict[str, Any]
-    ):
+    async def _persist_remediation_result(self, remediation_id: str, result: Dict[str, Any]):
         """Persiste resultado no MongoDB"""
         if self.mongodb and self.mongodb.remediation_collection:
             try:
                 await self.mongodb.remediation_collection.insert_one(result)
-                logger.debug(
-                    "remediation_coordinator.persisted",
-                    remediation_id=remediation_id
-                )
+                logger.debug("remediation_coordinator.persisted", remediation_id=remediation_id)
             except Exception as e:
                 logger.error(
                     "remediation_coordinator.persist_failed",
                     remediation_id=remediation_id,
-                    error=str(e)
+                    error=str(e),
                 )
 
-    async def _publish_remediation_event(
-        self, remediation_id: str, result: Dict[str, Any]
-    ):
+    async def _publish_remediation_event(self, remediation_id: str, result: Dict[str, Any]):
         """Publica evento de remediação no Kafka"""
         if not self.kafka_producer:
             logger.warning(
-                "remediation_coordinator.no_kafka_producer",
-                remediation_id=remediation_id
+                "remediation_coordinator.no_kafka_producer", remediation_id=remediation_id
             )
             return
 
         try:
             # Publica resultado completo da remediação
             published = await self.kafka_producer.publish_remediation_result(
-                remediation_id=remediation_id,
-                result=result
+                remediation_id=remediation_id, result=result
             )
 
             if published:
                 logger.info(
                     "remediation_coordinator.event_published",
                     remediation_id=remediation_id,
-                    status=result.get("status")
+                    status=result.get("status"),
                 )
             else:
                 logger.error(
                     "remediation_coordinator.publish_failed",
                     remediation_id=remediation_id,
-                    reason="Producer returned False"
+                    reason="Producer returned False",
                 )
 
         except Exception as e:
             logger.error(
-                "remediation_coordinator.publish_error",
-                remediation_id=remediation_id,
-                error=str(e)
+                "remediation_coordinator.publish_error", remediation_id=remediation_id, error=str(e)
             )
 
-    async def _create_generic_playbook(
-        self, incident: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    async def _create_generic_playbook(self, incident: Dict[str, Any]) -> Dict[str, Any]:
         """Cria playbook genérico quando específico não existe"""
         severity = incident.get("severity", "medium")
 
-        logger.info(
-            "remediation_coordinator.creating_generic_playbook",
-            severity=severity
-        )
+        logger.info("remediation_coordinator.creating_generic_playbook", severity=severity)
 
         # Playbook genérico baseado em severidade
         if severity == "critical":
@@ -1365,7 +1270,7 @@ exit 0
                 "actions": [
                     {"type": RemediationType.APPLY_NETWORK_POLICY, "target": "isolate"},
                 ],
-                "rollback_actions": []
+                "rollback_actions": [],
             }
         elif severity == "high":
             return {
@@ -1373,18 +1278,12 @@ exit 0
                 "actions": [
                     {"type": RemediationType.RESTART_POD, "selector": "app"},
                 ],
-                "rollback_actions": []
+                "rollback_actions": [],
             }
         else:
-            return {
-                "name": "Generic Remediation",
-                "actions": [],
-                "rollback_actions": []
-            }
+            return {"name": "Generic Remediation", "actions": [], "rollback_actions": []}
 
-    def _extract_resource_name(
-        self, resources: List[str], resource_type: str
-    ) -> Optional[str]:
+    def _extract_resource_name(self, resources: List[str], resource_type: str) -> Optional[str]:
         """
         Extrai nome do recurso da lista de affected_resources
 

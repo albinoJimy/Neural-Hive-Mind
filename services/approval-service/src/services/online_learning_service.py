@@ -7,10 +7,10 @@ permitindo aprendizado incremental contínuo a partir de feedbacks.
 
 import asyncio
 import os
-import structlog
-from datetime import datetime, timedelta
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+
 import numpy as np
+import structlog
 
 from src.config.settings import Settings
 
@@ -18,13 +18,14 @@ logger = structlog.get_logger()
 
 # Import opcional do IncrementalLearner
 try:
+    from ml_pipelines.online_learning.config import OnlineLearningConfig
     from ml_pipelines.online_learning.incremental_learner import (
+        CheckpointError,
         IncrementalLearner,
         IncrementalLearnerError,
         ModelNotInitializedError,
-        CheckpointError
     )
-    from ml_pipelines.online_learning.config import OnlineLearningConfig
+
     HAS_INCREMENTAL_LEARNER = True
 except ImportError:
     HAS_INCREMENTAL_LEARNER = False
@@ -37,16 +38,19 @@ except ImportError:
 
 class OnlineLearningServiceError(Exception):
     """Exceção base para erros do OnlineLearningService."""
+
     pass
 
 
 class OnlineLearningNotEnabledError(OnlineLearningServiceError):
     """Exceção quando online learning não está habilitado."""
+
     pass
 
 
 class FeatureExtractionError(OnlineLearningServiceError):
     """Exceção para erros na extração de features."""
+
     pass
 
 
@@ -63,20 +67,20 @@ class OnlineLearningService:
     """
 
     # Classes de decisão para classificação
-    DECISION_CLASSES = ['approve', 'reject', 'review_required']
+    DECISION_CLASSES = ["approve", "reject", "review_required"]
 
     # Features esperadas pelo modelo
     FEATURE_NAMES = [
-        'confidence',
-        'risk',
-        'sentiment_score',
-        'urgency_score',
-        'complexity_score',
-        'business_domain_confidence',
-        'technical_domain_confidence',
-        'architecture_domain_confidence',
-        'behavior_domain_confidence',
-        'evolution_domain_confidence'
+        "confidence",
+        "risk",
+        "sentiment_score",
+        "urgency_score",
+        "complexity_score",
+        "business_domain_confidence",
+        "technical_domain_confidence",
+        "architecture_domain_confidence",
+        "behavior_domain_confidence",
+        "evolution_domain_confidence",
     ]
 
     def __init__(self, settings: Settings):
@@ -91,9 +95,9 @@ class OnlineLearningService:
 
         if not self._enabled:
             logger.warning(
-                'online_learning_disabled',
+                "online_learning_disabled",
                 has_incremental_learner=HAS_INCREMENTAL_LEARNER,
-                setting_enabled=settings.enable_online_learning
+                setting_enabled=settings.enable_online_learning,
             )
             return
 
@@ -106,7 +110,7 @@ class OnlineLearningService:
             checkpoint_interval_updates=settings.online_learning_checkpoint_interval_updates,
             checkpoint_storage_path=settings.online_learning_checkpoint_path,
             mongodb_uri=settings.mongodb_uri,
-            mongodb_database=settings.mongodb_database
+            mongodb_database=settings.mongodb_database,
         )
 
         # Criar learner para cada specialist type
@@ -117,10 +121,10 @@ class OnlineLearningService:
         self._checkpoints_loaded = False
 
         logger.info(
-            'online_learning_service_initialized',
+            "online_learning_service_initialized",
             algorithm=self._ml_config.incremental_algorithm,
             buffer_size=self._ml_config.mini_batch_size,
-            checkpoint_path=self._ml_config.checkpoint_storage_path
+            checkpoint_path=self._ml_config.checkpoint_storage_path,
         )
 
     @property
@@ -138,28 +142,23 @@ class OnlineLearningService:
     async def _load_existing_checkpoints(self):
         """Carrega checkpoints existentes do armazenamento."""
         if not os.path.exists(self._ml_config.checkpoint_storage_path):
-            logger.info(
-                'checkpoint_path_nao_existe',
-                path=self._ml_config.checkpoint_storage_path
-            )
+            logger.info("checkpoint_path_nao_existe", path=self._ml_config.checkpoint_storage_path)
             return
 
         try:
             # Listar arquivos de checkpoint
             checkpoint_files = [
-                f for f in os.listdir(self._ml_config.checkpoint_storage_path)
-                if f.endswith('.pkl')
+                f for f in os.listdir(self._ml_config.checkpoint_storage_path) if f.endswith(".pkl")
             ]
 
             if not checkpoint_files:
-                logger.info('nenhum_checkpoint_encontrado')
+                logger.info("nenhum_checkpoint_encontrado")
                 return
 
             # Carregar o checkpoint mais recente para cada specialist
             for specialist_type in self._get_supported_specialist_types():
                 specialist_checkpoints = [
-                    f for f in checkpoint_files
-                    if f.startswith(f'{specialist_type}_')
+                    f for f in checkpoint_files if f.startswith(f"{specialist_type}_")
                 ]
 
                 if not specialist_checkpoints:
@@ -168,8 +167,7 @@ class OnlineLearningService:
                 # Ordenar por timestamp (nome do arquivo)
                 specialist_checkpoints.sort(reverse=True)
                 latest_checkpoint = os.path.join(
-                    self._ml_config.checkpoint_storage_path,
-                    specialist_checkpoints[0]
+                    self._ml_config.checkpoint_storage_path, specialist_checkpoints[0]
                 )
 
                 try:
@@ -177,39 +175,33 @@ class OnlineLearningService:
                         config=self._ml_config,
                         specialist_type=specialist_type,
                         classes=self.DECISION_CLASSES,
-                        feature_names=self.FEATURE_NAMES
+                        feature_names=self.FEATURE_NAMES,
                     )
                     learner.load_checkpoint(latest_checkpoint)
                     self._learners[specialist_type] = learner
 
                     logger.info(
-                        'checkpoint_carregado',
+                        "checkpoint_carregado",
                         specialist_type=specialist_type,
                         checkpoint=latest_checkpoint,
-                        update_count=learner.updates_count
+                        update_count=learner.updates_count,
                     )
 
                 except CheckpointError as e:
                     logger.warning(
-                        'falha_ao_carregar_checkpoint',
+                        "falha_ao_carregar_checkpoint",
                         specialist_type=specialist_type,
                         checkpoint=latest_checkpoint,
-                        error=str(e)
+                        error=str(e),
                     )
                     continue
 
             self._checkpoints_loaded = True
 
         except Exception as e:
-            logger.error(
-                'erro_ao_carregar_checkpoints',
-                error=str(e)
-            )
+            logger.error("erro_ao_carregar_checkpoints", error=str(e))
 
-    async def process_feedback_batch(
-        self,
-        feedbacks: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+    async def process_feedback_batch(self, feedbacks: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
         Processa lote de feedbacks para aprendizado incremental.
 
@@ -224,50 +216,41 @@ class OnlineLearningService:
             FeatureExtractionError: Se falhar extração de features
         """
         if not self._enabled:
-            raise OnlineLearningNotEnabledError('Online learning não está habilitado')
+            raise OnlineLearningNotEnabledError("Online learning não está habilitado")
 
         if not feedbacks:
-            return {'processed': 0, 'errors': 0}
+            return {"processed": 0, "errors": 0}
 
         # Agrupar feedbacks por specialist_type
         feedbacks_by_specialist = self._group_feedbacks_by_specialist(feedbacks)
 
-        results = {
-            'processed': 0,
-            'errors': 0,
-            'specialist_results': {}
-        }
+        results = {"processed": 0, "errors": 0, "specialist_results": {}}
 
         # Processar cada specialist type
         for specialist_type, specialist_feedbacks in feedbacks_by_specialist.items():
             try:
                 result = await self._process_specialist_feedbacks(
-                    specialist_type,
-                    specialist_feedbacks
+                    specialist_type, specialist_feedbacks
                 )
-                results['specialist_results'][specialist_type] = result
-                results['processed'] += result.get('processed', 0)
-                results['errors'] += result.get('errors', 0)
+                results["specialist_results"][specialist_type] = result
+                results["processed"] += result.get("processed", 0)
+                results["errors"] += result.get("errors", 0)
 
             except Exception as e:
                 logger.error(
-                    'erro_ao_processar_feedbacks_specialist',
+                    "erro_ao_processar_feedbacks_specialist",
                     specialist_type=specialist_type,
                     feedback_count=len(specialist_feedbacks),
-                    error=str(e)
+                    error=str(e),
                 )
-                results['errors'] += len(specialist_feedbacks)
+                results["errors"] += len(specialist_feedbacks)
 
-        logger.info(
-            'feedback_batch_processado',
-            **results
-        )
+        logger.info("feedback_batch_processado", **results)
 
         return results
 
     def _group_feedbacks_by_specialist(
-        self,
-        feedbacks: List[Dict[str, Any]]
+        self, feedbacks: List[Dict[str, Any]]
     ) -> Dict[str, List[Dict[str, Any]]]:
         """
         Agrupa feedbacks por specialist_type.
@@ -280,16 +263,14 @@ class OnlineLearningService:
         """
         grouped = {}
         for feedback in feedbacks:
-            specialist_type = feedback.get('specialist_type', 'unknown')
+            specialist_type = feedback.get("specialist_type", "unknown")
             if specialist_type not in grouped:
                 grouped[specialist_type] = []
             grouped[specialist_type].append(feedback)
         return grouped
 
     async def _process_specialist_feedbacks(
-        self,
-        specialist_type: str,
-        feedbacks: List[Dict[str, Any]]
+        self, specialist_type: str, feedbacks: List[Dict[str, Any]]
     ) -> Dict[str, Any]:
         """
         Processa feedbacks de um specialist específico.
@@ -319,18 +300,14 @@ class OnlineLearningService:
                     errors += 1
             except FeatureExtractionError as e:
                 logger.debug(
-                    'feature_extraction_failed',
-                    feedback_id=feedback.get('feedback_id'),
-                    error=str(e)
+                    "feature_extraction_failed",
+                    feedback_id=feedback.get("feedback_id"),
+                    error=str(e),
                 )
                 errors += 1
 
         if not features_list:
-            return {
-                'specialist_type': specialist_type,
-                'processed': 0,
-                'errors': errors
-            }
+            return {"specialist_type": specialist_type, "processed": 0, "errors": errors}
 
         # Converter para numpy arrays
         X = np.array(features_list)
@@ -340,21 +317,17 @@ class OnlineLearningService:
         try:
             fit_result = learner.partial_fit(X, y)
             return {
-                'specialist_type': specialist_type,
-                'processed': len(features_list),
-                'errors': errors,
-                'update_metrics': fit_result
+                "specialist_type": specialist_type,
+                "processed": len(features_list),
+                "errors": errors,
+                "update_metrics": fit_result,
             }
         except IncrementalLearnerError as e:
-            logger.error(
-                'partial_fit_failed',
-                specialist_type=specialist_type,
-                error=str(e)
-            )
+            logger.error("partial_fit_failed", specialist_type=specialist_type, error=str(e))
             return {
-                'specialist_type': specialist_type,
-                'processed': 0,
-                'errors': len(features_list)
+                "specialist_type": specialist_type,
+                "processed": 0,
+                "errors": len(features_list),
             }
 
     async def _get_or_create_learner(self, specialist_type: str) -> IncrementalLearner:
@@ -373,18 +346,14 @@ class OnlineLearningService:
                     config=self._ml_config,
                     specialist_type=specialist_type,
                     classes=self.DECISION_CLASSES,
-                    feature_names=self.FEATURE_NAMES
+                    feature_names=self.FEATURE_NAMES,
                 )
                 self._learners[specialist_type] = learner
-                logger.info(
-                    'learner_criado',
-                    specialist_type=specialist_type
-                )
+                logger.info("learner_criado", specialist_type=specialist_type)
             return self._learners[specialist_type]
 
     def _extract_features_and_label(
-        self,
-        feedback: Dict[str, Any]
+        self, feedback: Dict[str, Any]
     ) -> Tuple[Optional[np.ndarray], Optional[str]]:
         """
         Extrai features e label de um feedback.
@@ -422,28 +391,28 @@ class OnlineLearningService:
             Label ('approve', 'reject', 'review_required') ou None
         """
         # Tentar human_recommendation primeiro
-        human_rec = feedback.get('human_recommendation')
+        human_rec = feedback.get("human_recommendation")
         if human_rec:
             if isinstance(human_rec, str):
                 human_rec = human_rec.lower()
-                if human_rec in ['approve', 'approved']:
-                    return 'approve'
-                elif human_rec in ['reject', 'rejected']:
-                    return 'reject'
-                elif human_rec in ['review', 'review_required']:
-                    return 'review_required'
+                if human_rec in ["approve", "approved"]:
+                    return "approve"
+                elif human_rec in ["reject", "rejected"]:
+                    return "reject"
+                elif human_rec in ["review", "review_required"]:
+                    return "review_required"
 
         # Mapear rating para decisão
-        rating = feedback.get('human_rating')
+        rating = feedback.get("human_rating")
         if rating is not None:
             try:
                 rating_val = float(rating)
                 if rating_val >= 0.7:
-                    return 'approve'
+                    return "approve"
                 elif rating_val <= 0.3:
-                    return 'reject'
+                    return "reject"
                 else:
-                    return 'review_required'
+                    return "review_required"
             except (ValueError, TypeError):
                 pass
 
@@ -462,32 +431,36 @@ class OnlineLearningService:
         features = []
 
         # 1. Confidence (specialist ou default 0.5)
-        confidence = feedback.get('specialist_confidence', 0.5)
+        confidence = feedback.get("specialist_confidence", 0.5)
         if confidence is None:
             confidence = 0.5
         features.append(float(confidence))
 
         # 2. Risk (extrair de metadata ou default 0.5)
         risk = 0.5
-        if 'metadata' in feedback and isinstance(feedback['metadata'], dict):
-            risk = feedback['metadata'].get('risk_score', 0.5)
+        if "metadata" in feedback and isinstance(feedback["metadata"], dict):
+            risk = feedback["metadata"].get("risk_score", 0.5)
         features.append(float(risk))
 
         # 3-5. NLP Features (sentiment, urgency, complexity)
-        nlp_features = feedback.get('nlp_features', {})
+        nlp_features = feedback.get("nlp_features", {})
         if isinstance(nlp_features, dict):
-            sentiment = nlp_features.get('sentiment_score', 0.5)
-            urgency = nlp_features.get('urgency_score', 0.5)
-            complexity = nlp_features.get('complexity_score', 0.5)
+            sentiment = nlp_features.get("sentiment_score", 0.5)
+            urgency = nlp_features.get("urgency_score", 0.5)
+            complexity = nlp_features.get("complexity_score", 0.5)
         else:
             sentiment = urgency = complexity = 0.5
 
         features.extend([float(sentiment), float(urgency), float(complexity)])
 
         # 6-10. Domain confidences (business, technical, architecture, behavior, evolution)
-        domain = nlp_features.get('primary_domain', 'unknown') if isinstance(nlp_features, dict) else 'unknown'
+        domain = (
+            nlp_features.get("primary_domain", "unknown")
+            if isinstance(nlp_features, dict)
+            else "unknown"
+        )
 
-        for d in ['business', 'technical', 'architecture', 'behavior', 'evolution']:
+        for d in ["business", "technical", "architecture", "behavior", "evolution"]:
             if domain == d:
                 features.append(1.0)  # Alta confiança para domínio primário
             else:
@@ -541,23 +514,19 @@ class OnlineLearningService:
             Dicionário com estados de todos os specialists
         """
         if not self._enabled:
-            return {'enabled': False}
+            return {"enabled": False}
 
         states = {}
         for specialist_type, learner in self._learners.items():
             try:
                 states[specialist_type] = {
-                    'model_state': learner.get_model_state(),
-                    'convergence': learner.get_convergence_metrics() if learner.is_fitted else None
+                    "model_state": learner.get_model_state(),
+                    "convergence": learner.get_convergence_metrics() if learner.is_fitted else None,
                 }
             except Exception as e:
-                states[specialist_type] = {'error': str(e)}
+                states[specialist_type] = {"error": str(e)}
 
-        return {
-            'enabled': True,
-            'total_learners': len(self._learners),
-            'learners': states
-        }
+        return {"enabled": True, "total_learners": len(self._learners), "learners": states}
 
     async def save_all_checkpoints(self) -> Dict[str, Any]:
         """
@@ -567,52 +536,36 @@ class OnlineLearningService:
             Dicionário com resultados
         """
         if not self._enabled:
-            return {'enabled': False}
+            return {"enabled": False}
 
         results = {}
         for specialist_type, learner in self._learners.items():
             try:
                 if learner.is_fitted:
                     path = learner.save_checkpoint()
-                    results[specialist_type] = {
-                        'success': True,
-                        'checkpoint_path': path
-                    }
+                    results[specialist_type] = {"success": True, "checkpoint_path": path}
                 else:
-                    results[specialist_type] = {
-                        'success': False,
-                        'reason': 'model_not_fitted'
-                    }
+                    results[specialist_type] = {"success": False, "reason": "model_not_fitted"}
             except Exception as e:
-                results[specialist_type] = {
-                    'success': False,
-                    'error': str(e)
-                }
+                results[specialist_type] = {"success": False, "error": str(e)}
 
-        return {
-            'enabled': True,
-            'results': results
-        }
+        return {"enabled": True, "results": results}
 
     def _get_supported_specialist_types(self) -> List[str]:
         """Retorna lista de specialist types suportados."""
         return [
-            'text_analysis',
-            'code_analysis',
-            'data_analysis',
-            'security',
-            'business',
-            'technical',
-            'architecture',
-            'behavior',
-            'evolution'
+            "text_analysis",
+            "code_analysis",
+            "data_analysis",
+            "security",
+            "business",
+            "technical",
+            "architecture",
+            "behavior",
+            "evolution",
         ]
 
-    async def predict(
-        self,
-        specialist_type: str,
-        features: np.ndarray
-    ) -> Optional[np.ndarray]:
+    async def predict(self, specialist_type: str, features: np.ndarray) -> Optional[np.ndarray]:
         """
         Executa predição com modelo online.
 
@@ -636,9 +589,7 @@ class OnlineLearningService:
             return None
 
     async def predict_proba(
-        self,
-        specialist_type: str,
-        features: np.ndarray
+        self, specialist_type: str, features: np.ndarray
     ) -> Optional[np.ndarray]:
         """
         Executa predição de probabilidades.
@@ -681,15 +632,8 @@ class OnlineLearningService:
 
         try:
             learner.reset()
-            logger.info(
-                'learner_resetado',
-                specialist_type=specialist_type
-            )
+            logger.info("learner_resetado", specialist_type=specialist_type)
             return True
         except Exception as e:
-            logger.error(
-                'erro_ao_resetar_learner',
-                specialist_type=specialist_type,
-                error=str(e)
-            )
+            logger.error("erro_ao_resetar_learner", specialist_type=specialist_type, error=str(e))
             return False

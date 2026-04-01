@@ -1,6 +1,6 @@
 """Settings configuration using Pydantic BaseSettings."""
 from functools import lru_cache
-from typing import Dict, Optional, List
+from typing import Dict, List, Optional
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -12,10 +12,7 @@ class Settings(BaseSettings):
     """Application settings with environment variable support."""
 
     model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        case_sensitive=True,
-        extra="ignore"
+        env_file=".env", env_file_encoding="utf-8", case_sensitive=True, extra="ignore"
     )
 
     # Service Identity
@@ -31,8 +28,7 @@ class Settings(BaseSettings):
 
     # Kafka Configuration
     KAFKA_BOOTSTRAP_SERVERS: str = Field(
-        default="kafka-cluster-kafka-bootstrap:9092",
-        description="Kafka bootstrap servers"
+        default="kafka-cluster-kafka-bootstrap:9092", description="Kafka bootstrap servers"
     )
     KAFKA_TOOL_SELECTION_REQUEST_TOPIC: str = "mcp.tool.selection.requests"
     KAFKA_TOOL_SELECTION_RESPONSE_TOPIC: str = "mcp.tool.selection.responses"
@@ -40,18 +36,14 @@ class Settings(BaseSettings):
 
     # MongoDB Configuration
     MONGODB_URL: str = Field(
-        default="mongodb://mongodb-svc:27017",
-        description="MongoDB connection URL"
+        default="mongodb://mongodb-svc:27017", description="MongoDB connection URL"
     )
     MONGODB_DATABASE: str = "mcp_tool_catalog"
     MONGODB_TOOLS_COLLECTION: str = "tools"
     MONGODB_SELECTIONS_COLLECTION: str = "selections_history"
 
     # Redis Configuration
-    REDIS_URL: str = Field(
-        default="redis://redis-cluster:6379",
-        description="Redis connection URL"
-    )
+    REDIS_URL: str = Field(default="redis://redis-cluster:6379", description="Redis connection URL")
     CACHE_TTL_SECONDS: int = 3600
     CACHE_ENABLED: bool = True
 
@@ -95,7 +87,7 @@ class Settings(BaseSettings):
 
     MCP_SERVERS: Dict[str, str] = Field(
         default_factory=dict,
-        description="Mapeamento tool_id → MCP server URL (ex: {'trivy-001': 'http://trivy-mcp-server:3000'})"
+        description="Mapeamento tool_id → MCP server URL (ex: {'trivy-001': 'http://trivy-mcp-server:3000'})",
     )
 
     @field_validator("MCP_SERVERS", mode="before")
@@ -106,10 +98,13 @@ class Settings(BaseSettings):
             return {}
         if isinstance(v, str):
             import json
+
             v = json.loads(v)
         for tool_id, url in v.items():
             if not url.startswith(("http://", "https://")):
-                raise ValueError(f"URL inválida para {tool_id}: {url}. Deve começar com http:// ou https://")
+                raise ValueError(
+                    f"URL inválida para {tool_id}: {url}. Deve começar com http:// ou https://"
+                )
         return v
 
     # Observability Configuration
@@ -117,11 +112,10 @@ class Settings(BaseSettings):
     LOG_FORMAT: str = "json"
     OTEL_EXPORTER_ENDPOINT: Optional[str] = Field(
         default="http://otel-collector:4317",
-        description="(Deprecated) OpenTelemetry collector endpoint"
+        description="(Deprecated) OpenTelemetry collector endpoint",
     )
     OTEL_EXPORTER_OTLP_ENDPOINT: Optional[str] = Field(
-        default="http://otel-collector:4317",
-        description="OpenTelemetry OTLP collector endpoint"
+        default="http://otel-collector:4317", description="OpenTelemetry OTLP collector endpoint"
     )
 
     @property
@@ -144,100 +138,78 @@ class Settings(BaseSettings):
 
     # ANALYSIS Tools
     SONARQUBE_URL: str = Field(
-        default="http://sonarqube:9000/api",
-        description="SonarQube API endpoint"
+        default="http://sonarqube:9000/api", description="SonarQube API endpoint"
     )
     CHECKMARX_URL: str = Field(
-        default="https://checkmarx.example.com/api",
-        description="Checkmarx API endpoint"
+        default="https://checkmarx.example.com/api", description="Checkmarx API endpoint"
     )
     VERACODE_URL: str = Field(
-        default="https://analysiscenter.veracode.com/api",
-        description="Veracode API endpoint"
+        default="https://analysiscenter.veracode.com/api", description="Veracode API endpoint"
     )
     FORTIFY_URL: str = Field(
-        default="https://fortify.example.com/api",
-        description="Fortify API endpoint"
+        default="https://fortify.example.com/api", description="Fortify API endpoint"
     )
 
     # GENERATION Tools
     GITHUB_COPILOT_URL: str = Field(
-        default="https://api.github.com/copilot",
-        description="GitHub Copilot API endpoint"
+        default="https://api.github.com/copilot", description="GitHub Copilot API endpoint"
     )
     SPRING_INITIALIZR_URL: str = Field(
-        default="https://start.spring.io",
-        description="Spring Initializr API endpoint"
+        default="https://start.spring.io", description="Spring Initializr API endpoint"
     )
     OPENAI_CODEX_URL: str = Field(
-        default="https://api.openai.com/v1",
-        description="OpenAI Codex API endpoint"
+        default="https://api.openai.com/v1", description="OpenAI Codex API endpoint"
     )
 
     # VALIDATION Tools
     BURP_SUITE_URL: str = Field(
-        default="http://burpsuite:8080",
-        description="Burp Suite API endpoint"
+        default="http://burpsuite:8080", description="Burp Suite API endpoint"
     )
 
     # AUTOMATION Tools
     GITHUB_ACTIONS_URL: str = Field(
-        default="https://api.github.com",
-        description="GitHub Actions API endpoint"
+        default="https://api.github.com", description="GitHub Actions API endpoint"
     )
     ARGOCD_URL: str = Field(
-        default="http://argocd-server:80/api",
-        description="ArgoCD API endpoint"
+        default="http://argocd-server:80/api", description="ArgoCD API endpoint"
     )
     GITLAB_CI_URL: str = Field(
-        default="https://gitlab.com/api/v4",
-        description="GitLab CI API endpoint"
+        default="https://gitlab.com/api/v4", description="GitLab CI API endpoint"
     )
-    JENKINS_URL: str = Field(
-        default="http://jenkins:8080",
-        description="Jenkins API endpoint"
-    )
+    JENKINS_URL: str = Field(default="http://jenkins:8080", description="Jenkins API endpoint")
     CIRCLECI_URL: str = Field(
-        default="https://circleci.com/api/v2",
-        description="CircleCI API endpoint"
+        default="https://circleci.com/api/v2", description="CircleCI API endpoint"
     )
     TRAVIS_CI_URL: str = Field(
-        default="https://api.travis-ci.com",
-        description="Travis CI API endpoint"
+        default="https://api.travis-ci.com", description="Travis CI API endpoint"
     )
 
     # INTEGRATION Tools
     KAFKA_CONNECT_URL: str = Field(
-        default="http://kafka-connect:8083",
-        description="Kafka Connect API endpoint"
+        default="http://kafka-connect:8083", description="Kafka Connect API endpoint"
     )
     AIRFLOW_URL: str = Field(
-        default="http://airflow-webserver:8080/api/v1",
-        description="Apache Airflow API endpoint"
+        default="http://airflow-webserver:8080/api/v1", description="Apache Airflow API endpoint"
     )
     MULESOFT_URL: str = Field(
-        default="https://anypoint.mulesoft.com/api",
-        description="MuleSoft API endpoint"
+        default="https://anypoint.mulesoft.com/api", description="MuleSoft API endpoint"
     )
     AWS_EVENTBRIDGE_URL: str = Field(
-        default="https://events.amazonaws.com",
-        description="AWS EventBridge endpoint"
+        default="https://events.amazonaws.com", description="AWS EventBridge endpoint"
     )
     AZURE_LOGIC_APPS_URL: str = Field(
-        default="https://management.azure.com",
-        description="Azure Logic Apps endpoint"
+        default="https://management.azure.com", description="Azure Logic Apps endpoint"
     )
     GOOGLE_WORKFLOWS_URL: str = Field(
         default="https://workflowexecutions.googleapis.com",
-        description="Google Cloud Workflows endpoint"
+        description="Google Cloud Workflows endpoint",
     )
 
     @property
     def CORS_ORIGINS(self) -> List[str]:
         """CORS origins dinâmicas por ambiente."""
         return CORSConfig.get_origins_for_environment(
-            self.ENVIRONMENT.lower(),
-            is_public_api=self.IS_PUBLIC_API
+            self.ENVIRONMENT.lower(), is_public_api=self.IS_PUBLIC_API
         )
 
 

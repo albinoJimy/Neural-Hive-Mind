@@ -6,13 +6,14 @@ para enriquecer decisões de alocação de workers.
 """
 
 import time
+from typing import Any
+
 import structlog
-from typing import Dict, Any, Optional, List
-from neural_hive_observability import get_tracer
 from opentelemetry import trace
 
-from src.config.settings import OrchestratorSettings
+from neural_hive_observability import get_tracer
 from src.clients.optimizer_grpc_client import OptimizerGrpcClient
+from src.config.settings import OrchestratorSettings
 from src.ml.load_predictor import LoadPredictor
 from src.observability.metrics import OrchestratorMetrics
 
@@ -37,10 +38,10 @@ class SchedulingOptimizer:
     def __init__(
         self,
         config: OrchestratorSettings,
-        optimizer_client: Optional[OptimizerGrpcClient],
+        optimizer_client: OptimizerGrpcClient | None,
         local_predictor: LoadPredictor,
         kafka_producer,
-        metrics: OrchestratorMetrics
+        metrics: OrchestratorMetrics,
     ):
         """
         Inicializa SchedulingOptimizer.
@@ -64,10 +65,7 @@ class SchedulingOptimizer:
         self.confidence_threshold = 0.6  # Mínimo para aplicar recomendações RL
         self.optimization_timeout = config.ml_optimization_timeout_seconds
 
-    async def get_load_forecast(
-        self,
-        horizon_minutes: int = 60
-    ) -> Optional[Dict]:
+    async def get_load_forecast(self, horizon_minutes: int = 60) -> dict | None:
         """
         Obtém previsão de carga futura.
 
@@ -85,8 +83,8 @@ class SchedulingOptimizer:
             "scheduling.get_load_forecast",
             attributes={
                 "neural.hive.ml.horizon_minutes": horizon_minutes,
-                "neural.hive.ml.source": "remote" if self.optimizer_client else "none"
-            }
+                "neural.hive.ml.source": "remote" if self.optimizer_client else "none",
+            },
         ) as span:
             try:
                 # Se optimizer integration desabilitado, retornar None
@@ -102,27 +100,28 @@ class SchedulingOptimizer:
 
                 # Tentar obter forecast do remote optimizer
                 forecast = await self.optimizer_client.get_load_forecast(
-                    horizon_minutes=horizon_minutes,
-                    include_confidence_intervals=True
+                    horizon_minutes=horizon_minutes, include_confidence_intervals=True
                 )
 
                 # Métricas
                 duration_seconds = time.time() - start_time
 
                 if forecast:
-                    span.set_attribute("neural.hive.ml.forecast_points", len(forecast.get('forecast', [])))
+                    span.set_attribute(
+                        "neural.hive.ml.forecast_points", len(forecast.get("forecast", []))
+                    )
                     self.metrics.update_optimizer_availability(available=True)
                     self.metrics.record_ml_optimization(
-                        optimization_type='load_forecast',
-                        source='remote',
-                        duration_seconds=duration_seconds
+                        optimization_type="load_forecast",
+                        source="remote",
+                        duration_seconds=duration_seconds,
                     )
 
                     self.logger.info(
                         "load_forecast_obtained_from_remote",
                         horizon_minutes=horizon_minutes,
-                        points=len(forecast.get('forecast', [])),
-                        latency_ms=duration_seconds * 1000
+                        points=len(forecast.get("forecast", [])),
+                        latency_ms=duration_seconds * 1000,
                     )
                 else:
                     self.metrics.update_optimizer_availability(available=False)
@@ -131,20 +130,14 @@ class SchedulingOptimizer:
                 return forecast
 
             except Exception as e:
-                self.logger.error(
-                    "load_forecast_error",
-                    error=str(e)
-                )
+                self.logger.exception("load_forecast_error", error=str(e))
                 span.set_status(trace.Status(trace.StatusCode.ERROR, str(e)))
                 self.metrics.update_optimizer_availability(available=False)
                 return None
 
     async def optimize_allocation(
-        self,
-        ticket: Dict[str, Any],
-        workers: List[Dict],
-        load_forecast: Optional[Dict] = None
-    ) -> List[Dict]:
+        self, ticket: dict[str, Any], workers: list[dict], load_forecast: dict | None = None
+    ) -> list[dict]:
         """
         Enriquece workers com predições ML para otimizar alocação.
 
@@ -161,9 +154,9 @@ class SchedulingOptimizer:
         with self.tracer.start_as_current_span(
             "scheduling.optimize_allocation",
             attributes={
-                "neural.hive.ticket.id": ticket.get('ticket_id'),
-                "neural.hive.ml.workers_count": len(workers)
-            }
+                "neural.hive.ticket.id": ticket.get("ticket_id"),
+                "neural.hive.ml.workers_count": len(workers),
+            },
         ) as span:
             try:
                 # Coletar estado atual para RL recommendation
@@ -171,9 +164,7 @@ class SchedulingOptimizer:
 
                 # Tentar obter recomendação de RL policy
                 recommendation = None
-                if (self.config.enable_optimizer_integration and
-                    self.optimizer_client):
-
+                if self.config.enable_optimizer_integration and self.optimizer_client:
                     try:
                         recommendation = await self.optimizer_client.get_scheduling_recommendation(
                             current_state=current_state
@@ -182,37 +173,34 @@ class SchedulingOptimizer:
                         if recommendation:
                             self.logger.info(
                                 "rl_recommendation_obtained",
-                                action=recommendation.get('action'),
-                                confidence=recommendation.get('confidence')
+                                action=recommendation.get("action"),
+                                confidence=recommendation.get("confidence"),
                             )
                     except Exception as e:
-                        self.logger.warning(
-                            "rl_recommendation_error",
-                            error=str(e)
-                        )
+                        self.logger.warning("rl_recommendation_error", error=str(e))
 
                 # Enriquecer cada worker com predições
                 enriched_workers = []
                 for worker in workers:
                     enriched = await self._enrich_worker_with_predictions(
-                        worker=worker,
-                        ticket=ticket,
-                        load_forecast=load_forecast
+                        worker=worker, ticket=ticket, load_forecast=load_forecast
                     )
                     enriched_workers.append(enriched)
 
                 # Aplicar recomendação de RL se disponível e confiável
-                if recommendation and recommendation.get('confidence', 0) >= self.confidence_threshold:
+                if (
+                    recommendation
+                    and recommendation.get("confidence", 0) >= self.confidence_threshold
+                ):
                     enriched_workers = self._apply_scheduling_recommendation(
-                        recommendation=recommendation,
-                        workers=enriched_workers
+                        recommendation=recommendation, workers=enriched_workers
                     )
 
-                    source = 'remote'
-                    optimization_type = 'rl_recommendation'
+                    source = "remote"
+                    optimization_type = "rl_recommendation"
                 else:
-                    source = 'local'
-                    optimization_type = 'heuristic'
+                    source = "local"
+                    optimization_type = "heuristic"
 
                 # Métricas
                 duration_seconds = time.time() - start_time
@@ -221,37 +209,32 @@ class SchedulingOptimizer:
                 self.metrics.record_ml_optimization(
                     optimization_type=optimization_type,
                     source=source,
-                    duration_seconds=duration_seconds
+                    duration_seconds=duration_seconds,
                 )
 
                 self.logger.info(
                     "allocation_optimization_complete",
-                    ticket_id=ticket.get('ticket_id'),
+                    ticket_id=ticket.get("ticket_id"),
                     workers_enriched=len(enriched_workers),
                     optimization_source=source,
-                    latency_ms=duration_seconds * 1000
+                    latency_ms=duration_seconds * 1000,
                 )
 
                 return enriched_workers
 
             except Exception as e:
-                self.logger.error(
-                    "optimize_allocation_error",
-                    ticket_id=ticket.get('ticket_id'),
-                    error=str(e)
+                self.logger.exception(
+                    "optimize_allocation_error", ticket_id=ticket.get("ticket_id"), error=str(e)
                 )
                 span.set_status(trace.Status(trace.StatusCode.ERROR, str(e)))
-                self.metrics.record_ml_error('allocation_optimization')
+                self.metrics.record_ml_error("allocation_optimization")
 
                 # Fallback: retornar workers originais
                 return workers
 
     async def _enrich_worker_with_predictions(
-        self,
-        worker: Dict,
-        ticket: Dict[str, Any],
-        load_forecast: Optional[Dict]
-    ) -> Dict:
+        self, worker: dict, ticket: dict[str, Any], load_forecast: dict | None
+    ) -> dict:
         """
         Enriquece worker com predições de queue time e load.
 
@@ -263,19 +246,15 @@ class SchedulingOptimizer:
         Returns:
             Worker enriquecido
         """
-        worker_id = worker.get('agent_id', 'unknown')
+        worker_id = worker.get("agent_id", "unknown")
 
         with self.tracer.start_as_current_span(
-            "scheduling.enrich_worker",
-            attributes={
-                "neural.hive.worker.id": worker_id
-            }
+            "scheduling.enrich_worker", attributes={"neural.hive.worker.id": worker_id}
         ) as span:
             try:
                 # Predizer queue time usando local predictor
                 predicted_queue_ms = await self.local_predictor.predict_queue_time(
-                    worker_id=worker_id,
-                    ticket=ticket
+                    worker_id=worker_id, ticket=ticket
                 )
 
                 # Predizer worker load
@@ -286,9 +265,9 @@ class SchedulingOptimizer:
                 # Adicionar campos ao worker dict
                 enriched = {
                     **worker,
-                    'predicted_queue_ms': predicted_queue_ms,
-                    'predicted_load_pct': predicted_load_pct,
-                    'ml_enriched': True
+                    "predicted_queue_ms": predicted_queue_ms,
+                    "predicted_load_pct": predicted_load_pct,
+                    "ml_enriched": True,
                 }
 
                 span.set_attribute("neural.hive.ml.predicted_queue_ms", predicted_queue_ms)
@@ -298,32 +277,26 @@ class SchedulingOptimizer:
                     "worker_enriched_with_predictions",
                     worker_id=worker_id,
                     predicted_queue_ms=predicted_queue_ms,
-                    predicted_load_pct=predicted_load_pct
+                    predicted_load_pct=predicted_load_pct,
                 )
 
                 return enriched
 
             except Exception as e:
-                self.logger.error(
-                    "worker_enrichment_error",
-                    worker_id=worker_id,
-                    error=str(e)
-                )
+                self.logger.exception("worker_enrichment_error", worker_id=worker_id, error=str(e))
                 span.set_status(trace.Status(trace.StatusCode.ERROR, str(e)))
 
                 # Fallback: retornar worker sem enrichment
                 return {
                     **worker,
-                    'predicted_queue_ms': 2000.0,
-                    'predicted_load_pct': 0.5,
-                    'ml_enriched': False
+                    "predicted_queue_ms": 2000.0,
+                    "predicted_load_pct": 0.5,
+                    "ml_enriched": False,
                 }
 
     def _apply_scheduling_recommendation(
-        self,
-        recommendation: Dict,
-        workers: List[Dict]
-    ) -> List[Dict]:
+        self, recommendation: dict, workers: list[dict]
+    ) -> list[dict]:
         """
         Aplica recomendação de RL policy aos worker scores.
 
@@ -344,55 +317,48 @@ class SchedulingOptimizer:
         Returns:
             Workers com rl_boost aplicado
         """
-        action = recommendation.get('action', 'MAINTAIN')
-        confidence = recommendation.get('confidence', 0.0)
+        action = recommendation.get("action", "MAINTAIN")
+        confidence = recommendation.get("confidence", 0.0)
 
-        self.logger.info(
-            "applying_rl_recommendation",
-            action=action,
-            confidence=confidence
-        )
+        self.logger.info("applying_rl_recommendation", action=action, confidence=confidence)
 
         # Aplicar ação de RL com boost conforme estratégia
         workers_boosted = 0
 
-        if action == 'SCALE_UP':
+        if action == "SCALE_UP":
             # Preferir workers com menos carga para distribuir tarefas
             for worker in workers:
-                load = worker.get('predicted_load_pct', 0.5)
+                load = worker.get("predicted_load_pct", 0.5)
                 if load < 0.3:
-                    worker['rl_boost'] = 1.2  # Boost 20%
+                    worker["rl_boost"] = 1.2  # Boost 20%
                     workers_boosted += 1
                 else:
-                    worker['rl_boost'] = 1.0  # Sem boost
-        elif action == 'CONSOLIDATE':
+                    worker["rl_boost"] = 1.0  # Sem boost
+        elif action == "CONSOLIDATE":
             # Preferir workers com mais carga para consolidação
             for worker in workers:
-                load = worker.get('predicted_load_pct', 0.5)
+                load = worker.get("predicted_load_pct", 0.5)
                 if load > 0.5:
-                    worker['rl_boost'] = 1.1  # Boost 10%
+                    worker["rl_boost"] = 1.1  # Boost 10%
                     workers_boosted += 1
                 else:
-                    worker['rl_boost'] = 1.0  # Sem boost
+                    worker["rl_boost"] = 1.0  # Sem boost
         else:
             # MAINTAIN ou ação desconhecida: sem ajuste
             for worker in workers:
-                worker['rl_boost'] = 1.0
+                worker["rl_boost"] = 1.0
 
         self.logger.info(
             "rl_recommendation_applied",
             action=action,
             workers_total=len(workers),
-            workers_boosted=workers_boosted
+            workers_boosted=workers_boosted,
         )
 
         return workers
 
     async def record_allocation_outcome(
-        self,
-        ticket: Dict[str, Any],
-        worker: Dict,
-        actual_duration_ms: float
+        self, ticket: dict[str, Any], worker: dict, actual_duration_ms: float
     ):
         """
         Registra outcome de alocação para feedback loop de RL.
@@ -410,15 +376,15 @@ class SchedulingOptimizer:
 
             # Construir outcome event
             outcome = {
-                'ticket_id': ticket.get('ticket_id'),
-                'worker_id': worker.get('agent_id'),
-                'predicted_queue_ms': worker.get('predicted_queue_ms', 0),
-                'predicted_load_pct': worker.get('predicted_load_pct', 0),
-                'actual_duration_ms': actual_duration_ms,
-                'timestamp': time.time(),
-                'success': ticket.get('status') == 'COMPLETED',
-                'risk_band': ticket.get('risk_band'),
-                'priority_score': ticket.get('priority_score')
+                "ticket_id": ticket.get("ticket_id"),
+                "worker_id": worker.get("agent_id"),
+                "predicted_queue_ms": worker.get("predicted_queue_ms", 0),
+                "predicted_load_pct": worker.get("predicted_load_pct", 0),
+                "actual_duration_ms": actual_duration_ms,
+                "timestamp": time.time(),
+                "success": ticket.get("status") == "COMPLETED",
+                "risk_band": ticket.get("risk_band"),
+                "priority_score": ticket.get("priority_score"),
             }
 
             # Publicar no tópico Kafka (async, non-blocking)
@@ -426,50 +392,42 @@ class SchedulingOptimizer:
 
             if self.kafka_producer:
                 await self.kafka_producer.send(
-                    topic=topic,
-                    value=outcome,
-                    key=ticket.get('ticket_id')
+                    topic=topic, value=outcome, key=ticket.get("ticket_id")
                 )
 
                 self.logger.info(
                     "allocation_outcome_recorded",
-                    ticket_id=ticket.get('ticket_id'),
-                    worker_id=worker.get('agent_id'),
-                    topic=topic
+                    ticket_id=ticket.get("ticket_id"),
+                    worker_id=worker.get("agent_id"),
+                    topic=topic,
                 )
 
                 # Calcular e registrar allocation quality
                 quality_score = self._calculate_allocation_quality(
-                    predicted_queue_ms=outcome['predicted_queue_ms'],
+                    predicted_queue_ms=outcome["predicted_queue_ms"],
                     actual_duration_ms=actual_duration_ms,
-                    success=outcome['success']
+                    success=outcome["success"],
                 )
 
                 self.metrics.record_allocation_quality(
                     quality_score=quality_score,
-                    used_ml_optimization=worker.get('ml_enriched', False)
+                    used_ml_optimization=worker.get("ml_enriched", False),
                 )
 
                 # Registrar erro de predição de queue
-                if outcome['predicted_queue_ms'] > 0:
+                if outcome["predicted_queue_ms"] > 0:
                     # Usar duração real como proxy de tempo real de fila
                     self.metrics.record_queue_prediction_error(
-                        predicted_ms=outcome['predicted_queue_ms'],
-                        actual_ms=actual_duration_ms
+                        predicted_ms=outcome["predicted_queue_ms"], actual_ms=actual_duration_ms
                     )
 
         except Exception as e:
-            self.logger.error(
-                "record_outcome_error",
-                ticket_id=ticket.get('ticket_id'),
-                error=str(e)
+            self.logger.exception(
+                "record_outcome_error", ticket_id=ticket.get("ticket_id"), error=str(e)
             )
 
     def _calculate_allocation_quality(
-        self,
-        predicted_queue_ms: float,
-        actual_duration_ms: float,
-        success: bool
+        self, predicted_queue_ms: float, actual_duration_ms: float, success: bool
     ) -> float:
         """
         Calcula score de qualidade da alocação.
@@ -497,11 +455,7 @@ class SchedulingOptimizer:
 
         return min(max(quality, 0.0), 1.0)
 
-    async def _build_current_state(
-        self,
-        ticket: Dict[str, Any],
-        workers: List[Dict]
-    ) -> Dict:
+    async def _build_current_state(self, ticket: dict[str, Any], workers: list[dict]) -> dict:
         """
         Constrói estado atual para RL recommendation.
 
@@ -520,38 +474,40 @@ class SchedulingOptimizer:
             loads = []
             for worker in workers:
                 load = await self.local_predictor.predict_worker_load(
-                    worker.get('agent_id', 'unknown')
+                    worker.get("agent_id", "unknown")
                 )
                 loads.append(load)
 
             avg_utilization = sum(loads) / len(loads) if loads else 0.5
 
             # Queue depth: soma de queue depths
-            queue_depth = sum([
-                await self.local_predictor._estimate_queue_depth(
-                    worker.get('agent_id', 'unknown')
-                )
-                for worker in workers
-            ])
+            queue_depth = sum(
+                [
+                    await self.local_predictor._estimate_queue_depth(
+                        worker.get("agent_id", "unknown")
+                    )
+                    for worker in workers
+                ]
+            )
 
             # SLA compliance: assumir 0.95 (a ser integrado com SLA Management)
             sla_compliance = 0.95
 
             return {
-                'current_load': current_load,
-                'worker_utilization': avg_utilization,
-                'queue_depth': queue_depth,
-                'sla_compliance': sla_compliance
+                "current_load": current_load,
+                "worker_utilization": avg_utilization,
+                "queue_depth": queue_depth,
+                "sla_compliance": sla_compliance,
             }
 
         except Exception as e:
-            self.logger.error("build_state_error", error=str(e))
+            self.logger.exception("build_state_error", error=str(e))
             # Fallback state
             return {
-                'current_load': 10,
-                'worker_utilization': 0.5,
-                'queue_depth': 5,
-                'sla_compliance': 0.95
+                "current_load": 10,
+                "worker_utilization": 0.5,
+                "queue_depth": 5,
+                "sla_compliance": 0.95,
             }
 
     async def _get_current_ticket_count(self) -> int:
@@ -567,14 +523,10 @@ class SchedulingOptimizer:
             return 10  # Default sem MongoDB
 
         try:
-            count = await self.local_predictor.mongodb_client.db[
+            return await self.local_predictor.mongodb_client.db[
                 self.config.mongodb_collection_tickets
-            ].count_documents({
-                'status': {'$in': ['PENDING', 'EXECUTING']}
-            })
-
-            return count
+            ].count_documents({"status": {"$in": ["PENDING", "EXECUTING"]}})
 
         except Exception as e:
-            self.logger.error("get_ticket_count_error", error=str(e))
+            self.logger.exception("get_ticket_count_error", error=str(e))
             return 10  # Default

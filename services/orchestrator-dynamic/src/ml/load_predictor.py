@@ -10,12 +10,13 @@ Não participa de treinamento/registro no MLflow; é um componente de fallback s
 """
 
 import time
+from datetime import UTC, datetime, timedelta
+from typing import Any
+
 import structlog
-from typing import Dict, Any, Optional, List
-from datetime import datetime, timedelta
-from neural_hive_observability import get_tracer
 from opentelemetry import trace
 
+from neural_hive_observability import get_tracer
 from src.config.settings import OrchestratorSettings
 from src.observability.metrics import OrchestratorMetrics
 
@@ -38,7 +39,7 @@ class LoadPredictor:
         config: OrchestratorSettings,
         mongodb_client,
         redis_client,
-        metrics: OrchestratorMetrics
+        metrics: OrchestratorMetrics,
     ):
         """
         Inicializa LoadPredictor.
@@ -63,24 +64,17 @@ class LoadPredictor:
         # Smoothing parameters
         self.alpha = 0.3  # Exponential smoothing factor
 
-    async def train_model(self, *args, **kwargs) -> Dict[str, Any]:
+    async def train_model(self, *args, **kwargs) -> dict[str, Any]:
         """
         Stub de treinamento para compatibilidade.
 
         LoadPredictor é heurístico e não é registrado no MLflow; retornamos
         metadados mínimos para integradores que esperam interface train_model.
         """
-        return {
-            'promoted': False,
-            'version': None,
-            'status': 'skipped',
-            'reason': 'heuristic_only'
-        }
+        return {"promoted": False, "version": None, "status": "skipped", "reason": "heuristic_only"}
 
     async def predict_queue_time(
-        self,
-        worker_id: str,
-        ticket: Optional[Dict[str, Any]] = None
+        self, worker_id: str, ticket: dict[str, Any] | None = None
     ) -> float:
         """
         Prediz tempo de espera em fila para um worker.
@@ -96,10 +90,7 @@ class LoadPredictor:
 
         with self.tracer.start_as_current_span(
             "load.predict_queue_time",
-            attributes={
-                "neural.hive.worker.id": worker_id,
-                "neural.hive.ml.source": "local"
-            }
+            attributes={"neural.hive.worker.id": worker_id, "neural.hive.ml.source": "local"},
         ) as span:
             try:
                 # Verificar cache primeiro
@@ -108,9 +99,7 @@ class LoadPredictor:
 
                 if cached is not None:
                     self.logger.debug(
-                        "queue_prediction_cache_hit",
-                        worker_id=worker_id,
-                        predicted_ms=cached
+                        "queue_prediction_cache_hit", worker_id=worker_id, predicted_ms=cached
                     )
                     span.set_attribute("neural.hive.ml.predicted_queue_ms", float(cached))
                     span.set_attribute("neural.hive.ml.cache_hit", True)
@@ -118,8 +107,7 @@ class LoadPredictor:
 
                 # Buscar dados históricos recentes
                 recent_completions = await self._fetch_recent_completions(
-                    worker_id,
-                    self.window_minutes
+                    worker_id, self.window_minutes
                 )
 
                 if not recent_completions:
@@ -130,7 +118,7 @@ class LoadPredictor:
                     self.logger.debug(
                         "queue_prediction_no_data",
                         worker_id=worker_id,
-                        predicted_ms=default_queue_ms
+                        predicted_ms=default_queue_ms,
                     )
                     span.set_attribute("neural.hive.ml.predicted_queue_ms", default_queue_ms)
                     span.set_attribute("neural.hive.ml.cache_hit", False)
@@ -142,8 +130,7 @@ class LoadPredictor:
 
                 # Calcular moving average de durações
                 avg_duration = self._calculate_moving_average(
-                    [c['actual_duration_ms'] for c in recent_completions],
-                    window=10
+                    [c["actual_duration_ms"] for c in recent_completions], window=10
                 )
 
                 # Predição: queue_depth * avg_duration
@@ -151,10 +138,7 @@ class LoadPredictor:
 
                 # Aplicar exponential smoothing se houver predição anterior
                 if cached is not None:
-                    predicted_queue_ms = (
-                        self.alpha * predicted_queue_ms +
-                        (1 - self.alpha) * cached
-                    )
+                    predicted_queue_ms = self.alpha * predicted_queue_ms + (1 - self.alpha) * cached
 
                 # Limitar entre 0 e 60 segundos
                 predicted_queue_ms = max(0.0, min(predicted_queue_ms, 60000.0))
@@ -165,15 +149,12 @@ class LoadPredictor:
                 # Métricas
                 duration_seconds = time.time() - start_time
                 self.metrics.record_ml_prediction(
-                    model_type='queue_time_local',
-                    status='success',
-                    duration=duration_seconds
+                    model_type="queue_time_local", status="success", duration=duration_seconds
                 )
 
                 # Registrar predição de queue time
                 self.metrics.record_predicted_queue_time(
-                    predicted_ms=predicted_queue_ms,
-                    source='local'
+                    predicted_ms=predicted_queue_ms, source="local"
                 )
 
                 self.logger.debug(
@@ -182,7 +163,7 @@ class LoadPredictor:
                     predicted_ms=predicted_queue_ms,
                     queue_depth=queue_depth,
                     avg_duration_ms=avg_duration,
-                    latency_ms=duration_seconds * 1000
+                    latency_ms=duration_seconds * 1000,
                 )
                 span.set_attribute("neural.hive.ml.predicted_queue_ms", predicted_queue_ms)
                 span.set_attribute("neural.hive.ml.cache_hit", False)
@@ -190,13 +171,9 @@ class LoadPredictor:
                 return float(predicted_queue_ms)
 
             except Exception as e:
-                self.logger.error(
-                    "queue_prediction_error",
-                    worker_id=worker_id,
-                    error=str(e)
-                )
+                self.logger.exception("queue_prediction_error", worker_id=worker_id, error=str(e))
                 span.set_status(trace.Status(trace.StatusCode.ERROR, str(e)))
-                self.metrics.record_ml_error('queue_prediction')
+                self.metrics.record_ml_error("queue_prediction")
 
                 # Fallback: retornar estimativa conservadora
                 return 2000.0  # 2 segundos
@@ -215,10 +192,7 @@ class LoadPredictor:
 
         with self.tracer.start_as_current_span(
             "load.predict_worker_load",
-            attributes={
-                "neural.hive.worker.id": worker_id,
-                "neural.hive.ml.source": "local"
-            }
+            attributes={"neural.hive.worker.id": worker_id, "neural.hive.ml.source": "local"},
         ) as span:
             try:
                 # Verificar cache
@@ -227,9 +201,7 @@ class LoadPredictor:
 
                 if cached is not None:
                     self.logger.debug(
-                        "load_prediction_cache_hit",
-                        worker_id=worker_id,
-                        predicted_load=cached
+                        "load_prediction_cache_hit", worker_id=worker_id, predicted_load=cached
                     )
                     span.set_attribute("neural.hive.ml.predicted_load_pct", float(cached))
                     span.set_attribute("neural.hive.ml.cache_hit", True)
@@ -250,23 +222,18 @@ class LoadPredictor:
                 # Métricas
                 duration_seconds = time.time() - start_time
                 self.metrics.record_ml_prediction(
-                    model_type='worker_load_local',
-                    status='success',
-                    duration=duration_seconds
+                    model_type="worker_load_local", status="success", duration=duration_seconds
                 )
 
                 # Registrar predição de worker load
-                self.metrics.record_predicted_worker_load(
-                    predicted_pct=load_pct,
-                    source='local'
-                )
+                self.metrics.record_predicted_worker_load(predicted_pct=load_pct, source="local")
 
                 self.logger.debug(
                     "worker_load_predicted",
                     worker_id=worker_id,
                     predicted_load_pct=load_pct,
                     queue_depth=queue_depth,
-                    latency_ms=duration_seconds * 1000
+                    latency_ms=duration_seconds * 1000,
                 )
                 span.set_attribute("neural.hive.ml.predicted_load_pct", load_pct)
                 span.set_attribute("neural.hive.ml.cache_hit", False)
@@ -274,22 +241,14 @@ class LoadPredictor:
                 return float(load_pct)
 
             except Exception as e:
-                self.logger.error(
-                    "load_prediction_error",
-                    worker_id=worker_id,
-                    error=str(e)
-                )
+                self.logger.exception("load_prediction_error", worker_id=worker_id, error=str(e))
                 span.set_status(trace.Status(trace.StatusCode.ERROR, str(e)))
-                self.metrics.record_ml_error('load_prediction')
+                self.metrics.record_ml_error("load_prediction")
 
                 # Fallback: assumir carga média
                 return 0.5
 
-    async def _fetch_recent_completions(
-        self,
-        worker_id: str,
-        window_minutes: int
-    ) -> List[Dict]:
+    async def _fetch_recent_completions(self, worker_id: str, window_minutes: int) -> list[dict]:
         """
         Busca tickets completados recentemente para um worker.
 
@@ -302,32 +261,29 @@ class LoadPredictor:
         """
         # Verificar se MongoDB está disponível
         if not self.mongodb_client:
-            self.logger.debug(
-                "fetch_completions_skipped_no_mongodb",
-                worker_id=worker_id
-            )
+            self.logger.debug("fetch_completions_skipped_no_mongodb", worker_id=worker_id)
             return []
 
         try:
-            cutoff_time = datetime.utcnow() - timedelta(minutes=window_minutes)
+            cutoff_time = datetime.now(UTC) - timedelta(minutes=window_minutes)
 
-            tickets = await self.mongodb_client.db[
-                self.config.mongodb_collection_tickets
-            ].find({
-                'allocated_worker_id': worker_id,
-                'status': 'COMPLETED',
-                'completed_at': {'$gte': cutoff_time},
-                'actual_duration_ms': {'$exists': True, '$ne': None}
-            }).sort('completed_at', -1).limit(50).to_list(None)
-
-            return tickets
+            return (
+                await self.mongodb_client.db[self.config.mongodb_collection_tickets]
+                .find(
+                    {
+                        "allocated_worker_id": worker_id,
+                        "status": "COMPLETED",
+                        "completed_at": {"$gte": cutoff_time},
+                        "actual_duration_ms": {"$exists": True, "$ne": None},
+                    }
+                )
+                .sort("completed_at", -1)
+                .limit(50)
+                .to_list(None)
+            )
 
         except Exception as e:
-            self.logger.error(
-                "fetch_completions_error",
-                worker_id=worker_id,
-                error=str(e)
-            )
+            self.logger.exception("fetch_completions_error", worker_id=worker_id, error=str(e))
             return []
 
     async def _estimate_queue_depth(self, worker_id: str) -> int:
@@ -344,35 +300,21 @@ class LoadPredictor:
         """
         # Verificar se MongoDB está disponível
         if not self.mongodb_client:
-            self.logger.debug(
-                "queue_depth_estimation_skipped_no_mongodb",
-                worker_id=worker_id
-            )
+            self.logger.debug("queue_depth_estimation_skipped_no_mongodb", worker_id=worker_id)
             return 0
 
         try:
-            count = await self.mongodb_client.db[
+            return await self.mongodb_client.db[
                 self.config.mongodb_collection_tickets
-            ].count_documents({
-                'allocated_worker_id': worker_id,
-                'status': {'$in': ['PENDING', 'EXECUTING']}
-            })
-
-            return count
+            ].count_documents(
+                {"allocated_worker_id": worker_id, "status": {"$in": ["PENDING", "EXECUTING"]}}
+            )
 
         except Exception as e:
-            self.logger.error(
-                "queue_depth_estimation_error",
-                worker_id=worker_id,
-                error=str(e)
-            )
+            self.logger.exception("queue_depth_estimation_error", worker_id=worker_id, error=str(e))
             return 0
 
-    def _calculate_moving_average(
-        self,
-        data: List[float],
-        window: int
-    ) -> float:
+    def _calculate_moving_average(self, data: list[float], window: int) -> float:
         """
         Calcula moving average simples.
 
@@ -394,7 +336,7 @@ class LoadPredictor:
 
         return sum(recent_data) / len(recent_data)
 
-    async def _get_from_cache(self, key: str) -> Optional[float]:
+    async def _get_from_cache(self, key: str) -> float | None:
         """
         Obtém valor do cache Redis usando wrapper seguro com circuit breaker.
 
@@ -416,11 +358,7 @@ class LoadPredictor:
             return None
 
         except Exception as e:
-            self.logger.warning(
-                "cache_get_error",
-                key=key,
-                error=str(e)
-            )
+            self.logger.warning("cache_get_error", key=key, error=str(e))
             return None
 
     async def _save_to_cache(self, key: str, value: float):
@@ -438,8 +376,4 @@ class LoadPredictor:
             await redis_setex_safe(key, self.cache_ttl_seconds, str(value))
 
         except Exception as e:
-            self.logger.warning(
-                "cache_save_error",
-                key=key,
-                error=str(e)
-            )
+            self.logger.warning("cache_save_error", key=key, error=str(e))

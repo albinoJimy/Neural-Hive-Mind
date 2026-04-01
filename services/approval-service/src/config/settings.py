@@ -4,7 +4,8 @@ Configuracao do Approval Service
 Gerencia todas as configuracoes usando Pydantic Settings com suporte a variaveis de ambiente.
 """
 
-from typing import Optional, List
+from typing import List, Optional
+
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings
 
@@ -15,86 +16,79 @@ class Settings(BaseSettings):
     """Configuracoes do Approval Service"""
 
     # Configuracao da aplicacao
-    environment: str = Field(default='dev', description='Ambiente (dev, staging, production)')
-    debug: bool = Field(default=False, description='Modo debug')
-    log_level: str = Field(default='INFO', description='Nivel de log')
-    service_name: str = Field(default='approval-service', description='Nome do servico')
-    service_version: str = Field(default='1.0.0', description='Versao do servico')
+    environment: str = Field(default="dev", description="Ambiente (dev, staging, production)")
+    debug: bool = Field(default=False, description="Modo debug")
+    log_level: str = Field(default="INFO", description="Nivel de log")
+    service_name: str = Field(default="approval-service", description="Nome do servico")
+    service_version: str = Field(default="1.0.0", description="Versao do servico")
 
     # CORS - Approval service é API pública
-    is_public_api: bool = Field(default=True, description='API pública requer CORS')
+    is_public_api: bool = Field(default=True, description="API pública requer CORS")
 
     @property
     def cors_origins(self) -> List[str]:
         """CORS origins dinâmicas por ambiente."""
         return CORSConfig.get_origins_for_environment(
-            self.environment,
-            is_public_api=self.is_public_api
+            self.environment, is_public_api=self.is_public_api
         )
 
     # Kafka Consumer configuration
-    kafka_bootstrap_servers: str = Field(..., description='Servidores Kafka bootstrap')
+    kafka_bootstrap_servers: str = Field(..., description="Servidores Kafka bootstrap")
     kafka_consumer_group_id: str = Field(
-        default='approval-service',
-        description='ID do grupo de consumer Kafka'
+        default="approval-service", description="ID do grupo de consumer Kafka"
     )
     kafka_approval_requests_topic: str = Field(
-        default='cognitive-plans-approval-requests',
-        description='Topico para requests de aprovacao'
+        default="cognitive-plans-approval-requests", description="Topico para requests de aprovacao"
     )
     kafka_approval_responses_topic: str = Field(
-        default='cognitive-plans-approval-responses',
-        description='Topico para responses de aprovacao'
+        default="cognitive-plans-approval-responses",
+        description="Topico para responses de aprovacao",
     )
-    kafka_auto_offset_reset: str = Field(default='earliest', description='Auto offset reset')
-    kafka_enable_auto_commit: bool = Field(default=False, description='Enable auto commit')
-    kafka_session_timeout_ms: int = Field(default=30000, description='Session timeout (ms)')
-    kafka_max_poll_interval_ms: int = Field(default=300000, description='Max poll interval (ms)')
+    kafka_auto_offset_reset: str = Field(default="earliest", description="Auto offset reset")
+    kafka_enable_auto_commit: bool = Field(default=False, description="Enable auto commit")
+    kafka_session_timeout_ms: int = Field(default=30000, description="Session timeout (ms)")
+    kafka_max_poll_interval_ms: int = Field(default=300000, description="Max poll interval (ms)")
 
     # Kafka Producer configuration
-    kafka_enable_idempotence: bool = Field(default=True, description='Habilitar idempotencia')
-    kafka_transactional_id: Optional[str] = Field(None, description='ID transacional')
+    kafka_enable_idempotence: bool = Field(default=True, description="Habilitar idempotencia")
+    kafka_transactional_id: Optional[str] = Field(None, description="ID transacional")
 
     # Kafka Security
-    kafka_security_protocol: str = Field(default='PLAINTEXT', description='Protocolo de seguranca')
-    kafka_sasl_mechanism: Optional[str] = Field(None, description='Mecanismo SASL')
-    kafka_sasl_username: Optional[str] = Field(None, description='Usuario SASL')
-    kafka_sasl_password: Optional[str] = Field(None, description='Senha SASL')
+    kafka_security_protocol: str = Field(default="PLAINTEXT", description="Protocolo de seguranca")
+    kafka_sasl_mechanism: Optional[str] = Field(None, description="Mecanismo SASL")
+    kafka_sasl_username: Optional[str] = Field(None, description="Usuario SASL")
+    kafka_sasl_password: Optional[str] = Field(None, description="Senha SASL")
 
     # Schema Registry
-    schema_registry_url: Optional[str] = Field(None, description='URL do Schema Registry')
+    schema_registry_url: Optional[str] = Field(None, description="URL do Schema Registry")
 
     # MongoDB configuration
     mongodb_uri: str = Field(
-        default='mongodb://mongodb.mongodb-cluster.svc.cluster.local:27017',
-        description='URI do MongoDB'
+        default="mongodb://mongodb.mongodb-cluster.svc.cluster.local:27017",
+        description="URI do MongoDB",
     )
-    mongodb_database: str = Field(default='neural_hive', description='Database do MongoDB')
+    mongodb_database: str = Field(default="neural_hive", description="Database do MongoDB")
     mongodb_collection: str = Field(
-        default='plan_approvals',
-        description='Collection para aprovacoes'
+        default="plan_approvals", description="Collection para aprovacoes"
     )
-    mongodb_max_pool_size: int = Field(default=100, description='Tamanho maximo do pool')
-    mongodb_timeout_ms: int = Field(default=5000, description='Timeout (ms)')
+    mongodb_max_pool_size: int = Field(default=100, description="Tamanho maximo do pool")
+    mongodb_timeout_ms: int = Field(default=5000, description="Timeout (ms)")
 
     # Feedback Collection Configuration (para ML continuous learning)
     enable_feedback_collection: bool = Field(
-        default=True,
-        description='Habilitar coleta de feedback para ML'
+        default=True, description="Habilitar coleta de feedback para ML"
     )
     feedback_mongodb_collection: str = Field(
-        default='specialist_feedback',
-        description='Collection MongoDB para feedback'
+        default="specialist_feedback", description="Collection MongoDB para feedback"
     )
     mongodb_opinions_collection: str = Field(
-        default='specialist_opinions',
-        description='Collection do ledger cognitivo'
+        default="specialist_opinions", description="Collection do ledger cognitivo"
     )
-    feedback_rating_min: float = Field(default=0.0, description='Rating minimo')
-    feedback_rating_max: float = Field(default=1.0, description='Rating maximo')
+    feedback_rating_min: float = Field(default=0.0, description="Rating minimo")
+    feedback_rating_max: float = Field(default=1.0, description="Rating maximo")
     feedback_on_approval_failure_mode: str = Field(
-        default='log_and_continue',
-        description='Comportamento em falha de feedback: log_and_continue ou raise_error'
+        default="log_and_continue",
+        description="Comportamento em falha de feedback: log_and_continue ou raise_error",
     )
 
     # Active Learning Configuration
@@ -102,125 +96,109 @@ class Settings(BaseSettings):
     # Pre-requisitos implementados: feedback_consumer, online_learning_service, integracao main.py
     # ROLLBACK: Mudar para False e redeloyar approval-service
     enable_active_learning: bool = Field(
-        default=True,
-        description='Habilitar active learning para coleta de feedbacks balanceados'
+        default=True, description="Habilitar active learning para coleta de feedbacks balanceados"
     )
     active_learning_queue_collection: str = Field(
-        default='active_learning_queue',
-        description='Collection MongoDB para fila de active learning'
+        default="active_learning_queue",
+        description="Collection MongoDB para fila de active learning",
     )
     active_learning_min_information_value: float = Field(
-        default=0.5,
-        description='Valor informacional minimo para enfileirar (0-1)'
+        default=0.5, description="Valor informacional minimo para enfileirar (0-1)"
     )
     active_learning_enqueue_rate: float = Field(
-        default=0.2,
-        description='Taxa de casos para enfileirar (0-1, 20% dos casos)'
+        default=0.2, description="Taxa de casos para enfileirar (0-1, 20% dos casos)"
     )
 
     # Online Learning Configuration
     enable_online_learning: bool = Field(
-        default=False,
-        description='Habilitar online learning para aprendizado incremental'
+        default=False, description="Habilitar online learning para aprendizado incremental"
     )
     online_learning_buffer_size: int = Field(
-        default=100,
-        description='Tamanho do buffer de feedbacks para partial_fit'
+        default=100, description="Tamanho do buffer de feedbacks para partial_fit"
     )
     online_learning_retrain_interval_hours: int = Field(
-        default=24,
-        description='Intervalo em horas para retreino periodico'
+        default=24, description="Intervalo em horas para retreino periodico"
     )
     kafka_specialist_feedback_topic: str = Field(
-        default='specialist-feedback',
-        description='Topico Kafka para feedback de especialistas'
+        default="specialist-feedback", description="Topico Kafka para feedback de especialistas"
     )
     online_learning_checkpoint_path: str = Field(
-        default='/data/online_learning/checkpoints',
-        description='Caminho para salvar checkpoints dos modelos online'
+        default="/data/online_learning/checkpoints",
+        description="Caminho para salvar checkpoints dos modelos online",
     )
     online_learning_algorithm: str = Field(
-        default='sgd',
-        description='Algoritmo incremental: sgd, passive_aggressive, perceptron'
+        default="sgd", description="Algoritmo incremental: sgd, passive_aggressive, perceptron"
     )
     online_learning_learning_rate: float = Field(
-        default=0.001,
-        description='Taxa de aprendizado para SGD'
+        default=0.001, description="Taxa de aprendizado para SGD"
     )
     online_learning_checkpoint_interval_updates: int = Field(
-        default=100,
-        description='Intervalo de updates para salvar checkpoint'
+        default=100, description="Intervalo de updates para salvar checkpoint"
     )
 
     # Keycloak configuration
     keycloak_url: str = Field(
-        default='http://keycloak.keycloak.svc.cluster.local:8080',
-        description='URL do Keycloak'
+        default="http://keycloak.keycloak.svc.cluster.local:8080", description="URL do Keycloak"
     )
-    keycloak_realm: str = Field(default='neural-hive', description='Realm do Keycloak')
-    keycloak_client_id: str = Field(default='approval-service', description='Client ID')
-    admin_role_name: str = Field(default='neural-hive-admin', description='Nome da role admin')
+    keycloak_realm: str = Field(default="neural-hive", description="Realm do Keycloak")
+    keycloak_client_id: str = Field(default="approval-service", description="Client ID")
+    admin_role_name: str = Field(default="neural-hive-admin", description="Nome da role admin")
     require_auth: bool = Field(
         default=True,
-        description='Require JWT authentication',
-        validation_alias='APPROVAL_SERVICE_REQUIRE_AUTH'
+        description="Require JWT authentication",
+        validation_alias="APPROVAL_SERVICE_REQUIRE_AUTH",
     )
 
     # Observability configuration
     otel_endpoint: str = Field(
-        default='https://opentelemetry-collector.observability.svc.cluster.local:4317',
-        description='Endpoint do OpenTelemetry'
+        default="https://opentelemetry-collector.observability.svc.cluster.local:4317",
+        description="Endpoint do OpenTelemetry",
     )
     otel_tls_verify: bool = Field(
-        default=True,
-        description='Verificar certificado TLS do OTEL Collector'
+        default=True, description="Verificar certificado TLS do OTEL Collector"
     )
-    prometheus_port: int = Field(default=8000, description='Porta do Prometheus metrics')
-    jaeger_sampling_rate: float = Field(default=1.0, description='Taxa de amostragem Jaeger')
+    prometheus_port: int = Field(default=8000, description="Porta do Prometheus metrics")
+    jaeger_sampling_rate: float = Field(default=1.0, description="Taxa de amostragem Jaeger")
 
     # Rate Limiting
     rate_limit_requests_per_minute: int = Field(
-        default=100,
-        description='Limite de requests por minuto por usuario'
+        default=100, description="Limite de requests por minuto por usuario"
     )
 
     # ML Predictor Configuration
     enable_ml_prediction: bool = Field(
-        default=False,
-        description='Habilitar predicao ML automatica para aprovacoes'
+        default=False, description="Habilitar predicao ML automatica para aprovacoes"
     )
     ml_model_path: str = Field(
-        default='/app/ml_models/nhm_approval_model.pkl',
-        description='Caminho para o modelo ML de aprovacao'
+        default="/app/ml_models/nhm_approval_model.pkl",
+        description="Caminho para o modelo ML de aprovacao",
     )
     ml_auto_approve_threshold: float = Field(
-        default=0.7,
-        description='Confianca minima para auto-aprovacao (0.0-1.0)'
+        default=0.7, description="Confianca minima para auto-aprovacao (0.0-1.0)"
     )
     ml_auto_reject_threshold: float = Field(
-        default=0.7,
-        description='Confianca minima para auto-rejeicao (0.0-1.0)'
+        default=0.7, description="Confianca minima para auto-rejeicao (0.0-1.0)"
     )
     ml_max_risk_for_auto: str = Field(
-        default='low',
-        description='Risco maximo para decisao automatica (low, medium, high, critical)'
+        default="low",
+        description="Risco maximo para decisao automatica (low, medium, high, critical)",
     )
 
-    @field_validator('kafka_security_protocol')
+    @field_validator("kafka_security_protocol")
     @classmethod
     def validate_security_in_production(cls, v, info):
         """Valida que seguranca esta habilitada em producao"""
         values = info.data
-        if values.get('environment') == 'production' and v == 'PLAINTEXT':
-            raise ValueError('Ambiente de producao requer conexao Kafka encriptada')
+        if values.get("environment") == "production" and v == "PLAINTEXT":
+            raise ValueError("Ambiente de producao requer conexao Kafka encriptada")
         return v
 
-    @model_validator(mode='after')
-    def validate_cors_in_production(self) -> 'Settings':
+    @model_validator(mode="after")
+    def validate_cors_in_production(self) -> "Settings":
         """
         Valida que serviços públicos não usam wildcard CORS em produção.
         """
-        is_prod = self.environment.lower() in ('production', 'prod')
+        is_prod = self.environment.lower() in ("production", "prod")
 
         if not is_prod:
             return self
@@ -230,24 +208,24 @@ class Settings(BaseSettings):
 
         return self
 
-    @model_validator(mode='after')
-    def validate_https_in_production(self) -> 'Settings':
+    @model_validator(mode="after")
+    def validate_https_in_production(self) -> "Settings":
         """
         Valida que endpoints HTTP criticos usam HTTPS em producao/staging.
         """
-        is_prod_staging = self.environment.lower() in ('production', 'staging', 'prod')
+        is_prod_staging = self.environment.lower() in ("production", "staging", "prod")
         if not is_prod_staging:
             return self
 
         # Endpoints criticos que devem usar HTTPS em producao
         http_endpoints = []
-        if self.otel_endpoint.startswith('http://'):
-            http_endpoints.append(('otel_endpoint', self.otel_endpoint))
-        if self.keycloak_url.startswith('http://'):
-            http_endpoints.append(('keycloak_url', self.keycloak_url))
+        if self.otel_endpoint.startswith("http://"):
+            http_endpoints.append(("otel_endpoint", self.otel_endpoint))
+        if self.keycloak_url.startswith("http://"):
+            http_endpoints.append(("keycloak_url", self.keycloak_url))
 
         if http_endpoints:
-            endpoint_list = ', '.join(f'{name}={url}' for name, url in http_endpoints)
+            endpoint_list = ", ".join(f"{name}={url}" for name, url in http_endpoints)
             raise ValueError(
                 f"Endpoints HTTP inseguros detectados em ambiente {self.environment}: {endpoint_list}. "
                 "Use HTTPS em producao/staging para garantir seguranca de dados em transito."
@@ -255,11 +233,7 @@ class Settings(BaseSettings):
 
         return self
 
-    model_config = {
-        'env_file': '.env',
-        'env_file_encoding': 'utf-8',
-        'case_sensitive': False
-    }
+    model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "case_sensitive": False}
 
 
 # Singleton instance

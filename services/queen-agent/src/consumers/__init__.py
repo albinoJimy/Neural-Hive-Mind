@@ -1,5 +1,5 @@
 from .consensus_consumer import ConsensusConsumer
-from .telemetry_consumer import TelemetryConsumer
 from .incident_consumer import IncidentConsumer
+from .telemetry_consumer import TelemetryConsumer
 
-__all__ = ["ConsensusConsumer", "TelemetryConsumer", "IncidentConsumer"]
+__all__ = ["ConsensusConsumer", "IncidentConsumer", "TelemetryConsumer"]

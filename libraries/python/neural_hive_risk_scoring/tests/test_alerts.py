@@ -3,7 +3,7 @@ Testes para RiskAlertManager e componentes relacionados
 """
 
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import Mock, MagicMock
 
 from neural_hive_risk_scoring import (
@@ -110,7 +110,7 @@ class TestAlertRule:
         )
 
         context = {'threshold_violation': True}
-        last_alert = datetime.utcnow() - timedelta(minutes=30)
+        last_alert = datetime.now(timezone.utc) - timedelta(minutes=30)
 
         result = rule.should_trigger('entity-1', context, last_alert)
 
@@ -379,7 +379,7 @@ class TestRiskAlertManager:
             band=RiskBand.MEDIUM,
             message='Old alert',
             details={},
-            timestamp=datetime.utcnow() - timedelta(days=60)
+            timestamp=datetime.now(timezone.utc) - timedelta(days=60)
         )
         alert_manager._store_alert(old_alert)
 
@@ -409,7 +409,7 @@ class TestRiskAlertManager:
     def test_custom_rule_triggering(self, alert_manager, risk_history, sample_assessment):
         """Testa regra customizada."""
         # Registrar histórico para detecção de tendência
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         for i in range(10):
             assessment = RiskAssessment(
                 score=0.3 + i * 0.05,
@@ -445,7 +445,7 @@ class TestRiskAlertManager:
 
     def test_anomaly_alert_rule(self, alert_manager, risk_history):
         """Testa regra de alerta de anomalia."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         # Histórico normal
         for i in range(20):
@@ -589,7 +589,7 @@ class TestRiskAlertManager:
 
     def test_get_alerts_by_time_range(self, alert_manager):
         """Testa filtro por intervalo de tempo."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         # Criar alerta antigo
         old_alert = RiskAlert(
@@ -698,7 +698,7 @@ class TestRiskAlertManager:
 
     def test_alert_timestamp_ordering(self, alert_manager):
         """Testa ordenação de alertas por timestamp."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         # Criar alertas em ordem reversa
         for i in range(5):

@@ -7,4 +7,4 @@ e geram explicações automaticamente.
 
 from src.consumers.consensus_decision_consumer import ConsensusDecisionConsumer
 
-__all__ = ['ConsensusDecisionConsumer']
+__all__ = ["ConsensusDecisionConsumer"]

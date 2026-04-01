@@ -6,6 +6,6 @@ Módulos:
 - signal_detector: Detecta sinais de mudança/interesse
 """
 from .curiosity_calculator import CuriosityCalculator
-from .signal_detector import SignalDetector, FileSignal
+from .signal_detector import FileSignal, SignalDetector
 
-__all__ = ['CuriosityCalculator', 'SignalDetector', 'FileSignal']
+__all__ = ["CuriosityCalculator", "SignalDetector", "FileSignal"]

@@ -1,26 +1,27 @@
 """Script executor for running remediation scripts via Kubernetes Jobs"""
 import asyncio
-from typing import Dict, Any, Optional, List
+from datetime import datetime, timezone
+from typing import Any, Dict, Optional
+
+import structlog
 from kubernetes import client, config
 from kubernetes.client.rest import ApiException
-import structlog
-from datetime import datetime, timezone
 from prometheus_client import Counter, Histogram
 
 logger = structlog.get_logger()
 
 # Prometheus metrics
 script_executions_total = Counter(
-    'guard_agents_script_executions_total',
-    'Total de execucoes de scripts',
-    ['script_type', 'status']
+    "guard_agents_script_executions_total",
+    "Total de execucoes de scripts",
+    ["script_type", "status"],
 )
 
 script_execution_duration = Histogram(
-    'guard_agents_script_execution_duration_seconds',
-    'Duracao das execucoes de scripts',
-    ['script_type'],
-    buckets=(1.0, 5.0, 10.0, 30.0, 60.0, 120.0, 300.0)
+    "guard_agents_script_execution_duration_seconds",
+    "Duracao das execucoes de scripts",
+    ["script_type"],
+    buckets=(1.0, 5.0, 10.0, 30.0, 60.0, 120.0, 300.0),
 )
 
 
@@ -42,7 +43,7 @@ class ScriptExecutor:
         namespace: str = "neural-hive",
         enabled: bool = True,
         default_image: Optional[str] = None,
-        service_account: str = "guard-agents-executor"
+        service_account: str = "guard-agents-executor",
     ):
         self.in_cluster = in_cluster
         self.namespace = namespace
@@ -72,14 +73,11 @@ class ScriptExecutor:
             logger.info(
                 "script_executor.connected",
                 namespace=self.namespace,
-                service_account=self.service_account
+                service_account=self.service_account,
             )
 
         except Exception as e:
-            logger.error(
-                "script_executor.connection_failed",
-                error=str(e)
-            )
+            logger.error("script_executor.connection_failed", error=str(e))
             self._connected = False
 
     def is_healthy(self) -> bool:
@@ -94,7 +92,7 @@ class ScriptExecutor:
         image: Optional[str] = None,
         env_vars: Optional[Dict[str, str]] = None,
         timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
-        incident_id: Optional[str] = None
+        incident_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Executa um script via Kubernetes Job.
@@ -115,7 +113,7 @@ class ScriptExecutor:
             return {
                 "success": False,
                 "error": "Script executor not available",
-                "script_name": script_name
+                "script_name": script_name,
             }
 
         ns = namespace or self.namespace
@@ -131,27 +129,22 @@ class ScriptExecutor:
                     image=image or self.default_image,
                     env_vars=env_vars,
                     timeout_seconds=timeout_seconds,
-                    incident_id=incident_id
+                    incident_id=incident_id,
                 )
 
                 # Submeter Job
-                result = self.batch_v1.create_namespaced_job(
-                    namespace=ns,
-                    body=job
-                )
+                self.batch_v1.create_namespaced_job(namespace=ns, body=job)
 
                 logger.info(
                     "script_executor.job_created",
                     job_name=job_name,
                     namespace=ns,
-                    script_name=script_name
+                    script_name=script_name,
                 )
 
                 # Aguardar conclusão
                 job_result = await self._wait_for_job_completion(
-                    job_name=job_name,
-                    namespace=ns,
-                    timeout_seconds=timeout_seconds
+                    job_name=job_name, namespace=ns, timeout_seconds=timeout_seconds
                 )
 
                 # Capturar logs
@@ -159,7 +152,7 @@ class ScriptExecutor:
 
                 script_executions_total.labels(
                     script_type=script_name,
-                    status="success" if job_result.get("succeeded") else "failed"
+                    status="success" if job_result.get("succeeded") else "failed",
                 ).inc()
 
                 return {
@@ -170,33 +163,22 @@ class ScriptExecutor:
                     "exit_code": job_result.get("exit_code"),
                     "duration_seconds": job_result.get("duration_seconds"),
                     "logs": logs,
-                    "status": job_result.get("status")
+                    "status": job_result.get("status"),
                 }
 
             except ApiException as e:
-                script_executions_total.labels(
-                    script_type=script_name,
-                    status="error"
-                ).inc()
+                script_executions_total.labels(script_type=script_name, status="error").inc()
 
-                logger.error(
-                    "script_executor.job_failed",
-                    job_name=job_name,
-                    error=str(e)
-                )
+                logger.error("script_executor.job_failed", job_name=job_name, error=str(e))
 
                 return {
                     "success": False,
                     "job_name": job_name,
                     "script_name": script_name,
-                    "error": str(e)
+                    "error": str(e),
                 }
 
-    def _generate_job_name(
-        self,
-        script_name: str,
-        incident_id: Optional[str]
-    ) -> str:
+    def _generate_job_name(self, script_name: str, incident_id: Optional[str]) -> str:
         """Gera nome único para o Job"""
         timestamp = int(datetime.now(timezone.utc).timestamp())
         base_name = script_name.replace("_", "-").replace(".", "-").lower()
@@ -214,20 +196,18 @@ class ScriptExecutor:
         image: str,
         env_vars: Optional[Dict[str, str]],
         timeout_seconds: int,
-        incident_id: Optional[str]
+        incident_id: Optional[str],
     ) -> client.V1Job:
         """Constrói objeto Job do Kubernetes"""
 
         # Construir variáveis de ambiente
         env_list = [
             client.V1EnvVar(name="GUARD_AGENTS_JOB", value="true"),
-            client.V1EnvVar(name="SCRIPT_TIMEOUT", value=str(timeout_seconds))
+            client.V1EnvVar(name="SCRIPT_TIMEOUT", value=str(timeout_seconds)),
         ]
 
         if incident_id:
-            env_list.append(
-                client.V1EnvVar(name="INCIDENT_ID", value=incident_id)
-            )
+            env_list.append(client.V1EnvVar(name="INCIDENT_ID", value=incident_id))
 
         if env_vars:
             for key, value in env_vars.items():
@@ -242,14 +222,14 @@ class ScriptExecutor:
             env=env_list,
             resources=client.V1ResourceRequirements(
                 requests={"cpu": "100m", "memory": "128Mi"},
-                limits={"cpu": "500m", "memory": "512Mi"}
+                limits={"cpu": "500m", "memory": "512Mi"},
             ),
             security_context=client.V1SecurityContext(
                 run_as_non_root=True,
                 run_as_user=1000,
                 allow_privilege_escalation=False,
-                read_only_root_filesystem=True
-            )
+                read_only_root_filesystem=True,
+            ),
         )
 
         # Construir Pod template
@@ -257,18 +237,16 @@ class ScriptExecutor:
             metadata=client.V1ObjectMeta(
                 labels={
                     "app.kubernetes.io/managed-by": "guard-agents",
-                    "guard-agents/job-type": "script-execution"
+                    "guard-agents/job-type": "script-execution",
                 },
-                annotations={
-                    "guard-agents/incident-id": incident_id or "none"
-                }
+                annotations={"guard-agents/incident-id": incident_id or "none"},
             ),
             spec=client.V1PodSpec(
                 containers=[container],
                 restart_policy="Never",
                 service_account_name=self.service_account,
-                automount_service_account_token=False
-            )
+                automount_service_account_token=False,
+            ),
         )
 
         # Construir Job
@@ -280,25 +258,21 @@ class ScriptExecutor:
                 namespace=namespace,
                 labels={
                     "app.kubernetes.io/managed-by": "guard-agents",
-                    "guard-agents/job-type": "script-execution"
-                }
+                    "guard-agents/job-type": "script-execution",
+                },
             ),
             spec=client.V1JobSpec(
                 template=template,
                 backoff_limit=0,  # Não retry automaticamente
                 active_deadline_seconds=timeout_seconds,
-                ttl_seconds_after_finished=self.DEFAULT_TTL_SECONDS
-            )
+                ttl_seconds_after_finished=self.DEFAULT_TTL_SECONDS,
+            ),
         )
 
         return job
 
     async def _wait_for_job_completion(
-        self,
-        job_name: str,
-        namespace: str,
-        timeout_seconds: int,
-        poll_interval: float = 2.0
+        self, job_name: str, namespace: str, timeout_seconds: int, poll_interval: float = 2.0
     ) -> Dict[str, Any]:
         """Aguarda conclusão do Job com polling"""
         start_time = asyncio.get_event_loop().time()
@@ -315,7 +289,7 @@ class ScriptExecutor:
                         "succeeded": True,
                         "status": "completed",
                         "exit_code": 0,
-                        "duration_seconds": duration
+                        "duration_seconds": duration,
                     }
 
                 if status.failed and status.failed > 0:
@@ -324,47 +298,37 @@ class ScriptExecutor:
                         "succeeded": False,
                         "status": "failed",
                         "exit_code": 1,
-                        "duration_seconds": duration
+                        "duration_seconds": duration,
                     }
 
                 # Ainda em execução
                 await asyncio.sleep(poll_interval)
 
             except ApiException as e:
-                logger.error(
-                    "script_executor.status_check_failed",
-                    job_name=job_name,
-                    error=str(e)
-                )
+                logger.error("script_executor.status_check_failed", job_name=job_name, error=str(e))
                 await asyncio.sleep(poll_interval)
 
         # Timeout
         duration = asyncio.get_event_loop().time() - start_time
         logger.warning(
-            "script_executor.job_timeout",
-            job_name=job_name,
-            timeout_seconds=timeout_seconds
+            "script_executor.job_timeout", job_name=job_name, timeout_seconds=timeout_seconds
         )
 
         return {
             "succeeded": False,
             "status": "timeout",
             "exit_code": -1,
-            "duration_seconds": duration
+            "duration_seconds": duration,
         }
 
     async def _get_job_logs(
-        self,
-        job_name: str,
-        namespace: str,
-        max_lines: int = 1000
+        self, job_name: str, namespace: str, max_lines: int = 1000
     ) -> Optional[str]:
         """Obtém logs do Pod do Job"""
         try:
             # Encontrar pod do job
             pods = self.core_v1.list_namespaced_pod(
-                namespace=namespace,
-                label_selector=f"job-name={job_name}"
+                namespace=namespace, label_selector=f"job-name={job_name}"
             )
 
             if not pods.items:
@@ -374,25 +338,17 @@ class ScriptExecutor:
 
             # Obter logs
             logs = self.core_v1.read_namespaced_pod_log(
-                name=pod_name,
-                namespace=namespace,
-                tail_lines=max_lines
+                name=pod_name, namespace=namespace, tail_lines=max_lines
             )
 
             return logs
 
         except ApiException as e:
-            logger.warning(
-                "script_executor.get_logs_failed",
-                job_name=job_name,
-                error=str(e)
-            )
+            logger.warning("script_executor.get_logs_failed", job_name=job_name, error=str(e))
             return None
 
     async def get_job_status(
-        self,
-        job_name: str,
-        namespace: Optional[str] = None
+        self, job_name: str, namespace: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Obtém status de um Job.
@@ -408,7 +364,7 @@ class ScriptExecutor:
             return {
                 "success": False,
                 "error": "Script executor not available",
-                "job_name": job_name
+                "job_name": job_name,
             }
 
         ns = namespace or self.namespace
@@ -425,21 +381,15 @@ class ScriptExecutor:
                 "succeeded": status.succeeded or 0,
                 "failed": status.failed or 0,
                 "start_time": status.start_time.isoformat() if status.start_time else None,
-                "completion_time": status.completion_time.isoformat() if status.completion_time else None
+                "completion_time": status.completion_time.isoformat()
+                if status.completion_time
+                else None,
             }
 
         except ApiException as e:
-            return {
-                "success": False,
-                "job_name": job_name,
-                "error": str(e)
-            }
+            return {"success": False, "job_name": job_name, "error": str(e)}
 
-    async def cleanup_job(
-        self,
-        job_name: str,
-        namespace: Optional[str] = None
-    ) -> bool:
+    async def cleanup_job(self, job_name: str, namespace: Optional[str] = None) -> bool:
         """
         Remove um Job e seus pods.
 
@@ -457,16 +407,10 @@ class ScriptExecutor:
 
         try:
             self.batch_v1.delete_namespaced_job(
-                name=job_name,
-                namespace=ns,
-                propagation_policy="Foreground"
+                name=job_name, namespace=ns, propagation_policy="Foreground"
             )
 
-            logger.info(
-                "script_executor.job_cleaned_up",
-                job_name=job_name,
-                namespace=ns
-            )
+            logger.info("script_executor.job_cleaned_up", job_name=job_name, namespace=ns)
 
             return True
 
@@ -474,9 +418,5 @@ class ScriptExecutor:
             if e.status == 404:
                 return True
 
-            logger.error(
-                "script_executor.cleanup_failed",
-                job_name=job_name,
-                error=str(e)
-            )
+            logger.error("script_executor.cleanup_failed", job_name=job_name, error=str(e))
             return False

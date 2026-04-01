@@ -1,8 +1,9 @@
 """Kafka consumer for Guard Agents"""
 import asyncio
 from typing import Callable, Optional
-from aiokafka import AIOKafkaConsumer
+
 import structlog
+from aiokafka import AIOKafkaConsumer
 
 from neural_hive_observability import instrument_kafka_consumer
 
@@ -18,7 +19,7 @@ class KafkaConsumerClient:
         group_id: str,
         topics: list[str],
         auto_offset_reset: str = "earliest",
-        enable_auto_commit: bool = False
+        enable_auto_commit: bool = False,
     ):
         self.bootstrap_servers = bootstrap_servers
         self.group_id = group_id
@@ -39,7 +40,7 @@ class KafkaConsumerClient:
                 bootstrap_servers=self.bootstrap_servers,
                 group_id=self.group_id,
                 auto_offset_reset=self.auto_offset_reset,
-                enable_auto_commit=self.enable_auto_commit
+                enable_auto_commit=self.enable_auto_commit,
             )
             self.consumer = instrument_kafka_consumer(self.consumer)
             await self.consumer.start()
@@ -80,7 +81,7 @@ class KafkaConsumerClient:
                         topic=msg.topic,
                         partition=msg.partition,
                         offset=msg.offset,
-                        error=str(e)
+                        error=str(e),
                     )
         except Exception as e:
             logger.error("kafka.consume_loop_failed", error=str(e))

@@ -1,27 +1,29 @@
 """Pipeline NLU usando spaCy para análise de texto e classificação de intenções"""
 import asyncio
-import spacy
-import re
 import hashlib
 import json
 import logging
-import yaml
+import re
 from contextlib import nullcontext
 from pathlib import Path
-from typing import List, Dict, Any, Optional
-from models.intent_envelope import NLUResult, Entity
-from neural_hive_domain import UnifiedDomain
-from config.settings import get_settings
+from typing import Any
+
+import spacy
+import yaml
 from cache.redis_client import get_redis_client
+from config.settings import get_settings
+from models.intent_envelope import Entity, NLUResult
+
+from neural_hive_domain import UnifiedDomain
 
 # Importar métricas de cache e SLO
 try:
     from observability.metrics import (
-        nlu_cache_corruption_total,
-        nlu_cache_operations_total,
+        gateway_cache_errors_total,
         gateway_nlu_processing_duration,
         gateway_slo_violations_total,
-        gateway_cache_errors_total,
+        nlu_cache_corruption_total,
+        nlu_cache_operations_total,
     )
 
     CACHE_METRICS_AVAILABLE = True
@@ -33,11 +35,12 @@ logger = logging.getLogger(__name__)
 # Importar compliance (PII masking) - import condicional para evitar dependências quebradas
 try:
     from neural_hive_specialists.compliance import (
+        MaskStrategy,
         PIIDetectorLite,
         PIIMasker,
-        MaskStrategy,
         PIIType,
     )
+
     PII_MASKING_AVAILABLE = True
 except ImportError as e:
     logger.warning(f"PII masking module not available: {e}. Using simple fallback.")
@@ -52,13 +55,13 @@ except ImportError:
 
 
 class NLUPipeline:
-    def __init__(self, language_model: str = None, confidence_threshold: float = None):
+    def __init__(
+        self, language_model: str | None = None, confidence_threshold: float | None = None
+    ):
         self.settings = get_settings()
         self.language_model = language_model or self.settings.nlu_language_model
         self.model_cache_dir = Path(self.settings.nlu_model_cache_dir)
-        self.confidence_threshold = (
-            confidence_threshold or self.settings.nlu_confidence_threshold
-        )
+        self.confidence_threshold = confidence_threshold or self.settings.nlu_confidence_threshold
         self.nlp = None
         self.nlp_models = {}  # Cache de modelos por idioma
         self._ready = False
@@ -75,18 +78,14 @@ class NLUPipeline:
         # Otimização: Pré-compilar regex patterns e converter keywords para sets
         self.compiled_patterns = {}  # {domain_name: [compiled_patterns]}
         self.keyword_sets = {}  # {domain_name: set(keywords)}
-        self.subcategory_keyword_sets = (
-            {}
-        )  # {domain_name: {subcat_name: set(keywords)}}
+        self.subcategory_keyword_sets = {}  # {domain_name: {subcat_name: set(keywords)}}
 
     async def initialize(self):
         """Carregar modelos spaCy e configurações"""
         try:
             # Otimização: Lazy loading do modelo principal - carregar apenas primeiro uso
             # Este é um padrão lazy para reduzir tempo de inicialização
-            logger.info(
-                f"Configurando NLU Pipeline com lazy loading: {self.language_model}"
-            )
+            logger.info(f"Configurando NLU Pipeline com lazy loading: {self.language_model}")
 
             # Configurar cliente Redis para cache
             if self.settings.nlu_cache_enabled:
@@ -103,18 +102,12 @@ class NLUPipeline:
             # Tentar carregar modelos para idiomas suportados (lazy loading sob demanda)
             for lang_code, model_name in self.supported_models.items():
                 try:
-                    if (
-                        model_name != self.language_model
-                    ):  # Evitar recarregar modelo principal
-                        logger.info(
-                            f"Carregando modelo {model_name} para idioma {lang_code}"
-                        )
+                    if model_name != self.language_model:  # Evitar recarregar modelo principal
+                        logger.info(f"Carregando modelo {model_name} para idioma {lang_code}")
                         model = self._load_model_from_cache(model_name)
                         self.nlp_models[lang_code] = model
                 except OSError:
-                    logger.warning(
-                        f"Modelo {model_name} não encontrado para idioma {lang_code}"
-                    )
+                    logger.warning(f"Modelo {model_name} não encontrado para idioma {lang_code}")
 
             # Otimização: Cache warming para queries frequentes (se habilitado)
             if self.settings.nlu_cache_enabled:
@@ -124,7 +117,7 @@ class NLUPipeline:
             logger.info(f"NLU Pipeline inicializado com {len(self.nlp_models)} modelos")
 
         except Exception as e:
-            logger.error(f"Erro inicializando pipeline NLU: {e}")
+            logger.exception(f"Erro inicializando pipeline NLU: {e}")
             raise
 
     async def _warmup_cache(self):
@@ -176,9 +169,7 @@ class NLUPipeline:
                         domain,
                         classification,
                         confidence,
-                    ) = await self._classify_intent_advanced(
-                        query, entities, "pt", None
-                    )
+                    ) = await self._classify_intent_advanced(query, entities, "pt", None)
 
                     # Extrair keywords
                     keywords = self._extract_keywords(doc)
@@ -238,7 +229,7 @@ class NLUPipeline:
             # Tentar carregar de arquivo local e mesclar com padrões
             rules_path = Path(self.settings.nlu_rules_config_path)
             if rules_path.exists():
-                with open(rules_path, "r", encoding="utf-8") as f:
+                with open(rules_path, encoding="utf-8") as f:
                     custom_rules = yaml.safe_load(f)
                     if custom_rules:
                         # Mesclar regras customizadas com padrões
@@ -247,15 +238,13 @@ class NLUPipeline:
                             f"Regras de classificação customizadas carregadas de {rules_path}"
                         )
             else:
-                logger.info(
-                    f"Arquivo de regras {rules_path} não encontrado, usando regras padrão"
-                )
+                logger.info(f"Arquivo de regras {rules_path} não encontrado, usando regras padrão")
 
             # Otimização: Pré-compilar patterns e criar keyword sets
             self._prepare_optimized_structures()
 
         except Exception as e:
-            logger.error(f"Erro carregando regras de classificação: {e}")
+            logger.exception(f"Erro carregando regras de classificação: {e}")
             self.classification_rules = self._get_default_classification_rules()
             self._prepare_optimized_structures()
 
@@ -286,7 +275,7 @@ class NLUPipeline:
             f"Estruturas otimizadas preparadas para {len(self.compiled_patterns)} domínios"
         )
 
-    def _merge_classification_rules(self, custom_rules: Dict[str, Any]):
+    def _merge_classification_rules(self, custom_rules: dict[str, Any]):
         """Mesclar regras customizadas com regras padrão"""
         if "domains" in custom_rules:
             for domain_name, domain_config in custom_rules["domains"].items():
@@ -298,9 +287,7 @@ class NLUPipeline:
                     if "patterns" in domain_config:
                         default_domain["patterns"].extend(domain_config["patterns"])
                     if "subcategories" in domain_config:
-                        default_domain["subcategories"].update(
-                            domain_config["subcategories"]
-                        )
+                        default_domain["subcategories"].update(domain_config["subcategories"])
                 else:
                     # Adicionar novo domínio
                     self.classification_rules["domains"][domain_name] = domain_config
@@ -315,7 +302,7 @@ class NLUPipeline:
                 custom_rules["confidence_boosters"]
             )
 
-    def _get_default_classification_rules(self) -> Dict[str, Any]:
+    def _get_default_classification_rules(self) -> dict[str, Any]:
         """Retornar regras de classificação padrão"""
         return {
             "domains": {
@@ -632,7 +619,7 @@ class NLUPipeline:
         return self._ready and self.nlp is not None
 
     async def process(
-        self, text: str, language: str = "pt-AO", context: Dict[str, Any] = None
+        self, text: str, language: str = "pt-AO", context: dict[str, Any] | None = None
     ) -> NLUResult:
         """Processar texto para extrair intenção com cache e detecção de idioma
 
@@ -646,18 +633,14 @@ class NLUPipeline:
 
         nlu_start_time = time.time()
 
-        span_context = (
-            tracer.start_as_current_span("nlu.process") if tracer else nullcontext()
-        )
+        span_context = tracer.start_as_current_span("nlu.process") if tracer else nullcontext()
         with span_context as span:
             if span:
                 span.set_attribute("neural.hive.component", "gateway")
                 span.set_attribute("neural.hive.layer", "experiencia")
                 span.set_attribute("neural.hive.nlu.language", language)
                 span.set_attribute("neural.hive.nlu.text_length", len(text))
-                span.set_attribute(
-                    "neural.hive.nlu.cache_enabled", self.settings.nlu_cache_enabled
-                )
+                span.set_attribute("neural.hive.nlu.cache_enabled", self.settings.nlu_cache_enabled)
 
             # Validar qualidade do texto
             if not self._validate_text_quality(text):
@@ -673,12 +656,8 @@ class NLUPipeline:
                 if cached_result:
                     if span:
                         span.set_attribute("neural.hive.nlu.cache_hit", True)
-                        span.set_attribute(
-                            "neural.hive.nlu.domain", cached_result.domain.value
-                        )
-                        span.set_attribute(
-                            "neural.hive.nlu.confidence", cached_result.confidence
-                        )
+                        span.set_attribute("neural.hive.nlu.domain", cached_result.domain.value)
+                        span.set_attribute("neural.hive.nlu.confidence", cached_result.confidence)
                     logger.debug(f"Resultado NLU obtido do cache: {cache_key}")
                     return cached_result
                 if span:
@@ -687,9 +666,7 @@ class NLUPipeline:
             # Detectar idioma automaticamente se não especificado claramente
             detected_language = await self._detect_language(text, language)
             if span:
-                span.set_attribute(
-                    "neural.hive.nlu.detected_language", detected_language
-                )
+                span.set_attribute("neural.hive.nlu.detected_language", detected_language)
 
             # Selecionar modelo apropriado para o idioma
             nlp_model = self._get_model_for_language(detected_language)
@@ -705,57 +682,41 @@ class NLUPipeline:
 
             # Extrair entidades
             entities_context = (
-                tracer.start_as_current_span("nlu.extract_entities")
-                if tracer
-                else nullcontext()
+                tracer.start_as_current_span("nlu.extract_entities") if tracer else nullcontext()
             )
             with entities_context as entities_span:
                 entities = self._extract_entities(doc)
                 if entities_span:
-                    entities_span.set_attribute(
-                        "neural.hive.nlu.entities_count", len(entities)
-                    )
+                    entities_span.set_attribute("neural.hive.nlu.entities_count", len(entities))
                     if entities:
                         entities_span.set_attribute(
                             "neural.hive.nlu.entity_types",
-                            ", ".join(set(e.type for e in entities)),
+                            ", ".join({e.type for e in entities}),
                         )
 
             # Classificar domínio e intenção usando regras configuráveis
             classify_context = (
-                tracer.start_as_current_span("nlu.classify_intent")
-                if tracer
-                else nullcontext()
+                tracer.start_as_current_span("nlu.classify_intent") if tracer else nullcontext()
             )
             with classify_context as classify_span:
                 (
                     domain,
                     classification,
                     confidence,
-                ) = await self._classify_intent_advanced(
-                    text, entities, detected_language, context
-                )
+                ) = await self._classify_intent_advanced(text, entities, detected_language, context)
                 if classify_span:
                     classify_span.set_attribute("neural.hive.nlu.domain", domain.value)
-                    classify_span.set_attribute(
-                        "neural.hive.nlu.classification", classification
-                    )
-                    classify_span.set_attribute(
-                        "neural.hive.nlu.confidence", confidence
-                    )
+                    classify_span.set_attribute("neural.hive.nlu.classification", classification)
+                    classify_span.set_attribute("neural.hive.nlu.confidence", confidence)
 
             # Extrair palavras-chave
             keywords_context = (
-                tracer.start_as_current_span("nlu.extract_keywords")
-                if tracer
-                else nullcontext()
+                tracer.start_as_current_span("nlu.extract_keywords") if tracer else nullcontext()
             )
             with keywords_context as keywords_span:
                 keywords = self._extract_keywords(doc)
                 if keywords_span:
-                    keywords_span.set_attribute(
-                        "neural.hive.nlu.keywords_count", len(keywords)
-                    )
+                    keywords_span.set_attribute("neural.hive.nlu.keywords_count", len(keywords))
 
             # Calcular threshold adaptativo se habilitado
             adaptive_threshold = self.confidence_threshold
@@ -764,9 +725,7 @@ class NLUPipeline:
                     text, context, confidence, entities
                 )
                 if span:
-                    span.set_attribute(
-                        "neural.hive.nlu.adaptive_threshold", adaptive_threshold
-                    )
+                    span.set_attribute("neural.hive.nlu.adaptive_threshold", adaptive_threshold)
 
             # Store adaptive threshold for routing decisions
             self.last_adaptive_threshold = adaptive_threshold
@@ -780,9 +739,7 @@ class NLUPipeline:
                 confidence_status = "low"
 
             if span:
-                span.set_attribute(
-                    "neural.hive.nlu.confidence_status", confidence_status
-                )
+                span.set_attribute("neural.hive.nlu.confidence_status", confidence_status)
                 span.set_attribute(
                     "neural.hive.nlu.requires_validation",
                     confidence < adaptive_threshold,
@@ -860,7 +817,7 @@ class NLUPipeline:
 
         return True
 
-    def _get_cache_key(self, text: str, language: str, context: Dict[str, Any]) -> str:
+    def _get_cache_key(self, text: str, language: str, context: dict[str, Any]) -> str:
         """Gerar chave de cache para o texto
 
         Otimização: Adiciona versão do schema para invalidação automática em mudanças.
@@ -879,7 +836,7 @@ class NLUPipeline:
         content = f"{cache_version}:{normalized}|{language}|{context_key}"
         return f"nlu:cache:{hashlib.md5(content.encode()).hexdigest()}"
 
-    async def _get_cached_result(self, cache_key: str) -> Optional[NLUResult]:
+    async def _get_cached_result(self, cache_key: str) -> NLUResult | None:
         """Obter resultado do cache com circuit breaker para falhas rápidas
 
         Registra métricas de operações de cache (hit/miss/error).
@@ -893,9 +850,7 @@ class NLUPipeline:
             if cached_data:
                 # Emitir métrica de cache HIT
                 if CACHE_METRICS_AVAILABLE:
-                    nlu_cache_operations_total.labels(
-                        operation="get", status="hit"
-                    ).inc()
+                    nlu_cache_operations_total.labels(operation="get", status="hit").inc()
                 # Validar tipo antes de deserializar
                 if isinstance(cached_data, dict):
                     # Dados já são dict, usar diretamente
@@ -956,14 +911,14 @@ class NLUPipeline:
                             )
                             data["domain"] = UnifiedDomain.TECHNICAL
                 return NLUResult(**data)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.debug(f"Cache lookup timeout para key: {cache_key[:20]}...")
             # Emitir métrica de erro (timeout)
             if CACHE_METRICS_AVAILABLE:
                 nlu_cache_operations_total.labels(operation="get", status="error").inc()
             return None  # Retornar None imediatamente ao invés de esperar
         except Exception as e:
-            logger.error(f"Erro obtendo do cache NLU: {e}")
+            logger.exception(f"Erro obtendo do cache NLU: {e}")
             # Emitir métrica de erro genérico
             if CACHE_METRICS_AVAILABLE:
                 nlu_cache_operations_total.labels(operation="get", status="error").inc()
@@ -1019,11 +974,9 @@ class NLUPipeline:
             )
             # Emitir métrica de cache SET success
             if CACHE_METRICS_AVAILABLE:
-                nlu_cache_operations_total.labels(
-                    operation="set", status="success"
-                ).inc()
+                nlu_cache_operations_total.labels(operation="set", status="success").inc()
         except Exception as e:
-            logger.error(f"Erro salvando no cache NLU: {e}")
+            logger.exception(f"Erro salvando no cache NLU: {e}")
             # Emitir métrica de cache SET error
             if CACHE_METRICS_AVAILABLE:
                 nlu_cache_operations_total.labels(operation="set", status="error").inc()
@@ -1061,11 +1014,10 @@ class NLUPipeline:
     def _normalize_text(self, text: str) -> str:
         """Normalizar texto para processamento"""
         # Remover espaços extras
-        text = re.sub(r"\s+", " ", text.strip())
+        return re.sub(r"\s+", " ", text.strip())
 
         # Converter para lowercase para análise
         # (manter original para preservar informações de contexto)
-        return text
 
     def _mask_pii(self, text: str) -> str:
         """
@@ -1096,20 +1048,16 @@ class NLUPipeline:
             logger.warning("PII masking failed, using simple fallback", error=str(e))
             return self._mask_pii_simple(text)
 
-
     def _mask_pii_simple(self, text: str) -> str:
         """Método simples de fallback (mantém compatibilidade)."""
         # Email
-        text = re.sub(
-            r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b", "[EMAIL]", text
-        )
+        text = re.sub(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b", "[EMAIL]", text)
         # CPF
         text = re.sub(r"\b\d{3}\.\d{3}\.\d{3}-\d{2}\b", "[CPF]", text)
         # Telefone
-        text = re.sub(r"\b\d{2}\s?\d{4,5}-?\d{4}\b", "[PHONE]", text)
-        return text
+        return re.sub(r"\b\d{2}\s?\d{4,5}-?\d{4}\b", "[PHONE]", text)
 
-    def _extract_entities(self, doc) -> List[Entity]:
+    def _extract_entities(self, doc) -> list[Entity]:
         """Extrair entidades nomeadas"""
         entities = []
         for ent in doc.ents:
@@ -1125,7 +1073,7 @@ class NLUPipeline:
         return entities
 
     async def _classify_intent_advanced(
-        self, text: str, entities: List[Entity], language: str, context: Dict[str, Any]
+        self, text: str, entities: list[Entity], language: str, context: dict[str, Any]
     ) -> tuple:
         """Classificar domínio e tipo de intenção usando regras configuráveis"""
         text_lower = text.lower()
@@ -1137,7 +1085,7 @@ class NLUPipeline:
         subcategory_scores = {}
 
         # Calcular scores para cada domínio
-        for domain_name, domain_config in domains_config.items():
+        for domain_name, _domain_config in domains_config.items():
             score = 0
             found_subcategories = []
 
@@ -1148,9 +1096,7 @@ class NLUPipeline:
 
             # Otimização: Usar patterns pré-compilados
             compiled = self.compiled_patterns.get(domain_name, [])
-            pattern_matches = sum(
-                1 for pattern in compiled if pattern.search(text_lower)
-            )
+            pattern_matches = sum(1 for pattern in compiled if pattern.search(text_lower))
             score += pattern_matches * 3  # Peso ainda maior para patterns
 
             # Verificar subcategories usando keyword sets
@@ -1186,9 +1132,7 @@ class NLUPipeline:
             # Boost por tamanho do texto
             text_length_config = confidence_boosters.get("text_length_boost", {})
             if len(text) > text_length_config.get("threshold", 50):
-                confidence = min(
-                    0.95, confidence + text_length_config.get("boost", 0.05)
-                )
+                confidence = min(0.95, confidence + text_length_config.get("boost", 0.05))
 
             # Boost por presença de entidades
             entity_config = confidence_boosters.get("entity_presence_boost", {})
@@ -1197,28 +1141,20 @@ class NLUPipeline:
 
             # Boost por múltiplas subcategorias
             subcats = subcategory_scores.get(best_domain_name, [])
-            multi_subcat_config = confidence_boosters.get(
-                "multiple_subcategories_boost", {}
-            )
+            multi_subcat_config = confidence_boosters.get("multiple_subcategories_boost", {})
             if len(subcats) >= multi_subcat_config.get("threshold", 2):
-                confidence = min(
-                    0.95, confidence + multi_subcat_config.get("boost", 0.05)
-                )
+                confidence = min(0.95, confidence + multi_subcat_config.get("boost", 0.05))
 
             # Boost por match de contexto (user role vs domain)
             if context and context.get("user_role"):
                 user_role = context.get("user_role", "").lower()
-                role_match_config = confidence_boosters.get(
-                    "context_role_match_boost", {}
-                )
+                role_match_config = confidence_boosters.get("context_role_match_boost", {})
                 # Verificar se o role corresponde ao domínio
                 if (
                     (best_domain_name == "TECHNICAL" and "developer" in user_role)
                     or (
                         best_domain_name == "BUSINESS"
-                        and any(
-                            r in user_role for r in ["manager", "analyst", "business"]
-                        )
+                        and any(r in user_role for r in ["manager", "analyst", "business"])
                     )
                     or (
                         best_domain_name == "INFRASTRUCTURE"
@@ -1226,9 +1162,7 @@ class NLUPipeline:
                     )
                     or (best_domain_name == "SECURITY" and "security" in user_role)
                 ):
-                    confidence = min(
-                        0.95, confidence + role_match_config.get("boost", 0.10)
-                    )
+                    confidence = min(0.95, confidence + role_match_config.get("boost", 0.10))
 
             # Converter nome do domínio para enum (agora UPPERCASE)
             try:
@@ -1254,9 +1188,9 @@ class NLUPipeline:
     def _calculate_adaptive_threshold(
         self,
         text: str,
-        context: Dict[str, Any],
+        context: dict[str, Any],
         confidence: float,
-        entities: List[Entity],
+        entities: list[Entity],
     ) -> float:
         """Calcular threshold adaptativo baseado em qualidade do texto e contexto"""
         # Começar com threshold base
@@ -1280,9 +1214,7 @@ class NLUPipeline:
 
         # Ajuste baseado em contexto rico (presença de informações de contexto)
         if context:
-            context_fields = sum(
-                1 for v in context.values() if v is not None and v != ""
-            )
+            context_fields = sum(1 for v in context.values() if v is not None and v != "")
             if context_fields >= 3:
                 adjustments.append(-0.05)
 
@@ -1292,10 +1224,10 @@ class NLUPipeline:
 
         return threshold
 
-    def explain_classification(self, text: str, result: NLUResult) -> Dict[str, Any]:
+    def explain_classification(self, text: str, result: NLUResult) -> dict[str, Any]:
         """Explicar por que um texto foi classificado em determinado domínio"""
         text_lower = text.lower()
-        text_words = set(text_lower.split())
+        set(text_lower.split())
         domain_name = result.domain.name
         domains_config = self.classification_rules.get("domains", {})
 
@@ -1347,7 +1279,7 @@ class NLUPipeline:
 
         return explanation
 
-    def _extract_keywords(self, doc) -> List[str]:
+    def _extract_keywords(self, doc) -> list[str]:
         """Extrair palavras-chave relevantes
 
         Otimização: Limitado a top 5 keywords (era 10) para reduzir overhead.

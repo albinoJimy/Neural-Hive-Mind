@@ -2,11 +2,12 @@
 
 import json
 
+import structlog
+
+from src.config.settings import get_settings
 from src.consumers.base import BaseKafkaConsumer
 from src.planners.design_planner import DesignPlanner
 from src.repositories.architecture_repository import ArchitectureRepository
-from src.config.settings import get_settings
-import structlog
 
 logger = structlog.get_logger(__name__)
 

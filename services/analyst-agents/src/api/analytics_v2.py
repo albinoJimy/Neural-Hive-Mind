@@ -3,30 +3,29 @@ Analytics API V2 - Router expandido para Analyst Agents.
 Implementa endpoints REST para insights, time-series, e dashboard.
 """
 from datetime import datetime, timedelta
-from typing import List, Optional
-from fastapi import APIRouter, Request, HTTPException, Response, Query
-from pydantic import BaseModel
+from typing import Optional
+
 import structlog
+from fastapi import APIRouter, HTTPException, Query, Request, Response
 
 from ..models.insight_extended import (
-    InsightCreate,
-    InsightResponse,
-    InsightListResponse,
+    AnalysisType,
     AnalyticsQueryRequest,
     AnalyticsQueryResponse,
-    TimeSeriesQuery,
-    TimeSeriesResponse,
     AnomalyDetectionQuery,
     AnomalyDetectionResponse,
     DashboardData,
-    AnalysisType,
+    InsightCreate,
+    InsightListResponse,
+    InsightMetadata,
+    InsightResponse,
     InsightSource,
     InsightStatus,
-    InsightMetadata,
+    TimeSeriesResponse,
 )
 from ..repositories.insight_repository import InsightRepository
-from ..services.timeseries_analyzer import TimeSeriesAnalyzer
 from ..services.mcp_integration import MCPIntegration
+from ..services.timeseries_analyzer import TimeSeriesAnalyzer
 from ..utils.export_utils import export_insight as export_insight_util
 
 logger = structlog.get_logger()
@@ -105,7 +104,6 @@ async def create_query(query: AnalyticsQueryRequest, request: Request):
     try:
         app_state = request.app.state.app_state
         insight_repo: InsightRepository = app_state.insight_repository
-        ts_analyzer: TimeSeriesAnalyzer = app_state.ts_analyzer
 
         # Create insight
         insight_create = InsightCreate(
@@ -119,8 +117,8 @@ async def create_query(query: AnalyticsQueryRequest, request: Request):
 
         # Process based on type
         if query.analysis_type == AnalysisType.TIMESERIES:
-            metric_name = query.target.get("metric_name", "")
-            time_range = query.target.get("time_range", {})
+            query.target.get("metric_name", "")
+            query.target.get("time_range", {})
             # Simular processamento assíncrono
             insight = await insight_repo.create(insight_create)
             # Atualizar status
@@ -151,7 +149,9 @@ async def create_query(query: AnalyticsQueryRequest, request: Request):
             )
 
         else:
-            raise HTTPException(status_code=422, detail=f"Unsupported analysis type: {query.analysis_type}")
+            raise HTTPException(
+                status_code=422, detail=f"Unsupported analysis type: {query.analysis_type}"
+            )
 
     except HTTPException:
         raise
@@ -182,9 +182,7 @@ async def export_insight(
         return Response(
             content=content,
             media_type=media_type,
-            headers={
-                "Content-Disposition": f'attachment; filename="{filename}"'
-            }
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
 
     except HTTPException:
@@ -206,18 +204,20 @@ async def get_analytics_metrics(request: Request):
         # Get summary stats
         summary = await insight_repo.get_analytics_summary(time_range_hours=24)
 
-        metrics_text = f"""# HELP analyst_insights_total Total number of insights generated
+        metrics_text = """# HELP analyst_insights_total Total number of insights generated
 # TYPE analyst_insights_total counter"""
         for analysis_type, count in summary.get("insights_by_type", {}).items():
             metrics_text += f'\nanalyst_insights_total{{analysis_type="{analysis_type}"}} {count}'
 
-        metrics_text += f"\n\n# HELP analyst_anomalies_detected_total Total anomalies detected"
-        metrics_text += f"\n# TYPE analyst_anomalies_detected_total gauge"
+        metrics_text += "\n\n# HELP analyst_anomalies_detected_total Total anomalies detected"
+        metrics_text += "\n# TYPE analyst_anomalies_detected_total gauge"
         metrics_text += f'\nanalyst_anomalies_detected_total {summary.get("anomalies_detected", 0)}'
 
-        metrics_text += f"\n\n# HELP analyst_processing_time_seconds Insight processing time"
-        metrics_text += f"\n# TYPE analyst_processing_time_seconds gauge"
-        metrics_text += f'\nanalyst_processing_time_seconds {summary.get("avg_processing_time_ms", 0) / 1000}'
+        metrics_text += "\n\n# HELP analyst_processing_time_seconds Insight processing time"
+        metrics_text += "\n# TYPE analyst_processing_time_seconds gauge"
+        metrics_text += (
+            f'\nanalyst_processing_time_seconds {summary.get("avg_processing_time_ms", 0) / 1000}'
+        )
 
         return Response(content=metrics_text, media_type="text/plain")
 
@@ -250,10 +250,8 @@ async def get_timeseries(
         points = max(10, min(1000, int(delta.total_seconds() / 300)))  # 5-min intervals
 
         import random
-        data = [
-            (start + timedelta(minutes=i * 5), random.gauss(50, 15))
-            for i in range(points)
-        ]
+
+        data = [(start + timedelta(minutes=i * 5), random.gauss(50, 15)) for i in range(points)]
 
         response = await ts_analyzer.analyze_timeseries(
             metric_name=metric_name,
@@ -270,13 +268,17 @@ async def get_timeseries(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/analytics/timeseries/{metric_name}/anomalies", response_model=AnomalyDetectionResponse)
+@router.get(
+    "/analytics/timeseries/{metric_name}/anomalies", response_model=AnomalyDetectionResponse
+)
 async def detect_timeseries_anomalies(
     metric_name: str,
     request: Request,
     start: datetime = Query(..., description="Data inicial"),
     end: datetime = Query(..., description="Data final"),
-    method: str = Query("zscore", pattern="^(zscore|iqr|moving_avg)$", description="Método de detecção"),
+    method: str = Query(
+        "zscore", pattern="^(zscore|iqr|moving_avg)$", description="Método de detecção"
+    ),
     threshold: float = Query(2.5, ge=1.0, le=5.0, description="Limiar de anomalia"),
 ):
     """Detectar anomalias em série temporal."""
@@ -289,10 +291,8 @@ async def detect_timeseries_anomalies(
         points = max(10, min(1000, int(delta.total_seconds() / 300)))
 
         import random
-        data = [
-            (start + timedelta(minutes=i * 5), random.gauss(50, 15))
-            for i in range(points)
-        ]
+
+        data = [(start + timedelta(minutes=i * 5), random.gauss(50, 15)) for i in range(points)]
         # Adicionar algumas anomalias
         data[points // 3] = (data[points // 3][0], 95.0)
         data[2 * points // 3] = (data[2 * points // 3][0], 5.0)
@@ -379,4 +379,3 @@ async def get_mcp_health(request: Request):
 
 
 # Re-import Metadata for create_query endpoint
-from ..models.insight_extended import InsightMetadata

@@ -2,4 +2,4 @@
 
 from .scout_orchestrator import ScoutOrchestrator
 
-__all__ = ['ScoutOrchestrator']
+__all__ = ["ScoutOrchestrator"]

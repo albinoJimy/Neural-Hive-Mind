@@ -9,40 +9,46 @@ Responsável por:
 - Calcular risk assessment
 """
 
-from typing import List, Dict, Optional, Any
-import structlog
-from datetime import datetime
 import json
+from typing import List, Optional
+
+import structlog
 
 from neural_hive_observability import get_tracer
-
 from src.models.security_validation import (
-    SecurityValidation,
     GuardrailViolation,
-    ViolationType,
+    RiskAssessment,
+    SecurityValidation,
+    Severity,
     ValidationStatus,
     ValidatorType,
-    Severity,
-    RiskAssessment
+    ViolationType,
 )
 
 logger = structlog.get_logger(__name__)
 _tracer = get_tracer()
 
+
 # Create dummy tracer for test environments
 class _DummySpan:
     """Dummy span for test environments."""
+
     def __enter__(self):
         return self
+
     def __exit__(self, *args):
         pass
+
     def set_attribute(self, *args):
         pass
 
+
 class _DummyTracer:
     """Dummy tracer for test environments."""
+
     def start_as_current_span(self, *args, **kwargs):
         return _DummySpan()
+
 
 tracer = _tracer if _tracer is not None else _DummyTracer()
 
@@ -60,7 +66,7 @@ class SecurityValidator:
         trivy_client,
         redis_client,
         mongodb_client,
-        settings
+        settings,
     ):
         """
         Inicializa o SecurityValidator.
@@ -103,7 +109,7 @@ class SecurityValidator:
         logger.info(
             "security_validator.validating_ticket",
             ticket_id=ticket_id,
-            task_type=ticket.get("task_type")
+            task_type=ticket.get("task_type"),
         )
 
         with tracer.start_as_current_span("validate_security") as span:
@@ -142,9 +148,7 @@ class SecurityValidator:
 
             except Exception as e:
                 logger.error(
-                    "security_validator.validation_error",
-                    ticket_id=ticket_id,
-                    error=str(e)
+                    "security_validator.validation_error", ticket_id=ticket_id, error=str(e)
                 )
                 # Criar violação de erro interno
                 violations.append(
@@ -154,7 +158,7 @@ class SecurityValidator:
                         description=f"Erro durante validação: {str(e)}",
                         remediation_suggestion="Verificar logs do Guard Agent",
                         detected_by="SecurityValidator",
-                        evidence={"error": str(e)}
+                        evidence={"error": str(e)},
                     )
                 )
 
@@ -163,9 +167,7 @@ class SecurityValidator:
             span.set_attribute("neural.hive.risk.score", risk_assessment.risk_score)
 
             # Determinar status da validação
-            validation_status = self._determine_validation_status(
-                risk_assessment, violations
-            )
+            validation_status = self._determine_validation_status(risk_assessment, violations)
             span.set_attribute("neural.hive.validation.result", validation_status.value)
 
             # Criar SecurityValidation
@@ -185,8 +187,8 @@ class SecurityValidator:
                 metadata={
                     "validator_version": "1.0.0",
                     "ticket_type": ticket.get("task_type", "unknown"),
-                    "security_level": ticket.get("security_level", "unknown")
-                }
+                    "security_level": ticket.get("security_level", "unknown"),
+                },
             )
 
             # Recalcular hash após construção completa
@@ -203,7 +205,7 @@ class SecurityValidator:
                 ticket_id=ticket_id,
                 status=validation_status.value,
                 violations_count=len(violations),
-                risk_score=risk_assessment.risk_score
+                risk_score=risk_assessment.risk_score,
             )
 
             return validation
@@ -241,7 +243,7 @@ class SecurityValidator:
             logger.warning(
                 "security_validator.opa_validation_failed",
                 error=str(e),
-                ticket_id=ticket.get("ticket_id")
+                ticket_id=ticket.get("ticket_id"),
             )
 
         return violations
@@ -265,26 +267,23 @@ class SecurityValidator:
                     "allowed_capabilities": self.settings.allowed_capabilities,
                     "require_signed_images": self.settings.require_signed_images,
                     "require_network_policies": self.settings.require_network_policies_production,
-                    "max_vulnerability_severity": self.settings.max_vulnerability_severity
-                }
+                    "max_vulnerability_severity": self.settings.max_vulnerability_severity,
+                },
             }
 
             result = await self.opa_client.evaluate_policy(
-                self.settings.opa_security_policy_path,
-                policy_input
+                self.settings.opa_security_policy_path, policy_input
             )
 
-            violations.extend(self._map_opa_violations(
-                result,
-                "SecurityPolicies",
-                ViolationType.POLICY_VIOLATION
-            ))
+            violations.extend(
+                self._map_opa_violations(result, "SecurityPolicies", ViolationType.POLICY_VIOLATION)
+            )
 
         except Exception as e:
             logger.warning(
                 "security_validator.security_policies_failed",
                 error=str(e),
-                ticket_id=ticket.get("ticket_id")
+                ticket_id=ticket.get("ticket_id"),
             )
 
         return violations
@@ -310,26 +309,25 @@ class SecurityValidator:
                     "require_encryption_at_rest": self.settings.require_encryption_at_rest,
                     "require_audit_logging": self.settings.require_audit_logging,
                     "min_audit_retention_days": self.settings.min_audit_retention_days,
-                    "max_pii_retention_days": self.settings.max_pii_retention_days
-                }
+                    "max_pii_retention_days": self.settings.max_pii_retention_days,
+                },
             }
 
             result = await self.opa_client.evaluate_policy(
-                self.settings.opa_compliance_policy_path,
-                policy_input
+                self.settings.opa_compliance_policy_path, policy_input
             )
 
-            violations.extend(self._map_opa_violations(
-                result,
-                "CompliancePolicies",
-                ViolationType.COMPLIANCE_BREACH
-            ))
+            violations.extend(
+                self._map_opa_violations(
+                    result, "CompliancePolicies", ViolationType.COMPLIANCE_BREACH
+                )
+            )
 
         except Exception as e:
             logger.warning(
                 "security_validator.compliance_policies_failed",
                 error=str(e),
-                ticket_id=ticket.get("ticket_id")
+                ticket_id=ticket.get("ticket_id"),
             )
 
         return violations
@@ -357,26 +355,25 @@ class SecurityValidator:
                     "require_hpa_production": self.settings.require_hpa_production,
                     "max_replicas": self.settings.max_replicas,
                     "min_cpu_utilization_percent": self.settings.min_cpu_utilization_percent,
-                    "min_memory_utilization_percent": self.settings.min_memory_utilization_percent
-                }
+                    "min_memory_utilization_percent": self.settings.min_memory_utilization_percent,
+                },
             }
 
             result = await self.opa_client.evaluate_policy(
-                self.settings.opa_resource_policy_path,
-                policy_input
+                self.settings.opa_resource_policy_path, policy_input
             )
 
-            violations.extend(self._map_opa_violations(
-                result,
-                "ResourcePolicies",
-                ViolationType.RESOURCE_LIMIT_EXCEEDED
-            ))
+            violations.extend(
+                self._map_opa_violations(
+                    result, "ResourcePolicies", ViolationType.RESOURCE_LIMIT_EXCEEDED
+                )
+            )
 
         except Exception as e:
             logger.warning(
                 "security_validator.resource_policies_failed",
                 error=str(e),
-                ticket_id=ticket.get("ticket_id")
+                ticket_id=ticket.get("ticket_id"),
             )
 
         return violations
@@ -399,13 +396,12 @@ class SecurityValidator:
                 "metadata": {
                     "security_level": ticket.get("security_level"),
                     "required_capabilities": ticket.get("required_capabilities", []),
-                    "parameters": ticket.get("parameters", {})
-                }
+                    "parameters": ticket.get("parameters", {}),
+                },
             }
 
             result = await self.opa_client.evaluate_policy(
-                "data.guard.execution_ticket",
-                policy_input
+                "data.guard.execution_ticket", policy_input
             )
 
             if not result.get("allowed", True):
@@ -415,14 +411,13 @@ class SecurityValidator:
                         severity=Severity.HIGH,
                         description=result.get("reason", "Ticket viola políticas OPA"),
                         remediation_suggestion=result.get(
-                            "remediation",
-                            "Ajustar ticket para cumprir políticas de segurança"
+                            "remediation", "Ajustar ticket para cumprir políticas de segurança"
                         ),
                         detected_by="OPAValidator",
                         evidence={
                             "policy_path": "data.guard.execution_ticket",
-                            "opa_response": json.dumps(result)
-                        }
+                            "opa_response": json.dumps(result),
+                        },
                     )
                 )
 
@@ -430,16 +425,13 @@ class SecurityValidator:
             logger.debug(
                 "security_validator.legacy_policies_skipped",
                 error=str(e),
-                ticket_id=ticket.get("ticket_id")
+                ticket_id=ticket.get("ticket_id"),
             )
 
         return violations
 
     def _map_opa_violations(
-        self,
-        opa_result: dict,
-        detected_by: str,
-        default_violation_type: ViolationType
+        self, opa_result: dict, detected_by: str, default_violation_type: ViolationType
     ) -> List[GuardrailViolation]:
         """
         Map OPA policy result to GuardrailViolation list.
@@ -462,8 +454,7 @@ class SecurityValidator:
         for violation in result_violations:
             severity = self._map_severity(violation.get("severity", "MEDIUM"))
             violation_type = self._map_violation_type(
-                violation.get("rule", ""),
-                default_violation_type
+                violation.get("rule", ""), default_violation_type
             )
 
             violations.append(
@@ -472,16 +463,15 @@ class SecurityValidator:
                     severity=severity,
                     description=violation.get("message", "Policy violation detected"),
                     remediation_suggestion=violation.get(
-                        "remediation",
-                        "Review and fix the policy violation"
+                        "remediation", "Review and fix the policy violation"
                     ),
                     detected_by=detected_by,
                     evidence={
                         "rule": violation.get("rule", "unknown"),
                         "resource": violation.get("resource", ""),
                         "details": violation.get("details", {}),
-                        "regulation": violation.get("regulation", "")
-                    }
+                        "regulation": violation.get("regulation", ""),
+                    },
                 )
             )
 
@@ -501,15 +491,11 @@ class SecurityValidator:
             "CRITICAL": Severity.CRITICAL,
             "HIGH": Severity.HIGH,
             "MEDIUM": Severity.MEDIUM,
-            "LOW": Severity.LOW
+            "LOW": Severity.LOW,
         }
         return severity_mapping.get(severity_str.upper(), Severity.MEDIUM)
 
-    def _map_violation_type(
-        self,
-        rule: str,
-        default_type: ViolationType
-    ) -> ViolationType:
+    def _map_violation_type(self, rule: str, default_type: ViolationType) -> ViolationType:
         """
         Map OPA rule name to ViolationType.
 
@@ -553,9 +539,7 @@ class SecurityValidator:
             required_capabilities = ticket.get("required_capabilities", [])
 
             # Verificar se service account existe
-            sa_exists = await self._check_service_account_exists(
-                service_account, namespace
-            )
+            sa_exists = await self._check_service_account_exists(service_account, namespace)
 
             if not sa_exists:
                 violations.append(
@@ -565,10 +549,7 @@ class SecurityValidator:
                         description=f"Service account '{service_account}' não existe no namespace '{namespace}'",
                         remediation_suggestion="Criar service account ou usar um existente",
                         detected_by="RBACValidator",
-                        evidence={
-                            "service_account": service_account,
-                            "namespace": namespace
-                        }
+                        evidence={"service_account": service_account, "namespace": namespace},
                     )
                 )
 
@@ -586,10 +567,7 @@ class SecurityValidator:
                             description=f"Service account sem permissão para '{capability}'",
                             remediation_suggestion=f"Adicionar permissão '{capability}' ao service account",
                             detected_by="RBACValidator",
-                            evidence={
-                                "service_account": service_account,
-                                "capability": capability
-                            }
+                            evidence={"service_account": service_account, "capability": capability},
                         )
                     )
 
@@ -602,7 +580,7 @@ class SecurityValidator:
                         description="Tentativa de escalação de privilégios detectada",
                         remediation_suggestion="Remover capacidades privilegiadas desnecessárias",
                         detected_by="RBACValidator",
-                        evidence={"capabilities": ", ".join(required_capabilities)}
+                        evidence={"capabilities": ", ".join(required_capabilities)},
                     )
                 )
 
@@ -610,7 +588,7 @@ class SecurityValidator:
             logger.warning(
                 "security_validator.rbac_validation_failed",
                 error=str(e),
-                ticket_id=ticket.get("ticket_id")
+                ticket_id=ticket.get("ticket_id"),
             )
 
         return violations
@@ -645,8 +623,8 @@ class SecurityValidator:
                         evidence={
                             "secret_type": secret.get("type"),
                             "location": secret.get("match", ""),
-                            "line": str(secret.get("line", 0))
-                        }
+                            "line": str(secret.get("line", 0)),
+                        },
                     )
                 )
 
@@ -656,8 +634,7 @@ class SecurityValidator:
                 for vault_path in vault_paths:
                     try:
                         has_access = await self.vault_client.validate_secret_access(
-                            ticket_id=ticket_id,
-                            secret_path=vault_path
+                            ticket_id=ticket_id, secret_path=vault_path
                         )
 
                         if not has_access:
@@ -668,18 +645,13 @@ class SecurityValidator:
                                     description=f"Sem permissão para acessar secret em '{vault_path}'",
                                     remediation_suggestion="Verificar políticas Vault para este service account",
                                     detected_by="VaultValidator",
-                                    evidence={
-                                        "vault_path": vault_path,
-                                        "ticket_id": ticket_id
-                                    }
+                                    evidence={"vault_path": vault_path, "ticket_id": ticket_id},
                                 )
                             )
 
                         # Auditar tentativa de acesso
                         await self.vault_client.audit_secret_access(
-                            ticket_id=ticket_id,
-                            secret_path=vault_path,
-                            action="read"
+                            ticket_id=ticket_id, secret_path=vault_path, action="read"
                         )
 
                     except Exception as e:
@@ -687,14 +659,14 @@ class SecurityValidator:
                             "security_validator.vault_validation_failed",
                             error=str(e),
                             vault_path=vault_path,
-                            ticket_id=ticket_id
+                            ticket_id=ticket_id,
                         )
 
         except Exception as e:
             logger.warning(
                 "security_validator.secrets_scan_failed",
                 error=str(e),
-                ticket_id=ticket.get("ticket_id")
+                ticket_id=ticket.get("ticket_id"),
             )
 
         return violations
@@ -728,15 +700,13 @@ class SecurityValidator:
                             detected_by="ComplianceValidator",
                             evidence={
                                 "current_security_level": security_level,
-                                "required_security_level": "CONFIDENTIAL ou RESTRICTED"
-                            }
+                                "required_security_level": "CONFIDENTIAL ou RESTRICTED",
+                            },
                         )
                     )
 
             # Verificar se tarefa requer aprovação manual
-            requires_manual_approval = (
-                task_type == "DEPLOY" and environment == "production"
-            ) or (
+            requires_manual_approval = (task_type == "DEPLOY" and environment == "production") or (
                 task_type in ["DELETE", "ROLLBACK"]
             )
 
@@ -748,10 +718,7 @@ class SecurityValidator:
                         description=f"Tarefa '{task_type}' em '{environment}' requer aprovação manual",
                         remediation_suggestion="Solicitar aprovação antes de executar",
                         detected_by="ComplianceValidator",
-                        evidence={
-                            "task_type": task_type,
-                            "environment": environment
-                        }
+                        evidence={"task_type": task_type, "environment": environment},
                     )
                 )
 
@@ -759,15 +726,13 @@ class SecurityValidator:
             logger.warning(
                 "security_validator.compliance_validation_failed",
                 error=str(e),
-                ticket_id=ticket.get("ticket_id")
+                ticket_id=ticket.get("ticket_id"),
             )
 
         return violations
 
     async def _calculate_risk_assessment(
-        self,
-        violations: List[GuardrailViolation],
-        ticket: dict
+        self, violations: List[GuardrailViolation], ticket: dict
     ) -> RiskAssessment:
         """
         Calcula avaliação de risco com base nas violações.
@@ -784,7 +749,7 @@ class SecurityValidator:
             Severity.CRITICAL: 1.0,
             Severity.HIGH: 0.7,
             Severity.MEDIUM: 0.4,
-            Severity.LOW: 0.1
+            Severity.LOW: 0.1,
         }
 
         # Calcular risk_score baseado em violações
@@ -794,9 +759,7 @@ class SecurityValidator:
             impact = "Nenhuma violação detectada"
         else:
             # Soma ponderada de violações
-            total_weight = sum(
-                severity_weights[v.severity] for v in violations
-            )
+            total_weight = sum(severity_weights[v.severity] for v in violations)
             # Normalizar para 0-1
             risk_score = min(1.0, total_weight / len(violations))
 
@@ -814,16 +777,10 @@ class SecurityValidator:
             else:
                 impact = f"{len(violations)} violação(ões) detectada(s)"
 
-        return RiskAssessment(
-            risk_score=risk_score,
-            severity=severity,
-            impact=impact
-        )
+        return RiskAssessment(risk_score=risk_score, severity=severity, impact=impact)
 
     def _determine_validation_status(
-        self,
-        risk_assessment: RiskAssessment,
-        violations: List[GuardrailViolation]
+        self, risk_assessment: RiskAssessment, violations: List[GuardrailViolation]
     ) -> ValidationStatus:
         """
         Determina status da validação baseado no risco.
@@ -836,14 +793,19 @@ class SecurityValidator:
             ValidationStatus apropriado
         """
         # Auto-reject se risk_score > threshold ou há violações CRITICAL
-        critical_violations = [
-            v for v in violations if v.severity == Severity.CRITICAL
-        ]
-        if risk_assessment.risk_score > self.risk_score_threshold_auto_reject or critical_violations:
+        critical_violations = [v for v in violations if v.severity == Severity.CRITICAL]
+        if (
+            risk_assessment.risk_score > self.risk_score_threshold_auto_reject
+            or critical_violations
+        ):
             return ValidationStatus.REJECTED
 
         # Requer aprovação se threshold_approve < risk_score < threshold_reject
-        if self.risk_score_threshold_auto_approve < risk_assessment.risk_score < self.risk_score_threshold_auto_reject:
+        if (
+            self.risk_score_threshold_auto_approve
+            < risk_assessment.risk_score
+            < self.risk_score_threshold_auto_reject
+        ):
             return ValidationStatus.REQUIRES_APPROVAL
 
         # Auto-approve se risk_score < threshold_approve
@@ -854,9 +816,7 @@ class SecurityValidator:
         return ValidationStatus.REQUIRES_APPROVAL
 
     def _get_approval_reason(
-        self,
-        risk_assessment: RiskAssessment,
-        violations: List[GuardrailViolation]
+        self, risk_assessment: RiskAssessment, violations: List[GuardrailViolation]
     ) -> Optional[str]:
         """
         Gera razão para aprovação manual se necessário.
@@ -869,14 +829,14 @@ class SecurityValidator:
             Razão para aprovação ou None
         """
         # Usar threshold configurável ao invés de valor hardcoded
-        approval_threshold = self.risk_score_threshold_auto_reject * 0.89  # ~80% do threshold de rejeição
+        approval_threshold = (
+            self.risk_score_threshold_auto_reject * 0.89
+        )  # ~80% do threshold de rejeição
 
         if risk_assessment.risk_score > approval_threshold:
             return f"Risk score alto ({risk_assessment.risk_score:.2f})"
 
-        critical_violations = [
-            v for v in violations if v.severity == Severity.CRITICAL
-        ]
+        critical_violations = [v for v in violations if v.severity == Severity.CRITICAL]
         if critical_violations:
             return f"{len(critical_violations)} violação(ões) CRITICAL detectada(s)"
 
@@ -885,11 +845,7 @@ class SecurityValidator:
 
         return None
 
-    async def _check_service_account_exists(
-        self,
-        service_account: str,
-        namespace: str
-    ) -> bool:
+    async def _check_service_account_exists(self, service_account: str, namespace: str) -> bool:
         """
         Verifica se service account existe no namespace.
 
@@ -907,10 +863,7 @@ class SecurityValidator:
             return False
 
     async def _check_rbac_permission(
-        self,
-        service_account: str,
-        namespace: str,
-        capability: str
+        self, service_account: str, namespace: str, capability: str
     ) -> bool:
         """
         Verifica se service account tem permissão específica.
@@ -942,22 +895,14 @@ class SecurityValidator:
         required_capabilities = ticket.get("required_capabilities", [])
 
         # Capacidades privilegiadas
-        privileged_caps = [
-            "SYS_ADMIN",
-            "NET_ADMIN",
-            "SYS_PTRACE",
-            "DAC_OVERRIDE"
-        ]
+        privileged_caps = ["SYS_ADMIN", "NET_ADMIN", "SYS_PTRACE", "DAC_OVERRIDE"]
 
         # Detectar se há capacidades privilegiadas desnecessárias
         has_privileged = any(cap in privileged_caps for cap in required_capabilities)
 
         return has_privileged
 
-    async def _get_cached_validation(
-        self,
-        ticket_id: str
-    ) -> Optional[SecurityValidation]:
+    async def _get_cached_validation(self, ticket_id: str) -> Optional[SecurityValidation]:
         """
         Obtém validação do cache Redis.
 
@@ -990,11 +935,7 @@ class SecurityValidator:
             cache_key = f"security_validation:{validation.ticket_id}"
             cache_value = json.dumps(validation.to_avro_dict())
 
-            await self.redis_client.setex(
-                cache_key,
-                self._cache_ttl,
-                cache_value
-            )
+            await self.redis_client.setex(cache_key, self._cache_ttl, cache_value)
 
         except Exception as e:
             logger.warning("security_validator.cache_set_failed", error=str(e))
@@ -1014,12 +955,12 @@ class SecurityValidator:
             logger.info(
                 "security_validator.validation_persisted",
                 validation_id=validation.validation_id,
-                ticket_id=validation.ticket_id
+                ticket_id=validation.ticket_id,
             )
 
         except Exception as e:
             logger.error(
                 "security_validator.persist_failed",
                 validation_id=validation.validation_id,
-                error=str(e)
+                error=str(e),
             )

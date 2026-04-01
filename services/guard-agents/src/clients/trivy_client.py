@@ -8,13 +8,12 @@ Responsável por:
 - Scanning de imagens Docker (futuro)
 """
 
-from typing import List, Dict, Optional
-import structlog
-import httpx
-import json
-import yaml
-import asyncio
 import time
+from typing import List, Optional
+
+import httpx
+import structlog
+import yaml
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 logger = structlog.get_logger(__name__)
@@ -25,11 +24,7 @@ class TrivyClient:
     Cliente para interação com Trivy scanner.
     """
 
-    def __init__(
-        self,
-        base_url: str = "http://trivy:8080",
-        timeout: float = 30.0
-    ):
+    def __init__(self, base_url: str = "http://trivy:8080", timeout: float = 30.0):
         """
         Inicializa o TrivyClient.
 
@@ -52,27 +47,17 @@ class TrivyClient:
             self.client = httpx.AsyncClient(
                 base_url=self.base_url,
                 timeout=self.timeout,
-                headers={
-                    "Content-Type": "application/json",
-                    "Accept": "application/json"
-                }
+                headers={"Content-Type": "application/json", "Accept": "application/json"},
             )
 
             # Verificar conectividade
             response = await self.client.get("/healthz")
             response.raise_for_status()
 
-            logger.info(
-                "trivy_client.connected",
-                base_url=self.base_url
-            )
+            logger.info("trivy_client.connected", base_url=self.base_url)
 
         except Exception as e:
-            logger.error(
-                "trivy_client.connection_failed",
-                base_url=self.base_url,
-                error=str(e)
-            )
+            logger.error("trivy_client.connection_failed", base_url=self.base_url, error=str(e))
             raise
 
     async def close(self) -> None:
@@ -83,15 +68,8 @@ class TrivyClient:
             await self.client.aclose()
             logger.info("trivy_client.closed")
 
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=2, max=10)
-    )
-    async def scan_config(
-        self,
-        config_content: str,
-        config_type: str = "yaml"
-    ) -> dict:
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
+    async def scan_config(self, config_content: str, config_type: str = "yaml") -> dict:
         """
         Escaneia configuração em busca de secrets.
 
@@ -116,17 +94,11 @@ class TrivyClient:
             payload = {
                 "target": "config",
                 "scanners": ["secret"],
-                "config": {
-                    "content": config_content,
-                    "type": config_type
-                }
+                "config": {"content": config_content, "type": config_type},
             }
 
             # Executar scan
-            response = await self.client.post(
-                "/scan",
-                json=payload
-            )
+            response = await self.client.post("/scan", json=payload)
             response.raise_for_status()
 
             result = response.json()
@@ -135,9 +107,7 @@ class TrivyClient:
             secrets = self._extract_secrets(result)
 
             logger.info(
-                "trivy_client.scan_complete",
-                secrets_found=len(secrets),
-                config_type=config_type
+                "trivy_client.scan_complete", secrets_found=len(secrets), config_type=config_type
             )
 
             return {
@@ -145,16 +115,14 @@ class TrivyClient:
                 "scan_metadata": {
                     "scanner": "trivy",
                     "config_type": config_type,
-                    "scan_time": result.get("scan_time")
-                }
+                    "scan_time": result.get("scan_time"),
+                },
             }
 
         except httpx.HTTPStatusError as e:
             scan_status = "error"
             logger.error(
-                "trivy_client.scan_failed",
-                status_code=e.response.status_code,
-                error=str(e)
+                "trivy_client.scan_failed", status_code=e.response.status_code, error=str(e)
             )
             raise
 
@@ -166,7 +134,8 @@ class TrivyClient:
         finally:
             # Registrar métricas
             try:
-                from src.observability.metrics import trivy_scans_total, trivy_scan_duration_seconds
+                from src.observability.metrics import trivy_scan_duration_seconds, trivy_scans_total
+
                 duration = time.time() - start_time
                 trivy_scans_total.labels(scan_type="config", status=scan_status).inc()
                 trivy_scan_duration_seconds.observe(duration)
@@ -199,16 +168,13 @@ class TrivyClient:
                 logger.warning(
                     "trivy_client.secrets_detected_in_parameters",
                     secrets_count=len(secrets),
-                    secret_types=[s.get("type") for s in secrets]
+                    secret_types=[s.get("type") for s in secrets],
                 )
 
             return secrets
 
         except Exception as e:
-            logger.error(
-                "trivy_client.scan_parameters_failed",
-                error=str(e)
-            )
+            logger.error("trivy_client.scan_parameters_failed", error=str(e))
             # Retornar lista vazia em caso de erro (graceful degradation)
             return []
 
@@ -235,16 +201,9 @@ class TrivyClient:
         scan_status = "success"
 
         try:
-            payload = {
-                "target": "image",
-                "image": image,
-                "scanners": ["vuln", "secret"]
-            }
+            payload = {"target": "image", "image": image, "scanners": ["vuln", "secret"]}
 
-            response = await self.client.post(
-                "/scan",
-                json=payload
-            )
+            response = await self.client.post("/scan", json=payload)
             response.raise_for_status()
 
             result = response.json()
@@ -253,24 +212,21 @@ class TrivyClient:
                 "trivy_client.image_scan_complete",
                 image=image,
                 vulnerabilities=len(result.get("vulnerabilities", [])),
-                secrets=len(self._extract_secrets(result))
+                secrets=len(self._extract_secrets(result)),
             )
 
             return result
 
         except Exception as e:
             scan_status = "error"
-            logger.error(
-                "trivy_client.scan_image_failed",
-                image=image,
-                error=str(e)
-            )
+            logger.error("trivy_client.scan_image_failed", image=image, error=str(e))
             raise
 
         finally:
             # Registrar métricas
             try:
-                from src.observability.metrics import trivy_scans_total, trivy_scan_duration_seconds
+                from src.observability.metrics import trivy_scan_duration_seconds, trivy_scans_total
+
                 duration = time.time() - start_time
                 trivy_scans_total.labels(scan_type="image", status=scan_status).inc()
                 trivy_scan_duration_seconds.observe(duration)
@@ -320,7 +276,7 @@ class TrivyClient:
             "line": secret.get("StartLine", 0),
             "title": secret.get("Title", ""),
             "severity": secret.get("Severity", "UNKNOWN"),
-            "category": secret.get("Category", "secret")
+            "category": secret.get("Category", "secret"),
         }
 
     def _normalize_secret_type(self, rule_id: str) -> str:
@@ -348,7 +304,7 @@ class TrivyClient:
             "jwt": "jwt-token",
             "generic-api-key": "api-key",
             "password": "password",
-            "connection-string": "database-connection-string"
+            "connection-string": "database-connection-string",
         }
 
         # Normalizar rule_id para lowercase

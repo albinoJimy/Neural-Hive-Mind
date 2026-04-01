@@ -7,12 +7,12 @@ exponencial progressivo baseado no retry_count de cada mensagem.
 
 import asyncio
 import json
-import structlog
 import time
-from datetime import datetime
-from typing import Optional, Callable, Dict, Any
-from confluent_kafka import Consumer, KafkaError, TopicPartition
+from collections.abc import Callable
+from datetime import UTC, datetime
 
+import structlog
+from confluent_kafka import Consumer, KafkaError, TopicPartition
 from src.config.settings import Settings
 from src.models.approval_dlq import ApprovalDLQEntry
 from src.observability.metrics import NeuralHiveMetrics
@@ -29,59 +29,61 @@ class ApprovalDLQConsumer:
     são skipped e reprocessadas no próximo ciclo de polling.
     """
 
-    def __init__(self, settings: Settings, metrics: Optional[NeuralHiveMetrics] = None):
+    def __init__(self, settings: Settings, metrics: NeuralHiveMetrics | None = None):
         self.settings = settings
         self.metrics = metrics
-        self.consumer: Optional[Consumer] = None
+        self.consumer: Consumer | None = None
         self.running = False
-        self.last_poll_time: Optional[float] = None
+        self.last_poll_time: float | None = None
         self.messages_processed: int = 0
         self.messages_skipped: int = 0
         self._topic = settings.kafka_approval_dlq_topic
-        self._consumer_group = f'{settings.kafka_consumer_group_id}-dlq-reprocessor'
+        self._consumer_group = f"{settings.kafka_consumer_group_id}-dlq-reprocessor"
         self._current_backlog: int = 0  # Estimativa de mensagens pendentes na DLQ
 
     async def initialize(self):
         """Inicializa Kafka consumer para DLQ de aprovações"""
         logger.info(
-            'Iniciando inicialização do Approval DLQ Consumer',
+            "Iniciando inicialização do Approval DLQ Consumer",
             bootstrap_servers=self.settings.kafka_bootstrap_servers,
             consumer_group=self._consumer_group,
             topic=self._topic,
-            polling_interval_seconds=self.settings.dlq_polling_interval_seconds
+            polling_interval_seconds=self.settings.dlq_polling_interval_seconds,
         )
 
         consumer_config = {
-            'bootstrap.servers': self.settings.kafka_bootstrap_servers,
-            'group.id': self._consumer_group,
-            'auto.offset.reset': 'earliest',  # Processar desde o início
-            'enable.auto.commit': False,  # Manual commit para controle de reprocessamento
-            'isolation.level': 'read_committed',
-            'session.timeout.ms': self.settings.kafka_session_timeout_ms,
-            'connections.max.idle.ms': 540000,
-            'socket.keepalive.enable': True,
-            'heartbeat.interval.ms': 3000,
-            'max.poll.interval.ms': 600000,  # 10 minutos para DLQ
+            "bootstrap.servers": self.settings.kafka_bootstrap_servers,
+            "group.id": self._consumer_group,
+            "auto.offset.reset": "earliest",  # Processar desde o início
+            "enable.auto.commit": False,  # Manual commit para controle de reprocessamento
+            "isolation.level": "read_committed",
+            "session.timeout.ms": self.settings.kafka_session_timeout_ms,
+            "connections.max.idle.ms": 540000,
+            "socket.keepalive.enable": True,
+            "heartbeat.interval.ms": 3000,
+            "max.poll.interval.ms": 600000,  # 10 minutos para DLQ
         }
 
         # Configurações de segurança
-        if self.settings.kafka_security_protocol != 'PLAINTEXT':
-            consumer_config.update({
-                'security.protocol': self.settings.kafka_security_protocol,
-                'sasl.mechanism': self.settings.kafka_sasl_mechanism,
-                'sasl.username': self.settings.kafka_sasl_username,
-                'sasl.password': self.settings.kafka_sasl_password,
-            })
+        if self.settings.kafka_security_protocol != "PLAINTEXT":
+            consumer_config.update(
+                {
+                    "security.protocol": self.settings.kafka_security_protocol,
+                    "sasl.mechanism": self.settings.kafka_sasl_mechanism,
+                    "sasl.username": self.settings.kafka_sasl_username,
+                    "sasl.password": self.settings.kafka_sasl_password,
+                }
+            )
 
         self.consumer = Consumer(consumer_config)
         logger.info(
-            'Consumer Kafka criado para DLQ de aprovações',
+            "Consumer Kafka criado para DLQ de aprovações",
             bootstrap_servers=self.settings.kafka_bootstrap_servers,
-            consumer_group=self._consumer_group
+            consumer_group=self._consumer_group,
         )
 
         # Validar existência do tópico DLQ
-        logger.info('Validando existência do tópico DLQ', topic=self._topic)
+        logger.info("Validando existência do tópico DLQ", topic=self._topic)
 
         try:
             cluster_metadata = self.consumer.list_topics(timeout=10)
@@ -89,33 +91,31 @@ class ApprovalDLQConsumer:
 
             if self._topic not in available_topics:
                 logger.error(
-                    'Tópico DLQ não encontrado',
+                    "Tópico DLQ não encontrado",
                     topic=self._topic,
-                    available_topics=sorted(list(available_topics))[:20]
+                    available_topics=sorted(available_topics)[:20],
                 )
                 raise RuntimeError(
                     f"Tópico DLQ não encontrado: {self._topic}. "
                     f"Verifique se o tópico foi criado no cluster."
                 )
 
-            logger.info('Tópico DLQ validado', topic=self._topic)
+            logger.info("Tópico DLQ validado", topic=self._topic)
 
         except RuntimeError:
             raise
         except Exception as e:
-            logger.error(
-                'Falha ao validar tópico DLQ',
-                error=str(e),
-                error_type=type(e).__name__
+            logger.exception(
+                "Falha ao validar tópico DLQ", error=str(e), error_type=type(e).__name__
             )
             raise RuntimeError(f"Não foi possível validar tópico DLQ: {e}") from e
 
         # Subscribe ao tópico
-        logger.info('Subscribing ao tópico DLQ', topic=self._topic)
+        logger.info("Subscribing ao tópico DLQ", topic=self._topic)
         self.consumer.subscribe([self._topic])
 
         # Aguardar assignments
-        logger.info('Aguardando consumer assignments (timeout: 30s)')
+        logger.info("Aguardando consumer assignments (timeout: 30s)")
         max_wait_seconds = 30
         poll_interval_seconds = 0.5
         start_time = time.time()
@@ -128,23 +128,20 @@ class ApprovalDLQConsumer:
                 tp = TopicPartition(msg.topic(), msg.partition(), msg.offset())
                 self.consumer.seek(tp)
                 logger.debug(
-                    'Mensagem recebida durante espera de assignments - seek realizado',
+                    "Mensagem recebida durante espera de assignments - seek realizado",
                     topic=msg.topic(),
                     partition=msg.partition(),
-                    offset=msg.offset()
+                    offset=msg.offset(),
                 )
 
             assignments = self.consumer.assignment()
             if assignments:
-                assignment_info = [
-                    f"{tp.topic}:{tp.partition}"
-                    for tp in assignments
-                ]
+                assignment_info = [f"{tp.topic}:{tp.partition}" for tp in assignments]
                 logger.info(
-                    'DLQ Consumer assignments recebidos',
+                    "DLQ Consumer assignments recebidos",
                     assignments=assignment_info,
                     total_partitions=len(assignments),
-                    elapsed_seconds=round(time.time() - start_time, 2)
+                    elapsed_seconds=round(time.time() - start_time, 2),
                 )
                 assignments_received = True
                 break
@@ -153,10 +150,10 @@ class ApprovalDLQConsumer:
 
         if not assignments_received:
             logger.error(
-                'Timeout aguardando consumer assignments',
+                "Timeout aguardando consumer assignments",
                 timeout_seconds=max_wait_seconds,
                 consumer_group=self._consumer_group,
-                topic=self._topic
+                topic=self._topic,
             )
             raise RuntimeError(
                 f"DLQ Consumer não recebeu assignments após {max_wait_seconds}s. "
@@ -165,11 +162,11 @@ class ApprovalDLQConsumer:
             )
 
         logger.info(
-            'Approval DLQ Consumer inicializado com sucesso',
+            "Approval DLQ Consumer inicializado com sucesso",
             topic=self._topic,
             group_id=self._consumer_group,
             assignments=len(self.consumer.assignment()) if self.consumer else 0,
-            polling_interval=self.settings.dlq_polling_interval_seconds
+            polling_interval=self.settings.dlq_polling_interval_seconds,
         )
 
     async def start_consuming(self, reprocessor_callback: Callable):
@@ -182,13 +179,13 @@ class ApprovalDLQConsumer:
         """
         self.running = True
         logger.info(
-            'Iniciando DLQ consumer loop',
-            polling_interval_seconds=self.settings.dlq_polling_interval_seconds
+            "Iniciando DLQ consumer loop",
+            polling_interval_seconds=self.settings.dlq_polling_interval_seconds,
         )
 
         await self._consume_dlq_loop(reprocessor_callback)
 
-        logger.info('DLQ consumer loop encerrado')
+        logger.info("DLQ consumer loop encerrado")
 
     async def _consume_dlq_loop(self, reprocessor_callback: Callable):
         """
@@ -198,13 +195,13 @@ class ApprovalDLQConsumer:
             reprocessor_callback: Função async para reprocessar entrada DLQ
         """
         import concurrent.futures
+
         executor = concurrent.futures.ThreadPoolExecutor(
-            max_workers=1,
-            thread_name_prefix="kafka-dlq-poller"
+            max_workers=1, thread_name_prefix="kafka-dlq-poller"
         )
 
         poll_cycle = 0
-        logger.info('DLQ consumer loop inicializado, iniciando poll...')
+        logger.info("DLQ consumer loop inicializado, iniciando poll...")
 
         while self.running:
             try:
@@ -214,19 +211,12 @@ class ApprovalDLQConsumer:
                 reprocessed_in_cycle = 0
                 skipped_in_cycle = 0
 
-                logger.debug(
-                    'Iniciando ciclo de polling DLQ',
-                    poll_cycle=poll_cycle
-                )
+                logger.debug("Iniciando ciclo de polling DLQ", poll_cycle=poll_cycle)
 
                 # Poll todas as mensagens disponíveis neste ciclo
                 while self.running:
                     loop = asyncio.get_running_loop()
-                    msg = await loop.run_in_executor(
-                        executor,
-                        self.consumer.poll,
-                        1.0
-                    )
+                    msg = await loop.run_in_executor(executor, self.consumer.poll, 1.0)
 
                     self.last_poll_time = time.time()
 
@@ -237,9 +227,8 @@ class ApprovalDLQConsumer:
                     if msg.error():
                         if msg.error().code() == KafkaError._PARTITION_EOF:
                             break
-                        else:
-                            logger.error('Kafka DLQ consumer error', error=msg.error())
-                            continue
+                        logger.error("Kafka DLQ consumer error", error=msg.error())
+                        continue
 
                     messages_in_cycle += 1
 
@@ -247,23 +236,22 @@ class ApprovalDLQConsumer:
                     try:
                         dlq_entry = self._deserialize_dlq_message(msg)
                     except Exception as e:
-                        logger.error(
-                            'Erro ao deserializar mensagem DLQ',
+                        logger.exception(
+                            "Erro ao deserializar mensagem DLQ",
                             error=str(e),
                             topic=msg.topic(),
                             partition=msg.partition(),
-                            offset=msg.offset()
+                            offset=msg.offset(),
                         )
                         # Commit para não reprocessar mensagem inválida
                         await loop.run_in_executor(
-                            executor,
-                            lambda: self.consumer.commit(asynchronous=False)
+                            executor, lambda: self.consumer.commit(asynchronous=False)
                         )
                         continue
 
                     # Calcular backoff progressivo
                     backoff_seconds = self._calculate_backoff(dlq_entry.retry_count)
-                    time_since_failure = (datetime.utcnow() - dlq_entry.failed_at).total_seconds()
+                    time_since_failure = (datetime.now(UTC) - dlq_entry.failed_at).total_seconds()
 
                     # Verificar se mensagem está pronta para reprocessamento
                     if time_since_failure < backoff_seconds:
@@ -271,32 +259,32 @@ class ApprovalDLQConsumer:
                         skipped_in_cycle += 1
                         self.messages_skipped += 1
                         logger.debug(
-                            'Mensagem DLQ em backoff - skipped',
+                            "Mensagem DLQ em backoff - skipped",
                             plan_id=dlq_entry.plan_id,
                             retry_count=dlq_entry.retry_count,
                             backoff_seconds=backoff_seconds,
                             time_since_failure=round(time_since_failure, 1),
-                            remaining_seconds=round(backoff_seconds - time_since_failure, 1)
+                            remaining_seconds=round(backoff_seconds - time_since_failure, 1),
                         )
                         # Não faz commit - mensagem será reprocessada no próximo poll
                         continue
 
                     # Extrair trace context
                     trace_context = {
-                        'correlation_id': dlq_entry.correlation_id,
-                        'trace_id': dlq_entry.trace_id,
-                        'span_id': dlq_entry.span_id
+                        "correlation_id": dlq_entry.correlation_id,
+                        "trace_id": dlq_entry.trace_id,
+                        "span_id": dlq_entry.span_id,
                     }
 
                     # Mensagem pronta - tentar reprocessar
                     logger.info(
-                        'Processando entrada DLQ',
+                        "Processando entrada DLQ",
                         plan_id=dlq_entry.plan_id,
                         intent_id=dlq_entry.intent_id,
                         retry_count=dlq_entry.retry_count,
                         backoff_seconds=backoff_seconds,
                         time_since_failure=round(time_since_failure, 1),
-                        correlation_id=dlq_entry.correlation_id
+                        correlation_id=dlq_entry.correlation_id,
                     )
 
                     try:
@@ -306,35 +294,34 @@ class ApprovalDLQConsumer:
                             reprocessed_in_cycle += 1
                             self.messages_processed += 1
                             logger.info(
-                                'Entrada DLQ reprocessada com sucesso',
+                                "Entrada DLQ reprocessada com sucesso",
                                 plan_id=dlq_entry.plan_id,
                                 intent_id=dlq_entry.intent_id,
-                                retry_count=dlq_entry.retry_count
+                                retry_count=dlq_entry.retry_count,
                             )
                             # Commit offset apenas quando reprocessamento foi bem-sucedido
                             # (inclui: sucesso real, falha permanente tratada, ou republicação na DLQ com retry_count incrementado)
                             await loop.run_in_executor(
-                                executor,
-                                lambda: self.consumer.commit(asynchronous=False)
+                                executor, lambda: self.consumer.commit(asynchronous=False)
                             )
                         else:
                             # Reprocessador retornou False - não commitar para retry no próximo poll
                             # Isso ocorre quando não há DLQ producer configurado para incrementar retry_count
                             logger.warning(
-                                'Reprocessamento DLQ retornou falha - mensagem será retentada',
+                                "Reprocessamento DLQ retornou falha - mensagem será retentada",
                                 plan_id=dlq_entry.plan_id,
                                 intent_id=dlq_entry.intent_id,
-                                retry_count=dlq_entry.retry_count
+                                retry_count=dlq_entry.retry_count,
                             )
                             # NÃO faz commit - mensagem será reprocessada no próximo ciclo
 
                     except Exception as e:
-                        logger.error(
-                            'Erro ao reprocessar entrada DLQ',
+                        logger.exception(
+                            "Erro ao reprocessar entrada DLQ",
                             error=str(e),
                             plan_id=dlq_entry.plan_id,
                             intent_id=dlq_entry.intent_id,
-                            retry_count=dlq_entry.retry_count
+                            retry_count=dlq_entry.retry_count,
                         )
                         # Não faz commit - será retentado no próximo poll
 
@@ -342,9 +329,10 @@ class ApprovalDLQConsumer:
 
                 # Atualizar estimativa de backlog da DLQ
                 # Backlog = mensagens skipped (em backoff) + mensagens que falharam reprocessamento
-                self._current_backlog = skipped_in_cycle + (messages_in_cycle - reprocessed_in_cycle - skipped_in_cycle)
-                if self._current_backlog < 0:
-                    self._current_backlog = 0
+                self._current_backlog = skipped_in_cycle + (
+                    messages_in_cycle - reprocessed_in_cycle - skipped_in_cycle
+                )
+                self._current_backlog = max(self._current_backlog, 0)
 
                 # Atualizar gauge de tamanho da DLQ
                 if self.metrics:
@@ -352,20 +340,20 @@ class ApprovalDLQConsumer:
 
                 if messages_in_cycle > 0:
                     logger.info(
-                        'Ciclo de polling DLQ concluído',
+                        "Ciclo de polling DLQ concluído",
                         poll_cycle=poll_cycle,
                         messages_found=messages_in_cycle,
                         reprocessed=reprocessed_in_cycle,
                         skipped=skipped_in_cycle,
                         backlog_estimate=self._current_backlog,
-                        duration_seconds=round(poll_duration, 2)
+                        duration_seconds=round(poll_duration, 2),
                     )
                 else:
                     logger.debug(
-                        'Ciclo de polling DLQ concluído - sem mensagens',
+                        "Ciclo de polling DLQ concluído - sem mensagens",
                         poll_cycle=poll_cycle,
                         backlog_estimate=self._current_backlog,
-                        duration_seconds=round(poll_duration, 2)
+                        duration_seconds=round(poll_duration, 2),
                     )
 
                 # Aguardar intervalo de polling
@@ -373,11 +361,7 @@ class ApprovalDLQConsumer:
                     await asyncio.sleep(self.settings.dlq_polling_interval_seconds)
 
             except Exception as e:
-                logger.error(
-                    'Erro no DLQ consumer loop',
-                    error=str(e),
-                    poll_cycle=poll_cycle
-                )
+                logger.exception("Erro no DLQ consumer loop", error=str(e), poll_cycle=poll_cycle)
                 await asyncio.sleep(5.0)  # Backoff curto em caso de erro
 
         executor.shutdown(wait=True)
@@ -398,23 +382,23 @@ class ApprovalDLQConsumer:
             ValueError: Se campos obrigatórios ausentes
             json.JSONDecodeError: Se JSON inválido
         """
-        data = json.loads(msg.value().decode('utf-8'))
+        data = json.loads(msg.value().decode("utf-8"))
 
         # Validar campos obrigatórios
-        required_fields = ['plan_id', 'intent_id', 'original_approval_response', 'retry_count']
+        required_fields = ["plan_id", "intent_id", "original_approval_response", "retry_count"]
         for field in required_fields:
             if field not in data:
                 raise ValueError(f"Campo obrigatório ausente na mensagem DLQ: {field}")
 
         # Converter failed_at de millis para datetime
-        if 'failed_at' in data and isinstance(data['failed_at'], (int, float)):
-            data['failed_at'] = datetime.utcfromtimestamp(data['failed_at'] / 1000)
+        if "failed_at" in data and isinstance(data["failed_at"], (int, float)):
+            data["failed_at"] = datetime.utcfromtimestamp(data["failed_at"] / 1000)
 
         logger.debug(
-            'Mensagem DLQ deserializada',
-            plan_id=data.get('plan_id'),
-            intent_id=data.get('intent_id'),
-            retry_count=data.get('retry_count')
+            "Mensagem DLQ deserializada",
+            plan_id=data.get("plan_id"),
+            intent_id=data.get("intent_id"),
+            retry_count=data.get("retry_count"),
         )
 
         return ApprovalDLQEntry(**data)
@@ -432,7 +416,7 @@ class ApprovalDLQConsumer:
             Backoff em segundos
         """
         base_minutes = self.settings.dlq_backoff_base_minutes
-        backoff_seconds = (base_minutes ** retry_count) * 60
+        backoff_seconds = (base_minutes**retry_count) * 60
 
         # Limitar backoff máximo a 24 horas
         max_backoff = 24 * 60 * 60
@@ -474,7 +458,7 @@ class ApprovalDLQConsumer:
         if self.consumer:
             self.consumer.close()
             logger.info(
-                'Approval DLQ Consumer fechado',
+                "Approval DLQ Consumer fechado",
                 messages_processed=self.messages_processed,
-                messages_skipped=self.messages_skipped
+                messages_skipped=self.messages_skipped,
             )

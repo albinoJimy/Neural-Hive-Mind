@@ -1,26 +1,21 @@
 """Services module"""
 
-from src.services.playbook_executor import PlaybookExecutor
-from src.services.remediation_manager import RemediationManager
-from src.services.health_monitor import (
-    HealthMonitor,
-    HealthStatus,
-    LagStatus,
-    ConnectionStatus
-)
 from src.services.circuit_breaker import (
     CircuitBreaker,
+    CircuitBreakerOpenError,
     CircuitBreakerState,
-    CircuitBreakerOpenError
 )
 from src.services.detection_service import (
-    DetectionService,
     DeadlockStatus,
+    DetectionService,
+    IncidentType,
     MemoryStatus,
     RemediationTrigger,
-    IncidentType,
-    Severity
+    Severity,
 )
+from src.services.health_monitor import ConnectionStatus, HealthMonitor, HealthStatus, LagStatus
+from src.services.playbook_executor import PlaybookExecutor
+from src.services.remediation_manager import RemediationManager
 
 __all__ = [
     # PlaybookExecutor

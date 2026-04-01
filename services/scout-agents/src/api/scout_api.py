@@ -11,9 +11,10 @@ Responsável por:
 """
 
 from typing import Optional
+
+import structlog
 from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel, Field
-import structlog
 
 logger = structlog.get_logger()
 
@@ -21,6 +22,7 @@ logger = structlog.get_logger()
 # Request/Response Models
 class ExplorationRequest(BaseModel):
     """Modelo de requisição para criar exploração."""
+
     plan_id: str = Field(..., description="ID do plano cognitivo")
     intent_text: str = Field(..., description="Texto da intenção do usuário")
     scouts: Optional[list[str]] = Field(None, description="Scouts específicos para deployar")
@@ -29,6 +31,7 @@ class ExplorationRequest(BaseModel):
 
 class ExplorationResponse(BaseModel):
     """Modelo de resposta de exploração."""
+
     exploration_id: str
     status: str
     created_at: Optional[str] = None
@@ -36,6 +39,7 @@ class ExplorationResponse(BaseModel):
 
 class ErrorDetail(BaseModel):
     """Modelo de detalhe de erro."""
+
     detail: str
 
 
@@ -55,7 +59,7 @@ class ScoutAPI:
         self.app = FastAPI(
             title="Scout Agents API",
             description="API para exploração e descoberta autónoma de código",
-            version="1.0.0"
+            version="1.0.0",
         )
         self._setup_routes()
 
@@ -67,11 +71,7 @@ class ScoutAPI:
             """Health check endpoint."""
             return {"status": "healthy"}
 
-        @self.app.post(
-            "/explorations",
-            response_model=ExplorationResponse,
-            status_code=200
-        )
+        @self.app.post("/explorations", response_model=ExplorationResponse, status_code=200)
         async def start_exploration(request: ExplorationRequest):
             """
             Inicia uma nova exploração.
@@ -83,7 +83,7 @@ class ScoutAPI:
             logger.info(
                 "start_exploration_requested",
                 plan_id=request.plan_id,
-                intent_text=request.intent_text
+                intent_text=request.intent_text,
             )
 
             # Iniciar exploração via orchestrator
@@ -91,23 +91,17 @@ class ScoutAPI:
                 plan_id=request.plan_id,
                 intent_text=request.intent_text,
                 scouts=request.scouts,
-                timeout_ms=request.timeout_ms
+                timeout_ms=request.timeout_ms,
             )
 
             # Salvar no ledger
             await self.scout_ledger.save_exploration(exploration)
 
-            logger.info(
-                "exploration_started",
-                exploration_id=exploration['exploration_id']
-            )
+            logger.info("exploration_started", exploration_id=exploration["exploration_id"])
 
             return ExplorationResponse(**exploration)
 
-        @self.app.get(
-            "/explorations/{exploration_id}",
-            response_model=dict
-        )
+        @self.app.get("/explorations/{exploration_id}", response_model=dict)
         async def get_exploration(exploration_id: str):
             """Recupera uma exploração por ID."""
             exploration = await self.scout_ledger.get_exploration(exploration_id)
@@ -121,13 +115,11 @@ class ScoutAPI:
         async def list_explorations(
             plan_id: Optional[str] = Query(None),
             status: Optional[str] = Query(None),
-            limit: int = Query(100, le=1000)
+            limit: int = Query(100, le=1000),
         ):
             """Lista explorações com filtros opcionais."""
             explorations = await self.scout_ledger.list_explorations(
-                plan_id=plan_id,
-                status=status,
-                limit=limit
+                plan_id=plan_id, status=status, limit=limit
             )
 
             return explorations

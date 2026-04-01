@@ -2,17 +2,18 @@
 Serviço para enforcement de políticas de congelamento.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
+
 import structlog
 from kubernetes import client as k8s_client
 
-from ..config.settings import PolicySettings
+from ..clients.kafka_producer import KafkaProducerClient
 from ..clients.postgresql_client import PostgreSQLClient
 from ..clients.redis_client import RedisClient
-from ..clients.kafka_producer import KafkaProducerClient
+from ..config.settings import PolicySettings
 from ..models.error_budget import ErrorBudget
-from ..models.freeze_policy import FreezePolicy, FreezeEvent, FreezeAction
+from ..models.freeze_policy import FreezeEvent, FreezePolicy
 
 
 class PolicyEnforcer:
@@ -23,7 +24,7 @@ class PolicyEnforcer:
         postgresql_client: PostgreSQLClient,
         redis_client: RedisClient,
         kafka_producer: KafkaProducerClient,
-        settings: PolicySettings
+        settings: PolicySettings,
     ):
         self.postgresql_client = postgresql_client
         self.redis_client = redis_client
@@ -51,9 +52,7 @@ class PolicyEnforcer:
             active_freezes = await self.postgresql_client.get_active_freezes(
                 service_name=budget.service_name
             )
-            policy_freeze_active = any(
-                f.policy_id == policy.policy_id for f in active_freezes
-            )
+            policy_freeze_active = any(f.policy_id == policy.policy_id for f in active_freezes)
 
             # Avaliar se deve acionar freeze
             if policy.should_trigger(budget) and not policy_freeze_active:
@@ -63,7 +62,7 @@ class PolicyEnforcer:
                     "freeze_triggered",
                     policy_id=policy.policy_id,
                     service=budget.service_name,
-                    budget_remaining=budget.error_budget_remaining
+                    budget_remaining=budget.error_budget_remaining,
                 )
 
             # Avaliar se deve descongelar
@@ -75,16 +74,12 @@ class PolicyEnforcer:
                             "freeze_resolved",
                             event_id=freeze.event_id,
                             service=budget.service_name,
-                            budget_remaining=budget.error_budget_remaining
+                            budget_remaining=budget.error_budget_remaining,
                         )
 
         return events_created
 
-    async def trigger_freeze(
-        self,
-        policy: FreezePolicy,
-        budget: ErrorBudget
-    ) -> FreezeEvent:
+    async def trigger_freeze(self, policy: FreezePolicy, budget: ErrorBudget) -> FreezeEvent:
         """Aciona freeze."""
         # Passo 1: Criar FreezeEvent
         event = FreezeEvent(
@@ -95,7 +90,7 @@ class PolicyEnforcer:
             trigger_reason=f"Error budget below {policy.trigger_threshold_percent}%",
             budget_remaining_percent=budget.error_budget_remaining,
             burn_rate=budget.burn_rates[0].rate if budget.burn_rates else 0,
-            active=True
+            active=True,
         )
 
         # Passo 2: Persistir evento
@@ -112,11 +107,7 @@ class PolicyEnforcer:
 
         return event
 
-    async def resolve_freeze(
-        self,
-        event: FreezeEvent,
-        budget: ErrorBudget
-    ) -> bool:
+    async def resolve_freeze(self, event: FreezeEvent, budget: ErrorBudget) -> bool:
         """Resolve freeze."""
         # Passo 1: Atualizar evento no PostgreSQL
         success = await self.postgresql_client.resolve_freeze_event(event.event_id)
@@ -130,16 +121,13 @@ class PolicyEnforcer:
         await self.redis_client.cache_freeze_status(event.service_name, False)
 
         # Passo 4: Publicar evento Kafka
-        event.resolved_at = datetime.utcnow()
+        event.resolved_at = datetime.now(timezone.utc)
         event.active = False
         await self.kafka_producer.publish_freeze_event(event, "resolved")
 
         return True
 
-    async def get_active_freezes(
-        self,
-        service_name: Optional[str] = None
-    ) -> List[FreezeEvent]:
+    async def get_active_freezes(self, service_name: Optional[str] = None) -> List[FreezeEvent]:
         """Busca freezes ativos."""
         return await self.postgresql_client.get_active_freezes(service_name)
 
@@ -159,11 +147,7 @@ class PolicyEnforcer:
 
         return is_frozen
 
-    async def _apply_kubernetes_freeze(
-        self,
-        policy: FreezePolicy,
-        event: FreezeEvent
-    ) -> None:
+    async def _apply_kubernetes_freeze(self, policy: FreezePolicy, event: FreezeEvent) -> None:
         """Aplica freeze no Kubernetes."""
         annotations = policy.to_kubernetes_annotation()
         annotations["neural-hive.io/freeze-event-id"] = event.event_id
@@ -175,10 +159,7 @@ class PolicyEnforcer:
 
             elif policy.scope.value == "SERVICE":
                 # Anotar deployments/statefulsets do serviço
-                await self._annotate_service_resources(
-                    event.service_name,
-                    annotations
-                )
+                await self._annotate_service_resources(event.service_name, annotations)
 
             elif policy.scope.value == "GLOBAL":
                 # Anotar todos os namespaces neural-hive-*
@@ -188,14 +169,12 @@ class PolicyEnforcer:
                 "kubernetes_freeze_applied",
                 scope=policy.scope.value,
                 target=policy.target,
-                event_id=event.event_id
+                event_id=event.event_id,
             )
 
         except Exception as e:
             self.logger.error(
-                "kubernetes_freeze_apply_failed",
-                error=str(e),
-                event_id=event.event_id
+                "kubernetes_freeze_apply_failed", error=str(e), event_id=event.event_id
             )
             raise
 
@@ -207,23 +186,15 @@ class PolicyEnforcer:
             await self._remove_annotations_from_service(event.service_name)
 
             self.logger.info(
-                "kubernetes_freeze_removed",
-                service=event.service_name,
-                event_id=event.event_id
+                "kubernetes_freeze_removed", service=event.service_name, event_id=event.event_id
             )
 
         except Exception as e:
             self.logger.error(
-                "kubernetes_freeze_remove_failed",
-                error=str(e),
-                event_id=event.event_id
+                "kubernetes_freeze_remove_failed", error=str(e), event_id=event.event_id
             )
 
-    async def _annotate_namespace(
-        self,
-        namespace: str,
-        annotations: dict
-    ) -> None:
+    async def _annotate_namespace(self, namespace: str, annotations: dict) -> None:
         """Adiciona annotations a um namespace."""
         try:
             ns = self.k8s_core_v1.read_namespace(namespace)
@@ -235,17 +206,9 @@ class PolicyEnforcer:
             self.logger.debug("namespace_annotated", namespace=namespace)
 
         except Exception as e:
-            self.logger.warning(
-                "namespace_annotation_failed",
-                namespace=namespace,
-                error=str(e)
-            )
+            self.logger.warning("namespace_annotation_failed", namespace=namespace, error=str(e))
 
-    async def _annotate_service_resources(
-        self,
-        service_name: str,
-        annotations: dict
-    ) -> None:
+    async def _annotate_service_resources(self, service_name: str, annotations: dict) -> None:
         """Adiciona annotations aos recursos de um serviço."""
         try:
             # Buscar deployments com label app=service_name
@@ -259,22 +222,18 @@ class PolicyEnforcer:
                 deploy.metadata.annotations.update(annotations)
 
                 self.k8s_apps_v1.patch_namespaced_deployment(
-                    deploy.metadata.name,
-                    deploy.metadata.namespace,
-                    deploy
+                    deploy.metadata.name, deploy.metadata.namespace, deploy
                 )
 
                 self.logger.debug(
                     "deployment_annotated",
                     deployment=deploy.metadata.name,
-                    namespace=deploy.metadata.namespace
+                    namespace=deploy.metadata.namespace,
                 )
 
         except Exception as e:
             self.logger.warning(
-                "service_resources_annotation_failed",
-                service=service_name,
-                error=str(e)
+                "service_resources_annotation_failed", service=service_name, error=str(e)
             )
 
     async def _annotate_global(self, annotations: dict) -> None:
@@ -300,9 +259,10 @@ class PolicyEnforcer:
                 if deploy.metadata.annotations:
                     # Remover annotations neural-hive.io/sla-freeze*
                     annotations_to_remove = [
-                        k for k in deploy.metadata.annotations.keys()
-                        if k.startswith("neural-hive.io/sla-freeze") or
-                           k.startswith("neural-hive.io/freeze-")
+                        k
+                        for k in deploy.metadata.annotations.keys()
+                        if k.startswith("neural-hive.io/sla-freeze")
+                        or k.startswith("neural-hive.io/freeze-")
                     ]
 
                     for key in annotations_to_remove:
@@ -310,29 +270,21 @@ class PolicyEnforcer:
 
                     if annotations_to_remove:
                         self.k8s_apps_v1.patch_namespaced_deployment(
-                            deploy.metadata.name,
-                            deploy.metadata.namespace,
-                            deploy
+                            deploy.metadata.name, deploy.metadata.namespace, deploy
                         )
 
                         self.logger.debug(
                             "deployment_annotations_removed",
                             deployment=deploy.metadata.name,
-                            namespace=deploy.metadata.namespace
+                            namespace=deploy.metadata.namespace,
                         )
 
         except Exception as e:
             self.logger.warning(
-                "service_annotations_removal_failed",
-                service=service_name,
-                error=str(e)
+                "service_annotations_removal_failed", service=service_name, error=str(e)
             )
 
-    def _policy_applies_to_service(
-        self,
-        policy: FreezePolicy,
-        service_name: str
-    ) -> bool:
+    def _policy_applies_to_service(self, policy: FreezePolicy, service_name: str) -> bool:
         """Verifica se política aplica a um serviço."""
         if policy.scope.value == "GLOBAL":
             return True

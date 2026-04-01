@@ -6,7 +6,7 @@ from enum import Enum
 from typing import Dict, List, Optional
 from uuid import uuid4
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from src.models.tool_descriptor import ToolCategory as ToolCategoryEnum
 
@@ -158,7 +158,4 @@ class ToolSelectionResponse(BaseModel):
         }
         return hashlib.sha256(json.dumps(key_data, sort_keys=True).encode()).hexdigest()
 
-    class Config:
-        """Pydantic configuration."""
-
-        use_enum_values = False
+    model_config = ConfigDict(use_enum_values=False)

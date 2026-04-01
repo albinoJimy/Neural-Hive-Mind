@@ -7,7 +7,7 @@ Espec: @.agent-os/specs/2026-03-17-active-learning-feedback/
 
 import pytest
 from unittest.mock import Mock, MagicMock, AsyncMock, patch
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pymongo import MongoClient, ASCENDING, DESCENDING
 from pymongo.collection import Collection
 from pymongo.errors import DuplicateKeyError
@@ -140,7 +140,7 @@ class TestPriorityFeedbackQueue:
             'intent_preview': 'Implementar...',
             'information_value': 0.85,
             'status': QueueStatus.PENDING,
-            'created_at': datetime.utcnow()
+            'created_at': datetime.now(timezone.utc)
         }
 
         case = queue.dequeue_next_case()
@@ -195,8 +195,8 @@ class TestPriorityFeedbackQueue:
             'plan_id': 'plan-123',
             'status': QueueStatus.IN_REVIEW,
             'assigned_to': 'user@example.com',
-            'claimed_at': datetime.utcnow(),
-            'expires_at': datetime.utcnow()
+            'claimed_at': datetime.now(timezone.utc),
+            'expires_at': datetime.now(timezone.utc)
         }
 
         result = queue.claim_case(
@@ -215,7 +215,7 @@ class TestPriorityFeedbackQueue:
         mock_result.matched_count = 1
         queue.collection.update_one.return_value = mock_result
 
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         queue.collection.find_one.return_value = {
             'queue_id': 'queue-123',
             'status': QueueStatus.IN_REVIEW,

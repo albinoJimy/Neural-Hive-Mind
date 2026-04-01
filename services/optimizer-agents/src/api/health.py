@@ -1,10 +1,10 @@
+import structlog
 from fastapi import APIRouter, status
 from fastapi.responses import JSONResponse
+from neural_hive_observability.health import HealthStatus
 from pydantic import BaseModel
-import structlog
 
 from src.config.settings import get_settings
-from neural_hive_observability.health import HealthStatus
 
 logger = structlog.get_logger()
 router = APIRouter(prefix="", tags=["health"])
@@ -30,7 +30,9 @@ class ReadinessResponse(BaseModel):
 async def health_check():
     """Basic health check."""
     settings = get_settings()
-    return HealthResponse(status="healthy", service=settings.service_name, version=settings.service_version)
+    return HealthResponse(
+        status="healthy", service=settings.service_name, version=settings.service_version
+    )
 
 
 @router.get("/health/ready", response_model=ReadinessResponse, status_code=status.HTTP_200_OK)
@@ -134,16 +136,22 @@ async def readiness_check():
         checks["clickhouse_schema"] = "unhealthy"
         clickhouse_healthy = False
 
-    all_ready = all(v == "connected" for v in checks.values() if v != "not_configured" and v not in ["healthy", "degraded", "unhealthy"])
+    all_ready = all(
+        v == "connected"
+        for v in checks.values()
+        if v != "not_configured" and v not in ["healthy", "degraded", "unhealthy"]
+    )
     all_ready = all_ready and clickhouse_healthy
 
     if not all_ready:
         return JSONResponse(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            content={"status": "not_ready", "ready": False, "checks": checks}
+            content={"status": "not_ready", "ready": False, "checks": checks},
         )
 
-    return ReadinessResponse(status="ready" if all_ready else "not_ready", ready=all_ready, checks=checks)
+    return ReadinessResponse(
+        status="ready" if all_ready else "not_ready", ready=all_ready, checks=checks
+    )
 
 
 @router.get("/health/live")

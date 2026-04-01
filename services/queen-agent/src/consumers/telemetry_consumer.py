@@ -1,15 +1,12 @@
-import asyncio
+import json
+
 import structlog
 from aiokafka import AIOKafkaConsumer
-from typing import Optional
-import json
 
 from neural_hive_observability import instrument_kafka_consumer
 from neural_hive_observability.context import extract_context_from_headers, set_baggage
-
-from ..config import Settings
-from ..services import StrategicDecisionEngine
-
+from src.config import Settings
+from src.services import StrategicDecisionEngine
 
 logger = structlog.get_logger()
 
@@ -26,7 +23,7 @@ class TelemetryConsumer:
         self.settings = settings
         self.decision_engine = decision_engine
         self.strategic_producer = strategic_producer
-        self.consumer: Optional[AIOKafkaConsumer] = None
+        self.consumer: AIOKafkaConsumer | None = None
         self.running = False
 
     async def initialize(self) -> None:
@@ -49,7 +46,7 @@ class TelemetryConsumer:
             )
 
         except Exception as e:
-            logger.error("telemetry_consumer_initialization_failed", error=str(e))
+            logger.exception("telemetry_consumer_initialization_failed", error=str(e))
             raise
 
     async def start(self) -> None:
@@ -68,14 +65,14 @@ class TelemetryConsumer:
                     await self.consumer.commit()
 
                 except Exception as e:
-                    logger.error(
+                    logger.exception(
                         "telemetry_message_processing_failed",
                         error=str(e),
                         offset=message.offset,
                     )
 
         except Exception as e:
-            logger.error("telemetry_consumer_loop_failed", error=str(e))
+            logger.exception("telemetry_consumer_loop_failed", error=str(e))
 
         finally:
             logger.info("telemetry_consumer_stopped")
@@ -91,7 +88,7 @@ class TelemetryConsumer:
     async def process_message(self, message) -> None:
         """Processar evento de telemetria"""
         try:
-            headers_dict = {k: v for k, v in (message.headers or [])}
+            headers_dict = dict(message.headers or [])
             extract_context_from_headers(headers_dict)
 
             event = message.value
@@ -104,14 +101,10 @@ class TelemetryConsumer:
             metric_type = event.get("metric_type")
             value = event.get("value")
 
-            logger.debug(
-                "telemetry_event_received", metric_type=metric_type, value=value
-            )
+            logger.debug("telemetry_event_received", metric_type=metric_type, value=value)
 
             # Processar via Decision Engine
-            strategic_decision = await self.decision_engine.process_telemetry_event(
-                event
-            )
+            strategic_decision = await self.decision_engine.process_telemetry_event(event)
 
             if strategic_decision:
                 logger.info(
@@ -121,9 +114,7 @@ class TelemetryConsumer:
                 )
 
                 # Publicar decisão estratégica no Kafka
-                published = await self.strategic_producer.publish_decision(
-                    strategic_decision
-                )
+                published = await self.strategic_producer.publish_decision(strategic_decision)
                 if not published:
                     logger.error(
                         "failed_to_publish_strategic_decision",
@@ -144,5 +135,5 @@ class TelemetryConsumer:
                     raise Exception("Failed to execute decision action")
 
         except Exception as e:
-            logger.error("process_telemetry_message_failed", error=str(e))
+            logger.exception("process_telemetry_message_failed", error=str(e))
             raise

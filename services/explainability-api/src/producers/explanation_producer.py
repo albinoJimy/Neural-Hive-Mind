@@ -9,10 +9,11 @@ Responsável por:
 GAPS-04 Task 6
 """
 
-from typing import Optional, Dict, Any
-import structlog
-import json
 import asyncio
+import json
+from typing import Any, Dict, Optional
+
+import structlog
 from aiokafka import AIOKafkaProducer
 from aiokafka.errors import KafkaError
 
@@ -27,11 +28,7 @@ class ExplanationProducer:
     para consumo por outros serviços (UI, analytics, etc).
     """
 
-    def __init__(
-        self,
-        bootstrap_servers: str,
-        topic: str = 'consensus.explanations'
-    ):
+    def __init__(self, bootstrap_servers: str, topic: str = "consensus.explanations"):
         """
         Inicializa o ExplanationProducer.
 
@@ -53,13 +50,13 @@ class ExplanationProducer:
         try:
             self.producer = AIOKafkaProducer(
                 bootstrap_servers=self.bootstrap_servers,
-                value_serializer=lambda v: json.dumps(v).encode('utf-8'),
+                value_serializer=lambda v: json.dumps(v).encode("utf-8"),
                 # Acknowledgments: esperar replicação
-                acks='all',
+                acks="all",
                 # Retries
                 retries=3,
                 # Compressão
-                compression_type='snappy'
+                compression_type="snappy",
             )
 
             await self.producer.start()
@@ -67,14 +64,11 @@ class ExplanationProducer:
             logger.info(
                 "explanation_producer.connected",
                 bootstrap_servers=self.bootstrap_servers,
-                topic=self.topic
+                topic=self.topic,
             )
 
         except Exception as e:
-            logger.error(
-                "explanation_producer.connection_failed",
-                error=str(e)
-            )
+            logger.error("explanation_producer.connection_failed", error=str(e))
             raise
 
     async def disconnect(self) -> None:
@@ -89,9 +83,7 @@ class ExplanationProducer:
         logger.info("explanation_producer.disconnected")
 
     async def publish_explanation(
-        self,
-        explanation: Dict[str, Any],
-        key: Optional[str] = None
+        self, explanation: Dict[str, Any], key: Optional[str] = None
     ) -> None:
         """
         Publica explicação no tópico do Kafka.
@@ -114,7 +106,7 @@ class ExplanationProducer:
         logger.info(
             "explanation_producer.publishing",
             decision_id=decision_id,
-            explainability_token=explanation.get("explainability_token")
+            explainability_token=explanation.get("explainability_token"),
         )
 
         try:
@@ -125,29 +117,19 @@ class ExplanationProducer:
             await self.producer.send_and_wait(
                 self.topic,
                 value=explanation,
-                key=partition_key.encode('utf-8') if partition_key else None,
-                headers=headers
+                key=partition_key.encode("utf-8") if partition_key else None,
+                headers=headers,
             )
 
-            logger.info(
-                "explanation_producer.published",
-                decision_id=decision_id,
-                topic=self.topic
-            )
+            logger.info("explanation_producer.published", decision_id=decision_id, topic=self.topic)
 
         except KafkaError as e:
-            logger.error(
-                "explanation_producer.kafka_error",
-                decision_id=decision_id,
-                error=str(e)
-            )
+            logger.error("explanation_producer.kafka_error", decision_id=decision_id, error=str(e))
             raise
 
         except Exception as e:
             logger.error(
-                "explanation_producer.publish_failed",
-                decision_id=decision_id,
-                error=str(e)
+                "explanation_producer.publish_failed", decision_id=decision_id, error=str(e)
             )
             raise
 
@@ -164,30 +146,26 @@ class ExplanationProducer:
         headers = []
 
         # Headers de tracing padrão (OpenTelemetry)
-        trace_parent = explanation.get('traceparent')
+        trace_parent = explanation.get("traceparent")
         if trace_parent:
-            headers.append(('traceparent', trace_parent.encode('utf-8')))
+            headers.append(("traceparent", trace_parent.encode("utf-8")))
 
-        trace_id = explanation.get('trace_id')
+        trace_id = explanation.get("trace_id")
         if trace_id:
-            headers.append(('trace_id', str(trace_id).encode('utf-8')))
+            headers.append(("trace_id", str(trace_id).encode("utf-8")))
 
-        span_id = explanation.get('span_id')
+        span_id = explanation.get("span_id")
         if span_id:
-            headers.append(('span_id', str(span_id).encode('utf-8')))
+            headers.append(("span_id", str(span_id).encode("utf-8")))
 
         # Headers adicionais
-        correlation_id = explanation.get('correlation_id')
+        correlation_id = explanation.get("correlation_id")
         if correlation_id:
-            headers.append(('correlation_id', str(correlation_id).encode('utf-8')))
+            headers.append(("correlation_id", str(correlation_id).encode("utf-8")))
 
         return headers
 
-    async def publish_batch(
-        self,
-        explanations: list,
-        timeout_ms: int = 5000
-    ) -> Dict[str, Any]:
+    async def publish_batch(self, explanations: list, timeout_ms: int = 5000) -> Dict[str, Any]:
         """
         Publica lote de explicações de forma eficiente.
 
@@ -201,17 +179,9 @@ class ExplanationProducer:
         if not self.producer:
             raise RuntimeError("Producer not connected. Call connect() first.")
 
-        logger.info(
-            "explanation_producer.publishing_batch",
-            count=len(explanations)
-        )
+        logger.info("explanation_producer.publishing_batch", count=len(explanations))
 
-        stats = {
-            'total': len(explanations),
-            'published': 0,
-            'failed': 0,
-            'errors': []
-        }
+        stats = {"total": len(explanations), "published": 0, "failed": 0, "errors": []}
 
         try:
             # Criar tarefas de publicação em paralelo
@@ -226,32 +196,22 @@ class ExplanationProducer:
             # Compilar estatísticas
             for result in results:
                 if isinstance(result, Exception):
-                    stats['failed'] += 1
-                    stats['errors'].append(str(result))
+                    stats["failed"] += 1
+                    stats["errors"].append(str(result))
                 else:
-                    stats['published'] += 1
+                    stats["published"] += 1
 
-            logger.info(
-                "explanation_producer.batch_published",
-                **stats
-            )
+            logger.info("explanation_producer.batch_published", **stats)
 
             return stats
 
         except Exception as e:
-            logger.error(
-                "explanation_producer.batch_publish_failed",
-                error=str(e)
-            )
-            stats['failed'] = len(explanations) - stats['published']
-            stats['errors'].append(str(e))
+            logger.error("explanation_producer.batch_publish_failed", error=str(e))
+            stats["failed"] = len(explanations) - stats["published"]
+            stats["errors"].append(str(e))
             return stats
 
-    async def _publish_with_timeout(
-        self,
-        explanation: Dict[str, Any],
-        timeout_ms: int
-    ) -> None:
+    async def _publish_with_timeout(self, explanation: Dict[str, Any], timeout_ms: int) -> None:
         """
         Publica explicação com timeout.
 
@@ -264,14 +224,13 @@ class ExplanationProducer:
         """
         try:
             await asyncio.wait_for(
-                self.publish_explanation(explanation),
-                timeout=timeout_ms / 1000.0
+                self.publish_explanation(explanation), timeout=timeout_ms / 1000.0
             )
         except asyncio.TimeoutError:
             decision_id = explanation.get("decision_id", "unknown")
             logger.warning(
                 "explanation_producer.publish_timeout",
                 decision_id=decision_id,
-                timeout_ms=timeout_ms
+                timeout_ms=timeout_ms,
             )
             raise

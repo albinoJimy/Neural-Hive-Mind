@@ -10,7 +10,7 @@ from .orchestrator_servicer import OrchestratorStrategicServicer
 from .server import start_grpc_server, stop_grpc_server
 
 __all__ = [
-    'OrchestratorStrategicServicer',
-    'start_grpc_server',
-    'stop_grpc_server',
+    "OrchestratorStrategicServicer",
+    "start_grpc_server",
+    "stop_grpc_server",
 ]

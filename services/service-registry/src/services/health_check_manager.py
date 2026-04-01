@@ -1,11 +1,11 @@
 import asyncio
-import structlog
 from datetime import datetime, timezone
 from typing import Optional
+
+import structlog
+from prometheus_client import REGISTRY, Counter, Gauge
 from src.clients import EtcdClient
 from src.models import AgentStatus, AgentType
-from prometheus_client import Counter, Gauge, REGISTRY
-
 
 logger = structlog.get_logger()
 
@@ -28,26 +28,19 @@ def _get_or_create_gauge(name: str, description: str, labelnames=None):
 
 # Métricas Prometheus
 health_checks_total = _get_or_create_counter(
-    'health_checks_total',
-    'Total de health checks executados'
+    "health_checks_total", "Total de health checks executados"
 )
 
 agents_marked_unhealthy_total = _get_or_create_counter(
-    'agents_marked_unhealthy_total',
-    'Total de agentes marcados como unhealthy',
-    ['agent_type']
+    "agents_marked_unhealthy_total", "Total de agentes marcados como unhealthy", ["agent_type"]
 )
 
 agents_removed_total = _get_or_create_counter(
-    'agents_removed_total',
-    'Total de agentes removidos por inatividade',
-    ['agent_type']
+    "agents_removed_total", "Total de agentes removidos por inatividade", ["agent_type"]
 )
 
 agents_active = _get_or_create_gauge(
-    'agents_active',
-    'Número de agentes ativos',
-    ['agent_type', 'status']
+    "agents_active", "Número de agentes ativos", ["agent_type", "status"]
 )
 
 
@@ -55,10 +48,7 @@ class HealthCheckManager:
     """Gerenciador de health checks periódicos para agentes"""
 
     def __init__(
-        self,
-        etcd_client: EtcdClient,
-        check_interval_seconds: int,
-        heartbeat_timeout_seconds: int
+        self, etcd_client: EtcdClient, check_interval_seconds: int, heartbeat_timeout_seconds: int
     ):
         self.etcd_client = etcd_client
         self.check_interval = check_interval_seconds
@@ -78,7 +68,7 @@ class HealthCheckManager:
         logger.info(
             "health_check_manager_started",
             interval_seconds=self.check_interval,
-            timeout_seconds=self.heartbeat_timeout
+            timeout_seconds=self.heartbeat_timeout,
         )
 
     async def stop(self) -> None:
@@ -118,10 +108,7 @@ class HealthCheckManager:
             # Resetar gauges
             for agent_type in AgentType:
                 for status in AgentStatus:
-                    agents_active.labels(
-                        agent_type=agent_type.value,
-                        status=status.value
-                    ).set(0)
+                    agents_active.labels(agent_type=agent_type.value, status=status.value).set(0)
 
             current_time = int(datetime.now(timezone.utc).timestamp())
 
@@ -138,14 +125,13 @@ class HealthCheckManager:
 
                 # Atualizar gauge
                 agents_active.labels(
-                    agent_type=agent.agent_type.value,
-                    status=agent.status.value
+                    agent_type=agent.agent_type.value, status=agent.status.value
                 ).inc()
 
             logger.info(
                 "health_checks_completed",
                 total_agents=len(all_agents),
-                unhealthy_tracked=len(self._unhealthy_counts)
+                unhealthy_tracked=len(self._unhealthy_counts),
             )
 
         except Exception as e:
@@ -165,7 +151,7 @@ class HealthCheckManager:
             agent_id=agent_id_str,
             agent_type=agent.agent_type.value,
             time_since_last_seen=time_since_last_seen,
-            unhealthy_count=unhealthy_count
+            unhealthy_count=unhealthy_count,
         )
 
         # Ciclo 1: Marcar como UNHEALTHY
@@ -173,14 +159,10 @@ class HealthCheckManager:
             agent.status = AgentStatus.UNHEALTHY
             await self.etcd_client.put_agent(agent)
 
-            agents_marked_unhealthy_total.labels(
-                agent_type=agent.agent_type.value
-            ).inc()
+            agents_marked_unhealthy_total.labels(agent_type=agent.agent_type.value).inc()
 
             logger.info(
-                "agent_marked_unhealthy",
-                agent_id=agent_id_str,
-                agent_type=agent.agent_type.value
+                "agent_marked_unhealthy", agent_id=agent_id_str, agent_type=agent.agent_type.value
             )
 
         # Ciclo 2: Marcar como DEGRADED e notificar autocura
@@ -192,9 +174,7 @@ class HealthCheckManager:
             await self._notify_autocura(agent)
 
             logger.warning(
-                "agent_marked_degraded",
-                agent_id=agent_id_str,
-                agent_type=agent.agent_type.value
+                "agent_marked_degraded", agent_id=agent_id_str, agent_type=agent.agent_type.value
             )
 
         # Ciclo 5+: Remover do registry
@@ -202,15 +182,13 @@ class HealthCheckManager:
             await self.etcd_client.delete_agent(agent.agent_id)
             del self._unhealthy_counts[agent_id_str]
 
-            agents_removed_total.labels(
-                agent_type=agent.agent_type.value
-            ).inc()
+            agents_removed_total.labels(agent_type=agent.agent_type.value).inc()
 
             logger.error(
                 "agent_removed",
                 agent_id=agent_id_str,
                 agent_type=agent.agent_type.value,
-                reason="prolonged_inactivity"
+                reason="prolonged_inactivity",
             )
 
     async def _notify_autocura(self, agent) -> None:
@@ -224,7 +202,7 @@ class HealthCheckManager:
             "autocura_notification_sent",
             agent_id=str(agent.agent_id),
             agent_type=agent.agent_type.value,
-            status=agent.status.value
+            status=agent.status.value,
         )
 
     async def check_agent_health(self, agent_id) -> Optional[AgentStatus]:
@@ -243,9 +221,5 @@ class HealthCheckManager:
             return agent.status
 
         except Exception as e:
-            logger.error(
-                "check_agent_health_failed",
-                agent_id=str(agent_id),
-                error=str(e)
-            )
+            logger.error("check_agent_health_failed", agent_id=str(agent_id), error=str(e))
             return None

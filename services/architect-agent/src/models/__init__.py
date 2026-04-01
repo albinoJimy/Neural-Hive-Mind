@@ -1,24 +1,24 @@
 """Modelos de dados para o Architect Agent service."""
 
 from .architecture import (
+    ArchitecturePlan,
     ArchitectureType,
     Component,
     Pattern,
-    ArchitecturePlan,
+)
+from .evolution import (
+    ArchitectureDiff,
+    DriftDetection,
+    DriftType,
+    EvolutionHistory,
 )
 from .validation import (
     Severity,
-    ViolationType,
-    Trend,
-    Violation,
     Suggestion,
+    Trend,
     ValidationReport,
-)
-from .evolution import (
-    DriftType,
-    DriftDetection,
-    EvolutionHistory,
-    ArchitectureDiff,
+    Violation,
+    ViolationType,
 )
 
 __all__ = [

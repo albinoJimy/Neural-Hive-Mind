@@ -4,16 +4,17 @@ Approval Request Consumer - Kafka consumer para requests de aprovacao
 Consome Cognitive Plans que requerem aprovacao humana do topico de requests.
 """
 
-import os
-import json
 import asyncio
+import json
+import os
+from datetime import datetime, timezone
+from typing import Any, Awaitable, Callable, Optional
+
 import structlog
-from datetime import datetime
-from typing import Optional, Callable, Awaitable, Any
 from confluent_kafka import Consumer, KafkaError, Message
-from confluent_kafka.serialization import SerializationContext, MessageField
 from confluent_kafka.schema_registry import SchemaRegistryClient
 from confluent_kafka.schema_registry.avro import AvroDeserializer
+from confluent_kafka.serialization import MessageField, SerializationContext
 from pymongo.errors import DuplicateKeyError
 
 from src.config.settings import Settings
@@ -36,78 +37,70 @@ class ApprovalRequestConsumer:
     async def initialize(self):
         """Inicializa consumer Kafka com suporte a Schema Registry"""
         consumer_config = {
-            'bootstrap.servers': self.settings.kafka_bootstrap_servers,
-            'group.id': self.settings.kafka_consumer_group_id,
-            'auto.offset.reset': self.settings.kafka_auto_offset_reset,
-            'enable.auto.commit': self.settings.kafka_enable_auto_commit,
-            'session.timeout.ms': self.settings.kafka_session_timeout_ms,
-            'max.poll.interval.ms': self.settings.kafka_max_poll_interval_ms,
-            'isolation.level': 'read_committed',
+            "bootstrap.servers": self.settings.kafka_bootstrap_servers,
+            "group.id": self.settings.kafka_consumer_group_id,
+            "auto.offset.reset": self.settings.kafka_auto_offset_reset,
+            "enable.auto.commit": self.settings.kafka_enable_auto_commit,
+            "session.timeout.ms": self.settings.kafka_session_timeout_ms,
+            "max.poll.interval.ms": self.settings.kafka_max_poll_interval_ms,
+            "isolation.level": "read_committed",
         }
 
         # Adiciona configuracao de seguranca
-        if self.settings.kafka_security_protocol != 'PLAINTEXT':
-            consumer_config.update({
-                'security.protocol': self.settings.kafka_security_protocol,
-                'sasl.mechanism': self.settings.kafka_sasl_mechanism,
-                'sasl.username': self.settings.kafka_sasl_username,
-                'sasl.password': self.settings.kafka_sasl_password,
-            })
+        if self.settings.kafka_security_protocol != "PLAINTEXT":
+            consumer_config.update(
+                {
+                    "security.protocol": self.settings.kafka_security_protocol,
+                    "sasl.mechanism": self.settings.kafka_sasl_mechanism,
+                    "sasl.username": self.settings.kafka_sasl_username,
+                    "sasl.password": self.settings.kafka_sasl_password,
+                }
+            )
 
         self.consumer = Consumer(consumer_config)
 
         # Inicializa Schema Registry client (opcional para dev)
         if self.settings.schema_registry_url and self.settings.schema_registry_url.strip():
-            schema_path = '/app/schemas/cognitive-plan/cognitive-plan.avsc'
+            schema_path = "/app/schemas/cognitive-plan/cognitive-plan.avsc"
             logger.info(
-                'Inicializando Schema Registry para approval consumer',
+                "Inicializando Schema Registry para approval consumer",
                 url=self.settings.schema_registry_url,
-                schema_path=schema_path
+                schema_path=schema_path,
             )
 
             if os.path.exists(schema_path):
-                logger.info('Schema Avro encontrado', path=schema_path)
-                self.schema_registry_client = SchemaRegistryClient({
-                    'url': self.settings.schema_registry_url
-                })
+                logger.info("Schema Avro encontrado", path=schema_path)
+                self.schema_registry_client = SchemaRegistryClient(
+                    {"url": self.settings.schema_registry_url}
+                )
 
                 # Carrega schema Avro
-                with open(schema_path, 'r') as f:
+                with open(schema_path, "r") as f:
                     schema_str = f.read()
 
-                self.avro_deserializer = AvroDeserializer(
-                    self.schema_registry_client,
-                    schema_str
-                )
+                self.avro_deserializer = AvroDeserializer(self.schema_registry_client, schema_str)
                 logger.info(
-                    'Schema Registry habilitado para consumer',
+                    "Schema Registry habilitado para consumer",
                     url=self.settings.schema_registry_url,
-                    deserializer_type='AvroDeserializer'
+                    deserializer_type="AvroDeserializer",
                 )
             else:
-                logger.warning(
-                    'Schema Avro nao encontrado - fallback para JSON',
-                    path=schema_path
-                )
+                logger.warning("Schema Avro nao encontrado - fallback para JSON", path=schema_path)
         else:
             logger.warning(
-                'Schema Registry desabilitado - usando JSON',
-                environment=self.settings.environment
+                "Schema Registry desabilitado - usando JSON", environment=self.settings.environment
             )
 
         # Subscribe no topico
         self.consumer.subscribe([self.settings.kafka_approval_requests_topic])
 
         logger.info(
-            'Approval Request Consumer inicializado',
+            "Approval Request Consumer inicializado",
             group_id=self.settings.kafka_consumer_group_id,
-            topic=self.settings.kafka_approval_requests_topic
+            topic=self.settings.kafka_approval_requests_topic,
         )
 
-    async def start_consuming(
-        self,
-        process_callback: Callable[[ApprovalRequest], Awaitable[Any]]
-    ):
+    async def start_consuming(self, process_callback: Callable[[ApprovalRequest], Awaitable[Any]]):
         """
         Inicia consumo de mensagens de aprovacao
 
@@ -115,13 +108,13 @@ class ApprovalRequestConsumer:
             process_callback: Funcao async para processar cada ApprovalRequest
         """
         self.running = True
-        logger.info('Iniciando consumo de approval requests')
+        logger.info("Iniciando consumo de approval requests")
 
         while self.running:
             try:
                 # Poll com timeout de 1 segundo
                 msg: Optional[Message] = self.consumer.poll(timeout=1.0)
-                self._last_poll_time = datetime.utcnow()
+                self._last_poll_time = datetime.now(timezone.utc)
 
                 if msg is None:
                     await asyncio.sleep(0.1)
@@ -129,15 +122,9 @@ class ApprovalRequestConsumer:
 
                 if msg.error():
                     if msg.error().code() == KafkaError._PARTITION_EOF:
-                        logger.debug(
-                            'Fim da particao atingido',
-                            partition=msg.partition()
-                        )
+                        logger.debug("Fim da particao atingido", partition=msg.partition())
                     else:
-                        logger.error(
-                            'Erro no consumer Kafka',
-                            error=msg.error()
-                        )
+                        logger.error("Erro no consumer Kafka", error=msg.error())
                     continue
 
                 # Deserializa mensagem
@@ -149,30 +136,24 @@ class ApprovalRequestConsumer:
                         # Commit manual
                         self.consumer.commit(message=msg)
                         logger.debug(
-                            'Mensagem processada e commitada',
-                            plan_id=approval_request.plan_id
+                            "Mensagem processada e commitada", plan_id=approval_request.plan_id
                         )
-                except DuplicateKeyError as e:
+                except DuplicateKeyError:
                     # Plan ja existe - comita para pular duplicata
                     self.consumer.commit(message=msg)
                     logger.warning(
-                        'Mensagem duplicada detectada - commitando para pular',
-                        plan_id=approval_request.plan_id if approval_request else 'unknown',
-                        offset=msg.offset()
+                        "Mensagem duplicada detectada - commitando para pular",
+                        plan_id=approval_request.plan_id if approval_request else "unknown",
+                        offset=msg.offset(),
                     )
                 except Exception as e:
                     logger.error(
-                        'Erro ao processar mensagem de aprovacao',
-                        error=str(e),
-                        offset=msg.offset()
+                        "Erro ao processar mensagem de aprovacao", error=str(e), offset=msg.offset()
                     )
                     # Nao comita mensagem com erro para retry
 
             except Exception as e:
-                logger.error(
-                    'Erro no loop de consumo',
-                    error=str(e)
-                )
+                logger.error("Erro no loop de consumo", error=str(e))
                 await asyncio.sleep(1.0)
 
     async def _deserialize_message(self, msg: Message) -> Optional[ApprovalRequest]:
@@ -187,9 +168,8 @@ class ApprovalRequestConsumer:
         """
         try:
             # Extrai headers
-            headers = {}
             if msg.headers():
-                headers = {k: v.decode('utf-8') if v else None for k, v in msg.headers()}
+                {k: v.decode("utf-8") if v else None for k, v in msg.headers()}
 
             # Deserializa valor
             if self.avro_deserializer:
@@ -197,43 +177,39 @@ class ApprovalRequestConsumer:
                 plan_data = self.avro_deserializer(msg.value(), ctx)
             else:
                 # Fallback para JSON
-                plan_data = json.loads(msg.value().decode('utf-8'))
+                plan_data = json.loads(msg.value().decode("utf-8"))
 
             # Extrai dados relevantes
-            risk_band_value = plan_data.get('risk_band', 'high')
+            risk_band_value = plan_data.get("risk_band", "high")
             if isinstance(risk_band_value, str):
                 risk_band = RiskBand(risk_band_value)
             else:
                 risk_band = RiskBand.HIGH
 
             approval_request = ApprovalRequest(
-                plan_id=plan_data.get('plan_id'),
-                intent_id=plan_data.get('intent_id'),
-                original_intent_text=plan_data.get('original_intent_text'),
-                risk_score=plan_data.get('risk_score', 0.0),
+                plan_id=plan_data.get("plan_id"),
+                intent_id=plan_data.get("intent_id"),
+                original_intent_text=plan_data.get("original_intent_text"),
+                risk_score=plan_data.get("risk_score", 0.0),
                 risk_band=risk_band,
-                is_destructive=plan_data.get('is_destructive', False),
-                destructive_tasks=plan_data.get('destructive_tasks', []),
-                risk_matrix=plan_data.get('risk_matrix'),
-                cognitive_plan=plan_data
+                is_destructive=plan_data.get("is_destructive", False),
+                destructive_tasks=plan_data.get("destructive_tasks", []),
+                risk_matrix=plan_data.get("risk_matrix"),
+                cognitive_plan=plan_data,
             )
 
             logger.info(
-                'Mensagem deserializada com sucesso',
+                "Mensagem deserializada com sucesso",
                 plan_id=approval_request.plan_id,
                 intent_id=approval_request.intent_id,
                 risk_band=risk_band_value,
-                is_destructive=approval_request.is_destructive
+                is_destructive=approval_request.is_destructive,
             )
 
             return approval_request
 
         except Exception as e:
-            logger.error(
-                'Falha ao deserializar mensagem',
-                error=str(e),
-                offset=msg.offset()
-            )
+            logger.error("Falha ao deserializar mensagem", error=str(e), offset=msg.offset())
             return None
 
     def is_healthy(self, max_poll_age_seconds: float = 60.0) -> tuple:
@@ -247,21 +223,21 @@ class ApprovalRequestConsumer:
             Tuple (is_healthy: bool, reason: str)
         """
         if not self.running:
-            return False, 'Consumer nao esta rodando'
+            return False, "Consumer nao esta rodando"
 
         if not self.consumer:
-            return False, 'Consumer nao inicializado'
+            return False, "Consumer nao inicializado"
 
         if self._last_poll_time:
-            age = (datetime.utcnow() - self._last_poll_time).total_seconds()
+            age = (datetime.now(timezone.utc) - self._last_poll_time).total_seconds()
             if age > max_poll_age_seconds:
-                return False, f'Ultimo poll ha {age:.1f}s (max: {max_poll_age_seconds}s)'
+                return False, f"Ultimo poll ha {age:.1f}s (max: {max_poll_age_seconds}s)"
 
-        return True, 'Consumer saudavel'
+        return True, "Consumer saudavel"
 
     async def close(self):
         """Fecha consumer gracefully"""
         self.running = False
         if self.consumer:
             self.consumer.close()
-            logger.info('Approval Request Consumer fechado')
+            logger.info("Approval Request Consumer fechado")

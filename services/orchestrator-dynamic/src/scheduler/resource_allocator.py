@@ -4,10 +4,9 @@ ResourceAllocator - Gerencia descoberta e alocação de workers.
 Integra com Service Registry para discovery de agentes e balanceamento de carga.
 """
 
-import asyncio
 import os
+
 import structlog
-from typing import Dict, List, Optional, Set
 
 from src.config.settings import OrchestratorSettings
 from src.observability.metrics import OrchestratorMetrics
@@ -31,7 +30,7 @@ class ResourceAllocator:
         config: OrchestratorSettings,
         metrics: OrchestratorMetrics,
         scheduling_optimizer=None,
-        affinity_tracker=None
+        affinity_tracker=None,
     ):
         """
         Inicializa o alocador.
@@ -48,16 +47,15 @@ class ResourceAllocator:
         self.metrics = metrics
         self.scheduling_optimizer = scheduling_optimizer
         self.affinity_tracker = affinity_tracker
-        self.logger = logger.bind(component='resource_allocator')
+        self.logger = logger.bind(component="resource_allocator")
 
         # Obter namespace do ambiente (POD_NAMESPACE injetada pelo Kubernetes)
         # Fallback para NEURAL_HIVE_NAMESPACE ou 'neural-hive' como padrão
         self.default_namespace = os.environ.get(
-            'POD_NAMESPACE',
-            os.environ.get('NEURAL_HIVE_NAMESPACE', 'neural-hive')
+            "POD_NAMESPACE", os.environ.get("NEURAL_HIVE_NAMESPACE", "neural-hive")
         )
 
-    async def discover_workers(self, ticket: Dict) -> List[Dict]:
+    async def discover_workers(self, ticket: dict) -> list[dict]:
         """
         Descobre workers disponíveis para um ticket.
 
@@ -67,65 +65,60 @@ class ResourceAllocator:
         Returns:
             Lista de workers disponíveis (AgentInfo convertido para dict)
         """
-        ticket_id = ticket.get('ticket_id', 'unknown')
-        required_capabilities = ticket.get('required_capabilities', [])
+        ticket_id = ticket.get("ticket_id", "unknown")
+        required_capabilities = ticket.get("required_capabilities", [])
 
         # Usar namespace do ticket se disponível, senão usar namespace do ambiente
         # Evita usar 'default' que não corresponde ao namespace real dos workers
-        ticket_namespace = ticket.get('namespace')
-        if not ticket_namespace or ticket_namespace == 'default':
+        ticket_namespace = ticket.get("namespace")
+        if not ticket_namespace or ticket_namespace == "default":
             namespace = self.default_namespace
         else:
             namespace = ticket_namespace
 
-        security_level = ticket.get('security_level', 'INTERNAL')
+        security_level = ticket.get("security_level", "INTERNAL")
 
         self.logger.info(
-            'discovering_workers',
+            "discovering_workers",
             ticket_id=ticket_id,
             capabilities=required_capabilities,
             namespace=namespace,
-            security_level=security_level
+            security_level=security_level,
         )
 
         try:
             # Criar filtros para Service Registry
             filters = {
-                'namespace': namespace,
-                'status': 'HEALTHY',
-                'security_level': security_level
+                "namespace": namespace,
+                "status": "HEALTHY",
+                "security_level": security_level,
             }
 
             # Chamar Service Registry (timeout aplicado via gRPC client config)
             # O timeout é gerenciado pela camada do IntelligentScheduler
             workers = await self.registry_client.discover_agents(
-                capabilities=required_capabilities,
-                filters=filters
+                capabilities=required_capabilities, filters=filters
             )
 
-            self.logger.info(
-                'workers_discovered',
-                ticket_id=ticket_id,
-                workers_count=len(workers)
-            )
+            self.logger.info("workers_discovered", ticket_id=ticket_id, workers_count=len(workers))
 
             # Log detalhado quando Service Registry retorna resposta vazia
             if len(workers) == 0:
                 self.logger.warning(
-                    'service_registry_empty_response',
+                    "service_registry_empty_response",
                     ticket_id=ticket_id,
                     namespace=namespace,
                     required_capabilities=required_capabilities,
                     security_level=security_level,
                     filters_applied=filters,
-                    response_empty=True
+                    response_empty=True,
                 )
 
             return workers
 
         except Exception as e:
-            self.logger.error(
-                'discovery_error',
+            self.logger.exception(
+                "discovery_error",
                 ticket_id=ticket_id,
                 namespace=namespace,
                 required_capabilities=required_capabilities,
@@ -133,18 +126,18 @@ class ResourceAllocator:
                 filters_used=filters,
                 error=str(e),
                 error_type=type(e).__name__,
-                workers_discovered_count=0
+                workers_discovered_count=0,
             )
             self.metrics.record_discovery_failure(type(e).__name__)
             return []
 
     async def select_best_worker(
         self,
-        workers: List[Dict],
+        workers: list[dict],
         priority_score: float,
-        ticket: Optional[Dict] = None,
-        load_forecast: Optional[Dict] = None
-    ) -> Optional[Dict]:
+        ticket: dict | None = None,
+        load_forecast: dict | None = None,
+    ) -> dict | None:
         """
         Seleciona melhor worker baseado em score composto.
 
@@ -167,42 +160,30 @@ class ResourceAllocator:
         if self.scheduling_optimizer and ticket:
             try:
                 workers = await self.scheduling_optimizer.optimize_allocation(
-                    ticket=ticket,
-                    workers=workers,
-                    load_forecast=load_forecast
+                    ticket=ticket, workers=workers, load_forecast=load_forecast
                 )
 
                 self.logger.debug(
-                    "workers_enriched_with_ml_predictions",
-                    workers_count=len(workers)
+                    "workers_enriched_with_ml_predictions", workers_count=len(workers)
                 )
             except Exception as e:
-                self.logger.warning(
-                    "ml_enrichment_failed_using_fallback",
-                    error=str(e)
-                )
+                self.logger.warning("ml_enrichment_failed_using_fallback", error=str(e))
 
         # Filtrar workers disponíveis
-        available_workers = [
-            w for w in workers
-            if self._is_worker_available(w)
-        ]
+        available_workers = [w for w in workers if self._is_worker_available(w)]
 
         if not available_workers:
-            self.logger.warning(
-                'no_available_workers',
-                total_workers=len(workers)
-            )
+            self.logger.warning("no_available_workers", total_workers=len(workers))
             return None
 
         # Obter dados de affinity se habilitado
         affinity_data = None
-        affinity_enabled = getattr(self.config, 'scheduler_enable_affinity', False)
+        affinity_enabled = getattr(self.config, "scheduler_enable_affinity", False)
 
         if affinity_enabled and self.affinity_tracker and ticket:
             try:
-                plan_id = ticket.get('plan_id')
-                intent_id = ticket.get('intent_id')
+                plan_id = ticket.get("plan_id")
+                intent_id = ticket.get("intent_id")
 
                 plan_allocations = await self.affinity_tracker.get_plan_allocations(plan_id)
                 intent_allocations = await self.affinity_tracker.get_intent_allocations(intent_id)
@@ -210,13 +191,15 @@ class ResourceAllocator:
                 # Obter tickets críticos por worker
                 critical_tickets = {}
                 for worker in available_workers:
-                    worker_id = worker.get('agent_id')
-                    critical_tickets[worker_id] = await self.affinity_tracker.get_critical_tickets_on_worker(worker_id)
+                    worker_id = worker.get("agent_id")
+                    critical_tickets[
+                        worker_id
+                    ] = await self.affinity_tracker.get_critical_tickets_on_worker(worker_id)
 
                 affinity_data = {
-                    'plan_allocations': plan_allocations,
-                    'intent_allocations': intent_allocations,
-                    'critical_tickets': critical_tickets
+                    "plan_allocations": plan_allocations,
+                    "intent_allocations": intent_allocations,
+                    "critical_tickets": critical_tickets,
                 }
 
                 self.logger.debug(
@@ -224,14 +207,13 @@ class ResourceAllocator:
                     plan_id=plan_id,
                     intent_id=intent_id,
                     workers_with_plan=len([w for w, c in plan_allocations.items() if c > 0]),
-                    workers_with_critical=len([w for w, t in critical_tickets.items() if len(t) > 0])
+                    workers_with_critical=len(
+                        [w for w, t in critical_tickets.items() if len(t) > 0]
+                    ),
                 )
 
             except Exception as e:
-                self.logger.warning(
-                    "affinity_data_fetch_failed_continuing_without",
-                    error=str(e)
-                )
+                self.logger.warning("affinity_data_fetch_failed_continuing_without", error=str(e))
                 affinity_data = None
 
         # Calcular score composto para cada worker
@@ -240,15 +222,17 @@ class ResourceAllocator:
             agent_score = self._calculate_agent_score(worker, ticket, affinity_data)
             composite_score = (agent_score * 0.6) + (priority_score * 0.4)
 
-            scored_workers.append({
-                **worker,
-                'score': agent_score,
-                'composite_score': composite_score,
-                'affinity_applied': affinity_data is not None
-            })
+            scored_workers.append(
+                {
+                    **worker,
+                    "score": agent_score,
+                    "composite_score": composite_score,
+                    "affinity_applied": affinity_data is not None,
+                }
+            )
 
         # Ordenar por composite_score (maior primeiro)
-        scored_workers.sort(key=lambda w: w['composite_score'], reverse=True)
+        scored_workers.sort(key=lambda w: w["composite_score"], reverse=True)
 
         # Retornar melhor worker
         best_worker = scored_workers[0]
@@ -256,87 +240,81 @@ class ResourceAllocator:
         # Registrar métricas de affinity apenas para o worker selecionado
         # (evita inflação de contagens ao registrar para cada candidato)
         if affinity_enabled and affinity_data and ticket:
-            best_agent_id = best_worker.get('agent_id')
-            plan_allocations = affinity_data.get('plan_allocations', {})
-            intent_allocations = affinity_data.get('intent_allocations', {})
-            critical_tickets = affinity_data.get('critical_tickets', {}).get(best_agent_id, set())
+            best_agent_id = best_worker.get("agent_id")
+            plan_allocations = affinity_data.get("plan_allocations", {})
+            intent_allocations = affinity_data.get("intent_allocations", {})
+            critical_tickets = affinity_data.get("critical_tickets", {}).get(best_agent_id, set())
 
             # Plan affinity metrics
             if plan_allocations.get(best_agent_id, 0) > 0:
-                self.metrics.record_affinity_hit('plan')
+                self.metrics.record_affinity_hit("plan")
             else:
-                self.metrics.record_affinity_miss('plan')
+                self.metrics.record_affinity_miss("plan")
 
             # Intent affinity metrics
             if intent_allocations.get(best_agent_id, 0) > 0:
-                self.metrics.record_affinity_hit('intent')
+                self.metrics.record_affinity_hit("intent")
             else:
-                self.metrics.record_affinity_miss('intent')
+                self.metrics.record_affinity_miss("intent")
 
             # Anti-affinity metrics (apenas para tickets críticos)
-            risk_band = ticket.get('risk_band', '')
-            priority = ticket.get('priority', '')
+            risk_band = ticket.get("risk_band", "")
+            priority = ticket.get("priority", "")
             anti_affinity_risk_bands = getattr(
-                self.config, 'scheduler_affinity_anti_affinity_risk_bands',
-                ['critical', 'high']
+                self.config, "scheduler_affinity_anti_affinity_risk_bands", ["critical", "high"]
             )
             anti_affinity_priorities = getattr(
-                self.config, 'scheduler_affinity_anti_affinity_priorities',
-                ['CRITICAL', 'HIGH']
+                self.config, "scheduler_affinity_anti_affinity_priorities", ["CRITICAL", "HIGH"]
             )
-            is_critical = (
-                risk_band.lower() in [rb.lower() for rb in anti_affinity_risk_bands] or
-                priority.upper() in [p.upper() for p in anti_affinity_priorities]
-            )
+            is_critical = risk_band.lower() in [
+                rb.lower() for rb in anti_affinity_risk_bands
+            ] or priority.upper() in [p.upper() for p in anti_affinity_priorities]
             if is_critical:
                 self.metrics.record_anti_affinity_enforced(risk_band, priority)
 
             # Registrar scores do worker selecionado
             # Recalcular scores para o best_worker para métricas precisas
-            plan_threshold = getattr(self.config, 'scheduler_affinity_plan_threshold', 3)
+            plan_threshold = getattr(self.config, "scheduler_affinity_plan_threshold", 3)
             plan_tickets = plan_allocations.get(best_agent_id, 0)
-            plan_score = 0.5 + (0.5 * min(1.0, plan_tickets / plan_threshold)) if plan_tickets > 0 else 0.5
+            plan_score = (
+                0.5 + (0.5 * min(1.0, plan_tickets / plan_threshold)) if plan_tickets > 0 else 0.5
+            )
             intent_tickets = intent_allocations.get(best_agent_id, 0)
-            intent_score = 0.5 + (0.5 * min(1.0, intent_tickets / plan_threshold)) if intent_tickets > 0 else 0.5
-            if is_critical:
-                anti_score = 0.0 if len(critical_tickets) > 0 else 1.0
-            else:
-                anti_score = 0.5
+            intent_score = (
+                0.5 + (0.5 * min(1.0, intent_tickets / plan_threshold))
+                if intent_tickets > 0
+                else 0.5
+            )
+            anti_score = (0.0 if len(critical_tickets) > 0 else 1.0) if is_critical else 0.5
 
-            self.metrics.record_affinity_score('plan', plan_score)
-            self.metrics.record_affinity_score('anti', anti_score)
-            self.metrics.record_affinity_score('intent', intent_score)
+            self.metrics.record_affinity_score("plan", plan_score)
+            self.metrics.record_affinity_score("anti", anti_score)
+            self.metrics.record_affinity_score("intent", intent_score)
 
         # Registrar alocação no affinity tracker
         if self.affinity_tracker and ticket:
             try:
-                await self.affinity_tracker.record_allocation(ticket, best_worker.get('agent_id'))
+                await self.affinity_tracker.record_allocation(ticket, best_worker.get("agent_id"))
             except Exception as e:
-                self.logger.warning(
-                    "affinity_record_failed",
-                    error=str(e)
-                )
+                self.logger.warning("affinity_record_failed", error=str(e))
 
         self.logger.info(
-            'best_worker_selected',
-            agent_id=best_worker.get('agent_id'),
-            agent_type=best_worker.get('agent_type'),
-            agent_score=best_worker.get('score'),
-            composite_score=best_worker.get('composite_score'),
-            ml_enriched=best_worker.get('ml_enriched', False),
-            predicted_queue_ms=best_worker.get('predicted_queue_ms'),
-            predicted_load_pct=best_worker.get('predicted_load_pct'),
-            affinity_applied=best_worker.get('affinity_applied', False),
-            candidates_evaluated=len(scored_workers)
+            "best_worker_selected",
+            agent_id=best_worker.get("agent_id"),
+            agent_type=best_worker.get("agent_type"),
+            agent_score=best_worker.get("score"),
+            composite_score=best_worker.get("composite_score"),
+            ml_enriched=best_worker.get("ml_enriched", False),
+            predicted_queue_ms=best_worker.get("predicted_queue_ms"),
+            predicted_load_pct=best_worker.get("predicted_load_pct"),
+            affinity_applied=best_worker.get("affinity_applied", False),
+            candidates_evaluated=len(scored_workers),
         )
 
         return best_worker
 
     def _calculate_agent_score(
-        self,
-        agent: Dict,
-        ticket: Optional[Dict] = None,
-        affinity_data: Optional[Dict] = None
+        self, agent: dict, ticket: dict | None = None, affinity_data: dict | None = None
     ) -> float:
         """
         Calcula score do agente baseado em status, telemetry, ML predictions e affinity.
@@ -358,34 +336,34 @@ class ResourceAllocator:
             Score normalizado [0.0, 1.0]
         """
         # Health score (0-1 baseado em status)
-        status = agent.get('status', 'UNKNOWN')
+        status = agent.get("status", "UNKNOWN")
         health_score = self._calculate_health_score(status)
 
         # Telemetry score (0-1 baseado em success_rate e performance)
-        telemetry = agent.get('telemetry', {})
+        telemetry = agent.get("telemetry", {})
         telemetry_score = self._calculate_telemetry_score(telemetry)
 
         # ML prediction scores (se disponíveis)
         queue_score = 1.0
         load_score = 1.0
 
-        if agent.get('ml_enriched', False):
+        if agent.get("ml_enriched", False):
             # Queue score: penalizar filas longas (> 5s)
-            predicted_queue_ms = agent.get('predicted_queue_ms', 0)
+            predicted_queue_ms = agent.get("predicted_queue_ms", 0)
             queue_score = max(0.0, 1.0 - (predicted_queue_ms / 10000.0))  # Normalizar até 10s
 
             # Load score: penalizar alta carga
-            predicted_load_pct = agent.get('predicted_load_pct', 0)
+            predicted_load_pct = agent.get("predicted_load_pct", 0)
             load_score = 1.0 - predicted_load_pct
 
         # Score composto com pesos ajustados para ML predictions
-        if agent.get('ml_enriched', False):
+        if agent.get("ml_enriched", False):
             # Com ML: health 40%, telemetry 30%, queue 20%, load 10%
             base_score = (
-                (health_score * 0.4) +
-                (telemetry_score * 0.3) +
-                (queue_score * 0.2) +
-                (load_score * 0.1)
+                (health_score * 0.4)
+                + (telemetry_score * 0.3)
+                + (queue_score * 0.2)
+                + (load_score * 0.1)
             )
         else:
             # Sem ML: health 50%, telemetry 50%
@@ -394,29 +372,29 @@ class ResourceAllocator:
         # Aplicar RL boost se disponível
         # rl_boost é um multiplicador aplicado ao score calculado
         # Valores típicos: 1.0 (sem boost), 1.1-1.2 (boost moderado), >1.2 (boost forte)
-        rl_boost = agent.get('rl_boost', 1.0)
+        rl_boost = agent.get("rl_boost", 1.0)
         if rl_boost != 1.0:
             base_score = base_score * rl_boost
             self.logger.debug(
                 "rl_boost_applied",
-                agent_id=agent.get('agent_id'),
+                agent_id=agent.get("agent_id"),
                 base_score=base_score / rl_boost,
                 rl_boost=rl_boost,
-                final_score=base_score
+                final_score=base_score,
             )
 
         # Aplicar affinity score se habilitado e dados disponíveis
-        affinity_enabled = getattr(self.config, 'scheduler_enable_affinity', False)
+        affinity_enabled = getattr(self.config, "scheduler_enable_affinity", False)
         agent_score = base_score
 
         if affinity_enabled and affinity_data and ticket:
-            agent_id = agent.get('agent_id')
+            agent_id = agent.get("agent_id")
             affinity_score = self._calculate_affinity_score(
                 agent,
                 ticket,
-                affinity_data.get('plan_allocations', {}),
-                affinity_data.get('intent_allocations', {}),
-                affinity_data.get('critical_tickets', {}).get(agent_id, set())
+                affinity_data.get("plan_allocations", {}),
+                affinity_data.get("intent_allocations", {}),
+                affinity_data.get("critical_tickets", {}).get(agent_id, set()),
             )
 
             # Affinity atua como multiplicador (0.5-1.5 range para não dominar)
@@ -430,11 +408,11 @@ class ResourceAllocator:
                 base_score=base_score,
                 affinity_score=affinity_score,
                 affinity_multiplier=affinity_multiplier,
-                final_score=agent_score
+                final_score=agent_score,
             )
 
             # Registrar métrica de affinity score
-            self.metrics.record_affinity_score('composite', affinity_score)
+            self.metrics.record_affinity_score("composite", affinity_score)
 
         return min(max(agent_score, 0.0), 1.0)
 
@@ -448,16 +426,15 @@ class ResourceAllocator:
         Returns:
             Score normalizado [0.0, 1.0]
         """
-        if status == 'HEALTHY':
+        if status == "HEALTHY":
             return 1.0
-        elif status == 'DEGRADED':
+        if status == "DEGRADED":
             return 0.6
-        elif status == 'UNHEALTHY':
+        if status == "UNHEALTHY":
             return 0.3
-        else:
-            return 0.5
+        return 0.5
 
-    def _calculate_telemetry_score(self, telemetry: Dict) -> float:
+    def _calculate_telemetry_score(self, telemetry: dict) -> float:
         """
         Calcula score de telemetry baseado nos campos disponíveis no proto atual.
 
@@ -478,17 +455,17 @@ class ResourceAllocator:
             return 0.5
 
         # Success rate (peso 60%)
-        success_rate = telemetry.get('success_rate', 0.0)
+        success_rate = telemetry.get("success_rate", 0.0)
 
         # Performance baseada em duração média (peso 20%)
         # Normalizar: assume 0-5000ms como range esperado
-        avg_duration_ms = telemetry.get('avg_duration_ms', 2500)
+        avg_duration_ms = telemetry.get("avg_duration_ms", 2500)
         # Inverter: menor duração = melhor score
         duration_score = max(0.0, 1.0 - (avg_duration_ms / 5000.0))
 
         # Experiência baseada em total de execuções (peso 20%)
         # Normalizar: 0-1000 execuções como range esperado
-        total_executions = telemetry.get('total_executions', 0)
+        total_executions = telemetry.get("total_executions", 0)
         experience_score = min(1.0, total_executions / 1000.0)
 
         # Score composto
@@ -498,11 +475,11 @@ class ResourceAllocator:
 
     def _calculate_affinity_score(
         self,
-        agent: Dict,
-        ticket: Dict,
-        plan_allocations: Dict[str, int],
-        intent_allocations: Dict[str, int],
-        critical_tickets_on_worker: set
+        agent: dict,
+        ticket: dict,
+        plan_allocations: dict[str, int],
+        intent_allocations: dict[str, int],
+        critical_tickets_on_worker: set,
     ) -> float:
         """
         Calcula score de affinity/anti-affinity para um worker.
@@ -522,24 +499,22 @@ class ResourceAllocator:
         Returns:
             Score normalizado [0.0, 1.0]
         """
-        agent_id = agent.get('agent_id')
-        risk_band = ticket.get('risk_band', '')
-        priority = ticket.get('priority', '')
+        agent_id = agent.get("agent_id")
+        risk_band = ticket.get("risk_band", "")
+        priority = ticket.get("priority", "")
 
         # Obter pesos de configuração
-        plan_weight = getattr(self.config, 'scheduler_affinity_plan_weight', 0.6)
-        anti_weight = getattr(self.config, 'scheduler_affinity_anti_weight', 0.3)
-        intent_weight = getattr(self.config, 'scheduler_affinity_intent_weight', 0.1)
-        plan_threshold = getattr(self.config, 'scheduler_affinity_plan_threshold', 3)
+        plan_weight = getattr(self.config, "scheduler_affinity_plan_weight", 0.6)
+        anti_weight = getattr(self.config, "scheduler_affinity_anti_weight", 0.3)
+        intent_weight = getattr(self.config, "scheduler_affinity_intent_weight", 0.1)
+        plan_threshold = getattr(self.config, "scheduler_affinity_plan_threshold", 3)
 
         # Risk bands e priorities que ativam anti-affinity
         anti_affinity_risk_bands = getattr(
-            self.config, 'scheduler_affinity_anti_affinity_risk_bands',
-            ['critical', 'high']
+            self.config, "scheduler_affinity_anti_affinity_risk_bands", ["critical", "high"]
         )
         anti_affinity_priorities = getattr(
-            self.config, 'scheduler_affinity_anti_affinity_priorities',
-            ['CRITICAL', 'HIGH']
+            self.config, "scheduler_affinity_anti_affinity_priorities", ["CRITICAL", "HIGH"]
         )
 
         # 1. Plan Affinity (data locality)
@@ -555,10 +530,9 @@ class ResourceAllocator:
             plan_score = 0.5
 
         # 2. Anti-Affinity para tickets críticos
-        is_critical = (
-            risk_band.lower() in [rb.lower() for rb in anti_affinity_risk_bands] or
-            priority.upper() in [p.upper() for p in anti_affinity_priorities]
-        )
+        is_critical = risk_band.lower() in [
+            rb.lower() for rb in anti_affinity_risk_bands
+        ] or priority.upper() in [p.upper() for p in anti_affinity_priorities]
 
         if is_critical:
             if len(critical_tickets_on_worker) > 0:
@@ -583,9 +557,7 @@ class ResourceAllocator:
 
         # Score composto
         affinity_score = (
-            (plan_score * plan_weight) +
-            (anti_score * anti_weight) +
-            (intent_score * intent_weight)
+            (plan_score * plan_weight) + (anti_score * anti_weight) + (intent_score * intent_weight)
         )
 
         # NOTA: Métricas são registradas apenas para o worker selecionado
@@ -600,12 +572,12 @@ class ResourceAllocator:
             is_critical=is_critical,
             plan_tickets=plan_tickets,
             critical_tickets=len(critical_tickets_on_worker),
-            final_score=affinity_score
+            final_score=affinity_score,
         )
 
         return min(max(affinity_score, 0.0), 1.0)
 
-    def _is_worker_available(self, agent: Dict) -> bool:
+    def _is_worker_available(self, agent: dict) -> bool:
         """
         Verifica se worker está disponível para receber tarefas.
 
@@ -620,27 +592,27 @@ class ResourceAllocator:
             True se disponível, False caso contrário
         """
         # Verificar status (campo direto do AgentInfo)
-        status = agent.get('status', 'UNKNOWN')
-        if status not in ['HEALTHY', 'DEGRADED']:
+        status = agent.get("status", "UNKNOWN")
+        if status not in ["HEALTHY", "DEGRADED"]:
             return False
 
         # Se há ML prediction de carga, verificar threshold
-        if agent.get('ml_enriched', False):
-            predicted_load_pct = agent.get('predicted_load_pct', 0)
+        if agent.get("ml_enriched", False):
+            predicted_load_pct = agent.get("predicted_load_pct", 0)
             if predicted_load_pct > 0.9:  # Rejeitar se > 90% de carga
                 self.logger.debug(
                     "worker_rejected_high_predicted_load",
-                    agent_id=agent.get('agent_id'),
-                    predicted_load_pct=predicted_load_pct
+                    agent_id=agent.get("agent_id"),
+                    predicted_load_pct=predicted_load_pct,
                 )
                 return False
 
         # Se há metadata com informações de capacidade, usar
-        metadata = agent.get('metadata', {})
-        if 'active_tasks' in metadata and 'max_concurrent_tasks' in metadata:
+        metadata = agent.get("metadata", {})
+        if "active_tasks" in metadata and "max_concurrent_tasks" in metadata:
             try:
-                active_tasks = int(metadata['active_tasks'])
-                max_tasks = int(metadata['max_concurrent_tasks'])
+                active_tasks = int(metadata["active_tasks"])
+                max_tasks = int(metadata["max_concurrent_tasks"])
                 if active_tasks >= max_tasks:
                     return False
             except (ValueError, TypeError):

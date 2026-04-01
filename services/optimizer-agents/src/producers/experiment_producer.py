@@ -1,5 +1,3 @@
-from typing import Optional
-
 import structlog
 from confluent_kafka import Producer
 
@@ -19,7 +17,7 @@ class ExperimentProducer:
     def __init__(self, settings=None, metrics=None):
         self.settings = settings or get_settings()
         self.metrics = metrics
-        self.producer: Optional[Producer] = None
+        self.producer: Producer | None = None
 
     def start(self):
         """Iniciar producer Kafka."""
@@ -37,7 +35,9 @@ class ExperimentProducer:
 
             self.producer = Producer(conf)
 
-            logger.info("experiment_producer_started", bootstrap=self.settings.kafka_bootstrap_servers)
+            logger.info(
+                "experiment_producer_started", bootstrap=self.settings.kafka_bootstrap_servers
+            )
 
         except Exception as e:
             logger.error("experiment_producer_start_failed", error=str(e))

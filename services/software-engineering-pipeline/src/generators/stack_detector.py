@@ -1,5 +1,7 @@
 import re
+
 from pydantic import BaseModel, ConfigDict, Field
+
 from src.models.schemas import ProjectStack
 
 
@@ -86,9 +88,7 @@ class StackDetector:
         ],
     }
 
-    def __init__(
-        self, file_list: list[str], file_contents: dict[str, str] | None = None
-    ) -> None:
+    def __init__(self, file_list: list[str], file_contents: dict[str, str] | None = None) -> None:
         self.file_list = file_list
         self.file_contents = file_contents or {}
 
@@ -109,9 +109,7 @@ class StackDetector:
 
         has_docker_compose = any("docker-compose" in f.lower() for f in self.file_list)
 
-        has_helm_chart = any(
-            "helm" in f.lower() or "Chart.yaml" in f for f in self.file_list
-        )
+        has_helm_chart = any("helm" in f.lower() or "Chart.yaml" in f for f in self.file_list)
 
         kubernetes_manifests = any(
             any(re.search(p, f, re.IGNORECASE) for p, _ in self.K8S_INDICATORS)

@@ -2,18 +2,20 @@
 gRPC server interceptor para verificação de tokens SPIFFE JWT-SVID
 """
 
-import grpc
-from grpc import aio
-import structlog
-import json
 import base64
-from typing import Callable, Any, Dict, Optional
-from datetime import datetime
-from prometheus_client import Counter, REGISTRY
+import json
+from datetime import datetime, timezone
+from typing import Any, Callable, Dict, Optional
+
+import grpc
+import structlog
+from grpc import aio
+from prometheus_client import REGISTRY, Counter
 
 # Import security library (optional)
 try:
     from neural_hive_security import SPIFFEManager
+
     SECURITY_LIB_AVAILABLE = True
 except ImportError:
     SECURITY_LIB_AVAILABLE = False
@@ -22,8 +24,9 @@ except ImportError:
 # Try to import JWT library for validation
 try:
     import jwt
-    from cryptography.hazmat.primitives import serialization
     from cryptography.hazmat.backends import default_backend
+    from cryptography.hazmat.primitives import serialization
+
     JWT_LIB_AVAILABLE = True
 except ImportError:
     JWT_LIB_AVAILABLE = False
@@ -42,14 +45,10 @@ def _get_or_create_counter(name: str, description: str, labelnames=None):
 
 # Metrics
 grpc_auth_attempts_total = _get_or_create_counter(
-    "grpc_auth_attempts_total",
-    "Total gRPC authentication attempts",
-    ["method", "status"]
+    "grpc_auth_attempts_total", "Total gRPC authentication attempts", ["method", "status"]
 )
 grpc_auth_failures_total = _get_or_create_counter(
-    "grpc_auth_failures_total",
-    "Total gRPC authentication failures",
-    ["method", "reason"]
+    "grpc_auth_failures_total", "Total gRPC authentication failures", ["method", "reason"]
 )
 
 
@@ -79,11 +78,11 @@ class SPIFFEAuthInterceptor(aio.ServerInterceptor):
             ],
             "DiscoverAgents": [
                 f"spiffe://{settings.SPIFFE_TRUST_DOMAIN}/ns/neural-hive/sa/orchestrator-dynamic",
-                f"spiffe://{settings.SPIFFE_TRUST_DOMAIN}/ns/neural-hive-execution/sa/worker-agents"
+                f"spiffe://{settings.SPIFFE_TRUST_DOMAIN}/ns/neural-hive-execution/sa/worker-agents",
             ],
             "Health": ["*"],  # Allow all for health checks
-            "Check": ["*"],   # gRPC health check method
-            "Watch": ["*"],   # gRPC health watch method
+            "Check": ["*"],  # gRPC health check method
+            "Watch": ["*"],  # gRPC health watch method
         }
 
         # Methods to skip authentication entirely (health checks, reflection, etc.)
@@ -101,7 +100,7 @@ class SPIFFEAuthInterceptor(aio.ServerInterceptor):
     async def intercept_service(
         self,
         continuation: Callable[[grpc.HandlerCallDetails], Any],
-        handler_call_details: grpc.HandlerCallDetails
+        handler_call_details: grpc.HandlerCallDetails,
     ) -> grpc.RpcMethodHandler:
         """
         Intercept gRPC service calls para autenticação
@@ -180,7 +179,7 @@ class SPIFFEAuthInterceptor(aio.ServerInterceptor):
             if JWT_LIB_AVAILABLE and self.spiffe_manager:
                 # Step 1: Decode JWT header to get kid (key ID)
                 unverified_header = jwt.get_unverified_header(token)
-                kid = unverified_header.get('kid')
+                kid = unverified_header.get("kid")
 
                 # Step 2: Get trust bundle keys from SPIFFE manager
                 trust_bundle_keys = self.spiffe_manager.get_trust_bundle_keys()
@@ -189,7 +188,7 @@ class SPIFFEAuthInterceptor(aio.ServerInterceptor):
                     self.logger.warning(
                         "no_trust_bundle_keys_available",
                         method=method,
-                        fallback="Attempting trust bundle fetch"
+                        fallback="Attempting trust bundle fetch",
                     )
                     # Try to fetch trust bundle
                     await self.spiffe_manager.get_trust_bundle()
@@ -214,61 +213,62 @@ class SPIFFEAuthInterceptor(aio.ServerInterceptor):
                 decoded = jwt.decode(
                     token,
                     public_key,
-                    algorithms=['RS256', 'ES256', 'ES384'],
+                    algorithms=["RS256", "ES256", "ES384"],
                     options={
-                        'verify_signature': True,
-                        'verify_exp': True,
-                        'verify_nbf': True,
-                        'verify_iat': True,
-                        'require_exp': True,
-                    }
+                        "verify_signature": True,
+                        "verify_exp": True,
+                        "verify_nbf": True,
+                        "verify_iat": True,
+                        "require_exp": True,
+                    },
                 )
 
                 # Step 5: Validate claims
                 # Check issuer (should be trust domain)
-                iss = decoded.get('iss')
-                if iss and not iss.startswith(f'https://{self.settings.SPIFFE_TRUST_DOMAIN}'):
+                iss = decoded.get("iss")
+                if iss and not iss.startswith(f"https://{self.settings.SPIFFE_TRUST_DOMAIN}"):
                     self.logger.warning("invalid_issuer", method=method, issuer=iss)
                     return None
 
                 # Check audience (should match expected audience)
-                aud = decoded.get('aud', [])
+                aud = decoded.get("aud", [])
                 expected_aud = f"spiffe://{self.settings.SPIFFE_TRUST_DOMAIN}"
                 if isinstance(aud, list):
                     if expected_aud not in aud:
-                        self.logger.debug("audience_mismatch", method=method, aud=aud, expected=expected_aud)
+                        self.logger.debug(
+                            "audience_mismatch", method=method, aud=aud, expected=expected_aud
+                        )
                         # Don't reject - some implementations use different audience
                 elif aud != expected_aud:
-                    self.logger.debug("audience_mismatch", method=method, aud=aud, expected=expected_aud)
+                    self.logger.debug(
+                        "audience_mismatch", method=method, aud=aud, expected=expected_aud
+                    )
 
                 # Step 6: Extract SPIFFE ID from sub claim
-                spiffe_id = decoded.get('sub')
+                spiffe_id = decoded.get("sub")
 
-                if not spiffe_id or not spiffe_id.startswith('spiffe://'):
+                if not spiffe_id or not spiffe_id.startswith("spiffe://"):
                     self.logger.warning("invalid_spiffe_id_in_token", method=method, sub=spiffe_id)
                     return None
 
                 self.logger.info(
-                    "jwt_svid_validated",
-                    method=method,
-                    spiffe_id=spiffe_id,
-                    exp=decoded.get('exp')
+                    "jwt_svid_validated", method=method, spiffe_id=spiffe_id, exp=decoded.get("exp")
                 )
 
                 return spiffe_id
 
             else:
                 # Fallback: In production/staging, fail-closed when JWT verification is not available
-                environment = getattr(self.settings, 'ENVIRONMENT', 'development').lower()
+                environment = getattr(self.settings, "ENVIRONMENT", "development").lower()
 
-                if environment in ('production', 'staging'):
+                if environment in ("production", "staging"):
                     self.logger.error(
                         "jwt_validation_unavailable_production",
                         jwt_lib=JWT_LIB_AVAILABLE,
                         spiffe_manager=self.spiffe_manager is not None,
                         method=method,
                         environment=environment,
-                        msg="Fail-closed: JWT library not available in production/staging"
+                        msg="Fail-closed: JWT library not available in production/staging",
                     )
                     # Fail-closed: reject the request
                     return None
@@ -280,29 +280,29 @@ class SPIFFEAuthInterceptor(aio.ServerInterceptor):
                     spiffe_manager=self.spiffe_manager is not None,
                     method=method,
                     environment=environment,
-                    msg="INSECURE: Using unverified JWT parsing in non-production environment"
+                    msg="INSECURE: Using unverified JWT parsing in non-production environment",
                 )
 
                 # Decode without verification to get claims
-                payload_part = token.split('.')[1]
+                payload_part = token.split(".")[1]
                 # Add padding if needed
                 padding = 4 - len(payload_part) % 4
                 if padding != 4:
-                    payload_part += '=' * padding
+                    payload_part += "=" * padding
 
                 payload_bytes = base64.urlsafe_b64decode(payload_part)
                 payload = json.loads(payload_bytes)
 
                 # Extract SPIFFE ID from sub
-                spiffe_id = payload.get('sub')
+                spiffe_id = payload.get("sub")
 
                 # Check expiry
-                exp = payload.get('exp')
-                if exp and datetime.utcfromtimestamp(exp) < datetime.utcnow():
+                exp = payload.get("exp")
+                if exp and datetime.utcfromtimestamp(exp) < datetime.now(timezone.utc):
                     self.logger.warning("token_expired", method=method, exp=exp)
                     return None
 
-                if spiffe_id and spiffe_id.startswith('spiffe://'):
+                if spiffe_id and spiffe_id.startswith("spiffe://"):
                     return spiffe_id
 
                 return None
@@ -333,15 +333,15 @@ class SPIFFEAuthInterceptor(aio.ServerInterceptor):
             import jwt.algorithms as jwt_algs
 
             # Use PyJWT's JWK conversion
-            if hasattr(jwt_algs, 'RSAAlgorithm'):
+            if hasattr(jwt_algs, "RSAAlgorithm"):
                 algo = jwt_algs.RSAAlgorithm(jwt_algs.RSAAlgorithm.SHA256)
                 public_key = algo.from_jwk(json.dumps(jwk))
 
                 pem = public_key.public_bytes(
                     encoding=serialization.Encoding.PEM,
-                    format=serialization.PublicFormat.SubjectPublicKeyInfo
+                    format=serialization.PublicFormat.SubjectPublicKeyInfo,
                 )
-                return pem.decode('utf-8')
+                return pem.decode("utf-8")
 
             return None
 
@@ -369,12 +369,18 @@ class SPIFFEAuthInterceptor(aio.ServerInterceptor):
 
     def _unauthenticated(self) -> grpc.RpcMethodHandler:
         """Retorna handler para UNAUTHENTICATED"""
+
         def abort(ignored_request, context):
-            context.abort(grpc.StatusCode.UNAUTHENTICATED, "Invalid or missing authentication token")
+            context.abort(
+                grpc.StatusCode.UNAUTHENTICATED, "Invalid or missing authentication token"
+            )
+
         return grpc.unary_unary_rpc_method_handler(abort)
 
     def _permission_denied(self) -> grpc.RpcMethodHandler:
         """Retorna handler para PERMISSION_DENIED"""
+
         def abort(ignored_request, context):
             context.abort(grpc.StatusCode.PERMISSION_DENIED, "Access denied for this SPIFFE ID")
+
         return grpc.unary_unary_rpc_method_handler(abort)

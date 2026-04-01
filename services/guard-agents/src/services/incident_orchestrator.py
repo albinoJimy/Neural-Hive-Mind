@@ -1,7 +1,8 @@
 """Orquestrador de incidentes que coordena todo o fluxo E1-E6"""
-from typing import Dict, Any, Optional, List
-import structlog
 from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
+
+import structlog
 
 logger = structlog.get_logger()
 
@@ -18,7 +19,7 @@ class IncidentOrchestrator:
         mongodb_client=None,
         kafka_producer=None,
         prometheus_client=None,
-        itsm_client=None
+        itsm_client=None,
     ):
         self.threat_detector = threat_detector
         self.incident_classifier = incident_classifier
@@ -39,9 +40,7 @@ class IncidentOrchestrator:
         }
 
     async def process_incident_flow(
-        self,
-        event: Dict[str, Any],
-        context: Optional[Dict[str, Any]] = None
+        self, event: Dict[str, Any], context: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
         Processa fluxo completo E1→E6 de forma orquestrada
@@ -67,7 +66,7 @@ class IncidentOrchestrator:
             logger.info(
                 "incident_orchestrator.flow_started",
                 event_type=event.get("type"),
-                event_id=event.get("event_id")
+                event_id=event.get("event_id"),
             )
 
             # E1: Detectar anomalia
@@ -83,9 +82,7 @@ class IncidentOrchestrator:
             enforcement_result = await self._e3_enforce_policies(incident)
 
             # E4: Executar playbooks de autocura
-            remediation_result = await self._e4_execute_remediation(
-                incident, enforcement_result
-            )
+            remediation_result = await self._e4_execute_remediation(incident, enforcement_result)
 
             # E5: Validar restauração de SLA
             sla_validation = await self._e5_validate_sla_restoration(
@@ -106,7 +103,7 @@ class IncidentOrchestrator:
                 remediation_result,
                 sla_validation,
                 lessons_learned,
-                flow_start_time
+                flow_start_time,
             )
 
             # Persistir resultado
@@ -119,16 +116,14 @@ class IncidentOrchestrator:
                 "incident_orchestrator.flow_completed",
                 incident_id=incident.get("incident_id"),
                 duration_ms=final_result.get("duration_ms"),
-                sla_met=sla_validation.get("sla_met")
+                sla_met=sla_validation.get("sla_met"),
             )
 
             return final_result
 
         except Exception as e:
             logger.error(
-                "incident_orchestrator.flow_failed",
-                error=str(e),
-                event_id=event.get("event_id")
+                "incident_orchestrator.flow_failed", error=str(e), event_id=event.get("event_id")
             )
             raise
 
@@ -146,7 +141,7 @@ class IncidentOrchestrator:
             logger.info(
                 "incident_orchestrator.e1_detected",
                 threat_type=anomaly.get("threat_type"),
-                detection_time_s=detection_time
+                detection_time_s=detection_time,
             )
 
             # Verificar MTTD
@@ -154,7 +149,7 @@ class IncidentOrchestrator:
                 logger.warning(
                     "incident_orchestrator.mttd_exceeded",
                     detection_time_s=detection_time,
-                    target_s=self.sla_targets["mttd_seconds"]
+                    target_s=self.sla_targets["mttd_seconds"],
                 )
 
         return anomaly
@@ -163,10 +158,7 @@ class IncidentOrchestrator:
         self, anomaly: Dict[str, Any], context: Optional[Dict[str, Any]]
     ) -> Dict[str, Any]:
         """E2: Classificar severidade (Classificação mapeada a runbooks)"""
-        logger.debug(
-            "incident_orchestrator.e2_classifying",
-            threat_type=anomaly.get("threat_type")
-        )
+        logger.debug("incident_orchestrator.e2_classifying", threat_type=anomaly.get("threat_type"))
 
         incident = await self.incident_classifier.classify_incident(anomaly, context)
 
@@ -174,40 +166,35 @@ class IncidentOrchestrator:
             "incident_orchestrator.e2_classified",
             incident_id=incident.get("incident_id"),
             severity=incident.get("severity"),
-            runbook_id=incident.get("runbook_id")
+            runbook_id=incident.get("runbook_id"),
         )
 
         # E2: Severidade desconhecida → acionar duty engineer
         if incident.get("requires_human_review"):
             logger.warning(
                 "incident_orchestrator.e2_human_review_required",
-                incident_id=incident.get("incident_id")
+                incident_id=incident.get("incident_id"),
             )
 
         return incident
 
-    async def _e3_enforce_policies(
-        self, incident: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    async def _e3_enforce_policies(self, incident: Dict[str, Any]) -> Dict[str, Any]:
         """E3: Selecionar playbook e executar políticas de enforcement (OPA/Istio)"""
-        logger.debug(
-            "incident_orchestrator.e3_enforcing",
-            incident_id=incident.get("incident_id")
-        )
+        logger.debug("incident_orchestrator.e3_enforcing", incident_id=incident.get("incident_id"))
 
         enforcement_result = await self.policy_enforcer.enforce_policy(incident)
 
         logger.info(
             "incident_orchestrator.e3_enforced",
             incident_id=incident.get("incident_id"),
-            success=enforcement_result.get("success")
+            success=enforcement_result.get("success"),
         )
 
         # E3: Playbook inexistente → criar stub e notificar engenharia
         if enforcement_result.get("requires_engineering_review"):
             logger.warning(
                 "incident_orchestrator.e3_stub_playbook_created",
-                incident_id=incident.get("incident_id")
+                incident_id=incident.get("incident_id"),
             )
 
         return enforcement_result
@@ -217,8 +204,7 @@ class IncidentOrchestrator:
     ) -> Dict[str, Any]:
         """E4: Executar ações de autocura (Sequenciar ações atomicamente)"""
         logger.debug(
-            "incident_orchestrator.e4_remediating",
-            incident_id=incident.get("incident_id")
+            "incident_orchestrator.e4_remediating", incident_id=incident.get("incident_id")
         )
 
         remediation_result = await self.remediation_coordinator.coordinate_remediation(
@@ -228,14 +214,14 @@ class IncidentOrchestrator:
         logger.info(
             "incident_orchestrator.e4_remediated",
             remediation_id=remediation_result.get("remediation_id"),
-            status=remediation_result.get("status")
+            status=remediation_result.get("status"),
         )
 
         # E4: Falha > 2 tentativas → escalar para humano
         if remediation_result.get("requires_human_intervention"):
             logger.error(
                 "incident_orchestrator.e4_human_intervention_required",
-                remediation_id=remediation_result.get("remediation_id")
+                remediation_id=remediation_result.get("remediation_id"),
             )
 
         return remediation_result
@@ -244,12 +230,11 @@ class IncidentOrchestrator:
         self,
         incident: Dict[str, Any],
         remediation_result: Dict[str, Any],
-        flow_start_time: datetime
+        flow_start_time: datetime,
     ) -> Dict[str, Any]:
         """E5: Validar restauração de SLA (Confirmar retorno ao SLA)"""
         logger.debug(
-            "incident_orchestrator.e5_validating_sla",
-            incident_id=incident.get("incident_id")
+            "incident_orchestrator.e5_validating_sla", incident_id=incident.get("incident_id")
         )
 
         # Calcular MTTR
@@ -263,7 +248,9 @@ class IncidentOrchestrator:
         # Verificar MTTR
         if recovery_time > self.sla_targets["mttr_seconds"]:
             sla_met = False
-            issues.append(f"MTTR exceeded: {recovery_time:.2f}s > {self.sla_targets['mttr_seconds']}s")
+            issues.append(
+                f"MTTR exceeded: {recovery_time:.2f}s > {self.sla_targets['mttr_seconds']}s"
+            )
 
         # Verificar se remediação foi bem-sucedida
         if remediation_result.get("status") != "completed":
@@ -276,8 +263,7 @@ class IncidentOrchestrator:
                 affected_service = self._extract_affected_service(incident)
                 if affected_service:
                     logger.info(
-                        "incident_orchestrator.validating_prometheus_sla",
-                        service=affected_service
+                        "incident_orchestrator.validating_prometheus_sla", service=affected_service
                     )
 
                     # Validar restauração de métricas de SLA
@@ -286,8 +272,8 @@ class IncidentOrchestrator:
                         sla_targets={
                             "min_success_rate": 99.9,
                             "max_latency_p99": 0.5,
-                            "max_error_rate": 0.1
-                        }
+                            "max_error_rate": 0.1,
+                        },
                     )
 
                     prometheus_metrics = sla_validation.get("metrics", {})
@@ -303,14 +289,11 @@ class IncidentOrchestrator:
                         "incident_orchestrator.prometheus_sla_validated",
                         service=affected_service,
                         sla_restored=sla_validation.get("sla_restored"),
-                        metrics=prometheus_metrics
+                        metrics=prometheus_metrics,
                     )
 
             except Exception as e:
-                logger.error(
-                    "incident_orchestrator.prometheus_validation_failed",
-                    error=str(e)
-                )
+                logger.error("incident_orchestrator.prometheus_validation_failed", error=str(e))
                 issues.append(f"Prometheus validation error: {str(e)}")
 
         # E5: SLA não recuperado → abrir incidente crítico
@@ -319,7 +302,7 @@ class IncidentOrchestrator:
                 "incident_orchestrator.e5_sla_not_restored",
                 incident_id=incident.get("incident_id"),
                 recovery_time_s=recovery_time,
-                issues=issues
+                issues=issues,
             )
             await self._open_critical_incident(incident, issues)
 
@@ -337,7 +320,7 @@ class IncidentOrchestrator:
             incident_id=incident.get("incident_id"),
             sla_met=sla_met,
             recovery_time_s=recovery_time,
-            prometheus_validated=bool(prometheus_metrics)
+            prometheus_validated=bool(prometheus_metrics),
         )
 
         return validation
@@ -360,12 +343,11 @@ class IncidentOrchestrator:
         incident: Dict[str, Any],
         enforcement_result: Dict[str, Any],
         remediation_result: Dict[str, Any],
-        sla_validation: Dict[str, Any]
+        sla_validation: Dict[str, Any],
     ) -> Dict[str, Any]:
         """E6: Documentar licoes aprendidas (Registro em ate 4h)"""
         logger.debug(
-            "incident_orchestrator.e6_documenting",
-            incident_id=incident.get("incident_id")
+            "incident_orchestrator.e6_documenting", incident_id=incident.get("incident_id")
         )
 
         lessons = {
@@ -382,9 +364,7 @@ class IncidentOrchestrator:
                 "met": sla_validation.get("sla_met"),
                 "recovery_time_s": sla_validation.get("recovery_time_s"),
             },
-            "recommendations": self._generate_recommendations(
-                incident, sla_validation
-            ),
+            "recommendations": self._generate_recommendations(incident, sla_validation),
             "documented_at": datetime.now(timezone.utc).isoformat(),
         }
 
@@ -395,14 +375,14 @@ class IncidentOrchestrator:
                 logger.info(
                     "incident_orchestrator.e6_documented",
                     incident_id=incident.get("incident_id"),
-                    collection="incident_postmortems"
+                    collection="incident_postmortems",
                 )
             except Exception as e:
                 # E6: Atraso -> alerta compliance
                 logger.error(
                     "incident_orchestrator.e6_documentation_delayed",
                     incident_id=incident.get("incident_id"),
-                    error=str(e)
+                    error=str(e),
                 )
                 # Publicar alerta de compliance
                 await self._publish_compliance_alert(incident.get("incident_id"), str(e))
@@ -418,21 +398,21 @@ class IncidentOrchestrator:
                     "incident_id": incident_id,
                     "violation": "E6_DOCUMENTATION_DELAYED",
                     "error": error,
-                    "timestamp": datetime.now(timezone.utc).isoformat()
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
                 }
                 # Tentar publicar via metodo generico do producer
-                if hasattr(self.kafka_producer, 'publish_compliance_alert'):
+                if hasattr(self.kafka_producer, "publish_compliance_alert"):
                     await self.kafka_producer.publish_compliance_alert(alert)
                 else:
                     logger.warning(
                         "incident_orchestrator.compliance_alert_method_not_found",
-                        incident_id=incident_id
+                        incident_id=incident_id,
                     )
             except Exception as e:
                 logger.error(
                     "incident_orchestrator.compliance_alert_failed",
                     incident_id=incident_id,
-                    error=str(e)
+                    error=str(e),
                 )
 
     def _generate_incident_summary(
@@ -440,7 +420,7 @@ class IncidentOrchestrator:
         incident: Dict[str, Any],
         enforcement_result: Dict[str, Any],
         remediation_result: Dict[str, Any],
-        sla_validation: Dict[str, Any]
+        sla_validation: Dict[str, Any],
     ) -> str:
         """Gera resumo do incidente"""
         summary = (
@@ -462,10 +442,10 @@ class IncidentOrchestrator:
         Returns:
             String com análise da causa raiz
         """
-        threat_type = incident.get('threat_type', 'unknown')
-        severity = incident.get('severity', 'unknown')
-        anomaly = incident.get('anomaly', {})
-        affected_resources = incident.get('affected_resources', [])
+        threat_type = incident.get("threat_type", "unknown")
+        severity = incident.get("severity", "unknown")
+        anomaly = incident.get("anomaly", {})
+        affected_resources = incident.get("affected_resources", [])
 
         # Construir análise baseada em múltiplos fatores
         analysis_parts = []
@@ -475,19 +455,19 @@ class IncidentOrchestrator:
 
         # 2. Análise da anomalia se disponível
         if anomaly:
-            anomaly_type = anomaly.get('type')
+            anomaly_type = anomaly.get("type")
             if anomaly_type:
                 analysis_parts.append(f"Anomaly pattern: {anomaly_type}")
 
-            anomaly_details = anomaly.get('details', {})
+            anomaly_details = anomaly.get("details", {})
             if isinstance(anomaly_details, dict):
                 # Extrair métricas relevantes
-                if 'deviation_threshold' in anomaly_details:
-                    threshold = anomaly_details['deviation_threshold']
+                if "deviation_threshold" in anomaly_details:
+                    threshold = anomaly_details["deviation_threshold"]
                     analysis_parts.append(f"Deviation exceeded: {threshold}x threshold")
 
-                if 'source' in anomaly_details:
-                    source = anomaly_details['source']
+                if "source" in anomaly_details:
+                    source = anomaly_details["source"]
                     analysis_parts.append(f"Origin: {source}")
 
         # 3. Análise de recursos afetados
@@ -499,34 +479,35 @@ class IncidentOrchestrator:
             if resource_count > 1:
                 namespaces = set()
                 for resource in affected_resources:
-                    if '/' in resource:
-                        ns, _ = resource.split('/', 1)
+                    if "/" in resource:
+                        ns, _ = resource.split("/", 1)
                         namespaces.add(ns)
 
                 if len(namespaces) > 1:
-                    analysis_parts.append(f"Multi-namespace impact detected: {', '.join(namespaces)}")
+                    analysis_parts.append(
+                        f"Multi-namespace impact detected: {', '.join(namespaces)}"
+                    )
 
         # 4. Análise de severidade
-        if severity == 'critical':
+        if severity == "critical":
             analysis_parts.append("Critical severity indicates potential security breach")
-        elif severity == 'high':
+        elif severity == "high":
             analysis_parts.append("High severity suggests significant operational impact")
 
         # 5. Correlação temporal (se disponível)
-        incident_id = incident.get('incident_id', '')
+        incident_id = incident.get("incident_id", "")
         if incident_id:
             # Extrair timestamp do ID se presente
             import re
-            timestamp_match = re.search(r'\d{10}', incident_id)
+
+            timestamp_match = re.search(r"\d{10}", incident_id)
             if timestamp_match:
                 analysis_parts.append(f"Incident ID correlation: {timestamp_match.group()}")
 
         return " | ".join(analysis_parts)
 
     def _summarize_actions(
-        self,
-        enforcement_result: Dict[str, Any],
-        remediation_result: Dict[str, Any]
+        self, enforcement_result: Dict[str, Any], remediation_result: Dict[str, Any]
     ) -> List[str]:
         """Sumariza ações tomadas"""
         actions = []
@@ -556,9 +537,7 @@ class IncidentOrchestrator:
 
         return recommendations
 
-    async def _open_critical_incident(
-        self, incident: Dict[str, Any], issues: List[str]
-    ):
+    async def _open_critical_incident(self, incident: Dict[str, Any], issues: List[str]):
         """
         E5: Abre incidente crítico quando SLA não é restaurado.
 
@@ -577,7 +556,7 @@ class IncidentOrchestrator:
             "incident_orchestrator.opening_critical_incident",
             original_incident_id=original_incident_id,
             issues=issues,
-            severity=severity
+            severity=severity,
         )
 
         # Construir detalhes do incidente crítico
@@ -614,8 +593,8 @@ class IncidentOrchestrator:
                     metadata={
                         "threat_type": threat_type,
                         "severity": severity,
-                        "source": "guard-agents"
-                    }
+                        "source": "guard-agents",
+                    },
                 )
 
                 if result.get("success"):
@@ -626,13 +605,13 @@ class IncidentOrchestrator:
                     logger.info(
                         "incident_orchestrator.itsm_ticket_created",
                         ticket_id=ticket_id,
-                        original_incident_id=original_incident_id
+                        original_incident_id=original_incident_id,
                     )
                 else:
                     logger.error(
                         "incident_orchestrator.itsm_creation_failed",
                         original_incident_id=original_incident_id,
-                        error=result.get("error")
+                        error=result.get("error"),
                     )
                     critical_incident["itsm_error"] = result.get("error")
 
@@ -640,45 +619,38 @@ class IncidentOrchestrator:
                 logger.error(
                     "incident_orchestrator.itsm_error",
                     original_incident_id=original_incident_id,
-                    error=str(e)
+                    error=str(e),
                 )
                 critical_incident["itsm_error"] = str(e)
         else:
             logger.warning(
-                "incident_orchestrator.itsm_not_available",
-                action="open_critical_incident"
+                "incident_orchestrator.itsm_not_available", action="open_critical_incident"
             )
             critical_incident["itsm_status"] = "not_available"
 
         # Persistir incidente crítico no MongoDB
-        if self.mongodb and hasattr(self.mongodb, 'critical_incidents_collection'):
+        if self.mongodb and hasattr(self.mongodb, "critical_incidents_collection"):
             try:
                 if self.mongodb.critical_incidents_collection:
                     await self.mongodb.critical_incidents_collection.insert_one(critical_incident)
                     logger.info(
                         "incident_orchestrator.critical_incident_persisted",
-                        original_incident_id=original_incident_id
+                        original_incident_id=original_incident_id,
                     )
             except Exception as e:
-                logger.error(
-                    "incident_orchestrator.persist_critical_incident_failed",
-                    error=str(e)
-                )
+                logger.error("incident_orchestrator.persist_critical_incident_failed", error=str(e))
 
         # Publicar evento de incidente crítico no Kafka
         if self.kafka_producer:
             try:
-                if hasattr(self.kafka_producer, 'publish_critical_incident'):
+                if hasattr(self.kafka_producer, "publish_critical_incident"):
                     await self.kafka_producer.publish_critical_incident(critical_incident)
                     logger.info(
                         "incident_orchestrator.critical_incident_published",
-                        original_incident_id=original_incident_id
+                        original_incident_id=original_incident_id,
                     )
             except Exception as e:
-                logger.error(
-                    "incident_orchestrator.publish_critical_incident_failed",
-                    error=str(e)
-                )
+                logger.error("incident_orchestrator.publish_critical_incident_failed", error=str(e))
 
     def _create_no_incident_result(
         self, event: Dict[str, Any], flow_start_time: datetime
@@ -702,7 +674,7 @@ class IncidentOrchestrator:
         remediation_result: Dict[str, Any],
         sla_validation: Dict[str, Any],
         lessons_learned: Dict[str, Any],
-        flow_start_time: datetime
+        flow_start_time: datetime,
     ) -> Dict[str, Any]:
         """Cria resultado final do fluxo completo"""
         duration_ms = (datetime.now(timezone.utc) - flow_start_time).total_seconds() * 1000
@@ -742,13 +714,13 @@ class IncidentOrchestrator:
                 await self.mongodb.incidents_collection.update_one(
                     {"incident_id": result.get("incident_id")},
                     {"$set": {"final_outcome": result}},
-                    upsert=True
+                    upsert=True,
                 )
             except Exception as e:
                 logger.error(
                     "incident_orchestrator.persist_failed",
                     incident_id=result.get("incident_id"),
-                    error=str(e)
+                    error=str(e),
                 )
 
     async def _publish_incident_outcome(self, result: Dict[str, Any]):
@@ -761,18 +733,14 @@ class IncidentOrchestrator:
         incident_id = result.get("incident_id")
 
         if not self.kafka_producer:
-            logger.warning(
-                "incident_orchestrator.no_kafka_producer",
-                incident_id=incident_id
-            )
+            logger.warning("incident_orchestrator.no_kafka_producer", incident_id=incident_id)
             return
 
         try:
             # Usar publish_remediation_result do RemediationProducer se disponível
-            if hasattr(self.kafka_producer, 'publish_remediation_result'):
+            if hasattr(self.kafka_producer, "publish_remediation_result"):
                 published = await self.kafka_producer.publish_remediation_result(
-                    remediation_id=incident_id,
-                    result=result
+                    remediation_id=incident_id, result=result
                 )
 
                 if published:
@@ -780,34 +748,27 @@ class IncidentOrchestrator:
                         "incident_orchestrator.outcome_published",
                         incident_id=incident_id,
                         flow=result.get("flow"),
-                        sla_met=result.get("e5_sla_validation", {}).get("sla_met")
+                        sla_met=result.get("e5_sla_validation", {}).get("sla_met"),
                     )
                 else:
                     logger.error(
                         "incident_orchestrator.publish_failed",
                         incident_id=incident_id,
-                        reason="Producer returned False"
+                        reason="Producer returned False",
                     )
             else:
                 # Fallback: tentar método genérico send
-                if hasattr(self.kafka_producer, 'send'):
-                    await self.kafka_producer.send(
-                        topic="incident-outcomes",
-                        value=result
-                    )
+                if hasattr(self.kafka_producer, "send"):
+                    await self.kafka_producer.send(topic="incident-outcomes", value=result)
                     logger.info(
-                        "incident_orchestrator.outcome_published_fallback",
-                        incident_id=incident_id
+                        "incident_orchestrator.outcome_published_fallback", incident_id=incident_id
                     )
                 else:
                     logger.warning(
-                        "incident_orchestrator.no_publish_method",
-                        incident_id=incident_id
+                        "incident_orchestrator.no_publish_method", incident_id=incident_id
                     )
 
         except Exception as e:
             logger.error(
-                "incident_orchestrator.publish_error",
-                incident_id=incident_id,
-                error=str(e)
+                "incident_orchestrator.publish_error", incident_id=incident_id, error=str(e)
             )

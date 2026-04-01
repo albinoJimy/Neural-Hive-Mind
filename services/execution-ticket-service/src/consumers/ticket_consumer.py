@@ -6,22 +6,20 @@ import json
 import time
 import uuid
 from pathlib import Path
-from typing import Optional, Callable, Awaitable, TYPE_CHECKING
-from confluent_kafka import Consumer, KafkaError
-from confluent_kafka.serialization import SerializationContext, MessageField
-from confluent_kafka.schema_registry import SchemaRegistryClient
-from confluent_kafka.schema_registry.avro import AvroDeserializer
+from typing import TYPE_CHECKING, Callable, Optional
 
 import structlog
+from confluent_kafka import Consumer, KafkaError
+from confluent_kafka.schema_registry import SchemaRegistryClient
+from confluent_kafka.schema_registry.avro import AvroDeserializer
+from confluent_kafka.serialization import MessageField, SerializationContext
+
 from neural_hive_observability import instrument_kafka_consumer
-from neural_hive_observability.context import (
-    extract_context_from_headers,
-    set_baggage
-)
+from neural_hive_observability.context import extract_context_from_headers, set_baggage
 
 from ..config import get_settings
+from ..database import get_mongodb_client, get_postgres_client
 from ..models import ExecutionTicket, WebhookEvent
-from ..database import get_postgres_client, get_mongodb_client
 from ..models.jwt_token import generate_token
 from ..observability.metrics import TicketServiceMetrics
 
@@ -41,8 +39,8 @@ class TicketConsumer:
         self,
         settings,
         metrics: TicketServiceMetrics,
-        webhook_manager_getter: Optional[Callable[[], Optional['WebhookManager']]] = None,
-        redis_client_getter: Optional[Callable[[], Optional[object]]] = None
+        webhook_manager_getter: Optional[Callable[[], Optional["WebhookManager"]]] = None,
+        redis_client_getter: Optional[Callable[[], Optional[object]]] = None,
     ):
         """
         Inicializa consumer.
@@ -63,7 +61,7 @@ class TicketConsumer:
         self.running = False
 
     @property
-    def webhook_manager(self) -> Optional['WebhookManager']:
+    def webhook_manager(self) -> Optional["WebhookManager"]:
         """Obtém webhook manager via getter (permite lazy loading)."""
         if self._webhook_manager_getter:
             return self._webhook_manager_getter()
@@ -90,11 +88,11 @@ class TicketConsumer:
             ticket_id existente se duplicata, None caso contrário
         """
         if not self.redis_client:
-            logger.warning('redis_client_not_available_skipping_idempotency_check')
+            logger.warning("redis_client_not_available_skipping_idempotency_check")
             return None
 
         if not idempotency_key:
-            logger.warning('idempotency_key_missing_skipping_check')
+            logger.warning("idempotency_key_missing_skipping_check")
             return None
 
         try:
@@ -105,12 +103,12 @@ class TicketConsumer:
 
             if existing_ticket_id:
                 logger.info(
-                    'duplicate_ticket_detected_by_idempotency_key',
+                    "duplicate_ticket_detected_by_idempotency_key",
                     idempotency_key=idempotency_key,
                     existing_ticket_id=existing_ticket_id,
-                    message='Ticket já foi processado, retornando existente'
+                    message="Ticket já foi processado, retornando existente",
                 )
-                self.metrics.duplicates_detected_total.labels(component='ticket_consumer').inc()
+                self.metrics.duplicates_detected_total.labels(component="ticket_consumer").inc()
                 self.metrics.idempotency_cache_hits_total.inc()
                 return existing_ticket_id
 
@@ -118,10 +116,10 @@ class TicketConsumer:
 
         except Exception as e:
             logger.error(
-                'idempotency_check_failed',
+                "idempotency_check_failed",
                 idempotency_key=idempotency_key,
                 error=str(e),
-                message='Continuando processamento sem verificação de idempotência'
+                message="Continuando processamento sem verificação de idempotência",
             )
             # Fail-open: continuar processamento em caso de erro no Redis
             return None
@@ -145,18 +143,22 @@ class TicketConsumer:
 
         try:
             key = f"ticket:idempotency:{idempotency_key}"
-            ttl = getattr(self.settings, 'redis_idempotency_ttl_seconds', self.IDEMPOTENCY_TTL_SECONDS)
+            ttl = getattr(
+                self.settings, "redis_idempotency_ttl_seconds", self.IDEMPOTENCY_TTL_SECONDS
+            )
 
             await self.redis_client.set(key, ticket_id, ex=ttl)
-            logger.debug('ticket_marked_as_processed', idempotency_key=idempotency_key, ticket_id=ticket_id)
+            logger.debug(
+                "ticket_marked_as_processed", idempotency_key=idempotency_key, ticket_id=ticket_id
+            )
             return True
 
         except Exception as e:
             logger.error(
-                'mark_ticket_processed_failed',
+                "mark_ticket_processed_failed",
                 idempotency_key=idempotency_key,
                 ticket_id=ticket_id,
-                error=str(e)
+                error=str(e),
             )
             return False
 
@@ -164,10 +166,10 @@ class TicketConsumer:
         """Inicia consumer Kafka."""
         try:
             consumer_config = {
-                'bootstrap.servers': self.settings.kafka_bootstrap_servers,
-                'group.id': self.settings.kafka_consumer_group_id,
-                'auto.offset.reset': self.settings.kafka_auto_offset_reset,
-                'enable.auto.commit': False
+                "bootstrap.servers": self.settings.kafka_bootstrap_servers,
+                "group.id": self.settings.kafka_consumer_group_id,
+                "auto.offset.reset": self.settings.kafka_auto_offset_reset,
+                "enable.auto.commit": False,
             }
 
             consumer_config.update(self._configure_security())
@@ -175,14 +177,21 @@ class TicketConsumer:
             self.consumer = instrument_kafka_consumer(self.consumer)
 
             try:
-                schema_path = Path(self.settings.schemas_base_path) / 'execution-ticket' / 'execution-ticket.avsc'
+                schema_path = (
+                    Path(self.settings.schemas_base_path)
+                    / "execution-ticket"
+                    / "execution-ticket.avsc"
+                )
                 schema_str = schema_path.read_text()
 
                 self.schema_registry_client = SchemaRegistryClient(
-                    {'url': self.settings.kafka_schema_registry_url}
+                    {"url": self.settings.kafka_schema_registry_url}
                 )
                 self.avro_deserializer = AvroDeserializer(self.schema_registry_client, schema_str)
-                logger.info("Schema Registry habilitado para consumer", url=self.settings.kafka_schema_registry_url)
+                logger.info(
+                    "Schema Registry habilitado para consumer",
+                    url=self.settings.kafka_schema_registry_url,
+                )
             except Exception as exc:
                 logger.warning("Schema Registry indisponível - fallback para JSON", error=str(exc))
                 self.schema_registry_client = None
@@ -194,7 +203,7 @@ class TicketConsumer:
             logger.info(
                 "Kafka consumer started",
                 topic=self.settings.kafka_tickets_topic,
-                group_id=self.settings.kafka_consumer_group_id
+                group_id=self.settings.kafka_consumer_group_id,
             )
 
         except Exception as e:
@@ -240,7 +249,7 @@ class TicketConsumer:
                     if self.avro_deserializer:
                         ticket_dict = self.avro_deserializer(message.value(), serialization_context)
                     else:
-                        ticket_dict = json.loads(message.value().decode('utf-8'))
+                        ticket_dict = json.loads(message.value().decode("utf-8"))
 
                     # Converter para Pydantic
                     ticket = ExecutionTicket.from_avro_dict(ticket_dict)
@@ -264,12 +273,12 @@ class TicketConsumer:
 
                 except Exception as e:
                     logger.error(
-                        f"Error processing message",
+                        "Error processing message",
                         error=str(e),
                         topic=message.topic,
                         partition=message.partition,
                         offset=message.offset,
-                        exc_info=True
+                        exc_info=True,
                     )
                     self.metrics.tickets_processing_errors_total.inc()
                     # Não commit em caso de erro (retry)
@@ -291,21 +300,25 @@ class TicketConsumer:
         start_time = time.time()
 
         # Extrair valores de enum de forma segura (pode ser enum ou string)
-        task_type_value = ticket.task_type.value if hasattr(ticket.task_type, 'value') else str(ticket.task_type)
-        status_value = ticket.status.value if hasattr(ticket.status, 'value') else str(ticket.status)
-        
+        task_type_value = (
+            ticket.task_type.value if hasattr(ticket.task_type, "value") else str(ticket.task_type)
+        )
+        status_value = (
+            ticket.status.value if hasattr(ticket.status, "value") else str(ticket.status)
+        )
+
         logger.info(
             f"Processing ticket {ticket.ticket_id}",
             plan_id=ticket.plan_id,
             task_type=task_type_value,
-            status=status_value
+            status=status_value,
         )
 
         try:
             # 0. Verificar idempotência antes de persistir
             idempotency_key = None
             if ticket.metadata:
-                idempotency_key = ticket.metadata.get('idempotency_key')
+                idempotency_key = ticket.metadata.get("idempotency_key")
             # Fallback para ticket_id se idempotency_key não estiver presente
             if not idempotency_key:
                 idempotency_key = ticket.ticket_id
@@ -313,23 +326,23 @@ class TicketConsumer:
             existing_ticket_id = await self._check_idempotency(idempotency_key)
             if existing_ticket_id:
                 logger.info(
-                    'duplicate_ticket_skipped',
+                    "duplicate_ticket_skipped",
                     ticket_id=ticket.ticket_id,
                     existing_ticket_id=existing_ticket_id,
-                    idempotency_key=idempotency_key
+                    idempotency_key=idempotency_key,
                 )
                 return  # Skip processing - ticket already exists
 
             # 1. Persistir no PostgreSQL
             postgres_client = await get_postgres_client()
             await postgres_client.create_ticket(ticket)
-            logger.debug(f"Ticket persisted in PostgreSQL", ticket_id=ticket.ticket_id)
+            logger.debug("Ticket persisted in PostgreSQL", ticket_id=ticket.ticket_id)
 
             # 2. Persistir no MongoDB (audit trail)
             if self.settings.enable_audit_trail:
                 mongodb_client = await get_mongodb_client()
                 await mongodb_client.save_ticket_audit(ticket)
-                logger.debug(f"Ticket audit saved in MongoDB", ticket_id=ticket.ticket_id)
+                logger.debug("Ticket audit saved in MongoDB", ticket_id=ticket.ticket_id)
 
             # 3. Gerar token JWT
             if self.settings.enable_jwt_tokens:
@@ -337,36 +350,36 @@ class TicketConsumer:
                     ticket,
                     self.settings.jwt_secret_key,
                     self.settings.jwt_algorithm,
-                    self.settings.jwt_token_expiration_seconds
+                    self.settings.jwt_token_expiration_seconds,
                 )
 
                 # Adicionar token ao metadata (opcional - pode ser consultado via API)
                 logger.debug(
-                    f"JWT token generated",
-                    ticket_id=ticket.ticket_id,
-                    expires_at=token.expires_at
+                    "JWT token generated", ticket_id=ticket.ticket_id, expires_at=token.expires_at
                 )
                 self.metrics.jwt_tokens_generated_total.inc()
 
             # 4. Disparar webhook (se configurado)
-            if self.settings.enable_webhooks and ticket.metadata and 'webhook_url' in ticket.metadata:
-                webhook_url = ticket.metadata['webhook_url']
+            if (
+                self.settings.enable_webhooks
+                and ticket.metadata
+                and "webhook_url" in ticket.metadata
+            ):
+                webhook_url = ticket.metadata["webhook_url"]
 
                 if self.webhook_manager:
                     webhook_event = WebhookEvent(
                         event_id=str(uuid.uuid4()),
-                        event_type='ticket.created',
+                        event_type="ticket.created",
                         ticket_id=ticket.ticket_id,
                         ticket=ticket,
                         timestamp=int(time.time() * 1000),
-                        webhook_url=webhook_url
+                        webhook_url=webhook_url,
                     )
                     await self.webhook_manager.enqueue_webhook(webhook_event)
 
                     logger.debug(
-                        f"Webhook enqueued",
-                        ticket_id=ticket.ticket_id,
-                        webhook_url=webhook_url
+                        "Webhook enqueued", ticket_id=ticket.ticket_id, webhook_url=webhook_url
                     )
 
             # Métricas
@@ -381,47 +394,45 @@ class TicketConsumer:
             self.metrics.ticket_processing_duration_seconds.observe(duration_ms / 1000.0)
 
             logger.info(
-                f"Ticket processed successfully",
-                ticket_id=ticket.ticket_id,
-                duration_ms=duration_ms
+                "Ticket processed successfully", ticket_id=ticket.ticket_id, duration_ms=duration_ms
             )
 
         except Exception as e:
             logger.error(
                 f"Error processing ticket {ticket.ticket_id}: {e}",
                 plan_id=ticket.plan_id,
-                exc_info=True
+                exc_info=True,
             )
             raise
 
     def _configure_security(self) -> dict:
         """Retorna config de segurança Kafka (SASL/SSL)."""
-        security_config = {
-            'security.protocol': self.settings.kafka_security_protocol
-        }
+        security_config = {"security.protocol": self.settings.kafka_security_protocol}
 
-        if self.settings.kafka_security_protocol in ['SASL_SSL', 'SASL_PLAINTEXT']:
-            if getattr(self.settings, 'kafka_sasl_mechanism', None):
-                security_config['sasl.mechanism'] = self.settings.kafka_sasl_mechanism
+        if self.settings.kafka_security_protocol in ["SASL_SSL", "SASL_PLAINTEXT"]:
+            if getattr(self.settings, "kafka_sasl_mechanism", None):
+                security_config["sasl.mechanism"] = self.settings.kafka_sasl_mechanism
             if self.settings.kafka_sasl_username and self.settings.kafka_sasl_password:
-                security_config['sasl.username'] = self.settings.kafka_sasl_username
-                security_config['sasl.password'] = self.settings.kafka_sasl_password
+                security_config["sasl.username"] = self.settings.kafka_sasl_username
+                security_config["sasl.password"] = self.settings.kafka_sasl_password
 
-        if self.settings.kafka_security_protocol in ['SSL', 'SASL_SSL']:
-            if getattr(self.settings, 'kafka_ssl_ca_location', None):
-                security_config['ssl.ca.location'] = self.settings.kafka_ssl_ca_location
-            if getattr(self.settings, 'kafka_ssl_certificate_location', None):
-                security_config['ssl.certificate.location'] = self.settings.kafka_ssl_certificate_location
-            if getattr(self.settings, 'kafka_ssl_key_location', None):
-                security_config['ssl.key.location'] = self.settings.kafka_ssl_key_location
+        if self.settings.kafka_security_protocol in ["SSL", "SASL_SSL"]:
+            if getattr(self.settings, "kafka_ssl_ca_location", None):
+                security_config["ssl.ca.location"] = self.settings.kafka_ssl_ca_location
+            if getattr(self.settings, "kafka_ssl_certificate_location", None):
+                security_config[
+                    "ssl.certificate.location"
+                ] = self.settings.kafka_ssl_certificate_location
+            if getattr(self.settings, "kafka_ssl_key_location", None):
+                security_config["ssl.key.location"] = self.settings.kafka_ssl_key_location
 
         return security_config
 
 
 async def start_ticket_consumer(
     metrics: TicketServiceMetrics,
-    webhook_manager_getter: Optional[Callable[[], Optional['WebhookManager']]] = None,
-    redis_client_getter: Optional[Callable[[], Optional[object]]] = None
+    webhook_manager_getter: Optional[Callable[[], Optional["WebhookManager"]]] = None,
+    redis_client_getter: Optional[Callable[[], Optional[object]]] = None,
 ) -> TicketConsumer:
     """
     Factory function para criar e iniciar consumer.

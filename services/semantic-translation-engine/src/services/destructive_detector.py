@@ -5,14 +5,14 @@ Detects destructive operations in task lists through pattern matching
 on task types and keyword detection in descriptions.
 """
 
-import structlog
-from typing import Dict, List, Any, Optional
+from typing import Any
 
+import structlog
 from src.config.settings import Settings
 from src.models.cognitive_plan import TaskNode
 from src.observability.metrics import (
     destructive_operations_detected_total,
-    destructive_tasks_per_plan
+    destructive_tasks_per_plan,
 )
 
 logger = structlog.get_logger()
@@ -28,21 +28,40 @@ class DestructiveDetector:
     """
 
     # Destructive task types
-    DESTRUCTIVE_TASK_TYPES = ['delete', 'drop', 'truncate', 'remove', 'purge']
+    DESTRUCTIVE_TASK_TYPES = ["delete", "drop", "truncate", "remove", "purge"]
 
     # Destructive keywords in Portuguese
     DESTRUCTIVE_KEYWORDS_PT = [
-        'deletar', 'remover', 'apagar', 'limpar', 'excluir', 'destruir', 'eliminar'
+        "deletar",
+        "remover",
+        "apagar",
+        "limpar",
+        "excluir",
+        "destruir",
+        "eliminar",
     ]
 
     # Destructive keywords in English
     DESTRUCTIVE_KEYWORDS_EN = [
-        'delete', 'remove', 'drop', 'truncate', 'purge', 'destroy', 'erase', 'wipe'
+        "delete",
+        "remove",
+        "drop",
+        "truncate",
+        "purge",
+        "destroy",
+        "erase",
+        "wipe",
     ]
 
     # High impact indicators (trigger critical severity)
     HIGH_IMPACT_INDICATORS = [
-        'all', 'todos', 'entire', 'complete', 'production', 'produção', 'prod'
+        "all",
+        "todos",
+        "entire",
+        "complete",
+        "production",
+        "produção",
+        "prod",
     ]
 
     def __init__(self, settings: Settings):
@@ -53,9 +72,9 @@ class DestructiveDetector:
             settings: Application settings
         """
         self.settings = settings
-        self.logger = structlog.get_logger().bind(component='destructive_detector')
+        self.logger = structlog.get_logger().bind(component="destructive_detector")
 
-    def detect(self, tasks: List[TaskNode]) -> Dict[str, Any]:
+    def detect(self, tasks: list[TaskNode]) -> dict[str, Any]:
         """
         Detecta operações destrutivas em lista de tasks.
 
@@ -84,66 +103,64 @@ class DestructiveDetector:
         # Early return when detection is disabled - no metrics recorded
         if not self.settings.destructive_detection_enabled:
             self.logger.debug(
-                'Detecção de operações destrutivas desabilitada',
-                num_tasks=len(tasks)
+                "Detecção de operações destrutivas desabilitada", num_tasks=len(tasks)
             )
             return {
-                'is_destructive': False,
-                'destructive_tasks': [],
-                'severity': 'low',
-                'total_destructive_count': 0,
-                'details': []
+                "is_destructive": False,
+                "destructive_tasks": [],
+                "severity": "low",
+                "total_destructive_count": 0,
+                "details": [],
             }
 
-        self.logger.info('Iniciando detecção de operações destrutivas', num_tasks=len(tasks))
+        self.logger.info("Iniciando detecção de operações destrutivas", num_tasks=len(tasks))
 
-        details: List[Dict[str, Any]] = []
-        destructive_task_ids: List[str] = []
+        details: list[dict[str, Any]] = []
+        destructive_task_ids: list[str] = []
 
         for task in tasks:
             analysis = self._analyze_task(task)
             if analysis:
                 details.append(analysis)
-                destructive_task_ids.append(analysis['task_id'])
+                destructive_task_ids.append(analysis["task_id"])
                 self.logger.warning(
-                    'Operação destrutiva detectada',
-                    task_id=analysis['task_id'],
-                    task_type=analysis['task_type'],
-                    reason=analysis['reason'],
-                    matched_keywords=analysis['matched_keywords']
+                    "Operação destrutiva detectada",
+                    task_id=analysis["task_id"],
+                    task_type=analysis["task_type"],
+                    reason=analysis["reason"],
+                    matched_keywords=analysis["matched_keywords"],
                 )
 
         is_destructive = len(details) > 0
-        severity = self._calculate_severity(details) if is_destructive else 'low'
+        severity = self._calculate_severity(details) if is_destructive else "low"
 
         result = {
-            'is_destructive': is_destructive,
-            'destructive_tasks': destructive_task_ids,
-            'severity': severity,
-            'total_destructive_count': len(details),
-            'details': details
+            "is_destructive": is_destructive,
+            "destructive_tasks": destructive_task_ids,
+            "severity": severity,
+            "total_destructive_count": len(details),
+            "details": details,
         }
 
         # Record metrics
         if is_destructive:
             for detail in details:
                 destructive_operations_detected_total.labels(
-                    severity=severity,
-                    detection_type=detail['reason']
+                    severity=severity, detection_type=detail["reason"]
                 ).inc()
 
         destructive_tasks_per_plan.observe(len(details))
 
         self.logger.info(
-            'Detecção concluída',
+            "Detecção concluída",
             is_destructive=is_destructive,
             total_count=len(details),
-            severity=severity
+            severity=severity,
         )
 
         return result
 
-    def _analyze_task(self, task: TaskNode) -> Optional[Dict[str, Any]]:
+    def _analyze_task(self, task: TaskNode) -> dict[str, Any] | None:
         """
         Analyze a single task for destructive patterns.
 
@@ -157,22 +174,22 @@ class DestructiveDetector:
         Returns:
             Dict with analysis results if destructive, None otherwise
         """
-        task_type_lower = task.task_type.lower() if task.task_type else ''
-        description_lower = task.description.lower() if task.description else ''
+        task_type_lower = task.task_type.lower() if task.task_type else ""
+        description_lower = task.description.lower() if task.description else ""
 
-        matched_keywords: List[str] = []
-        reason: Optional[str] = None
+        matched_keywords: list[str] = []
+        reason: str | None = None
 
         # Check task type
         if task_type_lower in self.DESTRUCTIVE_TASK_TYPES:
-            reason = 'task_type_match'
+            reason = "task_type_match"
             matched_keywords.append(task_type_lower)
 
         # Check keywords in description (Portuguese)
         for keyword in self.DESTRUCTIVE_KEYWORDS_PT:
             if keyword in description_lower:
                 if not reason:
-                    reason = 'keyword_match'
+                    reason = "keyword_match"
                 if keyword not in matched_keywords:
                     matched_keywords.append(keyword)
 
@@ -180,12 +197,12 @@ class DestructiveDetector:
         for keyword in self.DESTRUCTIVE_KEYWORDS_EN:
             if keyword in description_lower:
                 if not reason:
-                    reason = 'keyword_match'
+                    reason = "keyword_match"
                 if keyword not in matched_keywords:
                     matched_keywords.append(keyword)
 
         # Check for high impact indicators
-        matched_indicators: List[str] = []
+        matched_indicators: list[str] = []
         for indicator in self.HIGH_IMPACT_INDICATORS:
             if indicator in description_lower:
                 matched_indicators.append(indicator)
@@ -194,21 +211,21 @@ class DestructiveDetector:
 
         # Strict mode: HIGH_IMPACT_INDICATORS alone trigger detection
         if self.settings.destructive_detection_strict_mode and has_high_impact and not reason:
-            reason = 'high_impact_indicator_strict'
+            reason = "high_impact_indicator_strict"
             matched_keywords.extend(matched_indicators)
 
         if not reason:
             return None
 
         return {
-            'task_id': task.task_id,
-            'task_type': task.task_type,
-            'reason': reason,
-            'matched_keywords': matched_keywords,
-            'has_high_impact_indicators': has_high_impact
+            "task_id": task.task_id,
+            "task_type": task.task_type,
+            "reason": reason,
+            "matched_keywords": matched_keywords,
+            "has_high_impact_indicators": has_high_impact,
         }
 
-    def _calculate_severity(self, destructive_tasks: List[Dict]) -> str:
+    def _calculate_severity(self, destructive_tasks: list[dict]) -> str:
         """
         Calculate aggregate severity based on destructive tasks.
 
@@ -228,32 +245,30 @@ class DestructiveDetector:
 
         # Check for high impact indicators
         has_high_impact = any(
-            task.get('has_high_impact_indicators', False)
-            for task in destructive_tasks
+            task.get("has_high_impact_indicators", False) for task in destructive_tasks
         )
 
         # Check for drop/truncate operations
         has_drop_truncate = any(
-            task.get('task_type', '').lower() in ['drop', 'truncate']
-            for task in destructive_tasks
+            task.get("task_type", "").lower() in ["drop", "truncate"] for task in destructive_tasks
         )
 
         # Determine severity
         if count >= 5 or has_high_impact:
-            severity = 'critical'
+            severity = "critical"
         elif count >= 3 or has_drop_truncate:
-            severity = 'high'
+            severity = "high"
         elif count == 2:
-            severity = 'medium'
+            severity = "medium"
         else:
-            severity = 'low'
+            severity = "low"
 
         self.logger.info(
-            'Severidade calculada',
+            "Severidade calculada",
             severity=severity,
             count=count,
             has_high_impact=has_high_impact,
-            has_drop_truncate=has_drop_truncate
+            has_drop_truncate=has_drop_truncate,
         )
 
         return severity

@@ -1,10 +1,10 @@
-import structlog
 from typing import Dict, List, Optional
-from src.models import AgentInfo, AgentType, AgentStatus
-from src.clients import EtcdClient, PheromoneClient
-from prometheus_client import Counter, Histogram, REGISTRY
-from opentelemetry import trace
 
+import structlog
+from opentelemetry import trace
+from prometheus_client import REGISTRY, Counter, Histogram
+from src.clients import EtcdClient, PheromoneClient
+from src.models import AgentInfo, AgentStatus, AgentType
 
 logger = structlog.get_logger()
 tracer = trace.get_tracer(__name__)
@@ -28,24 +28,19 @@ def _get_or_create_histogram(name: str, description: str):
 
 # Métricas Prometheus
 discovery_requests_total = _get_or_create_counter(
-    'discovery_requests_total',
-    'Total de requisições de discovery',
-    ['agent_type']
+    "discovery_requests_total", "Total de requisições de discovery", ["agent_type"]
 )
 
 discovery_duration_seconds = _get_or_create_histogram(
-    'discovery_duration_seconds',
-    'Duração de requisições de discovery'
+    "discovery_duration_seconds", "Duração de requisições de discovery"
 )
 
 matching_candidates_evaluated = _get_or_create_histogram(
-    'matching_candidates_evaluated',
-    'Número de candidatos avaliados no matching'
+    "matching_candidates_evaluated", "Número de candidatos avaliados no matching"
 )
 
 agents_matched = _get_or_create_histogram(
-    'agents_matched',
-    'Número de agentes retornados no matching'
+    "agents_matched", "Número de agentes retornados no matching"
 )
 
 
@@ -67,7 +62,7 @@ class MatchingEngine:
         capabilities_required: List[str],
         filters: Optional[Dict[str, str]] = None,
         max_results: int = 5,
-        agent_type: Optional[AgentType] = None
+        agent_type: Optional[AgentType] = None,
     ) -> List[AgentInfo]:
         """
         Descobre agentes baseado em capabilities e retorna lista ranqueada.
@@ -83,7 +78,9 @@ class MatchingEngine:
         """
         with tracer.start_as_current_span("match_agents") as span:
             try:
-                span.set_attribute("neural.hive.capability.required", ",".join(capabilities_required))
+                span.set_attribute(
+                    "neural.hive.capability.required", ",".join(capabilities_required)
+                )
                 # Métricas
                 if agent_type:
                     discovery_requests_total.labels(agent_type=agent_type.value).inc()
@@ -100,15 +97,14 @@ class MatchingEngine:
                 # DEGRADED é aceito como fallback para aumentar disponibilidade
                 # com score reduzido no ranking subsequente
                 candidates = [
-                    a for a in candidates
-                    if a.status in (AgentStatus.HEALTHY, AgentStatus.DEGRADED)
+                    a for a in candidates if a.status in (AgentStatus.HEALTHY, AgentStatus.DEGRADED)
                 ]
 
                 if not candidates:
                     logger.warning(
                         "no_healthy_candidates_found",
                         capabilities_required=capabilities_required,
-                        filters=filters
+                        filters=filters,
                     )
                     matching_candidates_evaluated.observe(0)
                     agents_matched.observe(0)
@@ -130,7 +126,7 @@ class MatchingEngine:
                     "agents_matched_successfully",
                     capabilities_required=capabilities_required,
                     candidates_evaluated=len(candidates),
-                    agents_matched=len(result)
+                    agents_matched=len(result),
                 )
 
                 return result
@@ -140,9 +136,7 @@ class MatchingEngine:
                 raise
 
     def _filter_by_capabilities(
-        self,
-        agents: List[AgentInfo],
-        required_capabilities: List[str]
+        self, agents: List[AgentInfo], required_capabilities: List[str]
     ) -> List[AgentInfo]:
         """Filtra agentes que possuem todas as capabilities requeridas"""
         required_set = set(required_capabilities)
@@ -159,7 +153,7 @@ class MatchingEngine:
             "capabilities_filter_applied",
             total_agents=len(agents),
             filtered_agents=len(filtered),
-            required_capabilities=required_capabilities
+            required_capabilities=required_capabilities,
         )
 
         return filtered
@@ -178,9 +172,7 @@ class MatchingEngine:
 
             # 2. Pheromone score (baseado em feromônios digitais)
             pheromone_score = await self.pheromone_client.get_agent_pheromone_score(
-                agent_id=str(agent.agent_id),
-                agent_type=agent.agent_type,
-                domain="default"
+                agent_id=str(agent.agent_id), agent_type=agent.agent_type, domain="default"
             )
 
             # 3. Telemetry score (baseado em success_rate)
@@ -188,9 +180,9 @@ class MatchingEngine:
 
             # 4. Calcular score composto
             composite_score = (
-                health_score * self.HEALTH_WEIGHT +
-                pheromone_score * self.PHEROMONE_WEIGHT +
-                telemetry_score * self.TELEMETRY_WEIGHT
+                health_score * self.HEALTH_WEIGHT
+                + pheromone_score * self.PHEROMONE_WEIGHT
+                + telemetry_score * self.TELEMETRY_WEIGHT
             )
 
             agent_scores.append((agent, composite_score))
@@ -202,7 +194,7 @@ class MatchingEngine:
                 health_score=health_score,
                 pheromone_score=pheromone_score,
                 telemetry_score=telemetry_score,
-                composite_score=composite_score
+                composite_score=composite_score,
             )
 
         # Ordenar por score decrescente (melhor primeiro)

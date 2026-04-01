@@ -1,23 +1,26 @@
 """
 Memory Query Models
 """
-from pydantic import BaseModel, Field
 from datetime import datetime
-from typing import Dict, Any, Optional, Tuple, List
 from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple
+
+from pydantic import BaseModel, Field
 
 
 class QueryType(str, Enum):
     """Types of memory queries"""
-    CONTEXT = 'context'
-    SEMANTIC = 'semantic'
-    HISTORICAL = 'historical'
-    LINEAGE = 'lineage'
-    QUALITY = 'quality'
+
+    CONTEXT = "context"
+    SEMANTIC = "semantic"
+    HISTORICAL = "historical"
+    LINEAGE = "lineage"
+    QUALITY = "quality"
 
 
 class MemoryQueryRequest(BaseModel):
     """Request for unified memory query"""
+
     query_type: QueryType
     entity_id: str
     time_range: Optional[Tuple[datetime, datetime]] = None
@@ -28,6 +31,7 @@ class MemoryQueryRequest(BaseModel):
 
 class MemoryQueryResponse(BaseModel):
     """Response from unified memory query"""
+
     query_id: str
     entity_id: str
     data: Dict[str, Any]
@@ -39,6 +43,7 @@ class MemoryQueryResponse(BaseModel):
 
 class LineageNode(BaseModel):
     """Lineage tree node"""
+
     entity_id: str
     entity_type: str
     sources: List[str] = Field(default_factory=list)
@@ -49,6 +54,7 @@ class LineageNode(BaseModel):
 
 class DataQualityMetrics(BaseModel):
     """Data quality metrics"""
+
     data_type: str
     timestamp: datetime
     completeness_score: float = Field(ge=0.0, le=100.0)

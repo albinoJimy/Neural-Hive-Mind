@@ -1,19 +1,22 @@
 """Service Registry client for service discovery com suporte a mTLS via SPIFFE."""
 import asyncio
-from typing import Dict, List, Optional, Tuple
 import time
+from typing import Dict, List, Optional, Tuple
+
 import grpc
 import structlog
+
 from neural_hive_integration.proto_stubs import service_registry_pb2, service_registry_pb2_grpc
 
 # Importar SPIFFE/mTLS se disponível
 try:
     from neural_hive_security import (
-        SPIFFEManager,
         SPIFFEConfig,
+        SPIFFEManager,
         create_secure_grpc_channel,
         get_grpc_metadata_with_jwt,
     )
+
     SECURITY_LIB_AVAILABLE = True
 except ImportError:
     SECURITY_LIB_AVAILABLE = False
@@ -60,17 +63,17 @@ class ServiceRegistryClient:
         if not self.channel:
             # Configure channel options for connection backoff
             options = [
-                ('grpc.initial_reconnect_backoff_ms', 1000),
-                ('grpc.max_reconnect_backoff_ms', 10000),
-                ('grpc.keepalive_time_ms', 30000),
-                ('grpc.keepalive_timeout_ms', 10000),
+                ("grpc.initial_reconnect_backoff_ms", 1000),
+                ("grpc.max_reconnect_backoff_ms", 10000),
+                ("grpc.keepalive_time_ms", 30000),
+                ("grpc.keepalive_timeout_ms", 10000),
             ]
 
             # Verificar se mTLS via SPIFFE está habilitado
             spiffe_x509_enabled = (
                 self.spiffe_enabled
                 and self.spiffe_config
-                and getattr(self.spiffe_config, 'enable_x509', False)
+                and getattr(self.spiffe_config, "enable_x509", False)
                 and SECURITY_LIB_AVAILABLE
             )
 
@@ -82,23 +85,27 @@ class ServiceRegistryClient:
 
                 # Criar canal seguro com mTLS
                 # Permitir fallback inseguro apenas em ambientes de desenvolvimento
-                is_dev_env = self.environment.lower() in ('dev', 'development')
+                is_dev_env = self.environment.lower() in ("dev", "development")
                 self.channel = await create_secure_grpc_channel(
                     target=self.target,
                     spiffe_config=self.spiffe_config,
                     spiffe_manager=self.spiffe_manager,
-                    fallback_insecure=is_dev_env
+                    fallback_insecure=is_dev_env,
                 )
 
-                logger.info('mtls_channel_configured', target=self.target, environment=self.environment)
+                logger.info(
+                    "mtls_channel_configured", target=self.target, environment=self.environment
+                )
             else:
                 # Fallback para canal inseguro (apenas desenvolvimento)
-                if self.environment in ['production', 'staging', 'prod']:
+                if self.environment in ["production", "staging", "prod"]:
                     raise RuntimeError(
                         f"mTLS is required in {self.environment} but SPIFFE X.509 is disabled."
                     )
 
-                logger.warning('using_insecure_channel', target=self.target, environment=self.environment)
+                logger.warning(
+                    "using_insecure_channel", target=self.target, environment=self.environment
+                )
                 self.channel = grpc.aio.insecure_channel(self.target, options=options)
 
             self.stub = service_registry_pb2_grpc.ServiceRegistryStub(self.channel)
@@ -109,16 +116,16 @@ class ServiceRegistryClient:
             return []
 
         try:
-            trust_domain = self.spiffe_config.trust_domain if self.spiffe_config else "neural-hive.local"
+            trust_domain = (
+                self.spiffe_config.trust_domain if self.spiffe_config else "neural-hive.local"
+            )
             audience = f"service-registry.{trust_domain}"
             return await get_grpc_metadata_with_jwt(
-                spiffe_manager=self.spiffe_manager,
-                audience=audience,
-                environment=self.environment
+                spiffe_manager=self.spiffe_manager, audience=audience, environment=self.environment
             )
         except Exception as e:
-            logger.warning('jwt_svid_fetch_failed', error=str(e))
-            if self.environment in ['production', 'staging', 'prod']:
+            logger.warning("jwt_svid_fetch_failed", error=str(e))
+            if self.environment in ["production", "staging", "prod"]:
                 raise
             return []
 
@@ -225,11 +232,10 @@ class ServiceRegistryClient:
                 avg_duration_ms=health_data.get("avg_duration_ms", 0),
                 total_executions=health_data.get("total_executions", 0),
                 failed_executions=health_data.get("failed_executions", 0),
-                last_execution_at=int(time.time() * 1000)
+                last_execution_at=int(time.time() * 1000),
             )
             request = service_registry_pb2.HeartbeatRequest(
-                agent_id=self.service_id,
-                telemetry=telemetry
+                agent_id=self.service_id, telemetry=telemetry
             )
 
             # Obter metadata com JWT-SVID

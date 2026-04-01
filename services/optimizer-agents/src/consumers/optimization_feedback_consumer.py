@@ -10,12 +10,12 @@ e implementa um feedback loop para:
 Author: Neural-Hive-Mind
 Created: 2026-03-30 (Epic J)
 """
-import json
 import asyncio
-from typing import Optional, Dict, Any
-from datetime import datetime, timedelta
+import json
 from collections import defaultdict
-from enum import Enum
+from datetime import UTC, datetime
+from enum import StrEnum
+from typing import Any
 
 import structlog
 from confluent_kafka import Consumer, KafkaError, KafkaException
@@ -23,8 +23,9 @@ from confluent_kafka import Consumer, KafkaError, KafkaException
 logger = structlog.get_logger(__name__)
 
 
-class OptimizationType(str, Enum):
+class OptimizationType(StrEnum):
     """Tipos de otimizações"""
+
     WEIGHT_RECALIBRATION = "WEIGHT_RECALIBRATION"
     SLO_ADJUSTMENT = "SLO_ADJUSTMENT"
     RESOURCE_SCALING = "RESOURCE_SCALING"
@@ -32,8 +33,9 @@ class OptimizationType(str, Enum):
     PARAMETER_TUNING = "PARAMETER_TUNING"
 
 
-class OptimizationStatus(str, Enum):
+class OptimizationStatus(StrEnum):
     """Status da otimização"""
+
     PENDING = "PENDING"
     APPLYING = "APPLYING"
     APPLIED = "APPLIED"
@@ -50,11 +52,7 @@ class OptimizationFeedbackConsumer:
     """
 
     def __init__(
-        self,
-        settings=None,
-        optimization_engine=None,
-        experiment_manager=None,
-        metrics=None
+        self, settings=None, optimization_engine=None, experiment_manager=None, metrics=None
     ):
         """
         Inicializa o consumer.
@@ -71,19 +69,21 @@ class OptimizationFeedbackConsumer:
         self.optimization_engine = optimization_engine
         self.experiment_manager = experiment_manager
         self.metrics = metrics
-        self.consumer: Optional[Consumer] = None
+        self.consumer: Consumer | None = None
         self.running = False
 
         # Estado para feedback loop
-        self.optimization_stats = defaultdict(lambda: {
-            'total': 0,
-            'successful': 0,
-            'failed': 0,
-            'rolled_back': 0,
-            'avg_improvement': 0.0,
-            'avg_degradation': 0.0,
-            'last_updated': None
-        })
+        self.optimization_stats = defaultdict(
+            lambda: {
+                "total": 0,
+                "successful": 0,
+                "failed": 0,
+                "rolled_back": 0,
+                "avg_improvement": 0.0,
+                "avg_degradation": 0.0,
+                "last_updated": None,
+            }
+        )
 
     def start(self):
         """Inicia o consumer Kafka."""
@@ -103,7 +103,7 @@ class OptimizationFeedbackConsumer:
 
             logger.info(
                 "optimization_feedback_consumer_started",
-                topic=self.settings.kafka_optimization_topic
+                topic=self.settings.kafka_optimization_topic,
             )
 
             # Iniciar loop de consumo em background
@@ -168,7 +168,7 @@ class OptimizationFeedbackConsumer:
                 type=optimization_type,
                 status=status,
                 partition=msg.partition(),
-                offset=msg.offset()
+                offset=msg.offset(),
             )
 
             # Atualizar estatísticas
@@ -182,7 +182,7 @@ class OptimizationFeedbackConsumer:
         except Exception as e:
             logger.error("optimization_processing_failed", error=str(e))
 
-    async def _update_optimization_stats(self, event: Dict[str, Any]) -> None:
+    async def _update_optimization_stats(self, event: dict[str, Any]) -> None:
         """
         Atualiza estatísticas de otimizações para feedback loop.
 
@@ -197,7 +197,7 @@ class OptimizationFeedbackConsumer:
             return
 
         self.optimization_stats[optimization_type]["total"] += 1
-        self.optimization_stats[optimization_type]["last_updated"] = datetime.utcnow()
+        self.optimization_stats[optimization_type]["last_updated"] = datetime.now(UTC)
 
         # Atualizar contadores de status
         if status == OptimizationStatus.APPLIED.value:
@@ -207,13 +207,17 @@ class OptimizationFeedbackConsumer:
             if actual_improvement > 0:
                 current_avg = self.optimization_stats[optimization_type]["avg_improvement"]
                 total_successful = self.optimization_stats[optimization_type]["successful"]
-                new_avg = ((current_avg * (total_successful - 1)) + actual_improvement) / total_successful
+                new_avg = (
+                    (current_avg * (total_successful - 1)) + actual_improvement
+                ) / total_successful
                 self.optimization_stats[optimization_type]["avg_improvement"] = new_avg
             elif actual_improvement < 0:
                 # Degradacao
                 current_avg = self.optimization_stats[optimization_type]["avg_degradation"]
                 total_successful = self.optimization_stats[optimization_type]["successful"]
-                new_avg = ((current_avg * (total_successful - 1)) + abs(actual_improvement)) / total_successful
+                new_avg = (
+                    (current_avg * (total_successful - 1)) + abs(actual_improvement)
+                ) / total_successful
                 self.optimization_stats[optimization_type]["avg_degradation"] = new_avg
 
         elif status == OptimizationStatus.FAILED.value:
@@ -228,10 +232,10 @@ class OptimizationFeedbackConsumer:
             successful=self.optimization_stats[optimization_type]["successful"],
             failed=self.optimization_stats[optimization_type]["failed"],
             rolled_back=self.optimization_stats[optimization_type]["rolled_back"],
-            avg_improvement=self.optimization_stats[optimization_type]["avg_improvement"]
+            avg_improvement=self.optimization_stats[optimization_type]["avg_improvement"],
         )
 
-    async def _adjust_optimization_strategies(self, event: Dict[str, Any]) -> None:
+    async def _adjust_optimization_strategies(self, event: dict[str, Any]) -> None:
         """
         Ajusta estratégias de otimização baseado no feedback.
 
@@ -251,7 +255,7 @@ class OptimizationFeedbackConsumer:
 
         total = stats.get("total", 1)
         successful = stats.get("successful", 0)
-        failed = stats.get("failed", 0)
+        stats.get("failed", 0)
         rolled_back = stats.get("rolled_back", 0)
 
         # Taxa de sucesso
@@ -268,7 +272,7 @@ class OptimizationFeedbackConsumer:
                 "baixa_taxa_sucesso",
                 type=optimization_type,
                 success_rate=success_rate,
-                action="agressividade_reduzida"
+                action="agressividade_reduzida",
             )
         elif success_rate > 0.9 and rollback_rate < 0.05:
             # Alta taxa de sucesso com baixo rollback - podemos aumentar agressividade
@@ -278,7 +282,7 @@ class OptimizationFeedbackConsumer:
                 type=optimization_type,
                 success_rate=success_rate,
                 rollback_rate=rollback_rate,
-                action="agressividade_aumentada"
+                action="agressividade_aumentada",
             )
 
         if rollback_rate > 0.2:
@@ -288,7 +292,7 @@ class OptimizationFeedbackConsumer:
                 "alta_taxa_rollback",
                 type=optimization_type,
                 rollback_rate=rollback_rate,
-                action="agressividade_reduzida_drasticamente"
+                action="agressividade_reduzida_drasticamente",
             )
 
         # Ajustar thresholds de melhoria esperada
@@ -301,14 +305,11 @@ class OptimizationFeedbackConsumer:
                 type=optimization_type,
                 avg_improvement=avg_improvement,
                 avg_degradation=stats.get("avg_degradation", 0.0),
-                action="threshold_melhoria_aumentado"
+                action="threshold_melhoria_aumentado",
             )
 
     async def _adjust_aggressiveness(
-        self,
-        optimization_type: str,
-        direction: str,
-        factor: float
+        self, optimization_type: str, direction: str, factor: float
     ) -> None:
         """
         Ajusta agressividade de otimização para um tipo.
@@ -327,21 +328,13 @@ class OptimizationFeedbackConsumer:
                 "otimizacao_agressividade_ajustada",
                 type=optimization_type,
                 direction=direction,
-                factor=factor
+                factor=factor,
             )
 
         except Exception as e:
-            logger.error(
-                "falha_ajustar_agressividade",
-                type=optimization_type,
-                error=str(e)
-            )
+            logger.error("falha_ajustar_agressividade", type=optimization_type, error=str(e))
 
-    async def _adjust_improvement_threshold(
-        self,
-        optimization_type: str,
-        direction: str
-    ) -> None:
+    async def _adjust_improvement_threshold(self, optimization_type: str, direction: str) -> None:
         """
         Ajusta threshold de melhoria mínima para um tipo.
 
@@ -354,18 +347,10 @@ class OptimizationFeedbackConsumer:
 
         try:
             # Ajustar threshold de melhoria mínima
-            logger.info(
-                "threshold_melhoria_ajustado",
-                type=optimization_type,
-                direction=direction
-            )
+            logger.info("threshold_melhoria_ajustado", type=optimization_type, direction=direction)
 
         except Exception as e:
-            logger.error(
-                "falha_ajustar_threshold_melhoria",
-                type=optimization_type,
-                error=str(e)
-            )
+            logger.error("falha_ajustar_threshold_melhoria", type=optimization_type, error=str(e))
 
     def stop(self):
         """Parar consumer."""
@@ -374,7 +359,7 @@ class OptimizationFeedbackConsumer:
             self.consumer.close()
             logger.info("optimization_feedback_consumer_stopped")
 
-    def get_feedback_stats(self) -> Dict[str, Any]:
+    def get_feedback_stats(self) -> dict[str, Any]:
         """
         Retorna estatísticas de feedback.
 
@@ -386,7 +371,7 @@ class OptimizationFeedbackConsumer:
             "total_successful": sum(s["successful"] for s in self.optimization_stats.values()),
             "total_failed": sum(s["failed"] for s in self.optimization_stats.values()),
             "total_rolled_back": sum(s["rolled_back"] for s in self.optimization_stats.values()),
-            "by_type": dict(self.optimization_stats)
+            "by_type": dict(self.optimization_stats),
         }
 
         # Calcular taxa global de sucesso

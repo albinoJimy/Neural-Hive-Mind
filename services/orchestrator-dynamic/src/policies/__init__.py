@@ -6,12 +6,12 @@ de políticas de governança em tempo de execução.
 """
 
 from .opa_client import OPAClient
-from .policy_validator import PolicyValidator, ValidationResult, PolicyViolation, PolicyWarning
+from .policy_validator import PolicyValidator, PolicyViolation, PolicyWarning, ValidationResult
 
 __all__ = [
-    'OPAClient',
-    'PolicyValidator',
-    'ValidationResult',
-    'PolicyViolation',
-    'PolicyWarning',
+    "OPAClient",
+    "PolicyValidator",
+    "PolicyViolation",
+    "PolicyWarning",
+    "ValidationResult",
 ]

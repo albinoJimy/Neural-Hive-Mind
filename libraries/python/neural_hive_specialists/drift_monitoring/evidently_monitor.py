@@ -9,7 +9,7 @@ import pandas as pd
 import numpy as np
 from typing import Dict, List, Any, Optional
 import structlog
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 logger = structlog.get_logger(__name__)
 
@@ -65,7 +65,7 @@ class EvidentlyMonitor:
             features: Dicionário de features extraídas
             timestamp: Timestamp da avaliação (usa now() se None)
         """
-        record = {"timestamp": timestamp or datetime.utcnow(), **features}
+        record = {"timestamp": timestamp or datetime.now(timezone.utc), **features}
         self.current_data.append(record)
 
         logger.debug("Features logged", num_features=len(features))
@@ -147,7 +147,7 @@ class EvidentlyMonitor:
                 "drift_score": drift_score,
                 "drifted_features": drifted_features,
                 "report": report_dict,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 
         except ImportError:

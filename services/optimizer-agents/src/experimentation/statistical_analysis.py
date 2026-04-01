@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Modulo de Analise Estatistica para testes A/B.
 
@@ -13,13 +12,11 @@ Implementa testes estatisticos para validacao de experimentos:
 
 import math
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
 
 import numpy as np
-from scipy import stats
-from scipy.stats import shapiro, ttest_ind, mannwhitneyu, chi2_contingency
-
 import structlog
+from scipy import stats
+from scipy.stats import chi2_contingency, mannwhitneyu, shapiro, ttest_ind
 
 logger = structlog.get_logger()
 
@@ -27,6 +24,7 @@ logger = structlog.get_logger()
 @dataclass
 class ContinuousMetricResult:
     """Resultado de analise para metrica continua."""
+
     metric_name: str
     test_used: str
     p_value: float
@@ -37,7 +35,7 @@ class ContinuousMetricResult:
     treatment_mean: float
     control_std: float
     treatment_std: float
-    confidence_interval_95: Tuple[float, float]
+    confidence_interval_95: tuple[float, float]
     sample_size_control: int
     sample_size_treatment: int
     normality_test_control_p: float
@@ -47,6 +45,7 @@ class ContinuousMetricResult:
 @dataclass
 class BinaryMetricResult:
     """Resultado de analise para metrica binaria."""
+
     metric_name: str
     p_value: float
     statistically_significant: bool
@@ -58,19 +57,20 @@ class BinaryMetricResult:
     control_total: int
     treatment_successes: int
     treatment_total: int
-    confidence_interval_95: Tuple[float, float]
+    confidence_interval_95: tuple[float, float]
 
 
 @dataclass
 class BayesianResult:
     """Resultado de analise Bayesiana."""
+
     metric_name: str
     posterior_mean_control: float
     posterior_mean_treatment: float
     posterior_std_control: float
     posterior_std_treatment: float
-    credible_interval_95_control: Tuple[float, float]
-    credible_interval_95_treatment: Tuple[float, float]
+    credible_interval_95_control: tuple[float, float]
+    credible_interval_95_treatment: tuple[float, float]
     probability_of_superiority: float  # P(treatment > control)
     expected_lift: float  # (treatment - control) / control
 
@@ -94,8 +94,8 @@ class StatisticalAnalyzer:
 
     def analyze_continuous_metric(
         self,
-        control_data: List[float],
-        treatment_data: List[float],
+        control_data: list[float],
+        treatment_data: list[float],
         metric_name: str = "metric",
     ) -> ContinuousMetricResult:
         """
@@ -150,9 +150,7 @@ class StatisticalAnalyzer:
         else:
             # Mann-Whitney U test (nao-parametrico)
             try:
-                stat, p_value = mannwhitneyu(
-                    control_arr, treatment_arr, alternative="two-sided"
-                )
+                stat, p_value = mannwhitneyu(control_arr, treatment_arr, alternative="two-sided")
                 test_used = "mann_whitney_u"
             except Exception:
                 # Fallback para t-test se Mann-Whitney falhar
@@ -169,9 +167,7 @@ class StatisticalAnalyzer:
         effect_interpretation = self._interpret_cohens_d(cohens_d)
 
         # Intervalo de confianca para diferenca de medias
-        ci_lower, ci_upper = self._confidence_interval_difference(
-            control_arr, treatment_arr
-        )
+        ci_lower, ci_upper = self._confidence_interval_difference(control_arr, treatment_arr)
 
         return ContinuousMetricResult(
             metric_name=metric_name,
@@ -238,8 +234,12 @@ class StatisticalAnalyzer:
             relative_risk = float("inf") if treatment_rate > 0 else 1.0
 
         # Odds Ratio (OR)
-        odds_control = control_successes / control_failures if control_failures > 0 else float("inf")
-        odds_treatment = treatment_successes / treatment_failures if treatment_failures > 0 else float("inf")
+        odds_control = (
+            control_successes / control_failures if control_failures > 0 else float("inf")
+        )
+        odds_treatment = (
+            treatment_successes / treatment_failures if treatment_failures > 0 else float("inf")
+        )
 
         if odds_control > 0 and odds_control != float("inf"):
             odds_ratio = odds_treatment / odds_control
@@ -268,8 +268,8 @@ class StatisticalAnalyzer:
 
     def bayesian_analysis(
         self,
-        control_data: List[float],
-        treatment_data: List[float],
+        control_data: list[float],
+        treatment_data: list[float],
         metric_name: str = "metric",
         prior_mean: float = 0.0,
         prior_std: float = 1.0,
@@ -296,14 +296,10 @@ class StatisticalAnalyzer:
         treatment_arr = np.array(treatment_data)
 
         # Calcular posterior para controle
-        posterior_control = self._calculate_posterior(
-            control_arr, prior_mean, prior_std
-        )
+        posterior_control = self._calculate_posterior(control_arr, prior_mean, prior_std)
 
         # Calcular posterior para tratamento
-        posterior_treatment = self._calculate_posterior(
-            treatment_arr, prior_mean, prior_std
-        )
+        posterior_treatment = self._calculate_posterior(treatment_arr, prior_mean, prior_std)
 
         # Calcular probabilidade de superioridade via Monte Carlo
         n_samples = 10000
@@ -322,9 +318,8 @@ class StatisticalAnalyzer:
 
         # Expected lift
         if posterior_control["mean"] != 0:
-            expected_lift = (
-                (posterior_treatment["mean"] - posterior_control["mean"])
-                / abs(posterior_control["mean"])
+            expected_lift = (posterior_treatment["mean"] - posterior_control["mean"]) / abs(
+                posterior_control["mean"]
             )
         else:
             expected_lift = 0.0
@@ -343,10 +338,10 @@ class StatisticalAnalyzer:
 
     def calculate_confidence_intervals(
         self,
-        data: List[float],
+        data: list[float],
         confidence_level: float = 0.95,
         n_bootstrap: int = 1000,
-    ) -> Tuple[float, float]:
+    ) -> tuple[float, float]:
         """
         Calcular intervalos de confianca via bootstrap.
 
@@ -384,9 +379,9 @@ class StatisticalAnalyzer:
 
     def multiple_testing_correction(
         self,
-        p_values: List[float],
+        p_values: list[float],
         method: str = "bonferroni",
-    ) -> List[float]:
+    ) -> list[float]:
         """
         Aplicar correcao para testes multiplos.
 
@@ -404,7 +399,9 @@ class StatisticalAnalyzer:
             from statsmodels.stats.multitest import multipletests
 
             rejected, corrected_pvals, _, _ = multipletests(
-                p_values, alpha=self.alpha, method="bonferroni" if method == "bonferroni" else "fdr_bh"
+                p_values,
+                alpha=self.alpha,
+                method="bonferroni" if method == "bonferroni" else "fdr_bh",
             )
             return list(corrected_pvals)
         except ImportError:
@@ -443,7 +440,7 @@ class StatisticalAnalyzer:
         arr1: np.ndarray,
         arr2: np.ndarray,
         confidence: float = 0.95,
-    ) -> Tuple[float, float]:
+    ) -> tuple[float, float]:
         """Calcular CI para diferenca de medias."""
         mean_diff = float(np.mean(arr2) - np.mean(arr1))
 
@@ -470,7 +467,7 @@ class StatisticalAnalyzer:
         p2: float,
         n2: int,
         confidence: float = 0.95,
-    ) -> Tuple[float, float]:
+    ) -> tuple[float, float]:
         """Calcular CI para diferenca de proporcoes."""
         diff = p2 - p1
 
@@ -488,7 +485,7 @@ class StatisticalAnalyzer:
         data: np.ndarray,
         prior_mean: float,
         prior_std: float,
-    ) -> Dict:
+    ) -> dict:
         """Calcular distribuicao posterior (Normal-Normal conjugate)."""
         n = len(data)
         if n == 0:
@@ -505,15 +502,14 @@ class StatisticalAnalyzer:
         data_std = float(np.std(data, ddof=1)) if n > 1 else prior_std
 
         # Precisoes
-        prior_precision = 1 / (prior_std ** 2) if prior_std > 0 else 0.01
-        data_precision = n / (data_std ** 2) if data_std > 0 else 0.01
+        prior_precision = 1 / (prior_std**2) if prior_std > 0 else 0.01
+        data_precision = n / (data_std**2) if data_std > 0 else 0.01
 
         # Posterior
         posterior_precision = prior_precision + data_precision
         posterior_mean = (
-            (prior_precision * prior_mean + data_precision * data_mean)
-            / posterior_precision
-        )
+            prior_precision * prior_mean + data_precision * data_mean
+        ) / posterior_precision
         posterior_std = 1 / np.sqrt(posterior_precision)
 
         # Intervalo de credibilidade 95%

@@ -6,13 +6,13 @@ whitelist de comandos permitidos e isolamento via working directory.
 """
 
 import asyncio
+import contextlib
 import os
 import signal
+
 import structlog
-from typing import Dict, Any, Optional, List
 from opentelemetry import trace
 from pydantic import BaseModel, Field
-
 
 logger = structlog.get_logger()
 tracer = trace.get_tracer(__name__)
@@ -20,19 +20,21 @@ tracer = trace.get_tracer(__name__)
 
 class LocalExecutionError(Exception):
     """Erro de execução local."""
-    def __init__(self, message: str, exit_code: Optional[int] = None):
+
+    def __init__(self, message: str, exit_code: int | None = None):
         super().__init__(message)
         self.exit_code = exit_code
 
 
 class LocalTimeoutError(Exception):
     """Timeout aguardando execução local."""
-    pass
+
 
 
 class CommandNotAllowedError(Exception):
     """Comando não permitido para execução."""
-    def __init__(self, command: str, allowed_commands: List[str]):
+
+    def __init__(self, command: str, allowed_commands: list[str]):
         super().__init__(f"Comando '{command}' não permitido. Permitidos: {allowed_commands}")
         self.command = command
         self.allowed_commands = allowed_commands
@@ -40,23 +42,25 @@ class CommandNotAllowedError(Exception):
 
 class LocalExecutionRequest(BaseModel):
     """Request para execução local de comando."""
-    command: str = Field(..., description='Comando a executar')
-    args: Optional[List[str]] = Field(default=None, description='Argumentos do comando')
-    env_vars: Optional[Dict[str, str]] = Field(default=None, description='Variáveis de ambiente')
-    working_dir: Optional[str] = Field(default=None, description='Diretório de trabalho')
-    timeout_seconds: int = Field(default=300, description='Timeout em segundos')
-    shell: bool = Field(default=False, description='Executar via shell')
-    stdin_data: Optional[str] = Field(default=None, description='Dados para stdin')
-    capture_output: bool = Field(default=True, description='Capturar stdout/stderr')
+
+    command: str = Field(..., description="Comando a executar")
+    args: list[str] | None = Field(default=None, description="Argumentos do comando")
+    env_vars: dict[str, str] | None = Field(default=None, description="Variáveis de ambiente")
+    working_dir: str | None = Field(default=None, description="Diretório de trabalho")
+    timeout_seconds: int = Field(default=300, description="Timeout em segundos")
+    shell: bool = Field(default=False, description="Executar via shell")
+    stdin_data: str | None = Field(default=None, description="Dados para stdin")
+    capture_output: bool = Field(default=True, description="Capturar stdout/stderr")
 
 
 class LocalExecutionResult(BaseModel):
     """Resultado da execução local."""
+
     exit_code: int
     stdout: str
     stderr: str
     duration_ms: int
-    pid: Optional[int] = None
+    pid: int | None = None
     command_executed: str
     timed_out: bool = False
     killed: bool = False
@@ -67,32 +71,44 @@ class LocalRuntimeClient:
 
     # Comandos seguros por padrão
     DEFAULT_ALLOWED_COMMANDS = [
-        'python', 'python3',
-        'node', 'npm', 'npx',
-        'bash', 'sh',
-        'terraform',
-        'kubectl',
-        'helm',
-        'docker',
-        'git',
-        'curl', 'wget',
-        'jq', 'yq',
-        'make',
-        'go',
-        'cargo', 'rustc',
-        'mvn', 'gradle',
-        'pip', 'pip3',
-        'poetry',
-        'pytest',
-        'echo', 'cat', 'ls', 'pwd',
+        "python",
+        "python3",
+        "node",
+        "npm",
+        "npx",
+        "bash",
+        "sh",
+        "terraform",
+        "kubectl",
+        "helm",
+        "docker",
+        "git",
+        "curl",
+        "wget",
+        "jq",
+        "yq",
+        "make",
+        "go",
+        "cargo",
+        "rustc",
+        "mvn",
+        "gradle",
+        "pip",
+        "pip3",
+        "poetry",
+        "pytest",
+        "echo",
+        "cat",
+        "ls",
+        "pwd",
     ]
 
     def __init__(
         self,
-        allowed_commands: Optional[List[str]] = None,
+        allowed_commands: list[str] | None = None,
         timeout: int = 300,
         enable_sandbox: bool = True,
-        working_dir: str = '/tmp/neural-hive-execution',
+        working_dir: str = "/tmp/neural-hive-execution",
         max_output_size: int = 1024 * 1024,  # 1MB
         inherit_env: bool = False,
         graceful_timeout: int = 10,
@@ -116,15 +132,15 @@ class LocalRuntimeClient:
         self.max_output_size = max_output_size
         self.inherit_env = inherit_env
         self.graceful_timeout = graceful_timeout
-        self.logger = logger.bind(service='local_runtime_client')
+        self.logger = logger.bind(service="local_runtime_client")
 
         # Criar diretório de trabalho se não existir
         if working_dir and not os.path.exists(working_dir):
             try:
                 os.makedirs(working_dir, exist_ok=True)
-                self.logger.info('working_dir_created', path=working_dir)
+                self.logger.info("working_dir_created", path=working_dir)
             except Exception as e:
-                self.logger.warning('working_dir_creation_failed', path=working_dir, error=str(e))
+                self.logger.warning("working_dir_creation_failed", path=working_dir, error=str(e))
 
     def _validate_command(self, command: str) -> None:
         """
@@ -140,27 +156,25 @@ class LocalRuntimeClient:
             return
 
         # Extrair nome base do comando (sem path)
-        base_command = os.path.basename(command.split()[0]) if command else ''
+        base_command = os.path.basename(command.split(maxsplit=1)[0]) if command else ""
 
         if base_command not in self.allowed_commands:
             self.logger.warning(
-                'command_not_allowed',
-                command=base_command,
-                allowed=self.allowed_commands
+                "command_not_allowed", command=base_command, allowed=self.allowed_commands
             )
             raise CommandNotAllowedError(base_command, self.allowed_commands)
 
-    def _build_env(self, env_vars: Optional[Dict[str, str]] = None) -> Dict[str, str]:
+    def _build_env(self, env_vars: dict[str, str] | None = None) -> dict[str, str]:
         """Constrói variáveis de ambiente para execução."""
         if self.inherit_env:
             env = os.environ.copy()
         else:
             # Ambiente mínimo necessário
             env = {
-                'PATH': os.environ.get('PATH', '/usr/local/bin:/usr/bin:/bin'),
-                'HOME': os.environ.get('HOME', '/tmp'),
-                'LANG': 'C.UTF-8',
-                'LC_ALL': 'C.UTF-8',
+                "PATH": os.environ.get("PATH", "/usr/local/bin:/usr/bin:/bin"),
+                "HOME": os.environ.get("HOME", "/tmp"),
+                "LANG": "C.UTF-8",
+                "LC_ALL": "C.UTF-8",
             }
 
         if env_vars:
@@ -168,40 +182,34 @@ class LocalRuntimeClient:
 
         return env
 
-    def _truncate_output(self, output: str, label: str = 'output') -> str:
+    def _truncate_output(self, output: str, label: str = "output") -> str:
         """Trunca output se exceder tamanho máximo."""
         if len(output) > self.max_output_size:
-            truncated_msg = f'\n... [{label} truncado, {len(output)} bytes total] ...'
-            return output[:self.max_output_size] + truncated_msg
+            truncated_msg = f"\n... [{label} truncado, {len(output)} bytes total] ..."
+            return output[: self.max_output_size] + truncated_msg
         return output
 
     async def _kill_process_tree(self, pid: int) -> None:
         """Tenta matar processo e seus filhos."""
         try:
             import psutil
+
             parent = psutil.Process(pid)
             children = parent.children(recursive=True)
 
             # Enviar SIGTERM para todos
             for child in children:
-                try:
+                with contextlib.suppress(psutil.NoSuchProcess):
                     child.terminate()
-                except psutil.NoSuchProcess:
-                    pass
             parent.terminate()
 
             # Aguardar término gracioso
-            gone, alive = psutil.wait_procs(
-                [parent] + children,
-                timeout=self.graceful_timeout
-            )
+            _gone, alive = psutil.wait_procs([parent, *children], timeout=self.graceful_timeout)
 
             # SIGKILL para os que ainda estão vivos
             for p in alive:
-                try:
+                with contextlib.suppress(psutil.NoSuchProcess):
                     p.kill()
-                except psutil.NoSuchProcess:
-                    pass
 
         except ImportError:
             # psutil não disponível, usar apenas os.kill
@@ -212,12 +220,10 @@ class LocalRuntimeClient:
             except ProcessLookupError:
                 pass
         except Exception as e:
-            self.logger.warning('process_kill_failed', pid=pid, error=str(e))
+            self.logger.warning("process_kill_failed", pid=pid, error=str(e))
 
     async def execute_local(
-        self,
-        request: LocalExecutionRequest,
-        metrics=None
+        self, request: LocalExecutionRequest, metrics=None
     ) -> LocalExecutionResult:
         """
         Executa comando localmente via subprocess.
@@ -234,21 +240,18 @@ class LocalRuntimeClient:
             LocalTimeoutError: Timeout aguardando execução
             CommandNotAllowedError: Comando não permitido
         """
-        with tracer.start_as_current_span('local.execute') as span:
-            span.set_attribute('local.command', request.command)
-            span.set_attribute('local.timeout', request.timeout_seconds)
+        with tracer.start_as_current_span("local.execute") as span:
+            span.set_attribute("local.command", request.command)
+            span.set_attribute("local.timeout", request.timeout_seconds)
 
             # Validar comando
             self._validate_command(request.command)
 
             # Construir comando completo
-            if request.args:
-                cmd_parts = [request.command] + request.args
-            else:
-                cmd_parts = [request.command]
+            cmd_parts = [request.command, *request.args] if request.args else [request.command]
 
-            command_str = ' '.join(cmd_parts)
-            span.set_attribute('local.command_full', command_str)
+            command_str = " ".join(cmd_parts)
+            span.set_attribute("local.command_full", command_str)
 
             # Determinar working directory
             cwd = request.working_dir or self.working_dir
@@ -259,10 +262,10 @@ class LocalRuntimeClient:
             env = self._build_env(request.env_vars)
 
             self.logger.info(
-                'local_execution_starting',
+                "local_execution_starting",
                 command=command_str,
                 working_dir=cwd,
-                timeout=request.timeout_seconds
+                timeout=request.timeout_seconds,
             )
 
             start_time = asyncio.get_event_loop().time()
@@ -292,23 +295,22 @@ class LocalRuntimeClient:
                     )
 
                 pid = process.pid
-                span.set_attribute('local.pid', pid)
+                span.set_attribute("local.pid", pid)
 
                 # Comunicar com processo
-                stdin_bytes = request.stdin_data.encode('utf-8') if request.stdin_data else None
+                stdin_bytes = request.stdin_data.encode("utf-8") if request.stdin_data else None
 
                 try:
                     stdout_bytes, stderr_bytes = await asyncio.wait_for(
-                        process.communicate(input=stdin_bytes),
-                        timeout=request.timeout_seconds
+                        process.communicate(input=stdin_bytes), timeout=request.timeout_seconds
                     )
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     timed_out = True
                     self.logger.warning(
-                        'local_execution_timeout',
+                        "local_execution_timeout",
                         pid=pid,
                         command=request.command,
-                        timeout=request.timeout_seconds
+                        timeout=request.timeout_seconds,
                     )
 
                     # Tentar matar processo
@@ -316,45 +318,45 @@ class LocalRuntimeClient:
                     killed = True
 
                     # Tentar ler output parcial
-                    stdout_bytes = b''
-                    stderr_bytes = 'Execução cancelada por timeout'.encode('utf-8')
+                    stdout_bytes = b""
+                    stderr_bytes = "Execução cancelada por timeout".encode()
 
                 # Processar output
-                stdout = stdout_bytes.decode('utf-8', errors='replace') if stdout_bytes else ''
-                stderr = stderr_bytes.decode('utf-8', errors='replace') if stderr_bytes else ''
+                stdout = stdout_bytes.decode("utf-8", errors="replace") if stdout_bytes else ""
+                stderr = stderr_bytes.decode("utf-8", errors="replace") if stderr_bytes else ""
 
                 # Truncar se necessário
-                stdout = self._truncate_output(stdout, 'stdout')
-                stderr = self._truncate_output(stderr, 'stderr')
+                stdout = self._truncate_output(stdout, "stdout")
+                stderr = self._truncate_output(stderr, "stderr")
 
                 exit_code = process.returncode if process.returncode is not None else -1
                 duration_ms = int((asyncio.get_event_loop().time() - start_time) * 1000)
 
                 self.logger.info(
-                    'local_execution_completed',
+                    "local_execution_completed",
                     command=request.command,
                     exit_code=exit_code,
                     duration_ms=duration_ms,
-                    timed_out=timed_out
+                    timed_out=timed_out,
                 )
 
                 # Registrar métricas
                 if metrics:
                     if timed_out:
-                        status = 'timeout'
+                        status = "timeout"
                     elif exit_code == 0:
-                        status = 'success'
+                        status = "success"
                     else:
-                        status = 'failed'
+                        status = "failed"
 
-                    if hasattr(metrics, 'local_executions_total'):
+                    if hasattr(metrics, "local_executions_total"):
                         metrics.local_executions_total.labels(status=status).inc()
-                    if hasattr(metrics, 'local_execution_duration_seconds'):
+                    if hasattr(metrics, "local_execution_duration_seconds"):
                         metrics.local_execution_duration_seconds.observe(duration_ms / 1000)
 
                 if timed_out:
                     raise LocalTimeoutError(
-                        f'Timeout após {request.timeout_seconds}s executando: {request.command}'
+                        f"Timeout após {request.timeout_seconds}s executando: {request.command}"
                     )
 
                 return LocalExecutionResult(
@@ -365,26 +367,22 @@ class LocalRuntimeClient:
                     pid=pid,
                     command_executed=command_str,
                     timed_out=timed_out,
-                    killed=killed
+                    killed=killed,
                 )
 
             except CommandNotAllowedError:
-                if metrics and hasattr(metrics, 'local_executions_total'):
-                    metrics.local_executions_total.labels(status='not_allowed').inc()
+                if metrics and hasattr(metrics, "local_executions_total"):
+                    metrics.local_executions_total.labels(status="not_allowed").inc()
                 raise
 
             except LocalTimeoutError:
                 raise
 
             except Exception as e:
-                self.logger.error(
-                    'local_execution_failed',
-                    command=request.command,
-                    error=str(e)
-                )
-                if metrics and hasattr(metrics, 'local_executions_total'):
-                    metrics.local_executions_total.labels(status='failed').inc()
-                raise LocalExecutionError(f'Erro na execução local: {e}')
+                self.logger.exception("local_execution_failed", command=request.command, error=str(e))
+                if metrics and hasattr(metrics, "local_executions_total"):
+                    metrics.local_executions_total.labels(status="failed").inc()
+                raise LocalExecutionError(f"Erro na execução local: {e}")
 
             finally:
                 # Garantir que processo foi finalizado
@@ -399,13 +397,9 @@ class LocalRuntimeClient:
         """Verifica se runtime local está funcional."""
         try:
             result = await self.execute_local(
-                LocalExecutionRequest(
-                    command='echo',
-                    args=['health_check'],
-                    timeout_seconds=5
-                )
+                LocalExecutionRequest(command="echo", args=["health_check"], timeout_seconds=5)
             )
-            return result.exit_code == 0 and 'health_check' in result.stdout
+            return result.exit_code == 0 and "health_check" in result.stdout
         except Exception:
             return False
 
@@ -413,14 +407,14 @@ class LocalRuntimeClient:
         """Adiciona comando à whitelist."""
         if command not in self.allowed_commands:
             self.allowed_commands.append(command)
-            self.logger.info('allowed_command_added', command=command)
+            self.logger.info("allowed_command_added", command=command)
 
     def remove_allowed_command(self, command: str) -> None:
         """Remove comando da whitelist."""
         if command in self.allowed_commands:
             self.allowed_commands.remove(command)
-            self.logger.info('allowed_command_removed', command=command)
+            self.logger.info("allowed_command_removed", command=command)
 
     async def close(self) -> None:
         """Cleanup do cliente (no-op para local runtime)."""
-        self.logger.info('local_runtime_client_closed')
+        self.logger.info("local_runtime_client_closed")

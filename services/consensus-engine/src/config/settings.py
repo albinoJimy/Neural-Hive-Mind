@@ -1,187 +1,174 @@
-from typing import Optional, Dict
+from typing import Dict, Optional
+
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    '''Configurações do Consensus Engine'''
+    """Configurações do Consensus Engine"""
 
     model_config = SettingsConfigDict(
-        env_file='.env',
-        env_file_encoding='utf-8',
-        case_sensitive=False
+        env_file=".env", env_file_encoding="utf-8", case_sensitive=False
     )
 
     # Aplicação
-    environment: str = Field(default='dev', description='Ambiente de execução')
-    debug: bool = Field(default=False, description='Modo debug')
-    log_level: str = Field(default='INFO', description='Nível de log')
-    service_name: str = Field(default='consensus-engine', description='Nome do serviço')
-    service_version: str = Field(default='1.0.0', description='Versão do serviço')
+    environment: str = Field(default="dev", description="Ambiente de execução")
+    debug: bool = Field(default=False, description="Modo debug")
+    log_level: str = Field(default="INFO", description="Nível de log")
+    service_name: str = Field(default="consensus-engine", description="Nome do serviço")
+    service_version: str = Field(default="1.0.0", description="Versão do serviço")
 
     # Kafka Consumer (plans.ready)
-    kafka_bootstrap_servers: str = Field(..., description='Kafka bootstrap servers')
-    kafka_consumer_group_id: str = Field(default='consensus-engine', description='Consumer group ID')
-    kafka_plans_topic: str = Field(default='plans.ready', description='Tópico de planos cognitivos')
-    kafka_auto_offset_reset: str = Field(default='earliest', description='Auto offset reset')
-    kafka_enable_auto_commit: bool = Field(default=False, description='Auto commit offsets')
-    kafka_security_protocol: str = Field(default='PLAINTEXT', description='Security protocol')
-    kafka_sasl_mechanism: Optional[str] = Field(default=None, description='SASL mechanism')
-    kafka_sasl_username: Optional[str] = Field(default=None, description='SASL username')
-    kafka_sasl_password: Optional[str] = Field(default=None, description='SASL password')
+    kafka_bootstrap_servers: str = Field(..., description="Kafka bootstrap servers")
+    kafka_consumer_group_id: str = Field(
+        default="consensus-engine", description="Consumer group ID"
+    )
+    kafka_plans_topic: str = Field(default="plans.ready", description="Tópico de planos cognitivos")
+    kafka_auto_offset_reset: str = Field(default="earliest", description="Auto offset reset")
+    kafka_enable_auto_commit: bool = Field(default=False, description="Auto commit offsets")
+    kafka_security_protocol: str = Field(default="PLAINTEXT", description="Security protocol")
+    kafka_sasl_mechanism: Optional[str] = Field(default=None, description="SASL mechanism")
+    kafka_sasl_username: Optional[str] = Field(default=None, description="SASL username")
+    kafka_sasl_password: Optional[str] = Field(default=None, description="SASL password")
 
     # Kafka Producer (plans.consensus)
-    kafka_consensus_topic: str = Field(default='plans.consensus', description='Tópico de decisões consolidadas')
-    kafka_enable_idempotence: bool = Field(default=True, description='Enable idempotence')
-    kafka_transactional_id: Optional[str] = Field(default=None, description='Transactional ID')
+    kafka_consensus_topic: str = Field(
+        default="plans.consensus", description="Tópico de decisões consolidadas"
+    )
+    kafka_enable_idempotence: bool = Field(default=True, description="Enable idempotence")
+    kafka_transactional_id: Optional[str] = Field(default=None, description="Transactional ID")
 
     # gRPC Clients (Especialistas)
     specialist_business_endpoint: str = Field(
-        default='specialist-business.neural-hive.svc.cluster.local:50051',
-        description='Endpoint do Business Specialist'
+        default="specialist-business.neural-hive.svc.cluster.local:50051",
+        description="Endpoint do Business Specialist",
     )
     specialist_technical_endpoint: str = Field(
-        default='specialist-technical.neural-hive.svc.cluster.local:50051',
-        description='Endpoint do Technical Specialist'
+        default="specialist-technical.neural-hive.svc.cluster.local:50051",
+        description="Endpoint do Technical Specialist",
     )
     specialist_behavior_endpoint: str = Field(
-        default='specialist-behavior.neural-hive.svc.cluster.local:50051',
-        description='Endpoint do Behavior Specialist'
+        default="specialist-behavior.neural-hive.svc.cluster.local:50051",
+        description="Endpoint do Behavior Specialist",
     )
     specialist_evolution_endpoint: str = Field(
-        default='specialist-evolution.neural-hive.svc.cluster.local:50051',
-        description='Endpoint do Evolution Specialist'
+        default="specialist-evolution.neural-hive.svc.cluster.local:50051",
+        description="Endpoint do Evolution Specialist",
     )
     specialist_architecture_endpoint: str = Field(
-        default='specialist-architecture.neural-hive.svc.cluster.local:50051',
-        description='Endpoint do Architecture Specialist'
+        default="specialist-architecture.neural-hive.svc.cluster.local:50051",
+        description="Endpoint do Architecture Specialist",
     )
     grpc_timeout_ms: int = Field(
         default=5000,
-        description='Timeout gRPC em milliseconds (env: GRPC_TIMEOUT_MS). '
-                    'Default 5000ms para execuções locais/teste sem Kubernetes. '
-                    'Em Kubernetes/produção, configurar 120000ms via variável de ambiente '
-                    'GRPC_TIMEOUT_MS (injetada pelo Helm) para acomodar tempo de processamento '
-                    'dos specialists (49-66s para ML inference).',
-        gt=0
+        description="Timeout gRPC em milliseconds (env: GRPC_TIMEOUT_MS). "
+        "Default 5000ms para execuções locais/teste sem Kubernetes. "
+        "Em Kubernetes/produção, configurar 120000ms via variável de ambiente "
+        "GRPC_TIMEOUT_MS (injetada pelo Helm) para acomodar tempo de processamento "
+        "dos specialists (49-66s para ML inference).",
+        gt=0,
     )
-    grpc_max_retries: int = Field(default=3, description='Máximo de retries gRPC', ge=0)
+    grpc_max_retries: int = Field(default=3, description="Máximo de retries gRPC", ge=0)
 
     # Timeouts específicos por specialist (opcional, fallback para grpc_timeout_ms)
     specialist_business_timeout_ms: Optional[int] = Field(
         default=None,
-        description='Timeout específico para Business Specialist em milliseconds. '
-                    'Se não configurado, usa grpc_timeout_ms. '
-                    'Recomendado: 120000ms (2 minutos) devido a processamento ML pesado (49-66s observado).',
-        gt=0
+        description="Timeout específico para Business Specialist em milliseconds. "
+        "Se não configurado, usa grpc_timeout_ms. "
+        "Recomendado: 120000ms (2 minutos) devido a processamento ML pesado (49-66s observado).",
+        gt=0,
     )
     specialist_technical_timeout_ms: Optional[int] = Field(
         default=None,
-        description='Timeout específico para Technical Specialist em milliseconds. '
-                    'Se não configurado, usa grpc_timeout_ms.',
-        gt=0
+        description="Timeout específico para Technical Specialist em milliseconds. "
+        "Se não configurado, usa grpc_timeout_ms.",
+        gt=0,
     )
     specialist_behavior_timeout_ms: Optional[int] = Field(
         default=None,
-        description='Timeout específico para Behavior Specialist em milliseconds. '
-                    'Se não configurado, usa grpc_timeout_ms.',
-        gt=0
+        description="Timeout específico para Behavior Specialist em milliseconds. "
+        "Se não configurado, usa grpc_timeout_ms.",
+        gt=0,
     )
     specialist_evolution_timeout_ms: Optional[int] = Field(
         default=None,
-        description='Timeout específico para Evolution Specialist em milliseconds. '
-                    'Se não configurado, usa grpc_timeout_ms.',
-        gt=0
+        description="Timeout específico para Evolution Specialist em milliseconds. "
+        "Se não configurado, usa grpc_timeout_ms.",
+        gt=0,
     )
     specialist_architecture_timeout_ms: Optional[int] = Field(
         default=None,
-        description='Timeout específico para Architecture Specialist em milliseconds. '
-                    'Se não configurado, usa grpc_timeout_ms.',
-        gt=0
+        description="Timeout específico para Architecture Specialist em milliseconds. "
+        "Se não configurado, usa grpc_timeout_ms.",
+        gt=0,
     )
 
     # gRPC Client (Queen Agent)
     queen_agent_grpc_host: str = Field(
-        default='queen-agent.neural-hive.svc.cluster.local',
-        description='Host do Queen Agent gRPC'
+        default="queen-agent.neural-hive.svc.cluster.local", description="Host do Queen Agent gRPC"
     )
-    queen_agent_grpc_port: int = Field(
-        default=50053,
-        description='Porta do Queen Agent gRPC',
-        gt=0
-    )
+    queen_agent_grpc_port: int = Field(default=50053, description="Porta do Queen Agent gRPC", gt=0)
 
     # gRPC Client (Analyst Agent)
     analyst_agent_grpc_host: str = Field(
-        default='analyst-agents.neural-hive.svc.cluster.local',
-        description='Host do Analyst Agent gRPC'
+        default="analyst-agents.neural-hive.svc.cluster.local",
+        description="Host do Analyst Agent gRPC",
     )
     analyst_agent_grpc_port: int = Field(
-        default=50051,
-        description='Porta do Analyst Agent gRPC',
-        gt=0
+        default=50051, description="Porta do Analyst Agent gRPC", gt=0
     )
 
     # SPIFFE/mTLS Configuration
     spiffe_enabled: bool = Field(
-        default=False,
-        description='Habilitar autenticação via SPIFFE/SPIRE'
+        default=False, description="Habilitar autenticação via SPIFFE/SPIRE"
     )
-    spiffe_enable_x509: bool = Field(
-        default=False,
-        description='Habilitar mTLS via SPIFFE X.509'
-    )
+    spiffe_enable_x509: bool = Field(default=False, description="Habilitar mTLS via SPIFFE X.509")
     spiffe_socket_path: str = Field(
-        default='unix:///run/spire/sockets/agent.sock',
-        description='Caminho do socket do SPIRE Agent'
+        default="unix:///run/spire/sockets/agent.sock",
+        description="Caminho do socket do SPIRE Agent",
     )
-    spiffe_trust_domain: str = Field(
-        default='neural-hive.local',
-        description='Trust domain SPIFFE'
-    )
+    spiffe_trust_domain: str = Field(default="neural-hive.local", description="Trust domain SPIFFE")
     spiffe_jwt_audience: str = Field(
-        default='neural-hive.local',
-        description='Audience para JWT-SVID'
+        default="neural-hive.local", description="Audience para JWT-SVID"
     )
     spiffe_jwt_ttl_seconds: int = Field(
-        default=3600,
-        description='TTL do JWT-SVID em segundos',
-        gt=0
+        default=3600, description="TTL do JWT-SVID em segundos", gt=0
     )
 
     # MongoDB (Ledger)
-    mongodb_uri: str = Field(..., description='URI do MongoDB')
-    mongodb_database: str = Field(default='neural_hive', description='Database MongoDB')
+    mongodb_uri: str = Field(..., description="URI do MongoDB")
+    mongodb_database: str = Field(default="neural_hive", description="Database MongoDB")
     mongodb_consensus_collection: str = Field(
-        default='consensus_decisions',
-        description='Collection de decisões consolidadas'
+        default="consensus_decisions", description="Collection de decisões consolidadas"
     )
     mongodb_pheromones_collection: str = Field(
-        default='pheromone_signals',
-        description='Collection de feromônios'
+        default="pheromone_signals", description="Collection de feromônios"
     )
 
     # Redis (Feromônios)
-    redis_cluster_nodes: str = Field(..., description='Redis cluster nodes')
-    redis_password: Optional[str] = Field(default=None, description='Redis password')
-    redis_ssl_enabled: bool = Field(default=False, description='Redis SSL enabled')
-    pheromone_ttl: int = Field(default=3600, description='TTL de feromônios em segundos', gt=0)
+    redis_cluster_nodes: str = Field(..., description="Redis cluster nodes")
+    redis_password: Optional[str] = Field(default=None, description="Redis password")
+    redis_ssl_enabled: bool = Field(default=False, description="Redis SSL enabled")
+    pheromone_ttl: int = Field(default=3600, description="TTL de feromônios em segundos", gt=0)
     pheromone_decay_rate: float = Field(
-        default=0.1,
-        description='Taxa de decay de feromônios por hora',
-        ge=0.0,
-        le=1.0
+        default=0.1, description="Taxa de decay de feromônios por hora", ge=0.0, le=1.0
     )
 
     # Observabilidade
     otel_endpoint: str = Field(
-        default='https://opentelemetry-collector.observability.svc.cluster.local:4317',
-        description='Endpoint do OpenTelemetry Collector'
+        default="https://opentelemetry-collector.observability.svc.cluster.local:4317",
+        description="Endpoint do OpenTelemetry Collector",
     )
-    otel_tls_verify: bool = Field(default=True, description='Verificar certificado TLS do OTEL Collector')
-    otel_ca_bundle: Optional[str] = Field(default=None, description='Caminho para CA bundle do OTEL Collector')
-    prometheus_port: int = Field(default=8080, description='Porta de métricas Prometheus', gt=0)
-    jaeger_sampling_rate: float = Field(default=1.0, description='Taxa de sampling Jaeger', ge=0.0, le=1.0)
+    otel_tls_verify: bool = Field(
+        default=True, description="Verificar certificado TLS do OTEL Collector"
+    )
+    otel_ca_bundle: Optional[str] = Field(
+        default=None, description="Caminho para CA bundle do OTEL Collector"
+    )
+    prometheus_port: int = Field(default=8080, description="Porta de métricas Prometheus", gt=0)
+    jaeger_sampling_rate: float = Field(
+        default=1.0, description="Taxa de sampling Jaeger", ge=0.0, le=1.0
+    )
 
     # Consensus Configuration
     #
@@ -195,89 +182,79 @@ class Settings(BaseSettings):
     # - Margem para degradação parcial sem falsos positivos
     min_confidence_score: float = Field(
         default=0.65,  # Reduzido de 0.8 para 0.65 (65%)
-        description='Score mínimo de confiança obrigatório. '
-                    'Ajustado para 65% baseado em análise de produção. '
-                    'Thresholds adaptativos podem relaxar até 50% quando modelos degradados.',
+        description="Score mínimo de confiança obrigatório. "
+        "Ajustado para 65% baseado em análise de produção. "
+        "Thresholds adaptativos podem relaxar até 50% quando modelos degradados.",
         ge=0.0,
-        le=1.0
+        le=1.0,
     )
     max_divergence_threshold: float = Field(
         default=0.25,  # Aumentado de 0.05 para 0.25 (25%)
-        description='Divergência máxima permitida entre specialists. '
-                    'Ajustado para 25% para acomodar variação natural entre 5 specialists. '
-                    'Thresholds adaptativos podem relaxar até 35% quando modelos degradados.',
+        description="Divergência máxima permitida entre specialists. "
+        "Ajustado para 25% para acomodar variação natural entre 5 specialists. "
+        "Thresholds adaptativos podem relaxar até 35% quando modelos degradados.",
         ge=0.0,
-        le=1.0
+        le=1.0,
     )
     high_risk_threshold: float = Field(
-        default=0.7,
-        description='Threshold de alto risco',
-        ge=0.0,
-        le=1.0
+        default=0.7, description="Threshold de alto risco", ge=0.0, le=1.0
     )
     critical_risk_threshold: float = Field(
-        default=0.9,
-        description='Threshold de risco crítico',
-        ge=0.0,
-        le=1.0
+        default=0.9, description="Threshold de risco crítico", ge=0.0, le=1.0
     )
     bayesian_prior_weight: float = Field(
-        default=0.1,
-        description='Peso do prior Bayesiano',
-        ge=0.0,
-        le=1.0
+        default=0.1, description="Peso do prior Bayesiano", ge=0.0, le=1.0
     )
     voting_weight_decay: float = Field(
-        default=0.95,
-        description='Decay de pesos históricos',
-        ge=0.0,
-        le=1.0
+        default=0.95, description="Decay de pesos históricos", ge=0.0, le=1.0
     )
     require_unanimous_for_critical: bool = Field(
-        default=True,
-        description='Requer unanimidade para planos críticos'
+        default=True, description="Requer unanimidade para planos críticos"
     )
     fallback_to_deterministic: bool = Field(
-        default=True,
-        description='Usar fallback determinístico quando necessário'
+        default=True, description="Usar fallback determinístico quando necessário"
     )
 
     # Feature Flags
-    enable_bayesian_averaging: bool = Field(default=True, description='Habilitar Bayesian Averaging')
-    enable_pheromones: bool = Field(default=True, description='Habilitar feromônios digitais')
-    enable_fallback: bool = Field(default=True, description='Habilitar fallback determinístico')
-    enable_parallel_invocation: bool = Field(default=True, description='Habilitar invocação paralela')
+    enable_bayesian_averaging: bool = Field(
+        default=True, description="Habilitar Bayesian Averaging"
+    )
+    enable_pheromones: bool = Field(default=True, description="Habilitar feromônios digitais")
+    enable_fallback: bool = Field(default=True, description="Habilitar fallback determinístico")
+    enable_parallel_invocation: bool = Field(
+        default=True, description="Habilitar invocação paralela"
+    )
 
     # Hierarchical Consensus Configuration (GAPS-03)
     # Consenso hierárquico permite que especialistas mais seniors tenham mais peso
     # nas decisões de consenso, baseado em senioridade e domínio de especialização.
     enable_hierarchical_consensus: bool = Field(
         default=True,
-        description='Habilitar consenso hierárquico baseado em senioridade de especialistas'
+        description="Habilitar consenso hierárquico baseado em senioridade de especialistas",
     )
     specialist_seniority: Dict[str, str] = Field(
         default={
-            'business': 'senior',
-            'technical': 'senior',
-            'behavior': 'mid_level',
-            'evolution': 'mid_level',
-            'architecture': 'expert',
+            "business": "senior",
+            "technical": "senior",
+            "behavior": "mid_level",
+            "evolution": "mid_level",
+            "architecture": "expert",
         },
-        description='Mapeamento de specialist type para nível de senioridade padrão. '
-                    'Níveis válidos: trainee, junior, mid_level, senior, expert.'
+        description="Mapeamento de specialist type para nível de senioridade padrão. "
+        "Níveis válidos: trainee, junior, mid_level, senior, expert.",
     )
     default_seniority_level: str = Field(
-        default='mid_level',
-        description='Nível de senioridade padrão para especialistas não configurados'
+        default="mid_level",
+        description="Nível de senioridade padrão para especialistas não configurados",
     )
     domain_specialist_weights: Dict[str, float] = Field(
         default={
-            'business_BUSINESS': 0.25,
-            'technical_TECHNICAL': 0.25,
-            'architecture_ARCHITECTURE': 0.30,
+            "business_BUSINESS": 0.25,
+            "technical_TECHNICAL": 0.25,
+            "architecture_ARCHITECTURE": 0.30,
         },
-        description='Peso adicional quando o specialist está no seu domínio de especialização. '
-                    'Formato: {specialist_type}_{DOMAIN}. Valores entre 0.0 e 1.0.'
+        description="Peso adicional quando o specialist está no seu domínio de especialização. "
+        "Formato: {specialist_type}_{DOMAIN}. Valores entre 0.0 e 1.0.",
     )
 
     # Configuração de Resiliência do Consumer
@@ -285,43 +262,43 @@ class Settings(BaseSettings):
     # incluindo backoff exponencial, circuit breaker e Dead Letter Queue.
     consumer_max_consecutive_errors: int = Field(
         default=10,
-        description='Máximo de erros consecutivos antes do circuit breaker abrir. '
-                    'Quando atingido, consumer para para evitar falhas em cascata.',
-        gt=0
+        description="Máximo de erros consecutivos antes do circuit breaker abrir. "
+        "Quando atingido, consumer para para evitar falhas em cascata.",
+        gt=0,
     )
     consumer_base_backoff_seconds: float = Field(
         default=1.0,
-        description='Duração base para backoff exponencial (segundos). '
-                    'Backoff = base * 2^erros_consecutivos, limitado ao máximo.',
-        gt=0.0
+        description="Duração base para backoff exponencial (segundos). "
+        "Backoff = base * 2^erros_consecutivos, limitado ao máximo.",
+        gt=0.0,
     )
     consumer_max_backoff_seconds: float = Field(
         default=60.0,
-        description='Limite máximo de backoff (segundos). '
-                    'Previne esperas indefinidamente longas durante falhas sustentadas.',
-        gt=0.0
+        description="Limite máximo de backoff (segundos). "
+        "Previne esperas indefinidamente longas durante falhas sustentadas.",
+        gt=0.0,
     )
     consumer_poll_timeout_seconds: float = Field(
         default=1.0,
-        description='Timeout do poll do consumer Kafka (segundos). '
-                    'Controla tradeoff entre responsividade e frequência de polling.',
-        gt=0.0
+        description="Timeout do poll do consumer Kafka (segundos). "
+        "Controla tradeoff entre responsividade e frequência de polling.",
+        gt=0.0,
     )
     # NOTA: DLQ ainda não está implementado no consumer. Estas configurações são
     # reservadas para implementação futura. Não habilite consumer_enable_dlq em produção.
     consumer_enable_dlq: bool = Field(
         default=False,
-        description='[NÃO IMPLEMENTADO] Habilitar Dead Letter Queue para mensagens que falham. '
-                    'Reservado para implementação futura - não habilite em produção.'
+        description="[NÃO IMPLEMENTADO] Habilitar Dead Letter Queue para mensagens que falham. "
+        "Reservado para implementação futura - não habilite em produção.",
     )
     kafka_dlq_topic: str = Field(
-        default='plans.ready.dlq',
-        description='[NÃO IMPLEMENTADO] Tópico Kafka para mensagens Dead Letter Queue.'
+        default="plans.ready.dlq",
+        description="[NÃO IMPLEMENTADO] Tópico Kafka para mensagens Dead Letter Queue.",
     )
     consumer_max_retries_before_dlq: int = Field(
         default=3,
-        description='[NÃO IMPLEMENTADO] Máximo de retries antes de enviar mensagem para DLQ.',
-        ge=0
+        description="[NÃO IMPLEMENTADO] Máximo de retries antes de enviar mensagem para DLQ.",
+        ge=0,
     )
 
     def get_specialist_timeout_ms(self, specialist_type: str) -> int:
@@ -335,60 +312,64 @@ class Settings(BaseSettings):
         Returns:
             Timeout em milliseconds
         """
-        timeout_field = f'specialist_{specialist_type}_timeout_ms'
+        timeout_field = f"specialist_{specialist_type}_timeout_ms"
         specific_timeout = getattr(self, timeout_field, None)
         return specific_timeout if specific_timeout is not None else self.grpc_timeout_ms
 
-    @field_validator('grpc_timeout_ms', 'grpc_max_retries', 'pheromone_ttl', 'prometheus_port')
+    @field_validator("grpc_timeout_ms", "grpc_max_retries", "pheromone_ttl", "prometheus_port")
     @classmethod
     def validate_positive_int(cls, v: int) -> int:
         if v <= 0:
-            raise ValueError('Valor deve ser positivo')
+            raise ValueError("Valor deve ser positivo")
         return v
 
-    @field_validator('kafka_bootstrap_servers', 'mongodb_uri', 'redis_cluster_nodes')
+    @field_validator("kafka_bootstrap_servers", "mongodb_uri", "redis_cluster_nodes")
     @classmethod
     def validate_not_empty(cls, v: str) -> str:
-        if not v or v.strip() == '':
-            raise ValueError('Valor não pode ser vazio')
+        if not v or v.strip() == "":
+            raise ValueError("Valor não pode ser vazio")
         return v
 
-    @field_validator('specialist_business_endpoint', 'specialist_technical_endpoint',
-                     'specialist_behavior_endpoint', 'specialist_evolution_endpoint',
-                     'specialist_architecture_endpoint')
+    @field_validator(
+        "specialist_business_endpoint",
+        "specialist_technical_endpoint",
+        "specialist_behavior_endpoint",
+        "specialist_evolution_endpoint",
+        "specialist_architecture_endpoint",
+    )
     @classmethod
     def validate_endpoint_format(cls, v: str) -> str:
-        if not v or ':' not in v:
-            raise ValueError('Endpoint deve estar no formato host:port')
+        if not v or ":" not in v:
+            raise ValueError("Endpoint deve estar no formato host:port")
         return v
 
-    @model_validator(mode='after')
-    def validate_backoff_config(self) -> 'Settings':
-        '''Valida consistência entre parâmetros de backoff do consumer.'''
+    @model_validator(mode="after")
+    def validate_backoff_config(self) -> "Settings":
+        """Valida consistência entre parâmetros de backoff do consumer."""
         if self.consumer_max_backoff_seconds < self.consumer_base_backoff_seconds:
             raise ValueError(
-                f'consumer_max_backoff_seconds ({self.consumer_max_backoff_seconds}) deve ser '
-                f'>= consumer_base_backoff_seconds ({self.consumer_base_backoff_seconds})'
+                f"consumer_max_backoff_seconds ({self.consumer_max_backoff_seconds}) deve ser "
+                f">= consumer_base_backoff_seconds ({self.consumer_base_backoff_seconds})"
             )
         return self
 
-    @model_validator(mode='after')
-    def validate_https_in_production(self) -> 'Settings':
+    @model_validator(mode="after")
+    def validate_https_in_production(self) -> "Settings":
         """
         Valida que endpoints HTTP criticos usam HTTPS em producao/staging.
         Endpoints verificados: OTEL Collector.
         """
-        is_prod_staging = self.environment.lower() in ('production', 'staging', 'prod')
+        is_prod_staging = self.environment.lower() in ("production", "staging", "prod")
         if not is_prod_staging:
             return self
 
         # Endpoints criticos que devem usar HTTPS em producao
         http_endpoints = []
-        if self.otel_endpoint.startswith('http://'):
-            http_endpoints.append(('otel_endpoint', self.otel_endpoint))
+        if self.otel_endpoint.startswith("http://"):
+            http_endpoints.append(("otel_endpoint", self.otel_endpoint))
 
         if http_endpoints:
-            endpoint_list = ', '.join(f'{name}={url}' for name, url in http_endpoints)
+            endpoint_list = ", ".join(f"{name}={url}" for name, url in http_endpoints)
             raise ValueError(
                 f"Endpoints HTTP inseguros detectados em ambiente {self.environment}: {endpoint_list}. "
                 "Use HTTPS em producao/staging para garantir seguranca de dados em transito."
@@ -396,40 +377,145 @@ class Settings(BaseSettings):
 
         return self
 
-    @field_validator('default_seniority_level')
+    @field_validator("default_seniority_level")
     @classmethod
     def validate_seniority_level(cls, v: str) -> str:
         """Valida que nível de senioridade é válido."""
-        valid_levels = {'trainee', 'junior', 'mid_level', 'senior', 'expert'}
+        valid_levels = {"trainee", "junior", "mid_level", "senior", "expert"}
         if v not in valid_levels:
             raise ValueError(
-                f'Nível de senioridade inválido: {v}. '
+                f"Nível de senioridade inválido: {v}. "
                 f'Níveis válidos: {", ".join(sorted(valid_levels))}'
             )
         return v
 
-    @model_validator(mode='after')
-    def validate_specialist_seniority(self) -> 'Settings':
+    @model_validator(mode="after")
+    def validate_specialist_seniority(self) -> "Settings":
         """Valida que todos os níveis de senioridade de especialistas são válidos."""
-        valid_levels = {'trainee', 'junior', 'mid_level', 'senior', 'expert'}
+        valid_levels = {"trainee", "junior", "mid_level", "senior", "expert"}
 
         for specialist, level in self.specialist_seniority.items():
             if level not in valid_levels:
                 raise ValueError(
-                    f'Nível de senioridade inválido para {specialist}: {level}. '
+                    f"Nível de senioridade inválido para {specialist}: {level}. "
                     f'Níveis válidos: {", ".join(sorted(valid_levels))}'
                 )
         return self
 
-    @model_validator(mode='after')
-    def validate_domain_specialist_weights(self) -> 'Settings':
+    @model_validator(mode="after")
+    def validate_domain_specialist_weights(self) -> "Settings":
         """Valida que pesos de domínio estão no range válido."""
         for key, weight in self.domain_specialist_weights.items():
             if not (0.0 <= weight <= 1.0):
                 raise ValueError(
-                    f'Peso de domínio inválido para {key}: {weight}. '
-                    f'Valores devem estar entre 0.0 e 1.0.'
+                    f"Peso de domínio inválido para {key}: {weight}. "
+                    f"Valores devem estar entre 0.0 e 1.0."
                 )
+        return self
+
+    @model_validator(mode="after")
+    def validate_no_hardcoded_defaults_in_production(self) -> "Settings":
+        """
+        Valida que endpoints críticos não estão usando defaults hardcoded em produção.
+
+        Em ambiente de produção, todos os endpoints de especialistas devem ser
+        configurados explicitamente via variáveis de ambiente para garantir
+        que a configuração seja intencional e auditável.
+        """
+        is_prod_staging = self.environment.lower() in ("production", "staging", "prod")
+
+        if not is_prod_staging:
+            return self
+
+        # Lista de campos que não devem usar defaults em produção
+        defaults_to_check = {
+            "specialist_business_endpoint": "specialist-business.neural-hive.svc.cluster.local:50051",
+            "specialist_technical_endpoint": "specialist-technical.neural-hive.svc.cluster.local:50051",
+            "specialist_architecture_endpoint": "specialist-architecture.neural-hive.svc.cluster.local:50051",
+            "queen_agent_grpc_host": "queen-agent.neural-hive.svc.cluster.local",
+            "analyst_agent_grpc_host": "analyst-agents.neural-hive.svc.cluster.local",
+        }
+
+        issues = []
+        for field_name, default_value in defaults_to_check.items():
+            actual_value = getattr(self, field_name)
+            if actual_value == default_value:
+                issues.append(
+                    f"{field_name} está usando valor padrão ({default_value}). "
+                    f"Configure via variável de ambiente em produção."
+                )
+
+        if issues:
+            raise ValueError(
+                "Configuração insegura para ambiente de produção:\n"
+                + "\n".join(f"  - {issue}" for issue in issues)
+            )
+
+        return self
+
+    @model_validator(mode="after")
+    def validate_sensitive_credentials_not_default(self) -> "Settings":
+        """
+        Valida que credenciais sensíveis não estão usando valores padrão óbvios.
+
+        Esta validação ajuda a evitar que segredos padrão sejam usados acidentalmente
+        em produção, o que representaria um risco de segurança crítico.
+        """
+        is_prod_staging = self.environment.lower() in ("production", "staging", "prod")
+
+        if not is_prod_staging:
+            return self
+
+        # Padrões perigosos que não devem aparecer em URIs e senhas
+        dangerous_patterns = [
+            "localhost",
+            "127.0.0.1",
+            "password",
+            "secret",
+            "changeme",
+            "default123",
+            "admin123",
+            "root123",
+        ]
+
+        issues = []
+
+        # Verificar MongoDB URI
+        if hasattr(self, "mongodb_uri") and self.mongodb_uri:
+            for pattern in dangerous_patterns:
+                if pattern in self.mongodb_uri.lower():
+                    issues.append(
+                        f'mongodb_uri contém padrão suspeito: "{pattern}". '
+                        f"Use credenciais específicas de produção."
+                    )
+                    break
+
+        # Verificar Redis password
+        if hasattr(self, "redis_password") and self.redis_password:
+            for pattern in dangerous_patterns:
+                if pattern in self.redis_password.lower():
+                    issues.append(
+                        f'redis_password contém padrão suspeito: "{pattern}". '
+                        f"Use senha forte específica de produção."
+                    )
+                    break
+
+        # Verificar Kafka SASL password
+        if hasattr(self, "kafka_sasl_password") and self.kafka_sasl_password:
+            for pattern in dangerous_patterns:
+                if pattern in self.kafka_sasl_password.lower():
+                    issues.append(
+                        f'kafka_sasl_password contém padrão suspeito: "{pattern}". '
+                        f"Use senha forte específica de produção."
+                    )
+                    break
+
+        if issues:
+            raise ValueError(
+                "Credenciais com padrões inseguros detectados:\n"
+                + "\n".join(f"  - {issue}" for issue in issues)
+            )
+
         return self
 
 
@@ -438,7 +524,7 @@ _settings = None
 
 
 def get_settings() -> Settings:
-    '''Retorna instância singleton das configurações'''
+    """Retorna instância singleton das configurações"""
     global _settings
     if _settings is None:
         _settings = Settings()

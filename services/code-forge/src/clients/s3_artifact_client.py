@@ -4,11 +4,12 @@ Cliente S3 para armazenamento de artefatos e SBOMs.
 Baseado no padrão S3StorageClient do módulo de disaster recovery.
 """
 
-import os
 import hashlib
+import os
 import time
-from datetime import datetime
-from typing import List, Dict, Optional, TYPE_CHECKING
+from datetime import datetime, timezone
+from typing import TYPE_CHECKING, Dict, List, Optional
+
 import structlog
 
 if TYPE_CHECKING:
@@ -34,7 +35,7 @@ class S3ArtifactClient:
         bucket: str,
         region: str,
         endpoint: Optional[str] = None,
-        metrics: Optional['CodeForgeMetrics'] = None
+        metrics: Optional["CodeForgeMetrics"] = None,
     ):
         """
         Inicializa cliente S3 para artefatos.
@@ -52,10 +53,10 @@ class S3ArtifactClient:
         self._s3_client = None
 
         logger.info(
-            's3_artifact_client_initialized',
+            "s3_artifact_client_initialized",
             bucket=bucket,
             region=region,
-            endpoint=endpoint or 'default'
+            endpoint=endpoint or "default",
         )
 
     def _get_client(self):
@@ -65,23 +66,17 @@ class S3ArtifactClient:
                 import boto3
                 from botocore.config import Config
             except ImportError:
-                raise ImportError(
-                    "boto3 não instalado. Instale com: pip install boto3>=1.34.0"
-                )
+                raise ImportError("boto3 não instalado. Instale com: pip install boto3>=1.34.0")
 
             config = Config(
-                region_name=self.region,
-                retries={
-                    'max_attempts': 3,
-                    'mode': 'adaptive'
-                }
+                region_name=self.region, retries={"max_attempts": 3, "mode": "adaptive"}
             )
 
-            client_kwargs = {'config': config}
+            client_kwargs = {"config": config}
             if self.endpoint:
-                client_kwargs['endpoint_url'] = self.endpoint
+                client_kwargs["endpoint_url"] = self.endpoint
 
-            self._s3_client = boto3.client('s3', **client_kwargs)
+            self._s3_client = boto3.client("s3", **client_kwargs)
 
         return self._s3_client
 
@@ -93,12 +88,7 @@ class S3ArtifactClient:
                 sha256_hash.update(byte_block)
         return sha256_hash.hexdigest()
 
-    async def upload_sbom(
-        self,
-        local_path: str,
-        artifact_id: str,
-        ticket_id: str
-    ) -> str:
+    async def upload_sbom(self, local_path: str, artifact_id: str, ticket_id: str) -> str:
         """
         Upload de SBOM para S3.
 
@@ -118,15 +108,10 @@ class S3ArtifactClient:
             remote_key=remote_key,
             artifact_id=artifact_id,
             ticket_id=ticket_id,
-            artifact_type='sbom'
+            artifact_type="sbom",
         )
 
-    async def upload_artifact(
-        self,
-        local_path: str,
-        artifact_id: str,
-        ticket_id: str
-    ) -> str:
+    async def upload_artifact(self, local_path: str, artifact_id: str, ticket_id: str) -> str:
         """
         Upload de artefato para S3.
 
@@ -146,16 +131,11 @@ class S3ArtifactClient:
             remote_key=remote_key,
             artifact_id=artifact_id,
             ticket_id=ticket_id,
-            artifact_type='artifact'
+            artifact_type="artifact",
         )
 
     async def _upload_file(
-        self,
-        local_path: str,
-        remote_key: str,
-        artifact_id: str,
-        ticket_id: str,
-        artifact_type: str
+        self, local_path: str, remote_key: str, artifact_id: str, ticket_id: str, artifact_type: str
     ) -> str:
         """
         Upload genérico de arquivo para S3.
@@ -177,11 +157,11 @@ class S3ArtifactClient:
             checksum = self._calculate_file_checksum(local_path)
 
             logger.info(
-                's3_upload_started',
+                "s3_upload_started",
                 local_path=local_path,
                 remote_key=remote_key,
                 size_bytes=file_size,
-                artifact_type=artifact_type
+                artifact_type=artifact_type,
             )
 
             client = self._get_client()
@@ -191,38 +171,35 @@ class S3ArtifactClient:
                 self.bucket,
                 remote_key,
                 ExtraArgs={
-                    'ServerSideEncryption': 'AES256',
-                    'Metadata': {
-                        'uploaded_at': datetime.utcnow().isoformat(),
-                        'source': 'code-forge',
-                        'ticket_id': ticket_id,
-                        'artifact_id': artifact_id,
-                        'artifact_type': artifact_type,
-                        'sha256': checksum
-                    }
-                }
+                    "ServerSideEncryption": "AES256",
+                    "Metadata": {
+                        "uploaded_at": datetime.now(timezone.utc).isoformat(),
+                        "source": "code-forge",
+                        "ticket_id": ticket_id,
+                        "artifact_id": artifact_id,
+                        "artifact_type": artifact_type,
+                        "sha256": checksum,
+                    },
+                },
             )
 
             duration = time.perf_counter() - start_time
             s3_uri = f"s3://{self.bucket}/{remote_key}"
 
             logger.info(
-                's3_upload_completed',
+                "s3_upload_completed",
                 remote_key=remote_key,
                 s3_uri=s3_uri,
                 size_bytes=file_size,
                 duration_seconds=round(duration, 3),
-                artifact_type=artifact_type
+                artifact_type=artifact_type,
             )
 
             if self.metrics:
-                self.metrics.s3_upload_duration_seconds.labels(
-                    operation=artifact_type
-                ).observe(duration)
-                self.metrics.s3_upload_total.labels(
-                    status='success',
-                    operation=artifact_type
-                ).inc()
+                self.metrics.s3_upload_duration_seconds.labels(operation=artifact_type).observe(
+                    duration
+                )
+                self.metrics.s3_upload_total.labels(status="success", operation=artifact_type).inc()
 
             return s3_uri
 
@@ -230,19 +207,16 @@ class S3ArtifactClient:
             duration = time.perf_counter() - start_time
 
             logger.error(
-                's3_upload_failed',
+                "s3_upload_failed",
                 remote_key=remote_key,
                 error=str(e),
                 error_type=type(e).__name__,
                 duration_seconds=round(duration, 3),
-                artifact_type=artifact_type
+                artifact_type=artifact_type,
             )
 
             if self.metrics:
-                self.metrics.s3_upload_total.labels(
-                    status='failure',
-                    operation=artifact_type
-                ).inc()
+                self.metrics.s3_upload_total.labels(status="failure", operation=artifact_type).inc()
 
             raise
 
@@ -272,22 +246,18 @@ class S3ArtifactClient:
         """
         try:
             # Parse URI s3://bucket/key
-            if not s3_uri.startswith('s3://'):
-                logger.error('invalid_s3_uri', uri=s3_uri)
+            if not s3_uri.startswith("s3://"):
+                logger.error("invalid_s3_uri", uri=s3_uri)
                 return False
 
-            parts = s3_uri[5:].split('/', 1)
+            parts = s3_uri[5:].split("/", 1)
             if len(parts) != 2:
-                logger.error('invalid_s3_uri_format', uri=s3_uri)
+                logger.error("invalid_s3_uri_format", uri=s3_uri)
                 return False
 
             bucket, key = parts
 
-            logger.info(
-                's3_download_started',
-                s3_uri=s3_uri,
-                local_path=local_path
-            )
+            logger.info("s3_download_started", s3_uri=s3_uri, local_path=local_path)
 
             start_time = time.perf_counter()
             client = self._get_client()
@@ -300,21 +270,18 @@ class S3ArtifactClient:
             file_size = os.path.getsize(local_path)
 
             logger.info(
-                's3_download_completed',
+                "s3_download_completed",
                 s3_uri=s3_uri,
                 local_path=local_path,
                 size_bytes=file_size,
-                duration_seconds=round(duration, 3)
+                duration_seconds=round(duration, 3),
             )
 
             return True
 
         except Exception as e:
             logger.error(
-                's3_download_failed',
-                s3_uri=s3_uri,
-                error=str(e),
-                error_type=type(e).__name__
+                "s3_download_failed", s3_uri=s3_uri, error=str(e), error_type=type(e).__name__
             )
             return False
 
@@ -329,10 +296,10 @@ class S3ArtifactClient:
             Dict com metadados (size, last_modified, sha256, etc)
         """
         try:
-            if not sbom_uri.startswith('s3://'):
+            if not sbom_uri.startswith("s3://"):
                 return {}
 
-            parts = sbom_uri[5:].split('/', 1)
+            parts = sbom_uri[5:].split("/", 1)
             if len(parts) != 2:
                 return {}
 
@@ -342,18 +309,18 @@ class S3ArtifactClient:
             response = client.head_object(Bucket=bucket, Key=key)
 
             return {
-                'size': response['ContentLength'],
-                'etag': response['ETag'],
-                'last_modified': response['LastModified'],
-                'metadata': response.get('Metadata', {})
+                "size": response["ContentLength"],
+                "etag": response["ETag"],
+                "last_modified": response["LastModified"],
+                "metadata": response.get("Metadata", {}),
             }
 
         except Exception as e:
             logger.error(
-                's3_get_metadata_failed',
+                "s3_get_metadata_failed",
                 sbom_uri=sbom_uri,
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
             return {}
 
@@ -372,40 +339,35 @@ class S3ArtifactClient:
         try:
             client = self._get_client()
 
-            response = client.list_objects_v2(
-                Bucket=self.bucket,
-                Prefix=prefix
-            )
+            response = client.list_objects_v2(Bucket=self.bucket, Prefix=prefix)
 
-            if 'Contents' not in response:
+            if "Contents" not in response:
                 return []
 
             sboms = []
-            for obj in response['Contents']:
-                sboms.append({
-                    'key': obj['Key'],
-                    's3_uri': f"s3://{self.bucket}/{obj['Key']}",
-                    'size': obj['Size'],
-                    'timestamp': obj['LastModified'],
-                    'etag': obj['ETag']
-                })
+            for obj in response["Contents"]:
+                sboms.append(
+                    {
+                        "key": obj["Key"],
+                        "s3_uri": f"s3://{self.bucket}/{obj['Key']}",
+                        "size": obj["Size"],
+                        "timestamp": obj["LastModified"],
+                        "etag": obj["ETag"],
+                    }
+                )
 
-            sboms.sort(key=lambda x: x['timestamp'], reverse=True)
+            sboms.sort(key=lambda x: x["timestamp"], reverse=True)
 
-            logger.info(
-                's3_sboms_listed',
-                ticket_id=ticket_id,
-                count=len(sboms)
-            )
+            logger.info("s3_sboms_listed", ticket_id=ticket_id, count=len(sboms))
 
             return sboms
 
         except Exception as e:
             logger.error(
-                's3_list_sboms_failed',
+                "s3_list_sboms_failed",
                 ticket_id=ticket_id,
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
             return []
 
@@ -420,37 +382,32 @@ class S3ArtifactClient:
             True se sucesso, False se falha
         """
         try:
-            if not sbom_uri.startswith('s3://'):
+            if not sbom_uri.startswith("s3://"):
                 return False
 
-            parts = sbom_uri[5:].split('/', 1)
+            parts = sbom_uri[5:].split("/", 1)
             if len(parts) != 2:
                 return False
 
             bucket, key = parts
             client = self._get_client()
 
-            logger.info('s3_delete_started', s3_uri=sbom_uri)
+            logger.info("s3_delete_started", s3_uri=sbom_uri)
 
             client.delete_object(Bucket=bucket, Key=key)
 
-            logger.info('s3_delete_completed', s3_uri=sbom_uri)
+            logger.info("s3_delete_completed", s3_uri=sbom_uri)
 
             return True
 
         except Exception as e:
             logger.error(
-                's3_delete_failed',
-                sbom_uri=sbom_uri,
-                error=str(e),
-                error_type=type(e).__name__
+                "s3_delete_failed", sbom_uri=sbom_uri, error=str(e), error_type=type(e).__name__
             )
             return False
 
     async def verify_sbom_integrity(
-        self,
-        sbom_uri: str,
-        expected_checksum: Optional[str] = None
+        self, sbom_uri: str, expected_checksum: Optional[str] = None
     ) -> bool:
         """
         Verifica integridade de SBOM.
@@ -470,59 +427,47 @@ class S3ArtifactClient:
             # Obter checksum esperado dos metadados se não fornecido
             if not expected_checksum:
                 metadata = await self.get_sbom_metadata(sbom_uri)
-                expected_checksum = metadata.get('metadata', {}).get('sha256')
+                expected_checksum = metadata.get("metadata", {}).get("sha256")
 
                 if not expected_checksum:
-                    logger.warning(
-                        's3_integrity_no_checksum',
-                        sbom_uri=sbom_uri
-                    )
+                    logger.warning("s3_integrity_no_checksum", sbom_uri=sbom_uri)
                     return True  # Sem checksum para verificar
 
             # Download e verificar
             with tempfile.NamedTemporaryFile(delete=True) as tmp:
                 if not await self._download_file(sbom_uri, tmp.name):
                     if self.metrics:
-                        self.metrics.s3_integrity_check_total.labels(
-                            status='failure'
-                        ).inc()
+                        self.metrics.s3_integrity_check_total.labels(status="failure").inc()
                     return False
 
                 calculated = self._calculate_file_checksum(tmp.name)
                 is_valid = calculated == expected_checksum
 
                 if is_valid:
-                    logger.info(
-                        's3_integrity_verified',
-                        sbom_uri=sbom_uri
-                    )
+                    logger.info("s3_integrity_verified", sbom_uri=sbom_uri)
                 else:
                     logger.error(
-                        's3_integrity_mismatch',
+                        "s3_integrity_mismatch",
                         sbom_uri=sbom_uri,
                         expected=expected_checksum[:16],
-                        calculated=calculated[:16]
+                        calculated=calculated[:16],
                     )
 
                 if self.metrics:
-                    status = 'success' if is_valid else 'failure'
-                    self.metrics.s3_integrity_check_total.labels(
-                        status=status
-                    ).inc()
+                    status = "success" if is_valid else "failure"
+                    self.metrics.s3_integrity_check_total.labels(status=status).inc()
 
                 return is_valid
 
         except Exception as e:
             logger.error(
-                's3_integrity_check_failed',
+                "s3_integrity_check_failed",
                 sbom_uri=sbom_uri,
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
             if self.metrics:
-                self.metrics.s3_integrity_check_total.labels(
-                    status='failure'
-                ).inc()
+                self.metrics.s3_integrity_check_total.labels(status="failure").inc()
             return False
 
     async def health_check(self) -> bool:
@@ -537,9 +482,5 @@ class S3ArtifactClient:
             client.head_bucket(Bucket=self.bucket)
             return True
         except Exception as e:
-            logger.error(
-                's3_health_check_failed',
-                bucket=self.bucket,
-                error=str(e)
-            )
+            logger.error("s3_health_check_failed", bucket=self.bucket, error=str(e))
             return False

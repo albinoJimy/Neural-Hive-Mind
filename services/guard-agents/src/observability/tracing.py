@@ -1,9 +1,10 @@
 """Helpers de tracing OpenTelemetry para Guard Agents"""
 from functools import wraps
-from typing import Callable, Any
+from typing import Callable
+
+import structlog
 from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
-import structlog
 
 logger = structlog.get_logger()
 tracer = trace.get_tracer(__name__)
@@ -18,13 +19,14 @@ def trace_incident_flow(span_name: str):
         async def detect_anomaly(event):
             ...
     """
+
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         async def wrapper(*args, **kwargs):
             with tracer.start_as_current_span(span_name) as span:
                 try:
                     # Adicionar atributos úteis ao span
-                    if args and hasattr(args[0], '__dict__'):
+                    if args and hasattr(args[0], "__dict__"):
                         # Se primeiro argumento é self, pegar nome da classe
                         span.set_attribute("component", args[0].__class__.__name__)
 
@@ -33,12 +35,12 @@ def trace_incident_flow(span_name: str):
 
                     # Adicionar atributos de resultado
                     if isinstance(result, dict):
-                        if 'incident_id' in result:
-                            span.set_attribute("incident_id", result['incident_id'])
-                        if 'severity' in result:
-                            span.set_attribute("severity", result['severity'])
-                        if 'success' in result:
-                            span.set_attribute("success", result['success'])
+                        if "incident_id" in result:
+                            span.set_attribute("incident_id", result["incident_id"])
+                        if "severity" in result:
+                            span.set_attribute("severity", result["severity"])
+                        if "success" in result:
+                            span.set_attribute("success", result["success"])
 
                     span.set_status(Status(StatusCode.OK))
                     return result
@@ -49,14 +51,12 @@ def trace_incident_flow(span_name: str):
                     raise
 
         return wrapper
+
     return decorator
 
 
 def add_incident_context_to_span(
-    incident_id: str = None,
-    threat_type: str = None,
-    severity: str = None,
-    runbook_id: str = None
+    incident_id: str = None, threat_type: str = None, severity: str = None, runbook_id: str = None
 ):
     """Adiciona contexto de incidente ao span atual"""
     span = trace.get_current_span()
@@ -86,10 +86,7 @@ def add_sla_metrics_to_span(mttd: float = None, mttr: float = None, sla_met: boo
 
 
 def add_remediation_context_to_span(
-    remediation_id: str = None,
-    playbook: str = None,
-    status: str = None,
-    actions_count: int = None
+    remediation_id: str = None, playbook: str = None, status: str = None, actions_count: int = None
 ):
     """Adiciona contexto de remediação ao span atual"""
     span = trace.get_current_span()

@@ -1,12 +1,14 @@
 """Raw Event data model for incoming events"""
 from datetime import datetime
-from typing import Dict, Any, List
-from pydantic import BaseModel, Field
+from typing import Any, Dict, List
+
 import numpy as np
+from pydantic import BaseModel, Field
 
 
 class RawEvent(BaseModel):
     """Raw event from external sources (Kafka, MQTT, etc.)"""
+
     event_id: str
     event_type: str = Field(description="Type: log, metric, trace, user_action, system_event")
     source: str = Field(description="Event source identifier")
@@ -50,23 +52,25 @@ class RawEvent(BaseModel):
     def normalize(self) -> Dict[str, Any]:
         """Normalize event data to standard format"""
         return {
-            'event_id': self.event_id,
-            'event_type': self.event_type,
-            'source': self.source,
-            'timestamp': self.timestamp.isoformat(),
-            'payload': self.payload,
-            'metadata': self.metadata
+            "event_id": self.event_id,
+            "event_type": self.event_type,
+            "source": self.source,
+            "timestamp": self.timestamp.isoformat(),
+            "payload": self.payload,
+            "metadata": self.metadata,
         }
 
     def is_valid(self) -> bool:
         """Validate that event has required fields"""
-        required_fields = ['event_id', 'event_type', 'source', 'timestamp', 'payload']
+        required_fields = ["event_id", "event_type", "source", "timestamp", "payload"]
         for field in required_fields:
             if not getattr(self, field, None):
                 return False
         return True
 
-    def calculate_anomaly_score(self, historical_mean: float = 0.0, historical_std: float = 1.0) -> float:
+    def calculate_anomaly_score(
+        self, historical_mean: float = 0.0, historical_std: float = 1.0
+    ) -> float:
         """
         Calculate simple anomaly score using z-score
         Returns normalized score between 0 and 1

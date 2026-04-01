@@ -32,8 +32,8 @@ BLAST_RADIUS_LIMITS: Dict[str, int] = {
 
 # Horários de negócio (UTC) onde chaos experiments são bloqueados em produção
 BUSINESS_HOURS = {
-    "start_hour": 9,   # 9:00 UTC
-    "end_hour": 18,    # 18:00 UTC
+    "start_hour": 9,  # 9:00 UTC
+    "end_hour": 18,  # 18:00 UTC
 }
 
 # Timeouts padrão por tipo de experimento (em segundos)
@@ -52,14 +52,14 @@ DEFAULT_TIMEOUTS: Dict[str, int] = {
 
 # Limites de parâmetros de injeção de falhas
 INJECTION_LIMITS = {
-    "max_latency_ms": 10000,           # 10 segundos máximo de latência
-    "max_packet_loss_percent": 100,     # 100% de perda de pacotes
-    "max_cpu_stress_cores": 8,          # 8 cores máximo para stress
-    "max_cpu_load_percent": 100,        # 100% de carga de CPU
-    "max_memory_stress_mb": 4096,       # 4GB máximo de memory stress
-    "max_disk_fill_gb": 10,             # 10GB máximo de disk fill
+    "max_latency_ms": 10000,  # 10 segundos máximo de latência
+    "max_packet_loss_percent": 100,  # 100% de perda de pacotes
+    "max_cpu_stress_cores": 8,  # 8 cores máximo para stress
+    "max_cpu_load_percent": 100,  # 100% de carga de CPU
+    "max_memory_stress_mb": 4096,  # 4GB máximo de memory stress
+    "max_disk_fill_gb": 10,  # 10GB máximo de disk fill
     "max_experiment_duration_seconds": 3600,  # 1 hora máximo por experimento
-    "min_experiment_duration_seconds": 10,    # 10 segundos mínimo
+    "min_experiment_duration_seconds": 10,  # 10 segundos mínimo
 }
 
 # Políticas OPA para validação de experimentos
@@ -161,6 +161,7 @@ def is_critical_service(service_name: str) -> bool:
 def is_business_hours() -> bool:
     """Verifica se o momento atual está dentro do horário de negócio (UTC)."""
     from datetime import datetime, timezone
+
     now = datetime.now(timezone.utc)
     return BUSINESS_HOURS["start_hour"] <= now.hour < BUSINESS_HOURS["end_hour"]
 

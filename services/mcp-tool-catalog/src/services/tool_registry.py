@@ -69,7 +69,7 @@ class ToolRegistry:
         await self.mongodb_client.save_tool(tool)
 
         # Invalidate caches
-        await self.redis_client.invalidate_cache(f"mcp:tools:*")
+        await self.redis_client.invalidate_cache("mcp:tools:*")
 
         logger.info("tool_updated", tool_id=tool_id)
         return True
@@ -77,8 +77,7 @@ class ToolRegistry:
     async def deactivate_tool(self, tool_id: str) -> bool:
         """Deactivate tool (soft delete)."""
         result = await self.mongodb_client.db.tools.update_one(
-            {"tool_id": tool_id},
-            {"$set": {"metadata.active": False}}
+            {"tool_id": tool_id}, {"$set": {"metadata.active": False}}
         )
 
         if result.modified_count > 0:
@@ -93,7 +92,6 @@ class ToolRegistry:
     async def get_tool(self, tool_id: str) -> Optional[ToolDescriptor]:
         """Get tool by ID with Redis caching."""
         # Try cache first
-        cache_key = f"mcp:tool:{tool_id}"
         # Simplified caching - should implement proper serialization
         tool = await self.mongodb_client.get_tool(tool_id)
         return tool
@@ -102,7 +100,9 @@ class ToolRegistry:
         """List tools by category."""
         return await self.mongodb_client.list_tools(category=category)
 
-    async def search_tools(self, query: str, filters: Optional[Dict] = None) -> List[ToolDescriptor]:
+    async def search_tools(
+        self, query: str, filters: Optional[Dict] = None
+    ) -> List[ToolDescriptor]:
         """Search tools by text query and filters."""
         # Simplified search - should implement full-text search
         mongo_filters = filters or {}
@@ -172,20 +172,13 @@ class ToolRegistry:
                     healthy_count += 1
 
                 self.metrics.update_tool_registry(
-                    category=category.value,
-                    total=total_count,
-                    healthy=healthy_count
+                    category=category.value, total=total_count, healthy=healthy_count
                 )
 
         logger.debug("tool_registry_metrics_updated")
 
     async def update_tool_metrics(
-        self,
-        tool_id: str,
-        category: str,
-        success: bool,
-        execution_time_ms: int,
-        metadata: Dict
+        self, tool_id: str, category: str, success: bool, execution_time_ms: int, metadata: Dict
     ) -> None:
         """Atualiza métricas de feedback de ferramentas."""
         try:
@@ -196,10 +189,7 @@ class ToolRegistry:
                 status = "success" if success else "failure"
                 duration_seconds = max(execution_time_ms, 0) / 1000.0
                 self.metrics.record_tool_execution(
-                    tool_id=tool_id,
-                    category=category,
-                    status=status,
-                    duration=duration_seconds
+                    tool_id=tool_id, category=category, status=status, duration=duration_seconds
                 )
                 self.metrics.record_feedback(tool_id, success)
 
@@ -210,7 +200,7 @@ class ToolRegistry:
                 category=category,
                 success=success,
                 execution_time_ms=execution_time_ms,
-                metadata=metadata
+                metadata=metadata,
             )
         except Exception as e:
             logger.warning("update_tool_metrics_failed", tool_id=tool_id, error=str(e))

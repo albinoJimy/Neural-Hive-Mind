@@ -8,8 +8,9 @@ GAPS-04 Task 3
 """
 
 import re
-from typing import List, Dict, Any
 from collections import defaultdict
+from typing import Any, Dict, List
+
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -330,9 +331,7 @@ class ReasoningExtractor:
 
         # Opcionalmente filtrar factores "general"
         if not include_general:
-            structured["factors"] = [
-                f for f in structured["factors"] if f["category"] != "general"
-            ]
+            structured["factors"] = [f for f in structured["factors"] if f["category"] != "general"]
             structured["total_factors"] = len(structured["factors"])
 
         return structured

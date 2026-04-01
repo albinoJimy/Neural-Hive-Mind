@@ -1,13 +1,14 @@
 from datetime import datetime
-from enum import Enum
-from typing import Dict, List, Optional, Any
-from pydantic import BaseModel, Field
+from enum import StrEnum
+from typing import Any
 from uuid import uuid4
+
+from pydantic import BaseModel, Field
 
 from .strategic_decision import RiskAssessment
 
 
-class ExceptionType(str, Enum):
+class ExceptionType(StrEnum):
     """Tipos de exceções a guardrails"""
 
     SECURITY_OVERRIDE = "SECURITY_OVERRIDE"
@@ -16,7 +17,7 @@ class ExceptionType(str, Enum):
     RESOURCE_LIMIT_BYPASS = "RESOURCE_LIMIT_BYPASS"
 
 
-class ApprovalStatus(str, Enum):
+class ApprovalStatus(StrEnum):
     """Status de aprovação de exceção"""
 
     PENDING = "PENDING"
@@ -39,35 +40,27 @@ class ExceptionApproval(BaseModel):
 
     justification: str = Field(..., description="Justificativa detalhada")
     risk_assessment: RiskAssessment = Field(..., description="Avaliação de risco")
-    guardrails_affected: List[str] = Field(
+    guardrails_affected: list[str] = Field(
         default_factory=list, description="Guardrails que serão violados"
     )
 
     approval_status: ApprovalStatus = Field(
         default=ApprovalStatus.PENDING, description="Status de aprovação"
     )
-    approved_by: Optional[str] = Field(
-        None, description="Decision ID do Queen Agent que aprovou"
-    )
-    approved_at: Optional[datetime] = Field(None, description="Timestamp de aprovação")
+    approved_by: str | None = Field(None, description="Decision ID do Queen Agent que aprovou")
+    approved_at: datetime | None = Field(None, description="Timestamp de aprovação")
 
     expires_at: datetime = Field(..., description="Validade da aprovação")
-    conditions: List[str] = Field(
-        default_factory=list, description="Condições para aprovação"
-    )
+    conditions: list[str] = Field(default_factory=list, description="Condições para aprovação")
 
-    audit_trail: List[Dict[str, Any]] = Field(
+    audit_trail: list[dict[str, Any]] = Field(
         default_factory=list, description="Histórico de mudanças"
     )
 
-    created_at: datetime = Field(
-        default_factory=datetime.now, description="Data de criação"
-    )
-    updated_at: datetime = Field(
-        default_factory=datetime.now, description="Data de atualização"
-    )
+    created_at: datetime = Field(default_factory=datetime.now, description="Data de criação")
+    updated_at: datetime = Field(default_factory=datetime.now, description="Data de atualização")
 
-    def approve(self, decision_id: str, conditions: List[str]) -> None:
+    def approve(self, decision_id: str, conditions: list[str]) -> None:
         """Aprovar exceção"""
         self.approval_status = ApprovalStatus.APPROVED
         self.approved_by = decision_id
@@ -101,7 +94,7 @@ class ExceptionApproval(BaseModel):
         """Verificar se exceção expirou"""
         return datetime.now() > self.expires_at
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serializar para MongoDB"""
         data = self.model_dump()
 

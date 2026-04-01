@@ -1,13 +1,11 @@
-import structlog
-from aiokafka import AIOKafkaProducer
-from typing import Optional
 import json
 
+import structlog
+from aiokafka import AIOKafkaProducer
+
 from neural_hive_observability import instrument_kafka_producer
-
-from ..config import Settings
-from ..models import StrategicDecision
-
+from src.config import Settings
+from src.models import StrategicDecision
 
 logger = structlog.get_logger()
 
@@ -17,7 +15,7 @@ class StrategicDecisionProducer:
 
     def __init__(self, settings: Settings):
         self.settings = settings
-        self.producer: Optional[AIOKafkaProducer] = None
+        self.producer: AIOKafkaProducer | None = None
 
     async def initialize(self) -> None:
         """Inicializar producer Kafka"""
@@ -37,9 +35,7 @@ class StrategicDecisionProducer:
             )
 
         except Exception as e:
-            logger.error(
-                "strategic_decision_producer_initialization_failed", error=str(e)
-            )
+            logger.exception("strategic_decision_producer_initialization_failed", error=str(e))
             raise
 
     async def close(self) -> None:
@@ -84,7 +80,7 @@ class StrategicDecisionProducer:
             return True
 
         except Exception as e:
-            logger.error(
+            logger.exception(
                 "strategic_decision_publish_failed",
                 decision_id=decision.decision_id,
                 error=str(e),

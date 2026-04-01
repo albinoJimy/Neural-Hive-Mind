@@ -3,7 +3,7 @@ Testes para DynamicThresholds e ThresholdMonitor
 """
 
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from neural_hive_risk_scoring import (
     DynamicThresholds,
@@ -250,7 +250,7 @@ class TestThresholdMonitor:
         assert len(threshold_monitor.get_violations()) >= 1
 
         # Limpar violações recentes
-        threshold_monitor.clear_violations(before=datetime.utcnow() + timedelta(hours=1))
+        threshold_monitor.clear_violations(before=datetime.now(timezone.utc) + timedelta(hours=1))
 
         # Deve estar vazio
         assert len(threshold_monitor.get_violations()) == 0
@@ -355,9 +355,9 @@ class TestThresholdMonitor:
 
     def test_violation_timestamp(self, threshold_monitor):
         """Testa timestamp da violação."""
-        before = datetime.utcnow()
+        before = datetime.now(timezone.utc)
         violation = threshold_monitor.check_violation(UnifiedDomain.SECURITY, 0.95)
-        after = datetime.utcnow()
+        after = datetime.now(timezone.utc)
 
         if violation:
             assert before <= violation.timestamp <= after

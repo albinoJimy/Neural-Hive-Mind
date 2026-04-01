@@ -5,11 +5,12 @@ Usa similaridade semântica para identificar o tipo de intent (análise, migraç
 implementação, etc.) e direcionar para templates de decomposição apropriados.
 """
 
-import structlog
-from typing import Dict, List, Any, Optional, Tuple
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any
+
 import numpy as np
+import structlog
 
 logger = structlog.get_logger(__name__)
 
@@ -45,11 +46,12 @@ class IntentType(Enum):
 @dataclass
 class IntentClassification:
     """Resultado da classificação de intent."""
+
     intent_type: IntentType
     confidence: float
-    matched_patterns: List[str]
+    matched_patterns: list[str]
     recommended_task_count: int
-    semantic_domains: List[str]  # Domínios semânticos relevantes
+    semantic_domains: list[str]  # Domínios semânticos relevantes
 
 
 class IntentClassifier:
@@ -66,97 +68,155 @@ class IntentClassifier:
     INTENT_PATTERNS = {
         IntentType.VIABILITY_ANALYSIS: {
             "keywords": [
-                "analisar viabilidade", "análise de viabilidade", "avaliar viabilidade",
-                "feasibility analysis", "viability assessment", "evaluate feasibility",
-                "estudo de viabilidade", "análise técnica", "avaliar possibilidade"
+                "analisar viabilidade",
+                "análise de viabilidade",
+                "avaliar viabilidade",
+                "feasibility analysis",
+                "viability assessment",
+                "evaluate feasibility",
+                "estudo de viabilidade",
+                "análise técnica",
+                "avaliar possibilidade",
             ],
             "action_verbs": ["analisar", "avaliar", "estudar", "analyze", "assess", "evaluate"],
             "recommended_tasks": 8,
-            "domains": ["security", "architecture", "performance", "quality"]
+            "domains": ["security", "architecture", "performance", "quality"],
         },
         IntentType.TECHNICAL_ASSESSMENT: {
             "keywords": [
-                "avaliação técnica", "assessment técnico", "análise de impacto",
-                "technical assessment", "impact analysis", "technical review",
-                "revisão técnica", "parecer técnico"
+                "avaliação técnica",
+                "assessment técnico",
+                "análise de impacto",
+                "technical assessment",
+                "impact analysis",
+                "technical review",
+                "revisão técnica",
+                "parecer técnico",
             ],
             "action_verbs": ["avaliar", "revisar", "analisar", "assess", "review", "analyze"],
             "recommended_tasks": 6,
-            "domains": ["architecture", "performance", "quality"]
+            "domains": ["architecture", "performance", "quality"],
         },
         IntentType.SECURITY_AUDIT: {
             "keywords": [
-                "auditoria de segurança", "análise de segurança", "security audit",
-                "penetration test", "vulnerability assessment", "avaliação de vulnerabilidades",
-                "revisão de segurança", "compliance check"
+                "auditoria de segurança",
+                "análise de segurança",
+                "security audit",
+                "penetration test",
+                "vulnerability assessment",
+                "avaliação de vulnerabilidades",
+                "revisão de segurança",
+                "compliance check",
             ],
             "action_verbs": ["auditar", "verificar", "testar", "audit", "test", "verify"],
             "recommended_tasks": 7,
-            "domains": ["security", "quality"]
+            "domains": ["security", "quality"],
         },
         IntentType.MIGRATION: {
             "keywords": [
-                "migração", "migrar", "migration", "migrate",
-                "mover para", "transferir para", "move to", "transfer to",
-                "upgrade para", "atualizar para"
+                "migração",
+                "migrar",
+                "migration",
+                "migrate",
+                "mover para",
+                "transferir para",
+                "move to",
+                "transfer to",
+                "upgrade para",
+                "atualizar para",
             ],
             "action_verbs": ["migrar", "mover", "transferir", "migrate", "move", "transfer"],
             "recommended_tasks": 8,
-            "domains": ["security", "architecture", "performance"]
+            "domains": ["security", "architecture", "performance"],
         },
         IntentType.FEATURE_IMPLEMENTATION: {
             "keywords": [
-                "implementar", "criar", "desenvolver", "adicionar",
-                "implement", "create", "develop", "add", "build",
-                "nova funcionalidade", "new feature"
+                "implementar",
+                "criar",
+                "desenvolver",
+                "adicionar",
+                "implement",
+                "create",
+                "develop",
+                "add",
+                "build",
+                "nova funcionalidade",
+                "new feature",
             ],
             "action_verbs": ["implementar", "criar", "desenvolver", "implement", "create", "build"],
             "recommended_tasks": 5,
-            "domains": ["architecture", "quality"]
+            "domains": ["architecture", "quality"],
         },
         IntentType.INFRASTRUCTURE_CHANGE: {
             "keywords": [
-                "infraestrutura", "infrastructure", "scaling", "auto-scaling",
-                "kubernetes", "docker", "cloud", "deploy", "deployment",
-                "provisionamento", "provisioning"
+                "infraestrutura",
+                "infrastructure",
+                "scaling",
+                "auto-scaling",
+                "kubernetes",
+                "docker",
+                "cloud",
+                "deploy",
+                "deployment",
+                "provisionamento",
+                "provisioning",
             ],
             "action_verbs": ["provisionar", "escalar", "deployar", "provision", "scale", "deploy"],
             "recommended_tasks": 6,
-            "domains": ["architecture", "performance"]
+            "domains": ["architecture", "performance"],
         },
         IntentType.REFACTORING: {
             "keywords": [
-                "refatorar", "refactoring", "reestruturar", "restructure",
-                "melhorar código", "improve code", "technical debt",
-                "dívida técnica", "clean code"
+                "refatorar",
+                "refactoring",
+                "reestruturar",
+                "restructure",
+                "melhorar código",
+                "improve code",
+                "technical debt",
+                "dívida técnica",
+                "clean code",
             ],
             "action_verbs": ["refatorar", "reestruturar", "melhorar", "refactor", "restructure"],
             "recommended_tasks": 5,
-            "domains": ["architecture", "quality"]
+            "domains": ["architecture", "quality"],
         },
         IntentType.PERFORMANCE_ANALYSIS: {
             "keywords": [
-                "performance", "desempenho", "otimização", "optimization",
-                "benchmark", "profiling", "latência", "latency",
-                "throughput", "cache"
+                "performance",
+                "desempenho",
+                "otimização",
+                "optimization",
+                "benchmark",
+                "profiling",
+                "latência",
+                "latency",
+                "throughput",
+                "cache",
             ],
             "action_verbs": ["otimizar", "analisar", "melhorar", "optimize", "analyze", "improve"],
             "recommended_tasks": 6,
-            "domains": ["performance", "architecture"]
+            "domains": ["performance", "architecture"],
         },
         IntentType.INTEGRATION: {
             "keywords": [
-                "integração", "integration", "conectar", "connect",
-                "api", "webhook", "sincronizar", "sync",
-                "interoperabilidade"
+                "integração",
+                "integration",
+                "conectar",
+                "connect",
+                "api",
+                "webhook",
+                "sincronizar",
+                "sync",
+                "interoperabilidade",
             ],
             "action_verbs": ["integrar", "conectar", "sincronizar", "integrate", "connect", "sync"],
             "recommended_tasks": 5,
-            "domains": ["architecture", "security"]
-        }
+            "domains": ["architecture", "security"],
+        },
     }
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         """
         Inicializa classificador de intents.
 
@@ -164,14 +224,14 @@ class IntentClassifier:
             config: Configuração opcional com thresholds customizados
         """
         self.config = config or {}
-        self.min_confidence = self.config.get('intent_classification_min_confidence', 0.3)
+        self.min_confidence = self.config.get("intent_classification_min_confidence", 0.3)
         self._model = None
-        self._pattern_embeddings_cache: Dict[str, np.ndarray] = {}
+        self._pattern_embeddings_cache: dict[str, np.ndarray] = {}
 
         logger.info(
             "IntentClassifier initialized",
             min_confidence=self.min_confidence,
-            supported_types=len(self.INTENT_PATTERNS)
+            supported_types=len(self.INTENT_PATTERNS),
         )
 
     @property
@@ -179,15 +239,17 @@ class IntentClassifier:
         """Lazy loading do modelo de embeddings."""
         if self._model is None:
             from sentence_transformers import SentenceTransformer
+
             model_name = self.config.get(
-                'embeddings_model',
-                'paraphrase-multilingual-MiniLM-L12-v2'
+                "embeddings_model", "paraphrase-multilingual-MiniLM-L12-v2"
             )
             logger.info("Loading embeddings model for IntentClassifier", model=model_name)
             self._model = SentenceTransformer(model_name)
         return self._model
 
-    def classify(self, intent_text: str, context: Optional[Dict[str, Any]] = None) -> IntentClassification:
+    def classify(
+        self, intent_text: str, context: dict[str, Any] | None = None
+    ) -> IntentClassification:
         """
         Classifica intent por tipo.
 
@@ -229,7 +291,7 @@ class IntentClassifier:
         best_score = combined_scores[best_type]
 
         # Passo 4: Enriquecer com contexto
-        if context.get('domain') == 'security':
+        if context.get("domain") == "security":
             # Boost para tipos relacionados a segurança
             if best_type in [IntentType.SECURITY_AUDIT, IntentType.MIGRATION]:
                 best_score = min(1.0, best_score * 1.2)
@@ -242,8 +304,8 @@ class IntentClassifier:
             intent_type=best_type,
             confidence=best_score,
             matched_patterns=matched_patterns,
-            recommended_task_count=pattern_config.get('recommended_tasks', 5),
-            semantic_domains=pattern_config.get('domains', ['architecture', 'quality'])
+            recommended_task_count=pattern_config.get("recommended_tasks", 5),
+            semantic_domains=pattern_config.get("domains", ["architecture", "quality"]),
         )
 
         logger.info(
@@ -251,24 +313,18 @@ class IntentClassifier:
             intent_type=best_type.value,
             confidence=best_score,
             recommended_tasks=classification.recommended_task_count,
-            matched_patterns=matched_patterns[:3]  # Log só os 3 primeiros
+            matched_patterns=matched_patterns[:3],  # Log só os 3 primeiros
         )
 
         return classification
 
-    def _score_by_patterns(self, intent_lower: str) -> Dict[IntentType, float]:
+    def _score_by_patterns(self, intent_lower: str) -> dict[IntentType, float]:
         """Calcula score por matching de padrões linguísticos."""
         scores = {}
 
         for intent_type, config in self.INTENT_PATTERNS.items():
-            keyword_matches = sum(
-                1 for kw in config['keywords']
-                if kw.lower() in intent_lower
-            )
-            verb_matches = sum(
-                1 for verb in config['action_verbs']
-                if verb.lower() in intent_lower
-            )
+            keyword_matches = sum(1 for kw in config["keywords"] if kw.lower() in intent_lower)
+            verb_matches = sum(1 for verb in config["action_verbs"] if verb.lower() in intent_lower)
 
             # Normalizar scores
             keyword_score = min(keyword_matches / 2, 1.0)  # 2+ keywords = máximo
@@ -279,7 +335,7 @@ class IntentClassifier:
 
         return scores
 
-    def _score_by_semantics(self, intent_text: str) -> Dict[IntentType, float]:
+    def _score_by_semantics(self, intent_text: str) -> dict[IntentType, float]:
         """Calcula score por similaridade semântica."""
         scores = {}
 
@@ -290,7 +346,7 @@ class IntentClassifier:
             # Obter embeddings dos keywords (cached)
             cache_key = f"keywords_{intent_type.value}"
             if cache_key not in self._pattern_embeddings_cache:
-                keywords = config['keywords']
+                keywords = config["keywords"]
                 self._pattern_embeddings_cache[cache_key] = self.model.encode(
                     keywords, convert_to_numpy=True
                 )
@@ -299,6 +355,7 @@ class IntentClassifier:
 
             # Calcular similaridade máxima
             from sklearn.metrics.pairwise import cosine_similarity
+
             similarities = cosine_similarity([intent_embedding], keyword_embeddings)[0]
             max_similarity = float(np.max(similarities))
 
@@ -306,16 +363,16 @@ class IntentClassifier:
 
         return scores
 
-    def _find_matched_patterns(self, intent_lower: str, intent_type: IntentType) -> List[str]:
+    def _find_matched_patterns(self, intent_lower: str, intent_type: IntentType) -> list[str]:
         """Encontra padrões que deram match."""
         matched = []
         config = self.INTENT_PATTERNS.get(intent_type, {})
 
-        for kw in config.get('keywords', []):
+        for kw in config.get("keywords", []):
             if kw.lower() in intent_lower:
                 matched.append(kw)
 
-        for verb in config.get('action_verbs', []):
+        for verb in config.get("action_verbs", []):
             if verb.lower() in intent_lower:
                 matched.append(f"verb:{verb}")
 
@@ -325,7 +382,7 @@ class IntentClassifier:
         """Cria classificação genérica quando nenhum padrão detectado."""
         logger.warning(
             "No intent pattern matched, using generic classification",
-            intent_preview=intent_text[:50]
+            intent_preview=intent_text[:50],
         )
 
         return IntentClassification(
@@ -333,10 +390,10 @@ class IntentClassifier:
             confidence=0.5,
             matched_patterns=[],
             recommended_task_count=4,
-            semantic_domains=['architecture', 'quality']
+            semantic_domains=["architecture", "quality"],
         )
 
-    def get_decomposition_hints(self, classification: IntentClassification) -> Dict[str, Any]:
+    def get_decomposition_hints(self, classification: IntentClassification) -> dict[str, Any]:
         """
         Retorna hints para decomposição baseado na classificação.
 
@@ -351,5 +408,5 @@ class IntentClassifier:
             "recommended_task_count": classification.recommended_task_count,
             "semantic_domains": classification.semantic_domains,
             "confidence": classification.confidence,
-            "should_use_template": classification.confidence >= self.min_confidence
+            "should_use_template": classification.confidence >= self.min_confidence,
         }

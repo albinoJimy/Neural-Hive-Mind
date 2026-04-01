@@ -5,10 +5,10 @@ Este módulo contém os adaptadores que permitem a execução real de ferramenta
 através de diferentes métodos de integração (CLI, REST, gRPC, Container, Library).
 """
 
-from .base_adapter import BaseToolAdapter, AdapterError, ExecutionResult
+from .base_adapter import AdapterError, BaseToolAdapter, ExecutionResult
 from .cli_adapter import CLIAdapter
-from .rest_adapter import RESTAdapter
 from .container_adapter import ContainerAdapter
+from .rest_adapter import RESTAdapter
 
 __all__ = [
     "BaseToolAdapter",

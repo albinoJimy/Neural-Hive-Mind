@@ -5,16 +5,17 @@ Executor que aplica configuracao de retry com backoff exponencial
 a operacoes assincronas, com metricas e logging.
 """
 import asyncio
-from datetime import datetime, timezone
-from typing import TypeVar, Callable, Optional, Any, Dict
+from collections.abc import Callable
+from datetime import UTC, datetime
 from functools import wraps
+from typing import Any, TypeVar
 
 import structlog
 
 from .retry_config import SagaRetryConfig
 
 logger = structlog.get_logger()
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 class RetryError(Exception):
@@ -23,9 +24,9 @@ class RetryError(Exception):
     def __init__(
         self,
         message: str,
-        last_error: Optional[Exception] = None,
+        last_error: Exception | None = None,
         attempt: int = 0,
-        total_attempts: int = 0
+        total_attempts: int = 0,
     ):
         super().__init__(message)
         self.last_error = last_error
@@ -41,7 +42,7 @@ class RetryPolicy:
     com backoff exponencial, jitter e tratamento de erros.
     """
 
-    def __init__(self, config: Optional[SagaRetryConfig] = None):
+    def __init__(self, config: SagaRetryConfig | None = None):
         """
         Inicializa politica de retry.
 
@@ -51,11 +52,7 @@ class RetryPolicy:
         self.config = config or SagaRetryConfig()
 
     async def execute(
-        self,
-        func: Callable[..., T],
-        *args: Any,
-        operation_name: str = 'operation',
-        **kwargs: Any
+        self, func: Callable[..., T], *args: Any, operation_name: str = "operation", **kwargs: Any
     ) -> T:
         """
         Executa funcao com retry e backoff exponencial.
@@ -80,26 +77,24 @@ class RetryPolicy:
             ...     operation_name='create_ticket'
             ... )
         """
-        started_at = datetime.now(timezone.utc)
-        last_error: Optional[Exception] = None
+        started_at = datetime.now(UTC)
+        last_error: Exception | None = None
 
         for attempt in range(1, self.config.max_attempts + 1):
             try:
                 logger.info(
-                    f'retry.execute_start operation={operation_name} '
-                    f'attempt={attempt}/{self.config.max_attempts}'
+                    f"retry.execute_start operation={operation_name} "
+                    f"attempt={attempt}/{self.config.max_attempts}"
                 )
 
                 # Executar funcao
                 result = await func(*args, **kwargs)
 
                 # Sucesso
-                elapsed_ms = int(
-                    (datetime.now(timezone.utc) - started_at).total_seconds() * 1000
-                )
+                elapsed_ms = int((datetime.now(UTC) - started_at).total_seconds() * 1000)
                 logger.info(
-                    f'retry.execute_success operation={operation_name} '
-                    f'attempt={attempt} elapsed_ms={elapsed_ms}'
+                    f"retry.execute_success operation={operation_name} "
+                    f"attempt={attempt} elapsed_ms={elapsed_ms}"
                 )
                 return result
 
@@ -109,52 +104,47 @@ class RetryPolicy:
                 error_msg = str(e)
 
                 logger.warning(
-                    f'retry.execute_failed operation={operation_name} '
-                    f'attempt={attempt}/{self.config.max_attempts} '
-                    f'error={error_type} error_msg={error_msg}'
+                    f"retry.execute_failed operation={operation_name} "
+                    f"attempt={attempt}/{self.config.max_attempts} "
+                    f"error={error_type} error_msg={error_msg}"
                 )
 
                 # Verificar se deve retentar
-                should_retry = self.config.should_retry(
-                    attempt=attempt,
-                    error=error_msg
-                )
+                should_retry = self.config.should_retry(attempt=attempt, error=error_msg)
 
                 if not should_retry:
-                    logger.error(
-                        f'retry.non_retryable operation={operation_name} '
-                        f'attempt={attempt} error={error_type}'
+                    logger.exception(
+                        f"retry.non_retryable operation={operation_name} "
+                        f"attempt={attempt} error={error_type}"
                     )
                     raise RetryError(
-                        f'Operacao {operation_name} falhou com erro non-retryable: {error_msg}',
+                        f"Operacao {operation_name} falhou com erro non-retryable: {error_msg}",
                         last_error=e,
                         attempt=attempt,
-                        total_attempts=self.config.max_attempts
+                        total_attempts=self.config.max_attempts,
                     ) from e
 
                 # Se houver mais tentativas, calcular delay e aguardar
                 if attempt < self.config.max_attempts:
                     delay_ms = self.config.get_delay(attempt + 1)
                     logger.info(
-                        f'retry.scheduling_next operation={operation_name} '
-                        f'next_attempt={attempt + 1} delay_ms={delay_ms}'
+                        f"retry.scheduling_next operation={operation_name} "
+                        f"next_attempt={attempt + 1} delay_ms={delay_ms}"
                     )
                     await asyncio.sleep(delay_ms / 1000)
 
         # Todas as tentativas falharam
-        elapsed_ms = int(
-            (datetime.now(timezone.utc) - started_at).total_seconds() * 1000
-        )
+        elapsed_ms = int((datetime.now(UTC) - started_at).total_seconds() * 1000)
         logger.error(
-            f'retry.all_attempts_failed operation={operation_name} '
-            f'total_attempts={self.config.max_attempts} elapsed_ms={elapsed_ms}'
+            f"retry.all_attempts_failed operation={operation_name} "
+            f"total_attempts={self.config.max_attempts} elapsed_ms={elapsed_ms}"
         )
 
         raise RetryError(
-            f'Operacao {operation_name} falhou apos {self.config.max_attempts} tentativas',
+            f"Operacao {operation_name} falhou apos {self.config.max_attempts} tentativas",
             last_error=last_error,
             attempt=self.config.max_attempts,
-            total_attempts=self.config.max_attempts
+            total_attempts=self.config.max_attempts,
         )
 
     def get_retry_count(self, started_at: datetime) -> int:
@@ -176,9 +166,7 @@ class RetryPolicy:
             >>> policy.get_retry_count(started)
             1
         """
-        elapsed_ms = int(
-            (datetime.now(timezone.utc) - started_at).total_seconds() * 1000
-        )
+        elapsed_ms = int((datetime.now(UTC) - started_at).total_seconds() * 1000)
 
         # Tentar encontrar o numero de tentativas baseado no delay acumulado
         accumulated = 0
@@ -189,7 +177,7 @@ class RetryPolicy:
 
         return self.config.max_attempts
 
-    def decorator(self, operation_name: Optional[str] = None):
+    def decorator(self, operation_name: str | None = None):
         """
         Decorator para aplicar retry a funcoes assincronas.
 
@@ -211,9 +199,7 @@ class RetryPolicy:
             @wraps(func)
             async def wrapper(*args: Any, **kwargs: Any) -> T:
                 name = operation_name or func.__name__
-                return await self.execute(
-                    func, *args, operation_name=name, **kwargs
-                )
+                return await self.execute(func, *args, operation_name=name, **kwargs)
 
             return wrapper
 
@@ -229,11 +215,7 @@ class NoRetryPolicy:
     """
 
     async def execute(
-        self,
-        func: Callable[..., T],
-        *args: Any,
-        operation_name: str = 'operation',
-        **kwargs: Any
+        self, func: Callable[..., T], *args: Any, operation_name: str = "operation", **kwargs: Any
     ) -> T:
         """
         Executa funcao sem retry.
@@ -250,9 +232,7 @@ class NoRetryPolicy:
         Raises:
             Exception: Excecao original da funcao
         """
-        logger.debug(
-            f'no_retry.execute operation={operation_name}'
-        )
+        logger.debug(f"no_retry.execute operation={operation_name}")
         return await func(*args, **kwargs)
 
 
@@ -261,7 +241,7 @@ def create_retry_policy(
     initial_delay_ms: int = 1000,
     max_delay_ms: int = 30000,
     multiplier: float = 2.0,
-    jitter: bool = True
+    jitter: bool = True,
 ) -> RetryPolicy:
     """
     Factory para criar RetryPolicy com configuracao customizada.
@@ -281,6 +261,6 @@ def create_retry_policy(
         initial_delay_ms=initial_delay_ms,
         max_delay_ms=max_delay_ms,
         multiplier=multiplier,
-        jitter=jitter
+        jitter=jitter,
     )
     return RetryPolicy(config=config)

@@ -2,24 +2,22 @@
 import asyncio
 import time
 from typing import List, Optional, Tuple
+
 import grpc
 import structlog
-from datetime import datetime
 from prometheus_client import Counter, Histogram
 
-from neural_hive_integration.proto_stubs import (
-    service_registry_pb2,
-    service_registry_pb2_grpc
-)
+from neural_hive_integration.proto_stubs import service_registry_pb2, service_registry_pb2_grpc
 
 # Importar SPIFFE/mTLS se disponível
 try:
     from neural_hive_security import (
-        SPIFFEManager,
         SPIFFEConfig,
+        SPIFFEManager,
         create_secure_grpc_channel,
         get_grpc_metadata_with_jwt,
     )
+
     SECURITY_LIB_AVAILABLE = True
 except ImportError:
     SECURITY_LIB_AVAILABLE = False
@@ -31,21 +29,21 @@ logger = structlog.get_logger()
 
 # Metricas Prometheus para discovery
 discovery_requests_total = Counter(
-    'guard_agent_discovery_requests_total',
-    'Total de requisicoes de descoberta feitas pelo Guard Agent',
-    ['status']
+    "guard_agent_discovery_requests_total",
+    "Total de requisicoes de descoberta feitas pelo Guard Agent",
+    ["status"],
 )
 
 discovery_agents_found = Histogram(
-    'guard_agent_discovery_agents_found',
-    'Numero de agentes encontrados por requisicao de descoberta',
-    buckets=[0, 1, 2, 5, 10, 20, 50, 100]
+    "guard_agent_discovery_agents_found",
+    "Numero de agentes encontrados por requisicao de descoberta",
+    buckets=[0, 1, 2, 5, 10, 20, 50, 100],
 )
 
 discovery_duration_seconds = Histogram(
-    'guard_agent_discovery_duration_seconds',
-    'Duracao das requisicoes de descoberta em segundos',
-    buckets=[0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0]
+    "guard_agent_discovery_duration_seconds",
+    "Duracao das requisicoes de descoberta em segundos",
+    buckets=[0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0],
 )
 
 
@@ -91,7 +89,7 @@ class ServiceRegistryClient:
             spiffe_x509_enabled = (
                 self.spiffe_enabled
                 and self.spiffe_config
-                and getattr(self.spiffe_config, 'enable_x509', False)
+                and getattr(self.spiffe_config, "enable_x509", False)
                 and SECURITY_LIB_AVAILABLE
             )
 
@@ -105,18 +103,20 @@ class ServiceRegistryClient:
                     target=target,
                     spiffe_config=self.spiffe_config,
                     spiffe_manager=self.spiffe_manager,
-                    fallback_insecure=(self.environment == 'dev')
+                    fallback_insecure=(self.environment == "dev"),
                 )
 
-                logger.info('mtls_channel_configured', target=target, environment=self.environment)
+                logger.info("mtls_channel_configured", target=target, environment=self.environment)
             else:
                 # Fallback para canal inseguro (apenas desenvolvimento)
-                if self.environment in ['production', 'staging', 'prod']:
+                if self.environment in ["production", "staging", "prod"]:
                     raise RuntimeError(
                         f"mTLS is required in {self.environment} but SPIFFE X.509 is disabled."
                     )
 
-                logger.warning('using_insecure_channel', target=target, environment=self.environment)
+                logger.warning(
+                    "using_insecure_channel", target=target, environment=self.environment
+                )
                 self.channel = grpc.aio.insecure_channel(target)
 
             self.stub = service_registry_pb2_grpc.ServiceRegistryStub(self.channel)
@@ -131,16 +131,16 @@ class ServiceRegistryClient:
             return []
 
         try:
-            trust_domain = self.spiffe_config.trust_domain if self.spiffe_config else "neural-hive.local"
+            trust_domain = (
+                self.spiffe_config.trust_domain if self.spiffe_config else "neural-hive.local"
+            )
             audience = f"service-registry.{trust_domain}"
             return await get_grpc_metadata_with_jwt(
-                spiffe_manager=self.spiffe_manager,
-                audience=audience,
-                environment=self.environment
+                spiffe_manager=self.spiffe_manager, audience=audience, environment=self.environment
             )
         except Exception as e:
-            logger.warning('jwt_svid_fetch_failed', error=str(e))
-            if self.environment in ['production', 'staging', 'prod']:
+            logger.warning("jwt_svid_fetch_failed", error=str(e))
+            if self.environment in ["production", "staging", "prod"]:
                 raise
             return []
 
@@ -157,9 +157,9 @@ class ServiceRegistryClient:
                 agent_type=agent_type_map.get(self.agent_type, service_registry_pb2.GUARD),
                 capabilities=self.capabilities,
                 metadata=self.metadata,
-                namespace=self.metadata.get('namespace', 'default'),
-                cluster=self.metadata.get('cluster', 'default'),
-                version=self.metadata.get('version', '1.0.0')
+                namespace=self.metadata.get("namespace", "default"),
+                cluster=self.metadata.get("cluster", "default"),
+                version=self.metadata.get("version", "1.0.0"),
             )
 
             # Obter metadata com JWT-SVID
@@ -209,7 +209,7 @@ class ServiceRegistryClient:
                 logger.debug(
                     "service_registry.heartbeat_sent",
                     agent_id=self.agent_id,
-                    status=response.status
+                    status=response.status,
                 )
             except grpc.RpcError as e:
                 logger.error("service_registry.heartbeat_failed", error=str(e), code=e.code())
@@ -240,7 +240,7 @@ class ServiceRegistryClient:
         self,
         capabilities: list[str],
         filters: Optional[dict[str, str]] = None,
-        max_results: int = 5
+        max_results: int = 5,
     ) -> list[dict]:
         """
         Descobre agentes baseado em capabilities
@@ -257,9 +257,7 @@ class ServiceRegistryClient:
 
         try:
             request = service_registry_pb2.DiscoverRequest(
-                capabilities=capabilities,
-                filters=filters or {},
-                max_results=max_results
+                capabilities=capabilities, filters=filters or {}, max_results=max_results
             )
 
             # Obter metadata com JWT-SVID
@@ -271,26 +269,26 @@ class ServiceRegistryClient:
             agents = []
             for agent_proto in response.agents:
                 agent_dict = {
-                    'agent_id': agent_proto.agent_id,
-                    'agent_type': service_registry_pb2.AgentType.Name(agent_proto.agent_type),
-                    'capabilities': list(agent_proto.capabilities),
-                    'metadata': dict(agent_proto.metadata),
-                    'status': service_registry_pb2.AgentStatus.Name(agent_proto.status),
-                    'telemetry': {
-                        'success_rate': agent_proto.telemetry.success_rate,
-                        'avg_duration_ms': agent_proto.telemetry.avg_duration_ms,
-                        'total_executions': agent_proto.telemetry.total_executions,
+                    "agent_id": agent_proto.agent_id,
+                    "agent_type": service_registry_pb2.AgentType.Name(agent_proto.agent_type),
+                    "capabilities": list(agent_proto.capabilities),
+                    "metadata": dict(agent_proto.metadata),
+                    "status": service_registry_pb2.AgentStatus.Name(agent_proto.status),
+                    "telemetry": {
+                        "success_rate": agent_proto.telemetry.success_rate,
+                        "avg_duration_ms": agent_proto.telemetry.avg_duration_ms,
+                        "total_executions": agent_proto.telemetry.total_executions,
                     },
-                    'namespace': agent_proto.namespace,
-                    'cluster': agent_proto.cluster,
-                    'version': agent_proto.version,
+                    "namespace": agent_proto.namespace,
+                    "cluster": agent_proto.cluster,
+                    "version": agent_proto.version,
                 }
                 agents.append(agent_dict)
 
             # Registrar metricas de sucesso
             duration = time.perf_counter() - start_time
             discovery_duration_seconds.observe(duration)
-            discovery_requests_total.labels(status='success').inc()
+            discovery_requests_total.labels(status="success").inc()
             discovery_agents_found.observe(len(agents))
 
             logger.info(
@@ -298,7 +296,7 @@ class ServiceRegistryClient:
                 capabilities=capabilities,
                 filters=filters,
                 agents_found=len(agents),
-                ranked=response.ranked
+                ranked=response.ranked,
             )
 
             return agents
@@ -307,27 +305,25 @@ class ServiceRegistryClient:
             # Registrar metricas de erro
             duration = time.perf_counter() - start_time
             discovery_duration_seconds.observe(duration)
-            discovery_requests_total.labels(status='error').inc()
+            discovery_requests_total.labels(status="error").inc()
             discovery_agents_found.observe(0)
 
             logger.error(
                 "service_registry.discover_failed",
                 capabilities=capabilities,
                 error=str(e),
-                code=e.code()
+                code=e.code(),
             )
             return []
         except Exception as e:
             # Registrar metricas de erro
             duration = time.perf_counter() - start_time
             discovery_duration_seconds.observe(duration)
-            discovery_requests_total.labels(status='error').inc()
+            discovery_requests_total.labels(status="error").inc()
             discovery_agents_found.observe(0)
 
             logger.error(
-                "service_registry.discover_failed",
-                capabilities=capabilities,
-                error=str(e)
+                "service_registry.discover_failed", capabilities=capabilities, error=str(e)
             )
             return []
 

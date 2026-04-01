@@ -2,17 +2,17 @@
 import asyncio
 import json
 import time
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 import structlog
 
 if TYPE_CHECKING:
-    from src.models.tool_descriptor import ToolDescriptor
-    from src.services.tool_registry import ToolRegistry
-    from src.observability.metrics import MCPToolCatalogMetrics
-    from src.config.settings import Settings
-    from src.adapters.base_adapter import ExecutionResult, BaseToolAdapter
+    from src.adapters.base_adapter import BaseToolAdapter, ExecutionResult
     from src.clients.mcp_server_client import MCPServerClient
+    from src.config.settings import Settings
+    from src.models.tool_descriptor import ToolDescriptor
+    from src.observability.metrics import MCPToolCatalogMetrics
+    from src.services.tool_registry import ToolRegistry
 
 logger = structlog.get_logger()
 
@@ -31,9 +31,9 @@ class ToolExecutor:
 
     def __init__(
         self,
-        tool_registry: Optional['ToolRegistry'] = None,
-        metrics: Optional['MCPToolCatalogMetrics'] = None,
-        settings: Optional['Settings'] = None
+        tool_registry: Optional["ToolRegistry"] = None,
+        metrics: Optional["MCPToolCatalogMetrics"] = None,
+        settings: Optional["Settings"] = None,
     ):
         """
         Inicializa o executor com adapters.
@@ -52,16 +52,14 @@ class ToolExecutor:
 
         # Inicializar adapters com configurações do settings
         from src.adapters.cli_adapter import CLIAdapter
-        from src.adapters.rest_adapter import RESTAdapter
         from src.adapters.container_adapter import ContainerAdapter
+        from src.adapters.rest_adapter import RESTAdapter
         from src.models.tool_descriptor import IntegrationType
 
-        self.cli_adapter = CLIAdapter(
-            timeout_seconds=self.settings.TOOL_EXECUTION_TIMEOUT_SECONDS
-        )
+        self.cli_adapter = CLIAdapter(timeout_seconds=self.settings.TOOL_EXECUTION_TIMEOUT_SECONDS)
         self.rest_adapter = RESTAdapter(
             timeout_seconds=60,  # REST APIs geralmente mais rápidas
-            max_retries=self.settings.TOOL_RETRY_MAX_ATTEMPTS
+            max_retries=self.settings.TOOL_RETRY_MAX_ATTEMPTS,
         )
         self.container_adapter = ContainerAdapter(
             timeout_seconds=self.settings.TOOL_EXECUTION_TIMEOUT_SECONDS
@@ -78,13 +76,13 @@ class ToolExecutor:
         self.mcp_servers_config: Dict[str, str] = self.settings.MCP_SERVERS or {}
 
         # Dicionário de clientes MCP inicializados (tool_id → MCPServerClient)
-        self.mcp_clients: Dict[str, 'MCPServerClient'] = {}
+        self.mcp_clients: Dict[str, "MCPServerClient"] = {}
 
         self.logger.info(
             "tool_executor_initialized",
             adapters=[k.value for k in self.adapter_map.keys()],
             mcp_servers_configured=len(self.mcp_servers_config),
-            timeout_seconds=self.settings.TOOL_EXECUTION_TIMEOUT_SECONDS
+            timeout_seconds=self.settings.TOOL_EXECUTION_TIMEOUT_SECONDS,
         )
 
     async def start(self) -> None:
@@ -94,8 +92,8 @@ class ToolExecutor:
         Para cada tool_id em MCP_SERVERS, cria e inicia um MCPServerClient.
         Falhas de conexão são logadas mas não bloqueiam o startup (graceful degradation).
         """
-        from src.clients.mcp_server_client import MCPServerClient
         from src.clients.mcp_exceptions import MCPTransportError
+        from src.clients.mcp_server_client import MCPServerClient
 
         if not self.mcp_servers_config:
             self.logger.info("no_mcp_servers_configured", message="Usando apenas adapters locais")
@@ -111,7 +109,7 @@ class ToolExecutor:
                     timeout_seconds=self.settings.MCP_SERVER_TIMEOUT_SECONDS,
                     max_retries=self.settings.MCP_SERVER_MAX_RETRIES,
                     circuit_breaker_threshold=self.settings.MCP_SERVER_CIRCUIT_BREAKER_THRESHOLD,
-                    circuit_breaker_timeout=self.settings.MCP_SERVER_CIRCUIT_BREAKER_TIMEOUT_SECONDS
+                    circuit_breaker_timeout=self.settings.MCP_SERVER_CIRCUIT_BREAKER_TIMEOUT_SECONDS,
                 )
 
                 # Iniciar sessão HTTP
@@ -125,7 +123,7 @@ class ToolExecutor:
                     "mcp_client_connected",
                     tool_id=tool_id,
                     server_url=server_url,
-                    available_tools=len(tools)
+                    available_tools=len(tools),
                 )
 
             except MCPTransportError as e:
@@ -134,7 +132,7 @@ class ToolExecutor:
                     tool_id=tool_id,
                     server_url=server_url,
                     error=str(e),
-                    message="Ferramenta usará adapter local como fallback"
+                    message="Ferramenta usará adapter local como fallback",
                 )
             except Exception as e:
                 self.logger.error(
@@ -142,13 +140,13 @@ class ToolExecutor:
                     tool_id=tool_id,
                     server_url=server_url,
                     error=str(e),
-                    exception_type=type(e).__name__
+                    exception_type=type(e).__name__,
                 )
 
         self.logger.info(
             "mcp_clients_initialized",
             configured=len(self.mcp_servers_config),
-            connected=len(self.mcp_clients)
+            connected=len(self.mcp_clients),
         )
 
     async def stop(self) -> None:
@@ -167,21 +165,14 @@ class ToolExecutor:
                 await client.stop()
                 self.logger.info("mcp_client_stopped", tool_id=tool_id)
             except Exception as e:
-                self.logger.warning(
-                    "mcp_client_stop_error",
-                    tool_id=tool_id,
-                    error=str(e)
-                )
+                self.logger.warning("mcp_client_stop_error", tool_id=tool_id, error=str(e))
 
         self.mcp_clients.clear()
         self.logger.info("mcp_clients_stopped")
 
     async def execute_tool(
-        self,
-        tool: 'ToolDescriptor',
-        execution_params: Dict[str, Any],
-        context: Dict[str, Any]
-    ) -> 'ExecutionResult':
+        self, tool: "ToolDescriptor", execution_params: Dict[str, Any], context: Dict[str, Any]
+    ) -> "ExecutionResult":
         """
         Executa ferramenta usando roteamento híbrido:
         1. MCP Server (se configurado e disponível)
@@ -206,7 +197,7 @@ class ToolExecutor:
             tool_name=tool.tool_name,
             integration_type=tool.integration_type.value,
             category=tool.category.value,
-            has_mcp_client=tool.tool_id in self.mcp_clients
+            has_mcp_client=tool.tool_id in self.mcp_clients,
         )
 
         # Prioridade 1: MCP Server (se configurado)
@@ -221,13 +212,17 @@ class ToolExecutor:
 
             except Exception as e:
                 mcp_failure_time_ms = (time.time() - start_time) * 1000
-                mcp_server_url = self.mcp_clients[tool.tool_id].server_url if tool.tool_id in self.mcp_clients else None
+                mcp_server_url = (
+                    self.mcp_clients[tool.tool_id].server_url
+                    if tool.tool_id in self.mcp_clients
+                    else None
+                )
 
                 self.logger.warning(
                     "mcp_execution_failed_fallback_to_adapter",
                     tool_id=tool.tool_id,
                     error=str(e),
-                    exception_type=type(e).__name__
+                    exception_type=type(e).__name__,
                 )
 
                 # Registrar métricas de falha MCP antes do fallback
@@ -240,10 +235,12 @@ class ToolExecutor:
                         "tool_id": tool.tool_id,
                         "execution_route": "mcp",
                         "mcp_server": mcp_server_url,
-                        "exception": type(e).__name__
-                    }
+                        "exception": type(e).__name__,
+                    },
                 )
-                await self._record_execution_metrics(tool, mcp_failure_result, execution_route="mcp")
+                await self._record_execution_metrics(
+                    tool, mcp_failure_result, execution_route="mcp"
+                )
 
                 # Incrementar contador de fallback MCP → adapter
                 if self.metrics:
@@ -271,7 +268,7 @@ class ToolExecutor:
                     tool_id=tool.tool_id,
                     error=str(e),
                     exception_type=type(e).__name__,
-                    adapter_type=tool.integration_type.value
+                    adapter_type=tool.integration_type.value,
                 )
 
                 # Registrar falha com adapter_type para métricas híbridas
@@ -284,8 +281,8 @@ class ToolExecutor:
                         "tool_id": tool.tool_id,
                         "adapter_type": tool.integration_type.value,
                         "execution_route": "adapter",
-                        "exception": type(e).__name__
-                    }
+                        "exception": type(e).__name__,
+                    },
                 )
                 await self._record_execution_metrics(tool, error_result, execution_route="adapter")
 
@@ -298,7 +295,7 @@ class ToolExecutor:
             tool_id=tool.tool_id,
             integration_type=tool.integration_type.value,
             has_mcp_client=tool.tool_id in self.mcp_clients,
-            available_adapters=[k.value for k in self.adapter_map.keys()]
+            available_adapters=[k.value for k in self.adapter_map.keys()],
         )
 
         fallback_result = ExecutionResult(
@@ -306,7 +303,7 @@ class ToolExecutor:
             output="",
             error=f"No executor available for {tool.tool_name} (integration_type: {tool.integration_type.value})",
             execution_time_ms=execution_time_ms,
-            metadata={"tool_id": tool.tool_id, "execution_route": "fallback"}
+            metadata={"tool_id": tool.tool_id, "execution_route": "fallback"},
         )
 
         # Registrar métricas e feedback para rota de fallback
@@ -315,11 +312,8 @@ class ToolExecutor:
         return fallback_result
 
     async def _execute_via_mcp(
-        self,
-        tool: 'ToolDescriptor',
-        execution_params: Dict[str, Any],
-        context: Dict[str, Any]
-    ) -> 'ExecutionResult':
+        self, tool: "ToolDescriptor", execution_params: Dict[str, Any], context: Dict[str, Any]
+    ) -> "ExecutionResult":
         """
         Executa ferramenta via MCP Server externo.
 
@@ -343,8 +337,7 @@ class ToolExecutor:
         try:
             # Chamar ferramenta via MCP
             mcp_response = await client.call_tool(
-                tool_name=tool.tool_name,
-                arguments=execution_params
+                tool_name=tool.tool_name, arguments=execution_params
             )
 
             execution_time_ms = (time.time() - start_time) * 1000
@@ -364,7 +357,7 @@ class ToolExecutor:
             metadata = {
                 "tool_id": tool.tool_id,
                 "execution_route": "mcp",
-                "mcp_server": client.server_url
+                "mcp_server": client.server_url,
             }
             if mcp_response.structuredContent:
                 metadata["structured_content"] = mcp_response.structuredContent
@@ -375,7 +368,7 @@ class ToolExecutor:
                 error=None if not mcp_response.isError else output,
                 execution_time_ms=execution_time_ms,
                 exit_code=0 if not mcp_response.isError else 1,
-                metadata=metadata
+                metadata=metadata,
             )
 
             self.logger.info(
@@ -384,7 +377,7 @@ class ToolExecutor:
                 tool_name=tool.tool_name,
                 success=result.success,
                 execution_time_ms=execution_time_ms,
-                mcp_server=client.server_url
+                mcp_server=client.server_url,
             )
 
             return result
@@ -396,7 +389,7 @@ class ToolExecutor:
                 tool_id=tool.tool_id,
                 error=str(e),
                 error_code=e.code,
-                mcp_server=client.server_url
+                mcp_server=client.server_url,
             )
 
             # Re-raise para permitir fallback para adapter local
@@ -404,11 +397,11 @@ class ToolExecutor:
 
     async def _execute_via_adapter(
         self,
-        tool: 'ToolDescriptor',
+        tool: "ToolDescriptor",
         execution_params: Dict[str, Any],
         context: Dict[str, Any],
-        adapter: 'BaseToolAdapter'
-    ) -> 'ExecutionResult':
+        adapter: "BaseToolAdapter",
+    ) -> "ExecutionResult":
         """
         Executa ferramenta via adapter local (CLI/REST/Container).
 
@@ -434,7 +427,7 @@ class ToolExecutor:
                     "tool_not_available",
                     tool_name=tool.tool_name,
                     effective_command=command,
-                    integration_type=tool.integration_type.value
+                    integration_type=tool.integration_type.value,
                 )
                 return ExecutionResult(
                     success=False,
@@ -445,15 +438,15 @@ class ToolExecutor:
                         "tool_id": tool.tool_id,
                         "validation_failed": True,
                         "effective_command": command,
-                        "execution_route": "adapter"
-                    }
+                        "execution_route": "adapter",
+                    },
                 )
         except Exception as e:
             self.logger.warning(
                 "tool_availability_check_failed",
                 tool_name=tool.tool_name,
                 effective_command=command,
-                error=str(e)
+                error=str(e),
             )
             # Continuar mesmo se validação falhar (pode ser falso negativo)
 
@@ -463,7 +456,7 @@ class ToolExecutor:
             tool_name=tool.tool_name,
             command=command,
             parameters=execution_params,
-            context=context
+            context=context,
         )
 
         # Adicionar execution_route ao metadata
@@ -479,16 +472,13 @@ class ToolExecutor:
             success=result.success,
             execution_time_ms=result.execution_time_ms,
             exit_code=result.exit_code,
-            adapter_type=tool.integration_type.value
+            adapter_type=tool.integration_type.value,
         )
 
         return result
 
     async def _record_execution_metrics(
-        self,
-        tool: 'ToolDescriptor',
-        result: 'ExecutionResult',
-        execution_route: str
+        self, tool: "ToolDescriptor", result: "ExecutionResult", execution_route: str
     ) -> None:
         """
         Registra métricas Prometheus e atualiza reputação da ferramenta.
@@ -513,7 +503,7 @@ class ToolExecutor:
                 duration=result.execution_time_ms / 1000.0,
                 execution_route=execution_route,
                 adapter_type=adapter_type,
-                mcp_server=mcp_server
+                mcp_server=mcp_server,
             )
 
         # Atualizar reputação da ferramenta via feedback loop
@@ -526,14 +516,10 @@ class ToolExecutor:
                 category=tool.category.value,
                 success=result.success,
                 execution_time_ms=int(result.execution_time_ms),
-                metadata=metadata
+                metadata=metadata,
             )
 
-    def _build_command(
-        self,
-        tool: 'ToolDescriptor',
-        execution_params: Dict[str, Any]
-    ) -> str:
+    def _build_command(self, tool: "ToolDescriptor", execution_params: Dict[str, Any]) -> str:
         """
         Constrói comando/URL baseado em integration_type.
 
@@ -557,9 +543,7 @@ class ToolExecutor:
                 return tool.endpoint_url
             else:
                 self.logger.warning(
-                    "missing_endpoint_url",
-                    tool_id=tool.tool_id,
-                    tool_name=tool.tool_name
+                    "missing_endpoint_url", tool_id=tool.tool_id, tool_name=tool.tool_name
                 )
                 return "http://localhost"  # Fallback
 
@@ -577,10 +561,10 @@ class ToolExecutor:
 
     async def execute_tools_batch(
         self,
-        tools: List['ToolDescriptor'],
+        tools: List["ToolDescriptor"],
         execution_params: Dict[str, Any],
-        context: Dict[str, Any]
-    ) -> Dict[str, 'ExecutionResult']:
+        context: Dict[str, Any],
+    ) -> Dict[str, "ExecutionResult"]:
         """
         Executa múltiplas ferramentas em paralelo com controle de concorrência.
 
@@ -599,7 +583,7 @@ class ToolExecutor:
         # Criar semáforo para limitar concorrência
         semaphore = asyncio.Semaphore(self.settings.MAX_CONCURRENT_TOOL_EXECUTIONS)
 
-        async def execute_with_semaphore(tool: 'ToolDescriptor'):
+        async def execute_with_semaphore(tool: "ToolDescriptor"):
             """Wrapper para executar com semáforo."""
             async with semaphore:
                 return await self.execute_tool(tool, execution_params, context)
@@ -613,16 +597,14 @@ class ToolExecutor:
         for tool, result in zip(tools, results):
             if isinstance(result, Exception):
                 self.logger.error(
-                    "batch_execution_exception",
-                    tool_id=tool.tool_id,
-                    error=str(result)
+                    "batch_execution_exception", tool_id=tool.tool_id, error=str(result)
                 )
                 results_map[tool.tool_id] = ExecutionResult(
                     success=False,
                     output="",
                     error=str(result),
                     execution_time_ms=0,
-                    metadata={"exception": type(result).__name__}
+                    metadata={"exception": type(result).__name__},
                 )
             else:
                 results_map[tool.tool_id] = result
@@ -632,7 +614,7 @@ class ToolExecutor:
             "tools_batch_completed",
             total=len(tools),
             successful=successful,
-            failed=len(tools) - successful
+            failed=len(tools) - successful,
         )
 
         return results_map
