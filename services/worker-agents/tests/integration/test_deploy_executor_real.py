@@ -31,7 +31,7 @@ class TestDeployExecutorWithMockArgoCD:
         self, worker_config, mock_vault_client, mock_metrics
     ):
         """Test successful deployment with mocked ArgoCD."""
-        from services.worker_agents.src.executors.deploy_executor import DeployExecutor
+        from executors.deploy_executor import DeployExecutor
 
         # Create mock ArgoCD server
         mock_server = MockArgoCDServer(base_health_status='Healthy')
@@ -77,7 +77,7 @@ class TestDeployExecutorWithMockArgoCD:
         self, worker_config, mock_vault_client, mock_metrics
     ):
         """Test timeout when ArgoCD application never becomes healthy."""
-        from services.worker_agents.src.executors.deploy_executor import DeployExecutor
+        from executors.deploy_executor import DeployExecutor
 
         # Create mock ArgoCD server that never becomes healthy
         mock_server = MockArgoCDServer(base_health_status='Progressing')
@@ -115,7 +115,7 @@ class TestDeployExecutorWithMockArgoCD:
         self, worker_config, mock_vault_client, mock_metrics
     ):
         """Test handling of ArgoCD authentication error."""
-        from services.worker_agents.src.executors.deploy_executor import DeployExecutor
+        from executors.deploy_executor import DeployExecutor
 
         worker_config.argocd_enabled = True
         worker_config.argocd_url = 'http://argocd-mock:8080'
@@ -153,7 +153,7 @@ class TestDeployExecutorWithMockArgoCD:
         self, worker_config, mock_vault_client, mock_metrics
     ):
         """Test handling of connection error to ArgoCD."""
-        from services.worker_agents.src.executors.deploy_executor import DeployExecutor
+        from executors.deploy_executor import DeployExecutor
 
         worker_config.argocd_enabled = True
         worker_config.argocd_url = 'http://argocd-unreachable:8080'
@@ -184,7 +184,7 @@ class TestDeployExecutorSimulation:
         self, worker_config_minimal, mock_vault_client, mock_metrics
     ):
         """Test deployment in pure simulation mode."""
-        from services.worker_agents.src.executors.deploy_executor import DeployExecutor
+        from executors.deploy_executor import DeployExecutor
 
         executor = DeployExecutor(
             config=worker_config_minimal,
@@ -211,7 +211,7 @@ class TestDeployExecutorSimulation:
         self, worker_config, mock_vault_client, mock_metrics
     ):
         """Test fallback to simulation when ArgoCD is disabled."""
-        from services.worker_agents.src.executors.deploy_executor import DeployExecutor
+        from executors.deploy_executor import DeployExecutor
 
         # ArgoCD disabled by default in worker_config
         worker_config.argocd_enabled = False
@@ -235,7 +235,7 @@ class TestDeployExecutorSimulation:
         self, worker_config_minimal, mock_vault_client, mock_metrics
     ):
         """Test that metrics are recorded in simulation mode."""
-        from services.worker_agents.src.executors.deploy_executor import DeployExecutor
+        from executors.deploy_executor import DeployExecutor
 
         executor = DeployExecutor(
             config=worker_config_minimal,
@@ -258,7 +258,7 @@ class TestDeployExecutorValidation:
     @pytest.mark.asyncio
     async def test_deploy_executor_missing_ticket_id(self, deploy_executor):
         """Test that missing ticket_id raises ValidationError."""
-        from services.worker_agents.src.executors.base_executor import ValidationError
+        from executors.base_executor import ValidationError
 
         ticket = {
             'task_id': 'task-123',
@@ -274,7 +274,7 @@ class TestDeployExecutorValidation:
     @pytest.mark.asyncio
     async def test_deploy_executor_wrong_task_type(self, deploy_executor):
         """Test that wrong task_type raises ValidationError."""
-        from services.worker_agents.src.executors.base_executor import ValidationError
+        from executors.base_executor import ValidationError
 
         ticket = {
             'ticket_id': 'ticket-123',
@@ -297,7 +297,7 @@ class TestDeployExecutorWithMockHTTPTransport:
         self, worker_config, mock_vault_client, mock_metrics
     ):
         """Test with httpx MockTransport for clean HTTP mocking."""
-        from services.worker_agents.src.executors.deploy_executor import DeployExecutor
+        from executors.deploy_executor import DeployExecutor
 
         # Track requests for verification
         requests_made = []
@@ -373,7 +373,7 @@ class TestDeployExecutorRealArgoCD:
         self, worker_config, mock_vault_client, mock_metrics
     ):
         """Test with real ArgoCD (requires ARGOCD_URL and ARGOCD_TOKEN env vars)."""
-        from services.worker_agents.src.executors.deploy_executor import DeployExecutor
+        from executors.deploy_executor import DeployExecutor
 
         argocd_url = os.getenv('ARGOCD_URL')
         argocd_token = os.getenv('ARGOCD_TOKEN')

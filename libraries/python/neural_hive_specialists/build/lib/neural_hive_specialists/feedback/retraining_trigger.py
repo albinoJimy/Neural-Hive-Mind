@@ -158,7 +158,7 @@ class RetrainingTrigger:
             True se cooldown ativo (não deve disparar), False caso contrário
         """
         try:
-            cutoff_time = datetime.utcnow() - timedelta(hours=cooldown_hours)
+            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=cooldown_hours)
 
             # Buscar último trigger bem-sucedido
             last_trigger = self._triggers_collection.find_one(
@@ -171,7 +171,7 @@ class RetrainingTrigger:
             )
 
             if last_trigger:
-                time_since_trigger = (datetime.utcnow() - last_trigger['triggered_at']).total_seconds() / 3600
+                time_since_trigger = (datetime.now(timezone.utc) - last_trigger['triggered_at']).total_seconds() / 3600
                 logger.info(
                     "Cooldown active - recent trigger found",
                     specialist_type=specialist_type,
@@ -352,7 +352,7 @@ class RetrainingTrigger:
                 metadata={
                     'mlflow_run_id': run_id,
                     'mlflow_experiment_id': experiment_id,
-                    'started_at': datetime.utcnow().isoformat()
+                    'started_at': datetime.now(timezone.utc).isoformat()
                 }
             )
 
@@ -379,7 +379,7 @@ class RetrainingTrigger:
                 status='failed',
                 metadata={
                     'error_message': str(e),
-                    'failed_at': datetime.utcnow().isoformat()
+                    'failed_at': datetime.now(timezone.utc).isoformat()
                 }
             )
             # Emitir métrica de trigger falhado
@@ -412,7 +412,7 @@ class RetrainingTrigger:
                 update_doc['$set']['metadata'] = metadata
 
             if status in ['completed', 'failed']:
-                update_doc['$set']['completed_at'] = datetime.utcnow()
+                update_doc['$set']['completed_at'] = datetime.now(timezone.utc)
 
             self._triggers_collection.update_one(
                 {'trigger_id': trigger_id},
@@ -581,7 +581,7 @@ class RetrainingTrigger:
                 metadata = {
                     'duration_seconds': duration,
                     'mlflow_status': run_status,
-                    'completed_at': datetime.utcnow().isoformat()
+                    'completed_at': datetime.now(timezone.utc).isoformat()
                 }
 
                 # Extrair métricas se disponíveis

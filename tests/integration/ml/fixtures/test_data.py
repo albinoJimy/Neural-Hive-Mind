@@ -67,7 +67,7 @@ def generate_prediction_history(
     np.random.seed(seed)
 
     predictions = []
-    base_time = datetime.datetime.utcnow() - datetime.timedelta(days=7)
+    base_time = datetime.datetime.now(timezone.utc) - datetime.timedelta(days=7)
 
     for i in range(n_predictions):
         actual = np.random.randint(1000, 60000)
@@ -115,7 +115,7 @@ def generate_shadow_comparisons(
     np.random.seed(seed)
 
     comparisons = []
-    base_time = datetime.datetime.utcnow() - datetime.timedelta(hours=1)
+    base_time = datetime.datetime.now(timezone.utc) - datetime.timedelta(hours=1)
 
     for i in range(n_comparisons):
         prod_pred = np.random.randint(1000, 60000)
@@ -171,7 +171,7 @@ def generate_validation_metrics(
     np.random.seed(seed)
 
     metrics = []
-    base_time = datetime.datetime.utcnow() - datetime.timedelta(hours=n_checkpoints)
+    base_time = datetime.datetime.now(timezone.utc) - datetime.timedelta(hours=n_checkpoints)
 
     for i in range(n_checkpoints):
         metrics.append({
@@ -219,7 +219,7 @@ def generate_audit_log_entries(
         ]
 
     entries = []
-    base_time = datetime.datetime.utcnow() - datetime.timedelta(minutes=len(stages))
+    base_time = datetime.datetime.now(timezone.utc) - datetime.timedelta(minutes=len(stages))
 
     for i, stage in enumerate(stages):
         entries.append({

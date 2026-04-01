@@ -1,8 +1,8 @@
 """Router para execuções de pipeline."""
 
+import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
-import uuid
 
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, ConfigDict, Field
@@ -136,9 +136,7 @@ async def get_repository_stats(
     days: int = Query(30, ge=1, le=365, description="Dias de histórico"),
 ) -> dict:
     """Obtém estatísticas de um repositório."""
-    full_repo_url = (
-        f"https://{repo_url}" if not repo_url.startswith("http") else repo_url
-    )
+    full_repo_url = f"https://{repo_url}" if not repo_url.startswith("http") else repo_url
 
     success_rate = await repo.get_success_rate(full_repo_url, days=days)
 

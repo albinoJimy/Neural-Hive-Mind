@@ -226,7 +226,7 @@ class BusinessMetricsCollector:
             Lista de opiniões
         """
         try:
-            cutoff_time = datetime.utcnow() - timedelta(hours=window_hours)
+            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=window_hours)
 
             query = {
                 'evaluated_at': {'$gte': cutoff_time},
@@ -258,7 +258,7 @@ class BusinessMetricsCollector:
             Lista de decisões
         """
         try:
-            cutoff_time = datetime.utcnow() - timedelta(hours=window_hours)
+            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=window_hours)
 
             query = {
                 self.consensus_timestamp_field: {'$gte': cutoff_time},

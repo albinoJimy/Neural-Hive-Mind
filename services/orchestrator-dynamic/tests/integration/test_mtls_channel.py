@@ -6,7 +6,7 @@ Testa criação de canal seguro com X.509-SVID, handshake, renovação e fallbac
 
 import pytest
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch, call
 from dataclasses import dataclass
 from freezegun import freeze_time
@@ -74,7 +74,7 @@ def mock_spiffe_manager():
         private_key=TEST_PRIVATE_KEY,
         spiffe_id='spiffe://neural-hive.local/ns/neural-hive-orchestration/sa/orchestrator-dynamic',
         ca_bundle=TEST_CA_BUNDLE,
-        expires_at=datetime.utcnow() + timedelta(hours=24)
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=24)
     )
 
     return manager
@@ -219,7 +219,7 @@ async def test_mtls_handshake_failure_invalid_cert(mock_spiffe_manager, mock_set
         private_key=TEST_PRIVATE_KEY,
         spiffe_id='spiffe://neural-hive.local/ns/neural-hive-orchestration/sa/orchestrator-dynamic',
         ca_bundle='-----BEGIN CERTIFICATE-----\nINVALID_CA\n-----END CERTIFICATE-----',
-        expires_at=datetime.utcnow() + timedelta(hours=24)
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=24)
     )
 
     with patch('src.clients.service_registry_client.service_registry_pb2') as mock_pb2, \
@@ -278,7 +278,7 @@ async def test_x509_svid_refresh_on_expiry(mock_spiffe_manager, mock_settings):
         private_key=TEST_PRIVATE_KEY,
         spiffe_id='spiffe://neural-hive.local/ns/neural-hive-orchestration/sa/orchestrator-dynamic',
         ca_bundle=TEST_CA_BUNDLE,
-        expires_at=datetime.utcnow() + timedelta(seconds=300)
+        expires_at=datetime.now(timezone.utc) + timedelta(seconds=300)
     )
 
     # SVID renovado
@@ -287,7 +287,7 @@ async def test_x509_svid_refresh_on_expiry(mock_spiffe_manager, mock_settings):
         private_key=TEST_PRIVATE_KEY,
         spiffe_id='spiffe://neural-hive.local/ns/neural-hive-orchestration/sa/orchestrator-dynamic',
         ca_bundle=TEST_CA_BUNDLE,
-        expires_at=datetime.utcnow() + timedelta(seconds=540)  # Novo TTL após renovação
+        expires_at=datetime.now(timezone.utc) + timedelta(seconds=540)  # Novo TTL após renovação
     )
 
     # Configurar mock para retornar SVIDs diferentes em chamadas subsequentes
@@ -327,7 +327,7 @@ async def test_x509_svid_refresh_on_expiry(mock_spiffe_manager, mock_settings):
 
         # Simular situação onde cliente precisa recriar canal com novo SVID
         # (por exemplo, após expiração detectada)
-        with freeze_time(datetime.utcnow() + timedelta(seconds=240)):  # 80% do TTL
+        with freeze_time(datetime.now(timezone.utc) + timedelta(seconds=240)):  # 80% do TTL
             # Cliente recria canal (chamaria initialize novamente em produção)
             client.channel = None
             await client.initialize()
@@ -387,7 +387,7 @@ async def test_channel_recreation_on_cert_renewal(mock_spiffe_manager, mock_sett
         private_key=TEST_PRIVATE_KEY,
         spiffe_id='spiffe://neural-hive.local/ns/neural-hive-orchestration/sa/orchestrator-dynamic',
         ca_bundle=TEST_CA_BUNDLE,
-        expires_at=datetime.utcnow() + timedelta(hours=24)
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=24)
     )
 
     svid_v2 = X509SVID(
@@ -395,7 +395,7 @@ async def test_channel_recreation_on_cert_renewal(mock_spiffe_manager, mock_sett
         private_key=TEST_PRIVATE_KEY,
         spiffe_id='spiffe://neural-hive.local/ns/neural-hive-orchestration/sa/orchestrator-dynamic',
         ca_bundle=TEST_CA_BUNDLE,
-        expires_at=datetime.utcnow() + timedelta(hours=48)
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=48)
     )
 
     mock_spiffe_manager.fetch_x509_svid.side_effect = [svid_v1, svid_v2]
@@ -454,7 +454,7 @@ async def test_mtls_with_jwt_combined(mock_spiffe_manager, mock_settings):
     mock_spiffe_manager.fetch_jwt_svid.return_value = JWTSVID(
         token='valid.jwt.token',
         spiffe_id='spiffe://neural-hive.local/ns/neural-hive-orchestration/sa/orchestrator-dynamic',
-        expiry=datetime.utcnow() + timedelta(hours=1)
+        expiry=datetime.now(timezone.utc) + timedelta(hours=1)
     )
 
     with patch('src.clients.service_registry_client.service_registry_pb2') as mock_pb2, \
@@ -514,7 +514,7 @@ async def test_x509_svid_expiry_logging(mock_spiffe_manager, mock_settings, capl
     """
     from src.clients.service_registry_client import ServiceRegistryClient
 
-    expires_at = datetime.utcnow() + timedelta(hours=24)
+    expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
     mock_spiffe_manager.fetch_x509_svid.return_value = X509SVID(
         certificate=TEST_CERT,
         private_key=TEST_PRIVATE_KEY,

@@ -9,7 +9,7 @@ Este módulo testa a detecção automática de problemas nos serviços:
 
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
-from datetime import datetime
+from datetime import datetime, timezone
 
 from src.services.health_monitor import HealthMonitor, HealthStatus, LagStatus, ConnectionStatus
 
@@ -151,7 +151,7 @@ class TestHealthMonitor:
         status = HealthStatus(
             service_name="test-service",
             healthy=True,
-            checked_at=datetime.utcnow()
+            checked_at=datetime.now(timezone.utc)
         )
         assert status.service_name == "test-service"
         assert status.healthy is True

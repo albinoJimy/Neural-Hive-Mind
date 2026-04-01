@@ -29,7 +29,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 @pytest.fixture
 def test_executor_with_github(worker_config, mock_metrics, mock_github_actions_client):
     """TestExecutor configurado com cliente GitHub Actions mockado."""
-    from services.worker_agents.src.executors.test_executor import TestExecutor
+    from executors.test_executor import TestExecutor
 
     worker_config.github_actions_enabled = True
     worker_config.github_token = 'test-token'
@@ -48,7 +48,7 @@ def test_executor_with_github(worker_config, mock_metrics, mock_github_actions_c
 @pytest.fixture
 def test_executor_with_gitlab(worker_config, mock_metrics, mock_gitlab_ci_client):
     """TestExecutor configurado com cliente GitLab CI mockado."""
-    from services.worker_agents.src.executors.test_executor import TestExecutor
+    from executors.test_executor import TestExecutor
 
     worker_config.gitlab_ci_enabled = True
     worker_config.gitlab_token = 'test-token'
@@ -66,7 +66,7 @@ def test_executor_with_gitlab(worker_config, mock_metrics, mock_gitlab_ci_client
 @pytest.fixture
 def test_executor_with_jenkins(worker_config, mock_metrics, mock_jenkins_client):
     """TestExecutor configurado com cliente Jenkins mockado."""
-    from services.worker_agents.src.executors.test_executor import TestExecutor
+    from executors.test_executor import TestExecutor
 
     worker_config.jenkins_enabled = True
     worker_config.jenkins_url = 'https://jenkins.example.com'
@@ -84,7 +84,7 @@ def test_executor_with_jenkins(worker_config, mock_metrics, mock_jenkins_client)
 @pytest.fixture
 def test_executor_local_only(worker_config, mock_metrics):
     """TestExecutor sem clientes CI/CD (apenas execucao local)."""
-    from services.worker_agents.src.executors.test_executor import TestExecutor
+    from executors.test_executor import TestExecutor
 
     worker_config.github_actions_enabled = False
     worker_config.gitlab_ci_enabled = False
@@ -335,7 +335,7 @@ class TestTestExecutorTimeout:
         mock_github_actions_client
     ):
         """Deve retornar falha quando timeout no GitHub Actions."""
-        from services.worker_agents.src.clients.github_actions_client import (
+        from clients.github_actions_client import (
             GitHubActionsTimeoutError
         )
 
@@ -358,7 +358,7 @@ class TestTestExecutorTimeout:
         mock_gitlab_ci_client
     ):
         """Deve retornar falha quando timeout no GitLab CI."""
-        from services.worker_agents.src.clients.gitlab_ci_client import (
+        from clients.gitlab_ci_client import (
             GitLabCITimeoutError
         )
 
@@ -380,7 +380,7 @@ class TestTestExecutorTimeout:
         mock_jenkins_client
     ):
         """Deve retornar falha quando timeout no Jenkins."""
-        from services.worker_agents.src.clients.jenkins_client import (
+        from clients.jenkins_client import (
             JenkinsTimeoutError
         )
 
@@ -560,7 +560,7 @@ class TestTestExecutorRetryLogic:
         test_ticket_github
     ):
         """Deve fazer retry em falhas transitorias."""
-        from services.worker_agents.src.executors.test_executor import TestExecutor
+        from executors.test_executor import TestExecutor
         from dataclasses import dataclass
         import httpx
 
@@ -631,7 +631,7 @@ class TestTestExecutorSimulation:
         mock_metrics
     ):
         """Deve usar simulacao quando nenhum provider disponivel."""
-        from services.worker_agents.src.executors.test_executor import TestExecutor
+        from executors.test_executor import TestExecutor
 
         worker_config.github_actions_enabled = False
         worker_config.gitlab_ci_enabled = False

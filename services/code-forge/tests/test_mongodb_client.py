@@ -1,7 +1,7 @@
 """Testes unitários para MongoDBClient"""
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime
+from datetime import datetime, timezone
 import sys
 import os
 
@@ -106,7 +106,7 @@ async def test_get_artifact_content_found(mock_motor_client):
     mock_db.artifacts.find_one.return_value = {
         'artifact_id': 'art-1',
         'content': 'print("hello")',
-        'created_at': datetime.utcnow()
+        'created_at': datetime.now(timezone.utc)
     }
 
     with patch('src.clients.mongodb_client.AsyncIOMotorClient', return_value=mock_client):

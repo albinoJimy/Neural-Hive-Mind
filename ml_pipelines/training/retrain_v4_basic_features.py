@@ -11,7 +11,7 @@ Objetivo: Criar modelo estável antes de ter mais dados semânticos.
 
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Any
 
@@ -264,7 +264,7 @@ metadata = {
         'test': {LABEL_NAMES[i]: int((y_test == i).sum()) for i in range(3)},
     },
     'class_weights': {LABEL_NAMES[i]: float(class_weights[i]) for i in range(len(class_weights))},
-    'training_date': datetime.utcnow().isoformat(),
+    'training_date': datetime.now(timezone.utc).isoformat(),
     'sample_count': len(df),
     'test_sample_count': len(X_test),
 }

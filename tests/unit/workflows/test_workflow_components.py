@@ -6,7 +6,7 @@ Testa estados, transições e execução de workflows.
 """
 import pytest
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 from enum import Enum
 
@@ -151,11 +151,11 @@ class TestWorkflowSteps:
         """Deve tratar timeout de passo."""
         step = {
             "name": "long_task",
-            "started_at": datetime.utcnow() - timedelta(seconds=70),
+            "started_at": datetime.now(timezone.utc) - timedelta(seconds=70),
             "timeout_seconds": 60
         }
 
-        elapsed = (datetime.utcnow() - step["started_at"]).total_seconds()
+        elapsed = (datetime.now(timezone.utc) - step["started_at"]).total_seconds()
         is_timeout = elapsed > step["timeout_seconds"]
 
         assert is_timeout is True
@@ -226,7 +226,7 @@ class TestWorkflowEvents:
         event = {
             "event_id": str(uuid4()),
             "type": "step_completed",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "data": {"step": "validate"}
         }
 
@@ -302,7 +302,7 @@ class TestWorkflowPersistence:
             "state": WorkflowState.RUNNING,
             "completed_steps": ["step1", "step2"],
             "current_step": "step3",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         assert "completed_steps" in checkpoint
@@ -391,7 +391,7 @@ class TestWorkflowScheduling:
         """Deve agendar execução imediata."""
         schedule = {
             "workflow_id": str(uuid4()),
-            "scheduled_at": datetime.utcnow().isoformat(),
+            "scheduled_at": datetime.now(timezone.utc).isoformat(),
             "delay_seconds": 0
         }
 
@@ -403,9 +403,9 @@ class TestWorkflowScheduling:
         """Deve agendar execução adiada."""
         delay_minutes = 30
 
-        scheduled_at = datetime.utcnow() + timedelta(minutes=delay_minutes)
+        scheduled_at = datetime.now(timezone.utc) + timedelta(minutes=delay_minutes)
 
-        is_future = scheduled_at > datetime.utcnow()
+        is_future = scheduled_at > datetime.now(timezone.utc)
 
         assert is_future is True
 
@@ -414,7 +414,7 @@ class TestWorkflowScheduling:
         schedule = {
             "workflow_id": str(uuid4()),
             "recurrence": "daily",
-            "next_run": datetime.utcnow() + timedelta(days=1)
+            "next_run": datetime.now(timezone.utc) + timedelta(days=1)
         }
 
         assert schedule["recurrence"] == "daily"
@@ -427,7 +427,7 @@ class TestWorkflowScheduling:
         }
 
         schedule["status"] = "cancelled"
-        schedule["cancelled_at"] = datetime.utcnow().isoformat()
+        schedule["cancelled_at"] = datetime.now(timezone.utc).isoformat()
 
         assert schedule["status"] == "cancelled"
 
@@ -441,8 +441,8 @@ class TestWorkflowMetrics:
 
     def test_calculate_duration(self):
         """Deve calcular duração do workflow."""
-        started_at = datetime.utcnow() - timedelta(seconds=120)
-        completed_at = datetime.utcnow()
+        started_at = datetime.now(timezone.utc) - timedelta(seconds=120)
+        completed_at = datetime.now(timezone.utc)
 
         duration = (completed_at - started_at).total_seconds()
 

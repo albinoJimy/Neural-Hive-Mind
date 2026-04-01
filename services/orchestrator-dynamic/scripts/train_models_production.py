@@ -9,7 +9,7 @@ import asyncio
 import json
 import logging
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -145,7 +145,7 @@ class ProductionModelTrainer:
         if not self.mongo_client:
             return 0
 
-        cutoff_date = datetime.utcnow() - timedelta(days=self.window_days)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=self.window_days)
         tickets_collection = self.mongo_client.db[self.config.mongodb_collection_tickets]
 
         query = {
@@ -161,7 +161,7 @@ class ProductionModelTrainer:
         if not self.mongo_client:
             return pd.DataFrame()
 
-        cutoff_date = datetime.utcnow() - timedelta(days=self.window_days)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=self.window_days)
         tickets_collection = self.mongo_client.db[self.config.mongodb_collection_tickets]
 
         tickets = await tickets_collection.find({
@@ -280,11 +280,11 @@ class ProductionModelTrainer:
         samples_available: int
     ) -> Path:
         """Gera relatório JSON no /tmp com métricas e status."""
-        timestamp = datetime.utcnow().strftime("%Y%m%dT%H%M%S")
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
         report_path = Path("/tmp") / f"ml_training_report_{timestamp}.json"
 
         report = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "window_days": self.window_days,
             "min_samples": self.min_samples,
             "backfill_errors": self.backfill_errors,
@@ -352,13 +352,13 @@ class ProductionModelTrainer:
             self.logger.exception("training_script_failed", extra={"error": str(exc)})
 
             failure_report = {
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "error": str(exc),
                 "window_days": self.window_days,
                 "backfill_errors": self.backfill_errors,
                 "dry_run": self.dry_run
             }
-            report_path = Path("/tmp") / f"ml_training_report_error_{datetime.utcnow().strftime('%Y%m%dT%H%M%S')}.json"
+            report_path = Path("/tmp") / f"ml_training_report_error_{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S')}.json"
             report_path.write_text(json.dumps(failure_report, indent=2, default=str))
 
             return 1

@@ -406,7 +406,7 @@ class AuditLogger:
         try:
             document = {
                 'audit_id': str(uuid.uuid4()),
-                'timestamp': datetime.utcnow(),
+                'timestamp': datetime.now(timezone.utc),
                 'specialist_type': self.specialist_type,
                 'event_type': event_type,
                 'event_data': event_data,

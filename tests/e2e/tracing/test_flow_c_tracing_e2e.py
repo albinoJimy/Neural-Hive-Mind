@@ -26,7 +26,7 @@ import os
 import pytest
 import asyncio
 import httpx
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 
@@ -69,7 +69,7 @@ async def test_flow_c_trace_propagation():
         "priority": "high",
         "metadata": {
             "test_type": "e2e_tracing",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
     }
 

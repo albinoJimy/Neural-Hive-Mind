@@ -181,7 +181,7 @@ class SchemaVersionManager:
             trace_id=v1_document.get('trace_id'),
             span_id=v1_document.get('span_id'),
             evaluated_at=v1_document['evaluated_at'],
-            created_at=v1_document.get('created_at', datetime.utcnow()),
+            created_at=v1_document.get('created_at', datetime.now(timezone.utc)),
             processing_time_ms=v1_document['processing_time_ms'],
             buffered=v1_document.get('buffered', False),
             content_hash=v1_document.get('content_hash', ''),

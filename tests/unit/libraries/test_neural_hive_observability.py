@@ -6,7 +6,7 @@ Testa logging, métricas, e tracing.
 """
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 import json
 
@@ -21,7 +21,7 @@ class TestStructuredLogging:
     def test_log_includes_context(self):
         """Log deve incluir contexto estruturado."""
         log_entry = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "level": "INFO",
             "message": "Request processed",
             "context": {
@@ -38,7 +38,7 @@ class TestStructuredLogging:
         """Log deve incluir correlation ID."""
         correlation_id = str(uuid4())
         log_entry = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "level": "INFO",
             "correlation_id": correlation_id,
             "message": "Processing request"
@@ -153,7 +153,7 @@ class TestDistributedTracing:
 
     def test_span_includes_timestamps(self):
         """Span deve incluir timestamps."""
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc)
         end_time = start_time + timedelta(milliseconds=150)
 
         span = {
@@ -209,13 +209,13 @@ class TestPerformanceMonitoring:
 
     def test_measure_request_duration(self):
         """Deve medir duração da requisição."""
-        start = datetime.utcnow()
+        start = datetime.now(timezone.utc)
 
         # Simular processamento
         import time
         time.sleep(0.01)  # 10ms
 
-        end = datetime.utcnow()
+        end = datetime.now(timezone.utc)
         duration_ms = (end - start).total_seconds() * 1000
 
         assert duration_ms >= 10  # Pelo menos 10ms

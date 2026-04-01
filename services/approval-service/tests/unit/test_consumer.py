@@ -6,7 +6,7 @@ Testa deserializacao e processamento de mensagens Kafka.
 
 import pytest
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, AsyncMock, patch
 
 from src.models.approval import ApprovalRequest, RiskBand
@@ -139,7 +139,7 @@ class TestApprovalRequestConsumerHealth:
 
     def test_is_healthy_when_running(self, consumer):
         """Teste health check quando consumer esta saudavel"""
-        consumer._last_poll_time = datetime.utcnow()
+        consumer._last_poll_time = datetime.now(timezone.utc)
 
         is_healthy, reason = consumer.is_healthy(max_poll_age_seconds=60.0)
 
@@ -168,7 +168,7 @@ class TestApprovalRequestConsumerHealth:
         """Teste health check quando ultimo poll muito antigo"""
         from datetime import timedelta
 
-        consumer._last_poll_time = datetime.utcnow() - timedelta(seconds=120)
+        consumer._last_poll_time = datetime.now(timezone.utc) - timedelta(seconds=120)
 
         is_healthy, reason = consumer.is_healthy(max_poll_age_seconds=60.0)
 

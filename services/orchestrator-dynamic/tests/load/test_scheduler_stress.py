@@ -13,7 +13,7 @@ import asyncio
 import pytest
 import time
 import random
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Any
 from unittest.mock import AsyncMock, MagicMock
 from dataclasses import dataclass, field
@@ -116,14 +116,14 @@ def generate_tickets(count: int) -> List[Dict[str, Any]]:
                 'durability': 'PERSISTENT'
             },
             'sla': {
-                'deadline': (datetime.utcnow() + timedelta(hours=1)).isoformat(),
+                'deadline': (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(),
                 'timeout_ms': 3600000
             },
             'required_capabilities': ['python', 'data-processing'],
             'namespace': 'default',
             'security_level': 'standard',
             'estimated_duration_ms': 1000,
-            'created_at': datetime.utcnow().isoformat()
+            'created_at': datetime.now(timezone.utc).isoformat()
         }
         for i in range(count)
     ]

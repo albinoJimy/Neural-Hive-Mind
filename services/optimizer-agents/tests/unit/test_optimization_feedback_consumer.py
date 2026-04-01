@@ -8,7 +8,7 @@ import pytest
 import json
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime
+from datetime import datetime, timezone
 from collections import defaultdict
 
 from src.consumers.optimization_feedback_consumer import (
@@ -189,7 +189,7 @@ class TestAdjustOptimizationStrategies:
             'rolled_back': 0,
             'avg_improvement': 0.1,
             'avg_degradation': 0.0,
-            'last_updated': datetime.utcnow()
+            'last_updated': datetime.now(timezone.utc)
         }
 
         event = {
@@ -218,7 +218,7 @@ class TestAdjustOptimizationStrategies:
             'rolled_back': 0,  # Sem rollback
             'avg_improvement': 0.15,
             'avg_degradation': 0.0,
-            'last_updated': datetime.utcnow()
+            'last_updated': datetime.now(timezone.utc)
         }
 
         event = {
@@ -247,7 +247,7 @@ class TestAdjustOptimizationStrategies:
             'rolled_back': 8,  # 40% rollback (alta)
             'avg_improvement': 0.1,
             'avg_degradation': 0.05,
-            'last_updated': datetime.utcnow()
+            'last_updated': datetime.now(timezone.utc)
         }
 
         event = {
@@ -276,7 +276,7 @@ class TestAdjustOptimizationStrategies:
             'rolled_back': 5,
             'avg_improvement': 0.05,
             'avg_degradation': 0.15,  # Mais degradação que melhoria
-            'last_updated': datetime.utcnow()
+            'last_updated': datetime.now(timezone.utc)
         }
 
         event = {
@@ -304,7 +304,7 @@ class TestAdjustOptimizationStrategies:
             'rolled_back': 0,
             'avg_improvement': 0.1,
             'avg_degradation': 0.0,
-            'last_updated': datetime.utcnow()
+            'last_updated': datetime.now(timezone.utc)
         }
 
         event = {
@@ -342,7 +342,7 @@ class TestGetFeedbackStats:
             'rolled_back': 1,
             'avg_improvement': 0.15,
             'avg_degradation': 0.02,
-            'last_updated': datetime.utcnow()
+            'last_updated': datetime.now(timezone.utc)
         }
         consumer.optimization_stats['SLO_ADJUSTMENT'] = {
             'total': 10,
@@ -351,7 +351,7 @@ class TestGetFeedbackStats:
             'rolled_back': 1,
             'avg_improvement': 0.10,
             'avg_degradation': 0.05,
-            'last_updated': datetime.utcnow()
+            'last_updated': datetime.now(timezone.utc)
         }
 
         stats = consumer.get_feedback_stats()

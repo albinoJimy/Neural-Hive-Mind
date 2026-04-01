@@ -94,7 +94,7 @@ class MockLocalExecutionResult:
 @pytest.fixture
 def execute_executor_with_k8s(worker_config, mock_metrics, mock_k8s_jobs_client):
     """ExecuteExecutor configurado com cliente K8s Jobs mockado."""
-    from services.worker_agents.src.executors.execute_executor import ExecuteExecutor
+    from executors.execute_executor import ExecuteExecutor
 
     worker_config.default_runtime = 'k8s'
     worker_config.runtime_fallback_chain = ['k8s', 'docker', 'local', 'simulation']
@@ -113,7 +113,7 @@ def execute_executor_with_k8s(worker_config, mock_metrics, mock_k8s_jobs_client)
 @pytest.fixture
 def execute_executor_with_docker(worker_config, mock_metrics, mock_docker_runtime_client):
     """ExecuteExecutor configurado com cliente Docker mockado."""
-    from services.worker_agents.src.executors.execute_executor import ExecuteExecutor
+    from executors.execute_executor import ExecuteExecutor
 
     worker_config.default_runtime = 'docker'
     worker_config.runtime_fallback_chain = ['docker', 'local', 'simulation']
@@ -131,7 +131,7 @@ def execute_executor_with_docker(worker_config, mock_metrics, mock_docker_runtim
 @pytest.fixture
 def execute_executor_with_lambda(worker_config, mock_metrics, mock_lambda_runtime_client):
     """ExecuteExecutor configurado com cliente Lambda mockado."""
-    from services.worker_agents.src.executors.execute_executor import ExecuteExecutor
+    from executors.execute_executor import ExecuteExecutor
 
     worker_config.default_runtime = 'lambda'
     worker_config.runtime_fallback_chain = ['lambda', 'local', 'simulation']
@@ -149,7 +149,7 @@ def execute_executor_with_lambda(worker_config, mock_metrics, mock_lambda_runtim
 @pytest.fixture
 def execute_executor_with_local(worker_config, mock_metrics, mock_local_runtime_client):
     """ExecuteExecutor configurado com cliente Local mockado."""
-    from services.worker_agents.src.executors.execute_executor import ExecuteExecutor
+    from executors.execute_executor import ExecuteExecutor
 
     worker_config.default_runtime = 'local'
     worker_config.runtime_fallback_chain = ['local', 'simulation']
@@ -174,7 +174,7 @@ def execute_executor_all_runtimes(
     mock_local_runtime_client
 ):
     """ExecuteExecutor com todos os clientes de runtime."""
-    from services.worker_agents.src.executors.execute_executor import ExecuteExecutor
+    from executors.execute_executor import ExecuteExecutor
 
     worker_config.default_runtime = 'k8s'
     worker_config.runtime_fallback_chain = ['k8s', 'docker', 'lambda', 'local', 'simulation']
@@ -194,7 +194,7 @@ def execute_executor_all_runtimes(
 @pytest.fixture
 def execute_executor_simulation_only(worker_config, mock_metrics):
     """ExecuteExecutor sem clientes externos (apenas simulacao)."""
-    from services.worker_agents.src.executors.execute_executor import ExecuteExecutor
+    from executors.execute_executor import ExecuteExecutor
 
     worker_config.default_runtime = 'simulation'
     worker_config.runtime_fallback_chain = ['simulation']
@@ -422,7 +422,7 @@ class TestExecuteExecutorRuntimeFallbackChain:
         execute_ticket_k8s
     ):
         """Deve fazer fallback de K8s para Docker quando K8s falha."""
-        from services.worker_agents.src.executors.execute_executor import ExecuteExecutor
+        from executors.execute_executor import ExecuteExecutor
 
         # K8s client que falha
         mock_k8s_client = AsyncMock()
@@ -459,7 +459,7 @@ class TestExecuteExecutorRuntimeFallbackChain:
         execute_ticket_docker
     ):
         """Deve fazer fallback de Docker para Local quando Docker falha."""
-        from services.worker_agents.src.executors.execute_executor import ExecuteExecutor
+        from executors.execute_executor import ExecuteExecutor
 
         # Docker client que falha
         mock_docker_client = AsyncMock()
@@ -496,7 +496,7 @@ class TestExecuteExecutorRuntimeFallbackChain:
         execute_ticket_k8s
     ):
         """Deve registrar metricas de fallback."""
-        from services.worker_agents.src.executors.execute_executor import ExecuteExecutor
+        from executors.execute_executor import ExecuteExecutor
 
         mock_k8s_client = AsyncMock()
         mock_k8s_client.execute_job = AsyncMock(side_effect=RuntimeError('K8s unavailable'))
@@ -539,7 +539,7 @@ class TestExecuteExecutorTimeout:
         execute_ticket_docker
     ):
         """Deve fazer fallback quando Docker timeout."""
-        from services.worker_agents.src.executors.execute_executor import ExecuteExecutor
+        from executors.execute_executor import ExecuteExecutor
 
         mock_docker_client = AsyncMock()
         mock_docker_client.execute_command = AsyncMock(
@@ -692,7 +692,7 @@ class TestExecuteExecutorSimulationFallback:
         execute_ticket_k8s
     ):
         """Deve usar simulacao quando todos os runtimes falham."""
-        from services.worker_agents.src.executors.execute_executor import ExecuteExecutor
+        from executors.execute_executor import ExecuteExecutor
 
         # Todos os clientes falham
         mock_k8s_client = AsyncMock()

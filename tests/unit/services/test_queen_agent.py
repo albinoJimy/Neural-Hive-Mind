@@ -6,7 +6,7 @@ Testa supervisão e coordenação de agentes.
 """
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 import asyncio
 
@@ -33,11 +33,11 @@ class TestQueenAgentLeadership:
         """Deve verificar heartbeat do Queen."""
         queen = {
             "queen_id": "queen-1",
-            "last_heartbeat": datetime.utcnow(),
+            "last_heartbeat": datetime.now(timezone.utc),
             "status": "leading"
         }
 
-        time_since_heartbeat = (datetime.utcnow() - queen["last_heartbeat"]).total_seconds()
+        time_since_heartbeat = (datetime.now(timezone.utc) - queen["last_heartbeat"]).total_seconds()
         is_alive = time_since_heartbeat < 30
 
         assert is_alive is True
@@ -106,14 +106,14 @@ class TestSwarmManagement:
         """Deve remover agente inativo do swarm."""
         swarm = {
             "agents": {
-                "agent-1": {"status": "active", "last_seen": datetime.utcnow()},
-                "agent-2": {"status": "inactive", "last_seen": datetime.utcnow() - timedelta(hours=2)}
+                "agent-1": {"status": "active", "last_seen": datetime.now(timezone.utc)},
+                "agent-2": {"status": "inactive", "last_seen": datetime.now(timezone.utc) - timedelta(hours=2)}
             }
         }
 
         # Remover agentes inativos por mais de 1 hora
         timeout_seconds = 3600
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         to_remove = [
             agent_id for agent_id, agent in swarm["agents"].items()
@@ -297,7 +297,7 @@ class TestAgentLifecycleManagement:
         }
 
         agent["status"] = "terminating"
-        agent["terminated_at"] = datetime.utcnow().isoformat()
+        agent["terminated_at"] = datetime.now(timezone.utc).isoformat()
         agent["status"] = "terminated"
 
         assert agent["status"] == "terminated"
@@ -454,7 +454,7 @@ class TestQueenCommunication:
         command = {
             "type": "shutdown",
             "from": "queen-1",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         swarm_agents = ["agent-1", "agent-2", "agent-3"]
@@ -469,7 +469,7 @@ class TestQueenCommunication:
         """Deve receber heartbeat de agente."""
         heartbeat = {
             "agent_id": "agent-1",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "status": "idle",
             "completed_tasks": 10
         }
@@ -477,7 +477,7 @@ class TestQueenCommunication:
         # Registrar heartbeat
         agent_status = {
             "agent_id": heartbeat["agent_id"],
-            "last_seen": datetime.utcnow(),
+            "last_seen": datetime.now(timezone.utc),
             "status": heartbeat["status"]
         }
 
@@ -511,7 +511,7 @@ class TestSwarmPersistence:
             "swarm_id": str(uuid4()),
             "queen": "queen-1",
             "agents": ["agent-1", "agent-2"],
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         # Simular salvamento
@@ -543,7 +543,7 @@ class TestSwarmPersistence:
         new_state = {
             "version": 2,
             "agents": old_state["agents"],
-            "metadata": {"migrated_at": datetime.utcnow().isoformat()}
+            "metadata": {"migrated_at": datetime.now(timezone.utc).isoformat()}
         }
 
         assert new_state["version"] == 2

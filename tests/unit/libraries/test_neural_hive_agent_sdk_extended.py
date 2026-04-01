@@ -189,7 +189,7 @@ class TestAgentClientRegistration:
             "agent_id": agent_id,
             "service_name": service_name,
             "agent_type": agent_type,
-            "registered_at": datetime.utcnow().isoformat()
+            "registered_at": datetime.now(timezone.utc).isoformat()
         }
 
         assert register_request["agent_id"] == agent_id
@@ -213,7 +213,7 @@ class TestAgentClientRegistration:
 
         deregister_request = {
             "agent_id": agent_id,
-            "deregistered_at": datetime.utcnow().isoformat()
+            "deregistered_at": datetime.now(timezone.utc).isoformat()
         }
 
         assert deregister_request["agent_id"] == agent_id
@@ -241,7 +241,7 @@ class TestAgentClientHeartbeat:
 
         heartbeat_request = {
             "agent_id": agent_id,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "status": "healthy"
         }
 
@@ -261,8 +261,8 @@ class TestAgentClientHeartbeat:
     def test_heartbeat_interval(self):
         """Deve calcular intervalo de heartbeat."""
         heartbeat_interval = 30  # segundos
-        last_heartbeat = datetime.utcnow() - timedelta(seconds=20)
-        now = datetime.utcnow()
+        last_heartbeat = datetime.now(timezone.utc) - timedelta(seconds=20)
+        now = datetime.now(timezone.utc)
 
         elapsed = (now - last_heartbeat).total_seconds()
         should_send = elapsed >= heartbeat_interval
@@ -272,8 +272,8 @@ class TestAgentClientHeartbeat:
     def test_missed_heartbeat(self):
         """Deve detectar heartbeat perdido."""
         heartbeat_interval = 30
-        last_heartbeat = datetime.utcnow() - timedelta(seconds=35)
-        now = datetime.utcnow()
+        last_heartbeat = datetime.now(timezone.utc) - timedelta(seconds=35)
+        now = datetime.now(timezone.utc)
 
         elapsed = (now - last_heartbeat).total_seconds()
         missed = elapsed > heartbeat_interval * 2  # 2x interval
@@ -282,9 +282,9 @@ class TestAgentClientHeartbeat:
 
     def test_heartbeat_timeout(self):
         """Deve detectar timeout de heartbeat."""
-        last_heartbeat = datetime.utcnow() - timedelta(seconds=120)
+        last_heartbeat = datetime.now(timezone.utc) - timedelta(seconds=120)
         timeout_threshold = 90  # segundos
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         elapsed = (now - last_heartbeat).total_seconds()
         timed_out = elapsed > timeout_threshold
@@ -314,8 +314,8 @@ class TestAgentClientStatus:
         response = {
             "agent_id": str(uuid4()),
             "status": "running",
-            "registered_at": datetime.utcnow().isoformat(),
-            "last_heartbeat": datetime.utcnow().isoformat()
+            "registered_at": datetime.now(timezone.utc).isoformat(),
+            "last_heartbeat": datetime.now(timezone.utc).isoformat()
         }
 
         assert response["status"] == "running"
@@ -366,10 +366,10 @@ class TestAgentClientConnection:
     def test_connection_timeout(self):
         """Deve aplicar timeout na conexão."""
         connection_timeout = 5  # segundos
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc)
 
         # Simula conexão rápida
-        elapsed = (datetime.utcnow() - start_time).total_seconds()
+        elapsed = (datetime.now(timezone.utc) - start_time).total_seconds()
 
         timed_out = elapsed > connection_timeout
 
@@ -464,7 +464,7 @@ class TestAgentClientLifecycle:
         agent = {
             "agent_id": agent_id,
             "state": state,
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat()
         }
 
         assert agent["state"] == "initialized"

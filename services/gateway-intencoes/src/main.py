@@ -5,74 +5,70 @@ Aplicação principal FastAPI para captura e processamento de intenções
 """
 
 import asyncio
-import logging
 import uuid
 from contextlib import asynccontextmanager
-from datetime import datetime
-from typing import Dict, Any, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
+import structlog
+from config.settings import get_settings
 from fastapi import (
-    FastAPI,
-    HTTPException,
     Depends,
-    UploadFile,
+    FastAPI,
     File,
     Form,
-    status,
+    HTTPException,
     Request,
+    UploadFile,
+    status,
 )
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import JSONResponse, Response
-import structlog
-
-from config.settings import get_settings
-from models.intent_envelope import IntentEnvelope, IntentRequest, VoiceIntentRequest
-from pipelines.asr_pipeline import ASRPipeline
-from pipelines.nlu_pipeline import NLUPipeline
+from fastapi.security import HTTPBearer
 from kafka.producer import KafkaIntentProducer
-from cache.redis_client import get_redis_client, close_redis_client
-from security.oauth2_validator import get_oauth2_validator, close_oauth2_validator
 from middleware.auth_middleware import (
     create_auth_middleware,
-    get_current_user,
     get_current_admin_user,
 )
-from middleware.rate_limiter import RateLimiter, set_rate_limiter, close_rate_limiter
+from middleware.rate_limiter import RateLimiter
+from models.intent_envelope import IntentEnvelope, IntentRequest
+from pipelines.asr_pipeline import ASRPipeline
+from pipelines.nlu_pipeline import NLUPipeline
 
 # Tentar importar observabilidade - usar stubs se não disponível
 try:
-    from neural_hive_observability import trace_intent, get_metrics, get_context_manager
+    from neural_hive_observability import get_context_manager, get_metrics, trace_intent
     from neural_hive_observability.tracing import (
-        get_current_trace_id,
         get_current_span_id,
+        get_current_trace_id,
     )
 
     # HealthManager é alias para HealthChecker que sempre requer ObservabilityConfig
     try:
-        from neural_hive_observability.health import (
-            HealthManager,
-            RedisHealthCheck,
-            CustomHealthCheck,
-            HealthStatus,
-        )
         from neural_hive_observability.config import ObservabilityConfig
+        from neural_hive_observability.health import (
+            CustomHealthCheck,
+            HealthManager,
+            HealthStatus,
+            RedisHealthCheck,
+        )
 
         HEALTH_MANAGER_NEEDS_CONFIG = True
     except ImportError:
         # Fallback para versão antiga sem HealthManager exportado diretamente
+        from neural_hive_observability.config import ObservabilityConfig
         from neural_hive_observability.health import (
             HealthChecker as HealthManager,
             HealthStatus,
         )
-        from neural_hive_observability.config import ObservabilityConfig
 
         HEALTH_MANAGER_NEEDS_CONFIG = True
         # Criar stubs simples para RedisHealthCheck e CustomHealthCheck
-        from neural_hive_observability.health import HealthCheck, HealthCheckResult
         import asyncio
         import time as _time
+
+        from neural_hive_observability.health import HealthCheck, HealthCheckResult
 
         class RedisHealthCheck(HealthCheck):
             def __init__(self, name="redis", connection_check=None):
@@ -87,11 +83,7 @@ try:
                             is_connected = await self.connection_check()
                         else:
                             is_connected = self.connection_check()
-                        status = (
-                            HealthStatus.HEALTHY
-                            if is_connected
-                            else HealthStatus.UNHEALTHY
-                        )
+                        status = HealthStatus.HEALTHY if is_connected else HealthStatus.UNHEALTHY
                     else:
                         status = HealthStatus.UNKNOWN
                     return self._create_result(
@@ -117,29 +109,26 @@ try:
                         is_healthy = await self.check_func()
                     else:
                         is_healthy = self.check_func()
-                    status = (
-                        HealthStatus.HEALTHY if is_healthy else HealthStatus.UNHEALTHY
-                    )
-                    return self._create_result(
-                        status, self.description, start_time=start_time
-                    )
+                    status = HealthStatus.HEALTHY if is_healthy else HealthStatus.UNHEALTHY
+                    return self._create_result(status, self.description, start_time=start_time)
                 except Exception as e:
                     return self._create_result(
                         HealthStatus.UNHEALTHY, f"Erro: {e}", start_time=start_time
                     )
 
-    from neural_hive_observability.health_checks.otel import OTELPipelineHealthCheck
     from observability.metrics import (
+        confidence_histogram,
         intent_counter,
         latency_histogram,
-        confidence_histogram,
         low_confidence_routed_counter,
         record_too_large_counter,
     )
 
+    from neural_hive_observability.health_checks.otel import OTELPipelineHealthCheck
+
     OBSERVABILITY_AVAILABLE = True
     OTEL_HEALTH_CHECK_AVAILABLE = True
-except ImportError as e:
+except ImportError:
     OBSERVABILITY_AVAILABLE = False
     OTEL_HEALTH_CHECK_AVAILABLE = False
     HEALTH_MANAGER_NEEDS_CONFIG = False
@@ -270,13 +259,13 @@ settings = get_settings()
 security = HTTPBearer()
 
 # Componentes de inicialização
-asr_pipeline: Optional[ASRPipeline] = None
-nlu_pipeline: Optional[NLUPipeline] = None
-kafka_producer: Optional[KafkaIntentProducer] = None
+asr_pipeline: ASRPipeline | None = None
+nlu_pipeline: NLUPipeline | None = None
+kafka_producer: KafkaIntentProducer | None = None
 redis_client = None
 oauth2_validator = None
-health_manager: Optional[HealthManager] = None
-rate_limiter: Optional[RateLimiter] = None
+health_manager: HealthManager | None = None
+rate_limiter: RateLimiter | None = None
 
 
 @asynccontextmanager
@@ -348,6 +337,55 @@ app.add_middleware(
 # A propriedade allowed_hosts_property garante defaults seguros sem wildcard em produção
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.allowed_hosts_property)
 
+
+# Middleware de Security Headers
+class SecurityHeadersMiddleware:
+    """Adiciona headers de segurança HTTP a todas as respostas."""
+
+    async def __call__(self, request: Request, call_next):
+        response = await call_next(request)
+
+        # Headers de segurança OWASP recomendados
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
+            "style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data: https:; "
+            "font-src 'self' data:; "
+            "connect-src 'self'; "
+            "frame-ancestors 'none'; "
+            "base-uri 'self'; "
+            "form-action 'self';"
+        )
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"] = (
+            "geolocation=(), "
+            "microphone=(), "
+            "camera=(), "
+            "payment=(), "
+            "usb=(), "
+            "magnetometer=(), "
+            "gyroscope=(), "
+            "accelerometer=()"
+        )
+        response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
+        response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
+
+        # Remove informações de servidor
+        if "Server" in response.headers:
+            del response.headers["Server"]
+        if "X-Powered-By" in response.headers:
+            del response.headers["X-Powered-By"]
+
+        return response
+
+
+app.add_middleware(SecurityHeadersMiddleware)
+
 # Middleware de autenticação OAuth2
 auth_middleware = create_auth_middleware(
     exclude_paths=["/health", "/ready", "/metrics", "/docs", "/openapi.json"]
@@ -362,7 +400,7 @@ if settings.otel_enabled and OBSERVABILITY_AVAILABLE:
 
 
 # Dependências
-async def get_user_context_from_request(request: Request) -> Dict[str, Any]:
+async def get_user_context_from_request(request: Request) -> dict[str, Any]:
     """Extrair contexto do usuário autenticado"""
     # Se validação de token está desabilitada, retornar contexto de teste
     if not settings.token_validation_enabled:
@@ -405,7 +443,7 @@ async def health_check():
             content={
                 "status": "unhealthy",
                 "message": "Health manager not initialized",
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "version": "1.0.0",
             },
         )
@@ -435,7 +473,7 @@ async def health_check():
                     else 0,
                     "timestamp": result.timestamp
                     if hasattr(result, "timestamp")
-                    else datetime.utcnow().isoformat(),
+                    else datetime.now(UTC).isoformat(),
                     "details": result.details
                     if hasattr(result, "details")
                     else result.get("details", {}),
@@ -445,14 +483,12 @@ async def health_check():
         status_value = (
             overall_status
             if isinstance(overall_status, str)
-            else (
-                overall_status.value if hasattr(overall_status, "value") else "unknown"
-            )
+            else (overall_status.value if hasattr(overall_status, "value") else "unknown")
         )
 
         response_data = {
             "status": status_value,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "version": "1.0.0",
             "service_name": "gateway-intencoes",
             "neural_hive_component": "gateway",
@@ -463,19 +499,18 @@ async def health_check():
         # Return appropriate HTTP status code based on health
         if overall_status in [HealthStatus.UNHEALTHY]:
             return JSONResponse(status_code=503, content=response_data)
-        elif overall_status in [HealthStatus.DEGRADED]:
+        if overall_status in [HealthStatus.DEGRADED]:
             return JSONResponse(status_code=200, content=response_data)
-        else:
-            return response_data
+        return response_data
 
     except Exception as e:
-        logger.error(f"Erro ao executar health check: {e}")
+        logger.exception(f"Erro ao executar health check: {e}")
         return JSONResponse(
             status_code=503,
             content={
                 "status": "unhealthy",
-                "message": f"Health check error: {str(e)}",
-                "timestamp": datetime.utcnow().isoformat(),
+                "message": f"Health check error: {e!s}",
+                "timestamp": datetime.now(UTC).isoformat(),
                 "version": "1.0.0",
                 "service_name": "gateway-intencoes",
             },
@@ -491,7 +526,7 @@ async def readiness_check():
             content={
                 "status": "not_ready",
                 "message": "Health manager not initialized",
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             },
         )
 
@@ -505,9 +540,7 @@ async def readiness_check():
             result = await health_manager.check_single(check_name)
             if result:
                 check_results[check_name] = (
-                    result.status.value
-                    if hasattr(result.status, "value")
-                    else str(result.status)
+                    result.status.value if hasattr(result.status, "value") else str(result.status)
                 )
                 if result.status != HealthStatus.HEALTHY:
                     overall_ready = False
@@ -535,30 +568,28 @@ async def readiness_check():
 
         response_data = {
             "status": "ready" if overall_ready else "not_ready",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "service_name": "gateway-intencoes",
             "neural_hive_component": "gateway",
             "checks": check_results,
         }
 
-        return JSONResponse(
-            status_code=200 if overall_ready else 503, content=response_data
-        )
+        return JSONResponse(status_code=200 if overall_ready else 503, content=response_data)
 
     except Exception as e:
-        logger.error(f"Erro ao executar readiness check: {e}")
+        logger.exception(f"Erro ao executar readiness check: {e}")
         return JSONResponse(
             status_code=503,
             content={
                 "status": "not_ready",
-                "message": f"Readiness check error: {str(e)}",
-                "timestamp": datetime.utcnow().isoformat(),
+                "message": f"Readiness check error: {e!s}",
+                "timestamp": datetime.now(UTC).isoformat(),
             },
         )
 
 
 @app.get("/cache/stats")
-async def cache_stats(user: Dict[str, Any] = Depends(get_current_admin_user)):
+async def cache_stats(user: dict[str, Any] = Depends(get_current_admin_user)):
     """Estatísticas do cache Redis (apenas admins)"""
     if not redis_client:
         raise HTTPException(
@@ -572,7 +603,7 @@ async def cache_stats(user: Dict[str, Any] = Depends(get_current_admin_user)):
 @app.get("/metrics")
 async def metrics_endpoint():
     """Endpoint de métricas Prometheus"""
-    from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+    from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
     return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
@@ -581,7 +612,7 @@ async def metrics_endpoint():
 async def get_intention(
     intent_id: str,
     request: Request,
-    user_context: Dict[str, Any] = Depends(get_user_context_from_request),
+    user_context: dict[str, Any] = Depends(get_user_context_from_request),
 ):
     """Obter intenção do cache por ID"""
     if not redis_client:
@@ -611,20 +642,20 @@ async def get_intention(
             "intent_id": intent_id,
             "data": cached_intent,
             "cached": True,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Erro ao obter intenção {intent_id}: {e}")
+        logger.exception(f"Erro ao obter intenção {intent_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erro interno ao buscar intenção",
         )
 
 
-@app.post("/intentions", response_model=Dict[str, Any])
+@app.post("/intentions", response_model=dict[str, Any])
 @trace_intent(
     operation_name="captura.intencao.texto",
     extract_intent_id_from="intent_id",
@@ -634,12 +665,12 @@ async def get_intention(
 async def process_text_intention(
     request: IntentRequest,
     http_request: Request,
-    user_context: Dict[str, Any] = Depends(get_user_context_from_request),
+    user_context: dict[str, Any] = Depends(get_user_context_from_request),
 ):
     """
     Processar intenção em formato texto
     """
-    start_time = datetime.utcnow()
+    start_time = datetime.now(UTC)
 
     try:
         # Gerar IDs de correlação
@@ -647,16 +678,13 @@ async def process_text_intention(
         correlation_id = request.correlation_id or str(uuid.uuid4())
 
         # Verificar deduplicação via Redis se disponível
-        duplicate_check_passed = True
         if redis_client and request.correlation_id:
             try:
                 # Usar correlation_id para evitar duplicatas
                 dedup_key = f"dedup:{request.correlation_id}"
 
                 # Verificar se já processamos esta intenção
-                existing = await redis_client.get(
-                    dedup_key, intent_type="deduplication"
-                )
+                existing = await redis_client.get(dedup_key, intent_type="deduplication")
                 if existing:
                     logger.info(
                         "Intenção duplicada detectada",
@@ -760,11 +788,11 @@ async def process_text_intention(
 
 async def _process_text_intention_with_context(
     request: IntentRequest,
-    user_context: Dict[str, Any],
+    user_context: dict[str, Any],
     intent_id: str,
     correlation_id: str,
     start_time: datetime,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Processar intenção de texto com contexto de correlação."""
     try:
         # Log início do processamento
@@ -773,9 +801,7 @@ async def _process_text_intention_with_context(
             intent_id=intent_id,
             correlation_id=correlation_id,
             user_id=user_context.get("userId"),
-            intent_text=request.text[:100] + "..."
-            if len(request.text) > 100
-            else request.text,
+            intent_text=request.text[:100] + "..." if len(request.text) > 100 else request.text,
         )
 
         # Pipeline NLU para processar texto
@@ -806,7 +832,7 @@ async def _process_text_intention_with_context(
             context=user_context,
             constraints=request.constraints.dict() if request.constraints else None,
             qos=request.qos.dict() if request.qos else None,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(UTC),
         )
 
         # Confidence gating - route based on confidence level
@@ -871,9 +897,7 @@ async def _process_text_intention_with_context(
                 use_fast_producer=False,  # Default: transacional para exactly-once
             )
             status_message = "processed_low_confidence"
-            processing_notes = [
-                "Processado com confiança baixa - recomenda-se validação"
-            ]
+            processing_notes = ["Processado com confiança baixa - recomenda-se validação"]
 
             logger.warning(
                 "Intenção processada com baixa confiança",
@@ -927,7 +951,7 @@ async def _process_text_intention_with_context(
                 logger.warning(f"Falha ao cachear intent {intent_id} no Redis: {e}")
 
         # Métricas
-        processing_time = (datetime.utcnow() - start_time).total_seconds()
+        processing_time = (datetime.now(UTC) - start_time).total_seconds()
 
         # Derivar status da métrica a partir de status_message
         if status_message == "processed":
@@ -1011,7 +1035,8 @@ async def _process_text_intention_with_context(
 
     except Exception as e:
         error_str = str(e)
-        import sys, traceback
+        import sys
+        import traceback
 
         traceback.print_exc(file=sys.stderr)
 
@@ -1062,7 +1087,7 @@ async def _process_text_intention_with_context(
         )
 
 
-@app.post("/intentions/voice", response_model=Dict[str, Any])
+@app.post("/intentions/voice", response_model=dict[str, Any])
 @trace_intent(
     operation_name="captura.intencao.voz",
     extract_intent_id_from="intent_id",
@@ -1073,13 +1098,13 @@ async def process_voice_intention(
     http_request: Request,
     audio_file: UploadFile = File(...),
     language: str = Form("pt-BR"),
-    correlation_id: Optional[str] = Form(None),
-    user_context: Dict[str, Any] = Depends(get_user_context_from_request),
+    correlation_id: str | None = Form(None),
+    user_context: dict[str, Any] = Depends(get_user_context_from_request),
 ):
     """
     Processar intenção de áudio (voz)
     """
-    start_time = datetime.utcnow()
+    start_time = datetime.now(UTC)
 
     try:
         # Validar tipo de arquivo de áudio
@@ -1106,9 +1131,7 @@ async def process_voice_intention(
         audio_content = await audio_file.read()
 
         # Pipeline ASR para converter áudio em texto
-        asr_result = await asr_pipeline.process(
-            audio_data=audio_content, language=language
-        )
+        asr_result = await asr_pipeline.process(audio_data=audio_content, language=language)
 
         if not asr_result.text or len(asr_result.text.strip()) < 3:
             raise HTTPException(
@@ -1139,9 +1162,7 @@ async def process_voice_intention(
                 "entities": [entity.dict() for entity in nlu_result.entities],
                 "keywords": nlu_result.keywords,
             },
-            confidence=min(
-                asr_result.confidence, nlu_result.confidence
-            ),  # Menor confiança
+            confidence=min(asr_result.confidence, nlu_result.confidence),  # Menor confiança
             confidence_status=nlu_result.confidence_status,
             context={
                 **user_context,
@@ -1150,7 +1171,7 @@ async def process_voice_intention(
                 "nlu_confidence": nlu_result.confidence,
                 "audio_duration_s": asr_result.duration,
             },
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(UTC),
         )
 
         # Confidence gating - route based on confidence level (same as text flow)
@@ -1166,9 +1187,7 @@ async def process_voice_intention(
             nlu_pipeline, "last_adaptive_threshold"
         ):
             effective_threshold_high = nlu_pipeline.last_adaptive_threshold
-            logger.debug(
-                f"Using adaptive threshold for voice: {effective_threshold_high:.2f}"
-            )
+            logger.debug(f"Using adaptive threshold for voice: {effective_threshold_high:.2f}")
 
         # Garantir ordenação dos thresholds: high >= low + 0.01
         if effective_threshold_high < effective_threshold_low + 0.01:
@@ -1214,9 +1233,7 @@ async def process_voice_intention(
                 use_fast_producer=False,  # Default: transacional para exactly-once
             )
             status_message = "processed_low_confidence"
-            processing_notes = [
-                "Processado com confiança baixa - recomenda-se validação"
-            ]
+            processing_notes = ["Processado com confiança baixa - recomenda-se validação"]
 
             logger.warning(
                 "Intenção de voz processada com baixa confiança",
@@ -1269,16 +1286,12 @@ async def process_voice_intention(
                     ttl=settings.redis_default_ttl,
                     intent_type="intent",
                 )
-                logger.debug(
-                    f"Voice intent {intent_id} cached in Redis", cache_key=cache_key
-                )
+                logger.debug(f"Voice intent {intent_id} cached in Redis", cache_key=cache_key)
             except Exception as e:
-                logger.warning(
-                    f"Falha ao cachear voice intent {intent_id} no Redis: {e}"
-                )
+                logger.warning(f"Falha ao cachear voice intent {intent_id} no Redis: {e}")
 
         # Métricas
-        processing_time = (datetime.utcnow() - start_time).total_seconds()
+        processing_time = (datetime.now(UTC) - start_time).total_seconds()
 
         # Derivar status da métrica a partir de status_message
         if status_message == "processed":
@@ -1425,7 +1438,7 @@ async def service_status():
         "service": "Gateway de Intenções",
         "version": "1.0.0",
         "environment": settings.environment,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "components": {
             "asr_pipeline": {
                 "ready": asr_pipeline is not None and asr_pipeline.is_ready(),

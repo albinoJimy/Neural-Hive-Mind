@@ -608,7 +608,7 @@ class TestAuditLoggerQueries:
         skip_if_audit_logger_unavailable()
 
         # Arrange
-        now = datetime.datetime.utcnow()
+        now = datetime.datetime.now(timezone.utc)
 
         await audit_logger.log_training_started(
             model_name="model_a",

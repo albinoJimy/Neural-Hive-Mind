@@ -6,15 +6,15 @@ de chaos e medição de métricas de recuperação.
 """
 
 import asyncio
-from datetime import datetime
-from typing import Any, Dict, List, Optional
+from datetime import datetime, timezone
 from time import perf_counter
+from typing import Any, Dict, List, Optional
+
 import structlog
-from prometheus_client import Counter, Histogram, Gauge
+from prometheus_client import Counter, Gauge, Histogram
 
 from ..chaos_models import (
     ChaosExperiment,
-    ChaosExperimentStatus,
     FaultInjection,
     ValidationCriteria,
     ValidationResult,
@@ -24,28 +24,26 @@ logger = structlog.get_logger(__name__)
 
 # Métricas Prometheus para validação de playbooks
 PLAYBOOK_VALIDATION_TOTAL = Counter(
-    'chaos_playbook_validation_total',
-    'Total de validações de playbook executadas',
-    ['playbook', 'status']
+    "chaos_playbook_validation_total",
+    "Total de validações de playbook executadas",
+    ["playbook", "status"],
 )
 
 PLAYBOOK_RECOVERY_DURATION = Histogram(
-    'chaos_playbook_recovery_duration_seconds',
-    'Tempo de recuperação usando playbook',
-    ['playbook'],
-    buckets=[5, 10, 30, 60, 120, 300, 600]
+    "chaos_playbook_recovery_duration_seconds",
+    "Tempo de recuperação usando playbook",
+    ["playbook"],
+    buckets=[5, 10, 30, 60, 120, 300, 600],
 )
 
 PLAYBOOK_VALIDATION_FAILURES = Counter(
-    'chaos_playbook_validation_failures_total',
-    'Total de falhas de validação de playbook',
-    ['playbook', 'failure_reason']
+    "chaos_playbook_validation_failures_total",
+    "Total de falhas de validação de playbook",
+    ["playbook", "failure_reason"],
 )
 
 PLAYBOOK_EFFECTIVENESS_SCORE = Gauge(
-    'chaos_playbook_effectiveness_score',
-    'Score de eficácia do playbook (0-100)',
-    ['playbook']
+    "chaos_playbook_effectiveness_score", "Score de eficácia do playbook (0-100)", ["playbook"]
 )
 
 
@@ -106,7 +104,7 @@ class PlaybookValidator:
             "playbook_validator.starting_validation",
             playbook=playbook_name,
             injection_id=injection.id,
-            fault_type=injection.fault_type.value
+            fault_type=injection.fault_type.value,
         )
 
         try:
@@ -115,18 +113,13 @@ class PlaybookValidator:
 
             # Aguardar detecção e execução automática do playbook
             playbook_executed = await self._wait_for_playbook_execution(
-                playbook_name,
-                context,
-                timeout_seconds=criteria.max_recovery_time_seconds
+                playbook_name, context, timeout_seconds=criteria.max_recovery_time_seconds
             )
 
             if not playbook_executed:
-                observations.append(
-                    f"Playbook '{playbook_name}' não foi executado automaticamente"
-                )
+                observations.append(f"Playbook '{playbook_name}' não foi executado automaticamente")
                 PLAYBOOK_VALIDATION_FAILURES.labels(
-                    playbook=playbook_name,
-                    failure_reason="not_triggered"
+                    playbook=playbook_name, failure_reason="not_triggered"
                 ).inc()
 
                 return ValidationResult(
@@ -135,7 +128,7 @@ class PlaybookValidator:
                     recovery_time_seconds=perf_counter() - start_time,
                     criteria_met={"playbook_executed": False},
                     observations=observations,
-                    metrics_snapshot=initial_metrics
+                    metrics_snapshot=initial_metrics,
                 )
 
             # Medir tempo de recuperação
@@ -159,9 +152,7 @@ class PlaybookValidator:
 
             # Validar disponibilidade
             availability = await self._measure_availability(
-                context,
-                injection.start_time,
-                datetime.utcnow()
+                context, injection.start_time, datetime.now(timezone.utc)
             )
             availability_ok = availability >= criteria.min_availability_percent
             criteria_met["availability"] = availability_ok
@@ -174,9 +165,7 @@ class PlaybookValidator:
 
             # Validar taxa de erros
             error_rate = await self._measure_error_rate(
-                context,
-                injection.start_time,
-                datetime.utcnow()
+                context, injection.start_time, datetime.now(timezone.utc)
             )
             error_rate_ok = error_rate <= criteria.max_error_rate_percent
             criteria_met["error_rate"] = error_rate_ok
@@ -204,31 +193,20 @@ class PlaybookValidator:
 
             if all_criteria_met:
                 observations.append("Todos os critérios de validação atendidos")
-                PLAYBOOK_VALIDATION_TOTAL.labels(
-                    playbook=playbook_name,
-                    status="success"
-                ).inc()
+                PLAYBOOK_VALIDATION_TOTAL.labels(playbook=playbook_name, status="success").inc()
             else:
-                PLAYBOOK_VALIDATION_TOTAL.labels(
-                    playbook=playbook_name,
-                    status="failed"
-                ).inc()
+                PLAYBOOK_VALIDATION_TOTAL.labels(playbook=playbook_name, status="failed").inc()
                 for criterion, met in criteria_met.items():
                     if not met:
                         PLAYBOOK_VALIDATION_FAILURES.labels(
-                            playbook=playbook_name,
-                            failure_reason=criterion
+                            playbook=playbook_name, failure_reason=criterion
                         ).inc()
 
             # Calcular e registrar score de eficácia
             effectiveness_score = self._calculate_effectiveness_score(
-                criteria_met,
-                recovery_time,
-                criteria
+                criteria_met, recovery_time, criteria
             )
-            PLAYBOOK_EFFECTIVENESS_SCORE.labels(playbook=playbook_name).set(
-                effectiveness_score
-            )
+            PLAYBOOK_EFFECTIVENESS_SCORE.labels(playbook=playbook_name).set(effectiveness_score)
 
             result = ValidationResult(
                 playbook_name=playbook_name,
@@ -237,14 +215,15 @@ class PlaybookValidator:
                 availability_percent=availability,
                 error_rate_percent=error_rate,
                 latency_p95_ms=await self._measure_latency_p95(context)
-                if criteria.max_latency_p95_ms else None,
+                if criteria.max_latency_p95_ms
+                else None,
                 criteria_met=criteria_met,
                 observations=observations,
                 metrics_snapshot={
                     "initial": initial_metrics,
                     "final": final_metrics,
-                    "effectiveness_score": effectiveness_score
-                }
+                    "effectiveness_score": effectiveness_score,
+                },
             )
 
             # Armazenar no histórico
@@ -257,28 +236,23 @@ class PlaybookValidator:
                 playbook=playbook_name,
                 success=result.success,
                 recovery_time=recovery_time,
-                effectiveness_score=effectiveness_score
+                effectiveness_score=effectiveness_score,
             )
 
             return result
 
         except Exception as e:
             logger.error(
-                "playbook_validator.validation_failed",
-                playbook=playbook_name,
-                error=str(e)
+                "playbook_validator.validation_failed", playbook=playbook_name, error=str(e)
             )
-            PLAYBOOK_VALIDATION_TOTAL.labels(
-                playbook=playbook_name,
-                status="error"
-            ).inc()
+            PLAYBOOK_VALIDATION_TOTAL.labels(playbook=playbook_name, status="error").inc()
 
             return ValidationResult(
                 playbook_name=playbook_name,
                 success=False,
                 recovery_time_seconds=perf_counter() - start_time,
                 observations=[f"Erro durante validação: {str(e)}"],
-                criteria_met={}
+                criteria_met={},
             )
 
     async def measure_mttr(
@@ -300,19 +274,11 @@ class PlaybookValidator:
         """
         history = self._validation_history.get(playbook_name, [])
         recovery_times = [
-            r.recovery_time_seconds
-            for r in history
-            if r.recovery_time_seconds is not None
+            r.recovery_time_seconds for r in history if r.recovery_time_seconds is not None
         ][-num_samples:]
 
         if not recovery_times:
-            return {
-                "mttr_avg": 0,
-                "mttr_min": 0,
-                "mttr_max": 0,
-                "mttr_p95": 0,
-                "sample_count": 0
-            }
+            return {"mttr_avg": 0, "mttr_min": 0, "mttr_max": 0, "mttr_p95": 0, "sample_count": 0}
 
         import statistics
 
@@ -324,7 +290,7 @@ class PlaybookValidator:
             "mttr_min": min(recovery_times),
             "mttr_max": max(recovery_times),
             "mttr_p95": sorted_times[p95_index] if sorted_times else 0,
-            "sample_count": len(recovery_times)
+            "sample_count": len(recovery_times),
         }
 
     async def check_blast_radius(
@@ -359,7 +325,7 @@ class PlaybookValidator:
             "actual_affected": actual_affected,
             "unexpected_affected": unexpected,
             "blast_radius": blast_radius,
-            "blast_radius_limit": limit
+            "blast_radius_limit": limit,
         }
 
     async def generate_validation_report(
@@ -392,11 +358,7 @@ class PlaybookValidator:
                     failed_criteria[criterion] = failed_criteria.get(criterion, 0) + 1
 
         # Gerar recomendações
-        recommendations = self._generate_recommendations(
-            playbook_name,
-            mttr_stats,
-            failed_criteria
-        )
+        recommendations = self._generate_recommendations(playbook_name, mttr_stats, failed_criteria)
 
         return {
             "playbook_name": playbook_name,
@@ -405,12 +367,11 @@ class PlaybookValidator:
             "validation_count": len(validations),
             "success_count": len(successful),
             "failure_count": len(failed),
-            "success_rate": len(successful) / len(validations) * 100
-            if validations else 0,
+            "success_rate": len(successful) / len(validations) * 100 if validations else 0,
             "mttr_stats": mttr_stats,
             "failed_criteria_frequency": failed_criteria,
             "recommendations": recommendations,
-            "generated_at": datetime.utcnow().isoformat()
+            "generated_at": datetime.now(timezone.utc).isoformat(),
         }
 
     async def _wait_for_playbook_execution(
@@ -433,7 +394,7 @@ class PlaybookValidator:
             if self.prometheus_client:
                 # Query para verificar execução recente do playbook
                 query = (
-                    f'increase(self_healing_playbook_execution_total'
+                    f"increase(self_healing_playbook_execution_total"
                     f'{{playbook="{playbook_name}"}}[5m]) > 0'
                 )
                 try:
@@ -442,14 +403,11 @@ class PlaybookValidator:
                         logger.info(
                             "playbook_validator.playbook_executed",
                             playbook=playbook_name,
-                            elapsed_seconds=perf_counter() - start
+                            elapsed_seconds=perf_counter() - start,
                         )
                         return True
                 except Exception as e:
-                    logger.warning(
-                        "playbook_validator.prometheus_query_failed",
-                        error=str(e)
-                    )
+                    logger.warning("playbook_validator.prometheus_query_failed", error=str(e))
 
             await asyncio.sleep(check_interval)
 
@@ -458,7 +416,7 @@ class PlaybookValidator:
     async def _capture_metrics(self, context: Dict[str, Any]) -> Dict[str, Any]:
         """Captura snapshot de métricas atuais."""
         metrics = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         if self.prometheus_client:
@@ -482,10 +440,7 @@ class PlaybookValidator:
                         pass
 
             except Exception as e:
-                logger.warning(
-                    "playbook_validator.metrics_capture_failed",
-                    error=str(e)
-                )
+                logger.warning("playbook_validator.metrics_capture_failed", error=str(e))
 
         return metrics
 
@@ -505,9 +460,9 @@ class PlaybookValidator:
         try:
             # Query para calcular disponibilidade
             query = (
-                f'avg_over_time('
+                f"avg_over_time("
                 f'(sum(up{{service="{service_name}"}}) > 0)[{int(duration)}s:]'
-                f') * 100'
+                f") * 100"
             )
 
             result = await self.prometheus_client.query(query)
@@ -515,10 +470,7 @@ class PlaybookValidator:
                 return float(result[0].get("value", [None, 99.9])[1])
 
         except Exception as e:
-            logger.warning(
-                "playbook_validator.availability_measurement_failed",
-                error=str(e)
-            )
+            logger.warning("playbook_validator.availability_measurement_failed", error=str(e))
 
         return 99.9
 
@@ -547,10 +499,7 @@ class PlaybookValidator:
                 return float(result[0].get("value", [None, 0.1])[1])
 
         except Exception as e:
-            logger.warning(
-                "playbook_validator.error_rate_measurement_failed",
-                error=str(e)
-            )
+            logger.warning("playbook_validator.error_rate_measurement_failed", error=str(e))
 
         return 0.1
 
@@ -563,7 +512,7 @@ class PlaybookValidator:
 
         try:
             query = (
-                f'histogram_quantile(0.95, '
+                f"histogram_quantile(0.95, "
                 f'rate(http_request_duration_seconds_bucket{{service="{service_name}"}}[5m])) * 1000'
             )
 
@@ -572,10 +521,7 @@ class PlaybookValidator:
                 return float(result[0].get("value", [None, 100.0])[1])
 
         except Exception as e:
-            logger.warning(
-                "playbook_validator.latency_measurement_failed",
-                error=str(e)
-            )
+            logger.warning("playbook_validator.latency_measurement_failed", error=str(e))
 
         return 100.0
 
@@ -646,8 +592,7 @@ class PlaybookValidator:
 
         if "latency_p95" in failed_criteria:
             recommendations.append(
-                "Latência alta durante recuperação. "
-                "Considere warm-up de conexões e caches."
+                "Latência alta durante recuperação. " "Considere warm-up de conexões e caches."
             )
 
         if not recommendations:
@@ -658,11 +603,7 @@ class PlaybookValidator:
 
         return recommendations
 
-    def get_validation_history(
-        self,
-        playbook_name: str,
-        limit: int = 10
-    ) -> List[ValidationResult]:
+    def get_validation_history(self, playbook_name: str, limit: int = 10) -> List[ValidationResult]:
         """Retorna histórico de validações para um playbook."""
         history = self._validation_history.get(playbook_name, [])
         return history[-limit:]

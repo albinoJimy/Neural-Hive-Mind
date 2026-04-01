@@ -7,7 +7,7 @@ Espec: GAPS-05 Scout Agents
 
 import pytest
 from unittest.mock import Mock, MagicMock, AsyncMock
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Dict, List
 
 # Import com skip automático se módulo não disponível
@@ -70,7 +70,7 @@ class TestSaveExploration:
             'intent_text': 'Implementar API',
             'status': 'started',
             'scouts_deployed': ['pattern_matcher', 'code_searcher'],
-            'started_at': datetime.utcnow()
+            'started_at': datetime.now(timezone.utc)
         }
 
         mock_result = MagicMock()
@@ -323,14 +323,14 @@ class TestQueryExplorations:
         """Testa consulta por intervalo de datas."""
         mock_cursor = AsyncMock()
         mock_cursor.to_list = AsyncMock(return_value=[
-            {'exploration_id': 'exp-1', 'created_at': datetime.utcnow()}
+            {'exploration_id': 'exp-1', 'created_at': datetime.now(timezone.utc)}
         ])
         mock_cursor.limit = Mock(return_value=mock_cursor)
         mock_cursor.sort = Mock(return_value=mock_cursor)
         mock_collection.find = Mock(return_value=mock_cursor)
 
-        start_date = datetime.utcnow() - timedelta(days=7)
-        end_date = datetime.utcnow()
+        start_date = datetime.now(timezone.utc) - timedelta(days=7)
+        end_date = datetime.now(timezone.utc)
 
         result = await ledger.query_explorations(
             start_date=start_date,

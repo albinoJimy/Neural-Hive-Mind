@@ -1,0 +1,91 @@
+# HelmRelease para Worker Agents - Prod
+# Gerenciado pelo FluxCD Helm Controller
+
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: worker-agents
+  namespace: neural-hive
+
+spec:
+  interval: 5m
+  timeout: 10m
+
+  chart:
+    spec:
+      chart: ./helm-charts/worker-agents
+      sourceRef:
+        kind: GitRepository
+        name: neural-hive-mind
+        namespace: flux-system
+
+  # Valores do Helm - override para produção
+  values:
+    image:
+      repository: ghcr.io/albinojimy/neural-hive-mind/worker-agents
+      tag: "1.0.0"
+      pullPolicy: IfNotPresent
+
+    replicas: 4
+
+    resources:
+      requests:
+        cpu: 500m
+        memory: 512Mi
+      limits:
+        cpu: 2000m
+        memory: 2Gi
+
+    autoscaling:
+      enabled: true
+      minReplicas: 4
+      maxReplicas: 20
+      targetCPUUtilizationPercentage: 70
+
+    # Executores disponíveis
+    executors:
+      query:
+        enabled: true
+        replicas: 2
+      transform:
+        enabled: true
+        replicas: 2
+      validate:
+        enabled: true
+        replicas: 2
+      deploy:
+        enabled: true
+        replicas: 1
+
+    # Configurações Temporal
+    temporal:
+      host: "temporal-server.temporal.svc.cluster.local:7233"
+      namespace: "neural-hive-prod"
+      taskQueue: "worker-agents-tasks"
+      maxConcurrent: 100
+
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: "kafka.neural-hive.svc.cluster.local:9092"
+      MONGODB_URL: "mongodb://mongodb-cluster-0.mongodb-cluster.neural-hive.svc.cluster.local:27017"
+      REDIS_URL: "redis://redis-cluster.neural-hive.svc.cluster.local:6379"
+      LOG_LEVEL: "INFO"
+
+    # Health checks
+    livenessProbe:
+      httpGet:
+        path: /health
+        port: 8005
+      initialDelaySeconds: 30
+      periodSeconds: 10
+
+    readinessProbe:
+      httpGet:
+        path: /ready
+        port: 8005
+      initialDelaySeconds: 10
+      periodSeconds: 5
+
+    # Pod disruption budget
+    podDisruptionBudget:
+      enabled: true
+      minAvailable: 2

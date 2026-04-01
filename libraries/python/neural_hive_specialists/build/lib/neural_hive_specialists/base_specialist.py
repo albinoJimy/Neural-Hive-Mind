@@ -1026,7 +1026,7 @@ class BaseSpecialist(ABC):
 
                         # Retornar resposta cacheada com flag indicando cache hit
                         cached_opinion['cached'] = True
-                        cached_opinion['cache_hit_at'] = datetime.utcnow().isoformat()
+                        cached_opinion['cache_hit_at'] = datetime.now(timezone.utc).isoformat()
 
                         # Atualizar processing_time_ms para refletir tempo atual de cache hit
                         # Preservar tempo original em metadata
@@ -1042,7 +1042,7 @@ class BaseSpecialist(ABC):
                         # Preservar evaluated_at original
                         if 'evaluated_at' in cached_opinion:
                             cached_opinion['opinion']['metadata']['evaluated_at_original'] = cached_opinion['evaluated_at']
-                            cached_opinion['evaluated_at'] = datetime.utcnow().isoformat()
+                            cached_opinion['evaluated_at'] = datetime.now(timezone.utc).isoformat()
 
                         return cached_opinion
                     else:
@@ -1311,7 +1311,7 @@ class BaseSpecialist(ABC):
                 'specialist_version': self.version,
                 'opinion': opinion,
                 'processing_time_ms': int(processing_time * 1000),
-                'evaluated_at': datetime.utcnow().isoformat(),
+                'evaluated_at': datetime.now(timezone.utc).isoformat(),
                 'buffered': buffered
             }
 

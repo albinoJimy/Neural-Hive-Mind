@@ -1,17 +1,18 @@
 """Router para endpoints de arquitetura."""
 
+from datetime import datetime, timezone
+
+import structlog
 from fastapi import APIRouter, HTTPException, status
-from datetime import datetime
 
 from src.api.schemas import (
     ArchitectureRequest,
     ArchitectureResponse,
     ComponentResponse,
 )
+from src.models.architecture import ArchitectureType
 from src.planners.design_planner import DesignPlanner
 from src.repositories.architecture_repository import ArchitectureRepository
-from src.models.architecture import ArchitectureType
-import structlog
 
 logger = structlog.get_logger(__name__)
 
@@ -79,7 +80,7 @@ async def create_architecture(request: ArchitectureRequest) -> ArchitectureRespo
             ],
             patterns=[p.value for p in plan.patterns],
             rationale=plan.rationale,
-            created_at=plan.created_at or datetime.utcnow(),
+            created_at=plan.created_at or datetime.now(timezone.utc),
         )
 
     except ValueError as e:
@@ -112,7 +113,7 @@ async def get_architecture(plan_id: str) -> ArchitectureResponse:
         ],
         patterns=[p.value for p in plan.patterns],
         rationale=plan.rationale,
-        created_at=plan.created_at or datetime.utcnow(),
+        created_at=plan.created_at or datetime.now(timezone.utc),
     )
 
 
@@ -145,7 +146,7 @@ async def list_architectures(
             ],
             patterns=[p.value for p in p.patterns],
             rationale=p.rationale,
-            created_at=p.created_at or datetime.utcnow(),
+            created_at=p.created_at or datetime.now(timezone.utc),
         )
         for p in plans
     ]

@@ -11,7 +11,7 @@ Valida que garantias de QoS são respeitadas sob carga:
 import asyncio
 import pytest
 import statistics
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Any
 from unittest.mock import AsyncMock, MagicMock
 
@@ -85,14 +85,14 @@ def create_ticket(
             'durability': durability
         },
         'sla': {
-            'deadline': (datetime.utcnow() + timedelta(hours=deadline_hours)).isoformat(),
+            'deadline': (datetime.now(timezone.utc) + timedelta(hours=deadline_hours)).isoformat(),
             'timeout_ms': int(deadline_hours * 3600000)
         },
         'required_capabilities': ['python', 'data-processing'],
         'namespace': 'default',
         'security_level': 'standard',
         'estimated_duration_ms': 1000,
-        'created_at': datetime.utcnow().isoformat()
+        'created_at': datetime.now(timezone.utc).isoformat()
     }
 
 

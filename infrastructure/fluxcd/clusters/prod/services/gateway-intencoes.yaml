@@ -1,0 +1,114 @@
+# HelmRelease para Gateway Intenções - Prod
+# Gerenciado pelo FluxCD Helm Controller
+
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: gateway-intencoes
+  namespace: neural-hive
+
+spec:
+  interval: 5m
+  timeout: 10m
+
+  chart:
+    spec:
+      chart: ./helm-charts/gateway-intencoes
+      sourceRef:
+        kind: GitRepository
+        name: neural-hive-mind
+        namespace: flux-system
+
+  # Valores do Helm - override para produção
+  values:
+    image:
+      repository: ghcr.io/albinojimy/neural-hive-mind/gateway-intencoes
+      tag: "1.0.0" # {"$imagepolicy": "flux-system:gateway-intencoes-semver"}
+      pullPolicy: IfNotPresent
+
+    replicas: 3
+
+    resources:
+      requests:
+        cpu: 500m
+        memory: 512Mi
+      limits:
+        cpu: 2000m
+        memory: 2Gi
+
+    autoscaling:
+      enabled: true
+      minReplicas: 3
+      maxReplicas: 10
+      targetCPUUtilizationPercentage: 70
+      targetMemoryUtilizationPercentage: 80
+
+    # Configurações de ambiente
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: "kafka.neural-hive.svc.cluster.local:9092"
+      MONGODB_URL: "mongodb://mongodb-cluster-0.mongodb-cluster.neural-hive.svc.cluster.local:27017"
+      REDIS_URL: "redis://redis-cluster.neural-hive.svc.cluster.local:6379"
+      LOG_LEVEL: "INFO"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://jaeger-collector.monitoring.svc.cluster.local:4317"
+
+    # Vault/SPIFFE
+    vault:
+      enabled: true
+      address: "http://vault-active.vault.svc.cluster.local:8200"
+      role: "gateway-intencoes"
+
+    spiffe:
+      enabled: true
+      socketPath: "/run/spire/sockets/agent.sock"
+
+    # Health checks
+    livenessProbe:
+      httpGet:
+        path: /health
+        port: 8000
+      initialDelaySeconds: 30
+      periodSeconds: 10
+
+    readinessProbe:
+      httpGet:
+        path: /ready
+        port: 8000
+      initialDelaySeconds: 10
+      periodSeconds: 5
+
+    # Pod disruption budget
+    podDisruptionBudget:
+      enabled: true
+      minAvailable: 2
+
+    # Node affinity para alta disponibilidade
+    affinity:
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - gateway-intencoes
+              topologyKey: kubernetes.io/hostname
+
+  # Política de upgrade
+  upgrade:
+    remediation:
+      retries: 3
+    remediation:
+      remediateLastFailure: true
+
+  # Política de teste (opcional)
+  test:
+    enable: true
+    ignoreNotFound: false
+
+  # Rollback automático em falha
+  rollback:
+    enable: true
+    timeout: 5m
+    cleanupOnFail: true

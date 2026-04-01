@@ -6,7 +6,7 @@ Testa SDK para criação e gerenciamento de agentes.
 """
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 import asyncio
 import json
@@ -90,7 +90,7 @@ class TestAgentLifecycle:
         }
 
         agent["status"] = "initialized"
-        agent["initialized_at"] = datetime.utcnow().isoformat()
+        agent["initialized_at"] = datetime.now(timezone.utc).isoformat()
 
         assert agent["status"] == "initialized"
 
@@ -103,7 +103,7 @@ class TestAgentLifecycle:
         }
 
         agent["status"] = "running"
-        agent["started_at"] = datetime.utcnow().isoformat()
+        agent["started_at"] = datetime.now(timezone.utc).isoformat()
 
         assert agent["status"] == "running"
 
@@ -116,7 +116,7 @@ class TestAgentLifecycle:
         }
 
         agent["status"] = "stopped"
-        agent["stopped_at"] = datetime.utcnow().isoformat()
+        agent["stopped_at"] = datetime.now(timezone.utc).isoformat()
 
         assert agent["status"] == "stopped"
 
@@ -126,10 +126,10 @@ class TestAgentLifecycle:
         agent = {
             "agent_id": str(uuid4()),
             "status": "running",
-            "last_heartbeat": datetime.utcnow().isoformat()
+            "last_heartbeat": datetime.now(timezone.utc).isoformat()
         }
 
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         last_beat = datetime.fromisoformat(agent["last_heartbeat"])
         seconds_since_beat = (now - last_beat).total_seconds()
 
@@ -153,7 +153,7 @@ class TestAgentCommunication:
             "from_agent": "orchestrator",
             "to_agent": "analyst-1",
             "payload": {"task": "analyze_data"},
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         assert message["from_agent"] == "orchestrator"
@@ -166,12 +166,12 @@ class TestAgentCommunication:
             "message_id": str(uuid4()),
             "from_agent": "analyst-1",
             "payload": {"result": "analysis_complete"},
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         received = True
         if received:
-            incoming["received_at"] = datetime.utcnow().isoformat()
+            incoming["received_at"] = datetime.now(timezone.utc).isoformat()
 
         assert "received_at" in incoming
 
@@ -192,12 +192,12 @@ class TestAgentCommunication:
         """Deve tratar timeout de mensagem."""
         message = {
             "message_id": str(uuid4()),
-            "sent_at": (datetime.utcnow() - timedelta(seconds=35)).isoformat(),
+            "sent_at": (datetime.now(timezone.utc) - timedelta(seconds=35)).isoformat(),
             "timeout_seconds": 30
         }
 
         sent = datetime.fromisoformat(message["sent_at"])
-        elapsed = (datetime.utcnow() - sent).total_seconds()
+        elapsed = (datetime.now(timezone.utc) - sent).total_seconds()
 
         is_timeout = elapsed > message["timeout_seconds"]
 
@@ -289,7 +289,7 @@ class TestAgentDiscovery:
             "type": "analyst",
             "endpoint": "http://analyst-1:8000",
             "capabilities": ["query", "analyze"],
-            "registered_at": datetime.utcnow().isoformat()
+            "registered_at": datetime.now(timezone.utc).isoformat()
         }
 
         registry = {}
@@ -448,7 +448,7 @@ class TestAgentStateManagement:
         }
 
         agent["state"] = {}
-        agent["state"]["reset_at"] = datetime.utcnow().isoformat()
+        agent["state"]["reset_at"] = datetime.now(timezone.utc).isoformat()
 
         assert len(agent["state"]) == 1
         assert "reset_at" in agent["state"]
@@ -573,7 +573,7 @@ class TestAgentEvents:
             "event_type": "TaskCompleted",
             "agent_id": "agent-1",
             "task_id": "task-1",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         assert event["event_type"] == "TaskCompleted"
@@ -785,13 +785,13 @@ class TestAgentConnectionPool:
         """Deve limpar conexões ociosas antigas."""
         pool = {
             "idle_connections": [
-                {"conn": "c1", "last_used": datetime.utcnow() - timedelta(seconds=300)},
-                {"conn": "c2", "last_used": datetime.utcnow() - timedelta(seconds=30)}
+                {"conn": "c1", "last_used": datetime.now(timezone.utc) - timedelta(seconds=300)},
+                {"conn": "c2", "last_used": datetime.now(timezone.utc) - timedelta(seconds=30)}
             ],
             "max_idle_time": 60  # segundos
         }
 
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         active_connections = [
             c for c in pool["idle_connections"]
             if (now - c["last_used"]).total_seconds() <= pool["max_idle_time"]
@@ -834,7 +834,7 @@ class TestAgentDiscovery:
         registry[agent_id] = {
             "endpoint": f"http://{agent_id}:8000",
             "status": "healthy",
-            "registered_at": datetime.utcnow().isoformat()
+            "registered_at": datetime.now(timezone.utc).isoformat()
         }
 
         assert agent_id in registry
@@ -863,7 +863,7 @@ class TestAgentDiscovery:
         }
 
         # Simular health check
-        agent["last_check"] = datetime.utcnow().isoformat()
+        agent["last_check"] = datetime.now(timezone.utc).isoformat()
         agent["status"] = "healthy"
 
         assert agent["status"] == "healthy"
@@ -902,7 +902,7 @@ class TestAgentCommunication:
             "to": "agent-2",
             "type": "analysis_request",
             "payload": {"data": "test"},
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         sent = True
@@ -951,7 +951,7 @@ class TestAgentCommunication:
 
         # Simular acknowledge
         message["acknowledged"] = True
-        message["acknowledged_at"] = datetime.utcnow().isoformat()
+        message["acknowledged_at"] = datetime.now(timezone.utc).isoformat()
 
         assert message["acknowledged"] is True
 
@@ -959,12 +959,12 @@ class TestAgentCommunication:
     async def test_message_timeout(self):
         """Deve tratar timeout de mensagem."""
         message = {
-            "sent_at": datetime.utcnow() - timedelta(seconds=65),
+            "sent_at": datetime.now(timezone.utc) - timedelta(seconds=65),
             "timeout": 60,
             "status": "pending"
         }
 
-        elapsed = (datetime.utcnow() - message["sent_at"]).total_seconds()
+        elapsed = (datetime.now(timezone.utc) - message["sent_at"]).total_seconds()
         timed_out = elapsed > message["timeout"]
 
         assert timed_out is True
@@ -995,7 +995,7 @@ class TestAgentLifecycle:
         agent = {"status": "initialized"}
 
         agent["status"] = "running"
-        agent["started_at"] = datetime.utcnow().isoformat()
+        agent["started_at"] = datetime.now(timezone.utc).isoformat()
 
         assert agent["status"] == "running"
         assert agent["started_at"] is not None
@@ -1006,7 +1006,7 @@ class TestAgentLifecycle:
         agent = {"status": "running"}
 
         agent["status"] = "stopped"
-        agent["stopped_at"] = datetime.utcnow().isoformat()
+        agent["stopped_at"] = datetime.now(timezone.utc).isoformat()
 
         assert agent["status"] == "stopped"
 
@@ -1020,7 +1020,7 @@ class TestAgentLifecycle:
 
         agent["status"] = "running"
         agent["restart_count"] += 1
-        agent["restarted_at"] = datetime.utcnow().isoformat()
+        agent["restarted_at"] = datetime.now(timezone.utc).isoformat()
 
         assert agent["status"] == "running"
         assert agent["restart_count"] == 1
@@ -1033,7 +1033,7 @@ class TestAgentLifecycle:
             "last_heartbeat": None
         }
 
-        agent["last_heartbeat"] = datetime.utcnow().isoformat()
+        agent["last_heartbeat"] = datetime.now(timezone.utc).isoformat()
 
         assert agent["last_heartbeat"] is not None
 
@@ -1133,9 +1133,9 @@ class TestAgentMetrics:
         """Deve rastrear latência."""
         latencies = []
 
-        start = datetime.utcnow()
+        start = datetime.now(timezone.utc)
         # Simular operação
-        elapsed = (datetime.utcnow() - start).total_seconds()
+        elapsed = (datetime.now(timezone.utc) - start).total_seconds()
         latencies.append(elapsed)
 
         assert len(latencies) == 1
@@ -1228,7 +1228,7 @@ class TestAgentErrorHandling:
         error_log.append({
             "error": str(error),
             "type": type(error).__name__,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         })
 
         assert len(error_log) == 1

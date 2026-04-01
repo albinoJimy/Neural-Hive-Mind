@@ -28,7 +28,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 @pytest.fixture
 def validate_executor_with_opa(worker_config, mock_metrics, mock_opa_client):
     """ValidateExecutor configurado com cliente OPA mockado."""
-    from services.worker_agents.src.executors.validate_executor import ValidateExecutor
+    from executors.validate_executor import ValidateExecutor
 
     worker_config.opa_enabled = True
     worker_config.opa_url = 'http://opa.test:8181'
@@ -45,7 +45,7 @@ def validate_executor_with_opa(worker_config, mock_metrics, mock_opa_client):
 @pytest.fixture
 def validate_executor_with_trivy(worker_config, mock_metrics):
     """ValidateExecutor configurado para Trivy."""
-    from services.worker_agents.src.executors.validate_executor import ValidateExecutor
+    from executors.validate_executor import ValidateExecutor
 
     worker_config.trivy_enabled = True
     worker_config.trivy_timeout_seconds = 60
@@ -63,7 +63,7 @@ def validate_executor_with_trivy(worker_config, mock_metrics):
 @pytest.fixture
 def validate_executor_simulation_only(worker_config, mock_metrics):
     """ValidateExecutor sem clientes externos (apenas simulacao)."""
-    from services.worker_agents.src.executors.validate_executor import ValidateExecutor
+    from executors.validate_executor import ValidateExecutor
 
     worker_config.opa_enabled = False
     worker_config.trivy_enabled = False
@@ -295,7 +295,7 @@ class TestValidateExecutorOPATimeout:
         mock_opa_client
     ):
         """Deve retornar falha conservadora quando OPA timeout."""
-        from services.worker_agents.src.clients.opa_client import OPATimeoutError
+        from clients.opa_client import OPATimeoutError
 
         mock_opa_client.evaluate_policy.side_effect = OPATimeoutError(
             'OPA evaluation timed out'
@@ -320,7 +320,7 @@ class TestValidateExecutorOPATimeout:
         mock_metrics
     ):
         """Deve registrar metrica de timeout."""
-        from services.worker_agents.src.clients.opa_client import OPATimeoutError
+        from clients.opa_client import OPATimeoutError
 
         mock_opa_client.evaluate_policy.side_effect = OPATimeoutError(
             'OPA evaluation timed out'
@@ -349,7 +349,7 @@ class TestValidateExecutorOPAAPIError:
         mock_opa_client
     ):
         """Deve retornar falha conservadora quando OPA API erro 503."""
-        from services.worker_agents.src.clients.opa_client import OPAAPIError
+        from clients.opa_client import OPAAPIError
 
         mock_opa_client.evaluate_policy.side_effect = OPAAPIError(
             message='Service Unavailable',
@@ -372,7 +372,7 @@ class TestValidateExecutorOPAAPIError:
         mock_opa_client
     ):
         """Deve retornar falha conservadora quando OPA API erro 500."""
-        from services.worker_agents.src.clients.opa_client import OPAAPIError
+        from clients.opa_client import OPAAPIError
 
         mock_opa_client.evaluate_policy.side_effect = OPAAPIError(
             message='Internal Server Error',

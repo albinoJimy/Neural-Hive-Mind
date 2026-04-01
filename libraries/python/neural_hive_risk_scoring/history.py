@@ -6,7 +6,7 @@ Histórico de scores para análise de tendências e padrões temporais.
 
 import structlog
 from typing import Dict, List, Optional, Tuple
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum
@@ -117,7 +117,7 @@ class RiskHistory:
             RiskSnapshot criado
         """
         snapshot = RiskSnapshot(
-            timestamp=assessment.assessed_at or datetime.utcnow(),
+            timestamp=assessment.assessed_at or datetime.now(timezone.utc),
             score=assessment.score,
             band=assessment.band,
             domain=assessment.domain,
@@ -252,7 +252,7 @@ class RiskHistory:
             TrendAnalysis ou None se dados insuficientes
         """
         # Buscar snapshots na janela
-        end_time = datetime.utcnow()
+        end_time = datetime.now(timezone.utc)
         start_time = end_time - timedelta(hours=window_hours)
 
         snapshots = self.get_history(
@@ -405,7 +405,7 @@ class RiskHistory:
             AnomalyDetection ou None se não for anomalia
         """
         # Buscar histórico
-        end_time = datetime.utcnow()
+        end_time = datetime.now(timezone.utc)
         start_time = end_time - timedelta(hours=lookback_hours)
 
         snapshots = self.get_history(
@@ -550,7 +550,7 @@ class RiskHistory:
 
     def _cleanup_old_snapshots(self, entity_id: str):
         """Remove snapshots antigos além da retenção."""
-        cutoff = datetime.utcnow() - timedelta(days=self.retention_days)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=self.retention_days)
         snapshots = self._history.get(entity_id, [])
 
         # Manter apenas snapshots recentes

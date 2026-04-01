@@ -31,11 +31,11 @@ async def health_check(request):
     )
 
 
-# Obter app SSE do FastMCP
-sse_app = mcp.sse_app()
+# Obter app HTTP do FastMCP (http_app é um método que precisa ser chamado)
+http_app = mcp.http_app()
 
-# Adicionar rota de health check ao app SSE
-sse_app.routes.append(Route("/health", health_check, methods=["GET"]))
+# Adicionar rota de health check ao app HTTP
+http_app.routes.append(Route("/health", health_check, methods=["GET"]))
 
 
 class Severity(Enum):

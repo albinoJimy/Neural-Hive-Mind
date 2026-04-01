@@ -12,7 +12,7 @@ import structlog
 import json
 import asyncio
 from typing import Dict, Any, List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from aiokafka import AIOKafkaProducer
 from opentelemetry import trace
 from prometheus_client import Counter, Gauge
@@ -196,7 +196,7 @@ class FlowCTelemetryPublisher:
 
         event = {
             "event_type": "FLOW_C_STARTED",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "intent_id": intent_id,
             "plan_id": plan_id,
             "decision_id": decision_id,
@@ -229,7 +229,7 @@ class FlowCTelemetryPublisher:
 
         event = {
             "event_type": "TICKET_ASSIGNED",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "ticket_id": ticket_id,
             "task_type": task_type,
             "worker_id": worker_id,
@@ -264,7 +264,7 @@ class FlowCTelemetryPublisher:
 
         event = {
             "event_type": "TICKET_COMPLETED",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "ticket_id": ticket_id,
             "task_type": task_type,
             "worker_id": worker_id,
@@ -325,7 +325,7 @@ class FlowCTelemetryPublisher:
             "decision_id": decision_id,
             "workflow_id": workflow_id,
             "ticket_ids": ticket_ids,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "duration_ms": duration_ms,
             "status": status,
             "trace_id": trace_id,

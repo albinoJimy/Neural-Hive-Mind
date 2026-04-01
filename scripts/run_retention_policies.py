@@ -15,7 +15,7 @@ import sys
 import argparse
 import time
 import structlog
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Adicionar path do módulo
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'libraries', 'python'))
@@ -58,7 +58,7 @@ def run_retention_policies(dry_run: bool = False, policy_name: str = None, verbo
             "Iniciando execução de políticas de retenção",
             dry_run=dry_run,
             policy_name=policy_name,
-            timestamp=datetime.utcnow().isoformat()
+            timestamp=datetime.now(timezone.utc).isoformat()
         )
 
         # Carregar configuração

@@ -8,7 +8,7 @@ import requests
 import json
 import time
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, List
 
 # Configurações
@@ -72,7 +72,7 @@ def send_intent(intent_text: str, specialist_type: str = None) -> Dict[Any, Any]
         "context": {
             "user_id": "test-user-e2e",
             "session_id": f"test-session-{int(time.time())}",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
     }
 

@@ -6,7 +6,7 @@ Testa otimização, experimentação, e auto-aplicação.
 """
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 import asyncio
 
@@ -28,7 +28,7 @@ class TestExperimentManager:
             "variants": ["control", "treatment"],
             "traffic_split": {"control": 0.5, "treatment": 0.5},
             "status": "pending",
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat()
         }
 
         assert experiment["status"] == "pending"
@@ -41,7 +41,7 @@ class TestExperimentManager:
 
         if experiment["status"] == "pending":
             experiment["status"] = "running"
-            experiment["started_at"] = datetime.utcnow().isoformat()
+            experiment["started_at"] = datetime.now(timezone.utc).isoformat()
 
         assert experiment["status"] == "running"
         assert "started_at" in experiment
@@ -62,7 +62,7 @@ class TestExperimentManager:
 
         experiment["status"] = "completed"
         experiment["results"] = results
-        experiment["completed_at"] = datetime.utcnow().isoformat()
+        experiment["completed_at"] = datetime.now(timezone.utc).isoformat()
 
         assert experiment["status"] == "completed"
         assert experiment["results"]["treatment"]["mean_latency"] < experiment["results"]["control"]["mean_latency"]
@@ -149,7 +149,7 @@ class TestAutoApplier:
 
         if optimization["confidence"] > 0.8:
             optimization["applied"] = True
-            optimization["applied_at"] = datetime.utcnow().isoformat()
+            optimization["applied_at"] = datetime.now(timezone.utc).isoformat()
 
         assert optimization["applied"] is True
 
@@ -169,7 +169,7 @@ class TestAutoApplier:
 
         if error_rate_after > threshold:
             optimization["reverted"] = True
-            optimization["reverted_at"] = datetime.utcnow().isoformat()
+            optimization["reverted_at"] = datetime.now(timezone.utc).isoformat()
 
         assert optimization["reverted"] is True
 
@@ -195,7 +195,7 @@ class TestInsightsConsumer:
         # Processar insight
         processed = {
             "original": insight_message,
-            "processed_at": datetime.utcnow().isoformat(),
+            "processed_at": datetime.now(timezone.utc).isoformat(),
             "action_taken": "queued_for_review"
         }
 
@@ -403,7 +403,7 @@ class TestExperimentTracking:
         event_log = []
 
         event = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "experiment_id": str(uuid4()),
             "event_type": "variant_assigned",
             "details": {"variant": "treatment"}
@@ -418,8 +418,8 @@ class TestExperimentTracking:
     async def test_calculate_experiment_duration(self):
         """Deve calcular duração do experimento."""
         experiment = {
-            "started_at": (datetime.utcnow() - timedelta(hours=24)).isoformat(),
-            "ended_at": datetime.utcnow().isoformat()
+            "started_at": (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat(),
+            "ended_at": datetime.now(timezone.utc).isoformat()
         }
 
         start = datetime.fromisoformat(experiment["started_at"])

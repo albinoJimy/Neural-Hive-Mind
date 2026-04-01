@@ -7,14 +7,14 @@ from contextlib import asynccontextmanager
 import structlog
 import uvicorn
 from fastapi import FastAPI
-from prometheus_client import make_asgi_app, start_http_server
+from prometheus_client import start_http_server
+
 from neural_hive_observability import (
     get_tracer,
     init_observability,
     instrument_kafka_consumer,
     instrument_kafka_producer,
 )
-
 from src.api.http_server import create_app
 from src.config import get_settings
 from src.observability import MCPToolCatalogMetrics, setup_logging
@@ -104,9 +104,7 @@ class MCPToolCatalogService:
         try:
             from src.services.tool_registry import ToolRegistry
 
-            self.tool_registry = ToolRegistry(
-                self.mongodb_client, self.redis_client, self.metrics
-            )
+            self.tool_registry = ToolRegistry(self.mongodb_client, self.redis_client, self.metrics)
             await self.tool_registry.bootstrap_initial_catalog()
             logger.info("tool_registry_initialized")
         except Exception as e:
@@ -196,7 +194,9 @@ class MCPToolCatalogService:
             self.service_registry_client = ServiceRegistryClient(
                 host=self.settings.SERVICE_REGISTRY_GRPC_HOST,
                 port=self.settings.SERVICE_REGISTRY_GRPC_PORT,
-                connect_timeout_seconds=float(self.settings.SERVICE_REGISTRY_CONNECT_TIMEOUT_SECONDS),
+                connect_timeout_seconds=float(
+                    self.settings.SERVICE_REGISTRY_CONNECT_TIMEOUT_SECONDS
+                ),
             )
             await self.service_registry_client.register(
                 self.settings.SERVICE_NAME,
@@ -211,9 +211,7 @@ class MCPToolCatalogService:
             asyncio.create_task(self._heartbeat_loop())
 
         except Exception as e:
-            logger.warning(
-                "service_registry_registration_failed_non_critical", error=str(e)
-            )
+            logger.warning("service_registry_registration_failed_non_critical", error=str(e))
             # Serviço continua sem Service Registry
 
         logger.info("mcp_tool_catalog_started")
@@ -236,7 +234,7 @@ class MCPToolCatalogService:
             await self.kafka_producer.stop()
 
         # Parar Tool Executor (fechar MCP clients)
-        if hasattr(self, 'tool_executor') and self.tool_executor:
+        if hasattr(self, "tool_executor") and self.tool_executor:
             await self.tool_executor.stop()
 
         # Deregister from Service Registry
@@ -266,11 +264,15 @@ class MCPToolCatalogService:
                     tracer = get_tracer()
                     with tracer.start_as_current_span("genetic_tool_selection") as span:
                         span.set_attribute("neural.hive.request_id", request.request_id)
-                        span.set_attribute("neural.hive.tool_count", len(request.required_capabilities))
+                        span.set_attribute(
+                            "neural.hive.tool_count", len(request.required_capabilities)
+                        )
 
                         # Process selection request
                         response = await self.genetic_selector.select_tools(request)
-                        span.set_attribute("neural.hive.selected_tools", len(response.selected_tools))
+                        span.set_attribute(
+                            "neural.hive.selected_tools", len(response.selected_tools)
+                        )
 
                     # Increment usage counters for selected tools
                     for selected_tool in response.selected_tools:
@@ -283,7 +285,9 @@ class MCPToolCatalogService:
                     await self.kafka_consumer.commit()
 
                 except Exception as e:
-                    logger.error("request_processing_failed", error=str(e), request_id=request.request_id)
+                    logger.error(
+                        "request_processing_failed", error=str(e), request_id=request.request_id
+                    )
 
                 finally:
                     self.metrics.active_tool_selections.dec()
@@ -318,7 +322,8 @@ async def lifespan(app: FastAPI):
     await service.startup(app)
 
     # Inject dependencies into API routers
-    from src.api import tools, selections
+    from src.api import selections, tools
+
     tools.set_tool_registry(service.tool_registry)
     selections.set_genetic_selector(service.genetic_selector)
 
@@ -332,7 +337,7 @@ def create_service_app() -> FastAPI:
 
     # Start Prometheus metrics on dedicated port 9091
     settings = get_settings()
-    if hasattr(settings, 'METRICS_PORT'):
+    if hasattr(settings, "METRICS_PORT"):
         try:
             start_http_server(settings.METRICS_PORT)
             logger.info("prometheus_metrics_server_started", port=settings.METRICS_PORT)

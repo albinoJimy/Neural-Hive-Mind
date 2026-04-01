@@ -635,7 +635,7 @@ def seed_baseline_metrics(mongodb_ml_client, clean_ml_collections, event_loop) -
     np.random.seed(42)
 
     predictions = []
-    base_time = datetime.datetime.utcnow() - datetime.timedelta(days=7)
+    base_time = datetime.datetime.now(timezone.utc) - datetime.timedelta(days=7)
 
     for i in range(1000):
         actual = np.random.randint(1000, 60000)
@@ -675,7 +675,7 @@ def seed_shadow_comparisons(mongodb_ml_client, clean_ml_collections, event_loop)
     np.random.seed(42)
 
     comparisons = []
-    base_time = datetime.datetime.utcnow() - datetime.timedelta(hours=1)
+    base_time = datetime.datetime.now(timezone.utc) - datetime.timedelta(hours=1)
 
     agreements = 0
     for i in range(100):

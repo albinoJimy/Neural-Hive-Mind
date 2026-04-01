@@ -14,7 +14,7 @@ Nota: API tests estão em approval-service/tests/api/test_ml_management.py
 
 import pytest
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import Mock, AsyncMock, patch, MagicMock
 
 from neural_hive_ml.model_version_repository import ModelVersionRepository
@@ -209,7 +209,7 @@ class TestOnlineLearningIntegration:
             "stage": "production",
             "f1_score": 0.75,
             "is_active": True,
-            "created_at": datetime.utcnow()
+            "created_at": datetime.now(timezone.utc)
         })
 
         # Setup aggregate

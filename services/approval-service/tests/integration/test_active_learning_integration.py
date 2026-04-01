@@ -9,7 +9,7 @@ Verifica o fluxo E2E:
 
 import pytest
 from unittest.mock import MagicMock, AsyncMock, patch
-from datetime import datetime
+from datetime import datetime, timezone
 
 from src.services.approval_service import ApprovalService
 from src.models.approval import ApprovalRequest, ApprovalStatus, RiskBand
@@ -28,7 +28,7 @@ def create_test_approval(**kwargs):
         'risk_band': RiskBand.LOW,
         'is_destructive': False,
         'status': ApprovalStatus.PENDING,
-        'requested_at': datetime.utcnow(),
+        'requested_at': datetime.now(timezone.utc),
         'cognitive_plan': {'plan_id': 'test-plan', 'steps': []}
     }
     defaults.update(kwargs)

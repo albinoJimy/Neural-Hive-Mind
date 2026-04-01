@@ -6,7 +6,7 @@ Testa criacao de canal seguro com X.509-SVID, JWT-SVID em metadata e fallbacks.
 
 import pytest
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 from dataclasses import dataclass
 
@@ -72,14 +72,14 @@ def mock_spiffe_manager():
         private_key=TEST_PRIVATE_KEY,
         spiffe_id='spiffe://neural-hive.local/ns/neural-hive-execution/sa/worker-agents',
         ca_bundle=TEST_CA_BUNDLE,
-        expires_at=datetime.utcnow() + timedelta(hours=24)
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=24)
     )
 
     # Configurar retorno padrao de JWT-SVID valido
     manager.fetch_jwt_svid.return_value = JWTSVID(
         token='valid.jwt.token',
         spiffe_id='spiffe://neural-hive.local/ns/neural-hive-execution/sa/worker-agents',
-        expiry=datetime.utcnow() + timedelta(hours=1)
+        expiry=datetime.now(timezone.utc) + timedelta(hours=1)
     )
 
     return manager

@@ -5,7 +5,7 @@ GAP-04: Cobertura de Testes 16% → 70%
 Testa modelos de domínio e entidades compartilhadas.
 """
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 from enum import Enum
 
@@ -37,7 +37,7 @@ class TestDomainModels:
             "final_verdict": "approved",
             "confidence": 0.92,
             "participating_specialists": ["business", "technical", "security"],
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat()
         }
 
         assert decision["final_verdict"] == "approved"
@@ -244,7 +244,7 @@ class TestDomainEvents:
             "type": "OpinionReceived",
             "aggregate_id": str(uuid4()),
             "data": {"specialist": "business", "verdict": "approve"},
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         assert event["type"] == "OpinionReceived"

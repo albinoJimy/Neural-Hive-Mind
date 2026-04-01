@@ -8,6 +8,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional
+
 import structlog
 from prometheus_client import Counter, Histogram
 
@@ -17,28 +18,27 @@ logger = structlog.get_logger(__name__)
 
 # Métricas Prometheus para injetores de falha
 INJECTION_TOTAL = Counter(
-    'chaos_injection_total',
-    'Total de injeções de falha executadas',
-    ['injection_type', 'status', 'namespace']
+    "chaos_injection_total",
+    "Total de injeções de falha executadas",
+    ["injection_type", "status", "namespace"],
 )
 
 INJECTION_DURATION_SECONDS = Histogram(
-    'chaos_injection_duration_seconds',
-    'Duração da injeção de falha',
-    ['injection_type'],
-    buckets=[1, 5, 10, 30, 60, 120, 300, 600]
+    "chaos_injection_duration_seconds",
+    "Duração da injeção de falha",
+    ["injection_type"],
+    buckets=[1, 5, 10, 30, 60, 120, 300, 600],
 )
 
 ROLLBACK_TOTAL = Counter(
-    'chaos_rollback_total',
-    'Total de rollbacks executados',
-    ['injection_type', 'status']
+    "chaos_rollback_total", "Total de rollbacks executados", ["injection_type", "status"]
 )
 
 
 @dataclass
 class InjectionResult:
     """Resultado de uma operação de injeção de falha."""
+
     success: bool
     injection_id: str
     fault_type: FaultType
@@ -55,7 +55,9 @@ class InjectionResult:
         return {
             "success": self.success,
             "injection_id": self.injection_id,
-            "fault_type": self.fault_type.value if isinstance(self.fault_type, FaultType) else self.fault_type,
+            "fault_type": self.fault_type.value
+            if isinstance(self.fault_type, FaultType)
+            else self.fault_type,
             "affected_resources": self.affected_resources,
             "blast_radius": self.blast_radius,
             "start_time": self.start_time.isoformat() if self.start_time else None,
@@ -192,7 +194,7 @@ class BaseFaultInjector(ABC):
             logger.warning(
                 "injector.opa_client_unavailable",
                 injection_id=injection.id,
-                note="Permitindo injeção sem validação OPA"
+                note="Permitindo injeção sem validação OPA",
             )
             return True, []
 
@@ -204,19 +206,23 @@ class BaseFaultInjector(ABC):
                         "id": injection.id,
                         "environment": environment,
                         "blast_radius_limit": blast_radius_limit,
-                        "fault_injections": [{
-                            "id": injection.id,
-                            "fault_type": injection.fault_type.value,
-                            "target": {
-                                "namespace": injection.target.namespace,
-                                "service_name": injection.target.service_name,
-                                "labels": injection.target.labels,
-                                "deployment_name": injection.target.deployment_name,
-                                "percentage": injection.target.percentage,
-                            },
-                            "parameters": injection.parameters.model_dump() if hasattr(injection.parameters, 'model_dump') else {},
-                            "duration_seconds": injection.duration_seconds,
-                        }],
+                        "fault_injections": [
+                            {
+                                "id": injection.id,
+                                "fault_type": injection.fault_type.value,
+                                "target": {
+                                    "namespace": injection.target.namespace,
+                                    "service_name": injection.target.service_name,
+                                    "labels": injection.target.labels,
+                                    "deployment_name": injection.target.deployment_name,
+                                    "percentage": injection.target.percentage,
+                                },
+                                "parameters": injection.parameters.model_dump()
+                                if hasattr(injection.parameters, "model_dump")
+                                else {},
+                                "duration_seconds": injection.duration_seconds,
+                            }
+                        ],
                         "rollback_strategy": injection.rollback_data.get("strategy", "automatic"),
                     },
                     "executor": {
@@ -242,17 +248,13 @@ class BaseFaultInjector(ABC):
                 logger.warning(
                     "injector.opa_validation_denied",
                     injection_id=injection.id,
-                    violations=violations
+                    violations=violations,
                 )
 
             return allowed, violations
 
         except Exception as e:
-            logger.error(
-                "injector.opa_validation_error",
-                injection_id=injection.id,
-                error=str(e)
-            )
+            logger.error("injector.opa_validation_error", injection_id=injection.id, error=str(e))
             # Fail-open: permitir em caso de erro de comunicação com OPA
             return True, []
 
@@ -286,42 +288,36 @@ class BaseFaultInjector(ABC):
                 # Buscar por labels
                 label_selector = ",".join([f"{k}={v}" for k, v in target.labels.items()])
                 pod_list = self.k8s_core_v1.list_namespaced_pod(
-                    target.namespace,
-                    label_selector=label_selector
+                    target.namespace, label_selector=label_selector
                 )
                 pods = [
-                    pod.metadata.name
-                    for pod in pod_list.items
-                    if pod.status.phase == "Running"
+                    pod.metadata.name for pod in pod_list.items if pod.status.phase == "Running"
                 ]
             elif target.deployment_name:
                 # Buscar pods do deployment
                 try:
                     deployment = self.k8s_apps_v1.read_namespaced_deployment(
-                        target.deployment_name,
-                        target.namespace
+                        target.deployment_name, target.namespace
                     )
                     selector = deployment.spec.selector.match_labels
                     label_selector = ",".join([f"{k}={v}" for k, v in selector.items()])
                     pod_list = self.k8s_core_v1.list_namespaced_pod(
-                        target.namespace,
-                        label_selector=label_selector
+                        target.namespace, label_selector=label_selector
                     )
                     pods = [
-                        pod.metadata.name
-                        for pod in pod_list.items
-                        if pod.status.phase == "Running"
+                        pod.metadata.name for pod in pod_list.items if pod.status.phase == "Running"
                     ]
                 except Exception as e:
                     logger.error(
                         "injector.deployment_not_found",
                         deployment=target.deployment_name,
-                        error=str(e)
+                        error=str(e),
                     )
 
             # Aplicar percentual se especificado
             if target.percentage < 100 and pods:
                 import random
+
                 count = max(1, int(len(pods) * target.percentage / 100))
                 pods = random.sample(pods, count)
 
@@ -329,9 +325,7 @@ class BaseFaultInjector(ABC):
 
         except Exception as e:
             logger.error(
-                "injector.get_target_pods_failed",
-                namespace=target.namespace,
-                error=str(e)
+                "injector.get_target_pods_failed", namespace=target.namespace, error=str(e)
             )
             return []
 
@@ -340,30 +334,25 @@ class BaseFaultInjector(ABC):
         injection_type: str,
         status: str,
         namespace: str,
-        duration_seconds: Optional[float] = None
+        duration_seconds: Optional[float] = None,
     ):
         """Registra métricas de injeção."""
         try:
             INJECTION_TOTAL.labels(
-                injection_type=injection_type,
-                status=status,
-                namespace=namespace
+                injection_type=injection_type, status=status, namespace=namespace
             ).inc()
 
             if duration_seconds is not None:
-                INJECTION_DURATION_SECONDS.labels(
-                    injection_type=injection_type
-                ).observe(duration_seconds)
+                INJECTION_DURATION_SECONDS.labels(injection_type=injection_type).observe(
+                    duration_seconds
+                )
         except Exception as e:
             logger.warning("injector.metrics_recording_failed", error=str(e))
 
     def _record_rollback_metrics(self, injection_type: str, status: str):
         """Registra métricas de rollback."""
         try:
-            ROLLBACK_TOTAL.labels(
-                injection_type=injection_type,
-                status=status
-            ).inc()
+            ROLLBACK_TOTAL.labels(injection_type=injection_type, status=status).inc()
         except Exception as e:
             logger.warning("injector.metrics_recording_failed", error=str(e))
 
@@ -392,17 +381,15 @@ class BaseFaultInjector(ABC):
                 result = await self.rollback(injection_id)
                 results.append(result)
             except Exception as e:
-                logger.error(
-                    "injector.cleanup_failed",
-                    injection_id=injection_id,
-                    error=str(e)
+                logger.error("injector.cleanup_failed", injection_id=injection_id, error=str(e))
+                results.append(
+                    InjectionResult(
+                        success=False,
+                        injection_id=injection_id,
+                        fault_type=self._active_injections.get(
+                            injection_id, FaultInjection(fault_type=FaultType.POD_KILL)
+                        ).fault_type,
+                        error_message=str(e),
+                    )
                 )
-                results.append(InjectionResult(
-                    success=False,
-                    injection_id=injection_id,
-                    fault_type=self._active_injections.get(injection_id, FaultInjection(
-                        fault_type=FaultType.POD_KILL
-                    )).fault_type,
-                    error_message=str(e)
-                ))
         return results

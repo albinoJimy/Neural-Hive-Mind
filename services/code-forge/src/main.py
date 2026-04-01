@@ -1,38 +1,38 @@
 import asyncio
 import signal
 import sys
-import uvicorn
-import structlog
 
-from .config import get_settings
-from .observability import setup_logging, CodeForgeMetrics
+import structlog
+import uvicorn
+
 from .api.http_server import create_app
-from .clients.kafka_ticket_consumer import KafkaTicketConsumer
-from .clients.kafka_result_producer import KafkaResultProducer
-from .clients.service_registry_client import ServiceRegistryClient
+from .clients.analyst_agents_client import AnalystAgentsClient
+from .clients.artifact_registry_client import ArtifactRegistryClient
 from .clients.execution_ticket_client import ExecutionTicketClient
 from .clients.git_client import GitClient
-from .clients.sonarqube_client import SonarQubeClient
-from .clients.snyk_client import SnykClient
-from .clients.trivy_client import TrivyClient
-from .clients.sigstore_client import SigstoreClient
-from .clients.s3_artifact_client import S3ArtifactClient
-from .clients.artifact_registry_client import ArtifactRegistryClient
-from .clients.postgres_client import PostgresClient
-from .clients.mongodb_client import MongoDBClient
-from .clients.redis_client import RedisClient
-from .clients.mcp_tool_catalog_client import MCPToolCatalogClient
+from .clients.kafka_result_producer import KafkaResultProducer
+from .clients.kafka_ticket_consumer import KafkaTicketConsumer
 from .clients.llm_client import LLMClient
-from .clients.analyst_agents_client import AnalystAgentsClient
+from .clients.mcp_tool_catalog_client import MCPToolCatalogClient
+from .clients.mongodb_client import MongoDBClient
+from .clients.postgres_client import PostgresClient
+from .clients.redis_client import RedisClient
+from .clients.s3_artifact_client import S3ArtifactClient
+from .clients.service_registry_client import ServiceRegistryClient
+from .clients.sigstore_client import SigstoreClient
+from .clients.snyk_client import SnykClient
+from .clients.sonarqube_client import SonarQubeClient
+from .clients.trivy_client import TrivyClient
+from .config import get_settings
+from .integration.generation_webhook import WebhookHandler
+from .observability import CodeForgeMetrics, setup_logging
+from .services.approval_gate import ApprovalGate
+from .services.code_composer import CodeComposer
+from .services.packager import Packager
 from .services.pipeline_engine import PipelineEngine
 from .services.template_selector import TemplateSelector
-from .services.code_composer import CodeComposer
-from .services.validator import Validator
 from .services.test_runner import TestRunner
-from .services.packager import Packager
-from .services.approval_gate import ApprovalGate
-from .integration.generation_webhook import WebhookHandler
-from neural_hive_integration import ExecutionTicketClient as IntegrationTicketClient
+from .services.validator import Validator
 
 logger = None
 shutdown_event = asyncio.Event()
@@ -49,39 +49,35 @@ async def main():
     setup_logging(settings.LOG_LEVEL, settings.LOG_FORMAT)
     logger = structlog.get_logger()
 
-    logger.info('code_forge_starting', version='1.0.0')
+    logger.info("code_forge_starting", version="1.0.0")
 
     # 3. Inicializar métricas
     metrics = CodeForgeMetrics()
     metrics.startup_total.inc()
 
     # 4. Inicializar clientes
-    logger.info('initializing_clients')
+    logger.info("initializing_clients")
 
     kafka_consumer = KafkaTicketConsumer(
         settings.KAFKA_BOOTSTRAP_SERVERS,
         settings.KAFKA_TICKETS_TOPIC,
         settings.KAFKA_CONSUMER_GROUP_ID,
         settings.KAFKA_AUTO_OFFSET_RESET,
-        settings.KAFKA_ENABLE_AUTO_COMMIT
+        settings.KAFKA_ENABLE_AUTO_COMMIT,
     )
 
     kafka_producer = KafkaResultProducer(
-        settings.KAFKA_BOOTSTRAP_SERVERS,
-        settings.KAFKA_RESULTS_TOPIC
+        settings.KAFKA_BOOTSTRAP_SERVERS, settings.KAFKA_RESULTS_TOPIC
     )
 
     service_registry = ServiceRegistryClient(
-        settings.SERVICE_REGISTRY_HOST,
-        settings.SERVICE_REGISTRY_PORT
+        settings.SERVICE_REGISTRY_HOST, settings.SERVICE_REGISTRY_PORT
     )
 
     ticket_client = ExecutionTicketClient(settings.EXECUTION_TICKET_SERVICE_URL)
 
     git_client = GitClient(
-        settings.TEMPLATES_GIT_REPO,
-        settings.TEMPLATES_GIT_BRANCH,
-        settings.TEMPLATES_LOCAL_PATH
+        settings.TEMPLATES_GIT_REPO, settings.TEMPLATES_GIT_BRANCH, settings.TEMPLATES_LOCAL_PATH
     )
 
     sonarqube_client = SonarQubeClient(
@@ -91,21 +87,18 @@ async def main():
         scanner_timeout=settings.SONARQUBE_SCANNER_TIMEOUT,
         poll_interval=settings.SONARQUBE_POLL_INTERVAL,
         poll_timeout=settings.SONARQUBE_POLL_TIMEOUT,
-        metrics=metrics
+        metrics=metrics,
     )
 
     snyk_client = SnykClient(
-        settings.SNYK_TOKEN,
-        settings.SNYK_ENABLED,
-        timeout=settings.SNYK_TIMEOUT,
-        metrics=metrics
+        settings.SNYK_TOKEN, settings.SNYK_ENABLED, timeout=settings.SNYK_TIMEOUT, metrics=metrics
     )
 
     trivy_client = TrivyClient(
         settings.TRIVY_ENABLED,
         settings.TRIVY_SEVERITY,
         timeout=settings.TRIVY_TIMEOUT,
-        metrics=metrics
+        metrics=metrics,
     )
 
     # Cliente S3 para artefatos e SBOMs
@@ -115,36 +108,32 @@ async def main():
             bucket=settings.ARTIFACTS_S3_BUCKET,
             region=settings.ARTIFACTS_S3_REGION,
             endpoint=settings.ARTIFACTS_S3_ENDPOINT or None,
-            metrics=metrics
+            metrics=metrics,
         )
         logger.info(
-            's3_artifact_client_initialized',
+            "s3_artifact_client_initialized",
             bucket=settings.ARTIFACTS_S3_BUCKET,
-            region=settings.ARTIFACTS_S3_REGION
+            region=settings.ARTIFACTS_S3_REGION,
         )
 
     sigstore_client = SigstoreClient(
         settings.SIGSTORE_FULCIO_URL,
         settings.SIGSTORE_REKOR_URL,
         settings.SIGSTORE_ENABLED,
-        s3_client=s3_artifact_client
+        s3_client=s3_artifact_client,
     )
 
     # Cliente Artifact Registry para registrar SBOMs
     artifact_registry_client = None
     if settings.OCI_REGISTRY_URL:
         artifact_registry_client = ArtifactRegistryClient(
-            registry_url=settings.OCI_REGISTRY_URL,
-            metrics=metrics
+            registry_url=settings.OCI_REGISTRY_URL, metrics=metrics
         )
         await artifact_registry_client.start()
-        logger.info(
-            'artifact_registry_client_initialized',
-            registry_url=settings.OCI_REGISTRY_URL
-        )
+        logger.info("artifact_registry_client_initialized", registry_url=settings.OCI_REGISTRY_URL)
 
     postgres_client = PostgresClient(settings.POSTGRES_URL)
-    mongodb_client = MongoDBClient(settings.MONGODB_URL, 'code_forge')
+    mongodb_client = MongoDBClient(settings.MONGODB_URL, "code_forge")
     redis_client = RedisClient(settings.REDIS_URL)
 
     # Novos clientes para integração MCP
@@ -154,30 +143,31 @@ async def main():
 
     if settings.MCP_TOOL_CATALOG_URL:
         mcp_client = MCPToolCatalogClient(
-            settings.MCP_TOOL_CATALOG_HOST,
-            settings.MCP_TOOL_CATALOG_PORT
+            settings.MCP_TOOL_CATALOG_HOST, settings.MCP_TOOL_CATALOG_PORT
         )
         await mcp_client.start()
-        logger.info('mcp_client_initialized', url=settings.MCP_TOOL_CATALOG_URL)
+        logger.info("mcp_client_initialized", url=settings.MCP_TOOL_CATALOG_URL)
 
     if settings.LLM_ENABLED and settings.LLM_PROVIDER:
         from .clients.llm_client import LLMProvider
+
         llm_client = LLMClient(
             provider=LLMProvider(settings.LLM_PROVIDER),
             api_key=settings.LLM_API_KEY if settings.LLM_API_KEY else None,
             model_name=settings.LLM_MODEL,
-            endpoint_url=settings.LLM_BASE_URL if settings.LLM_BASE_URL else None
+            endpoint_url=settings.LLM_BASE_URL if settings.LLM_BASE_URL else None,
         )
         await llm_client.start()
-        logger.info('llm_client_initialized', provider=settings.LLM_PROVIDER, model=settings.LLM_MODEL)
+        logger.info(
+            "llm_client_initialized", provider=settings.LLM_PROVIDER, model=settings.LLM_MODEL
+        )
 
     if settings.ANALYST_AGENTS_URL:
         analyst_client = AnalystAgentsClient(
-            settings.ANALYST_AGENTS_HOST,
-            settings.ANALYST_AGENTS_PORT
+            settings.ANALYST_AGENTS_HOST, settings.ANALYST_AGENTS_PORT
         )
         await analyst_client.start()
-        logger.info('analyst_client_initialized', url=settings.ANALYST_AGENTS_URL)
+        logger.info("analyst_client_initialized", url=settings.ANALYST_AGENTS_URL)
 
     # Iniciar clientes
     await kafka_consumer.start()
@@ -189,18 +179,17 @@ async def main():
     await service_registry.initialize()
 
     # 5. Inicializar pipeline engine e subpipelines
-    logger.info('initializing_pipeline_engine')
+    logger.info("initializing_pipeline_engine")
 
     template_selector = TemplateSelector(git_client, redis_client, mcp_client, metrics)
     code_composer = CodeComposer(mongodb_client, llm_client, analyst_client, mcp_client)
     validator = Validator(sonarqube_client, snyk_client, trivy_client, mcp_client, metrics)
     test_runner = TestRunner(settings.MIN_TEST_COVERAGE, mongodb_client=mongodb_client)
-    packager = Packager(sigstore_client, s3_artifact_client, artifact_registry_client, postgres_client)
+    packager = Packager(
+        sigstore_client, s3_artifact_client, artifact_registry_client, postgres_client
+    )
     approval_gate = ApprovalGate(
-        git_client,
-        mongodb_client,
-        settings.AUTO_APPROVAL_THRESHOLD,
-        settings.MIN_QUALITY_SCORE
+        git_client, mongodb_client, settings.AUTO_APPROVAL_THRESHOLD, settings.MIN_QUALITY_SCORE
     )
 
     pipeline_engine = PipelineEngine(
@@ -218,30 +207,38 @@ async def main():
         settings.PIPELINE_TIMEOUT_SECONDS,
         settings.AUTO_APPROVAL_THRESHOLD,
         settings.MIN_QUALITY_SCORE,
-        metrics
+        metrics,
     )
 
     # 5.5. Inicializar webhook handler
-    logger.info('initializing_webhook_handler')
+    logger.info("initializing_webhook_handler")
     webhook_handler_instance = WebhookHandler(
         webhook_secret=settings.WEBHOOK_SECRET or None,
         mongodb_client=mongodb_client,
         postgres_client=postgres_client,
-        ticket_client=ticket_client
+        ticket_client=ticket_client,
     )
     await webhook_handler_instance.initialize()
     # Set global instance
     import src.integration.generation_webhook as webhook_module
+
     webhook_module.webhook_handler = webhook_handler_instance
 
     # 6. Registrar no Service Registry
-    logger.info('registering_service')
+    logger.info("registering_service")
     await service_registry.register(
         settings.SERVICE_NAME,
-        ['code_generation', 'iac_generation', 'test_generation', 'validation', 'packaging', 'signing'],
-        {'version': '1.0.0', 'layer': 'execution'}
+        [
+            "code_generation",
+            "iac_generation",
+            "test_generation",
+            "validation",
+            "packaging",
+            "signing",
+        ],
+        {"version": "1.0.0", "layer": "execution"},
     )
-    metrics.registered_total.labels(status='success').inc()
+    metrics.registered_total.labels(status="success").inc()
 
     # 7. Iniciar consumer Kafka em background
     async def consume_tickets():
@@ -262,12 +259,12 @@ async def main():
                     await kafka_consumer.commit()
 
                 except Exception as e:
-                    logger.error('pipeline_execution_error', error=str(e))
+                    logger.error("pipeline_execution_error", error=str(e))
                     metrics.pipelines_failed_total.labels(error_type=type(e).__name__).inc()
                     metrics.active_pipelines.dec()
 
         except Exception as e:
-            logger.error('kafka_consume_loop_error', error=str(e))
+            logger.error("kafka_consume_loop_error", error=str(e))
 
     asyncio.create_task(consume_tickets())
 
@@ -277,18 +274,18 @@ async def main():
         while not shutdown_event.is_set():
             try:
                 await asyncio.sleep(settings.HEARTBEAT_INTERVAL_SECONDS)
-                await service_registry.send_heartbeat({
-                    'active_pipelines': pipeline_engine.get_active_pipelines_count()
-                })
-                metrics.heartbeat_total.labels(status='success').inc()
+                await service_registry.send_heartbeat(
+                    {"active_pipelines": pipeline_engine.get_active_pipelines_count()}
+                )
+                metrics.heartbeat_total.labels(status="success").inc()
             except Exception as e:
-                logger.error('heartbeat_error', error=str(e))
-                metrics.heartbeat_total.labels(status='failure').inc()
+                logger.error("heartbeat_error", error=str(e))
+                metrics.heartbeat_total.labels(status="failure").inc()
 
     asyncio.create_task(heartbeat_loop())
 
     # 8.5. Wire API dependencies antes de criar app
-    logger.info('wiring_api_dependencies')
+    logger.info("wiring_api_dependencies")
     from .api.generation_api import set_generation_api_clients
     from .api.pipeline_api import set_pipeline_engine, set_redis_client as set_pipeline_redis_client
 
@@ -298,7 +295,7 @@ async def main():
         mongodb_client=mongodb_client,
         llm_client=llm_client,
         analyst_client=analyst_client,
-        mcp_client=mcp_client
+        mcp_client=mcp_client,
     )
     # Configurar Redis client para pipeline_api
     set_pipeline_redis_client(redis_client)
@@ -307,7 +304,7 @@ async def main():
     set_pipeline_engine(pipeline_engine)
 
     # 9. Iniciar HTTP server (FastAPI)
-    logger.info('starting_http_server', port=settings.HTTP_PORT)
+    logger.info("starting_http_server", port=settings.HTTP_PORT)
     app = create_app()
 
     # Armazenar clients no app.state para readiness check
@@ -328,62 +325,57 @@ async def main():
     app.state.llm_client = llm_client
     app.state.analyst_client = analyst_client
 
-    config = uvicorn.Config(
-        app,
-        host='0.0.0.0',
-        port=settings.HTTP_PORT,
-        log_config=None
-    )
+    config = uvicorn.Config(app, host="0.0.0.0", port=settings.HTTP_PORT, log_config=None)
     server = uvicorn.Server(config)
 
-    logger.info('code_forge_started')
+    logger.info("code_forge_started")
 
     try:
         # 10. Aguardar shutdown
         await server.serve()
     finally:
         # 11. Cleanup: encerrar clientes HTTP
-        logger.info('shutting_down_clients')
+        logger.info("shutting_down_clients")
 
         if mcp_client:
             try:
                 await mcp_client.stop()
-                logger.info('mcp_client_stopped')
+                logger.info("mcp_client_stopped")
             except Exception as e:
-                logger.error('mcp_client_shutdown_error', error=str(e))
+                logger.error("mcp_client_shutdown_error", error=str(e))
 
         if llm_client:
             try:
                 await llm_client.stop()
-                logger.info('llm_client_stopped')
+                logger.info("llm_client_stopped")
             except Exception as e:
-                logger.error('llm_client_shutdown_error', error=str(e))
+                logger.error("llm_client_shutdown_error", error=str(e))
 
         if analyst_client:
             try:
                 await analyst_client.stop()
-                logger.info('analyst_client_stopped')
+                logger.info("analyst_client_stopped")
             except Exception as e:
-                logger.error('analyst_client_shutdown_error', error=str(e))
+                logger.error("analyst_client_shutdown_error", error=str(e))
 
         if artifact_registry_client:
             try:
                 await artifact_registry_client.stop()
-                logger.info('artifact_registry_client_stopped')
+                logger.info("artifact_registry_client_stopped")
             except Exception as e:
-                logger.error('artifact_registry_client_shutdown_error', error=str(e))
+                logger.error("artifact_registry_client_shutdown_error", error=str(e))
 
-        logger.info('all_clients_stopped')
+        logger.info("all_clients_stopped")
 
 
 def signal_handler(sig, frame):
     """Handler de sinais para graceful shutdown"""
-    logger.info('shutdown_signal_received', signal=sig)
+    logger.info("shutdown_signal_received", signal=sig)
     shutdown_event.set()
     sys.exit(0)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     signal.signal(signal.SIGTERM, signal_handler)
     signal.signal(signal.SIGINT, signal_handler)
 

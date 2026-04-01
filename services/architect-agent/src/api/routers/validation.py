@@ -1,17 +1,18 @@
 """Router para endpoints de validação."""
 
+from datetime import datetime, timezone
+
+import structlog
 from fastapi import APIRouter, HTTPException, status
-from datetime import datetime
 
 from src.api.schemas import (
+    SuggestionResponse,
     ValidationRequest,
     ValidationResponse,
     ViolationResponse,
-    SuggestionResponse,
 )
-from src.validators.validate_engine import ValidateEngine
 from src.repositories.validation_repository import ValidationRepository
-import structlog
+from src.validators.validate_engine import ValidateEngine
 
 logger = structlog.get_logger(__name__)
 
@@ -87,7 +88,7 @@ async def validate_repository(request: ValidationRequest) -> ValidationResponse:
                 )
                 for s in report.suggestions
             ],
-            created_at=report.created_at or datetime.utcnow(),
+            created_at=report.created_at or datetime.now(timezone.utc),
         )
 
     except Exception as e:
@@ -128,14 +129,12 @@ async def get_validation_report(report_id: str) -> ValidationResponse:
             )
             for s in report.suggestions
         ],
-        created_at=report.created_at or datetime.utcnow(),
+        created_at=report.created_at or datetime.now(timezone.utc),
     )
 
 
 @router.get("/repo/{repo_url:path}", response_model=list[ValidationResponse])
-async def get_validations_by_repo(
-    repo_url: str, limit: int = 10
-) -> list[ValidationResponse]:
+async def get_validations_by_repo(repo_url: str, limit: int = 10) -> list[ValidationResponse]:
     """Obtém validações de um repositório."""
     validation_repository = get_validation_repository()
     reports = await validation_repository.get_by_repo_url(repo_url, limit)
@@ -166,7 +165,7 @@ async def get_validations_by_repo(
                 )
                 for s in r.suggestions
             ],
-            created_at=r.created_at or datetime.utcnow(),
+            created_at=r.created_at or datetime.now(timezone.utc),
         )
         for r in reports
     ]

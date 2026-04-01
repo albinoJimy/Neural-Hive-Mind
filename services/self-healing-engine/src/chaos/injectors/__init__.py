@@ -8,11 +8,11 @@ Cada injector é responsável por um tipo específico de falha:
 - ApplicationFaultInjector: HTTP errors, slow responses
 """
 
+from .application_injector import ApplicationFaultInjector
 from .base_injector import BaseFaultInjector, InjectionResult
 from .network_injector import NetworkFaultInjector
 from .pod_injector import PodFaultInjector
 from .resource_injector import ResourceFaultInjector
-from .application_injector import ApplicationFaultInjector
 
 __all__ = [
     "BaseFaultInjector",

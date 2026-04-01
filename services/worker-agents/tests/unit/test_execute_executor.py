@@ -72,7 +72,7 @@ def mock_docker_client():
 @pytest.fixture
 def mock_k8s_client():
     """Fixture para KubernetesJobsClient mockado."""
-    from services.worker_agents.src.clients.k8s_jobs_client import K8sJobStatus
+    from clients.k8s_jobs_client import K8sJobStatus
 
     client = MagicMock()
     result = MagicMock()
@@ -108,7 +108,7 @@ def mock_lambda_client():
 @pytest.fixture
 def execute_executor(mock_config, mock_local_client):
     """Fixture para ExecuteExecutor com local client."""
-    from services.worker_agents.src.executors.execute_executor import ExecuteExecutor
+    from executors.execute_executor import ExecuteExecutor
     return ExecuteExecutor(
         config=mock_config,
         local_client=mock_local_client,
@@ -118,7 +118,7 @@ def execute_executor(mock_config, mock_local_client):
 @pytest.fixture
 def execute_executor_all_runtimes(mock_config, mock_local_client, mock_docker_client, mock_k8s_client, mock_lambda_client):
     """Fixture para ExecuteExecutor com todos os runtimes."""
-    from services.worker_agents.src.executors.execute_executor import ExecuteExecutor
+    from executors.execute_executor import ExecuteExecutor
     return ExecuteExecutor(
         config=mock_config,
         local_client=mock_local_client,
@@ -165,7 +165,7 @@ class TestRuntimeSelection:
 
     def test_select_runtime_fallback_chain(self, mock_config, mock_docker_client):
         """Deve seguir cadeia de fallback."""
-        from services.worker_agents.src.executors.execute_executor import ExecuteExecutor
+        from executors.execute_executor import ExecuteExecutor
 
         mock_config.default_runtime = 'k8s'  # K8s não disponível
 
@@ -300,7 +300,7 @@ class TestSimulationExecution:
     @pytest.mark.asyncio
     async def test_execute_simulation(self, mock_config):
         """Deve executar simulação quando nenhum runtime disponível."""
-        from services.worker_agents.src.executors.execute_executor import ExecuteExecutor
+        from executors.execute_executor import ExecuteExecutor
 
         executor = ExecuteExecutor(config=mock_config)  # Sem clients
 
@@ -326,7 +326,7 @@ class TestRuntimeFallback:
     @pytest.mark.asyncio
     async def test_fallback_on_error(self, mock_config, mock_local_client, mock_docker_client):
         """Deve fazer fallback quando runtime falha."""
-        from services.worker_agents.src.executors.execute_executor import ExecuteExecutor
+        from executors.execute_executor import ExecuteExecutor
 
         # Docker falha, deve fazer fallback para local
         mock_docker_client.execute_command = AsyncMock(side_effect=Exception('Docker failed'))
@@ -360,7 +360,7 @@ class TestCodeForgeExecution:
     @pytest.mark.asyncio
     async def test_execute_code_forge_success(self, mock_config, mock_local_client):
         """Deve executar via Code Forge quando template fornecido."""
-        from services.worker_agents.src.executors.execute_executor import ExecuteExecutor
+        from executors.execute_executor import ExecuteExecutor
 
         mock_code_forge = MagicMock()
         mock_code_forge.submit_generation_request = AsyncMock(return_value='req-123')
@@ -396,7 +396,7 @@ class TestCodeForgeExecution:
     @pytest.mark.asyncio
     async def test_code_forge_fallback_to_runtime(self, mock_config, mock_local_client):
         """Deve fazer fallback para runtime quando Code Forge falha."""
-        from services.worker_agents.src.executors.execute_executor import ExecuteExecutor
+        from executors.execute_executor import ExecuteExecutor
 
         mock_code_forge = MagicMock()
         mock_code_forge.submit_generation_request = AsyncMock(side_effect=Exception('Code Forge failed'))
@@ -452,7 +452,7 @@ class TestMetricsRecording:
     @pytest.mark.asyncio
     async def test_fallback_metrics_recorded(self, mock_config, mock_docker_client, mock_local_client):
         """Deve registrar métricas de fallback."""
-        from services.worker_agents.src.executors.execute_executor import ExecuteExecutor
+        from executors.execute_executor import ExecuteExecutor
 
         mock_docker_client.execute_command = AsyncMock(side_effect=Exception('Docker failed'))
 

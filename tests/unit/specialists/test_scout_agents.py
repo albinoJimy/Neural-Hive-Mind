@@ -6,7 +6,7 @@ Testa exploração, descoberta, e detecção de sinais.
 """
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 import asyncio
 
@@ -342,7 +342,7 @@ class TestAlertGeneration:
             "title": "Anomaly detected",
             "description": "Unusual traffic spike",
             "affected_services": ["api-gateway"],
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "metadata": {
                 "metric": "requests_per_second",
                 "value": 150,
@@ -411,12 +411,12 @@ class TestDiscoveryHistory:
         history = []
 
         discovery_1 = {
-            "timestamp": (datetime.utcnow() - timedelta(hours=1)).isoformat(),
+            "timestamp": (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat(),
             "entity": "service-X",
             "state": "discovered"
         }
         discovery_2 = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "entity": "service-Y",
             "state": "discovered"
         }
@@ -457,12 +457,12 @@ class TestScoutHealthMonitoring:
     async def test_check_scout_heartbeat(self):
         """Deve verificar heartbeat dos scouts."""
         scouts = {
-            "scout-1": {"last_heartbeat": datetime.utcnow(), "status": "active"},
-            "scout-2": {"last_heartbeat": datetime.utcnow() - timedelta(minutes=5), "status": "stale"}
+            "scout-1": {"last_heartbeat": datetime.now(timezone.utc), "status": "active"},
+            "scout-2": {"last_heartbeat": datetime.now(timezone.utc) - timedelta(minutes=5), "status": "stale"}
         }
 
         timeout_seconds = 60
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         for scout_id, scout in scouts.items():
             time_since_heartbeat = (now - scout["last_heartbeat"]).total_seconds()

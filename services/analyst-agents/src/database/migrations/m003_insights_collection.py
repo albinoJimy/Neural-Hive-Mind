@@ -30,9 +30,7 @@ async def upgrade(client: AsyncIOMotorClient, database: str) -> None:
     # TTL index - 90 days
     try:
         await insights.create_index(
-            [("expires_at", 1)],
-            expireAfterSeconds=0,
-            name="expires_at_ttl"
+            [("expires_at", 1)], expireAfterSeconds=0, name="expires_at_ttl"
         )
     except Exception as e:
         print(f"Warning: Failed to create TTL index: {e}")
@@ -54,9 +52,7 @@ async def upgrade(client: AsyncIOMotorClient, database: str) -> None:
     # TTL index - 24 hours
     try:
         await ts_cache.create_index(
-            [("expires_at", 1)],
-            expireAfterSeconds=0,
-            name="expires_at_ttl"
+            [("expires_at", 1)], expireAfterSeconds=0, name="expires_at_ttl"
         )
     except Exception as e:
         print(f"Warning: Failed to create TTL index: {e}")

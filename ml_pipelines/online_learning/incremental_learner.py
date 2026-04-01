@@ -11,7 +11,7 @@ import os
 import pickle
 import time
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, Optional, List, Tuple, Union
 import structlog
 import numpy as np
@@ -343,7 +343,7 @@ class IncrementalLearner:
             self._is_fitted = True
             self._update_count += 1
             self._total_samples_seen += len(y)
-            self._last_update_time = datetime.utcnow()
+            self._last_update_time = datetime.now(timezone.utc)
 
             # Calcular loss após update
             loss_after = self._compute_loss(X, y)
@@ -529,14 +529,14 @@ class IncrementalLearner:
 
         if path is None:
             os.makedirs(self.config.checkpoint_storage_path, exist_ok=True)
-            timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+            timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
             path = os.path.join(
                 self.config.checkpoint_storage_path,
                 f"{self.specialist_type}_{self._model_version}_{timestamp}.pkl"
             )
         elif os.path.isdir(path):
             # Se path é um diretório, criar nome de arquivo
-            timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+            timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
             path = os.path.join(
                 path,
                 f"{self.specialist_type}_{self._model_version}_{timestamp}.pkl"
@@ -553,7 +553,7 @@ class IncrementalLearner:
             'model_version': self._model_version,
             'specialist_type': self.specialist_type,
             'algorithm': self.config.incremental_algorithm,
-            'saved_at': datetime.utcnow().isoformat(),
+            'saved_at': datetime.now(timezone.utc).isoformat(),
             'config': {
                 'learning_rate': self.config.learning_rate,
                 'mini_batch_size': self.config.mini_batch_size

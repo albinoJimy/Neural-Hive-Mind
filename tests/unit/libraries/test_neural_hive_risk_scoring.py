@@ -5,7 +5,7 @@ GAP-04: Cobertura de Testes 16% → 70%
 Testa avaliação de risco e scoring de decisões.
 """
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 
@@ -501,7 +501,7 @@ class TestRiskHistoryTracking:
             "decision_id": str(uuid4()),
             "risk_score": 0.75,
             "verdict": "reject",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "factors": {
                 "amount": 1000000,
                 "new_client": True
@@ -816,7 +816,7 @@ class TestRiskFactors:
         """Deve extrair fator de tempo."""
         from datetime import datetime
 
-        current_hour = datetime.utcnow().hour
+        current_hour = datetime.now(timezone.utc).hour
 
         # Transações noturnas têm risco maior
         if 22 <= current_hour or current_hour < 6:
@@ -891,7 +891,7 @@ class TestRiskReporting:
         """Deve gerar relatório de risco."""
         report = {
             "report_id": str(uuid4()),
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "total_risk_score": 0.65,
             "risk_category": "medium",
             "top_factors": [

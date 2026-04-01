@@ -176,7 +176,7 @@ def run_profiling():
         # Tentar importar com mock config para profiling local
         from neural_hive_specialists import BaseSpecialist
         from neural_hive_specialists.config import SpecialistConfig
-        from pydantic_settings import BaseSettings
+        from pydantic_settings import BaseSettings, SettingsConfigDict
 
         print("\n✓ Imports successful")
 
@@ -204,9 +204,7 @@ def run_profiling():
             enable_drift_monitoring: bool = False
             enable_caching: bool = False
 
-            class Config:
-                env_file = ".env"
-                extra = "ignore"
+            model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
         print("\n[1/4] Creating mock configuration...")
 

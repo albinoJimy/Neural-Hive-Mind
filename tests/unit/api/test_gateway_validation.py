@@ -5,7 +5,7 @@ GAP-04: Cobertura de Testes 16% → 70%
 Testa validação de intents, NLU e roteamento.
 """
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 from pydantic import ValidationError
 
@@ -23,7 +23,7 @@ class TestIntentValidation:
             "intent_id": str(uuid4()),
             "user_id": "user-123",
             "text": "Qual meu saldo?",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "locale": "pt-BR"
         }
 
@@ -77,7 +77,7 @@ class TestIntentValidation:
 
     def test_timestamp_format(self):
         """Deve validar formato de timestamp."""
-        timestamp = datetime.utcnow().isoformat()
+        timestamp = datetime.now(timezone.utc).isoformat()
 
         try:
             datetime.fromisoformat(timestamp)
@@ -272,7 +272,7 @@ class TestResponseFormatting:
         response = {
             "status": "success",
             "data": {"balance": "R$ 1.500,00"},
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         is_valid = response["status"] == "success" and "data" in response
@@ -285,7 +285,7 @@ class TestResponseFormatting:
             "status": "error",
             "error_code": "INVALID_INPUT",
             "message": "Campo obrigatório faltando",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         is_valid = response["status"] == "error" and "error_code" in response
@@ -298,7 +298,7 @@ class TestResponseFormatting:
             "status": "partial",
             "data": {"balance": "R$ 1.500,00"},
             "pending": ["investments"],
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         is_valid = response["status"] == "partial" and "pending" in response
@@ -345,7 +345,7 @@ class TestGatewayRateLimiting:
 
     def test_sliding_window_counter(self):
         """Deve usar contador de janela deslizante."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         requests = [
             {"timestamp": now, "user_id": "user-123"},
             {"timestamp": now, "user_id": "user-123"},
@@ -404,11 +404,11 @@ class TestGatewayCaching:
         """Deve verificar TTL do cache."""
         cache_entry = {
             "data": {"balance": "R$ 1.500,00"},
-            "created_at": datetime.utcnow() - timedelta(seconds=350)
+            "created_at": datetime.now(timezone.utc) - timedelta(seconds=350)
         }
         ttl_seconds = 300
 
-        age_seconds = (datetime.utcnow() - cache_entry["created_at"]).total_seconds()
+        age_seconds = (datetime.now(timezone.utc) - cache_entry["created_at"]).total_seconds()
         is_expired = age_seconds > ttl_seconds
 
         assert is_expired is True
@@ -462,7 +462,7 @@ class TestGatewayObservability:
     def test_log_incoming_request(self):
         """Deve logar requisição de entrada."""
         log_entry = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "intent_id": str(uuid4()),
             "user_id": "user-123",
             "action": "request_received"
@@ -474,9 +474,9 @@ class TestGatewayObservability:
 
     def test_track_latency(self):
         """Deve rastrear latência."""
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc)
         # Simular processamento
-        end_time = datetime.utcnow()
+        end_time = datetime.now(timezone.utc)
 
         latency_ms = (end_time - start_time).total_seconds() * 1000
 

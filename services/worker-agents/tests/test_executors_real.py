@@ -191,7 +191,7 @@ async def test_validate_executor_with_opa(monkeypatch, base_config):
             return FakeClient(self.payload)
 
     monkeypatch.setattr(
-        "executors.validate_executor.httpx.AsyncClient",
+        "clients.opa_client.httpx.AsyncClient",
         FakeAsyncClientFactory({"result": {"allow": True, "violations": []}})
     )
 
@@ -243,7 +243,7 @@ async def test_validate_executor_metrics_success(monkeypatch, base_config):
     )
 
     monkeypatch.setattr(
-        "executors.validate_executor.httpx.AsyncClient",
+        "clients.opa_client.httpx.AsyncClient",
         FakeAsyncClientFactory({"result": {"allow": True, "violations": []}})
     )
 
@@ -278,7 +278,7 @@ async def test_validate_executor_metrics_error(monkeypatch, base_config):
     )
 
     monkeypatch.setattr(
-        "executors.validate_executor.httpx.AsyncClient",
+        "clients.opa_client.httpx.AsyncClient",
         FakeAsyncClientFactory()
     )
 

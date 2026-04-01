@@ -166,7 +166,9 @@ class TestSet:
         assert result is True
         # Verifica que TTL customizado foi usado
         call_args = mock_redis.setex.call_args
-        assert call_args[0][2] == custom_ttl  # Terceiro argumento é TTL
+        # setex é chamado com (key, ttl, value) ou argumentos nomeados
+        ttl_arg = call_args[0][1] if len(call_args[0]) > 1 else call_args[1].get('ttl')
+        assert ttl_arg == custom_ttl
 
     @pytest.mark.asyncio
     async def test_set_when_not_available(self, cache_service, sample_features):

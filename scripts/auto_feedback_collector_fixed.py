@@ -3,7 +3,7 @@ import subprocess
 subprocess.check_call([sys.executable, "-m", "pip", "install", "pymongo", "-q"])
 
 from pymongo import MongoClient
-from datetime import datetime
+from datetime import datetime, timezone
 
 uri = "mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017/neural_hive?authSource=admin"
 client = MongoClient(uri, serverSelectionTimeoutMS=5000)
@@ -37,7 +37,7 @@ for i, op in enumerate(opinions, 1):
         rec, rating = model_rec, confidence
 
     feedback_doc = {
-        "feedback_id": f"fb-auto-{datetime.utcnow().timestamp()}-{i}",
+        "feedback_id": f"fb-auto-{datetime.now(timezone.utc).timestamp()}-{i}",
         "opinion_id": opinion_id,
         "opinion_id": opinion_id,
         "opinion_recommendation": model_rec,
@@ -46,7 +46,7 @@ for i, op in enumerate(opinions, 1):
         "feedback_notes": "[AUTO] Feedback por heuristica",
         "specialist_type": specialist,
         "auto_generated": True,
-        "submitted_at": datetime.utcnow(),
+        "submitted_at": datetime.now(timezone.utc),
         "trace_id": op.get("trace_id")
     }
 

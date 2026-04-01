@@ -196,7 +196,7 @@ class TestRateLimiting:
 
         # Add some timestamps under limit
         for _ in range(10):
-            engine.published_signals.append(datetime.utcnow())
+            engine.published_signals.append(datetime.now(timezone.utc))
 
         result = engine._check_rate_limit()
 
@@ -208,7 +208,7 @@ class TestRateLimiting:
 
         # Fill to max
         for _ in range(engine.max_signals_per_minute + 10):
-            engine.published_signals.append(datetime.utcnow())
+            engine.published_signals.append(datetime.now(timezone.utc))
 
         result = engine._check_rate_limit()
 
@@ -219,7 +219,7 @@ class TestRateLimiting:
         engine = ExplorationEngine("scout-agent-001")
 
         # Add old timestamps
-        old_time = datetime.utcnow() - timedelta(minutes=2)
+        old_time = datetime.now(timezone.utc) - timedelta(minutes=2)
         for _ in range(10):
             engine.published_signals.append(old_time)
 
@@ -572,7 +572,7 @@ class TestPriorityHandling:
 
         # Fill rate limit
         for _ in range(engine.max_signals_per_minute + 1):
-            engine.published_signals.append(datetime.utcnow())
+            engine.published_signals.append(datetime.now(timezone.utc))
 
         # Mock signal with high priority
         from src.models.scout_signal import ScoutSignal

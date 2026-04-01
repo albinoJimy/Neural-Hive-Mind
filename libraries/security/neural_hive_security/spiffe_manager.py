@@ -8,7 +8,7 @@ import json
 import base64
 from typing import Optional, Dict, Any, List
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import structlog
 from prometheus_client import Counter, Histogram, Gauge
 
@@ -162,7 +162,7 @@ class SPIFFEManager:
                 # Check cache first
                 if audience in self._jwt_svid_cache:
                     cached = self._jwt_svid_cache[audience]
-                    if cached.expiry > datetime.utcnow() + timedelta(minutes=5):
+                    if cached.expiry > datetime.now(timezone.utc) + timedelta(minutes=5):
                         self.logger.debug("using_cached_jwt_svid", audience=audience)
                         return cached
 
@@ -195,7 +195,7 @@ class SPIFFEManager:
 
                             spiffe_svid_fetch_total.labels(svid_type=operation, status="success").inc()
                             spiffe_svid_ttl_seconds.labels(svid_type=operation).set(
-                                (expiry - datetime.utcnow()).total_seconds()
+                                (expiry - datetime.now(timezone.utc)).total_seconds()
                             )
                             self.logger.info(
                                 "jwt_svid_fetched_from_spire",
@@ -228,7 +228,7 @@ class SPIFFEManager:
                     with open(jwt_token_path, "r") as f:
                         token = f.read().strip()
                     # Parse expiry from JWT (simplified - in production decode properly)
-                    expiry = datetime.utcnow() + timedelta(seconds=desired_ttl)
+                    expiry = datetime.now(timezone.utc) + timedelta(seconds=desired_ttl)
                 except FileNotFoundError:
                     # Check environment - fail in production/staging if no real SVID
                     if self.config.environment in ['production', 'staging']:
@@ -251,7 +251,7 @@ class SPIFFEManager:
                         warning="Using placeholder SVID in development - not for production"
                     )
                     token = f"eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.placeholder.{audience}"
-                    expiry = datetime.utcnow() + timedelta(seconds=desired_ttl)
+                    expiry = datetime.now(timezone.utc) + timedelta(seconds=desired_ttl)
 
                 jwt_svid = JWTSVID(
                     token=token,
@@ -265,7 +265,7 @@ class SPIFFEManager:
 
                 spiffe_svid_fetch_total.labels(svid_type=operation, status="success").inc()
                 spiffe_svid_ttl_seconds.labels(svid_type=operation).set(
-                    (expiry - datetime.utcnow()).total_seconds()
+                    (expiry - datetime.now(timezone.utc)).total_seconds()
                 )
                 self.logger.info(
                     "jwt_svid_fetched_fallback",
@@ -298,7 +298,7 @@ class SPIFFEManager:
             try:
                 # Check cache
                 if self._x509_svid:
-                    if self._x509_svid.expires_at > datetime.utcnow() + timedelta(minutes=5):
+                    if self._x509_svid.expires_at > datetime.now(timezone.utc) + timedelta(minutes=5):
                         self.logger.debug("using_cached_x509_svid")
                         return self._x509_svid
 
@@ -339,7 +339,7 @@ class SPIFFEManager:
 
                                 spiffe_svid_fetch_total.labels(svid_type=operation, status="success").inc()
                                 spiffe_svid_ttl_seconds.labels(svid_type=operation).set(
-                                    (expiry - datetime.utcnow()).total_seconds()
+                                    (expiry - datetime.now(timezone.utc)).total_seconds()
                                 )
                                 self.logger.info(
                                     "x509_svid_fetched_from_spire",
@@ -389,7 +389,7 @@ class SPIFFEManager:
                     private_key="-----BEGIN PRIVATE KEY-----\nplaceholder\n-----END PRIVATE KEY-----",
                     spiffe_id=spiffe_id,
                     ca_bundle="-----BEGIN CERTIFICATE-----\nplaceholder CA\n-----END CERTIFICATE-----",
-                    expires_at=datetime.utcnow() + timedelta(hours=24),
+                    expires_at=datetime.now(timezone.utc) + timedelta(hours=24),
                     is_placeholder=True  # Mark as placeholder
                 )
 
@@ -397,7 +397,7 @@ class SPIFFEManager:
 
                 spiffe_svid_fetch_total.labels(svid_type=operation, status="success").inc()
                 spiffe_svid_ttl_seconds.labels(svid_type=operation).set(
-                    (self._x509_svid.expires_at - datetime.utcnow()).total_seconds()
+                    (self._x509_svid.expires_at - datetime.now(timezone.utc)).total_seconds()
                 )
                 self.logger.info(
                     "x509_svid_fetched_fallback",
@@ -502,7 +502,7 @@ class SPIFFEManager:
 
                 # Refresh JWT-SVIDs
                 for audience, svid in list(self._jwt_svid_cache.items()):
-                    time_until_expiry = (svid.expiry - datetime.utcnow()).total_seconds()
+                    time_until_expiry = (svid.expiry - datetime.now(timezone.utc)).total_seconds()
                     refresh_threshold = self.config.jwt_ttl_seconds * self.config.svid_refresh_threshold
 
                     if time_until_expiry < refresh_threshold:
@@ -530,7 +530,7 @@ class SPIFFEManager:
 
                 # Refresh X.509-SVID if enabled
                 if self.config.enable_x509 and self._x509_svid:
-                    time_until_expiry = (self._x509_svid.expires_at - datetime.utcnow()).total_seconds()
+                    time_until_expiry = (self._x509_svid.expires_at - datetime.now(timezone.utc)).total_seconds()
                     refresh_threshold = 86400 * self.config.svid_refresh_threshold  # Default 24 hours * 0.8
 
                     if time_until_expiry < refresh_threshold:

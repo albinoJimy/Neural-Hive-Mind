@@ -6,7 +6,7 @@ Sistema de alertas baseado em thresholds dinâmicos e anomalias.
 
 import structlog
 from typing import Dict, List, Optional, Callable, Any
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass, field
 from enum import Enum
 from collections import defaultdict, deque
@@ -109,7 +109,7 @@ class AlertRule:
         # Verificar cooldown
         if last_alert_time:
             cooldown = timedelta(minutes=self.cooldown_minutes)
-            if datetime.utcnow() - last_alert_time < cooldown:
+            if datetime.now(timezone.utc) - last_alert_time < cooldown:
                 return False
 
         # Verificar condições específicas
@@ -419,7 +419,7 @@ class RiskAlertManager:
         """Cria alerta baseado na regra."""
         self._alert_id_counter += 1
         alert_id = (
-            f"ALT-{datetime.utcnow().strftime('%Y%m%d')}-{self._alert_id_counter:06d}"
+            f"ALT-{datetime.now(timezone.utc).strftime('%Y%m%d')}-{self._alert_id_counter:06d}"
         )
 
         # Determinar severidade
@@ -556,7 +556,7 @@ class RiskAlertManager:
             if alert.id == alert_id and not alert.acknowledged:
                 alert.acknowledged = True
                 alert.acknowledged_by = acknowledged_by
-                alert.acknowledged_at = datetime.utcnow()
+                alert.acknowledged_at = datetime.now(timezone.utc)
 
                 logger.info(
                     "alert_acknowledged",
@@ -581,7 +581,7 @@ class RiskAlertManager:
         for alert in self._alerts:
             if alert.id == alert_id and not alert.resolved:
                 alert.resolved = True
-                alert.resolved_at = datetime.utcnow()
+                alert.resolved_at = datetime.now(timezone.utc)
 
                 logger.info(
                     "alert_resolved", alert_id=alert_id, resolved_by=resolved_by
@@ -681,7 +681,7 @@ class RiskAlertManager:
 
     def cleanup_old_alerts(self, days: int = 30):
         """Remove alertas antigos."""
-        cutoff = datetime.utcnow() - timedelta(days=days)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
 
         self._alerts = [a for a in self._alerts if a.timestamp >= cutoff]
 

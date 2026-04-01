@@ -11,7 +11,7 @@ Valida o fluxo end-to-end do sistema de Active Learning:
 
 import pytest
 from unittest.mock import MagicMock, AsyncMock, patch
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 
 from src.services.approval_service import ApprovalService
 from src.api.routers import active_learning
@@ -69,7 +69,7 @@ class TestActiveLearningE2E:
                 priority_recommendations=[
                     {'type': 'class', 'value': 'reject', 'gap': 26.0}
                 ],
-                last_updated=datetime.utcnow().isoformat(),
+                last_updated=datetime.now(timezone.utc).isoformat(),
                 model_dump=lambda: {
                     'total_feedbacks': 484,
                     'balance': {'approve': {'count': 450, 'percentage': 93.0}},
@@ -78,7 +78,7 @@ class TestActiveLearningE2E:
                     'semantic_features_count': 46,
                     'semantic_features_percentage': 9.5,
                     'priority_recommendations': [],
-                    'last_updated': datetime.utcnow().isoformat()
+                    'last_updated': datetime.now(timezone.utc).isoformat()
                 }
             )
         )
@@ -105,8 +105,8 @@ class TestActiveLearningE2E:
             'queue_id': 'queue-1',
             'status': 'in_review',
             'assigned_to': 'user@example.com',
-            'claimed_at': datetime.utcnow(),
-            'expires_at': datetime.utcnow() + timedelta(hours=1)
+            'claimed_at': datetime.now(timezone.utc),
+            'expires_at': datetime.now(timezone.utc) + timedelta(hours=1)
         })
         priority_queue.release_case = MagicMock(return_value={
             'queue_id': 'queue-1',
@@ -187,7 +187,7 @@ class TestActiveLearningE2E:
                 risk_band=RiskBand.MEDIUM,
                 is_destructive=False,
                 status=ApprovalStatus.PENDING,
-                requested_at=datetime.utcnow(),
+                requested_at=datetime.now(timezone.utc),
                 cognitive_plan={'plan_id': 'plan-1', 'steps': []}
             )
 
@@ -300,7 +300,7 @@ class TestActiveLearningAPIE2E:
                 semantic_features_count=10,
                 semantic_features_percentage=10.0,
                 priority_recommendations=[],
-                last_updated=datetime.utcnow().isoformat(),
+                last_updated=datetime.now(timezone.utc).isoformat(),
                 model_dump=lambda: {
                     'total_feedbacks': 100,
                     'balance': {},
@@ -309,7 +309,7 @@ class TestActiveLearningAPIE2E:
                     'semantic_features_count': 10,
                     'semantic_features_percentage': 10.0,
                     'priority_recommendations': [],
-                    'last_updated': datetime.utcnow().isoformat()
+                    'last_updated': datetime.now(timezone.utc).isoformat()
                 }
             )
         )
@@ -321,8 +321,8 @@ class TestActiveLearningAPIE2E:
             'queue_id': 'q1',
             'status': 'in_review',
             'assigned_to': 'user@example.com',
-            'claimed_at': datetime.utcnow(),
-            'expires_at': datetime.utcnow() + timedelta(hours=1)
+            'claimed_at': datetime.now(timezone.utc),
+            'expires_at': datetime.now(timezone.utc) + timedelta(hours=1)
         })
         priority_queue.release_case = MagicMock(return_value={'queue_id': 'q1', 'status': 'pending'})
 

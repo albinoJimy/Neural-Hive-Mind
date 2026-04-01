@@ -9,7 +9,7 @@ import os
 import shutil
 import time
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, Optional, List, Tuple
 import structlog
 import joblib
@@ -241,7 +241,7 @@ class RollbackManager:
             version_id=version_id,
             specialist_type=self.specialist_type,
             checkpoint_path=checkpoint_path,
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
             metrics=metrics,
             is_stable=mark_stable,
             metadata=metadata
@@ -441,8 +441,8 @@ class RollbackManager:
             cooldown_end = self._last_rollback_time + timedelta(
                 minutes=self.config.rollback_cooldown_minutes
             )
-            if datetime.utcnow() < cooldown_end:
-                remaining = (cooldown_end - datetime.utcnow()).seconds
+            if datetime.now(timezone.utc) < cooldown_end:
+                remaining = (cooldown_end - datetime.now(timezone.utc)).seconds
                 raise RollbackError(
                     f"Rollback em cooldown. Aguarde {remaining} segundos."
                 )
@@ -478,7 +478,7 @@ class RollbackManager:
                 'from_version': self._current_version.version_id if self._current_version else None,
                 'to_version': target.version_id,
                 'reason': reason,
-                'timestamp': datetime.utcnow(),
+                'timestamp': datetime.now(timezone.utc),
                 'status': 'completed',
                 'duration_seconds': 0
             }
@@ -486,7 +486,7 @@ class RollbackManager:
             # Atualizar versão atual
             previous_version = self._current_version
             self._current_version = target
-            self._last_rollback_time = datetime.utcnow()
+            self._last_rollback_time = datetime.now(timezone.utc)
 
             # Calcular duração
             duration = time.time() - start_time
@@ -532,7 +532,7 @@ class RollbackManager:
                 'rollback_id': rollback_id,
                 'specialist_type': self.specialist_type,
                 'reason': reason,
-                'timestamp': datetime.utcnow(),
+                'timestamp': datetime.now(timezone.utc),
                 'status': 'failed',
                 'error': str(e)
             }
@@ -564,7 +564,7 @@ class RollbackManager:
             f"• De: {previous.version_id if previous else 'N/A'}\n"
             f"• Para: {target.version_id}\n"
             f"• Razão: {reason}\n"
-            f"• Timestamp: {datetime.utcnow().isoformat()}"
+            f"• Timestamp: {datetime.now(timezone.utc).isoformat()}"
         )
 
         if 'slack' in self.config.notification_channels and self.config.slack_webhook_url:

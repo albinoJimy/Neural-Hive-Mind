@@ -5,7 +5,7 @@ GAP-04: Cobertura de Testes 16% → 70%
 Testa validação de aprovações, feedbacks e decisões.
 """
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 from enum import Enum
 
@@ -146,7 +146,7 @@ class TestFeedbackCollection:
             "original_verdict": "approve",
             "actual_outcome": "approved",
             "correct": True,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         assert feedback["correct"] is True
@@ -236,10 +236,10 @@ class TestApprovalQueue:
 
     def test_queue_timeout(self):
         """Deve processar timeout da fila."""
-        queued_at = datetime.utcnow() - timedelta(minutes=35)
+        queued_at = datetime.now(timezone.utc) - timedelta(minutes=35)
         timeout_minutes = 30
 
-        elapsed = (datetime.utcnow() - queued_at).total_seconds() / 60
+        elapsed = (datetime.now(timezone.utc) - queued_at).total_seconds() / 60
         is_timeout = elapsed > timeout_minutes
 
         assert is_timeout is True
@@ -305,7 +305,7 @@ class TestApprovalNotification:
             "type": "approval_required",
             "recipient": "approver-123",
             "plan_id": str(uuid4()),
-            "sent_at": datetime.utcnow().isoformat()
+            "sent_at": datetime.now(timezone.utc).isoformat()
         }
 
         assert notification["type"] == "approval_required"
@@ -351,7 +351,7 @@ class TestApprovalHistory:
             "plan_id": str(uuid4()),
             "action": "approved",
             "actor": "approver-123",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         assert event["action"] == "approved"
@@ -528,8 +528,8 @@ class TestApprovalDelegation:
             "from": "approver-1",
             "to": "approver-2",
             "reason": "vacation",
-            "start_date": datetime.utcnow().isoformat(),
-            "end_date": (datetime.utcnow() + timedelta(days=7)).isoformat()
+            "start_date": datetime.now(timezone.utc).isoformat(),
+            "end_date": (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
         }
 
         assert delegation["from"] == "approver-1"
@@ -538,11 +538,11 @@ class TestApprovalDelegation:
     def test_check_delegation_validity(self):
         """Deve verificar validade da delegação."""
         delegation = {
-            "start_date": datetime.utcnow() - timedelta(days=1),
-            "end_date": datetime.utcnow() + timedelta(days=5)
+            "start_date": datetime.now(timezone.utc) - timedelta(days=1),
+            "end_date": datetime.now(timezone.utc) + timedelta(days=5)
         }
 
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         is_valid = delegation["start_date"] <= now <= delegation["end_date"]
 
         assert is_valid is True
@@ -555,7 +555,7 @@ class TestApprovalDelegation:
         }
 
         delegation["active"] = False
-        delegation["revoked_at"] = datetime.utcnow().isoformat()
+        delegation["revoked_at"] = datetime.now(timezone.utc).isoformat()
 
         assert delegation["active"] is False
         assert delegation["revoked_at"] is not None

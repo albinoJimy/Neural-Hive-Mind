@@ -1,7 +1,7 @@
 """Testes de integração para endpoints de políticas de freeze."""
 
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from httpx import AsyncClient
 
 from src.main import app
@@ -125,7 +125,7 @@ class TestFreezeHistoryIntegration:
         policy_id = await test_postgresql_client.create_policy(policy)
 
         # Criar freeze events (ativos e resolvidos)
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         # Evento ativo
         active_event = FreezeEvent(
@@ -208,9 +208,9 @@ class TestViolationsCountUpdateIntegration:
         budget = ErrorBudget(
             slo_id=slo_id,
             service_name="test-service-violations",
-            calculated_at=datetime.utcnow(),
-            window_start=datetime.utcnow() - timedelta(days=30),
-            window_end=datetime.utcnow(),
+            calculated_at=datetime.now(timezone.utc),
+            window_start=datetime.now(timezone.utc) - timedelta(days=30),
+            window_end=datetime.now(timezone.utc),
             sli_value=0.998,
             slo_target=0.999,
             error_budget_total=0.1,

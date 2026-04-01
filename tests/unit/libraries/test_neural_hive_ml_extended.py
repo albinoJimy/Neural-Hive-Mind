@@ -81,7 +81,7 @@ class TestDriftDetection:
             "feature": "transaction_amount",
             "drift_score": 2.5,
             "threshold": 2.0,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         assert drift_info["drift_score"] > drift_info["threshold"]
@@ -104,10 +104,10 @@ class TestModelRetraining:
 
     def test_check_retraining_needed(self):
         """Deve verificar se retreinamento é necessário."""
-        last_retrained = datetime.utcnow() - timedelta(days=35)
+        last_retrained = datetime.now(timezone.utc) - timedelta(days=35)
         retrain_interval_days = 30
 
-        days_since = (datetime.utcnow() - last_retrained).days
+        days_since = (datetime.now(timezone.utc) - last_retrained).days
         needs_retrain = days_since >= retrain_interval_days
 
         assert needs_retrain is True
@@ -145,7 +145,7 @@ class TestModelRetraining:
         """Deve agendar retreinamento."""
         schedule = {
             "model_id": str(uuid4()),
-            "scheduled_at": (datetime.utcnow() + timedelta(hours=2)).isoformat(),
+            "scheduled_at": (datetime.now(timezone.utc) + timedelta(hours=2)).isoformat(),
             "priority": "high"
         }
 
@@ -283,7 +283,7 @@ class TestModelRegistry:
             "name": "approval_model",
             "version": "1.0.0",
             "accuracy": 0.85,
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat()
         }
 
         assert model["version"] == "1.0.0"
@@ -336,7 +336,7 @@ class TestModelRegistry:
         }
 
         model["status"] = "deprecated"
-        model["deprecated_at"] = datetime.utcnow().isoformat()
+        model["deprecated_at"] = datetime.now(timezone.utc).isoformat()
 
         assert model["status"] == "deprecated"
 
@@ -380,7 +380,7 @@ class TestMLPipeline:
             "pipeline_id": str(uuid4()),
             "completed_stages": ["stage1", "stage2"],
             "current_stage": "stage3",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         assert len(checkpoint["completed_stages"]) == 2
@@ -424,7 +424,7 @@ class TestModelServing:
         model_info = {
             "model_id": str(uuid4()),
             "path": "/models/approval_model_v1.pkl",
-            "loaded_at": datetime.utcnow().isoformat()
+            "loaded_at": datetime.now(timezone.utc).isoformat()
         }
 
         assert model_info["loaded_at"] is not None
@@ -464,13 +464,13 @@ class TestModelServing:
 
     def test_inference_latency(self):
         """Deve medir latência de inferência."""
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc)
 
         # Simula inferência
         import time
         time.sleep(0.01)
 
-        end_time = datetime.utcnow()
+        end_time = datetime.now(timezone.utc)
         latency_ms = (end_time - start_time).total_seconds() * 1000
 
         assert latency_ms >= 10
@@ -547,7 +547,7 @@ class TestFeatureStore:
             "entity_id": str(uuid4()),
             "feature_name": "user_risk_score",
             "value": 0.75,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         assert feature["feature_name"] == "user_risk_score"
@@ -563,10 +563,10 @@ class TestFeatureStore:
 
     def test_feature_freshness(self):
         """Deve verificar frescor da feature."""
-        feature_timestamp = datetime.utcnow() - timedelta(minutes=5)
+        feature_timestamp = datetime.now(timezone.utc) - timedelta(minutes=5)
         max_age_minutes = 10
 
-        age_minutes = (datetime.utcnow() - feature_timestamp).total_seconds() / 60
+        age_minutes = (datetime.now(timezone.utc) - feature_timestamp).total_seconds() / 60
         is_fresh = age_minutes <= max_age_minutes
 
         assert is_fresh is True

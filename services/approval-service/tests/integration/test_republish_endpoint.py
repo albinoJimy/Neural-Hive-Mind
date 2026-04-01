@@ -3,7 +3,7 @@ Testes de integracao para endpoint de republicacao
 """
 
 import pytest
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, AsyncMock
 
 from src.config.settings import Settings
@@ -32,7 +32,7 @@ class TestRepublishEndpointIntegration:
             destructive_tasks=['task-2'],
             status=ApprovalStatus.APPROVED,
             approved_by='original-admin@test.com',
-            approved_at=datetime.utcnow(),
+            approved_at=datetime.now(timezone.utc),
             cognitive_plan=sample_cognitive_plan
         )
         return {'plan-001': approval}
@@ -220,7 +220,7 @@ class TestRepublishEndpointIntegration:
         approval.status = ApprovalStatus.APPROVED
         approval.cognitive_plan = None  # Simula ausencia de cognitive_plan
         approval.approved_by = 'admin@test.com'
-        approval.approved_at = datetime.utcnow()
+        approval.approved_at = datetime.now(timezone.utc)
         approval.intent_id = 'intent-001'
 
         async def get_without_plan(plan_id):

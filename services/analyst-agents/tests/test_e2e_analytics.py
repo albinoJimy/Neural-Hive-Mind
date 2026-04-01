@@ -4,7 +4,7 @@ Usa mocks para evitar dependências externas.
 """
 import pytest
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from httpx import AsyncClient, ASGITransport
 
 from src.main import app
@@ -25,7 +25,7 @@ async def mock_app_state():
     from src.services.timeseries_analyzer import TimeSeriesAnalyzer
     from src.services.mcp_integration import MCPIntegration
     import uuid
-    from datetime import datetime, timedelta
+    from datetime import datetime, timezone, timedelta
     from src.models.insight_extended import InsightResponse, InsightStatus, InsightMetrics
 
     # In-memory storage para testes
@@ -42,8 +42,8 @@ async def mock_app_state():
             doc = insight.model_dump()
             doc["insight_id"] = str(uuid.uuid4())
             doc["status"] = InsightStatus.PENDING.value
-            doc["created_at"] = datetime.utcnow()
-            doc["expires_at"] = datetime.utcnow() + timedelta(days=90)
+            doc["created_at"] = datetime.now(timezone.utc)
+            doc["expires_at"] = datetime.now(timezone.utc) + timedelta(days=90)
             doc["metrics"] = InsightMetrics(processing_time_ms=0, confidence_score=0.0, data_points=0).model_dump()
             self.storage["insights"][doc["insight_id"]] = doc
             return InsightResponse(**doc)
@@ -178,10 +178,11 @@ async def test_e2e_insight_lifecycle(mock_app_state):
 @pytest.mark.asyncio
 async def test_e2e_timeseries_analysis(mock_app_state):
     """Teste E2E: Buscar série temporal → Detectar anomalias."""
+    from urllib.parse import quote
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        start = (datetime.utcnow() - timedelta(hours=1)).isoformat()
-        end = datetime.utcnow().isoformat()
+        start = quote((datetime.now(timezone.utc) - timedelta(hours=1)).isoformat())
+        end = quote(datetime.now(timezone.utc).isoformat())
 
         # Buscar série temporal
         response = await client.get(

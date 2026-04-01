@@ -2,7 +2,7 @@
 import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import AsyncMock, patch, MagicMock
-from datetime import datetime
+from datetime import datetime, timezone
 
 from src.main import app
 
@@ -18,8 +18,8 @@ def mock_repository():
         "ticket_id": "TICKET-001",
         "workflow_id": "workflow-001",
         "status": "approved",
-        "created_at": datetime.utcnow().isoformat(),
-        "updated_at": datetime.utcnow().isoformat(),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": datetime.now(timezone.utc).isoformat(),
         "performance_analysis": {"total_duration_ms": 5000, "peak_memory_mb": 128},
         "recommendations": [
             {
@@ -128,8 +128,8 @@ class TestOptimizationsAPI:
                     "ticket_id": "TICKET-001",
                     "workflow_id": "workflow-001",
                     "status": "approved",  # Precisa estar approved para apply
-                    "created_at": datetime.utcnow().isoformat(),
-                    "updated_at": datetime.utcnow().isoformat(),
+                    "created_at": datetime.now(timezone.utc).isoformat(),
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
                     "performance_analysis": {"total_duration_ms": 5000, "peak_memory_mb": 128},
                     "recommendations": [{"id": "rec-001"}],
                 }

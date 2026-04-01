@@ -7,7 +7,7 @@ Fornece queries PromQL para metricas do Fluxo C, autoscaling e circuit breakers.
 import asyncio
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 import httpx
@@ -426,7 +426,7 @@ class PrometheusClient:
         Returns:
             MetricsSnapshot com todas as metricas disponiveis
         """
-        snapshot = MetricsSnapshot(timestamp=datetime.utcnow())
+        snapshot = MetricsSnapshot(timestamp=datetime.now(timezone.utc))
 
         # Coletar metricas em paralelo
         tasks = {

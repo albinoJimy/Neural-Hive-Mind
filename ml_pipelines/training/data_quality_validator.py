@@ -14,7 +14,7 @@ Complementa o RealDataCollector com validações avançadas sem duplicar código
 """
 
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Any, Optional, Tuple
 import structlog
 import pandas as pd
@@ -106,7 +106,7 @@ class DataQualityValidator:
         Returns:
             Dicionário com resultados detalhados de validação
         """
-        validation_timestamp = datetime.utcnow().isoformat() + 'Z'
+        validation_timestamp = datetime.now(timezone.utc).isoformat() + 'Z'
 
         # Identificar colunas de features presentes
         feature_cols = [col for col in feature_names if col in df.columns]

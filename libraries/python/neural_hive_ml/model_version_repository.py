@@ -1,7 +1,7 @@
 """ModelVersionRepository - MongoDB Model Versions History."""
 
 from typing import Any, Dict, List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
@@ -78,7 +78,7 @@ class ModelVersionRepository:
             "n_samples": n_samples,
             "feature_importance": feature_importance or {},
             "drift_metrics": drift_metrics or {},
-            "created_at": created_at or datetime.utcnow(),
+            "created_at": created_at or datetime.now(timezone.utc),
             "promoted_at": promoted_at,
             "promoted_by": promoted_by,
         }
@@ -233,7 +233,7 @@ class ModelVersionRepository:
                 "$set": {
                     "stage": stage,
                     "is_active": (stage == "production"),
-                    "promoted_at": promoted_at or datetime.utcnow(),
+                    "promoted_at": promoted_at or datetime.now(timezone.utc),
                     "promoted_by": promoted_by,
                 }
             },

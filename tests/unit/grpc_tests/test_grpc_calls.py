@@ -6,7 +6,7 @@ Testa timeout, retry, backoff em chamadas gRPC.
 """
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 import asyncio
 
@@ -238,7 +238,7 @@ class TestGRPCStreaming:
         async def mock_stream():
             """Simula stream do servidor."""
             for i in range(5):
-                yield MagicMock(value=i, timestamp=datetime.utcnow().isoformat())
+                yield MagicMock(value=i, timestamp=datetime.now(timezone.utc).isoformat())
 
         received_values = []
         async for response in mock_stream():
@@ -277,7 +277,7 @@ class TestGRPCStreaming:
                 yield MagicMock(
                     original=request.value,
                     echoed=request.value * 2,
-                    timestamp=datetime.utcnow().isoformat()
+                    timestamp=datetime.now(timezone.utc).isoformat()
                 )
 
         received = []
@@ -347,7 +347,7 @@ class TestGRPCInterceptors:
             async def intercept(self, request, metadata):
                 logs.append({
                     "method": "TestMethod",
-                    "timestamp": datetime.utcnow().isoformat()
+                    "timestamp": datetime.now(timezone.utc).isoformat()
                 })
                 return request, metadata
 

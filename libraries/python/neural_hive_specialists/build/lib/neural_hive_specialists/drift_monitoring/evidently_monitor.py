@@ -62,7 +62,7 @@ class EvidentlyMonitor:
             timestamp: Timestamp da avaliação (usa now() se None)
         """
         record = {
-            'timestamp': timestamp or datetime.utcnow(),
+            'timestamp': timestamp or datetime.now(timezone.utc),
             **features
         }
         self.current_data.append(record)
@@ -148,7 +148,7 @@ class EvidentlyMonitor:
                 'drift_score': drift_score,
                 'drifted_features': drifted_features,
                 'report': report_dict,
-                'timestamp': datetime.utcnow().isoformat()
+                'timestamp': datetime.now(timezone.utc).isoformat()
             }
 
         except ImportError:

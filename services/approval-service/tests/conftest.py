@@ -3,7 +3,7 @@ Configuracao e fixtures compartilhadas para testes do Approval Service
 """
 
 import pytest
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, AsyncMock
 
 from src.config.settings import Settings
@@ -99,7 +99,7 @@ def sample_cognitive_plan():
             {'task_id': 'task-2', 'type': 'delete', 'description': 'Remover registros antigos'},
             {'task_id': 'task-3', 'type': 'truncate', 'description': 'Limpar tabela temporaria'}
         ],
-        'created_at': datetime.utcnow().isoformat()
+        'created_at': datetime.now(timezone.utc).isoformat()
     }
 
 
@@ -116,7 +116,7 @@ def sample_approval_request(sample_cognitive_plan):
         destructive_tasks=sample_cognitive_plan['destructive_tasks'],
         risk_matrix=sample_cognitive_plan['risk_matrix'],
         status=ApprovalStatus.PENDING,
-        requested_at=datetime.utcnow(),
+        requested_at=datetime.now(timezone.utc),
         cognitive_plan=sample_cognitive_plan
     )
 
@@ -128,7 +128,7 @@ def sample_approval_decision():
         plan_id='plan-001',
         decision='approved',
         approved_by='admin@example.com',
-        approved_at=datetime.utcnow(),
+        approved_at=datetime.now(timezone.utc),
         comments='Aprovado apos revisao manual'
     )
 
@@ -141,7 +141,7 @@ def sample_approval_response():
         intent_id='intent-001',
         decision='approved',
         approved_by='admin@example.com',
-        approved_at=datetime.utcnow(),
+        approved_at=datetime.now(timezone.utc),
         cognitive_plan={'plan_id': 'plan-001'}
     )
 

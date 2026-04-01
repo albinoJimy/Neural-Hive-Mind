@@ -44,7 +44,7 @@ def mock_metrics():
 @pytest.fixture
 def mock_argocd_client():
     """Mock para ArgoCDClient."""
-    from services.worker_agents.src.clients.argocd_client import (
+    from clients.argocd_client import (
         ApplicationStatus,
         HealthStatus,
         SyncStatus
@@ -64,7 +64,7 @@ def mock_argocd_client():
 @pytest.fixture
 def mock_flux_client():
     """Mock para FluxClient."""
-    from services.worker_agents.src.clients.flux_client import (
+    from clients.flux_client import (
         KustomizationStatus,
         Condition
     )
@@ -86,7 +86,7 @@ def mock_flux_client():
 @pytest.fixture
 def deploy_executor_with_argocd(worker_config, mock_metrics, mock_argocd_client):
     """DeployExecutor com ArgoCD client."""
-    from services.worker_agents.src.executors.deploy_executor import DeployExecutor
+    from executors.deploy_executor import DeployExecutor
 
     return DeployExecutor(
         config=worker_config,
@@ -101,7 +101,7 @@ def deploy_executor_with_argocd(worker_config, mock_metrics, mock_argocd_client)
 @pytest.fixture
 def deploy_executor_with_flux(worker_config, mock_metrics, mock_flux_client):
     """DeployExecutor com Flux client."""
-    from services.worker_agents.src.executors.deploy_executor import DeployExecutor
+    from executors.deploy_executor import DeployExecutor
 
     worker_config.flux_enabled = True
     return DeployExecutor(
@@ -117,7 +117,7 @@ def deploy_executor_with_flux(worker_config, mock_metrics, mock_flux_client):
 @pytest.fixture
 def deploy_executor_simulation(worker_config, mock_metrics):
     """DeployExecutor sem clients (modo simulacao)."""
-    from services.worker_agents.src.executors.deploy_executor import DeployExecutor
+    from executors.deploy_executor import DeployExecutor
 
     worker_config.argocd_enabled = False
     worker_config.argocd_url = None
@@ -201,7 +201,7 @@ class TestDeployExecutorWithArgoCD:
         mock_argocd_client
     ):
         """Deve tratar timeout do ArgoCD."""
-        from services.worker_agents.src.clients.argocd_client import ArgoCDTimeoutError
+        from clients.argocd_client import ArgoCDTimeoutError
 
         mock_argocd_client.wait_for_health.side_effect = ArgoCDTimeoutError('Timeout')
 
@@ -219,7 +219,7 @@ class TestDeployExecutorWithArgoCD:
         mock_argocd_client
     ):
         """Deve tratar erro de API do ArgoCD."""
-        from services.worker_agents.src.clients.argocd_client import ArgoCDAPIError
+        from clients.argocd_client import ArgoCDAPIError
 
         mock_argocd_client.create_application.side_effect = ArgoCDAPIError(
             'Conflict: application already exists',
@@ -277,7 +277,7 @@ class TestDeployExecutorWithFlux:
         mock_flux_client
     ):
         """Deve tratar timeout do Flux."""
-        from services.worker_agents.src.clients.flux_client import FluxTimeoutError
+        from clients.flux_client import FluxTimeoutError
 
         mock_flux_client.wait_for_ready.side_effect = FluxTimeoutError('Timeout')
 
@@ -295,7 +295,7 @@ class TestDeployExecutorWithFlux:
         mock_flux_client
     ):
         """Deve tratar erro de API do Flux."""
-        from services.worker_agents.src.clients.flux_client import FluxAPIError
+        from clients.flux_client import FluxAPIError
 
         mock_flux_client.create_kustomization.side_effect = FluxAPIError(
             'Kustomization validation failed',
@@ -379,7 +379,7 @@ class TestDeployExecutorProviderSelection:
         deploy_ticket
     ):
         """Deve usar ArgoCD legado quando sem client mas URL configurada."""
-        from services.worker_agents.src.executors.deploy_executor import DeployExecutor
+        from executors.deploy_executor import DeployExecutor
 
         executor = DeployExecutor(
             config=worker_config,

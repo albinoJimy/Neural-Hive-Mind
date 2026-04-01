@@ -5,7 +5,7 @@ GAP-04: Cobertura de Testes 16% → 70%
 Testa pipelines ML, feature engineering, e drift detection.
 """
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 import numpy as np
 
@@ -147,7 +147,7 @@ class TestModelInference:
         model = {
             "model_id": "approval_model",
             "version": "v2",
-            "loaded_at": datetime.utcnow().isoformat()
+            "loaded_at": datetime.now(timezone.utc).isoformat()
         }
 
         assert model["version"] == "v2"
@@ -258,9 +258,9 @@ class TestModelRetraining:
     def test_schedule_retraining(self):
         """Deve agendar retreino periódico."""
         retraining_interval_days = 7
-        last_retrained = datetime.utcnow() - timedelta(days=8)
+        last_retrained = datetime.now(timezone.utc) - timedelta(days=8)
 
-        days_since_retrain = (datetime.utcnow() - last_retrained).days
+        days_since_retrain = (datetime.now(timezone.utc) - last_retrained).days
 
         should_retrain = days_since_retrain >= retraining_interval_days
 
@@ -570,7 +570,7 @@ class TestExperimentTracking:
             "name": "model_v2_with_new_features",
             "params": {"learning_rate": 0.01, "max_depth": 5},
             "metrics": {"accuracy": 0.85, "f1": 0.87},
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat()
         }
 
         assert "accuracy" in experiment["metrics"]

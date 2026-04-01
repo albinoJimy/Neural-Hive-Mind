@@ -6,7 +6,7 @@ Evolution Hooks.
 """
 
 import pytest
-from datetime import datetime
+from datetime import datetime, timezone
 from pydantic import ValidationError
 
 from neural_hive_specialists.evolution_hooks.models import (
@@ -194,7 +194,7 @@ class TestPatternMetrics:
 
     def test_create_metrics_custom(self):
         """Cria métricas com valores customizados."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         metrics = PatternMetrics(
             times_matched=100,
             success_rate=0.85,

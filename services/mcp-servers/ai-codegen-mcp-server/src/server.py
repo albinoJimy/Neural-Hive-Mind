@@ -18,7 +18,7 @@ settings = get_settings()
 mcp = FastMCP(
     name="AI Code Generation MCP Server",
     version=settings.service_version,
-    description="Geração e explicação de código via GitHub Copilot e OpenAI"
+    instructions="Geração e explicação de código via GitHub Copilot e OpenAI"
 )
 
 

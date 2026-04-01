@@ -6,7 +6,7 @@ para produzir predições finais com maior robustez.
 """
 
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, Optional, List, Tuple, Callable
 import structlog
 import numpy as np
@@ -141,7 +141,7 @@ class ModelEnsemble:
             return None
 
         cached_pred, cached_time = self._prediction_cache[cache_key]
-        if datetime.utcnow() - cached_time > timedelta(seconds=self._cache_ttl_seconds):
+        if datetime.now(timezone.utc) - cached_time > timedelta(seconds=self._cache_ttl_seconds):
             del self._prediction_cache[cache_key]
             return None
 
@@ -149,7 +149,7 @@ class ModelEnsemble:
 
     def _update_cache(self, cache_key: str, prediction: np.ndarray):
         """Atualiza cache de predições."""
-        self._prediction_cache[cache_key] = (prediction, datetime.utcnow())
+        self._prediction_cache[cache_key] = (prediction, datetime.now(timezone.utc))
 
         # Limpar cache se muito grande
         if len(self._prediction_cache) > 10000:
@@ -475,7 +475,7 @@ class ModelEnsemble:
         record = {
             'accuracy': accuracy,
             'latency_ms': latency_ms,
-            'timestamp': timestamp or datetime.utcnow()
+            'timestamp': timestamp or datetime.now(timezone.utc)
         }
 
         if model_type == 'batch':
@@ -497,7 +497,7 @@ class ModelEnsemble:
         Returns:
             Tuple (batch_weight, online_weight)
         """
-        cutoff = datetime.utcnow() - timedelta(hours=window_hours)
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=window_hours)
 
         # Filtrar por janela de tempo
         recent_batch = [

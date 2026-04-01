@@ -265,3 +265,108 @@ class TestVoiceIntentRequest:
         # Invalid request - no audio file
         with pytest.raises((ValueError, TypeError)):
             VoiceIntentRequest(audio_file=None)
+
+
+class TestSecurityValidation:
+    """Testes de validação de segurança para IntentRequest"""
+
+    def test_text_with_xss_script_tag_rejected(self):
+        """XSS com <script> deve ser rejeitado."""
+        with pytest.raises(ValueError, match="padrão potencialmente perigoso"):
+            IntentRequest(text="<script>alert('xss')</script> teste")
+
+    def test_text_with_javascript_uri_rejected(self):
+        """javascript: URI deve ser rejeitado."""
+        with pytest.raises(ValueError, match="padrão potencialmente perigoso"):
+            IntentRequest(text="click here javascript:alert('xss')")
+
+    def test_text_with_onerror_rejected(self):
+        """Event handler onerror deve ser rejeitado."""
+        with pytest.raises(ValueError, match="padrão potencialmente perigoso"):
+            IntentRequest(text="<img src=x onerror=alert('xss')>")
+
+    def test_text_with_eval_rejected(self):
+        """Função eval() deve ser rejeitada."""
+        with pytest.raises(ValueError, match="padrão potencialmente perigoso"):
+            IntentRequest(text="test text with eval(malicious_code)")
+
+    def test_text_with_exec_rejected(self):
+        """Função exec() deve ser rejeitada."""
+        with pytest.raises(ValueError, match="padrão potencialmente perigoso"):
+            IntentRequest(text="test text with exec('malicious')")
+
+    def test_text_with_template_injection_dollar_rejected(self):
+        """Template injection ${} deve ser rejeitado."""
+        with pytest.raises(ValueError, match="padrão potencialmente perigoso"):
+            IntentRequest(text="test text ${malicious_code}")
+
+    def test_text_with_template_injection_hash_rejected(self):
+        """Template injection #{} deve ser rejeitado."""
+        with pytest.raises(ValueError, match="padrão potencialmente perigoso"):
+            IntentRequest(text="test text #{malicious_code}")
+
+    def test_text_with_null_bytes_sanitized(self):
+        """Null bytes devem ser removidos."""
+        request = IntentRequest(text="test\x00text")
+        assert "\x00" not in request.text
+        assert request.text == "testtext"
+
+    def test_empty_text_rejected(self):
+        """Texto vazio deve ser rejeitado."""
+        # Pydantic levanta ValidationError para campos com tamanho mínimo
+        with pytest.raises((ValueError, Exception)):  # ValidationError herda de Exception
+            IntentRequest(text="")
+
+    def test_whitespace_only_text_rejected(self):
+        """Apenas whitespace deve ser rejeitado."""
+        with pytest.raises(ValueError, match="não pode ser vazio"):
+            IntentRequest(text="   \t\n   ")
+
+    def test_invalid_language_rejected(self):
+        """Idiomas inválidos devem ser rejeitados."""
+        with pytest.raises(ValueError, match="não é suportado"):
+            IntentRequest(text="test text", language="xx-YY")
+
+    def test_valid_language_accepted(self):
+        """Idiomas válidos devem ser aceitos."""
+        valid_languages = ["pt-BR", "pt-PT", "pt", "en-US", "en-GB", "en", "es-ES", "es"]
+        for lang in valid_languages:
+            request = IntentRequest(text="test text", language=lang)
+            assert request.language == lang
+
+    def test_invalid_correlation_id_rejected(self):
+        """UUIDs inválidos devem ser rejeitados."""
+        with pytest.raises(ValueError, match="UUID válido"):
+            IntentRequest(text="test text", correlation_id="not-a-uuid")
+
+    def test_valid_correlation_id_accepted(self):
+        """UUIDs válidos devem ser aceitos."""
+        valid_uuid = "550e8400-e29b-41d4-a716-446655440000"
+        request = IntentRequest(text="test text", correlation_id=valid_uuid)
+        assert request.correlation_id == valid_uuid
+
+    def test_none_correlation_id_accepted(self):
+        """correlation_id None deve ser aceito."""
+        request = IntentRequest(text="test text", correlation_id=None)
+        assert request.correlation_id is None
+
+
+class TestVoiceSecurityValidation:
+    """Testes de validação de segurança para VoiceIntentRequest"""
+
+    def test_voice_invalid_language_rejected(self):
+        """Idiomas inválidos devem ser rejeitados."""
+        with pytest.raises(ValueError, match="não é suportado"):
+            VoiceIntentRequest(language="xx-YY")
+
+    def test_voice_valid_language_accepted(self):
+        """Idiomas válidos devem ser aceitos."""
+        valid_languages = ["pt-BR", "en-US", "es-ES"]
+        for lang in valid_languages:
+            request = VoiceIntentRequest(language=lang)
+            assert request.language == lang
+
+    def test_voice_invalid_correlation_id_rejected(self):
+        """UUIDs inválidos devem ser rejeitados."""
+        with pytest.raises(ValueError, match="UUID válido"):
+            VoiceIntentRequest(correlation_id="not-a-uuid")

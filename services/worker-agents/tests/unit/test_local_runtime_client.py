@@ -17,7 +17,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 @pytest.fixture
 def local_client():
     """Fixture para LocalRuntimeClient."""
-    from services.worker_agents.src.clients.local_runtime_client import LocalRuntimeClient
+    from clients.local_runtime_client import LocalRuntimeClient
     return LocalRuntimeClient(
         allowed_commands=['echo', 'python', 'python3', 'ls', 'cat'],
         timeout=30,
@@ -29,7 +29,7 @@ def local_client():
 @pytest.fixture
 def local_client_no_sandbox():
     """Fixture para LocalRuntimeClient sem sandbox."""
-    from services.worker_agents.src.clients.local_runtime_client import LocalRuntimeClient
+    from clients.local_runtime_client import LocalRuntimeClient
     return LocalRuntimeClient(
         allowed_commands=['echo'],
         timeout=30,
@@ -41,7 +41,7 @@ def local_client_no_sandbox():
 @pytest.fixture
 def execution_request():
     """Fixture para LocalExecutionRequest."""
-    from services.worker_agents.src.clients.local_runtime_client import LocalExecutionRequest
+    from clients.local_runtime_client import LocalExecutionRequest
     return LocalExecutionRequest(
         command='echo',
         args=['hello', 'world'],
@@ -54,7 +54,7 @@ class TestLocalRuntimeClientInit:
 
     def test_init_with_defaults(self):
         """Deve inicializar com valores padrão."""
-        from services.worker_agents.src.clients.local_runtime_client import LocalRuntimeClient
+        from clients.local_runtime_client import LocalRuntimeClient
         client = LocalRuntimeClient()
         assert client.enable_sandbox is True
         assert client.timeout == 300
@@ -63,14 +63,14 @@ class TestLocalRuntimeClientInit:
 
     def test_init_with_custom_allowed_commands(self):
         """Deve inicializar com comandos customizados."""
-        from services.worker_agents.src.clients.local_runtime_client import LocalRuntimeClient
+        from clients.local_runtime_client import LocalRuntimeClient
         client = LocalRuntimeClient(allowed_commands=['custom-cmd', 'another-cmd'])
         assert 'custom-cmd' in client.allowed_commands
         assert 'another-cmd' in client.allowed_commands
 
     def test_init_sandbox_disabled(self):
         """Deve inicializar com sandbox desabilitado."""
-        from services.worker_agents.src.clients.local_runtime_client import LocalRuntimeClient
+        from clients.local_runtime_client import LocalRuntimeClient
         client = LocalRuntimeClient(enable_sandbox=False)
         assert client.enable_sandbox is False
 
@@ -86,7 +86,7 @@ class TestCommandValidation:
 
     def test_validate_disallowed_command(self, local_client):
         """Deve rejeitar comando não permitido."""
-        from services.worker_agents.src.clients.local_runtime_client import CommandNotAllowedError
+        from clients.local_runtime_client import CommandNotAllowedError
 
         with pytest.raises(CommandNotAllowedError) as exc_info:
             local_client._validate_command('rm')
@@ -131,7 +131,7 @@ class TestCommandExecution:
     @pytest.mark.asyncio
     async def test_execute_with_env_vars(self, local_client):
         """Deve passar variáveis de ambiente."""
-        from services.worker_agents.src.clients.local_runtime_client import LocalExecutionRequest
+        from clients.local_runtime_client import LocalExecutionRequest
 
         request = LocalExecutionRequest(
             command='echo',
@@ -158,7 +158,7 @@ class TestCommandExecution:
     @pytest.mark.asyncio
     async def test_execute_with_working_dir(self, local_client):
         """Deve usar diretório de trabalho especificado."""
-        from services.worker_agents.src.clients.local_runtime_client import LocalExecutionRequest
+        from clients.local_runtime_client import LocalExecutionRequest
 
         request = LocalExecutionRequest(
             command='ls',
@@ -183,7 +183,7 @@ class TestCommandExecution:
     @pytest.mark.asyncio
     async def test_execute_nonzero_exit_code(self, local_client):
         """Deve capturar exit code diferente de zero."""
-        from services.worker_agents.src.clients.local_runtime_client import LocalExecutionRequest
+        from clients.local_runtime_client import LocalExecutionRequest
 
         request = LocalExecutionRequest(
             command='python',
@@ -211,7 +211,7 @@ class TestCommandTimeout:
     @pytest.mark.asyncio
     async def test_execute_timeout(self, local_client):
         """Deve levantar timeout quando comando demora demais."""
-        from services.worker_agents.src.clients.local_runtime_client import (
+        from clients.local_runtime_client import (
             LocalExecutionRequest,
             LocalTimeoutError
         )
@@ -242,7 +242,7 @@ class TestCommandNotAllowed:
     @pytest.mark.asyncio
     async def test_execute_disallowed_command(self, local_client):
         """Deve rejeitar execução de comando não permitido."""
-        from services.worker_agents.src.clients.local_runtime_client import (
+        from clients.local_runtime_client import (
             LocalExecutionRequest,
             CommandNotAllowedError
         )
@@ -354,7 +354,7 @@ class TestEnvironmentBuild:
 
     def test_build_env_inherit(self):
         """Deve herdar ambiente do processo pai quando configurado."""
-        from services.worker_agents.src.clients.local_runtime_client import LocalRuntimeClient
+        from clients.local_runtime_client import LocalRuntimeClient
 
         client = LocalRuntimeClient(inherit_env=True)
 
@@ -389,7 +389,7 @@ class TestMetricsRecording:
     @pytest.mark.asyncio
     async def test_metrics_recorded_on_failure(self, local_client):
         """Deve registrar métricas em execução com falha."""
-        from services.worker_agents.src.clients.local_runtime_client import LocalExecutionRequest
+        from clients.local_runtime_client import LocalExecutionRequest
 
         request = LocalExecutionRequest(
             command='python',

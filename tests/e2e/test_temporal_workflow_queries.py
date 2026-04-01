@@ -12,7 +12,7 @@ import asyncio
 import logging
 import os
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 import httpx
@@ -68,10 +68,10 @@ def create_test_cognitive_plan(num_tasks: int = 3) -> Dict[str, Any]:
         "intent_id": intent_id,
         "correlation_id": correlation_id,
         "description": "Test Plan for E2E",
-        "created_at": datetime.utcnow().isoformat(),
+        "created_at": datetime.now(timezone.utc).isoformat(),
         "tasks": tasks,
         "estimated_duration_minutes": 10,
-        "sla_deadline": (datetime.utcnow() + timedelta(hours=4)).isoformat(),
+        "sla_deadline": (datetime.now(timezone.utc) + timedelta(hours=4)).isoformat(),
     }
 
 

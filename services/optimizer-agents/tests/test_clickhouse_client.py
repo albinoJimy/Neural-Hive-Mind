@@ -7,7 +7,7 @@ Testa conexão, queries, retry logic, cache, timeout e parametrização.
 import pytest
 import pytest_asyncio
 from unittest.mock import Mock, AsyncMock, patch, MagicMock
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 import json
 
 from src.clients.clickhouse_client import ClickHouseClient
@@ -39,7 +39,7 @@ def mock_config():
 @pytest.fixture
 def sample_execution_data():
     """Dados de execução de exemplo."""
-    base_time = datetime.utcnow() - timedelta(hours=24)
+    base_time = datetime.now(timezone.utc) - timedelta(hours=24)
     return [
         (
             base_time + timedelta(hours=i),
@@ -57,7 +57,7 @@ def sample_execution_data():
 @pytest.fixture
 def sample_metrics_data():
     """Dados de métricas de exemplo."""
-    base_time = datetime.utcnow() - timedelta(hours=12)
+    base_time = datetime.now(timezone.utc) - timedelta(hours=12)
     return [
         (
             base_time + timedelta(hours=i),
@@ -141,8 +141,8 @@ class TestQueryExecutionTimeseries:
         mock_sync_client.execute = Mock(return_value=sample_execution_data)
         client.client = mock_sync_client
 
-        start_time = datetime.utcnow() - timedelta(days=1)
-        end_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc) - timedelta(days=1)
+        end_time = datetime.now(timezone.utc)
 
         result = await client.query_execution_timeseries(
             start_timestamp=start_time,
@@ -163,15 +163,15 @@ class TestQueryExecutionTimeseries:
         # Mock cache retornando dados
         cached_data = [
             {
-                'timestamp': datetime.utcnow().isoformat(),
+                'timestamp': datetime.now(timezone.utc).isoformat(),
                 'ticket_count': 100,
                 'avg_duration_ms': 60000
             }
         ]
         mock_redis.get = AsyncMock(return_value=json.dumps(cached_data))
 
-        start_time = datetime.utcnow() - timedelta(hours=1)
-        end_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc) - timedelta(hours=1)
+        end_time = datetime.now(timezone.utc)
 
         result = await client.query_execution_timeseries(
             start_timestamp=start_time,
@@ -192,8 +192,8 @@ class TestQueryExecutionTimeseries:
         mock_sync_client.execute = Mock(return_value=sample_execution_data)
         client.client = mock_sync_client
 
-        start_time = datetime.utcnow() - timedelta(days=1)
-        end_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc) - timedelta(days=1)
+        end_time = datetime.now(timezone.utc)
 
         for interval in ['1m', '1h', '1d']:
             result = await client.query_execution_timeseries(
@@ -215,8 +215,8 @@ class TestQueryExecutionTimeseries:
         mock_sync_client.execute = Mock(side_effect=Exception("Query error"))
         client.client = mock_sync_client
 
-        start_time = datetime.utcnow() - timedelta(hours=1)
-        end_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc) - timedelta(hours=1)
+        end_time = datetime.now(timezone.utc)
 
         result = await client.query_execution_timeseries(
             start_timestamp=start_time,
@@ -242,8 +242,8 @@ class TestQueryResourceUtilization:
         mock_sync_client.execute = Mock(return_value=sample_metrics_data)
         client.client = mock_sync_client
 
-        start_time = datetime.utcnow() - timedelta(hours=12)
-        end_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc) - timedelta(hours=12)
+        end_time = datetime.now(timezone.utc)
 
         result = await client.query_resource_utilization(
             start_timestamp=start_time,
@@ -268,16 +268,16 @@ class TestQuerySlaCompliance:
         client._initialized = True
 
         mock_data = [
-            (datetime.utcnow().date(), 'service-a', 95.5, 1000),
-            (datetime.utcnow().date(), 'service-b', 98.2, 1500)
+            (datetime.now(timezone.utc).date(), 'service-a', 95.5, 1000),
+            (datetime.now(timezone.utc).date(), 'service-b', 98.2, 1500)
         ]
 
         mock_sync_client = Mock()
         mock_sync_client.execute = Mock(return_value=mock_data)
         client.client = mock_sync_client
 
-        start_time = datetime.utcnow() - timedelta(days=7)
-        end_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc) - timedelta(days=7)
+        end_time = datetime.now(timezone.utc)
 
         result = await client.query_sla_compliance(
             start_timestamp=start_time,
@@ -301,16 +301,16 @@ class TestQueryBottleneckEvents:
         client._initialized = True
 
         mock_data = [
-            (datetime.utcnow(), 'queue_depth', 150, 'worker-agents'),
-            (datetime.utcnow(), 'worker_utilization', 0.95, 'worker-agents')
+            (datetime.now(timezone.utc), 'queue_depth', 150, 'worker-agents'),
+            (datetime.now(timezone.utc), 'worker_utilization', 0.95, 'worker-agents')
         ]
 
         mock_sync_client = Mock()
         mock_sync_client.execute = Mock(return_value=mock_data)
         client.client = mock_sync_client
 
-        start_time = datetime.utcnow() - timedelta(hours=1)
-        end_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc) - timedelta(hours=1)
+        end_time = datetime.now(timezone.utc)
 
         result = await client.query_bottleneck_events(
             start_timestamp=start_time,
@@ -356,7 +356,7 @@ class TestCache:
 
         data = [
             {
-                'timestamp': datetime.utcnow(),
+                'timestamp': datetime.now(timezone.utc),
                 'value': 100
             }
         ]

@@ -15,7 +15,7 @@ Diferencia-se de dados sintéticos por:
 
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Dict, List, Any, Tuple, Optional
 import structlog
@@ -282,7 +282,7 @@ class RealDataCollector:
         )
 
         # 1. Buscar opiniões do ledger cognitivo
-        cutoff_date = datetime.utcnow() - timedelta(days=days)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
 
         query = {
             'specialist_type': specialist_type,
@@ -702,7 +702,7 @@ class RealDataCollector:
         Returns:
             Estatísticas de opiniões e feedback
         """
-        cutoff_date = datetime.utcnow() - timedelta(days=days)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
 
         # Contar opiniões
         def count_opinions():

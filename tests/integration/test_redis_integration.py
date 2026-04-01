@@ -5,7 +5,7 @@ GAP-04: Cobertura de Testes 16% → 70%
 Testa integração entre serviços e Redis.
 """
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 
@@ -309,10 +309,10 @@ class TestRedisTTL:
     def test_get_ttl(self):
         """Deve obter TTL."""
         key = "temp:cache"
-        created_at = datetime.utcnow() - timedelta(seconds=1800)
+        created_at = datetime.now(timezone.utc) - timedelta(seconds=1800)
         ttl_seconds = 3600
 
-        elapsed = (datetime.utcnow() - created_at).total_seconds()
+        elapsed = (datetime.now(timezone.utc) - created_at).total_seconds()
         remaining_ttl = ttl_seconds - elapsed
 
         assert remaining_ttl > 0
@@ -493,10 +493,10 @@ class TestRedisDistributedLock:
     def test_lock_timeout(self):
         """Deve tratar timeout de lock."""
         lock_key = "lock:resource:1"
-        created_at = datetime.utcnow() - timedelta(seconds=35)
+        created_at = datetime.now(timezone.utc) - timedelta(seconds=35)
         ttl_seconds = 30
 
-        elapsed = (datetime.utcnow() - created_at).total_seconds()
+        elapsed = (datetime.now(timezone.utc) - created_at).total_seconds()
         is_expired = elapsed > ttl_seconds
 
         assert is_expired is True
@@ -534,10 +534,10 @@ class TestRedisRateLimiting:
     def test_reset_window(self):
         """Deve resetar janela."""
         key = "ratelimit:user:123:60"
-        window_start = datetime.utcnow() - timedelta(seconds=70)
+        window_start = datetime.now(timezone.utc) - timedelta(seconds=70)
         window_seconds = 60
 
-        elapsed = (datetime.utcnow() - window_start).total_seconds()
+        elapsed = (datetime.now(timezone.utc) - window_start).total_seconds()
 
         should_reset = elapsed > window_seconds
 
@@ -600,8 +600,8 @@ class TestRedisSessionManagement:
         user_id = "user-123"
         session_data = {
             "user_id": user_id,
-            "created_at": datetime.utcnow().isoformat(),
-            "last_activity": datetime.utcnow().isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "last_activity": datetime.now(timezone.utc).isoformat()
         }
 
         # Simular salvamento
@@ -624,11 +624,11 @@ class TestRedisSessionManagement:
         session_id = str(uuid4())
         session = {
             "user_id": "user-123",
-            "last_activity": (datetime.utcnow() - timedelta(minutes=5)).isoformat()
+            "last_activity": (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
         }
 
         # Atualizar last_activity
-        session["last_activity"] = datetime.utcnow().isoformat()
+        session["last_activity"] = datetime.now(timezone.utc).isoformat()
 
         assert "last_activity" in session
 

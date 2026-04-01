@@ -26,20 +26,26 @@ async def test_shap_calculate_explanation():
 
     calculator = ShapCalculator(n_background_samples=50)
 
-    # Mock model e dados
-    mock_model = MagicMock()
-    mock_model.predict_proba = MagicMock(return_value=np.array([[0.3, 0.7]]))
+    # Mock decision data com specialist_votes
+    decision_data = {
+        'specialist_votes': [
+            {'specialist_id': 's1', 'confidence': 0.9, 'features': {'f1': 0.5, 'f2': 0.3, 'f3': 0.2}},
+            {'specialist_id': 's2', 'confidence': 0.8, 'features': {'f1': 0.4, 'f2': 0.4, 'f3': 0.2}},
+            {'specialist_id': 's3', 'confidence': 0.7, 'features': {'f1': 0.6, 'f2': 0.3, 'f3': 0.1}},
+        ],
+        'final_decision': 'approve',
+        'confidence': 0.85
+    }
 
-    X = np.array([[1, 2, 3], [4, 5, 6]])
-
-    result = calculator.calculate_explanation(
-        model=mock_model,
-        X=X,
-        feature_names=["feature1", "feature2", "feature3"]
+    result = calculator.calculate_shap(
+        decision_data=decision_data,
+        features=['f1', 'f2', 'f3']
     )
 
-    assert "shap_values" in result
-    assert "feature_importance" in result
+    assert "feature_attribution" in result
+    assert "method" in result
+    assert result["method"] == "kernel_shap"
+    assert result["num_votes"] == 3
 
 
 @pytest.mark.asyncio
@@ -49,20 +55,23 @@ async def test_shap_calculate_with_background():
 
     calculator = ShapCalculator(n_background_samples=10)
 
-    mock_model = MagicMock()
-    mock_model.predict_proba = MagicMock(return_value=np.array([[0.5, 0.5]]))
+    # Mock decision data para batch
+    decision_data = {
+        'decision_id': 'test-123',
+        'specialist_votes': [
+            {'specialist_id': 's1', 'confidence': 0.5, 'features': {'f1': 0.3, 'f2': 0.4, 'f3': 0.3}},
+        ],
+        'final_decision': 'approve',
+        'confidence': 0.5
+    }
 
-    X_background = np.random.rand(10, 3)
-    X_explain = np.array([[1, 2, 3]])
-
-    result = calculator.calculate_with_background(
-        model=mock_model,
-        X_background=X_background,
-        X_explain=X_explain,
-        feature_names=["f1", "f2", "f3"]
+    result = calculator.batch_calculate_shap(
+        decisions=[decision_data] * 5,
+        features=['f1', 'f2', 'f3']
     )
 
-    assert "shap_values" in result
+    assert isinstance(result, list)
+    assert len(result) == 5
 
 
 @pytest.mark.asyncio
@@ -74,7 +83,7 @@ async def test_quality_scorer_init():
 
     scorer = ExplanationQualityScorer(mongodb_client=mock_mongo)
 
-    assert scorer.mongodb_client == mock_mongo
+    assert scorer.mongodb == mock_mongo
 
 
 @pytest.mark.asyncio
@@ -93,7 +102,7 @@ async def test_quality_score_completeness():
         "feature_names": ["f1", "f2", "f3"]
     }
 
-    scores = await scorer.score_explanation(explanation)
+    scores = scorer.score_explanation(explanation)
 
     assert "completeness" in scores
     assert 0 <= scores["completeness"] <= 1
@@ -114,7 +123,7 @@ async def test_quality_score_clarity():
         "reasoning": "Fator X contribuiu com 60%"
     }
 
-    scores = await scorer.score_explanation(explanation)
+    scores = scorer.score_explanation(explanation)
 
     assert "clarity" in scores
     assert 0 <= scores["clarity"] <= 1
@@ -137,7 +146,7 @@ async def test_quality_score_specificity():
         }
     }
 
-    scores = await scorer.score_explanation(explanation)
+    scores = scorer.score_explanation(explanation)
 
     assert "specificity" in scores
 
@@ -190,7 +199,7 @@ async def test_hierarchical_explain_decision():
         "final_decision": "approve"
     }
 
-    explanation = await explainer.explain(decision)
+    explanation = await explainer.explain_decision(decision)
 
     assert "decision_id" in explanation
     assert "hierarchical_weights" in explanation
@@ -294,19 +303,20 @@ async def test_api_extensions_init():
     """API Extensions deve inicializar com servicos."""
     from src.services.api_extensions import ExplainabilityAPIExtensions
 
-    mock_mongo = AsyncMock()
+    mock_db = AsyncMock()
     mock_shap = MagicMock()
     mock_quality = MagicMock()
     mock_reasoning = MagicMock()
 
     extensions = ExplainabilityAPIExtensions(
-        mongodb_client=mock_mongo,
+        mongodb_client=mock_db,
         shap_calculator=mock_shap,
         quality_scorer=mock_quality,
         reasoning_extractor=mock_reasoning
     )
 
-    assert extensions.mongodb_client == mock_mongo
+    assert extensions.mongodb_client == mock_db
+    assert extensions.db == mock_db
     assert extensions.shap_calculator == mock_shap
 
 
@@ -315,17 +325,21 @@ async def test_api_extensions_get_explainability():
     """API Extensions deve buscar explicação por decision_id."""
     from src.services.api_extensions import ExplainabilityAPIExtensions
 
-    mock_mongo = AsyncMock()
-    mock_mongo.find_one = AsyncMock(return_value={
+    # Mock do banco de dados com estrutura correta
+    mock_db = AsyncMock()
+    mock_ledger = AsyncMock()
+    mock_ledger.find_one = AsyncMock(return_value={
         "decision_id": "decision-123",
         "method": "hierarchical"
     })
+    mock_db.explainability_ledger = mock_ledger
+
     mock_shap = MagicMock()
     mock_quality = MagicMock()
     mock_reasoning = MagicMock()
 
     extensions = ExplainabilityAPIExtensions(
-        mongodb_client=mock_mongo,
+        mongodb_client=mock_db,
         shap_calculator=mock_shap,
         quality_scorer=mock_quality,
         reasoning_extractor=mock_reasoning
@@ -341,16 +355,17 @@ async def test_api_extensions_generate_explanation():
     """API Extensions deve gerar nova explicação."""
     from src.services.api_extensions import ExplainabilityAPIExtensions
 
-    mock_mongo = AsyncMock()
-    mock_mongo.insert_one = AsyncMock(return_value=MagicMock(inserted_id="id-123"))
+    mock_db = AsyncMock()
     mock_shap = MagicMock()
-    mock_shap.calculate_explanation = MagicMock(return_value={"shap_values": [0.1, 0.2]})
+    mock_shap.calculate_shap = MagicMock(return_value={
+        "feature_attribution": {"confidence": 0.5, "risk": 0.3}
+    })
     mock_quality = MagicMock()
-    mock_quality.score_explanation = AsyncMock(return_value={"score": 0.85})
+    mock_quality.score_explanation = MagicMock(return_value={"overall": 0.85})
     mock_reasoning = MagicMock()
 
     extensions = ExplainabilityAPIExtensions(
-        mongodb_client=mock_mongo,
+        mongodb_client=mock_db,
         shap_calculator=mock_shap,
         quality_scorer=mock_quality,
         reasoning_extractor=mock_reasoning
@@ -359,7 +374,10 @@ async def test_api_extensions_generate_explanation():
     request = {
         "decision_id": "decision-123",
         "format": "json",
-        "include_shap": True
+        "include_shap": True,
+        "specialist_votes": [
+            {"specialist_id": "s1", "confidence": 0.8}
+        ]
     }
 
     result = await extensions.generate_explanation(request)

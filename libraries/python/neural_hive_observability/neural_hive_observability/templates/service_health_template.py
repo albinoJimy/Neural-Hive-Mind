@@ -9,7 +9,7 @@ Usage:
     service's specific components and requirements.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, Optional
 import logging
 
@@ -91,7 +91,7 @@ class ServiceHealthManager:
             return {
                 "status": "unhealthy",
                 "message": "Health manager not initialized",
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "version": self.version,
                 "service_name": self.service_name
             }
@@ -114,7 +114,7 @@ class ServiceHealthManager:
 
             return {
                 "status": overall_status.value,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "version": self.version,
                 "service_name": self.service_name,
                 "neural_hive_component": self.component,
@@ -127,7 +127,7 @@ class ServiceHealthManager:
             return {
                 "status": "unhealthy",
                 "message": f"Health check error: {str(e)}",
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "version": self.version,
                 "service_name": self.service_name
             }
@@ -145,7 +145,7 @@ class ServiceHealthManager:
             return {
                 "status": "not_ready",
                 "message": "Health manager not initialized",
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
 
         try:
@@ -164,7 +164,7 @@ class ServiceHealthManager:
 
             return {
                 "status": "ready" if overall_ready else "not_ready",
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "service_name": self.service_name,
                 "neural_hive_component": self.component
             }
@@ -174,7 +174,7 @@ class ServiceHealthManager:
             return {
                 "status": "not_ready",
                 "message": f"Readiness check error: {str(e)}",
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
 
 def setup_health_endpoints(app: FastAPI, health_manager: ServiceHealthManager, critical_checks: list = None):
@@ -217,7 +217,7 @@ def setup_health_endpoints(app: FastAPI, health_manager: ServiceHealthManager, c
                 content={
                     "status": "unhealthy",
                     "message": "Health manager not initialized",
-                    "timestamp": datetime.utcnow().isoformat()
+                    "timestamp": datetime.now(timezone.utc).isoformat()
                 }
             )
 
@@ -229,7 +229,7 @@ def setup_health_endpoints(app: FastAPI, health_manager: ServiceHealthManager, c
                     content={
                         "status": "not_found",
                         "message": f"Component '{component_name}' not found",
-                        "timestamp": datetime.utcnow().isoformat()
+                        "timestamp": datetime.now(timezone.utc).isoformat()
                     }
                 )
 
@@ -253,7 +253,7 @@ def setup_health_endpoints(app: FastAPI, health_manager: ServiceHealthManager, c
                     "component": component_name,
                     "status": "unhealthy",
                     "message": f"Health check error: {str(e)}",
-                    "timestamp": datetime.utcnow().isoformat()
+                    "timestamp": datetime.now(timezone.utc).isoformat()
                 }
             )
 

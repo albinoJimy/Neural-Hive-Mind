@@ -1,0 +1,62 @@
+# HelmRelease para Gateway Intenções - Dev
+# Gerenciado pelo FluxCD Helm Controller
+
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: gateway-intencoes
+  namespace: neural-hive-dev
+
+spec:
+  interval: 2m
+  timeout: 5m
+
+  chart:
+    spec:
+      chart: ./helm-charts/gateway-intencoes
+      sourceRef:
+        kind: GitRepository
+        name: neural-hive-mind
+        namespace: flux-system
+
+  # Valores do Helm - override para desenvolvimento
+  values:
+    image:
+      repository: ghcr.io/albinojimy/neural-hive-mind/gateway-intencoes
+      tag: "latest" # {"$imagepolicy": "flux-system:gateway-intencoes-dev"}
+      pullPolicy: Always
+
+    replicas: 1
+
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+    autoscaling:
+      enabled: false
+
+    # Configurações de ambiente
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: "kafka.neural-hive-dev.svc.cluster.local:9092"
+      MONGODB_URL: "mongodb://mongodb-dev-0.mongodb-dev.neural-hive-dev.svc.cluster.local:27017"
+      REDIS_URL: "redis://redis-dev.neural-hive-dev.svc.cluster.local:6379"
+      LOG_LEVEL: "DEBUG"
+
+    # Health checks mais rápidos para desenvolvimento
+    livenessProbe:
+      httpGet:
+        path: /health
+        port: 8000
+      initialDelaySeconds: 10
+      periodSeconds: 5
+
+    readinessProbe:
+      httpGet:
+        path: /ready
+        port: 8000
+      initialDelaySeconds: 5
+      periodSeconds: 3

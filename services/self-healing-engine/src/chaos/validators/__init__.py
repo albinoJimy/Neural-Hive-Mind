@@ -5,8 +5,8 @@ Validators para Chaos Engineering.
 - HealthValidator: Verifica saúde de serviços e conformidade de SLOs
 """
 
-from .playbook_validator import PlaybookValidator
 from .health_validator import HealthValidator
+from .playbook_validator import PlaybookValidator
 
 __all__ = [
     "PlaybookValidator",

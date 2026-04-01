@@ -27,7 +27,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 @pytest.fixture
 def deploy_executor_with_argocd(worker_config, mock_metrics, mock_argocd_client):
     """DeployExecutor configurado com cliente ArgoCD mockado."""
-    from services.worker_agents.src.executors.deploy_executor import DeployExecutor
+    from executors.deploy_executor import DeployExecutor
 
     worker_config.argocd_enabled = True
     worker_config.argocd_url = 'http://argocd.test:8080'
@@ -46,7 +46,7 @@ def deploy_executor_with_argocd(worker_config, mock_metrics, mock_argocd_client)
 @pytest.fixture
 def deploy_executor_with_flux(worker_config, mock_metrics, mock_flux_client):
     """DeployExecutor configurado com cliente Flux mockado."""
-    from services.worker_agents.src.executors.deploy_executor import DeployExecutor
+    from executors.deploy_executor import DeployExecutor
 
     worker_config.flux_enabled = True
 
@@ -63,7 +63,7 @@ def deploy_executor_with_flux(worker_config, mock_metrics, mock_flux_client):
 @pytest.fixture
 def deploy_executor_simulation_only(worker_config, mock_metrics):
     """DeployExecutor sem clientes externos (apenas simulacao)."""
-    from services.worker_agents.src.executors.deploy_executor import DeployExecutor
+    from executors.deploy_executor import DeployExecutor
 
     worker_config.argocd_enabled = False
     worker_config.flux_enabled = False
@@ -183,7 +183,7 @@ class TestDeployExecutorArgoCDTimeout:
         mock_argocd_client
     ):
         """Deve retornar falha quando timeout aguardando health check."""
-        from services.worker_agents.src.clients.argocd_client import ArgoCDTimeoutError
+        from clients.argocd_client import ArgoCDTimeoutError
 
         mock_argocd_client.wait_for_health.side_effect = ArgoCDTimeoutError(
             'Timeout waiting for health'
@@ -206,7 +206,7 @@ class TestDeployExecutorArgoCDTimeout:
         mock_argocd_client
     ):
         """Deve reportar duracao proxima ao timeout configurado."""
-        from services.worker_agents.src.clients.argocd_client import ArgoCDTimeoutError
+        from clients.argocd_client import ArgoCDTimeoutError
 
         mock_argocd_client.wait_for_health.side_effect = ArgoCDTimeoutError(
             'Timeout waiting for health'
@@ -238,7 +238,7 @@ class TestDeployExecutorArgoCDAPIError:
         mock_argocd_client
     ):
         """Deve tratar erro 500 da API do ArgoCD."""
-        from services.worker_agents.src.clients.argocd_client import ArgoCDAPIError
+        from clients.argocd_client import ArgoCDAPIError
 
         mock_argocd_client.create_application.side_effect = ArgoCDAPIError(
             message='Internal Server Error',
@@ -261,7 +261,7 @@ class TestDeployExecutorArgoCDAPIError:
         mock_argocd_client
     ):
         """Deve tratar erro 401 de autenticacao."""
-        from services.worker_agents.src.clients.argocd_client import ArgoCDAPIError
+        from clients.argocd_client import ArgoCDAPIError
 
         mock_argocd_client.create_application.side_effect = ArgoCDAPIError(
             message='Unauthorized',
@@ -283,7 +283,7 @@ class TestDeployExecutorArgoCDAPIError:
         mock_argocd_client
     ):
         """Deve tratar erro 403 de permissao."""
-        from services.worker_agents.src.clients.argocd_client import ArgoCDAPIError
+        from clients.argocd_client import ArgoCDAPIError
 
         mock_argocd_client.create_application.side_effect = ArgoCDAPIError(
             message='Forbidden',
@@ -358,7 +358,7 @@ class TestDeployExecutorFluxTimeout:
         mock_flux_client
     ):
         """Deve retornar falha quando timeout aguardando Kustomization ready."""
-        from services.worker_agents.src.clients.flux_client import FluxTimeoutError
+        from clients.flux_client import FluxTimeoutError
 
         mock_flux_client.wait_for_ready.side_effect = FluxTimeoutError(
             'Timeout waiting for Kustomization'
@@ -389,7 +389,7 @@ class TestDeployExecutorFluxAPIError:
         mock_flux_client
     ):
         """Deve tratar erro de API do Flux."""
-        from services.worker_agents.src.clients.flux_client import FluxAPIError
+        from clients.flux_client import FluxAPIError
 
         mock_flux_client.create_kustomization.side_effect = FluxAPIError(
             message='Failed to create Kustomization',
@@ -461,7 +461,7 @@ class TestDeployExecutorRetryLogic:
         deploy_ticket_argocd
     ):
         """Deve ter sucesso apos falhas temporarias com retry."""
-        from services.worker_agents.src.executors.deploy_executor import DeployExecutor
+        from executors.deploy_executor import DeployExecutor
         from dataclasses import dataclass
 
         @dataclass

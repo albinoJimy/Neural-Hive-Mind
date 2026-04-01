@@ -2,7 +2,7 @@
 
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Optional
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
@@ -109,7 +109,7 @@ class DriftDetector:
 
     def _build_aggregation_pipeline(self, window_hours: int) -> list:
         """Constrói pipeline de agregação MongoDB."""
-        since = datetime.utcnow() - timedelta(hours=window_hours)
+        since = datetime.now(timezone.utc) - timedelta(hours=window_hours)
 
         return [
             {"$match": {"created_at": {"$gte": since}}},
@@ -183,7 +183,7 @@ class DriftDetector:
                 "current": current,
                 "drift_detected": drift_detected,
                 "alerts": alerts,
-                "last_updated": datetime.utcnow().isoformat(),
+                "last_updated": datetime.now(timezone.utc).isoformat(),
             }
 
             # Publica alerta se drift detectado
@@ -197,7 +197,7 @@ class DriftDetector:
             return {
                 "drift_detected": False,
                 "error": str(e),
-                "last_updated": datetime.utcnow().isoformat(),
+                "last_updated": datetime.now(timezone.utc).isoformat(),
             }
 
     async def _get_active_model_version(self) -> str:
@@ -240,7 +240,7 @@ class DriftDetector:
 
             event = {
                 "event_type": "model_drift_detected",
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "model_version": drift_data.get("model_version"),
                 "drift_detected": drift_data.get("drift_detected"),
                 "alerts": drift_data.get("alerts", []),
@@ -335,7 +335,7 @@ class CanaryDeployer:
             return {"status": "failed", "error": f"Version {version} not found"}
 
         canary_id = f"canary-{version}-{target_version}"
-        started_at = datetime.utcnow()
+        started_at = datetime.now(timezone.utc)
 
         # Armazena estado do canary
         self._active_canaries[canary_id] = {
@@ -400,7 +400,7 @@ class CanaryDeployer:
         return {
             "canary_id": canary_id,
             "metrics": metrics,
-            "collected_at": datetime.utcnow().isoformat(),
+            "collected_at": datetime.now(timezone.utc).isoformat(),
         }
 
     async def validate_canary(self, canary_id: str) -> Dict[str, Any]:
@@ -484,7 +484,7 @@ class CanaryDeployer:
 
         # Atualiza estado
         canary["status"] = "promoted"
-        canary["completed_at"] = datetime.utcnow().isoformat()
+        canary["completed_at"] = datetime.now(timezone.utc).isoformat()
 
         # Publica evento
         await self._publish_canary_event(
@@ -506,7 +506,7 @@ class CanaryDeployer:
 
         # Atualiza estado
         canary["status"] = "rolled_back"
-        canary["completed_at"] = datetime.utcnow().isoformat()
+        canary["completed_at"] = datetime.now(timezone.utc).isoformat()
 
         # Publica evento
         await self._publish_canary_event(
@@ -551,7 +551,7 @@ class CanaryDeployer:
 
         event = {
             "event_type": f"ml.{event_type}",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "canary_id": canary_id,
             "version": version,
             "target_version": target_version,

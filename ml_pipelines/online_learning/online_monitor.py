@@ -8,7 +8,7 @@ estabilidade de predições, uso de memória e alertas proativos.
 import os
 import psutil
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, Optional, List, Tuple
 import structlog
 import numpy as np
@@ -88,7 +88,7 @@ class Alert:
         self.message = message
         self.specialist_type = specialist_type
         self.metrics = metrics
-        self.timestamp = timestamp or datetime.utcnow()
+        self.timestamp = timestamp or datetime.now(timezone.utc)
         self.acknowledged = False
 
     def to_dict(self) -> Dict[str, Any]:
@@ -228,7 +228,7 @@ class OnlinePerformanceMonitor:
             duration_ms: Duração do update em ms
             samples_count: Número de amostras no batch
         """
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         # Atualizar históricos
         self._update_timestamps.append(now)
@@ -312,7 +312,7 @@ class OnlinePerformanceMonitor:
             return 0.0
 
         # Considerar última hora
-        cutoff = datetime.utcnow() - timedelta(hours=1)
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=1)
         recent = [t for t in self._update_timestamps if t > cutoff]
 
         return float(len(recent))
@@ -416,7 +416,7 @@ class OnlinePerformanceMonitor:
             return None
 
         # Verificar última janela
-        cutoff = datetime.utcnow() - timedelta(
+        cutoff = datetime.now(timezone.utc) - timedelta(
             hours=self.config.convergence_stall_threshold_hours
         )
         recent = [(t, l) for t, l in self._loss_history if t > cutoff]
@@ -581,7 +581,7 @@ class OnlinePerformanceMonitor:
 
         return {
             'specialist_type': self.specialist_type,
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
             'metrics': {
                 'update_frequency_per_hour': freq,
                 'convergence_rate': convergence,
@@ -643,7 +643,7 @@ class OnlinePerformanceMonitor:
         Returns:
             Lista de registros de métricas
         """
-        cutoff = datetime.utcnow() - timedelta(hours=hours)
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
 
         docs = self._metrics_collection.find({
             'specialist_type': self.specialist_type,

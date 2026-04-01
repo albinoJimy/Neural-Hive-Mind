@@ -2,7 +2,7 @@
 
 from functools import lru_cache
 from typing import Literal, List
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from neural_hive_security.cors import CORSConfig
 

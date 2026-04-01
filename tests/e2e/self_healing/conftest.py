@@ -9,7 +9,7 @@ Provides mock servers and clients for:
 
 import asyncio
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 from uuid import uuid4
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -39,8 +39,8 @@ class MockExecutionTicketService:
             "status": kwargs.get("status", "running"),
             "assigned_worker": kwargs.get("assigned_worker"),
             "workflow_id": kwargs.get("workflow_id"),
-            "created_at": datetime.utcnow().isoformat(),
-            "updated_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
             **kwargs
         }
 
@@ -75,11 +75,11 @@ class MockExecutionTicketService:
             # Create ticket if it doesn't exist
             self.tickets[ticket_id] = {
                 "ticket_id": ticket_id,
-                "created_at": datetime.utcnow().isoformat(),
+                "created_at": datetime.now(timezone.utc).isoformat(),
             }
 
         self.tickets[ticket_id]["status"] = status
-        self.tickets[ticket_id]["updated_at"] = datetime.utcnow().isoformat()
+        self.tickets[ticket_id]["updated_at"] = datetime.now(timezone.utc).isoformat()
 
         if assigned_worker is not None:
             self.tickets[ticket_id]["assigned_worker"] = assigned_worker
@@ -93,7 +93,7 @@ class MockExecutionTicketService:
         self.status_updates.append({
             "ticket_id": ticket_id,
             "status": status,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         })
 
         return self.tickets[ticket_id]
@@ -123,7 +123,7 @@ class MockExecutionTicketService:
             metadata={
                 "reallocation_id": reallocation_id,
                 "reallocation_reason": reason,
-                "reallocation_timestamp": datetime.utcnow().isoformat(),
+                "reallocation_timestamp": datetime.now(timezone.utc).isoformat(),
                 **(metadata or {})
             }
         )
@@ -133,7 +133,7 @@ class MockExecutionTicketService:
             "reallocation_id": reallocation_id,
             "reason": reason,
             "previous_worker": previous_worker,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         })
 
         return {
@@ -203,8 +203,8 @@ class MockOrchestratorClient:
             "state": kwargs.get("state", "RUNNING"),
             "current_priority": kwargs.get("current_priority", 5),
             "progress_percent": kwargs.get("progress_percent", 50.0),
-            "started_at": int(datetime.utcnow().timestamp()),
-            "updated_at": int(datetime.utcnow().timestamp()),
+            "started_at": int(datetime.now(timezone.utc).timestamp()),
+            "updated_at": int(datetime.now(timezone.utc).timestamp()),
             "tickets": kwargs.get("tickets", {
                 "total": 10,
                 "completed": 5,
@@ -243,16 +243,16 @@ class MockOrchestratorClient:
             return {"success": False, "message": f"Workflow not found: {workflow_id}"}
 
         self.workflows[workflow_id]["state"] = "PAUSED"
-        self.workflows[workflow_id]["updated_at"] = int(datetime.utcnow().timestamp())
+        self.workflows[workflow_id]["updated_at"] = int(datetime.now(timezone.utc).timestamp())
 
         adj_id = adjustment_id or str(uuid4())
-        paused_at = int(datetime.utcnow().timestamp())
+        paused_at = int(datetime.now(timezone.utc).timestamp())
 
         self.pause_calls.append({
             "workflow_id": workflow_id,
             "reason": reason,
             "adjustment_id": adj_id,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         })
 
         result = {
@@ -286,16 +286,16 @@ class MockOrchestratorClient:
             return {"success": False, "message": f"Workflow not paused: {prev_state}"}
 
         self.workflows[workflow_id]["state"] = "RUNNING"
-        self.workflows[workflow_id]["updated_at"] = int(datetime.utcnow().timestamp())
+        self.workflows[workflow_id]["updated_at"] = int(datetime.now(timezone.utc).timestamp())
 
         adj_id = adjustment_id or str(uuid4())
-        resumed_at = int(datetime.utcnow().timestamp())
+        resumed_at = int(datetime.now(timezone.utc).timestamp())
 
         self.resume_calls.append({
             "workflow_id": workflow_id,
             "reason": reason,
             "adjustment_id": adj_id,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         })
 
         return {
@@ -348,14 +348,14 @@ class MockOrchestratorClient:
             "reason": reason,
             "trigger_type": trigger_type,
             "adjustment_id": adj_id,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         })
 
         return {
             "success": True,
             "message": "Replanning triggered",
             "replanning_id": replanning_id,
-            "triggered_at": int(datetime.utcnow().timestamp()),
+            "triggered_at": int(datetime.now(timezone.utc).timestamp()),
             "plan_id": plan_id,
             "adjustment_id": adj_id
         }
@@ -523,5 +523,5 @@ def sample_incident_context():
         "workflow_id": "workflow-789",
         "worker_id": "worker-001",
         "namespace": "neural-hive-execution",
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.now(timezone.utc).isoformat()
     }

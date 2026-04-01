@@ -33,7 +33,7 @@ class TestTestExecutorWithMockGitHubActions:
         self, worker_config, mock_vault_client, mock_metrics
     ):
         """Test successful test execution via GitHub Actions."""
-        from services.worker_agents.src.executors.test_executor import TestExecutor
+        from executors.test_executor import TestExecutor
 
         # Enable GitHub Actions
         worker_config.github_actions_enabled = True
@@ -47,7 +47,7 @@ class TestTestExecutorWithMockGitHubActions:
             coverage=87.5,
         )
 
-        with patch('services.worker_agents.src.executors.test_executor.GitHubActionsClient') as mock_class:
+        with patch('clients.github_actions_client.GitHubActionsClient') as mock_class:
             mock_class.from_env.return_value = mock_client
 
             executor = TestExecutor(
@@ -81,7 +81,7 @@ class TestTestExecutorWithMockGitHubActions:
         self, worker_config, mock_vault_client, mock_metrics
     ):
         """Test handling of failed GitHub Actions workflow."""
-        from services.worker_agents.src.executors.test_executor import TestExecutor
+        from executors.test_executor import TestExecutor
 
         worker_config.github_actions_enabled = True
         worker_config.github_token = 'test-token'
@@ -94,7 +94,7 @@ class TestTestExecutorWithMockGitHubActions:
             coverage=72.0,
         )
 
-        with patch('services.worker_agents.src.executors.test_executor.GitHubActionsClient') as mock_class:
+        with patch('clients.github_actions_client.GitHubActionsClient') as mock_class:
             mock_class.from_env.return_value = mock_client
 
             executor = TestExecutor(
@@ -122,14 +122,14 @@ class TestTestExecutorWithMockGitHubActions:
         self, worker_config, mock_vault_client, mock_metrics
     ):
         """Test handling of GitHub Actions connection error."""
-        from services.worker_agents.src.executors.test_executor import TestExecutor
+        from executors.test_executor import TestExecutor
 
         worker_config.github_actions_enabled = True
         worker_config.github_token = 'test-token'
 
         mock_client = create_mock_github_actions_client(should_fail=True)
 
-        with patch('services.worker_agents.src.executors.test_executor.GitHubActionsClient') as mock_class:
+        with patch('clients.github_actions_client.GitHubActionsClient') as mock_class:
             mock_class.from_env.return_value = mock_client
 
             executor = TestExecutor(
@@ -160,7 +160,7 @@ class TestTestExecutorLocalCommand:
         self, worker_config, mock_vault_client, mock_metrics
     ):
         """Test successful local command execution."""
-        from services.worker_agents.src.executors.test_executor import TestExecutor
+        from executors.test_executor import TestExecutor
 
         executor = TestExecutor(
             config=worker_config,
@@ -186,7 +186,7 @@ class TestTestExecutorLocalCommand:
         self, worker_config, mock_vault_client, mock_metrics
     ):
         """Test local command that produces JSON output."""
-        from services.worker_agents.src.executors.test_executor import TestExecutor
+        from executors.test_executor import TestExecutor
 
         executor = TestExecutor(
             config=worker_config,
@@ -214,7 +214,7 @@ class TestTestExecutorLocalCommand:
         self, worker_config, mock_vault_client, mock_metrics
     ):
         """Test that disallowed commands raise ValueError."""
-        from services.worker_agents.src.executors.test_executor import TestExecutor
+        from executors.test_executor import TestExecutor
 
         # Set strict allowed commands
         worker_config.allowed_test_commands = ['pytest', 'npm test']
@@ -241,7 +241,7 @@ class TestTestExecutorLocalCommand:
         self, worker_config, mock_vault_client, mock_metrics
     ):
         """Test command execution timeout."""
-        from services.worker_agents.src.executors.test_executor import TestExecutor
+        from executors.test_executor import TestExecutor
 
         # Set very short timeout
         worker_config.test_execution_timeout_seconds = 1
@@ -268,7 +268,7 @@ class TestTestExecutorLocalCommand:
         self, worker_config, mock_vault_client, mock_metrics
     ):
         """Test handling of non-existent working directory."""
-        from services.worker_agents.src.executors.test_executor import TestExecutor
+        from executors.test_executor import TestExecutor
 
         executor = TestExecutor(
             config=worker_config,
@@ -292,7 +292,7 @@ class TestTestExecutorLocalCommand:
         self, worker_config, mock_vault_client, mock_metrics
     ):
         """Test handling of command that returns non-zero exit code."""
-        from services.worker_agents.src.executors.test_executor import TestExecutor
+        from executors.test_executor import TestExecutor
 
         executor = TestExecutor(
             config=worker_config,
@@ -320,7 +320,7 @@ class TestTestExecutorSimulation:
         self, worker_config_minimal, mock_vault_client, mock_metrics
     ):
         """Test execution in pure simulation mode."""
-        from services.worker_agents.src.executors.test_executor import TestExecutor
+        from executors.test_executor import TestExecutor
 
         executor = TestExecutor(
             config=worker_config_minimal,
@@ -345,7 +345,7 @@ class TestTestExecutorSimulation:
         self, worker_config_minimal, mock_vault_client, mock_metrics
     ):
         """Test that metrics are recorded in simulation mode."""
-        from services.worker_agents.src.executors.test_executor import TestExecutor
+        from executors.test_executor import TestExecutor
 
         executor = TestExecutor(
             config=worker_config_minimal,
@@ -368,7 +368,7 @@ class TestTestExecutorValidation:
     @pytest.mark.asyncio
     async def test_test_executor_missing_ticket_id(self, test_executor):
         """Test that missing ticket_id raises ValidationError."""
-        from services.worker_agents.src.executors.base_executor import ValidationError
+        from executors.base_executor import ValidationError
 
         ticket = {
             'task_id': 'task-123',
@@ -384,7 +384,7 @@ class TestTestExecutorValidation:
     @pytest.mark.asyncio
     async def test_test_executor_wrong_task_type(self, test_executor):
         """Test that wrong task_type raises ValidationError."""
-        from services.worker_agents.src.executors.base_executor import ValidationError
+        from executors.base_executor import ValidationError
 
         ticket = {
             'ticket_id': 'ticket-123',
@@ -407,7 +407,7 @@ class TestTestExecutorCommandSecurity:
         self, worker_config, mock_vault_client, mock_metrics
     ):
         """Test that command injection attempts are handled safely."""
-        from services.worker_agents.src.executors.test_executor import TestExecutor
+        from executors.test_executor import TestExecutor
 
         # Only allow safe commands
         worker_config.allowed_test_commands = ['pytest', 'echo']
@@ -435,7 +435,7 @@ class TestTestExecutorCommandSecurity:
         self, worker_config, mock_vault_client, mock_metrics
     ):
         """Test that empty commands are handled safely."""
-        from services.worker_agents.src.executors.test_executor import TestExecutor
+        from executors.test_executor import TestExecutor
 
         executor = TestExecutor(
             config=worker_config,
@@ -465,8 +465,8 @@ class TestTestExecutorRealGitHubActions:
         self, worker_config, mock_vault_client, mock_metrics
     ):
         """Test with real GitHub Actions (requires GITHUB_TOKEN env var)."""
-        from services.worker_agents.src.executors.test_executor import TestExecutor
-        from services.worker_agents.src.clients.github_actions_client import GitHubActionsClient
+        from executors.test_executor import TestExecutor
+        from clients.github_actions_client import GitHubActionsClient
 
         github_token = os.getenv('GITHUB_TOKEN')
         if not github_token:

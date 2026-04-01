@@ -5,7 +5,7 @@ Token caching and automatic refresh mechanism
 import asyncio
 from typing import Optional, Dict, Callable, Awaitable
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 import structlog
 from prometheus_client import Counter, Gauge
@@ -98,7 +98,7 @@ class TokenCache:
             return None
 
         cached = self._cache[key]
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         # Check if expired
         if now >= cached.expiry:
@@ -132,8 +132,8 @@ class TokenCache:
             ttl: Time to live in seconds
             refresh_callback: Optional async function to refresh token
         """
-        expiry = datetime.utcnow() + timedelta(seconds=ttl)
-        refresh_at = datetime.utcnow() + timedelta(seconds=ttl * self.refresh_threshold)
+        expiry = datetime.now(timezone.utc) + timedelta(seconds=ttl)
+        refresh_at = datetime.now(timezone.utc) + timedelta(seconds=ttl * self.refresh_threshold)
 
         self._cache[key] = CachedToken(
             value=token,
@@ -198,8 +198,8 @@ class TokenCache:
                     cached = self._cache[key]
                     cached.value = new_token
                     # Reset refresh time
-                    ttl = (cached.expiry - datetime.utcnow()).total_seconds()
-                    cached.refresh_at = datetime.utcnow() + timedelta(seconds=ttl * self.refresh_threshold)
+                    ttl = (cached.expiry - datetime.now(timezone.utc)).total_seconds()
+                    cached.refresh_at = datetime.now(timezone.utc) + timedelta(seconds=ttl * self.refresh_threshold)
 
                 cache_refresh_total.labels(status="success").inc()
                 self.logger.info("token_refreshed", key=key)
@@ -223,7 +223,7 @@ class TokenCache:
             try:
                 await asyncio.sleep(30)  # Check every 30 seconds
 
-                now = datetime.utcnow()
+                now = datetime.now(timezone.utc)
                 for key, cached in list(self._cache.items()):
                     # Check if refresh needed
                     if now >= cached.refresh_at and key in self._refresh_callbacks:

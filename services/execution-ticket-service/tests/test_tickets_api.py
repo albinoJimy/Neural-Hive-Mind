@@ -1,5 +1,5 @@
 """Testes para API de Tickets."""
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Optional
@@ -93,7 +93,7 @@ def sample_ticket_dict():
         'parameters': {},
         'required_capabilities': [],
         'security_level': 'INTERNAL',
-        'created_at': int(datetime.utcnow().timestamp() * 1000),
+        'created_at': int(datetime.now(timezone.utc).timestamp() * 1000),
         'started_at': None,
         'completed_at': None,
         'retry_count': 0,
@@ -249,7 +249,7 @@ async def test_get_ticket_history_success(mock_settings, mock_postgres_client, m
     ticket_id = sample_ticket_dict['ticket_id']
 
     # Mock do histórico MongoDB
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     history_docs = [
         {
             'ticket_id': ticket_id,

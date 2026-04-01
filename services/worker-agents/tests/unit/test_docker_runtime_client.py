@@ -19,7 +19,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 @pytest.fixture
 def docker_client():
     """Fixture para DockerRuntimeClient."""
-    from services.worker_agents.src.clients.docker_runtime_client import DockerRuntimeClient
+    from clients.docker_runtime_client import DockerRuntimeClient
     return DockerRuntimeClient(
         base_url='unix:///var/run/docker.sock',
         timeout=60,
@@ -33,7 +33,7 @@ def docker_client():
 @pytest.fixture
 def execution_request():
     """Fixture para DockerExecutionRequest."""
-    from services.worker_agents.src.clients.docker_runtime_client import (
+    from clients.docker_runtime_client import (
         DockerExecutionRequest,
         ResourceLimits,
     )
@@ -53,7 +53,7 @@ class TestDockerClientInit:
 
     def test_init_with_defaults(self):
         """Deve inicializar com valores padrão."""
-        from services.worker_agents.src.clients.docker_runtime_client import DockerRuntimeClient
+        from clients.docker_runtime_client import DockerRuntimeClient
         client = DockerRuntimeClient()
         assert client.base_url == 'unix:///var/run/docker.sock'
         assert client.timeout == 600
@@ -61,13 +61,13 @@ class TestDockerClientInit:
 
     def test_init_with_custom_url(self):
         """Deve inicializar com URL customizada."""
-        from services.worker_agents.src.clients.docker_runtime_client import DockerRuntimeClient
+        from clients.docker_runtime_client import DockerRuntimeClient
         client = DockerRuntimeClient(base_url='tcp://localhost:2375')
         assert client.base_url == 'tcp://localhost:2375'
 
     def test_init_with_custom_limits(self):
         """Deve inicializar com limites customizados."""
-        from services.worker_agents.src.clients.docker_runtime_client import DockerRuntimeClient
+        from clients.docker_runtime_client import DockerRuntimeClient
         client = DockerRuntimeClient(
             default_cpu_limit=2.0,
             default_memory_limit='1g',
@@ -119,7 +119,7 @@ class TestDockerInitialization:
     @pytest.mark.asyncio
     async def test_initialize_import_error(self, docker_client):
         """Deve tratar erro de import."""
-        from services.worker_agents.src.clients.docker_runtime_client import DockerRuntimeError
+        from clients.docker_runtime_client import DockerRuntimeError
 
         with patch.dict('sys.modules', {'aiodocker': None}):
             with patch('builtins.__import__', side_effect=ImportError('No module')):
@@ -131,7 +131,7 @@ class TestDockerInitialization:
     @pytest.mark.asyncio
     async def test_initialize_connection_error(self, docker_client):
         """Deve tratar erro de conexão."""
-        from services.worker_agents.src.clients.docker_runtime_client import DockerRuntimeError
+        from clients.docker_runtime_client import DockerRuntimeError
 
         with patch('aiodocker.Docker', side_effect=Exception('Connection refused')):
             with pytest.raises(DockerRuntimeError) as exc_info:
@@ -216,7 +216,7 @@ class TestCommandExecution:
     @pytest.mark.asyncio
     async def test_execute_with_env_vars(self, docker_client):
         """Deve passar variáveis de ambiente."""
-        from services.worker_agents.src.clients.docker_runtime_client import DockerExecutionRequest
+        from clients.docker_runtime_client import DockerExecutionRequest
 
         request = DockerExecutionRequest(
             image='python:3.11-slim',
@@ -289,7 +289,7 @@ class TestExecutionTimeout:
     @pytest.mark.asyncio
     async def test_execute_timeout(self, docker_client):
         """Deve levantar timeout quando container demora demais."""
-        from services.worker_agents.src.clients.docker_runtime_client import (
+        from clients.docker_runtime_client import (
             DockerExecutionRequest,
             DockerTimeoutError,
         )
@@ -377,7 +377,7 @@ class TestContainerCleanup:
         docker_client._docker = mock_docker
         docker_client._initialized = True
 
-        from services.worker_agents.src.clients.docker_runtime_client import DockerRuntimeError
+        from clients.docker_runtime_client import DockerRuntimeError
 
         with pytest.raises(DockerRuntimeError):
             await docker_client.execute_command(execution_request)
@@ -387,7 +387,7 @@ class TestContainerCleanup:
     @pytest.mark.asyncio
     async def test_no_cleanup_when_disabled(self, execution_request):
         """Não deve remover container quando cleanup desabilitado."""
-        from services.worker_agents.src.clients.docker_runtime_client import DockerRuntimeClient
+        from clients.docker_runtime_client import DockerRuntimeClient
 
         client = DockerRuntimeClient(cleanup_containers=False)
 

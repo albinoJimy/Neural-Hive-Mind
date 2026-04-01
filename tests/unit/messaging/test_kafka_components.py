@@ -6,7 +6,7 @@ Testa produtores, consumidores e tópicos Kafka.
 """
 import pytest
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 from unittest.mock import AsyncMock, MagicMock
 
@@ -51,7 +51,7 @@ class TestKafkaProducer:
         headers = {
             "correlation_id": str(uuid4()),
             "content_type": "application/json",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         assert "correlation_id" in headers
@@ -194,7 +194,7 @@ class TestMessagePatterns:
             "event_type": "IntentCreated",
             "aggregate_id": str(uuid4()),
             "payload": {},
-            "occurred_at": datetime.utcnow().isoformat()
+            "occurred_at": datetime.now(timezone.utc).isoformat()
         }
 
         required_fields = ["event_id", "event_type", "aggregate_id"]
@@ -295,7 +295,7 @@ class TestDeadLetterQueue:
         dlq_message = {
             "original_message": original_message,
             "error_reason": error_reason,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "retry_count": 3
         }
 
@@ -317,7 +317,7 @@ class TestDeadLetterQueue:
             "original_partition": 0,
             "original_offset": 12345,
             "error": ValueError("Invalid format"),
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         assert "original_topic" in dlq_message

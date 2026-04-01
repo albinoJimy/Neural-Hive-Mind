@@ -14,7 +14,7 @@ Testa o pipeline end-to-end de treinamento de modelos ML incluindo:
 import pytest
 import pytest_asyncio
 from unittest.mock import Mock, AsyncMock, patch, MagicMock, call
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from uuid import uuid4
 import numpy as np
 import pandas as pd
@@ -56,7 +56,7 @@ async def test_mongodb_client(test_config):
 
     # Create sample tickets (150+ for sufficient data)
     sample_tickets = []
-    base_time = datetime.utcnow() - timedelta(days=5)
+    base_time = datetime.now(timezone.utc) - timedelta(days=5)
 
     task_types = ['BUILD', 'TEST', 'DEPLOY', 'VALIDATE', 'EXECUTE']
     risk_bands = ['low', 'medium', 'high', 'critical']
@@ -423,7 +423,7 @@ async def test_model_cache(model_registry, mock_mlflow):
     assert cached_model == model1
 
     # Simulate TTL expiry
-    model_registry._model_cache[cache_key] = (model1, datetime.utcnow().timestamp() - 4000)  # Old timestamp
+    model_registry._model_cache[cache_key] = (model1, datetime.now(timezone.utc).timestamp() - 4000)  # Old timestamp
 
     # Load after expiry (should fetch again)
     model3 = await model_registry.load_model('duration-predictor', version='latest', stage='Production')

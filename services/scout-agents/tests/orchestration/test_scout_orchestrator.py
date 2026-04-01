@@ -8,7 +8,7 @@ Espec: @.agent-os/specs/2026-03-17-gaps-05-scout-agents/
 import asyncio
 import pytest
 from unittest.mock import Mock, MagicMock, AsyncMock
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Import com skip automático se módulo não disponível
 ScoutOrchestrator = pytest.importorskip('src.orchestration.scout_orchestrator').ScoutOrchestrator
@@ -311,7 +311,7 @@ class TestGetExplorationStatus:
         orchestrator.active_explorations = {
             'scout-exp-1': {
                 'status': 'running',
-                'started_at': datetime.utcnow()
+                'started_at': datetime.now(timezone.utc)
             }
         }
 

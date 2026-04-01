@@ -1,7 +1,6 @@
 import asyncio
 import signal
 import sys
-from threading import Thread
 
 import structlog
 import uvicorn
@@ -11,44 +10,50 @@ from neural_hive_observability import (
     instrument_kafka_consumer,
     instrument_kafka_producer,
 )
-from neural_hive_observability.health import HealthChecker, HealthStatus
-from neural_hive_observability.health_checks.clickhouse import ClickHouseSchemaHealthCheck
 from neural_hive_observability.config import ObservabilityConfig
+from neural_hive_observability.health import HealthChecker
+from neural_hive_observability.health_checks.clickhouse import ClickHouseSchemaHealthCheck
 
 from src.clients import (
-    MongoDBClient,
-    RedisClient,
-    ServiceRegistryClient,
-    MLflowClient,
+    AnalystAgentsGrpcClient,
     ArgoWorkflowsClient,
     ConsensusEngineGrpcClient,
+    MLflowClient,
+    MongoDBClient,
     OrchestratorGrpcClient,
-    AnalystAgentsGrpcClient,
     QueenAgentGrpcClient,
+    RedisClient,
+    ServiceRegistryClient,
 )
 from src.clients.clickhouse_client import ClickHouseClient
+
 # Import centralized LoadPredictor
 try:
     from neural_hive_ml.predictive_models import LoadPredictor
-    from neural_hive_ml.predictive_models.model_registry import ModelRegistry as CentralizedModelRegistry
+    from neural_hive_ml.predictive_models.model_registry import (
+        ModelRegistry as CentralizedModelRegistry,
+    )
+
     ML_CENTRALIZED = True
 except ImportError:
-    from src.ml import LoadPredictor, ModelRegistry as CentralizedModelRegistry
+    from src.ml import LoadPredictor
+    from src.ml import ModelRegistry as CentralizedModelRegistry
+
     ML_CENTRALIZED = False
 
-from src.ml import SchedulingOptimizer, TrainingPipeline
-from src.consumers import InsightsConsumer, TelemetryConsumer, ExperimentsConsumer
-from src.producers import OptimizationProducer, ExperimentProducer
-from src.grpc_service import OptimizerServicer, GrpcServer
+from src.api import api_router
+from src.config.settings import get_settings
+from src.consumers import ExperimentsConsumer, InsightsConsumer, TelemetryConsumer
+from src.grpc_service import GrpcServer, OptimizerServicer
 from src.grpc_service.consensus_optimization_servicer import ConsensusOptimizationServicer
 from src.grpc_service.orchestrator_optimization_servicer import OrchestratorOptimizationServicer
-from src.config.settings import get_settings
+from src.ml import SchedulingOptimizer, TrainingPipeline
 from src.observability.metrics import setup_metrics
+from src.producers import ExperimentProducer, OptimizationProducer
 from src.services.experiment_manager import ExperimentManager
 from src.services.optimization_engine import OptimizationEngine
-from src.services.weight_recalibrator import WeightRecalibrator
 from src.services.slo_adjuster import SLOAdjuster
-from src.api import api_router
+from src.services.weight_recalibrator import WeightRecalibrator
 
 logger = structlog.get_logger()
 
@@ -114,20 +119,23 @@ async def startup():
     global background_tasks, consumer_tasks
 
     settings = get_settings()
-    logger.info("optimizer_agents_starting", service=settings.service_name, version=settings.service_version)
+    logger.info(
+        "optimizer_agents_starting", service=settings.service_name, version=settings.service_version
+    )
 
     # Inicializar observabilidade
     init_observability(
-        service_name='optimizer-agents',
+        service_name="optimizer-agents",
         service_version=settings.service_version,
-        neural_hive_component='optimizer-agent',
-        neural_hive_layer='otimizacao',
-        neural_hive_domain='continuous-improvement',
+        neural_hive_component="optimizer-agent",
+        neural_hive_layer="otimizacao",
+        neural_hive_domain="continuous-improvement",
         otel_endpoint=settings.otel_endpoint,
     )
     setup_metrics()
     # Criar instância de métricas para ML subsystem
     from src.observability.metrics import OptimizerMetrics
+
     metrics_instance = OptimizerMetrics()
     logger.info("observability_initialized")
 
@@ -150,8 +158,7 @@ async def startup():
     # ClickHouse (optional - may not be deployed)
     try:
         clickhouse_client = ClickHouseClient(
-            redis_client=redis_client,
-            config=settings.model_dump()
+            redis_client=redis_client, config=settings.model_dump()
         )
         await clickhouse_client.initialize()
         logger.info("clickhouse_client_initialized")
@@ -164,17 +171,26 @@ async def startup():
     observability_config = ObservabilityConfig(
         service_name=settings.service_name,
         service_version=settings.service_version,
-        neural_hive_component='optimizer-agent',
-        neural_hive_layer='otimizacao',
+        neural_hive_component="optimizer-agent",
+        neural_hive_layer="otimizacao",
     )
     health_checker = HealthChecker(config=observability_config)
 
     if clickhouse_client:
         clickhouse_health_check = ClickHouseSchemaHealthCheck(
-            clickhouse_client=clickhouse_client.client if hasattr(clickhouse_client, 'client') else clickhouse_client,
-            expected_tables=['execution_logs', 'telemetry_metrics', 'worker_utilization', 'queue_snapshots', 'ml_model_performance', 'scheduling_decisions'],
-            expected_views=['hourly_ticket_volume', 'daily_worker_stats'],
-            database='neural_hive',
+            clickhouse_client=clickhouse_client.client
+            if hasattr(clickhouse_client, "client")
+            else clickhouse_client,
+            expected_tables=[
+                "execution_logs",
+                "telemetry_metrics",
+                "worker_utilization",
+                "queue_snapshots",
+                "ml_model_performance",
+                "scheduling_decisions",
+            ],
+            expected_views=["hourly_ticket_volume", "daily_worker_stats"],
+            database="neural_hive",
         )
         health_checker.register_check(clickhouse_health_check)
         logger.info("clickhouse_schema_health_check_registered")
@@ -185,7 +201,7 @@ async def startup():
         consensus_engine_client = ConsensusEngineGrpcClient(settings=settings)
         await asyncio.wait_for(consensus_engine_client.connect(), timeout=10.0)
         logger.info("consensus_engine_client_initialized")
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.warning("consensus_engine_client_initialization_timeout")
         consensus_engine_client = None
     except Exception as e:
@@ -197,7 +213,7 @@ async def startup():
         orchestrator_client = OrchestratorGrpcClient(settings=settings)
         await asyncio.wait_for(orchestrator_client.connect(), timeout=10.0)
         logger.info("orchestrator_client_initialized")
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.warning("orchestrator_client_initialization_timeout")
         orchestrator_client = None
     except Exception as e:
@@ -209,7 +225,7 @@ async def startup():
         analyst_agents_client = AnalystAgentsGrpcClient(settings=settings)
         await asyncio.wait_for(analyst_agents_client.connect(), timeout=10.0)
         logger.info("analyst_agents_client_initialized")
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.warning("analyst_agents_client_initialization_timeout")
         analyst_agents_client = None
     except Exception as e:
@@ -221,7 +237,7 @@ async def startup():
         queen_agent_client = QueenAgentGrpcClient(settings=settings)
         await asyncio.wait_for(queen_agent_client.connect(), timeout=10.0)
         logger.info("queen_agent_client_initialized")
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.warning("queen_agent_client_initialization_timeout")
         queen_agent_client = None
     except Exception as e:
@@ -233,7 +249,7 @@ async def startup():
         service_registry_client = ServiceRegistryClient(settings=settings)
         await asyncio.wait_for(service_registry_client.connect(), timeout=10.0)
         logger.info("service_registry_client_initialized")
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.warning("service_registry_client_initialization_timeout")
         service_registry_client = None
     except Exception as e:
@@ -318,33 +334,32 @@ async def startup():
         # ModelRegistry (usando centralizado ou local)
         if ML_CENTRALIZED:
             model_registry = CentralizedModelRegistry(
-                tracking_uri=settings.mlflow_tracking_uri,
-                experiment_prefix="neural-hive-ml"
+                tracking_uri=settings.mlflow_tracking_uri, experiment_prefix="neural-hive-ml"
             )
         else:
             model_registry = CentralizedModelRegistry(
                 mlflow_client=mlflow_client,
                 config={
-                    'mlflow_tracking_uri': settings.mlflow_tracking_uri,
-                    'ml_model_cache_ttl_seconds': settings.ml_model_cache_ttl_seconds,
-                }
+                    "mlflow_tracking_uri": settings.mlflow_tracking_uri,
+                    "ml_model_cache_ttl_seconds": settings.ml_model_cache_ttl_seconds,
+                },
             )
         logger.info("model_registry_initialized", centralized=ML_CENTRALIZED)
 
         # LoadPredictor (configurar para centralizado se disponível)
         if ML_CENTRALIZED:
             load_predictor_config = {
-                'model_name': 'load-predictor',
-                'model_type': 'prophet',
-                'forecast_horizons': [60, 360, 1440],
-                'seasonality_mode': 'additive',
-                'use_synthetic_data': False  # Usar dados reais em produção
+                "model_name": "load-predictor",
+                "model_type": "prophet",
+                "forecast_horizons": [60, 360, 1440],
+                "seasonality_mode": "additive",
+                "use_synthetic_data": False,  # Usar dados reais em produção
             }
             load_predictor = LoadPredictor(
                 config=load_predictor_config,
                 model_registry=model_registry,
                 metrics=metrics_instance,
-                data_source=clickhouse_client  # Passa ClickHouse para dados reais
+                data_source=clickhouse_client,  # Passa ClickHouse para dados reais
             )
             await load_predictor.initialize()
             logger.info("load_predictor_initialized (centralized with real data)")
@@ -355,7 +370,7 @@ async def startup():
                 redis_client=redis_client,
                 model_registry=model_registry,
                 metrics=metrics_instance,
-                config=settings.model_dump()
+                config=settings.model_dump(),
             )
             await load_predictor.initialize()
             logger.info("load_predictor_initialized (legacy)")
@@ -380,7 +395,7 @@ async def startup():
             redis_client=redis_client,
             model_registry=model_registry,
             metrics=metrics_instance,
-            config=settings.model_dump()
+            config=settings.model_dump(),
         )
         await scheduling_optimizer.initialize()
         logger.info("scheduling_optimizer_initialized")
@@ -393,7 +408,7 @@ async def startup():
             clickhouse_client=clickhouse_client,
             mongodb_client=mongodb_client,
             metrics=metrics_instance,
-            config=settings.model_dump()
+            config=settings.model_dump(),
         )
         logger.info("training_pipeline_initialized")
 
@@ -476,7 +491,7 @@ async def startup():
             mongodb_client=mongodb_client,
             load_predictor=load_predictor,
             scheduling_optimizer=scheduling_optimizer,
-            settings=settings
+            settings=settings,
         )
 
         # Criar servicers de extensão para Consensus Engine e Orchestrator
@@ -553,7 +568,7 @@ async def startup():
     logger.info("ab_testing_engine_initialized")
 
     # Configurar dependency overrides para injetar serviços nos routers
-    from src.api import optimizations, experiments, ab_testing
+    from src.api import ab_testing, experiments, optimizations
 
     def override_mongodb_client():
         return mongodb_client
@@ -609,7 +624,7 @@ async def shutdown():
     global grpc_server, grpc_task
     global background_tasks, consumer_tasks
 
-    settings = get_settings()
+    get_settings()
     logger.info("optimizer_agents_shutting_down")
 
     # Sinalizar shutdown
@@ -774,8 +789,7 @@ async def optimization_loop():
 
             # Buscar insights recentes do MongoDB
             recent_insights = await mongodb_client.find_recent_insights(
-                limit=50,
-                priority=["HIGH", "CRITICAL"]
+                limit=50, priority=["HIGH", "CRITICAL"]
             )
 
             for insight in recent_insights:
@@ -787,20 +801,31 @@ async def optimization_loop():
                         logger.info(
                             "optimization_hypotheses_generated",
                             insight_id=insight.get("insight_id"),
-                            count=len(hypotheses)
+                            count=len(hypotheses),
                         )
 
                         # Submeter hipóteses para validação via ExperimentManager ou aplicação direta
                         if experiment_manager:
                             for hypothesis in hypotheses:
-                                if hypothesis.expected_improvement >= settings.min_improvement_threshold:
+                                if (
+                                    hypothesis.expected_improvement
+                                    >= settings.min_improvement_threshold
+                                ):
                                     # Rotear hipótese para o serviço apropriado
                                     from src.models.optimization_event import OptimizationType
 
-                                    if hypothesis.optimization_type == OptimizationType.WEIGHT_RECALIBRATION:
+                                    if (
+                                        hypothesis.optimization_type
+                                        == OptimizationType.WEIGHT_RECALIBRATION
+                                    ):
                                         if weight_recalibrator:
-                                            await weight_recalibrator.apply_weight_recalibration(hypothesis)
-                                    elif hypothesis.optimization_type == OptimizationType.SLO_ADJUSTMENT:
+                                            await weight_recalibrator.apply_weight_recalibration(
+                                                hypothesis
+                                            )
+                                    elif (
+                                        hypothesis.optimization_type
+                                        == OptimizationType.SLO_ADJUSTMENT
+                                    ):
                                         if slo_adjuster:
                                             await slo_adjuster.apply_slo_adjustment(hypothesis)
                                     else:
@@ -845,60 +870,86 @@ async def experiment_monitor_loop():
                         continue
 
                     # Verificar timeout
-                    if status.get("elapsed_time", 0) > experiment_manager.settings.experiment_timeout_seconds:
+                    if (
+                        status.get("elapsed_time", 0)
+                        > experiment_manager.settings.experiment_timeout_seconds
+                    ):
                         logger.warning(
                             "experiment_timeout",
                             experiment_id=experiment_id,
-                            elapsed=status.get("elapsed_time")
+                            elapsed=status.get("elapsed_time"),
                         )
                         await experiment_manager.abort_experiment(experiment_id, reason="timeout")
 
                     # Verificar degradação
                     if experiment_manager.settings.rollback_on_degradation:
-                        if status.get("performance_degradation", 0) > experiment_manager.settings.degradation_threshold:
+                        if (
+                            status.get("performance_degradation", 0)
+                            > experiment_manager.settings.degradation_threshold
+                        ):
                             logger.warning(
                                 "experiment_degradation_detected",
                                 experiment_id=experiment_id,
-                                degradation=status.get("performance_degradation")
+                                degradation=status.get("performance_degradation"),
                             )
 
                             # Obter tipo de otimização do MongoDB para rotear rollback
                             experiment_doc = await mongodb_client.get_optimization(experiment_id)
                             if experiment_doc:
                                 from src.models.optimization_event import OptimizationType
-                                optimization_type = OptimizationType(experiment_doc.get("optimization_type"))
+
+                                optimization_type = OptimizationType(
+                                    experiment_doc.get("optimization_type")
+                                )
 
                                 # Rotear para o serviço apropriado
                                 rollback_success = False
-                                if optimization_type == OptimizationType.WEIGHT_RECALIBRATION and weight_recalibrator:
-                                    rollback_success = await weight_recalibrator.rollback_weight_recalibration(experiment_id)
-                                elif optimization_type == OptimizationType.SLO_ADJUSTMENT and slo_adjuster:
-                                    rollback_success = await slo_adjuster.rollback_slo_adjustment(experiment_id)
+                                if (
+                                    optimization_type == OptimizationType.WEIGHT_RECALIBRATION
+                                    and weight_recalibrator
+                                ):
+                                    rollback_success = (
+                                        await weight_recalibrator.rollback_weight_recalibration(
+                                            experiment_id
+                                        )
+                                    )
+                                elif (
+                                    optimization_type == OptimizationType.SLO_ADJUSTMENT
+                                    and slo_adjuster
+                                ):
+                                    rollback_success = await slo_adjuster.rollback_slo_adjustment(
+                                        experiment_id
+                                    )
                                 else:
                                     # Rollback padrão via ExperimentManager
-                                    rollback_result = await experiment_manager.rollback_experiment(experiment_id)
+                                    rollback_result = await experiment_manager.rollback_experiment(
+                                        experiment_id
+                                    )
                                     rollback_success = rollback_result.get("success", False)
 
                                 if rollback_success:
                                     logger.info(
                                         "experiment_rollback_completed",
                                         experiment_id=experiment_id,
-                                        optimization_type=optimization_type.value
+                                        optimization_type=optimization_type.value,
                                     )
                                 else:
                                     logger.error(
                                         "experiment_rollback_failed",
                                         experiment_id=experiment_id,
-                                        optimization_type=optimization_type.value
+                                        optimization_type=optimization_type.value,
                                     )
                             else:
                                 logger.error(
-                                    "experiment_not_found_for_rollback",
-                                    experiment_id=experiment_id
+                                    "experiment_not_found_for_rollback", experiment_id=experiment_id
                                 )
 
                 except Exception as e:
-                    logger.error("experiment_monitoring_failed", experiment_id=exp.get("experiment_id"), error=str(e))
+                    logger.error(
+                        "experiment_monitoring_failed",
+                        experiment_id=exp.get("experiment_id"),
+                        error=str(e),
+                    )
 
             # Verificar a cada 30 segundos
             await asyncio.sleep(30)

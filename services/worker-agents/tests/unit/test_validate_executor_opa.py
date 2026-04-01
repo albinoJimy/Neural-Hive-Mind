@@ -18,7 +18,7 @@ import httpx
 @pytest.fixture
 def mock_opa_client():
     """Mock OPAClient para testes."""
-    from services.worker_agents.src.clients.opa_client import (
+    from clients.opa_client import (
         PolicyEvaluationResponse,
         Violation,
         ViolationSeverity
@@ -67,7 +67,7 @@ def mock_metrics_with_policy_violations():
 @pytest.fixture
 def validate_executor_with_opa_client(worker_config, mock_opa_client, mock_metrics_with_policy_violations):
     """ValidateExecutor com OPAClient injetado."""
-    from services.worker_agents.src.executors.validate_executor import ValidateExecutor
+    from executors.validate_executor import ValidateExecutor
 
     executor = ValidateExecutor(
         config=worker_config,
@@ -102,7 +102,7 @@ class TestExecuteOPAWithClient:
     @pytest.mark.asyncio
     async def test_execute_opa_success(self, validate_executor_with_opa_client, mock_opa_client, validate_ticket_opa):
         """Deve executar validacao OPA com sucesso."""
-        from services.worker_agents.src.clients.opa_client import (
+        from clients.opa_client import (
             PolicyEvaluationResponse,
             ViolationSeverity
         )
@@ -130,7 +130,7 @@ class TestExecuteOPAWithClient:
     @pytest.mark.asyncio
     async def test_execute_opa_with_violations(self, validate_executor_with_opa_client, mock_opa_client, validate_ticket_opa):
         """Deve retornar violacoes quando politica falha."""
-        from services.worker_agents.src.clients.opa_client import (
+        from clients.opa_client import (
             PolicyEvaluationResponse,
             Violation,
             ViolationSeverity
@@ -166,7 +166,7 @@ class TestExecuteOPAWithClient:
     @pytest.mark.asyncio
     async def test_execute_opa_timeout_fallback(self, validate_executor_with_opa_client, mock_opa_client, validate_ticket_opa):
         """Deve usar fallback conservador em timeout."""
-        from services.worker_agents.src.clients.opa_client import OPATimeoutError
+        from clients.opa_client import OPATimeoutError
 
         mock_opa_client.evaluate_policy.side_effect = OPATimeoutError('Connection timeout')
 
@@ -180,7 +180,7 @@ class TestExecuteOPAWithClient:
     @pytest.mark.asyncio
     async def test_execute_opa_api_error_fallback(self, validate_executor_with_opa_client, mock_opa_client, validate_ticket_opa):
         """Deve usar fallback conservador em erro de API."""
-        from services.worker_agents.src.clients.opa_client import OPAAPIError
+        from clients.opa_client import OPAAPIError
 
         mock_opa_client.evaluate_policy.side_effect = OPAAPIError('Server error', status_code=500)
 
@@ -198,7 +198,7 @@ class TestExecuteOPALegacy:
     @pytest.fixture
     def validate_executor_legacy(self, worker_config, mock_metrics_with_policy_violations):
         """ValidateExecutor sem OPAClient (modo legacy)."""
-        from services.worker_agents.src.executors.validate_executor import ValidateExecutor
+        from executors.validate_executor import ValidateExecutor
 
         worker_config.opa_url = 'http://opa.test:8181'
         worker_config.opa_enabled = True
@@ -358,7 +358,7 @@ class TestRecordOPAViolationMetrics:
 
     def test_record_metrics_with_violations(self, validate_executor_with_opa_client, mock_metrics_with_policy_violations):
         """Deve registrar metricas para violacoes."""
-        from services.worker_agents.src.clients.opa_client import ViolationSeverity
+        from clients.opa_client import ViolationSeverity
 
         severity_counts = {
             ViolationSeverity.CRITICAL: 1,
@@ -380,7 +380,7 @@ class TestRecordOPAViolationMetrics:
 
     def test_record_metrics_no_violations(self, validate_executor_with_opa_client, mock_metrics_with_policy_violations):
         """Nao deve registrar metricas sem violacoes."""
-        from services.worker_agents.src.clients.opa_client import ViolationSeverity
+        from clients.opa_client import ViolationSeverity
 
         severity_counts = {
             ViolationSeverity.CRITICAL: 0,
@@ -398,8 +398,8 @@ class TestRecordOPAViolationMetrics:
 
     def test_record_metrics_without_metrics_instance(self, worker_config):
         """Nao deve falhar sem instancia de metricas."""
-        from services.worker_agents.src.executors.validate_executor import ValidateExecutor
-        from services.worker_agents.src.clients.opa_client import ViolationSeverity
+        from executors.validate_executor import ValidateExecutor
+        from clients.opa_client import ViolationSeverity
 
         executor = ValidateExecutor(
             config=worker_config,

@@ -1,0 +1,228 @@
+# FluxCD GitOps Toolkit - Prod Cluster
+# Componentes base do FluxCD para Neural Hive-Mind
+#
+# Este arquivo define os componentes necessários do FluxCD para operação GitOps
+# no cluster de produção do Neural Hive-Mind.
+#
+# Documentação: https://fluxcd.io/docs/components/
+
+---
+# Namespace para componentes do FluxCD
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: flux-system
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+
+---
+# Source Controller - Gerencia fontes externas (Git, Helm, OCI)
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: neural-hive-mind
+  namespace: flux-system
+spec:
+  interval: 1m
+  url: ssh://git@github.com/albinoJimy/Neural-Hive-Mind.git
+  ref:
+    branch: main
+  secretRef:
+    name: neural-hive-mind-git-ssh
+  ignore: |
+    # exclude all
+    /*
+    # include deploy dir
+    !/infrastructure/fluxcd
+    !/helm-charts
+    !/k8s
+  gitImplementation: go-git
+  timeout: 60s
+
+---
+# Kustomization para infraestrutura base
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: infrastructure
+  namespace: flux-system
+spec:
+  interval: 10m
+  retryInterval: 2m
+  timeout: 5m
+  sourceRef:
+    kind: GitRepository
+    name: neural-hive-mind
+  path: ./infrastructure/fluxcd/clusters/prod/infrastructure
+  prune: true
+  wait: true
+  healthChecks:
+    - apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      name: kube-prometheus-stack
+      namespace: monitoring
+  decryption:
+    provider: sops
+    secretRef:
+      name: sops-gpg
+
+---
+# Kustomization para serviços core
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: core-services
+  namespace: flux-system
+spec:
+  interval: 5m
+  retryInterval: 1m
+  timeout: 3m
+  sourceRef:
+    kind: GitRepository
+    name: neural-hive-mind
+  path: ./infrastructure/fluxcd/clusters/prod/services
+  prune: true
+  dependsOn:
+    - name: infrastructure
+  healthChecks:
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: gateway-intencoes
+      namespace: neural-hive
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: consensus-engine
+      namespace: neural-hive
+
+---
+# Kustomization para especialistas
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: specialists
+  namespace: flux-system
+spec:
+  interval: 5m
+  retryInterval: 1m
+  timeout: 3m
+  sourceRef:
+    kind: GitRepository
+    name: neural-hive-mind
+  path: ./infrastructure/fluxcd/clusters/prod/specialists
+  prune: true
+  dependsOn:
+    - name: core-services
+  healthChecks:
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: specialist-business
+      namespace: neural-hive
+
+---
+# Kustomization para agentes
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: agents
+  namespace: flux-system
+spec:
+  interval: 5m
+  retryInterval: 1m
+  timeout: 3m
+  sourceRef:
+    kind: GitRepository
+    name: neural-hive-mind
+  path: ./infrastructure/fluxcd/clusters/prod/agents
+  prune: true
+  dependsOn:
+    - name: core-services
+  healthChecks:
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: worker-agents
+      namespace: neural-hive
+
+---
+# ImageRepository para GHCR - Gateway Intenções
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: gateway-intencoes
+  namespace: flux-system
+spec:
+  image: ghcr.io/albinojimy/neural-hive-mind/gateway-intencoes
+  interval: 5m
+  secretRef:
+    name: ghcr-credentials
+
+---
+# ImagePolicy para Gateway Intenções - SemVer
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: gateway-intencoes-semver
+  namespace: flux-system
+spec:
+  imageRepositoryRef:
+    name: gateway-intencoes
+  policy:
+    semver:
+      range: ">=1.0.0"
+
+---
+# ImagePolicy para Gateway Intenções - Latest SHA
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: gateway-intencoes-latest
+  namespace: flux-system
+spec:
+  imageRepositoryRef:
+    name: gateway-intencoes
+  policy:
+    alphabetical:
+      order: asc
+
+---
+# ImageUpdateAutomation para atualização automática
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageUpdateAutomation
+metadata:
+  name: neural-hive-mind-auto-update
+  namespace: flux-system
+spec:
+  interval: 30m
+  sourceRef:
+    kind: GitRepository
+    name: neural-hive-mind
+  git:
+    checkout:
+      ref:
+        branch: main
+    commit:
+      author:
+        name: flux-bot
+        email: flux-bot@neural-hive-mind.io
+      messageTemplate: |
+        Automated image update
+
+        Files:
+        {{ range $filename, $_ := .Changed.FileChanges -}}
+        - {{ $filename }}
+        {{ end -}}
+
+        Objects:
+        {{ range $resource, $changes := .Changed.Objects -}}
+        - {{ $resource.Kind }} {{ $resource.Name }}
+          Changes:
+        {{- range $_, $change := $changes }}
+            - {{ $change.OldValue }} -> {{ $change.NewValue }}
+        {{ end -}}
+        {{ end -}}
+    push:
+      branch: main
+  update:
+    path: ./infrastructure/fluxcd/clusters/prod
+    strategy: Setters

@@ -15,7 +15,7 @@ import subprocess
 subprocess.check_call([sys.executable, "-m", "pip", "install", "pymongo", "-q"])
 
 from pymongo import MongoClient
-from datetime import datetime
+from datetime import datetime, timezone
 import random
 import time
 
@@ -81,7 +81,7 @@ def collect_batch(batch_size=50):
         rec, rating = generate_auto_feedback(opinion)
 
         feedback_doc = {
-            "feedback_id": f"fb-auto-{datetime.utcnow().timestamp()}-{i}",
+            "feedback_id": f"fb-auto-{datetime.now(timezone.utc).timestamp()}-{i}",
             "opinion_id": opinion_id,
             "opinion_recommendation": model_rec,
             "human_recommendation": rec,
@@ -89,7 +89,7 @@ def collect_batch(batch_size=50):
             "feedback_notes": "[AUTO] Feedback gerado por heurística",
             "specialist_type": specialist,
             "auto_generated": True,
-            "submitted_at": datetime.utcnow(),
+            "submitted_at": datetime.now(timezone.utc),
             "trace_id": opinion.get("trace_id")
         }
 

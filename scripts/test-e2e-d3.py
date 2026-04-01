@@ -20,7 +20,7 @@ import os
 import sys
 import time
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import aiohttp
@@ -113,7 +113,7 @@ class D3E2ETest:
 
     def create_ticket_payload(self) -> dict:
         """Cria payload do ticket BUILD"""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         return {
             "ticket_id": self.ticket_id,
             "plan_id": self.plan_id,
@@ -310,7 +310,7 @@ class D3E2ETest:
 
         report_content = f"""# Relatório Teste E2E D3 (Build + Geração de Artefatos)
 
-**Data:** {datetime.utcnow().isoformat()}
+**Data:** {datetime.now(timezone.utc).isoformat()}
 **Teste:** Fluxo D3 End-to-End
 **Conforme:** `docs/test-raw-data/2026-02-21/MODELO_TESTE_WORKER_AGENT.md`
 

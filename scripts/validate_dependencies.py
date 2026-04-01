@@ -38,10 +38,10 @@ def test_python_jose():
     """Testa import do python-jose e JWT encode/decode."""
     try:
         from jose import jwt
-        from datetime import datetime, timedelta
+        from datetime import datetime, timedelta, timezone
 
         secret = 'test-secret'
-        payload = {'user': 'test', 'exp': datetime.utcnow() + timedelta(hours=1)}
+        payload = {'user': 'test', 'exp': datetime.now(timezone.utc) + timedelta(hours=1)}
 
         # Encode
         token = jwt.encode(payload, secret, algorithm='HS256')

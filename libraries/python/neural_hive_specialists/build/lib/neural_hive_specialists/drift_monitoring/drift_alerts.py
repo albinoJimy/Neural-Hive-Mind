@@ -54,7 +54,7 @@ class DriftAlerter:
             return
 
         alert_data = {
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
             'severity': self._calculate_severity(drift_score),
             'drift_score': drift_score,
             'num_drifted_features': len(drifted_features),
@@ -164,7 +164,7 @@ class DriftAlerter:
                         }
                     ],
                     'footer': 'Neural Hive Specialists',
-                    'ts': int(datetime.utcnow().timestamp())
+                    'ts': int(datetime.now(timezone.utc).timestamp())
                 }]
             }
 

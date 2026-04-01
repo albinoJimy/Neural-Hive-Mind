@@ -12,7 +12,7 @@ import asyncio
 import logging
 import os
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, Generator, List
 from unittest.mock import MagicMock
 
@@ -268,7 +268,7 @@ def sample_ledger_entry(sample_plan_id, sample_intent_id) -> Dict[str, Any]:
         'plan_id': sample_plan_id,
         'intent_id': sample_intent_id,
         'version': '1.0.0',
-        'timestamp': datetime.utcnow(),
+        'timestamp': datetime.now(timezone.utc),
         'plan_data': {
             'plan_id': sample_plan_id,
             'intent_id': sample_intent_id,
@@ -318,7 +318,7 @@ def sample_approval_response(sample_plan_id, sample_intent_id) -> Dict[str, Any]
         'intent_id': sample_intent_id,
         'decision': 'approved',
         'approved_by': 'admin@company.com',
-        'approved_at': int(datetime.utcnow().timestamp() * 1000),
+        'approved_at': int(datetime.now(timezone.utc).timestamp() * 1000),
         'rejection_reason': None,
     }
 
@@ -331,7 +331,7 @@ def sample_rejection_response(sample_plan_id, sample_intent_id) -> Dict[str, Any
         'intent_id': sample_intent_id,
         'decision': 'rejected',
         'approved_by': 'admin@company.com',
-        'approved_at': int(datetime.utcnow().timestamp() * 1000),
+        'approved_at': int(datetime.now(timezone.utc).timestamp() * 1000),
         'rejection_reason': 'Operação muito arriscada para produção',
     }
 

@@ -7,7 +7,7 @@ Run from within the neural-hive namespace.
 
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pymongo
 from confluent_kafka import Producer
@@ -49,7 +49,7 @@ def update_approval_in_mongodb(client, plan_id: str) -> dict:
                     'status': 'approved',
                     'decision': 'approved',
                     'approved_by': 'test-admin',
-                    'approved_at': datetime.utcnow(),
+                    'approved_at': datetime.now(timezone.utc),
                     'comments': 'Aprovado via script de teste - Fluxo C completamento',
                 }
             }
@@ -67,9 +67,9 @@ def update_approval_in_mongodb(client, plan_id: str) -> dict:
             'intent_id': INTENT_ID,
             'status': 'approved',
             'decision': 'approved',
-            'requested_at': datetime.utcnow(),
+            'requested_at': datetime.now(timezone.utc),
             'approved_by': 'test-admin',
-            'approved_at': datetime.utcnow(),
+            'approved_at': datetime.now(timezone.utc),
             'comments': 'Aprovado via script de teste - Fluxo C completamento',
             'risk_score': 0.41,
             'risk_band': 'medium',
@@ -95,10 +95,10 @@ def publish_approval_to_kafka(producer, approval: dict):
         'intent_id': intent_id,
         'decision': 'approved',
         'approved_by': 'test-admin',
-        'approved_at': datetime.utcnow().isoformat(),
+        'approved_at': datetime.now(timezone.utc).isoformat(),
         'comments': 'Aprovado via script de teste - Fluxo C completamento',
         'cognitive_plan': approval.get('cognitive_plan', {}),
-        'timestamp': datetime.utcnow().isoformat(),
+        'timestamp': datetime.now(timezone.utc).isoformat(),
     }
 
     def delivery_callback(err, msg):

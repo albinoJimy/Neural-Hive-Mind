@@ -10,7 +10,7 @@ Cobre:
 """
 import pytest
 from unittest.mock import Mock, AsyncMock, patch, MagicMock
-from datetime import datetime
+from datetime import datetime, timezone
 
 from src.services.experiment_manager import ExperimentManager
 from src.models.optimization_hypothesis import OptimizationHypothesis
@@ -50,14 +50,14 @@ def mock_argo_client():
 @pytest.fixture
 def mock_mongodb_client():
     """Mock do MongoDBClient."""
-    from datetime import datetime
+    from datetime import datetime, timezone
 
     client = AsyncMock()
     client.save_experiment = AsyncMock(return_value=True)
     client.update_experiment_status = AsyncMock(return_value=True)
 
     # Criar um dict compatível com ExperimentRequest
-    now_millis = int(datetime.utcnow().timestamp() * 1000)
+    now_millis = int(datetime.now(timezone.utc).timestamp() * 1000)
     experiment_doc = {
         "experiment_id": "exp-123",
         "version": "1.0.0",

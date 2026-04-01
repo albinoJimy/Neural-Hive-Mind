@@ -69,7 +69,7 @@ def deploy_ticket():
 @pytest.fixture
 def argocd_client():
     """Cliente ArgoCD real para testes de integracao."""
-    from services.worker_agents.src.clients.argocd_client import ArgoCDClient
+    from clients.argocd_client import ArgoCDClient
     return ArgoCDClient(
         base_url=ARGOCD_BASE_URL,
         token='test-token',
@@ -80,7 +80,7 @@ def argocd_client():
 @pytest.fixture
 def deploy_executor_integration(worker_config, mock_metrics, argocd_client):
     """DeployExecutor para testes de integracao."""
-    from services.worker_agents.src.executors.deploy_executor import DeployExecutor
+    from executors.deploy_executor import DeployExecutor
 
     return DeployExecutor(
         config=worker_config,
@@ -208,7 +208,7 @@ class TestDeploymentHealthCheckPolling:
         argocd_client
     ):
         """Deve respeitar intervalo de polling."""
-        from services.worker_agents.src.clients.argocd_client import (
+        from clients.argocd_client import (
             ApplicationStatus,
             HealthStatus,
             SyncStatus
@@ -448,8 +448,8 @@ class TestDeploymentServerErrors:
         deploy_ticket
     ):
         """Deve tratar erro de conexao."""
-        from services.worker_agents.src.executors.deploy_executor import DeployExecutor
-        from services.worker_agents.src.clients.argocd_client import ArgoCDClient
+        from executors.deploy_executor import DeployExecutor
+        from clients.argocd_client import ArgoCDClient
 
         # Cliente com URL invalida
         client = ArgoCDClient(

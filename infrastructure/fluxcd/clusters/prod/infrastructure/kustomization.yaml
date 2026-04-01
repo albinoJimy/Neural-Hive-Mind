@@ -1,0 +1,40 @@
+# Kustomization para Infraestrutura Base - Prod
+# Configura serviços de infraestrutura: observabilidade, segurança, networking
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: neural-hive
+
+resources:
+  # Observabilidade Stack
+  - ../../../k8s/configmaps/tenant-configs.yaml
+  # Network Policies
+  - ../../../k8s/network-policies.yaml
+  # RBAC base
+  - ../../../k8s/rbac/chaos-engineering-rbac.yaml
+
+# Patches estratégicos para produção
+patches:
+  - patch: |-
+      - op: add
+        path: /spec/replicas
+        value: 3
+    target:
+      kind: Deployment
+      name: "*"
+
+# Configurações globais
+configMapGenerator:
+  - name: flux-settings
+    literals:
+      - ENVIRONMENT=prod
+      - CLUSTER=neural-hive-prod
+      - LOG_LEVEL=info
+
+# Secret generator (valores sobrescritos via SOPS)
+secretGenerator:
+  - name: flux-secrets
+    behavior: merge
+    literals:
+      - ENCRYPTION_PROVIDER=sops

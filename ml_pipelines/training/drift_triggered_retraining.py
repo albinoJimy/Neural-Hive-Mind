@@ -23,7 +23,7 @@ import subprocess
 import sys
 import os
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, Optional, List
 
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -85,7 +85,7 @@ class DriftTriggeredRetrainer:
         Returns:
             Lista de eventos de drift significativos
         """
-        cutoff_time = datetime.utcnow() - timedelta(hours=6)
+        cutoff_time = datetime.now(timezone.utc) - timedelta(hours=6)
 
         cursor = self.db.drift_monitoring.find({
             'drift_detected': True,
@@ -183,7 +183,7 @@ class DriftTriggeredRetrainer:
             {
                 '$set': {
                     'retraining_triggered': True,
-                    'retraining_triggered_at': datetime.utcnow()
+                    'retraining_triggered_at': datetime.now(timezone.utc)
                 }
             }
         )
@@ -214,7 +214,7 @@ class DriftTriggeredRetrainer:
             specialist_type = self._map_model_to_specialist(model_type)
 
             # Gerar nova versão do modelo (timestamp)
-            new_version = f"v{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
+            new_version = f"v{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
 
             # Criar configuração de teste A/B
             config = ABTestConfig(
@@ -284,12 +284,12 @@ class DriftTriggeredRetrainer:
         ]
 
         try:
-            start_time = datetime.utcnow()
+            start_time = datetime.now(timezone.utc)
 
             for step in expansion_schedule:
                 # Aguardar até horário da expansão
                 target_time = start_time + timedelta(hours=step['hours'])
-                wait_seconds = (target_time - datetime.utcnow()).total_seconds()
+                wait_seconds = (target_time - datetime.now(timezone.utc)).total_seconds()
 
                 if wait_seconds > 0:
                     await asyncio.sleep(wait_seconds)
@@ -373,7 +373,7 @@ class DriftTriggeredRetrainer:
         try:
             document = {
                 'type': 'ab_test_created',
-                'timestamp': datetime.utcnow(),
+                'timestamp': datetime.now(timezone.utc),
                 'test_id': test_id,
                 'specialist_type': specialist_type,
                 'new_model_version': new_version,
@@ -394,7 +394,7 @@ class DriftTriggeredRetrainer:
         try:
             document = {
                 'type': 'ab_test_traffic_expanded',
-                'timestamp': datetime.utcnow(),
+                'timestamp': datetime.now(timezone.utc),
                 'test_id': test_id,
                 'new_traffic_percentage': new_traffic,
                 'expansion_reason': reason
@@ -413,7 +413,7 @@ class DriftTriggeredRetrainer:
         """Registra evento de retreinamento no MongoDB."""
         document = {
             'type': 'retraining_event',
-            'timestamp': datetime.utcnow(),
+            'timestamp': datetime.now(timezone.utc),
             'model_type': model_type,
             'triggered_by_drift_event': drift_event.get('_id'),
             'drift_score': drift_event.get('drift_score'),

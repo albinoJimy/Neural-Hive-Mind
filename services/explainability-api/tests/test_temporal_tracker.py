@@ -5,7 +5,7 @@ Verifica operacoes de tracking temporal de decisoes e mudancas de senioridade.
 """
 
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from unittest.mock import AsyncMock, MagicMock
 from pathlib import Path
 import sys
@@ -152,7 +152,7 @@ class TestGetCurrentSession:
     async def test_get_current_session_with_plan_id(self):
         """Testa análise de sessão com plan_id."""
         # Setup test data
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         plan_id = "plan_123"
 
         test_data = [
@@ -218,7 +218,7 @@ class TestGetCurrentSession:
             {
                 "_id": "dec_1",
                 "decision_id": "decision_1",
-                "generated_at": datetime.utcnow().isoformat(),
+                "generated_at": datetime.now(timezone.utc).isoformat(),
                 "final_decision": {"decision": "approve"},
             }
         ]
@@ -242,7 +242,7 @@ class TestGetWindowAnalysis:
     @pytest.mark.asyncio
     async def test_get_window_analysis_7_days(self):
         """Testa análise de janela de 7 dias."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         test_data = [
             {
@@ -282,7 +282,7 @@ class TestGetWindowAnalysis:
     @pytest.mark.asyncio
     async def test_get_window_analysis_30_days(self):
         """Testa análise de janela de 30 dias."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         test_data = [
             {
@@ -324,7 +324,7 @@ class TestGetWindowAnalysis:
     @pytest.mark.asyncio
     async def test_get_window_analysis_daily_breakdown(self):
         """Testa breakdown diário das decisões."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         test_data = [
             {
@@ -365,7 +365,7 @@ class TestGetSeniorityChanges:
     @pytest.mark.asyncio
     async def test_get_seniority_changes_recent(self):
         """Testa busca de mudanças recentes de senioridade."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         seniority_data = [
             {
@@ -423,7 +423,7 @@ class TestGetSeniorityChanges:
     @pytest.mark.asyncio
     async def test_get_seniority_changes_filtered_by_specialist(self):
         """Testa filtro por lista de especialistas."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         seniority_data = [
             {
@@ -467,7 +467,7 @@ class TestGetSeniorityDistribution:
     @pytest.mark.asyncio
     async def test_get_seniority_distribution_all_levels(self):
         """Testa distribuição de senioridade com todos os níveis."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         seniority_data = [
             {
@@ -520,7 +520,7 @@ class TestGetSeniorityDistribution:
     @pytest.mark.asyncio
     async def test_get_seniority_distribution_with_duplicates(self):
         """Testa que mudanças recentes sobrescrevem antigas."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         seniority_data = [
             {
@@ -559,7 +559,7 @@ class TestGetSeniorityDistribution:
         from src.services.temporal_tracker import TemporalTracker
         tracker_instance = TemporalTracker(mongo_client)
 
-        since = datetime.utcnow() - timedelta(days=30)
+        since = datetime.now(timezone.utc) - timedelta(days=30)
         result = await tracker_instance._get_seniority_distribution(since)
 
         assert result["total_count"] == 0

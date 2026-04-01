@@ -6,7 +6,7 @@ Testa criacao de credenciais de servidor e adicao de porta segura.
 
 import pytest
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch, PropertyMock
 from dataclasses import dataclass
 
@@ -62,7 +62,7 @@ def mock_spiffe_manager():
         private_key=TEST_PRIVATE_KEY,
         spiffe_id='spiffe://neural-hive.local/ns/neural-hive-execution/sa/service-registry',
         ca_bundle=TEST_CA_BUNDLE,
-        expires_at=datetime.utcnow() + timedelta(hours=24)
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=24)
     )
     return manager
 
@@ -243,7 +243,7 @@ async def test_server_certificate_expiry_info(mock_spiffe_manager, mock_settings
     """Testa que informacoes de expiracao sao obtidas corretamente"""
     from src.main import ServiceRegistryServer
 
-    expires_at = datetime.utcnow() + timedelta(hours=48)
+    expires_at = datetime.now(timezone.utc) + timedelta(hours=48)
     mock_spiffe_manager.fetch_x509_svid.return_value = X509SVID(
         certificate=TEST_CERT,
         private_key=TEST_PRIVATE_KEY,

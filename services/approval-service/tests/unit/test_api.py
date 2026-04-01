@@ -5,7 +5,7 @@ Testa endpoints, autenticacao e validacoes.
 """
 
 import pytest
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, AsyncMock, patch
 from fastapi import HTTPException
 
@@ -268,7 +268,7 @@ class TestRejectPlan:
             plan_id='plan-001',
             decision='rejected',
             approved_by='user-001',
-            approved_at=datetime.utcnow(),
+            approved_at=datetime.now(timezone.utc),
             rejection_reason='Risco muito alto'
         )
         mock_service.reject_plan = AsyncMock(return_value=decision)
@@ -400,7 +400,7 @@ class TestRepublishApprovedPlan:
             intent_id='intent-001',
             decision='approved',
             approved_by='original-admin',
-            approved_at=datetime.utcnow(),
+            approved_at=datetime.now(timezone.utc),
             cognitive_plan={'plan_id': 'plan-001'}
         )
         mock_service.republish_approved_plan = AsyncMock(return_value=response)
@@ -433,7 +433,7 @@ class TestRepublishApprovedPlan:
             intent_id='intent-001',
             decision='approved',
             approved_by='original-admin',
-            approved_at=datetime.utcnow(),
+            approved_at=datetime.now(timezone.utc),
             cognitive_plan={'plan_id': 'plan-001'}
         )
         mock_service.republish_approved_plan = AsyncMock(return_value=response)
@@ -462,7 +462,7 @@ class TestRepublishApprovedPlan:
             intent_id='intent-001',
             decision='approved',
             approved_by='admin',
-            approved_at=datetime.utcnow(),
+            approved_at=datetime.now(timezone.utc),
             cognitive_plan={'plan_id': 'plan-001'}
         )
         mock_service.republish_approved_plan = AsyncMock(return_value=response)

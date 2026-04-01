@@ -6,7 +6,7 @@ Testa endpoints de gerenciamento de workers e atribuição de tarefas.
 import pytest
 from httpx import AsyncClient
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime
+from datetime import datetime, timezone
 
 from src.services.load_balancer import BalancingStrategy, TaskAssignment
 
@@ -46,7 +46,7 @@ def mock_app_state():
         return_value=TaskAssignment(
             worker_id="worker-1",
             strategy=BalancingStrategy.ROUND_ROBIN,
-            assigned_at=datetime.utcnow()
+            assigned_at=datetime.now(timezone.utc)
         )
     )
     state.load_balancer.complete_task = AsyncMock(return_value=True)

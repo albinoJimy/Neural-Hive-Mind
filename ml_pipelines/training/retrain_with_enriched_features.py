@@ -13,7 +13,7 @@ Total: ~40 features para predição de decisão humana
 import os
 import sys
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Dict, List, Any
 
@@ -262,7 +262,7 @@ metadata = {
         'f1': float(results[best_model_name]['f1']),
         'accuracy': float(results[best_model_name]['accuracy']),
     },
-    'training_date': datetime.utcnow().isoformat(),
+    'training_date': datetime.now(timezone.utc).isoformat(),
     'sample_count': len(df),
     'test_sample_count': len(X_test),
 }

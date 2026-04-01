@@ -15,7 +15,7 @@ import os
 import sys
 import json
 import random
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 from enum import Enum
@@ -71,7 +71,7 @@ class ABTestMetrics:
         self.baseline_model_confidence_sum = 0.0
         self.new_model_correct = 0
         self.baseline_model_correct = 0
-        self.start_time = datetime.utcnow()
+        self.start_time = datetime.now(timezone.utc)
 
     def record_prediction(
         self,
@@ -126,7 +126,7 @@ class ABTestMetrics:
                 'confidence': new_confidence - baseline_confidence,
                 'accuracy': new_accuracy - baseline_accuracy
             },
-            'duration_hours': (datetime.utcnow() - self.start_time).total_seconds() / 3600
+            'duration_hours': (datetime.now(timezone.utc) - self.start_time).total_seconds() / 3600
         }
 
 
@@ -173,7 +173,7 @@ class ABTestManager:
         Returns:
             ID do teste criado
         """
-        test_id = f"{config.specialist_type}_{config.new_model_version}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
+        test_id = f"{config.specialist_type}_{config.new_model_version}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
 
         self.tests[test_id] = config
         self.metrics[test_id] = ABTestMetrics()

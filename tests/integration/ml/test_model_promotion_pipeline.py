@@ -675,7 +675,7 @@ class TestRollbackIntegration:
             'request_id': request_id,
             'model_name': model_name,
             'event_type': 'rollback_completed',
-            'timestamp': datetime.datetime.utcnow(),
+            'timestamp': datetime.datetime.now(timezone.utc),
             'details': {
                 'reason': 'degradation_detected',
                 'restored_version': 'v1.0'

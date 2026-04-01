@@ -6,7 +6,7 @@ Configuração dinâmica de thresholds com ajuste automático baseado em histór
 
 import structlog
 from typing import Dict, List, Optional, Tuple
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from collections import deque
 from statistics import mean, stdev
 
@@ -85,7 +85,7 @@ class DynamicThresholds:
             score: Valor do score (0.0 a 1.0)
             timestamp: Timestamp do score (padrão: agora)
         """
-        ts = timestamp or datetime.utcnow()
+        ts = timestamp or datetime.now(timezone.utc)
         self._history[domain.value].append((ts, score))
 
     def adjust_thresholds(
@@ -138,7 +138,7 @@ class DynamicThresholds:
             blended_thresholds = self._blend_thresholds(old_thresholds, new_thresholds)
 
             self._current_thresholds[domain_value] = blended_thresholds
-            self._last_adjustment[domain_value] = datetime.utcnow()
+            self._last_adjustment[domain_value] = datetime.now(timezone.utc)
 
             adjusted[domain_value] = blended_thresholds
 
@@ -322,7 +322,7 @@ class ThresholdViolation:
         self.threshold_level = threshold_level
         self.threshold_value = threshold_value
         self.severity = severity  # 'minor', 'major', 'critical'
-        self.timestamp = timestamp or datetime.utcnow()
+        self.timestamp = timestamp or datetime.now(timezone.utc)
         self.delta = score - threshold_value
 
     def to_dict(self) -> Dict:

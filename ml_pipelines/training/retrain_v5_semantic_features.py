@@ -8,7 +8,7 @@ Features semânticas: security, architecture, performance, quality, risk_pattern
 
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Any
 
@@ -276,7 +276,7 @@ metadata = {
     'train_count': len(X_train),
     'test_count': len(X_test),
     'semantic_samples_only': True,
-    'training_date': datetime.utcnow().isoformat(),
+    'training_date': datetime.now(timezone.utc).isoformat(),
 }
 
 metadata_path = output_dir / f"{SPECIALIST}_metadata_v5.json"

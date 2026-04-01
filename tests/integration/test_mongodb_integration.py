@@ -6,7 +6,7 @@ Testa integração entre serviços e MongoDB.
 """
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 
@@ -80,7 +80,7 @@ class TestMongoDBCRUD:
             "specialist_type": "business",
             "verdict": "approve",
             "confidence": 0.85,
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat()
         }
 
         # Simular inserção
@@ -340,7 +340,7 @@ class TestMongoDBTransactions:
 
         # Commit
         transaction["status"] = "committed"
-        transaction["committed_at"] = datetime.utcnow().isoformat()
+        transaction["committed_at"] = datetime.now(timezone.utc).isoformat()
 
         assert transaction["status"] == "committed"
 
@@ -373,7 +373,7 @@ class TestMongoDBChangeStreams:
         collection = "opinions"
         change_stream = {
             "collection": collection,
-            "started_at": datetime.utcnow().isoformat(),
+            "started_at": datetime.now(timezone.utc).isoformat(),
             "resume_token": None
         }
 
@@ -467,11 +467,11 @@ class TestMongoDBTTL:
         """Deve expirar documento após TTL."""
         document = {
             "data": "temp",
-            "created_at": datetime.utcnow() - timedelta(seconds=3700)
+            "created_at": datetime.now(timezone.utc) - timedelta(seconds=3700)
         }
 
         ttl_seconds = 3600
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         age_seconds = (now - document["created_at"]).total_seconds()
 
         is_expired = age_seconds > ttl_seconds

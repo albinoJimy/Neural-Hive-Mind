@@ -3,7 +3,7 @@ Testes de integração para ML Scheduling (LoadPredictor + SchedulingOptimizer +
 """
 import pytest
 from unittest.mock import Mock, AsyncMock, patch
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 
 from src.ml.load_predictor import LoadPredictor
 from src.ml.scheduling_optimizer import SchedulingOptimizer
@@ -35,9 +35,9 @@ def mongodb_client_with_data():
 
     # Dados de completions
     completions = [
-        {'actual_duration_ms': 2000.0, 'completed_at': datetime.utcnow()},
-        {'actual_duration_ms': 2500.0, 'completed_at': datetime.utcnow()},
-        {'actual_duration_ms': 3000.0, 'completed_at': datetime.utcnow()},
+        {'actual_duration_ms': 2000.0, 'completed_at': datetime.now(timezone.utc)},
+        {'actual_duration_ms': 2500.0, 'completed_at': datetime.now(timezone.utc)},
+        {'actual_duration_ms': 3000.0, 'completed_at': datetime.now(timezone.utc)},
     ]
 
     # Collection mockada

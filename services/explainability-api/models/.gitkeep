@@ -1,0 +1,2 @@
+# Diretório para modelos ML treinados
+# Os arquivos .joblib são gerados pelo script ml/shap_training.py

@@ -2,10 +2,11 @@
 Servidor HTTP para health checks e métricas.
 """
 
-from http.server import HTTPServer, BaseHTTPRequestHandler
 import json
+from http.server import BaseHTTPRequestHandler, HTTPServer
+
 import structlog
-from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 logger = structlog.get_logger()
 
@@ -22,11 +23,11 @@ class HealthHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         """Handler para requisições GET."""
-        if self.path == '/health':
+        if self.path == "/health":
             self._handle_health()
-        elif self.path == '/ready':
+        elif self.path == "/ready":
             self._handle_ready()
-        elif self.path == '/metrics':
+        elif self.path == "/metrics":
             self._handle_metrics()
         else:
             self.send_error(404, "Not Found")
@@ -35,13 +36,13 @@ class HealthHandler(BaseHTTPRequestHandler):
         """Health check básico (liveness probe)."""
         try:
             self.send_response(200)
-            self.send_header('Content-Type', 'application/json')
+            self.send_header("Content-Type", "application/json")
             self.end_headers()
 
             response = {
-                'status': 'healthy',
-                'specialist_type': self.specialist.specialist_type,
-                'version': self.specialist.version
+                "status": "healthy",
+                "specialist_type": self.specialist.specialist_type,
+                "version": self.specialist.version,
             }
 
             self.wfile.write(json.dumps(response).encode())
@@ -58,17 +59,17 @@ class HealthHandler(BaseHTTPRequestHandler):
             # Verificar saúde do especialista (inclui dependências)
             health_response = self.specialist.health_check()
 
-            is_ready = health_response['status'] == 'SERVING'
+            is_ready = health_response["status"] == "SERVING"
             status_code = 200 if is_ready else 503
 
             self.send_response(status_code)
-            self.send_header('Content-Type', 'application/json')
+            self.send_header("Content-Type", "application/json")
             self.end_headers()
 
             response = {
-                'ready': is_ready,
-                'specialist_type': self.specialist.specialist_type,
-                'details': health_response.get('details', {})
+                "ready": is_ready,
+                "specialist_type": self.specialist.specialist_type,
+                "details": health_response.get("details", {}),
             }
 
             self.wfile.write(json.dumps(response).encode())
@@ -86,7 +87,7 @@ class HealthHandler(BaseHTTPRequestHandler):
             metrics = generate_latest()
 
             self.send_response(200)
-            self.send_header('Content-Type', CONTENT_TYPE_LATEST)
+            self.send_header("Content-Type", CONTENT_TYPE_LATEST)
             self.end_headers()
 
             self.wfile.write(metrics)
@@ -110,9 +111,7 @@ def create_http_server(specialist, config):
         HTTPServer configurado
     """
     logger.info(
-        "Creating HTTP server",
-        specialist_type=specialist.specialist_type,
-        port=config.http_port
+        "Creating HTTP server", specialist_type=specialist.specialist_type, port=config.http_port
     )
 
     # Configurar handler com referências ao especialista
@@ -120,12 +119,10 @@ def create_http_server(specialist, config):
     HealthHandler.config = config
 
     # Criar servidor
-    server = HTTPServer(('0.0.0.0', config.http_port), HealthHandler)
+    server = HTTPServer(("0.0.0.0", config.http_port), HealthHandler)
 
     logger.info(
-        "HTTP server created",
-        specialist_type=specialist.specialist_type,
-        port=config.http_port
+        "HTTP server created", specialist_type=specialist.specialist_type, port=config.http_port
     )
 
     return server

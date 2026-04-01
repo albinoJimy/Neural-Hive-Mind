@@ -4,7 +4,7 @@ Async Vault client for secrets management and PKI operations
 
 import asyncio
 from typing import Optional, Dict, Any
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import structlog
 import httpx
 from tenacity import (
@@ -157,7 +157,7 @@ class VaultClient:
 
         self.token = data["auth"]["client_token"]
         lease_duration = data["auth"]["lease_duration"]
-        self.token_expiry = datetime.utcnow() + timedelta(seconds=lease_duration)
+        self.token_expiry = datetime.now(timezone.utc) + timedelta(seconds=lease_duration)
 
         # Update client headers
         self.client.headers["X-Vault-Token"] = self.token
@@ -191,7 +191,7 @@ class VaultClient:
 
         self.token = data["auth"]["client_token"]
         lease_duration = data["auth"]["lease_duration"]
-        self.token_expiry = datetime.utcnow() + timedelta(seconds=lease_duration)
+        self.token_expiry = datetime.now(timezone.utc) + timedelta(seconds=lease_duration)
 
         # Update client headers
         self.client.headers["X-Vault-Token"] = self.token
@@ -372,7 +372,7 @@ class VaultClient:
 
             data = response.json()
             lease_duration = data["auth"]["lease_duration"]
-            self.token_expiry = datetime.utcnow() + timedelta(seconds=lease_duration)
+            self.token_expiry = datetime.now(timezone.utc) + timedelta(seconds=lease_duration)
             vault_token_ttl_seconds.set(lease_duration)
 
             vault_token_renewals_total.labels(status="success").inc()
@@ -391,7 +391,7 @@ class VaultClient:
             try:
                 if self.token_expiry:
                     # Calculate time until renewal
-                    time_until_expiry = (self.token_expiry - datetime.utcnow()).total_seconds()
+                    time_until_expiry = (self.token_expiry - datetime.now(timezone.utc)).total_seconds()
                     renewal_time = time_until_expiry * (1 - self.config.token_renew_threshold)
 
                     if renewal_time > 0:

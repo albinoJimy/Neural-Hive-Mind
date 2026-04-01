@@ -8,7 +8,7 @@ Meta: 20+ testes
 import pytest
 import asyncio
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, AsyncMock, Mock, patch
 from collections import deque
 
@@ -60,7 +60,7 @@ def sample_feedback_message():
         'human_rating': 1.0,
         'human_recommendation': 'approve',
         'feedback_notes': 'Recomendação correta',
-        'submitted_at': int(datetime.utcnow().timestamp() * 1000),
+        'submitted_at': int(datetime.now(timezone.utc).timestamp() * 1000),
         'submitted_by': 'admin@example.com',
         'intent_raw_text': 'List all users from the database',
         'specialist_recommendation': 'approve',
@@ -226,7 +226,7 @@ class TestFeedbackConsumer:
         mock_msg.topic.return_value = 'specialist-feedback'
         mock_msg.partition.return_value = 0
         mock_msg.offset.return_value = 100
-        mock_msg.timestamp.return_value = (0, int(datetime.utcnow().timestamp() * 1000))
+        mock_msg.timestamp.return_value = (0, int(datetime.now(timezone.utc).timestamp() * 1000))
         mock_msg.headers.return_value = None
 
         feedback = await consumer._deserialize_message(mock_msg)
@@ -266,7 +266,7 @@ class TestFeedbackConsumer:
         # Consumer rodando (mock)
         consumer.running = True
         consumer.consumer = MagicMock()
-        consumer._last_poll_time = datetime.utcnow()
+        consumer._last_poll_time = datetime.now(timezone.utc)
 
         is_healthy, reason = consumer.is_healthy()
         assert is_healthy is True
@@ -563,7 +563,7 @@ class TestRetrainingScheduler:
         scheduler._validation_results['new_validation'] = {
             'validation_id': 'new_validation',
             'status': ValidationStatus.PENDING,
-            'started_at': datetime.utcnow().isoformat()
+            'started_at': datetime.now(timezone.utc).isoformat()
         }
 
         scheduler.clear_validation_history(older_than_hours=1)

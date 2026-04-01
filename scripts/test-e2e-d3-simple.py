@@ -10,7 +10,7 @@ import subprocess
 import sys
 import time
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 
 def kubectl_exec(command: str, capture: bool = True) -> str:
@@ -33,8 +33,8 @@ def create_ticket():
     print()
 
     # Criar payload JSON
-    now_utc = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
-    deadline = (datetime.utcnow() + timedelta(hours=4)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    now_utc = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    deadline = (datetime.now(timezone.utc) + timedelta(hours=4)).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     payload = {
         "ticket_id": ticket_id,

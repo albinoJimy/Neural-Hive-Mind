@@ -8,7 +8,7 @@ atualização incremental, validação shadow, e deployment gradual.
 import asyncio
 import time
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, Optional, List, Callable
 import structlog
 import numpy as np
@@ -168,7 +168,7 @@ class OnlineDeploymentOrchestrator:
             minutes=self.config.deployment_cooldown_minutes
         )
 
-        in_cooldown = datetime.utcnow() < cooldown_end
+        in_cooldown = datetime.now(timezone.utc) < cooldown_end
 
         deployment_cooldown_active.labels(
             specialist_type=self.specialist_type
@@ -472,7 +472,7 @@ class OnlineDeploymentOrchestrator:
             remaining = (
                 self._last_deployment_time +
                 timedelta(minutes=self.config.deployment_cooldown_minutes) -
-                datetime.utcnow()
+                datetime.now(timezone.utc)
             ).seconds
             raise DeploymentError(f"Em cooldown. Aguarde {remaining} segundos.")
 
@@ -483,7 +483,7 @@ class OnlineDeploymentOrchestrator:
         deployment_record = {
             'deployment_id': self._current_deployment_id,
             'specialist_type': self.specialist_type,
-            'started_at': datetime.utcnow(),
+            'started_at': datetime.now(timezone.utc),
             'stages': [],
             'status': 'running'
         }
@@ -584,11 +584,11 @@ class OnlineDeploymentOrchestrator:
 
             # Finalizar
             deployment_record['status'] = 'completed'
-            deployment_record['completed_at'] = datetime.utcnow()
+            deployment_record['completed_at'] = datetime.now(timezone.utc)
             deployment_record['duration_seconds'] = time.time() - cycle_start
 
             self._persist_deployment(deployment_record)
-            self._last_deployment_time = datetime.utcnow()
+            self._last_deployment_time = datetime.now(timezone.utc)
 
             deployment_cycles_total.labels(
                 specialist_type=self.specialist_type,

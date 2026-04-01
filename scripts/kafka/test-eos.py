@@ -9,7 +9,7 @@ import json
 import uuid
 import time
 from typing import Dict, Set, List
-from datetime import datetime
+from datetime import datetime, timezone
 from dataclasses import dataclass
 from confluent_kafka import Producer, Consumer, KafkaError
 from confluent_kafka.admin import AdminClient, NewTopic
@@ -85,7 +85,7 @@ class EOSProducer:
                     'id': message_id,
                     'producer_id': self.producer_id,
                     'sequence': i,
-                    'timestamp': datetime.utcnow().isoformat(),
+                    'timestamp': datetime.now(timezone.utc).isoformat(),
                     'test_payload': f"Test message {start_id + i} from producer {self.producer_id}"
                 }
 

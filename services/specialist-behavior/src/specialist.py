@@ -10,13 +10,14 @@ Analisa planos cognitivos sob perspectiva comportamental:
 """
 
 import sys
-from typing import Dict, Any, List
+from typing import Any, Dict, List
+
 import structlog
 
-sys.path.insert(0, '/app/libraries/python')
+sys.path.insert(0, "/app/libraries/python")
+
 
 from neural_hive_specialists import BaseSpecialist
-from config import BehaviorSpecialistConfig
 
 logger = structlog.get_logger()
 
@@ -33,37 +34,31 @@ class BehaviorSpecialist(BaseSpecialist):
         logger.info("Loading Behavior Specialist model")
 
         # Verificar se MLflow está disponível
-        if self.mlflow_client is None or not getattr(self.mlflow_client, '_enabled', False):
+        if self.mlflow_client is None or not getattr(self.mlflow_client, "_enabled", False):
             logger.warning("MLflow not available - using heuristic-based evaluation")
             return None
 
         # Tentar carregar modelo ML do MLflow
         try:
             model = self.mlflow_client.load_model(
-                self.config.mlflow_model_name,
-                self.config.mlflow_model_stage
+                self.config.mlflow_model_name, self.config.mlflow_model_stage
             )
 
             logger.info(
                 "ML model loaded successfully",
                 model_name=self.config.mlflow_model_name,
-                stage=self.config.mlflow_model_stage
+                stage=self.config.mlflow_model_stage,
             )
 
             return model
 
         except Exception as e:
             # Fallback para heurísticas
-            logger.warning(
-                "ML model not available, using heuristics",
-                error=str(e)
-            )
+            logger.warning("ML model not available, using heuristics", error=str(e))
             return None
 
     def _evaluate_plan_internal(
-        self,
-        cognitive_plan: Dict[str, Any],
-        context: Dict[str, Any]
+        self, cognitive_plan: Dict[str, Any], context: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
         Avalia plano sob perspectiva comportamental e UX.
@@ -77,14 +72,14 @@ class BehaviorSpecialist(BaseSpecialist):
         """
         logger.info(
             "Evaluating plan from behavioral perspective",
-            plan_id=cognitive_plan.get('plan_id'),
-            domain=cognitive_plan.get('original_domain')
+            plan_id=cognitive_plan.get("plan_id"),
+            domain=cognitive_plan.get("original_domain"),
         )
 
         # Extrair informações do plano
-        tasks = cognitive_plan.get('tasks', [])
-        domain = cognitive_plan.get('original_domain')
-        priority = cognitive_plan.get('original_priority', 'normal')
+        tasks = cognitive_plan.get("tasks", [])
+        domain = cognitive_plan.get("original_domain")
+        priority = cognitive_plan.get("original_priority", "normal")
 
         # Análise de usabilidade
         usability_score = self._analyze_usability(tasks, cognitive_plan)
@@ -100,10 +95,10 @@ class BehaviorSpecialist(BaseSpecialist):
 
         # Calcular scores agregados
         confidence_score = (
-            usability_score * 0.35 +
-            accessibility_score * 0.25 +
-            response_time_score * 0.25 +
-            interaction_cost_score * 0.15
+            usability_score * 0.35
+            + accessibility_score * 0.25
+            + response_time_score * 0.25
+            + interaction_cost_score * 0.15
         )
 
         # Calcular risco comportamental
@@ -112,7 +107,7 @@ class BehaviorSpecialist(BaseSpecialist):
             usability_score,
             accessibility_score,
             response_time_score,
-            interaction_cost_score
+            interaction_cost_score,
         )
 
         # Determinar recomendação
@@ -124,69 +119,66 @@ class BehaviorSpecialist(BaseSpecialist):
             accessibility_score,
             response_time_score,
             interaction_cost_score,
-            recommendation
+            recommendation,
         )
 
         # Fatores de raciocínio estruturados
         reasoning_factors = [
             {
-                'factor_name': 'usability',
-                'weight': 0.35,
-                'score': usability_score,
-                'description': 'Facilidade de uso e intuitividade da interface proposta'
+                "factor_name": "usability",
+                "weight": 0.35,
+                "score": usability_score,
+                "description": "Facilidade de uso e intuitividade da interface proposta",
             },
             {
-                'factor_name': 'accessibility',
-                'weight': 0.25,
-                'score': accessibility_score,
-                'description': 'Conformidade com WCAG e acessibilidade para todos os usuários'
+                "factor_name": "accessibility",
+                "weight": 0.25,
+                "score": accessibility_score,
+                "description": "Conformidade com WCAG e acessibilidade para todos os usuários",
             },
             {
-                'factor_name': 'response_time',
-                'weight': 0.25,
-                'score': response_time_score,
-                'description': 'Tempos de resposta percebidos pelo usuário'
+                "factor_name": "response_time",
+                "weight": 0.25,
+                "score": response_time_score,
+                "description": "Tempos de resposta percebidos pelo usuário",
             },
             {
-                'factor_name': 'interaction_cost',
-                'weight': 0.15,
-                'score': interaction_cost_score,
-                'description': 'Esforço cognitivo e físico requerido do usuário'
-            }
+                "factor_name": "interaction_cost",
+                "weight": 0.15,
+                "score": interaction_cost_score,
+                "description": "Esforço cognitivo e físico requerido do usuário",
+            },
         ]
 
         # Sugestões de mitigação
         mitigations = self._generate_mitigations(
-            usability_score,
-            accessibility_score,
-            response_time_score,
-            interaction_cost_score
+            usability_score, accessibility_score, response_time_score, interaction_cost_score
         )
 
         logger.info(
             "Behavioral evaluation completed",
-            plan_id=cognitive_plan.get('plan_id'),
+            plan_id=cognitive_plan.get("plan_id"),
             confidence_score=confidence_score,
             risk_score=risk_score,
-            recommendation=recommendation
+            recommendation=recommendation,
         )
 
         return {
-            'confidence_score': confidence_score,
-            'risk_score': risk_score,
-            'recommendation': recommendation,
-            'reasoning_summary': reasoning_summary,
-            'reasoning_factors': reasoning_factors,
-            'mitigations': mitigations,
-            'metadata': {
-                'usability_score': usability_score,
-                'accessibility_score': accessibility_score,
-                'response_time_score': response_time_score,
-                'interaction_cost_score': interaction_cost_score,
-                'domain': domain,
-                'priority': priority,
-                'num_tasks': len(tasks)
-            }
+            "confidence_score": confidence_score,
+            "risk_score": risk_score,
+            "recommendation": recommendation,
+            "reasoning_summary": reasoning_summary,
+            "reasoning_factors": reasoning_factors,
+            "mitigations": mitigations,
+            "metadata": {
+                "usability_score": usability_score,
+                "accessibility_score": accessibility_score,
+                "response_time_score": response_time_score,
+                "interaction_cost_score": interaction_cost_score,
+                "domain": domain,
+                "priority": priority,
+                "num_tasks": len(tasks),
+            },
         }
 
     def _analyze_usability(self, tasks: List[Dict], cognitive_plan: Dict) -> float:
@@ -226,14 +218,14 @@ class BehaviorSpecialist(BaseSpecialist):
         feedback_score = self._estimate_feedback_quality(tasks)
 
         # Score final
-        usability_score = (steps_score * 0.6 + feedback_score * 0.4)
+        usability_score = steps_score * 0.6 + feedback_score * 0.4
 
         logger.debug(
             "Usability analysis",
             num_tasks=num_tasks,
             steps_score=steps_score,
             feedback_score=feedback_score,
-            usability_score=usability_score
+            usability_score=usability_score,
         )
 
         return max(0.0, min(1.0, usability_score))
@@ -244,7 +236,7 @@ class BehaviorSpecialist(BaseSpecialist):
             return 0.5
 
         # Assumir que tarefas rápidas fornecem melhor feedback
-        avg_duration = sum(task.get('estimated_duration_ms', 0) for task in tasks) / len(tasks)
+        avg_duration = sum(task.get("estimated_duration_ms", 0) for task in tasks) / len(tasks)
 
         # < 100ms = excelente, < 300ms = bom, < 1000ms = aceitável, > 1000ms = ruim
         if avg_duration < 100:
@@ -273,14 +265,13 @@ class BehaviorSpecialist(BaseSpecialist):
         # Verificar se há menção a acessibilidade no contexto
         context_mentions_a11y = any(
             keyword in str(context).lower()
-            for keyword in ['accessibility', 'wcag', 'aria', 'screen reader', 'keyboard']
+            for keyword in ["accessibility", "wcag", "aria", "screen reader", "keyboard"]
         )
 
         # Verificar domínio do plano
-        domain = cognitive_plan.get('original_domain', '')
+        domain = cognitive_plan.get("original_domain", "")
         ui_related = any(
-            keyword in domain.lower()
-            for keyword in ['ui', 'interface', 'frontend', 'view', 'form']
+            keyword in domain.lower() for keyword in ["ui", "interface", "frontend", "view", "form"]
         )
 
         # Score base
@@ -295,7 +286,7 @@ class BehaviorSpecialist(BaseSpecialist):
             "Accessibility analysis",
             context_mentions_a11y=context_mentions_a11y,
             ui_related=ui_related,
-            accessibility_score=accessibility_score
+            accessibility_score=accessibility_score,
         )
 
         return accessibility_score
@@ -320,7 +311,7 @@ class BehaviorSpecialist(BaseSpecialist):
             return 0.5
 
         # Calcular tempo máximo de resposta percebido
-        max_duration = max(task.get('estimated_duration_ms', 0) for task in tasks)
+        max_duration = max(task.get("estimated_duration_ms", 0) for task in tasks)
 
         # Normalizar baseado em thresholds de percepção
         if max_duration < 100:
@@ -337,7 +328,7 @@ class BehaviorSpecialist(BaseSpecialist):
         logger.debug(
             "Response time analysis",
             max_duration_ms=max_duration,
-            response_time_score=response_time_score
+            response_time_score=response_time_score,
         )
 
         return response_time_score
@@ -380,7 +371,7 @@ class BehaviorSpecialist(BaseSpecialist):
             "Interaction cost analysis",
             num_tasks=num_tasks,
             interaction_cost=interaction_cost,
-            interaction_cost_score=interaction_cost_score
+            interaction_cost_score=interaction_cost_score,
         )
 
         return max(0.0, min(1.0, interaction_cost_score))
@@ -391,7 +382,7 @@ class BehaviorSpecialist(BaseSpecialist):
         usability_score: float,
         accessibility_score: float,
         response_time_score: float,
-        interaction_cost_score: float
+        interaction_cost_score: float,
     ) -> float:
         """
         Calcula risco comportamental.
@@ -414,10 +405,10 @@ class BehaviorSpecialist(BaseSpecialist):
         """
         # Média ponderada invertida
         weighted_avg = (
-            usability_score * 0.35 +
-            accessibility_score * 0.25 +
-            response_time_score * 0.25 +
-            interaction_cost_score * 0.15
+            usability_score * 0.35
+            + accessibility_score * 0.25
+            + response_time_score * 0.25
+            + interaction_cost_score * 0.15
         )
         risk_score = 1.0 - weighted_avg
 
@@ -427,7 +418,7 @@ class BehaviorSpecialist(BaseSpecialist):
             accessibility_score=accessibility_score,
             response_time_score=response_time_score,
             interaction_cost_score=interaction_cost_score,
-            risk_score=risk_score
+            risk_score=risk_score,
         )
 
         return max(0.0, min(1.0, risk_score))
@@ -444,13 +435,13 @@ class BehaviorSpecialist(BaseSpecialist):
             Recomendação (approve, reject, review_required, conditional)
         """
         if confidence_score >= 0.8 and risk_score < 0.3:
-            return 'approve'
+            return "approve"
         elif confidence_score < 0.5 or risk_score > 0.7:
-            return 'reject'
+            return "reject"
         elif risk_score > 0.5:
-            return 'review_required'
+            return "review_required"
         else:
-            return 'conditional'
+            return "conditional"
 
     def _generate_reasoning(
         self,
@@ -458,7 +449,7 @@ class BehaviorSpecialist(BaseSpecialist):
         accessibility_score: float,
         response_time_score: float,
         interaction_cost_score: float,
-        recommendation: str
+        recommendation: str,
     ) -> str:
         """Gera narrativa de justificativa."""
         return (
@@ -475,41 +466,49 @@ class BehaviorSpecialist(BaseSpecialist):
         usability_score: float,
         accessibility_score: float,
         response_time_score: float,
-        interaction_cost_score: float
+        interaction_cost_score: float,
     ) -> List[Dict]:
         """Gera sugestões de mitigação de riscos."""
         mitigations = []
 
         if usability_score < 0.6:
-            mitigations.append({
-                'mitigation_type': 'improve_usability',
-                'description': 'Melhorar usabilidade simplificando fluxo e fornecendo feedback claro',
-                'priority': 'high',
-                'estimated_effort': 'medium'
-            })
+            mitigations.append(
+                {
+                    "mitigation_type": "improve_usability",
+                    "description": "Melhorar usabilidade simplificando fluxo e fornecendo feedback claro",
+                    "priority": "high",
+                    "estimated_effort": "medium",
+                }
+            )
 
         if accessibility_score < 0.6:
-            mitigations.append({
-                'mitigation_type': 'ensure_accessibility',
-                'description': 'Garantir acessibilidade conforme WCAG 2.1 Level AA',
-                'priority': 'high',
-                'estimated_effort': 'medium'
-            })
+            mitigations.append(
+                {
+                    "mitigation_type": "ensure_accessibility",
+                    "description": "Garantir acessibilidade conforme WCAG 2.1 Level AA",
+                    "priority": "high",
+                    "estimated_effort": "medium",
+                }
+            )
 
         if response_time_score < 0.6:
-            mitigations.append({
-                'mitigation_type': 'optimize_response_time',
-                'description': 'Otimizar tempos de resposta para melhor percepção do usuário',
-                'priority': 'medium',
-                'estimated_effort': 'low'
-            })
+            mitigations.append(
+                {
+                    "mitigation_type": "optimize_response_time",
+                    "description": "Otimizar tempos de resposta para melhor percepção do usuário",
+                    "priority": "medium",
+                    "estimated_effort": "low",
+                }
+            )
 
         if interaction_cost_score < 0.6:
-            mitigations.append({
-                'mitigation_type': 'reduce_interaction_cost',
-                'description': 'Reduzir esforço cognitivo e físico do usuário',
-                'priority': 'medium',
-                'estimated_effort': 'low'
-            })
+            mitigations.append(
+                {
+                    "mitigation_type": "reduce_interaction_cost",
+                    "description": "Reduzir esforço cognitivo e físico do usuário",
+                    "priority": "medium",
+                    "estimated_effort": "low",
+                }
+            )
 
         return mitigations

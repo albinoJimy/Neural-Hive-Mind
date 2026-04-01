@@ -13,7 +13,7 @@ Migra feedbacks da versão 1.0.0 para 2.0.0 do schema, adicionando:
 """
 
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from pymongo import MongoClient, UpdateOne
 from tqdm import tqdm
@@ -108,7 +108,7 @@ def migrate_feedbacks(client, db, opinions_map):
         update_doc = {
             "$set": {
                 "schema_version": "2.0.0",
-                "migrated_at": datetime.utcnow(),
+                "migrated_at": datetime.now(timezone.utc),
             }
         }
 

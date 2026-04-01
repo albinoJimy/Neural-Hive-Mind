@@ -6,7 +6,7 @@ Testa funcionalidades de produção de mensagens Kafka via aiokafka.
 """
 import pytest
 from unittest.mock import AsyncMock, MagicMock
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 import json
 
@@ -126,7 +126,7 @@ class TestKafkaProducerSend:
     @pytest.mark.asyncio
     async def test_send_message_with_timestamp(self):
         """Deve enviar mensagem com timestamp."""
-        timestamp_ms = int(datetime.utcnow().timestamp() * 1000)
+        timestamp_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
 
         mock_producer = AsyncMock()
         mock_producer.send = AsyncMock(return_value=MagicMock(offset=100))
@@ -191,7 +191,7 @@ class TestKafkaProducerSerialization:
         data = {
             "user_id": "123",
             "action": "test",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         serialized = json.dumps(data).encode()
@@ -206,7 +206,7 @@ class TestKafkaProducerSerialization:
             return json.dumps({
                 "payload": data,
                 "version": "1.0",
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }).encode()
 
         data = {"test": "data"}
@@ -382,7 +382,7 @@ class TestKafkaProducerMetrics:
     @pytest.mark.asyncio
     async def test_request_latency(self):
         """Deve calcular latência de requisição."""
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc)
         end_time = start_time + timedelta(milliseconds=50)
 
         latency_ms = (end_time - start_time).total_seconds() * 1000

@@ -4,7 +4,7 @@ Testes de validação JWT para GAP-04 - Security/Auth Coverage.
 Testa scenarios de validação de tokens JWT via SPIFFE/python-jose.
 """
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, AsyncMock, patch
 from uuid import uuid4
 
@@ -24,7 +24,7 @@ class TestJWTExpiry:
         secret = "test-secret"
         payload = {
             "user": "test",
-            "exp": datetime.utcnow() - timedelta(hours=1)  # Expirado
+            "exp": datetime.now(timezone.utc) - timedelta(hours=1)  # Expirado
         }
 
         token = jwt.encode(payload, secret, algorithm="HS256")
@@ -41,7 +41,7 @@ class TestJWTExpiry:
         secret = "test-secret"
         payload = {
             "user": "test",
-            "exp": datetime.utcnow() + timedelta(hours=1)
+            "exp": datetime.now(timezone.utc) + timedelta(hours=1)
         }
 
         token = jwt.encode(payload, secret, algorithm="HS256")
@@ -101,8 +101,8 @@ class TestJWTClaims:
             "sub": "user-123",  # Subject (obrigatório)
             "name": "Test User",
             "email": "test@example.com",
-            "exp": datetime.utcnow() + timedelta(hours=1),
-            "iat": datetime.utcnow()
+            "exp": datetime.now(timezone.utc) + timedelta(hours=1),
+            "iat": datetime.now(timezone.utc)
         }
 
         token = jwt.encode(payload, secret, algorithm="HS256")
@@ -118,7 +118,7 @@ class TestJWTClaims:
         secret = "test-secret"
         payload = {
             "user": "test",
-            "exp": datetime.utcnow() + timedelta(hours=1)
+            "exp": datetime.now(timezone.utc) + timedelta(hours=1)
         }
 
         token = jwt.encode(payload, secret, algorithm="HS256")
@@ -134,7 +134,7 @@ class TestJWTClaims:
         payload = {
             "sub": "user-123",
             "aud": "neural-hive-api",  # Audience
-            "exp": datetime.utcnow() + timedelta(hours=1)
+            "exp": datetime.now(timezone.utc) + timedelta(hours=1)
         }
 
         token = jwt.encode(payload, secret, algorithm="HS256")
@@ -164,7 +164,7 @@ class TestJWTAlgorithms:
         secret = "test-secret"
         payload = {
             "user": "test",
-            "exp": datetime.utcnow() + timedelta(hours=1)
+            "exp": datetime.now(timezone.utc) + timedelta(hours=1)
         }
 
         token = jwt.encode(payload, secret, algorithm=algorithm)
@@ -209,7 +209,7 @@ class TestRBACClaims:
             "name": "Test User",
             "role": "admin",  # Claim de role para RBAC
             "permissions": ["read", "write", "delete"],
-            "exp": datetime.utcnow() + timedelta(hours=1)
+            "exp": datetime.now(timezone.utc) + timedelta(hours=1)
         }
 
         token = jwt.encode(payload, secret, algorithm="HS256")
@@ -227,7 +227,7 @@ class TestRBACClaims:
             "sub": "user-123",
             "role": "user",  # Role com menos permissões
             "permissions": ["read"],
-            "exp": datetime.utcnow() + timedelta(hours=1)
+            "exp": datetime.now(timezone.utc) + timedelta(hours=1)
         }
 
         token = jwt.encode(payload, secret, algorithm="HS256")
@@ -254,7 +254,7 @@ class TestSPIFFEIntegration:
         spiffe_id = "spiffe://neural-hive.local/ns/default/test-service"
         svid_mock = {
             "spiffe_id": spiffe_id,
-            "expiry": (datetime.utcnow() + timedelta(hours=1)).isoformat(),
+            "expiry": (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(),
             "claims": {
                 "sub": "user-123",
                 "role": "admin"
@@ -280,8 +280,8 @@ class TestTokenRefresh:
         secret = "test-secret"
         original_payload = {
             "sub": "user-123",
-            "exp": datetime.utcnow() + timedelta(hours=1),
-            "iat": datetime.utcnow()
+            "exp": datetime.now(timezone.utc) + timedelta(hours=1),
+            "iat": datetime.now(timezone.utc)
         }
 
         original_token = jwt.encode(original_payload, secret, algorithm="HS256")
@@ -290,8 +290,8 @@ class TestTokenRefresh:
         # Gerar novo token (refresh)
         refresh_payload = {
             **original_payload,
-            "exp": datetime.utcnow() + timedelta(hours=2),  # Estender expiração
-            "iat": datetime.utcnow()
+            "exp": datetime.now(timezone.utc) + timedelta(hours=2),  # Estender expiração
+            "iat": datetime.now(timezone.utc)
         }
 
         refreshed_token = jwt.encode(refresh_payload, secret, algorithm="HS256")
@@ -358,7 +358,7 @@ class TestFastAPITokenValidation:
         secret = "test-secret"
         payload = {
             "sub": "user-123",
-            "exp": datetime.utcnow() + timedelta(hours=1)
+            "exp": datetime.now(timezone.utc) + timedelta(hours=1)
         }
 
         token = jwt.encode(payload, secret, algorithm="HS256")

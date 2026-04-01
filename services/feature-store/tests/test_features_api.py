@@ -262,19 +262,23 @@ class TestBatchCompute:
         """Testa computação em batch"""
         mock_feature_store.compute_and_save.return_value = sample_feature_vector
 
-        requests = [
-            {
-                "plan_id": "plan-1",
-                "cognitive_plan": sample_cognitive_plan
-            },
-            {
-                "plan_id": "plan-2",
-                "cognitive_plan": sample_cognitive_plan
-            }
-        ]
+        requests = {
+            "requests": [
+                {
+                    "plan_id": "plan-1",
+                    "cognitive_plan": sample_cognitive_plan
+                },
+                {
+                    "plan_id": "plan-2",
+                    "cognitive_plan": sample_cognitive_plan
+                }
+            ]
+        }
 
         with patch('src.api.routers.features.get_feature_store_service', return_value=mock_feature_store):
             response = client.post("/api/v1/features/batch", json=requests)
+            if response.status_code != 200:
+                print(f"Error response: {response.text}")
             assert response.status_code == 200
             data = response.json()
             assert len(data) == 2

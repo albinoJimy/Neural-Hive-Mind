@@ -42,7 +42,7 @@ class ComponentHealth:
         self.message = message or ""
         self.details = details or {}
         self.latency_ms = latency_ms
-        self.checked_at = datetime.utcnow()
+        self.checked_at = datetime.now(timezone.utc)
 
     def to_dict(self) -> Dict[str, Any]:
         """Converte para dicionário."""
@@ -124,14 +124,14 @@ class SpecialistHealthChecker:
             health_report = {
                 'specialist_type': self.specialist_type,
                 'overall_status': overall_status.value,
-                'checked_at': datetime.utcnow().isoformat(),
+                'checked_at': datetime.now(timezone.utc).isoformat(),
                 'components': [comp.to_dict() for comp in components],
                 'summary': self._generate_summary(components)
             }
 
             # Atualizar cache
             self._health_cache = health_report
-            self._cache_timestamp = datetime.utcnow()
+            self._cache_timestamp = datetime.now(timezone.utc)
 
             logger.info(
                 "Health check completed",
@@ -146,13 +146,13 @@ class SpecialistHealthChecker:
             return {
                 'specialist_type': self.specialist_type,
                 'overall_status': HealthStatus.UNHEALTHY.value,
-                'checked_at': datetime.utcnow().isoformat(),
+                'checked_at': datetime.now(timezone.utc).isoformat(),
                 'error': str(e)
             }
 
     async def _check_mongodb_health(self) -> ComponentHealth:
         """Verifica saúde do MongoDB."""
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc)
 
         try:
             client = MongoClient(
@@ -167,7 +167,7 @@ class SpecialistHealthChecker:
             db = client[self.config.get('mongodb_database', 'neural_hive')]
             collections = db.list_collection_names()
 
-            latency_ms = (datetime.utcnow() - start_time).total_seconds() * 1000
+            latency_ms = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
 
             # Verificar tamanho do ledger
             ledger_size = db['cognitive_ledger'].count_documents({})
@@ -192,7 +192,7 @@ class SpecialistHealthChecker:
             )
 
         except PyMongoError as e:
-            latency_ms = (datetime.utcnow() - start_time).total_seconds() * 1000
+            latency_ms = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
 
             return ComponentHealth(
                 component_name='mongodb',
@@ -203,7 +203,7 @@ class SpecialistHealthChecker:
 
     async def _check_mlflow_health(self) -> ComponentHealth:
         """Verifica saúde do MLflow."""
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc)
 
         try:
             mlflow_uri = self.config.get('mlflow_tracking_uri')
@@ -222,7 +222,7 @@ class SpecialistHealthChecker:
             client = MlflowClient()
             experiments = client.search_experiments()
 
-            latency_ms = (datetime.utcnow() - start_time).total_seconds() * 1000
+            latency_ms = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
 
             # Verificar modelo registrado
             model_name = self.config.get('mlflow_model_name')
@@ -260,7 +260,7 @@ class SpecialistHealthChecker:
             )
 
         except Exception as e:
-            latency_ms = (datetime.utcnow() - start_time).total_seconds() * 1000
+            latency_ms = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
 
             return ComponentHealth(
                 component_name='mlflow',
@@ -271,7 +271,7 @@ class SpecialistHealthChecker:
 
     async def _check_feature_extraction_health(self) -> ComponentHealth:
         """Verifica saúde do sistema de extração de features."""
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc)
 
         try:
             # Verificar se feature extraction está habilitado
@@ -304,7 +304,7 @@ class SpecialistHealthChecker:
             embeddings_model = self.config.get('embeddings_model', 'paraphrase-multilingual-MiniLM-L12-v2')
             details['embeddings_model'] = embeddings_model
 
-            latency_ms = (datetime.utcnow() - start_time).total_seconds() * 1000
+            latency_ms = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
 
             return ComponentHealth(
                 component_name='feature_extraction',
@@ -315,7 +315,7 @@ class SpecialistHealthChecker:
             )
 
         except Exception as e:
-            latency_ms = (datetime.utcnow() - start_time).total_seconds() * 1000
+            latency_ms = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
 
             return ComponentHealth(
                 component_name='feature_extraction',
@@ -326,7 +326,7 @@ class SpecialistHealthChecker:
 
     async def _check_circuit_breakers_health(self) -> ComponentHealth:
         """Verifica saúde dos circuit breakers."""
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc)
 
         try:
             enabled = self.config.get('enable_circuit_breaker', True)
@@ -351,7 +351,7 @@ class SpecialistHealthChecker:
                 'recovery_timeout_seconds': recovery_timeout
             }
 
-            latency_ms = (datetime.utcnow() - start_time).total_seconds() * 1000
+            latency_ms = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
 
             return ComponentHealth(
                 component_name='circuit_breakers',
@@ -362,7 +362,7 @@ class SpecialistHealthChecker:
             )
 
         except Exception as e:
-            latency_ms = (datetime.utcnow() - start_time).total_seconds() * 1000
+            latency_ms = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
 
             return ComponentHealth(
                 component_name='circuit_breakers',
@@ -373,7 +373,7 @@ class SpecialistHealthChecker:
 
     async def _check_ledger_health(self) -> ComponentHealth:
         """Verifica saúde do ledger cognitivo."""
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc)
 
         try:
             client = MongoClient(
@@ -385,7 +385,7 @@ class SpecialistHealthChecker:
             collection = db['cognitive_ledger']
 
             # Verificar documentos recentes
-            cutoff_time = datetime.utcnow() - timedelta(hours=24)
+            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=24)
             recent_count = collection.count_documents({
                 'evaluated_at': {'$gte': cutoff_time},
                 'specialist_type': self.specialist_type
@@ -408,7 +408,7 @@ class SpecialistHealthChecker:
                 status = HealthStatus.DEGRADED
                 message = f"High buffer rate: {buffered_rate:.1f}%"
 
-            latency_ms = (datetime.utcnow() - start_time).total_seconds() * 1000
+            latency_ms = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
 
             return ComponentHealth(
                 component_name='ledger',
@@ -423,7 +423,7 @@ class SpecialistHealthChecker:
             )
 
         except Exception as e:
-            latency_ms = (datetime.utcnow() - start_time).total_seconds() * 1000
+            latency_ms = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
 
             return ComponentHealth(
                 component_name='ledger',
@@ -494,5 +494,5 @@ class SpecialistHealthChecker:
         if not self._health_cache or not self._cache_timestamp:
             return False
 
-        age = (datetime.utcnow() - self._cache_timestamp).total_seconds()
+        age = (datetime.now(timezone.utc) - self._cache_timestamp).total_seconds()
         return age < self._cache_ttl_seconds

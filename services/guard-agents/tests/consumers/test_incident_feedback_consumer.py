@@ -8,7 +8,7 @@ import pytest
 import json
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime
+from datetime import datetime, timezone
 from collections import defaultdict
 
 from src.consumers.incident_feedback_consumer import (
@@ -228,7 +228,7 @@ class TestAdjustSecurityParameters:
             'false_positives': 15,  # 50% FP (alta)
             'false_negatives': 0,
             'avg_severity': 2.5,
-            'last_updated': datetime.utcnow()
+            'last_updated': datetime.now(timezone.utc)
         }
 
         incident = {
@@ -255,7 +255,7 @@ class TestAdjustSecurityParameters:
             'false_positives': 1,  # ~3% FP (baixa)
             'false_negatives': 0,
             'avg_severity': 2.5,
-            'last_updated': datetime.utcnow()
+            'last_updated': datetime.now(timezone.utc)
         }
 
         incident = {
@@ -282,7 +282,7 @@ class TestAdjustSecurityParameters:
             'false_positives': 5,
             'false_negatives': 5,
             'avg_severity': 3.5,  # Alta severidade
-            'last_updated': datetime.utcnow()
+            'last_updated': datetime.now(timezone.utc)
         }
 
         incident = {
@@ -305,7 +305,7 @@ class TestAdjustSecurityParameters:
             'false_positives': 5,
             'false_negatives': 0,
             'avg_severity': 2.5,
-            'last_updated': datetime.utcnow()
+            'last_updated': datetime.now(timezone.utc)
         }
 
         incident = {
@@ -370,7 +370,7 @@ class TestGetFeedbackStats:
             'false_positives': 3,
             'false_negatives': 2,
             'avg_severity': 2.5,
-            'last_updated': datetime.utcnow()
+            'last_updated': datetime.now(timezone.utc)
         }
         consumer.incident_stats['POLICY_VIOLATION'] = {
             'total': 10,
@@ -378,7 +378,7 @@ class TestGetFeedbackStats:
             'false_positives': 1,
             'false_negatives': 1,
             'avg_severity': 2.0,
-            'last_updated': datetime.utcnow()
+            'last_updated': datetime.now(timezone.utc)
         }
 
         stats = consumer.get_feedback_stats()

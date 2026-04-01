@@ -6,7 +6,7 @@ Testa orquestração de workflows, Temporal, e coordenação de workers.
 """
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch, Mock
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 import asyncio
 import json
@@ -27,7 +27,7 @@ class TestWorkflowManagement:
             "type": "cognitive_plan_execution",
             "input": {"intent": "test"},
             "status": "pending",
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat()
         }
 
         assert workflow["status"] == "pending"
@@ -42,7 +42,7 @@ class TestWorkflowManagement:
         }
 
         workflow["status"] = "running"
-        workflow["started_at"] = datetime.utcnow().isoformat()
+        workflow["started_at"] = datetime.now(timezone.utc).isoformat()
 
         assert workflow["status"] == "running"
         assert "started_at" in workflow
@@ -59,7 +59,7 @@ class TestWorkflowManagement:
 
         workflow["status"] = "completed"
         workflow["result"] = result
-        workflow["completed_at"] = datetime.utcnow().isoformat()
+        workflow["completed_at"] = datetime.now(timezone.utc).isoformat()
 
         assert workflow["status"] == "completed"
         assert workflow["result"]["success"] is True
@@ -76,7 +76,7 @@ class TestWorkflowManagement:
 
         workflow["status"] = "failed"
         workflow["error"] = error
-        workflow["failed_at"] = datetime.utcnow().isoformat()
+        workflow["failed_at"] = datetime.now(timezone.utc).isoformat()
 
         assert workflow["status"] == "failed"
         assert workflow["error"]["code"] == "ERR_001"
@@ -142,12 +142,12 @@ class TestActivityExecution:
         activity = {
             "activity_id": str(uuid4()),
             "timeout_seconds": 30,
-            "started_at": (datetime.utcnow() - timedelta(seconds=40)).isoformat(),
+            "started_at": (datetime.now(timezone.utc) - timedelta(seconds=40)).isoformat(),
             "status": "running"
         }
 
         started = datetime.fromisoformat(activity["started_at"])
-        elapsed = (datetime.utcnow() - started).total_seconds()
+        elapsed = (datetime.now(timezone.utc) - started).total_seconds()
 
         if elapsed > activity["timeout_seconds"]:
             activity["status"] = "timed_out"
@@ -383,7 +383,7 @@ class TestEventHandling:
             "event_type": "ActivityCompleted",
             "activity_id": str(uuid4()),
             "result": {"data": "value"},
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         handled = False
@@ -399,7 +399,7 @@ class TestEventHandling:
             "workflow_id": str(uuid4()),
             "event_type": "StepCompleted",
             "step_name": "query_execution",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         assert event_emitted["event_type"] == "StepCompleted"
@@ -434,12 +434,12 @@ class TestSLAMonitoring:
         """Deve rastrear duração do workflow."""
         workflow = {
             "workflow_id": str(uuid4()),
-            "started_at": (datetime.utcnow() - timedelta(minutes=5)).isoformat(),
+            "started_at": (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat(),
             "status": "running"
         }
 
         started = datetime.fromisoformat(workflow["started_at"])
-        duration_minutes = (datetime.utcnow() - started).total_seconds() / 60
+        duration_minutes = (datetime.now(timezone.utc) - started).total_seconds() / 60
 
         assert duration_minutes >= 5
 
@@ -539,7 +539,7 @@ class TestStatePersistence:
             "status": "running",
             "current_step": "query_execution",
             "completed_steps": ["validation"],
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         # Simular salvamento

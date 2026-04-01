@@ -298,7 +298,7 @@ def main():
                 f"Teste de recovery falhou para specialist-{args.specialist_type}\n"
                 f"Backup: {result.get('backup_id', 'N/A')}\n"
                 f"Erro: {result.get('error', 'Desconhecido')}\n"
-                f"Timestamp: {datetime.utcnow().isoformat()}"
+                f"Timestamp: {datetime.now(timezone.utc).isoformat()}"
             )
             send_alert(alert_message)
 

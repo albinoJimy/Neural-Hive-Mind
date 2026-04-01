@@ -155,7 +155,7 @@ class _StubAsyncClient:
 @pytest.mark.asyncio
 async def test_deploy_with_argocd_integration(monkeypatch, config_with_all_integrations):
     healthy_resp = _StubResponse({"status": {"health": {"status": "Healthy"}}})
-    monkeypatch.setattr("executors.deploy_executor.httpx.AsyncClient", lambda timeout=30: _StubAsyncClient(post_response=_StubResponse(), get_responses=[healthy_resp]))
+    monkeypatch.setattr("clients.argocd_client.httpx.AsyncClient", lambda timeout=30: _StubAsyncClient(post_response=_StubResponse(), get_responses=[healthy_resp]))
 
     async def no_sleep(_):
         return None
@@ -177,7 +177,7 @@ async def test_deploy_with_argocd_polling(monkeypatch, config_with_all_integrati
         _StubResponse({"status": {"health": {"status": "Progressing"}}}),
         _StubResponse({"status": {"health": {"status": "Healthy"}}}),
     ]
-    monkeypatch.setattr("executors.deploy_executor.httpx.AsyncClient", lambda timeout=30: _StubAsyncClient(post_response=_StubResponse(), get_responses=responses))
+    monkeypatch.setattr("clients.argocd_client.httpx.AsyncClient", lambda timeout=30: _StubAsyncClient(post_response=_StubResponse(), get_responses=responses))
 
     async def no_sleep(_):
         return None
@@ -206,7 +206,7 @@ async def test_deploy_fallback_on_argocd_disabled(config_with_fallbacks):
 @pytest.mark.asyncio
 async def test_deploy_fallback_on_argocd_error(monkeypatch, config_with_all_integrations):
     monkeypatch.setattr(
-        "executors.deploy_executor.httpx.AsyncClient",
+        "clients.argocd_client.httpx.AsyncClient",
         lambda timeout=30: _StubAsyncClient(raise_on_post=RuntimeError("post failed"))
     )
 
@@ -222,7 +222,7 @@ async def test_deploy_fallback_on_argocd_error(monkeypatch, config_with_all_inte
 async def test_validate_with_opa_policy(monkeypatch, config_with_all_integrations):
     payload = {"result": {"allow": True, "violations": []}}
     monkeypatch.setattr(
-        "executors.validate_executor.httpx.AsyncClient",
+        "clients.opa_client.httpx.AsyncClient",
         lambda timeout=30: _StubAsyncClient(post_response=_StubResponse(payload))
     )
 
@@ -239,7 +239,7 @@ async def test_validate_with_opa_policy(monkeypatch, config_with_all_integration
 async def test_validate_with_opa_violations(monkeypatch, config_with_all_integrations):
     payload = {"result": {"allow": False, "violations": ["deny"]}}
     monkeypatch.setattr(
-        "executors.validate_executor.httpx.AsyncClient",
+        "clients.opa_client.httpx.AsyncClient",
         lambda timeout=30: _StubAsyncClient(post_response=_StubResponse(payload))
     )
 

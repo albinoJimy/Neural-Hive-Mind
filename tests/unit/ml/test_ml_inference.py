@@ -6,7 +6,7 @@ Testa inferência de modelos ML, predições e validações.
 """
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 import numpy as np
 from typing import Dict, Any, List
@@ -71,7 +71,7 @@ class TestLoadPredictorInference:
             "predicted_load": 0.75,
             "confidence": 0.85,
             "model_version": "v1.2.0",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         assert 0 <= prediction["predicted_load"] <= 1
@@ -109,10 +109,10 @@ class TestSchedulingPredictorInference:
     @pytest.mark.asyncio
     async def test_predict_optimal_schedule_time(self):
         """Deve prever tempo ótimo de agendamento."""
-        current_hour = datetime.utcnow().hour
+        current_hour = datetime.now(timezone.utc).hour
         features = {
             "hour": current_hour,
-            "day_of_week": datetime.utcnow().weekday(),
+            "day_of_week": datetime.now(timezone.utc).weekday(),
             "current_load": 0.4,
             "estimated_duration": 1800,  # 30 minutos
             "priority": "high"
@@ -133,11 +133,11 @@ class TestSchedulingPredictorInference:
     @pytest.mark.asyncio
     async def test_predict_with_sla_deadline(self):
         """Deve considerar deadline SLA na predição."""
-        sla_deadline = datetime.utcnow() + timedelta(hours=4)
+        sla_deadline = datetime.now(timezone.utc) + timedelta(hours=4)
         estimated_duration = timedelta(minutes=30)
 
         features = {
-            "current_time": datetime.utcnow(),
+            "current_time": datetime.now(timezone.utc),
             "sla_deadline": sla_deadline,
             "estimated_duration": estimated_duration.total_seconds(),
             "buffer_ratio": 0.8  # Usar 80% do tempo disponível
@@ -466,7 +466,7 @@ class TestPredictionCache:
 
         # Primeiro: cache miss
         if features_key not in cache:
-            cache[features_key] = {"prediction": 0.75, "cached_at": datetime.utcnow()}
+            cache[features_key] = {"prediction": 0.75, "cached_at": datetime.now(timezone.utc)}
 
         # Segundo: cache hit
         if features_key in cache:
@@ -483,19 +483,19 @@ class TestPredictionCache:
 
         old_entry = {
             "prediction": 0.75,
-            "cached_at": datetime.utcnow() - timedelta(seconds=400)
+            "cached_at": datetime.now(timezone.utc) - timedelta(seconds=400)
         }
 
         new_entry = {
             "prediction": 0.80,
-            "cached_at": datetime.utcnow()
+            "cached_at": datetime.now(timezone.utc)
         }
 
         cache["old_key"] = old_entry
         cache["new_key"] = new_entry
 
         # Remover entradas expiradas
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         expired_keys = [
             k for k, v in cache.items()
             if (now - v["cached_at"]).total_seconds() > ttl_seconds

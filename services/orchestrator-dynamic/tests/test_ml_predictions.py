@@ -8,7 +8,7 @@ FeatureEngineering e TrainingPipeline com mocks de dependências externas.
 import pytest
 import pytest_asyncio
 from unittest.mock import Mock, AsyncMock, patch, MagicMock
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 import numpy as np
 import pandas as pd
 
@@ -95,7 +95,7 @@ def sample_ticket():
         'estimated_duration_ms': 60000,
         'actual_duration_ms': 75000,
         'retry_count': 0,
-        'created_at': datetime.utcnow().isoformat(),
+        'created_at': datetime.now(timezone.utc).isoformat(),
         'status': 'COMPLETED'
     }
 
@@ -260,7 +260,7 @@ class TestAnomalyDetector:
             'sla': {},
             'parameters': {},
             'estimated_duration_ms': 10000,
-            'created_at': datetime.utcnow().isoformat()
+            'created_at': datetime.now(timezone.utc).isoformat()
         }
 
         # Mock modelo retornando anomalia

@@ -52,10 +52,10 @@ class TestFullPipelineFlow:
         3. TEST runs integration tests against the deployment
         4. VALIDATE validates the deployed application
         """
-        from services.worker_agents.src.executors.build_executor import BuildExecutor
-        from services.worker_agents.src.executors.deploy_executor import DeployExecutor
-        from services.worker_agents.src.executors.test_executor import TestExecutor
-        from services.worker_agents.src.executors.validate_executor import ValidateExecutor
+        from executors.build_executor import BuildExecutor
+        from executors.deploy_executor import DeployExecutor
+        from executors.test_executor import TestExecutor
+        from executors.validate_executor import ValidateExecutor
 
         # Create mock Code Forge client for build
         mock_code_forge = create_mock_code_forge_client(
@@ -167,9 +167,9 @@ class TestFullPipelineFlow:
         3. TEST fails
         4. DEPLOY rollback is triggered
         """
-        from services.worker_agents.src.executors.build_executor import BuildExecutor
-        from services.worker_agents.src.executors.deploy_executor import DeployExecutor
-        from services.worker_agents.src.executors.test_executor import TestExecutor
+        from executors.build_executor import BuildExecutor
+        from executors.deploy_executor import DeployExecutor
+        from executors.test_executor import TestExecutor
 
         # Build
         mock_code_forge = create_mock_code_forge_client(status='completed')
@@ -239,7 +239,7 @@ class TestParallelExecutorExecution:
 
         Runs OPA policy, Trivy, and Checkov validations concurrently.
         """
-        from services.worker_agents.src.executors.validate_executor import ValidateExecutor
+        from executors.validate_executor import ValidateExecutor
 
         validate_executor = ValidateExecutor(
             config=worker_config,
@@ -292,7 +292,7 @@ class TestParallelExecutorExecution:
 
         Simulates building multiple microservices concurrently.
         """
-        from services.worker_agents.src.executors.build_executor import BuildExecutor
+        from executors.build_executor import BuildExecutor
 
         # Track which builds complete
         build_ids = ['service-a', 'service-b', 'service-c']
@@ -343,7 +343,7 @@ class TestParallelExecutorExecution:
 
         Runs unit, integration, and e2e test suites concurrently.
         """
-        from services.worker_agents.src.executors.test_executor import TestExecutor
+        from executors.test_executor import TestExecutor
 
         test_executor = TestExecutor(
             config=worker_config,
@@ -387,7 +387,7 @@ class TestExecutorDependencyChains:
 
         base-lib -> service-a (depends on base-lib) -> service-b (depends on service-a)
         """
-        from services.worker_agents.src.executors.build_executor import BuildExecutor
+        from executors.build_executor import BuildExecutor
 
         builds = [
             ('base-lib', None),
@@ -439,8 +439,8 @@ class TestExecutorDependencyChains:
 
         VALIDATE -> DEPLOY (only if validation passes)
         """
-        from services.worker_agents.src.executors.validate_executor import ValidateExecutor
-        from services.worker_agents.src.executors.deploy_executor import DeployExecutor
+        from executors.validate_executor import ValidateExecutor
+        from executors.deploy_executor import DeployExecutor
 
         # First: Validate the deployment configuration
         validate_executor = ValidateExecutor(
@@ -497,7 +497,7 @@ class TestErrorHandlingAndRecovery:
         """
         Test that executors retry on transient failures.
         """
-        from services.worker_agents.src.executors.build_executor import BuildExecutor
+        from executors.build_executor import BuildExecutor
 
         call_count = {'value': 0}
 
@@ -545,7 +545,7 @@ class TestErrorHandlingAndRecovery:
         """
         Test that executors gracefully degrade when dependencies are unavailable.
         """
-        from services.worker_agents.src.executors.validate_executor import ValidateExecutor
+        from executors.validate_executor import ValidateExecutor
 
         # Disable all validation tools
         worker_config.opa_enabled = False
@@ -584,9 +584,9 @@ class TestErrorHandlingAndRecovery:
 
         BUILD -> VALIDATE (non-critical, can fail) -> DEPLOY
         """
-        from services.worker_agents.src.executors.build_executor import BuildExecutor
-        from services.worker_agents.src.executors.validate_executor import ValidateExecutor
-        from services.worker_agents.src.executors.deploy_executor import DeployExecutor
+        from executors.build_executor import BuildExecutor
+        from executors.validate_executor import ValidateExecutor
+        from executors.deploy_executor import DeployExecutor
 
         # Build succeeds
         mock_code_forge = create_mock_code_forge_client(status='completed')
@@ -655,10 +655,10 @@ class TestMetricsCollectionAcrossFlows:
         """
         Test that metrics are recorded for each step in a complete flow.
         """
-        from services.worker_agents.src.executors.build_executor import BuildExecutor
-        from services.worker_agents.src.executors.deploy_executor import DeployExecutor
-        from services.worker_agents.src.executors.test_executor import TestExecutor
-        from services.worker_agents.src.executors.validate_executor import ValidateExecutor
+        from executors.build_executor import BuildExecutor
+        from executors.deploy_executor import DeployExecutor
+        from executors.test_executor import TestExecutor
+        from executors.validate_executor import ValidateExecutor
 
         # Reset metrics tracking
         mock_metrics.reset_mock()
@@ -728,7 +728,7 @@ class TestMetricsCollectionAcrossFlows:
         """
         Test that duration metrics are captured for executor operations.
         """
-        from services.worker_agents.src.executors.build_executor import BuildExecutor
+        from executors.build_executor import BuildExecutor
 
         mock_code_forge = create_mock_code_forge_client(status='completed')
         executor = BuildExecutor(
@@ -762,10 +762,10 @@ class TestSimulationVsRealMode:
         """
         Test that complete flow works in simulation mode (no external services).
         """
-        from services.worker_agents.src.executors.build_executor import BuildExecutor
-        from services.worker_agents.src.executors.deploy_executor import DeployExecutor
-        from services.worker_agents.src.executors.test_executor import TestExecutor
-        from services.worker_agents.src.executors.validate_executor import ValidateExecutor
+        from executors.build_executor import BuildExecutor
+        from executors.deploy_executor import DeployExecutor
+        from executors.test_executor import TestExecutor
+        from executors.validate_executor import ValidateExecutor
 
         # Build in simulation mode
         build_executor = BuildExecutor(
@@ -826,7 +826,7 @@ class TestSimulationVsRealMode:
         """
         Test that simulation mode returns properly structured outputs.
         """
-        from services.worker_agents.src.executors.build_executor import BuildExecutor
+        from executors.build_executor import BuildExecutor
 
         executor = BuildExecutor(
             config=worker_config_minimal,
@@ -876,7 +876,7 @@ class TestRealIntegrationFlows:
         mock_metrics,
     ):
         """Test build execution with real Code Forge service."""
-        from services.worker_agents.src.executors.build_executor import BuildExecutor
+        from executors.build_executor import BuildExecutor
         from neural_hive_integration.clients.code_forge_client import CodeForgeClient
 
         code_forge_url = os.getenv('CODE_FORGE_URL')
@@ -916,7 +916,7 @@ class TestRealIntegrationFlows:
         mock_metrics,
     ):
         """Test deployment execution with real ArgoCD service."""
-        from services.worker_agents.src.executors.deploy_executor import DeployExecutor
+        from executors.deploy_executor import DeployExecutor
 
         argocd_url = os.getenv('ARGOCD_URL')
         argocd_token = os.getenv('ARGOCD_TOKEN')
@@ -955,7 +955,7 @@ class TestRealIntegrationFlows:
         mock_metrics,
     ):
         """Test policy validation with real OPA service."""
-        from services.worker_agents.src.executors.validate_executor import ValidateExecutor
+        from executors.validate_executor import ValidateExecutor
 
         opa_url = os.getenv('OPA_URL')
         if not opa_url:

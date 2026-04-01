@@ -10,18 +10,19 @@ import structlog
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
 from neural_hive_observability import init_observability
 
-from .config import get_settings
-from .database import get_postgres_client, get_mongodb_client, get_redis_client, close_redis_client
 from .api import health_router, tickets_router
+from .config import get_settings
+from .database import close_redis_client, get_mongodb_client, get_postgres_client, get_redis_client
 from .observability import TicketServiceMetrics
 
 # Configurar logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[logging.StreamHandler(sys.stdout)]
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],
 )
 
 structlog.configure(
@@ -31,7 +32,7 @@ structlog.configure(
         structlog.processors.TimeStamper(fmt="iso"),
         structlog.processors.StackInfoRenderer(),
         structlog.processors.format_exc_info,
-        structlog.processors.JSONRenderer()
+        structlog.processors.JSONRenderer(),
     ],
     wrapper_class=structlog.stdlib.BoundLogger,
     context_class=dict,
@@ -47,9 +48,7 @@ async def lifespan(app: FastAPI):
     """Gerencia ciclo de vida da aplicação."""
     settings = get_settings()
     logger.info(
-        'starting_execution_ticket_service',
-        version='1.0.0',
-        environment=settings.environment
+        "starting_execution_ticket_service", version="1.0.0", environment=settings.environment
     )
 
     # Lista para rastrear falhas em dependências críticas
@@ -61,12 +60,12 @@ async def lifespan(app: FastAPI):
         postgres_client = await get_postgres_client()
         await postgres_client.start(
             max_retries=settings.max_connection_retries,
-            initial_delay=settings.initial_retry_delay_seconds
+            initial_delay=settings.initial_retry_delay_seconds,
         )
-        logger.info('postgresql_connected')
+        logger.info("postgresql_connected")
     except Exception as e:
-        logger.error('postgresql_connection_failed_critical', error=str(e))
-        critical_failures.append('postgresql')
+        logger.error("postgresql_connection_failed_critical", error=str(e))
+        critical_failures.append("postgresql")
 
     # Conectar MongoDB (CRÍTICO - audit trail é essencial)
     mongodb_client = None
@@ -74,31 +73,34 @@ async def lifespan(app: FastAPI):
         mongodb_client = await get_mongodb_client()
         await mongodb_client.start(
             max_retries=settings.max_connection_retries,
-            initial_delay=settings.initial_retry_delay_seconds
+            initial_delay=settings.initial_retry_delay_seconds,
         )
-        logger.info('mongodb_connected')
+        logger.info("mongodb_connected")
     except Exception as e:
-        logger.error('mongodb_connection_failed_critical', error=str(e))
-        critical_failures.append('mongodb')
+        logger.error("mongodb_connection_failed_critical", error=str(e))
+        critical_failures.append("mongodb")
 
     # Iniciar servidor gRPC (CRÍTICO - necessário para Orchestrator)
     grpc_server = None
     grpc_health_servicer = None
     try:
         from .grpc_service import start_grpc_server
+
         grpc_server, grpc_health_servicer = await start_grpc_server(settings)
-        logger.info('grpc_server_started_critical', port=settings.grpc_port)
+        logger.info("grpc_server_started_critical", port=settings.grpc_port)
     except Exception as e:
-        logger.error('grpc_server_failed_critical', error=str(e), error_type=type(e).__name__)
-        critical_failures.append('grpc')
+        logger.error("grpc_server_failed_critical", error=str(e), error_type=type(e).__name__)
+        critical_failures.append("grpc")
 
     # Se dependências críticas falharam, não podemos continuar
     if critical_failures:
-        raise RuntimeError(f"Dependências críticas falharam (postgresql, mongodb, grpc): {critical_failures}")
+        raise RuntimeError(
+            f"Dependências críticas falharam (postgresql, mongodb, grpc): {critical_failures}"
+        )
 
     # Inicializar métricas
     app.state.metrics = TicketServiceMetrics()
-    logger.info('metrics_initialized')
+    logger.info("metrics_initialized")
 
     # Conectar Redis (OPCIONAL - fail-open se indisponível)
     redis_client = None
@@ -106,11 +108,11 @@ async def lifespan(app: FastAPI):
         try:
             redis_client = await get_redis_client(settings)
             if redis_client:
-                logger.info('redis_connected')
+                logger.info("redis_connected")
             else:
-                logger.warning('redis_unavailable_idempotency_disabled')
+                logger.warning("redis_unavailable_idempotency_disabled")
         except Exception as e:
-            logger.warning('redis_connection_failed_non_critical', error=str(e))
+            logger.warning("redis_connection_failed_non_critical", error=str(e))
     app.state.redis_client = redis_client
 
     # Armazenar gRPC server e health servicer no state
@@ -130,37 +132,40 @@ async def lifespan(app: FastAPI):
             return
         try:
             from .consumers import start_ticket_consumer
+
             # Passa getter para webhook_manager (permite lazy loading)
-            webhook_manager_getter = lambda: app.state.webhook_manager
+            def webhook_manager_getter():
+                return app.state.webhook_manager
+
             # Passa redis_client getter (permite lazy loading)
-            redis_client_getter = lambda: app.state.redis_client
+            def redis_client_getter():
+                return app.state.redis_client
+
             app.state.ticket_consumer = await start_ticket_consumer(
                 app.state.metrics,
                 webhook_manager_getter=webhook_manager_getter,
-                redis_client_getter=redis_client_getter
+                redis_client_getter=redis_client_getter,
             )
             app.state.consumer_task = asyncio.create_task(app.state.ticket_consumer.consume())
-            logger.info('kafka_consumer_started')
+            logger.info("kafka_consumer_started")
         except Exception as e:
-            logger.warning('kafka_consumer_failed_non_critical', error=str(e))
+            logger.warning("kafka_consumer_failed_non_critical", error=str(e))
 
     async def start_kafka_producer_background():
         """Start Kafka producer in background (non-blocking)."""
         if not settings.kafka_bootstrap_servers:
-            logger.info('kafka_producer_disabled_no_bootstrap_servers')
+            logger.info("kafka_producer_disabled_no_bootstrap_servers")
             return
         try:
             from .kafka.producer import get_kafka_producer
+
             app.state.kafka_producer = await get_kafka_producer()
-            logger.info(
-                'kafka_producer_started',
-                topic=settings.kafka_tickets_topic
-            )
+            logger.info("kafka_producer_started", topic=settings.kafka_tickets_topic)
         except Exception as e:
             logger.warning(
-                'kafka_producer_failed_non_critical',
+                "kafka_producer_failed_non_critical",
                 error=str(e),
-                note='Tickets will be persisted in PostgreSQL but not published to Kafka. Workers will not consume these tickets.'
+                note="Tickets will be persisted in PostgreSQL but not published to Kafka. Workers will not consume these tickets.",
             )
 
     async def start_webhook_manager_background():
@@ -169,10 +174,11 @@ async def lifespan(app: FastAPI):
             return
         try:
             from .webhooks import start_webhook_manager
+
             app.state.webhook_manager = await start_webhook_manager(app.state.metrics)
-            logger.info('webhook_manager_started')
+            logger.info("webhook_manager_started")
         except Exception as e:
-            logger.warning('webhook_manager_failed_non_critical', error=str(e))
+            logger.warning("webhook_manager_failed_non_critical", error=str(e))
 
     # Start non-critical components as background tasks (non-blocking)
     # This allows startup to complete without waiting for Kafka or webhooks
@@ -183,15 +189,15 @@ async def lifespan(app: FastAPI):
     ]
 
     logger.info(
-        'execution_ticket_service_started',
-        critical_components=['postgresql', 'mongodb', 'grpc'],
-        optional_components_starting=['kafka', 'webhooks']
+        "execution_ticket_service_started",
+        critical_components=["postgresql", "mongodb", "grpc"],
+        optional_components_starting=["kafka", "webhooks"],
     )
 
     yield
 
     # Shutdown
-    logger.info('shutting_down_service')
+    logger.info("shutting_down_service")
 
     # Cancel any pending background init tasks
     for task in app.state.background_init_tasks:
@@ -205,7 +211,7 @@ async def lifespan(app: FastAPI):
     # Parar Kafka Consumer
     if app.state.ticket_consumer:
         await app.state.ticket_consumer.stop()
-        if hasattr(app.state, 'consumer_task'):
+        if hasattr(app.state, "consumer_task"):
             app.state.consumer_task.cancel()
             try:
                 await app.state.consumer_task
@@ -216,10 +222,11 @@ async def lifespan(app: FastAPI):
     if app.state.kafka_producer:
         try:
             from .kafka.producer import close_kafka_producer
+
             await close_kafka_producer()
-            logger.info('kafka_producer_stopped')
+            logger.info("kafka_producer_stopped")
         except Exception as e:
-            logger.warning('kafka_producer_shutdown_failed', error=str(e))
+            logger.warning("kafka_producer_shutdown_failed", error=str(e))
 
     # Parar Webhook Manager
     if app.state.webhook_manager:
@@ -228,7 +235,10 @@ async def lifespan(app: FastAPI):
     # Parar gRPC Server
     if app.state.grpc_server:
         from .grpc_service import stop_grpc_server
-        await stop_grpc_server(app.state.grpc_server, getattr(app.state, 'grpc_health_servicer', None))
+
+        await stop_grpc_server(
+            app.state.grpc_server, getattr(app.state, "grpc_health_servicer", None)
+        )
 
     # Desconectar databases
     if postgres_client:
@@ -239,7 +249,7 @@ async def lifespan(app: FastAPI):
     # Fechar Redis
     await close_redis_client()
 
-    logger.info('service_shutdown_complete')
+    logger.info("service_shutdown_complete")
 
 
 def create_app() -> FastAPI:
@@ -247,10 +257,10 @@ def create_app() -> FastAPI:
     settings = get_settings()
 
     app = FastAPI(
-        title='Execution Ticket Service',
-        description='Serviço de gerenciamento de ciclo de vida de tickets de execução',
-        version='1.0.0',
-        lifespan=lifespan
+        title="Execution Ticket Service",
+        description="Serviço de gerenciamento de ciclo de vida de tickets de execução",
+        version="1.0.0",
+        lifespan=lifespan,
     )
 
     # Middleware CORS - usa configuração segura por ambiente via neural_hive_security
@@ -263,8 +273,8 @@ def create_app() -> FastAPI:
     )
 
     # Registrar routers
-    app.include_router(health_router, tags=['Health'])
-    app.include_router(tickets_router, tags=['Tickets'])
+    app.include_router(health_router, tags=["Health"])
+    app.include_router(tickets_router, tags=["Tickets"])
 
     # Configurar tracing
     try:
@@ -283,10 +293,10 @@ def create_app() -> FastAPI:
             "observability_init_failed",
             error=str(e),
             otel_endpoint=settings.otel_exporter_endpoint,
-            prometheus_port=settings.prometheus_port
+            prometheus_port=settings.prometheus_port,
         )
 
-    logger.info('FastAPI application created')
+    logger.info("FastAPI application created")
 
     return app
 
@@ -294,13 +304,13 @@ def create_app() -> FastAPI:
 app = create_app()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     settings = get_settings()
 
     uvicorn.run(
-        'src.main:app',
-        host='0.0.0.0',
+        "src.main:app",
+        host="0.0.0.0",
         port=8000,
-        reload=settings.environment == 'development',
-        log_level=settings.log_level.lower()
+        reload=settings.environment == "development",
+        log_level=settings.log_level.lower(),
     )
