@@ -6,7 +6,7 @@ Testa integração entre serviços via Kafka.
 """
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 import asyncio
 import json
@@ -26,7 +26,7 @@ class TestKafkaProducerIntegration:
             "event_type": "CognitivePlanCreated",
             "plan_id": str(uuid4()),
             "intent": "test_intent",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         topic = "cognitive-plans"
@@ -205,7 +205,7 @@ class TestEventSourcing:
         event = {
             "event_id": str(uuid4()),
             "type": "OpinionReceived",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "data": {"specialist": "business"}
         }
 
@@ -482,7 +482,7 @@ class TestDeadLetterQueue:
             "original_topic": "cognitive-plans",
             "error": "Deserialization failed",
             "payload": "corrupted_data",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         dlq_topic = "cognitive-plans-dlq"

@@ -10,7 +10,7 @@ Valida os fluxos de:
 
 import pytest
 import numpy as np
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from src.ml.duration_predictor import DurationPredictor
@@ -178,7 +178,7 @@ class TestDurationPredictorValidation:
                 'risk_band': 'medium',
                 'actual_duration_ms': 30000 + np.random.normal(0, 5000),
                 'estimated_duration_ms': 30000,
-                'completed_at': datetime.utcnow(),
+                'completed_at': datetime.now(timezone.utc),
                 'required_capabilities': ['cpu'],
                 'parameters': {},
                 'sla_timeout_ms': 300000,

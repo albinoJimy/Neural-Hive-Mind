@@ -6,7 +6,7 @@ Testa gerenciamento de estado, cache e sessão.
 """
 import pytest
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 
@@ -24,7 +24,7 @@ class TestStateManagement:
             "entity_type": "transaction",
             "status": "pending",
             "data": {},
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat()
         }
 
         assert state["status"] == "pending"
@@ -34,7 +34,7 @@ class TestStateManagement:
         state = {"status": "pending", "data": {}}
 
         state["status"] = "approved"
-        state["updated_at"] = datetime.utcnow().isoformat()
+        state["updated_at"] = datetime.now(timezone.utc).isoformat()
 
         assert state["status"] == "approved"
 
@@ -60,7 +60,7 @@ class TestStateManagement:
         history.append({
             "from_state": "pending",
             "to_state": "approved",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         })
 
         assert len(history) == 1
@@ -94,7 +94,7 @@ class TestCacheManagement:
 
         cache[key] = {
             "value": value,
-            "expires_at": datetime.utcnow() + timedelta(seconds=ttl)
+            "expires_at": datetime.now(timezone.utc) + timedelta(seconds=ttl)
         }
 
         assert cache[key]["value"] == 1500.00
@@ -104,7 +104,7 @@ class TestCacheManagement:
         cache = {
             "user:123:balance": {
                 "value": 1500.00,
-                "expires_at": datetime.utcnow() + timedelta(seconds=300)
+                "expires_at": datetime.now(timezone.utc) + timedelta(seconds=300)
             }
         }
 
@@ -119,11 +119,11 @@ class TestCacheManagement:
         cache = {
             "key": {
                 "value": "data",
-                "expires_at": datetime.utcnow() - timedelta(seconds=10)
+                "expires_at": datetime.now(timezone.utc) - timedelta(seconds=10)
             }
         }
 
-        expired = datetime.utcnow() > cache["key"]["expires_at"]
+        expired = datetime.now(timezone.utc) > cache["key"]["expires_at"]
 
         assert expired is True
 
@@ -158,8 +158,8 @@ class TestSessionManagement:
         session = {
             "session_id": str(uuid4()),
             "user_id": str(uuid4()),
-            "created_at": datetime.utcnow().isoformat(),
-            "last_activity": datetime.utcnow().isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "last_activity": datetime.now(timezone.utc).isoformat(),
             "data": {}
         }
 
@@ -169,16 +169,16 @@ class TestSessionManagement:
         """Deve atualizar atividade da sessão."""
         session = {"last_activity": "2026-03-29T10:00:00"}
 
-        session["last_activity"] = datetime.utcnow().isoformat()
+        session["last_activity"] = datetime.now(timezone.utc).isoformat()
 
         assert "10:" not in session["last_activity"] or "11:" in session["last_activity"]
 
     def test_session_timeout(self):
         """Deve detectar timeout de sessão."""
-        last_activity = datetime.utcnow() - timedelta(minutes=35)
+        last_activity = datetime.now(timezone.utc) - timedelta(minutes=35)
         timeout_minutes = 30
 
-        timed_out = (datetime.utcnow() - last_activity).total_seconds() > timeout_minutes * 60
+        timed_out = (datetime.now(timezone.utc) - last_activity).total_seconds() > timeout_minutes * 60
 
         assert timed_out is True
 
@@ -241,11 +241,11 @@ class TestLockManagement:
         """Deve expirar lock."""
         lock = {
             "resource": "transaction:123",
-            "locked_at": datetime.utcnow() - timedelta(seconds=70),
+            "locked_at": datetime.now(timezone.utc) - timedelta(seconds=70),
             "ttl": 60
         }
 
-        expired = (datetime.utcnow() - lock["locked_at"]).total_seconds() > lock["ttl"]
+        expired = (datetime.now(timezone.utc) - lock["locked_at"]).total_seconds() > lock["ttl"]
 
         assert expired is True
 
@@ -254,7 +254,7 @@ class TestLockManagement:
         lock = {
             "resource": "transaction:123",
             "owner": "service-1",
-            "locked_at": datetime.utcnow().isoformat()
+            "locked_at": datetime.now(timezone.utc).isoformat()
         }
 
         is_owner = lock["owner"] == "service-1"
@@ -333,7 +333,7 @@ class TestEventBus:
             "event_id": str(uuid4()),
             "type": "TransactionCreated",
             "data": {"amount": 100},
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         published = True

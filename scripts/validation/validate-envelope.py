@@ -237,7 +237,7 @@ class EnvelopeValidator:
             if isinstance(timestamp, str):
                 # Tentar converter ISO string para timestamp Unix em ms
                 try:
-                    from datetime import datetime
+                    from datetime import datetime, timezone
                     dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
                     converted['timestamp'] = int(dt.timestamp() * 1000)
                 except:
@@ -350,7 +350,7 @@ def create_sample_envelope() -> Dict[str, Any]:
             "sessionId": "session-456",
             "tenantId": "tenant-789"
         },
-        "timestamp": int(datetime.utcnow().timestamp() * 1000),
+        "timestamp": int(datetime.now(timezone.utc).timestamp() * 1000),
         "schemaVersion": 1,
         "metadata": {
             "source": "validation-test",

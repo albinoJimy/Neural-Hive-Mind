@@ -20,7 +20,7 @@ import httpx
 @pytest.fixture
 def opa_client():
     """Fixture para OPAClient."""
-    from services.worker_agents.src.clients.opa_client import OPAClient
+    from clients.opa_client import OPAClient
     return OPAClient(
         base_url='http://opa.test:8181',
         token='test-token',
@@ -35,7 +35,7 @@ def opa_client():
 @pytest.fixture
 def policy_request():
     """Fixture para PolicyEvaluationRequest."""
-    from services.worker_agents.src.clients.opa_client import PolicyEvaluationRequest
+    from clients.opa_client import PolicyEvaluationRequest
     return PolicyEvaluationRequest(
         policy_path='policy/allow',
         input_data={'user': 'admin', 'action': 'read'},
@@ -48,7 +48,7 @@ class TestOPAClientInit:
 
     def test_init_with_token(self):
         """Deve inicializar com token."""
-        from services.worker_agents.src.clients.opa_client import OPAClient
+        from clients.opa_client import OPAClient
         client = OPAClient(
             base_url='http://opa.test:8181',
             token='my-token',
@@ -60,7 +60,7 @@ class TestOPAClientInit:
 
     def test_init_without_token(self):
         """Deve inicializar sem token."""
-        from services.worker_agents.src.clients.opa_client import OPAClient
+        from clients.opa_client import OPAClient
         client = OPAClient(
             base_url='http://opa.test:8181',
             timeout=30
@@ -70,7 +70,7 @@ class TestOPAClientInit:
 
     def test_init_strips_trailing_slash(self):
         """Deve remover barra final da URL."""
-        from services.worker_agents.src.clients.opa_client import OPAClient
+        from clients.opa_client import OPAClient
         client = OPAClient(
             base_url='http://opa.test:8181/',
             timeout=30
@@ -85,7 +85,7 @@ class TestOPAClientInit:
 
     def test_get_headers_without_token(self):
         """Deve retornar headers sem Authorization sem token."""
-        from services.worker_agents.src.clients.opa_client import OPAClient
+        from clients.opa_client import OPAClient
         client = OPAClient(base_url='http://opa.test:8181', timeout=30)
         headers = client._get_headers()
         assert headers['Content-Type'] == 'application/json'
@@ -209,7 +209,7 @@ class TestEvaluatePolicy:
     @pytest.mark.asyncio
     async def test_evaluate_policy_timeout(self, opa_client, policy_request):
         """Deve lancar OPATimeoutError em timeout."""
-        from services.worker_agents.src.clients.opa_client import OPATimeoutError
+        from clients.opa_client import OPATimeoutError
 
         with patch.object(opa_client.client, 'post', new_callable=AsyncMock) as mock_post:
             mock_post.side_effect = httpx.TimeoutException('Connection timeout')
@@ -220,7 +220,7 @@ class TestEvaluatePolicy:
     @pytest.mark.asyncio
     async def test_evaluate_policy_api_error(self, opa_client, policy_request):
         """Deve lancar OPAAPIError em erro HTTP."""
-        from services.worker_agents.src.clients.opa_client import OPAAPIError
+        from clients.opa_client import OPAAPIError
 
         mock_response = MagicMock()
         mock_response.status_code = 500
@@ -288,31 +288,31 @@ class TestClassifySeverity:
 
     def test_classify_severity_critical(self, opa_client):
         """Deve classificar como CRITICAL."""
-        from services.worker_agents.src.clients.opa_client import ViolationSeverity
+        from clients.opa_client import ViolationSeverity
         result = opa_client._classify_severity('Critical security breach detected')
         assert result == ViolationSeverity.CRITICAL
 
     def test_classify_severity_high(self, opa_client):
         """Deve classificar como HIGH."""
-        from services.worker_agents.src.clients.opa_client import ViolationSeverity
+        from clients.opa_client import ViolationSeverity
         result = opa_client._classify_severity('Error: authentication failed')
         assert result == ViolationSeverity.HIGH
 
     def test_classify_severity_low(self, opa_client):
         """Deve classificar como LOW."""
-        from services.worker_agents.src.clients.opa_client import ViolationSeverity
+        from clients.opa_client import ViolationSeverity
         result = opa_client._classify_severity('Minor issue detected')
         assert result == ViolationSeverity.LOW
 
     def test_classify_severity_info(self, opa_client):
         """Deve classificar como INFO."""
-        from services.worker_agents.src.clients.opa_client import ViolationSeverity
+        from clients.opa_client import ViolationSeverity
         result = opa_client._classify_severity('Info: suggestion for improvement')
         assert result == ViolationSeverity.INFO
 
     def test_classify_severity_default_medium(self, opa_client):
         """Deve retornar MEDIUM como padrao."""
-        from services.worker_agents.src.clients.opa_client import ViolationSeverity
+        from clients.opa_client import ViolationSeverity
         result = opa_client._classify_severity('Some random message')
         assert result == ViolationSeverity.MEDIUM
 
@@ -322,13 +322,13 @@ class TestNormalizeSeverity:
 
     def test_normalize_severity_already_enum(self, opa_client):
         """Deve retornar enum inalterado."""
-        from services.worker_agents.src.clients.opa_client import ViolationSeverity
+        from clients.opa_client import ViolationSeverity
         result = opa_client._normalize_severity(ViolationSeverity.HIGH)
         assert result == ViolationSeverity.HIGH
 
     def test_normalize_severity_string(self, opa_client):
         """Deve converter string para enum."""
-        from services.worker_agents.src.clients.opa_client import ViolationSeverity
+        from clients.opa_client import ViolationSeverity
         assert opa_client._normalize_severity('CRITICAL') == ViolationSeverity.CRITICAL
         assert opa_client._normalize_severity('high') == ViolationSeverity.HIGH
         assert opa_client._normalize_severity('Warning') == ViolationSeverity.MEDIUM
@@ -336,7 +336,7 @@ class TestNormalizeSeverity:
 
     def test_normalize_severity_unknown(self, opa_client):
         """Deve retornar MEDIUM para valor desconhecido."""
-        from services.worker_agents.src.clients.opa_client import ViolationSeverity
+        from clients.opa_client import ViolationSeverity
         result = opa_client._normalize_severity('UNKNOWN')
         assert result == ViolationSeverity.MEDIUM
 
@@ -346,13 +346,13 @@ class TestCountViolationsBySeverity:
 
     def test_count_violations_empty(self, opa_client):
         """Deve retornar zeros para lista vazia."""
-        from services.worker_agents.src.clients.opa_client import ViolationSeverity
+        from clients.opa_client import ViolationSeverity
         result = opa_client.count_violations_by_severity([])
         assert all(count == 0 for count in result.values())
 
     def test_count_violations_mixed(self, opa_client):
         """Deve contar violacoes por severidade."""
-        from services.worker_agents.src.clients.opa_client import Violation, ViolationSeverity
+        from clients.opa_client import Violation, ViolationSeverity
         violations = [
             Violation(rule_id='r1', message='m1', severity=ViolationSeverity.HIGH),
             Violation(rule_id='r2', message='m2', severity=ViolationSeverity.HIGH),

@@ -6,7 +6,7 @@ Testa orquestração de consenso, timeouts, e fallback.
 """
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 from typing import Dict, Any, List
 import asyncio
@@ -56,7 +56,7 @@ class TestConsensusOrchestrator:
             "confidence": 0.5,
             "reasoning": "Specialist unavailable",
             "fallback": True,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         try:

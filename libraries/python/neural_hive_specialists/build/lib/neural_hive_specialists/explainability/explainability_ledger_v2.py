@@ -258,7 +258,7 @@ class ExplainabilityLedgerV2:
             'plan_id': explainability_data['plan_id'],
             'input_features': explainability_data['input_features'],
             'model_version': explainability_data['model_version'],
-            'timestamp': datetime.utcnow().isoformat()
+            'timestamp': datetime.now(timezone.utc).isoformat()
         }, sort_keys=True)
 
         # Gerar hash SHA-256

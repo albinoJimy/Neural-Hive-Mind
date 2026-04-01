@@ -1,14 +1,16 @@
 """Migration m001: Criar coleção optimization_recommendations."""
 import logging
-from typing import Any, Dict
-from datetime import datetime
+from datetime import UTC, datetime
+from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorClient
 
 logger = logging.getLogger(__name__)
 
 
-async def upgrade(mongo_client: AsyncIOMotorClient, database_name: str = "neural_hive") -> Dict[str, Any]:
+async def upgrade(
+    mongo_client: AsyncIOMotorClient, database_name: str = "neural_hive"
+) -> dict[str, Any]:
     """
     Criar coleção optimization_recommendations com índices.
 
@@ -56,11 +58,13 @@ async def upgrade(mongo_client: AsyncIOMotorClient, database_name: str = "neural
         "status": "success",
         "collection": "optimization_recommendations",
         "indexes_created": index_names,
-        "created_at": datetime.utcnow().isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
     }
 
 
-async def downgrade(mongo_client: AsyncIOMotorClient, database_name: str = "neural_hive") -> Dict[str, Any]:
+async def downgrade(
+    mongo_client: AsyncIOMotorClient, database_name: str = "neural_hive"
+) -> dict[str, Any]:
     """
     Remover coleção optimization_recommendations.
 
@@ -90,11 +94,13 @@ async def downgrade(mongo_client: AsyncIOMotorClient, database_name: str = "neur
     return {
         "status": "success",
         "collection": "optimization_recommendations",
-        "dropped_at": datetime.utcnow().isoformat(),
+        "dropped_at": datetime.now(UTC).isoformat(),
     }
 
 
-async def validate(mongo_client: AsyncIOMotorClient, database_name: str = "neural_hive") -> Dict[str, Any]:
+async def validate(
+    mongo_client: AsyncIOMotorClient, database_name: str = "neural_hive"
+) -> dict[str, Any]:
     """
     Valida se a migration foi aplicada corretamente.
 
@@ -145,7 +151,7 @@ async def run_migration(
     mongo_client: AsyncIOMotorClient,
     database_name: str = "neural_hive",
     action: str = "upgrade",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Executa migration.
 

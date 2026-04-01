@@ -5,7 +5,7 @@ GAP-04: Cobertura de Testes 16% → 70%
 Testa o framework de especialistas em detalhes.
 """
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 from enum import Enum
 
@@ -36,7 +36,7 @@ class TestSpecialistBase:
             "config": {"timeout": 30, "max_retries": 3}
         }
 
-        specialist["initialized_at"] = datetime.utcnow().isoformat()
+        specialist["initialized_at"] = datetime.now(timezone.utc).isoformat()
         specialist["status"] = "ready"
 
         assert specialist["status"] == "ready"
@@ -73,7 +73,7 @@ class TestOpinionGeneration:
             "verdict": "approve",
             "confidence": 0.85,
             "reasoning": "Low business risk",
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat()
         }
 
         assert opinion["verdict"] in ["approve", "reject", "escalate", "defer"]
@@ -246,7 +246,7 @@ class TestModelPrediction:
             "model_id": "business_approval_model",
             "version": "v2.1",
             "path": "/models/business_v2.1.pkl",
-            "loaded_at": datetime.utcnow().isoformat()
+            "loaded_at": datetime.now(timezone.utc).isoformat()
         }
 
         assert model_info["model_id"] is not None
@@ -298,7 +298,7 @@ class TestFeedbackCollection:
             "opinion_id": str(uuid4()),
             "actual_outcome": "approved",  # O que realmente aconteceu
             "was_correct": True,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         assert feedback["was_correct"] is True
@@ -448,8 +448,8 @@ class TestSpecialistMetrics:
 
     def test_calculate_specialist_uptime(self):
         """Deve calcular uptime do especialista."""
-        started_at = datetime.utcnow() - timedelta(hours=24)
-        now = datetime.utcnow()
+        started_at = datetime.now(timezone.utc) - timedelta(hours=24)
+        now = datetime.now(timezone.utc)
 
         uptime_hours = (now - started_at).total_seconds() / 3600
 
@@ -504,7 +504,7 @@ class TestSpecialistCaching:
         cache = {}
         cache[cache_key] = {
             "prediction": prediction,
-            "cached_at": datetime.utcnow().isoformat()
+            "cached_at": datetime.now(timezone.utc).isoformat()
         }
 
         assert cache_key in cache
@@ -525,12 +525,12 @@ class TestSpecialistCaching:
     def test_cache_expiration(self):
         """Deve expirar cache."""
         cache_entry = {
-            "cached_at": (datetime.utcnow() - timedelta(minutes=35)).isoformat(),
+            "cached_at": (datetime.now(timezone.utc) - timedelta(minutes=35)).isoformat(),
             "ttl_minutes": 30
         }
 
         cached_at = datetime.fromisoformat(cache_entry["cached_at"])
-        age_minutes = (datetime.utcnow() - cached_at).total_seconds() / 60
+        age_minutes = (datetime.now(timezone.utc) - cached_at).total_seconds() / 60
 
         is_expired = age_minutes > cache_entry["ttl_minutes"]
 

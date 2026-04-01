@@ -11,7 +11,7 @@ Valida que o modelo atende aos critérios mínimos de performance:
 import pytest
 import numpy as np
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
@@ -104,8 +104,8 @@ class TestDurationPredictorAccuracy:
                 'actual_duration_ms': actual_duration,
                 'estimated_duration_ms': estimated_duration,
                 'status': 'COMPLETED',
-                'created_at': datetime.utcnow() - timedelta(days=np.random.randint(1, 30)),
-                'completed_at': datetime.utcnow(),
+                'created_at': datetime.now(timezone.utc) - timedelta(days=np.random.randint(1, 30)),
+                'completed_at': datetime.now(timezone.utc),
                 'required_capabilities': ['cpu', 'memory'][:np.random.randint(1, 3)],
                 'parameters': {'key': 'value'},
                 'sla_timeout_ms': 300000,
@@ -628,7 +628,7 @@ class TestDurationPredictorTrainingValidation:
                 'risk_band': 'medium',
                 'actual_duration_ms': 30000 + np.random.normal(0, 5000),
                 'estimated_duration_ms': 30000,
-                'completed_at': datetime.utcnow(),
+                'completed_at': datetime.now(timezone.utc),
                 'required_capabilities': ['cpu'],
                 'parameters': {},
                 'sla_timeout_ms': 300000,

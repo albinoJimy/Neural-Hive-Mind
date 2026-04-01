@@ -1,7 +1,7 @@
 """Testes de integração para validação de injeção de dependências nas APIs do SLA Management System."""
 
 import pytest
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -90,9 +90,9 @@ class TestBudgetsAPIDependencies:
         mock_budget = ErrorBudget(
             slo_id='slo-123',
             service_name='test-service',
-            calculated_at=datetime.utcnow(),
-            window_start=datetime.utcnow(),
-            window_end=datetime.utcnow(),
+            calculated_at=datetime.now(timezone.utc),
+            window_start=datetime.now(timezone.utc),
+            window_end=datetime.now(timezone.utc),
             sli_value=0.999,
             slo_target=0.999,
             error_budget_total=0.1,

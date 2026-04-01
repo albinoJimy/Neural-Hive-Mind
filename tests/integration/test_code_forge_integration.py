@@ -1,5 +1,5 @@
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -48,10 +48,10 @@ def _build_ticket():
         priority=Priority.NORMAL,
         risk_band=RiskBand.MEDIUM,
         parameters={"artifact_id": "a-1"},
-        sla=SLA(deadline=datetime.utcnow() + timedelta(minutes=5), timeout_ms=1000, max_retries=1),
+        sla=SLA(deadline=datetime.now(timezone.utc) + timedelta(minutes=5), timeout_ms=1000, max_retries=1),
         qos=QoS(delivery_mode=DeliveryMode.AT_LEAST_ONCE, consistency=Consistency.EVENTUAL, durability=Durability.PERSISTENT),
         security_level=SecurityLevel.INTERNAL,
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
     )
 
 

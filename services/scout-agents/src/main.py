@@ -5,21 +5,21 @@ import signal
 import sys
 import uuid
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import datetime
+
 import structlog
 import uvicorn
+
 from neural_hive_observability import (
-    get_tracer,
     init_observability,
-    instrument_kafka_producer,
 )
 
-from .config import get_settings
-from .engine.exploration_engine import ExplorationEngine
 from .api.http_server import app, init_app
-from .observability.metrics import ScoutMetrics
 from .clients.service_registry_client import ServiceRegistryClient
+from .config import get_settings
 from .consumers.digital_events_consumer import DigitalEventsConsumer
+from .engine.exploration_engine import ExplorationEngine
+from .observability.metrics import ScoutMetrics
 
 logger = structlog.get_logger()
 
@@ -41,7 +41,7 @@ def configure_logging():
             structlog.stdlib.add_log_level,
             structlog.processors.StackInfoRenderer(),
             structlog.processors.format_exc_info,
-            structlog.processors.JSONRenderer()
+            structlog.processors.JSONRenderer(),
         ],
         wrapper_class=structlog.stdlib.BoundLogger,
         context_class=dict,
@@ -82,7 +82,7 @@ def create_background_task(coro):
                 "background_task_failed",
                 task_name=t.get_name(),
                 error=str(e),
-                exc_info=e.__traceback__
+                exc_info=e.__traceback__,
             )
 
     task.add_done_callback(task_done)
@@ -104,21 +104,17 @@ async def heartbeat_loop(agent_id: str):
 
                 # Prepara telemetria para o heartbeat
                 telemetry = {
-                    'success_rate': stats['published'] / max(stats['processed'], 1),
-                    'total_executions': stats['processed'],
-                    'failed_executions': stats['discarded'],
-                    'last_execution_at': int(asyncio.get_event_loop().time())
+                    "success_rate": stats["published"] / max(stats["processed"], 1),
+                    "total_executions": stats["processed"],
+                    "failed_executions": stats["discarded"],
+                    "last_execution_at": int(asyncio.get_event_loop().time()),
                 }
 
                 # Envia heartbeat com telemetria
                 success = await registry_client.heartbeat(telemetry)
 
                 if success:
-                    logger.debug(
-                        "heartbeat_sent",
-                        agent_id=agent_id,
-                        stats=stats
-                    )
+                    logger.debug("heartbeat_sent", agent_id=agent_id, stats=stats)
 
                 ScoutMetrics.record_heartbeat(success)
 
@@ -152,15 +148,13 @@ async def start_digital_events_consumer():
     settings = get_settings()
 
     # Verificar se o tópico está configurado
-    if not hasattr(settings.kafka, 'topics_digital_events'):
+    if not hasattr(settings.kafka, "topics_digital_events"):
         logger.info("digital_events_consumer_disabled", reason="topic_not_configured")
         return
 
     try:
         digital_events_consumer = DigitalEventsConsumer(
-            settings=settings,
-            exploration_engine=engine,
-            metrics=ScoutMetrics
+            settings=settings, exploration_engine=engine, metrics=ScoutMetrics
         )
 
         await digital_events_consumer.initialize()
@@ -181,9 +175,10 @@ async def _process_digital_event(event):
     Args:
         event: DigitalEvent recebido
     """
+    from neural_hive_domain import UnifiedDomain
+
     from .models.digital_event import DigitalEvent
     from .models.raw_event import RawEvent
-    from neural_hive_domain import UnifiedDomain
 
     try:
         if not isinstance(event, DigitalEvent):
@@ -194,31 +189,26 @@ async def _process_digital_event(event):
         raw_event_data = event.to_raw_event()
 
         raw_event = RawEvent(
-            event_id=raw_event_data['event_id'],
-            event_type=raw_event_data['event_type'],
-            source=raw_event_data['source'],
-            timestamp=datetime.fromisoformat(raw_event_data['timestamp']),
-            payload=raw_event_data['payload'],
-            metadata=raw_event_data['metadata']
+            event_id=raw_event_data["event_id"],
+            event_type=raw_event_data["event_type"],
+            source=raw_event_data["source"],
+            timestamp=datetime.fromisoformat(raw_event_data["timestamp"]),
+            payload=raw_event_data["payload"],
+            metadata=raw_event_data["metadata"],
         )
 
         # Processar através da engine
-        await engine.process_event(
-            event=raw_event,
-            domain=UnifiedDomain.BEHAVIOR
-        )
+        await engine.process_event(event=raw_event, domain=UnifiedDomain.BEHAVIOR)
 
         logger.debug(
-            "digital_event_processed",
-            event_id=event.event_id,
-            type=event.event_type.value
+            "digital_event_processed", event_id=event.event_id, type=event.event_type.value
         )
 
     except Exception as e:
         logger.error(
             "digital_event_processing_failed",
-            event_id=getattr(event, 'event_id', 'unknown'),
-            error=str(e)
+            event_id=getattr(event, "event_id", "unknown"),
+            error=str(e),
         )
 
 
@@ -235,16 +225,16 @@ async def startup():
         "scout_agent_starting",
         agent_id=agent_id,
         version=settings.service.version,
-        environment=settings.service.environment
+        environment=settings.service.environment,
     )
 
     init_observability(
-        service_name='scout-agents',
+        service_name="scout-agents",
         service_version=settings.service.version,
-        neural_hive_component='scout-agent',
-        neural_hive_layer='exploracao',
-        neural_hive_domain='signal-detection',
-        otel_endpoint=os.getenv('OTEL_EXPORTER_OTLP_ENDPOINT', 'http://otel-collector:4317'),
+        neural_hive_component="scout-agent",
+        neural_hive_layer="exploracao",
+        neural_hive_domain="signal-detection",
+        otel_endpoint=os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://otel-collector:4317"),
         prometheus_port=settings.observability.prometheus_port,
     )
 
@@ -338,7 +328,7 @@ async def main():
         host="0.0.0.0",
         port=settings.observability.http_port,
         log_config=None,  # Use structlog instead
-        access_log=False
+        access_log=False,
     )
 
     server = uvicorn.Server(config)

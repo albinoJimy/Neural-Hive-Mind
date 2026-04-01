@@ -9,7 +9,7 @@ Cobertura:
 """
 
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 from typing import Dict, List, Any
 
@@ -64,7 +64,7 @@ def mock_consolidated_decision() -> Dict[str, Any]:
         "decision_id": "decision-workflow-1",
         "correlation_id": "corr-workflow-1",
         "trace_id": "trace-workflow-1",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "selected_plan": {
             "plan_id": "plan-workflow-1",
             "confidence_score": 0.95
@@ -195,14 +195,14 @@ class TestOrchestrationWorkflowScheduler:
                 "durability": "PERSISTENT"
             },
             "sla": {
-                "deadline": (datetime.utcnow() + timedelta(hours=1)).isoformat(),
+                "deadline": (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(),
                 "timeout_ms": 3600000
             },
             "required_capabilities": ["python", "data-processing"],
             "namespace": "default",
             "security_level": "standard",
             "estimated_duration_ms": 1000,
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat()
         }
 
         # Executar activity
@@ -263,7 +263,7 @@ class TestOrchestrationWorkflowScheduler:
             "namespace": "default",
             "security_level": "standard",
             "estimated_duration_ms": 1000,
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat()
         }
 
         # Executar activity (deve usar fallback)
@@ -304,14 +304,14 @@ class TestOrchestrationWorkflowScheduler:
                     "durability": "PERSISTENT"
                 },
                 "sla": {
-                    "deadline": (datetime.utcnow() + timedelta(hours=1)).isoformat(),
+                    "deadline": (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(),
                     "timeout_ms": 3600000
                 },
                 "required_capabilities": task["required_capabilities"],
                 "namespace": validated_plan["namespace"],
                 "security_level": validated_plan["security_level"],
                 "estimated_duration_ms": task["estimated_duration_ms"],
-                "created_at": datetime.utcnow().isoformat()
+                "created_at": datetime.now(timezone.utc).isoformat()
             }
             tickets.append(ticket)
 
@@ -354,7 +354,7 @@ class TestOrchestrationWorkflowScheduler:
                 "namespace": "default",
                 "security_level": "standard",
                 "estimated_duration_ms": 1000,
-                "created_at": datetime.utcnow().isoformat()
+                "created_at": datetime.now(timezone.utc).isoformat()
             }
             tickets.append(ticket)
 
@@ -409,14 +409,14 @@ class TestOrchestrationWorkflowScheduler:
                 "durability": "PERSISTENT"
             },
             "sla": {
-                "deadline": (datetime.utcnow() + timedelta(hours=1)).isoformat(),
+                "deadline": (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(),
                 "timeout_ms": 60000  # 1 min (muito curto para critical)
             },
             "required_capabilities": ["python"],
             "namespace": "default",
             "security_level": "standard",
             "estimated_duration_ms": 120000,  # 2 min
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat()
         }
 
         # Executar validação (simula início da activity)
@@ -463,7 +463,7 @@ class TestOrchestrationWorkflowScheduler:
             "namespace": "default",
             "security_level": "standard",
             "estimated_duration_ms": 1000,
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat()
         }
 
         # Executar validação

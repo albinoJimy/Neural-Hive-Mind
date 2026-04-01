@@ -5,7 +5,7 @@ GAP-04: Cobertura de Testes 16% → 70%
 Testa registro e descoberta de serviços.
 """
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 
@@ -23,7 +23,7 @@ class TestServiceRegistration:
             "name": "consensus-engine",
             "version": "1.0.0",
             "endpoint": "http://consensus-engine:8002",
-            "registered_at": datetime.utcnow().isoformat()
+            "registered_at": datetime.now(timezone.utc).isoformat()
         }
 
         registry = {}
@@ -131,12 +131,12 @@ class TestHealthChecking:
         service = {
             "service_id": "service-1",
             "health_check_url": "http://service-1:8000/health",
-            "last_check": datetime.utcnow(),
+            "last_check": datetime.now(timezone.utc),
             "status": "healthy"
         }
 
         # Simular verificação
-        time_since_check = (datetime.utcnow() - service["last_check"]).total_seconds()
+        time_since_check = (datetime.now(timezone.utc) - service["last_check"]).total_seconds()
         is_stale = time_since_check > 60
 
         assert is_stale is False
@@ -168,7 +168,7 @@ class TestHealthChecking:
 
         # Simular recuperação
         service["status"] = "healthy"
-        service["recovered_at"] = datetime.utcnow().isoformat()
+        service["recovered_at"] = datetime.now(timezone.utc).isoformat()
 
         assert service["status"] == "healthy"
 
@@ -333,7 +333,7 @@ class TestServiceEvents:
             "event_type": "ServiceRegistered",
             "service_id": str(uuid4()),
             "service_name": "new-service",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         assert event["event_type"] == "ServiceRegistered"
@@ -343,7 +343,7 @@ class TestServiceEvents:
         event = {
             "event_type": "ServiceDeregistered",
             "service_id": "service-1",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         assert event["event_type"] == "ServiceDeregistered"
@@ -355,7 +355,7 @@ class TestServiceEvents:
             "service_id": "service-1",
             "old_status": "healthy",
             "new_status": "unhealthy",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         assert event["old_status"] == "healthy"
@@ -377,7 +377,7 @@ class TestServiceRegistryPersistence:
         }
 
         snapshot = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "services": registry
         }
 

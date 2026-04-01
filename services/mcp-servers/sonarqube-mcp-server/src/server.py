@@ -18,7 +18,7 @@ settings = get_settings()
 mcp = FastMCP(
     name="SonarQube MCP Server",
     version=settings.service_version,
-    description="Análise de qualidade de código e métricas via SonarQube"
+    instructions="Análise de qualidade de código e métricas via SonarQube"
 )
 
 

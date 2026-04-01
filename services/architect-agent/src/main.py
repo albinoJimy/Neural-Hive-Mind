@@ -1,14 +1,13 @@
 """Main entry point for Architect Agent service"""
 import asyncio
 import signal
-from contextlib import asynccontextmanager
 
 import structlog
 import uvicorn
 
+from src.api.app import create_app
 from src.config.settings import get_settings
 from src.observability.metrics import init_metrics
-from src.api.app import create_app
 
 logger = structlog.get_logger(__name__)
 
@@ -21,7 +20,7 @@ def configure_logging():
             structlog.stdlib.add_log_level,
             structlog.processors.StackInfoRenderer(),
             structlog.processors.format_exc_info,
-            structlog.processors.JSONRenderer()
+            structlog.processors.JSONRenderer(),
         ],
         wrapper_class=structlog.stdlib.BoundLogger,
         context_class=dict,
@@ -57,16 +56,12 @@ async def main():
         "starting_architect_agent",
         service=settings.service.service_name,
         version=settings.service.version,
-        environment=settings.service.environment
+        environment=settings.service.environment,
     )
 
     # Start HTTP server
     config = uvicorn.Config(
-        app,
-        host="0.0.0.0",
-        port=settings.service.http_port,
-        log_config=None,
-        access_log=False
+        app, host="0.0.0.0", port=settings.service.http_port, log_config=None, access_log=False
     )
 
     server = uvicorn.Server(config)

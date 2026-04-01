@@ -10,7 +10,7 @@ Tests the feedback API endpoints including:
 import pytest
 import requests
 import jwt
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 import os
 
@@ -55,8 +55,8 @@ def generate_jwt_token(
     payload = {
         'sub': subject,
         'role': role,
-        'exp': datetime.utcnow() + timedelta(hours=expires_in_hours),
-        'iat': datetime.utcnow()
+        'exp': datetime.now(timezone.utc) + timedelta(hours=expires_in_hours),
+        'iat': datetime.now(timezone.utc)
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
@@ -168,8 +168,8 @@ class TestFeedbackAuthentication:
         payload = {
             'sub': 'test-reviewer',
             'role': 'human_expert',
-            'exp': datetime.utcnow() - timedelta(hours=1),  # Expired
-            'iat': datetime.utcnow() - timedelta(hours=2)
+            'exp': datetime.now(timezone.utc) - timedelta(hours=1),  # Expired
+            'iat': datetime.now(timezone.utc) - timedelta(hours=2)
         }
         expired_token = jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 

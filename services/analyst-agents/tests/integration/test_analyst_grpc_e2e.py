@@ -6,9 +6,10 @@ disponiveis para execucao completa.
 """
 import pytest
 import asyncio
+import socket
 import uuid
 import grpc
-from datetime import datetime
+from datetime import datetime, timezone
 
 from src.grpc_service.server import AnalystGRPCServer
 from src.grpc_service.analyst_servicer import AnalystServicer
@@ -18,6 +19,24 @@ from src.clients.neo4j_client import Neo4jClient
 from src.services.insight_generator import InsightGenerator
 from src.proto import analyst_agent_pb2, analyst_agent_pb2_grpc
 from src.models.insight import AnalystInsight, InsightType, Priority, Recommendation, RelatedEntity, TimeWindow
+
+
+def _is_service_available(host: str = "localhost", port: int = 27017, timeout: float = 1.0) -> bool:
+    """Check if a service is available at the given host:port."""
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(timeout)
+        result = sock.connect_ex((host, port))
+        sock.close()
+        return result == 0
+    except Exception:
+        return False
+
+
+# Check if required services are available
+MONGODB_AVAILABLE = _is_service_available("localhost", 27017)
+REDIS_AVAILABLE = _is_service_available("localhost", 6379)
+SERVICES_AVAILABLE = MONGODB_AVAILABLE and REDIS_AVAILABLE
 
 
 # Configuracoes de teste - usar variaveis de ambiente ou valores padrão para testes
@@ -63,15 +82,10 @@ class MockAnalyticsEngine:
         return 0.75
 
 
-@pytest.fixture(scope="module")
-def event_loop():
-    """Criar event loop para testes assincronos."""
-    loop = asyncio.new_event_loop()
-    yield loop
-    loop.close()
+# Remove module-scoped event_loop to avoid pytest-asyncio scope mismatch
+# pytest-asyncio with asyncio_default_fixture_loop_scope = function handles this
 
-
-@pytest.fixture(scope="module")
+@pytest.fixture
 async def mongodb_client():
     """Inicializar cliente MongoDB real para testes."""
     client = MongoDBClient(
@@ -91,7 +105,7 @@ async def mongodb_client():
         await client.close()
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 async def redis_client():
     """Inicializar cliente Redis real para testes."""
     client = RedisClient(
@@ -115,7 +129,7 @@ async def redis_client():
         await client.close()
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 async def neo4j_client():
     """Inicializar cliente Neo4j para testes (opcional)."""
     client = Neo4jClient(
@@ -139,7 +153,7 @@ async def neo4j_client():
             await client.close()
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 async def grpc_server(mongodb_client, redis_client, neo4j_client):
     """Inicializar servidor gRPC para testes."""
     query_engine = MockQueryEngine()
@@ -163,7 +177,7 @@ async def grpc_server(mongodb_client, redis_client, neo4j_client):
     await server.stop(grace_period=1)
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 async def grpc_channel(grpc_server):
     """Criar canal gRPC para testes."""
     channel = grpc.aio.insecure_channel(f"{TEST_GRPC_HOST}:{TEST_GRPC_PORT}")
@@ -171,7 +185,7 @@ async def grpc_channel(grpc_server):
     await channel.close()
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def grpc_stub(grpc_channel):
     """Criar stub gRPC para testes."""
     return analyst_agent_pb2_grpc.AnalystAgentServiceStub(grpc_channel)
@@ -220,6 +234,7 @@ class TestHealthCheckE2E:
     """Testes end-to-end para HealthCheck."""
 
     @pytest.mark.asyncio
+    @pytest.mark.skipif(not SERVICES_AVAILABLE, reason="MongoDB/Redis not available")
     async def test_health_check_returns_healthy(self, grpc_stub):
         """Verificar que health check retorna saudavel com servicos ativos."""
         request = analyst_agent_pb2.HealthCheckRequest()
@@ -232,6 +247,7 @@ class TestGetInsightE2E:
     """Testes end-to-end para GetInsight."""
 
     @pytest.mark.asyncio
+    @pytest.mark.skipif(not SERVICES_AVAILABLE, reason="MongoDB/Redis not available")
     async def test_get_insight_not_found(self, grpc_stub):
         """Buscar insight inexistente retorna found=False."""
         request = analyst_agent_pb2.GetInsightRequest(insight_id="non-existent-id")
@@ -240,6 +256,7 @@ class TestGetInsightE2E:
         assert response.found is False
 
     @pytest.mark.asyncio
+    @pytest.mark.skipif(not SERVICES_AVAILABLE, reason="MongoDB/Redis not available")
     async def test_get_insight_found(self, grpc_stub, seeded_insight):
         """Buscar insight existente retorna dados corretos."""
         request = analyst_agent_pb2.GetInsightRequest(insight_id=seeded_insight.insight_id)
@@ -252,6 +269,7 @@ class TestGetInsightE2E:
         assert response.insight.title == "Insight de Teste E2E"
 
     @pytest.mark.asyncio
+    @pytest.mark.skipif(not SERVICES_AVAILABLE, reason="MongoDB/Redis not available")
     async def test_get_insight_cache_hit(self, grpc_stub, seeded_insight, redis_client):
         """Verificar que insight e retornado do cache."""
         # Primeira chamada popula o cache
@@ -269,6 +287,7 @@ class TestQueryInsightsE2E:
     """Testes end-to-end para QueryInsights."""
 
     @pytest.mark.asyncio
+    @pytest.mark.skipif(not SERVICES_AVAILABLE, reason="MongoDB/Redis not available")
     async def test_query_insights_empty(self, grpc_stub):
         """Consulta sem filtros em colecao vazia."""
         request = analyst_agent_pb2.QueryInsightsRequest(
@@ -281,6 +300,7 @@ class TestQueryInsightsE2E:
         assert len(response.insights) == 0
 
     @pytest.mark.asyncio
+    @pytest.mark.skipif(not SERVICES_AVAILABLE, reason="MongoDB/Redis not available")
     async def test_query_insights_by_type(self, grpc_stub, seeded_insight):
         """Consultar insights por tipo."""
         request = analyst_agent_pb2.QueryInsightsRequest(
@@ -294,6 +314,7 @@ class TestQueryInsightsE2E:
         assert found
 
     @pytest.mark.asyncio
+    @pytest.mark.skipif(not SERVICES_AVAILABLE, reason="MongoDB/Redis not available")
     async def test_query_insights_by_priority(self, grpc_stub, seeded_insight):
         """Consultar insights por prioridade."""
         request = analyst_agent_pb2.QueryInsightsRequest(
@@ -305,11 +326,12 @@ class TestQueryInsightsE2E:
         assert response.total_count >= 1
 
     @pytest.mark.asyncio
+    @pytest.mark.skipif(not SERVICES_AVAILABLE, reason="MongoDB/Redis not available")
     async def test_query_insights_with_time_filter(self, grpc_stub, seeded_insight):
         """Consultar insights com filtro de tempo."""
         request = analyst_agent_pb2.QueryInsightsRequest(
             start_timestamp=1704067200000,
-            end_timestamp=int(datetime.utcnow().timestamp() * 1000) + 86400000,
+            end_timestamp=int(datetime.now(timezone.utc).timestamp() * 1000) + 86400000,
             limit=10
         )
         response = await grpc_stub.QueryInsights(request)
@@ -321,6 +343,7 @@ class TestExecuteAnalysisE2E:
     """Testes end-to-end para ExecuteAnalysis."""
 
     @pytest.mark.asyncio
+    @pytest.mark.skipif(not SERVICES_AVAILABLE, reason="MongoDB/Redis not available")
     async def test_execute_anomaly_detection(self, grpc_stub):
         """Executar deteccao de anomalias."""
         request = analyst_agent_pb2.ExecuteAnalysisRequest(
@@ -334,6 +357,7 @@ class TestExecuteAnalysisE2E:
         assert response.confidence > 0
 
     @pytest.mark.asyncio
+    @pytest.mark.skipif(not SERVICES_AVAILABLE, reason="MongoDB/Redis not available")
     async def test_execute_trend_analysis(self, grpc_stub):
         """Executar analise de tendencia."""
         request = analyst_agent_pb2.ExecuteAnalysisRequest(
@@ -346,6 +370,7 @@ class TestExecuteAnalysisE2E:
         assert "slope" in response.results
 
     @pytest.mark.asyncio
+    @pytest.mark.skipif(not SERVICES_AVAILABLE, reason="MongoDB/Redis not available")
     async def test_execute_correlation_analysis(self, grpc_stub):
         """Executar analise de correlacao."""
         request = analyst_agent_pb2.ExecuteAnalysisRequest(
@@ -358,6 +383,7 @@ class TestExecuteAnalysisE2E:
         assert "correlation" in response.results
 
     @pytest.mark.asyncio
+    @pytest.mark.skipif(not SERVICES_AVAILABLE, reason="MongoDB/Redis not available")
     async def test_execute_invalid_analysis_type(self, grpc_stub):
         """Tipo de analise invalido retorna erro."""
         request = analyst_agent_pb2.ExecuteAnalysisRequest(
@@ -375,6 +401,7 @@ class TestGetStatisticsE2E:
     """Testes end-to-end para GetStatistics."""
 
     @pytest.mark.asyncio
+    @pytest.mark.skipif(not SERVICES_AVAILABLE, reason="MongoDB/Redis not available")
     async def test_get_statistics(self, grpc_stub, seeded_insight):
         """Obter estatisticas de insights."""
         request = analyst_agent_pb2.GetStatisticsRequest()
@@ -388,6 +415,7 @@ class TestGenerateInsightE2E:
     """Testes end-to-end para GenerateInsight."""
 
     @pytest.mark.asyncio
+    @pytest.mark.skipif(not SERVICES_AVAILABLE, reason="MongoDB/Redis not available")
     async def test_generate_insight_success(self, grpc_stub, mongodb_client):
         """Gerar novo insight via gRPC."""
         request = analyst_agent_pb2.GenerateInsightRequest(
@@ -417,6 +445,7 @@ class TestGenerateInsightE2E:
         await mongodb_client.collection.delete_one({"insight_id": response.insight.insight_id})
 
     @pytest.mark.asyncio
+    @pytest.mark.skipif(not SERVICES_AVAILABLE, reason="MongoDB/Redis not available")
     async def test_generate_insight_invalid_type(self, grpc_stub):
         """Tipo de insight invalido retorna erro."""
         request = analyst_agent_pb2.GenerateInsightRequest(
@@ -430,6 +459,7 @@ class TestGenerateInsightE2E:
         assert "Invalid insight_type" in response.error_message
 
     @pytest.mark.asyncio
+    @pytest.mark.skipif(not SERVICES_AVAILABLE, reason="MongoDB/Redis not available")
     async def test_generate_insight_with_related_entities(self, grpc_stub, mongodb_client):
         """Gerar insight com entidades relacionadas."""
         related_entity = analyst_agent_pb2.RelatedEntity(
@@ -458,6 +488,7 @@ class TestQueryInsightsWithNeo4jE2E:
     """Testes end-to-end para QueryInsights com enriquecimento Neo4j."""
 
     @pytest.mark.asyncio
+    @pytest.mark.skipif(not SERVICES_AVAILABLE, reason="MongoDB/Redis not available")
     async def test_query_with_graph_enrichment_no_neo4j(self, grpc_stub):
         """Consulta com graph_enrichment sem Neo4j disponivel funciona."""
         request = analyst_agent_pb2.QueryInsightsRequest(

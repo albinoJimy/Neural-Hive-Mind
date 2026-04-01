@@ -13,7 +13,7 @@ Uso:
 import argparse
 import json
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, Optional
 import structlog
 
@@ -290,7 +290,7 @@ class ABTestAnalyzer:
 
         result = {
             'specialist_type': self.specialist_type,
-            'analysis_timestamp': datetime.utcnow().isoformat(),
+            'analysis_timestamp': datetime.now(timezone.utc).isoformat(),
             'window_days': self.window_days,
             'metrics': metrics,
             'statistical_significance': stats,

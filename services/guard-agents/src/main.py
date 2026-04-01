@@ -1,12 +1,12 @@
-import asyncio
 import signal
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
-import structlog
-from neural_hive_observability import init_observability
 
-from src.config.settings import get_settings
+import structlog
+from fastapi import FastAPI
+
+from neural_hive_observability import init_observability
 from src.api import health
+from src.config.settings import get_settings
 from src.services.threat_detector import ThreatDetector
 
 # Configurar logger estruturado
@@ -20,7 +20,7 @@ structlog.configure(
         structlog.processors.StackInfoRenderer(),
         structlog.processors.format_exc_info,
         structlog.processors.UnicodeDecoder(),
-        structlog.processors.JSONRenderer()
+        structlog.processors.JSONRenderer(),
     ],
     wrapper_class=structlog.stdlib.BoundLogger,
     logger_factory=structlog.stdlib.LoggerFactory(),
@@ -35,7 +35,9 @@ settings = get_settings()
 async def lifespan(app: FastAPI):
     """Gerencia lifecycle da aplicação"""
     # Startup
-    logger.info("guard_agent.startup", service=settings.service_name, version=settings.service_version)
+    logger.info(
+        "guard_agent.startup", service=settings.service_name, version=settings.service_version
+    )
 
     try:
         init_observability(
@@ -53,19 +55,19 @@ async def lifespan(app: FastAPI):
             "observability_init_failed",
             error=str(e),
             otel_endpoint=settings.otel_exporter_otlp_endpoint,
-            prometheus_port=9090
+            prometheus_port=9090,
         )
 
     # Importar clientes
-    from src.clients.service_registry_client import ServiceRegistryClient
-    from src.clients.mongodb_client import MongoDBClient
-    from src.clients.redis_client import RedisClient
+    from src.clients.istio_client import IstioClient
     from src.clients.kafka_consumer import KafkaConsumerClient
     from src.clients.kubernetes_client import KubernetesClient
-    from src.clients.self_healing_client import SelfHealingClient
+    from src.clients.mongodb_client import MongoDBClient
     from src.clients.opa_client import OPAClient
-    from src.clients.istio_client import IstioClient
     from src.clients.prometheus_client import PrometheusClient
+    from src.clients.redis_client import RedisClient
+    from src.clients.self_healing_client import SelfHealingClient
+    from src.clients.service_registry_client import ServiceRegistryClient
     from src.producers.remediation_producer import RemediationProducer
     from src.services.message_handler import MessageHandler
 
@@ -79,9 +81,9 @@ async def lifespan(app: FastAPI):
         metadata={
             "version": settings.service_version,
             "environment": settings.environment,
-            "namespace": settings.kubernetes_namespace
+            "namespace": settings.kubernetes_namespace,
         },
-        heartbeat_interval=settings.heartbeat_interval_seconds
+        heartbeat_interval=settings.heartbeat_interval_seconds,
     )
     await service_registry.connect()
     agent_id = await service_registry.register()
@@ -93,7 +95,7 @@ async def lifespan(app: FastAPI):
     mongodb = MongoDBClient(uri=settings.mongodb_uri, database=settings.mongodb_database)
     await mongodb.connect(
         incidents_coll=settings.mongodb_incidents_collection,
-        remediation_coll=settings.mongodb_remediation_collection
+        remediation_coll=settings.mongodb_remediation_collection,
     )
     app.state.mongodb = mongodb
 
@@ -103,7 +105,7 @@ async def lifespan(app: FastAPI):
         host=settings.redis_host,
         port=settings.redis_port,
         db=settings.redis_db,
-        password=settings.redis_password
+        password=settings.redis_password,
     )
     await redis_client.connect()
     app.state.redis = redis_client
@@ -111,8 +113,7 @@ async def lifespan(app: FastAPI):
     # Inicializar Kubernetes
     logger.info("guard_agent.initializing_kubernetes")
     k8s_client = KubernetesClient(
-        in_cluster=settings.kubernetes_in_cluster,
-        namespace=settings.kubernetes_namespace
+        in_cluster=settings.kubernetes_in_cluster, namespace=settings.kubernetes_namespace
     )
     await k8s_client.connect()
     app.state.k8s = k8s_client
@@ -120,8 +121,7 @@ async def lifespan(app: FastAPI):
     # Inicializar Kafka Producer para remediações
     logger.info("guard_agent.initializing_kafka_producer")
     remediation_producer = RemediationProducer(
-        bootstrap_servers=settings.kafka_bootstrap_servers,
-        topic=settings.kafka_remediation_topic
+        bootstrap_servers=settings.kafka_bootstrap_servers, topic=settings.kafka_remediation_topic
     )
     await remediation_producer.connect()
     app.state.remediation_producer = remediation_producer
@@ -131,8 +131,7 @@ async def lifespan(app: FastAPI):
     logger.info("guard_agent.initializing_self_healing_client")
     try:
         self_healing_client = SelfHealingClient(
-            base_url=settings.self_healing_engine_url,
-            timeout=30.0
+            base_url=settings.self_healing_engine_url, timeout=30.0
         )
         await self_healing_client.connect()
         logger.info("guard_agent.self_healing_client_ready")
@@ -145,10 +144,7 @@ async def lifespan(app: FastAPI):
     opa_client = None
     if settings.opa_enforcement_enabled:
         logger.info("guard_agent.initializing_opa_client")
-        opa_client = OPAClient(
-            base_url=settings.opa_url,
-            timeout=settings.opa_timeout_seconds
-        )
+        opa_client = OPAClient(base_url=settings.opa_url, timeout=settings.opa_timeout_seconds)
         try:
             await opa_client.connect()
             logger.info("guard_agent.opa_client_ready")
@@ -162,6 +158,7 @@ async def lifespan(app: FastAPI):
     if settings.vault_enabled:
         logger.info("guard_agent.initializing_vault_client")
         from src.clients.vault_client import GuardVaultClient
+
         vault_client = GuardVaultClient(config=settings)
         try:
             await vault_client.initialize()
@@ -178,9 +175,9 @@ async def lifespan(app: FastAPI):
     if settings.trivy_enabled:
         logger.info("guard_agent.initializing_trivy_client")
         from src.clients.trivy_client import TrivyClient
+
         trivy_client = TrivyClient(
-            base_url=settings.trivy_url,
-            timeout=settings.trivy_timeout_seconds
+            base_url=settings.trivy_url, timeout=settings.trivy_timeout_seconds
         )
         try:
             await trivy_client.connect()
@@ -194,10 +191,7 @@ async def lifespan(app: FastAPI):
     istio_client = None
     if settings.istio_enforcement_enabled:
         logger.info("guard_agent.initializing_istio_client")
-        istio_client = IstioClient(
-            k8s_client=k8s_client,
-            namespace=settings.kubernetes_namespace
-        )
+        istio_client = IstioClient(k8s_client=k8s_client, namespace=settings.kubernetes_namespace)
         try:
             await istio_client.connect()
             logger.info("guard_agent.istio_client_ready")
@@ -210,8 +204,7 @@ async def lifespan(app: FastAPI):
     prometheus_client = None
     logger.info("guard_agent.initializing_prometheus_client")
     prometheus_client = PrometheusClient(
-        base_url=settings.prometheus_url,
-        timeout=settings.prometheus_query_timeout_seconds
+        base_url=settings.prometheus_url, timeout=settings.prometheus_query_timeout_seconds
     )
     try:
         await prometheus_client.connect()
@@ -230,28 +223,24 @@ async def lifespan(app: FastAPI):
             from neural_hive_ml.predictive_models.model_registry import ModelRegistry
 
             model_registry = ModelRegistry(
-                tracking_uri=settings.mlflow_tracking_uri,
-                experiment_prefix="neural-hive-ml"
+                tracking_uri=settings.mlflow_tracking_uri, experiment_prefix="neural-hive-ml"
             )
 
             detector_config = {
-                'model_name': 'anomaly-detector',
-                'model_type': settings.anomaly_detector_model_type,
-                'contamination': settings.anomaly_detector_contamination
+                "model_name": "anomaly-detector",
+                "model_type": settings.anomaly_detector_model_type,
+                "contamination": settings.anomaly_detector_contamination,
             }
 
             anomaly_detector = AnomalyDetector(
-                config=detector_config,
-                model_registry=model_registry,
-                metrics=None
+                config=detector_config, model_registry=model_registry, metrics=None
             )
 
             await anomaly_detector.initialize()
 
             if anomaly_detector.model:
                 logger.info(
-                    "guard_agent.anomaly_detector_ready",
-                    model_type=detector_config['model_type']
+                    "guard_agent.anomaly_detector_ready", model_type=detector_config["model_type"]
                 )
             else:
                 logger.warning("guard_agent.anomaly_detector_no_model_loaded")
@@ -263,10 +252,7 @@ async def lifespan(app: FastAPI):
 
     # Inicializar ThreatDetector
     logger.info("guard_agent.initializing_threat_detector")
-    threat_detector = ThreatDetector(
-        redis_client=redis_client,
-        anomaly_detector=anomaly_detector
-    )
+    threat_detector = ThreatDetector(redis_client=redis_client, anomaly_detector=anomaly_detector)
     app.state.threat_detector = threat_detector
 
     # Inicializar ChaosMesh Client (opcional - graceful degradation)
@@ -274,10 +260,11 @@ async def lifespan(app: FastAPI):
     if settings.chaosmesh_enabled:
         logger.info("guard_agent.initializing_chaosmesh_client")
         from src.clients.chaosmesh_client import ChaosMeshClient
+
         chaosmesh_client = ChaosMeshClient(
             in_cluster=settings.kubernetes_in_cluster,
             namespace=settings.chaosmesh_namespace,
-            enabled=settings.chaosmesh_enabled
+            enabled=settings.chaosmesh_enabled,
         )
         try:
             await chaosmesh_client.connect()
@@ -296,12 +283,13 @@ async def lifespan(app: FastAPI):
     if settings.script_execution_enabled:
         logger.info("guard_agent.initializing_script_executor")
         from src.clients.script_executor import ScriptExecutor
+
         script_executor = ScriptExecutor(
             in_cluster=settings.kubernetes_in_cluster,
             namespace=settings.script_executor_namespace,
             enabled=settings.script_execution_enabled,
             default_image=settings.script_executor_default_image,
-            service_account=settings.script_executor_service_account
+            service_account=settings.script_executor_service_account,
         )
         try:
             await script_executor.connect()
@@ -320,6 +308,7 @@ async def lifespan(app: FastAPI):
     if settings.itsm_enabled:
         logger.info("guard_agent.initializing_itsm_client")
         from src.clients.itsm_client import ITSMClient
+
         itsm_client = ITSMClient(
             itsm_type=settings.itsm_type,
             base_url=settings.itsm_url,
@@ -327,7 +316,7 @@ async def lifespan(app: FastAPI):
             username=settings.itsm_username,
             password=settings.itsm_password,
             enabled=settings.itsm_enabled,
-            timeout_seconds=settings.itsm_timeout_seconds
+            timeout_seconds=settings.itsm_timeout_seconds,
         )
         try:
             await itsm_client.connect()
@@ -344,6 +333,7 @@ async def lifespan(app: FastAPI):
     # Inicializar Security Validator
     logger.info("guard_agent.initializing_security_validator")
     from src.services.security_validator import SecurityValidator
+
     security_validator = SecurityValidator(
         opa_client=opa_client,
         k8s_client=k8s_client,
@@ -351,27 +341,28 @@ async def lifespan(app: FastAPI):
         trivy_client=trivy_client,
         redis_client=redis_client,
         mongodb_client=mongodb,
-        settings=settings
+        settings=settings,
     )
     app.state.security_validator = security_validator
 
     # Inicializar Guardrail Enforcer
     logger.info("guard_agent.initializing_guardrail_enforcer")
     from src.services.guardrail_enforcer import GuardrailEnforcer
+
     guardrail_enforcer = GuardrailEnforcer(
         opa_client=opa_client,
         mongodb_client=mongodb,
         redis_client=redis_client,
-        mode=settings.guardrails_mode
+        mode=settings.guardrails_mode,
     )
     app.state.guardrail_enforcer = guardrail_enforcer
 
     # Inicializar Validation Producer
     logger.info("guard_agent.initializing_validation_producer")
     from src.producers.validation_producer import ValidationProducer
+
     validation_producer = ValidationProducer(
-        bootstrap_servers=settings.kafka_bootstrap_servers,
-        topic=settings.kafka_validations_topic
+        bootstrap_servers=settings.kafka_bootstrap_servers, topic=settings.kafka_validations_topic
     )
     await validation_producer.connect()
     app.state.validation_producer = validation_producer
@@ -390,7 +381,7 @@ async def lifespan(app: FastAPI):
         threat_detector=app.state.threat_detector,
         chaosmesh_client=chaosmesh_client,
         script_executor=script_executor,
-        itsm_client=itsm_client
+        itsm_client=itsm_client,
     )
     app.state.message_handler = message_handler
 
@@ -403,7 +394,7 @@ async def lifespan(app: FastAPI):
         group_id=settings.kafka_consumer_group,
         topics=[settings.kafka_incidents_topic],
         auto_offset_reset=settings.kafka_auto_offset_reset,
-        enable_auto_commit=settings.kafka_enable_auto_commit
+        enable_auto_commit=settings.kafka_enable_auto_commit,
     )
     await security_consumer.connect()
     security_consumer.set_message_handler(message_handler.handle_security_incident)
@@ -416,7 +407,7 @@ async def lifespan(app: FastAPI):
         group_id=settings.kafka_consumer_group,
         topics=[settings.kafka_orchestration_incidents_topic],
         auto_offset_reset=settings.kafka_auto_offset_reset,
-        enable_auto_commit=settings.kafka_enable_auto_commit
+        enable_auto_commit=settings.kafka_enable_auto_commit,
     )
     await orchestration_consumer.connect()
     orchestration_consumer.set_message_handler(message_handler.handle_orchestration_incident)
@@ -426,6 +417,7 @@ async def lifespan(app: FastAPI):
     # Consumer para ticket validation
     logger.info("guard_agent.initializing_ticket_consumer")
     from src.consumers.ticket_consumer import TicketConsumer
+
     ticket_consumer = TicketConsumer(
         bootstrap_servers=settings.kafka_bootstrap_servers,
         group_id=f"{settings.kafka_consumer_group}-ticket-validator",
@@ -435,16 +427,14 @@ async def lifespan(app: FastAPI):
         tickets_topic=settings.kafka_tickets_topic,
         tickets_validated_topic=settings.kafka_tickets_validated_topic,
         tickets_rejected_topic=settings.kafka_tickets_rejected_topic,
-        tickets_pending_approval_topic=settings.kafka_tickets_pending_approval_topic
+        tickets_pending_approval_topic=settings.kafka_tickets_pending_approval_topic,
     )
     await ticket_consumer.connect()
     await ticket_consumer.start_consuming()
     app.state.ticket_consumer = ticket_consumer
 
     logger.info(
-        "guard_agent.startup_complete",
-        agent_id=agent_id,
-        capabilities=settings.capabilities
+        "guard_agent.startup_complete", agent_id=agent_id, capabilities=settings.capabilities
     )
 
     yield
@@ -458,7 +448,7 @@ async def lifespan(app: FastAPI):
     await app.state.orchestration_consumer.stop()
 
     # Parar ticket consumer
-    if hasattr(app.state, 'ticket_consumer'):
+    if hasattr(app.state, "ticket_consumer"):
         logger.info("guard_agent.stopping_ticket_consumer")
         await app.state.ticket_consumer.stop()
 
@@ -466,7 +456,7 @@ async def lifespan(app: FastAPI):
     logger.info("guard_agent.closing_kafka_producers")
     await app.state.remediation_producer.close()
 
-    if hasattr(app.state, 'validation_producer'):
+    if hasattr(app.state, "validation_producer"):
         await app.state.validation_producer.close()
 
     # Fechar clientes
@@ -479,13 +469,13 @@ async def lifespan(app: FastAPI):
     if app.state.prometheus_client:
         await app.state.prometheus_client.close()
 
-    if hasattr(app.state, 'vault_client') and app.state.vault_client:
+    if hasattr(app.state, "vault_client") and app.state.vault_client:
         await app.state.vault_client.close()
 
-    if hasattr(app.state, 'trivy_client') and app.state.trivy_client:
+    if hasattr(app.state, "trivy_client") and app.state.trivy_client:
         await app.state.trivy_client.close()
 
-    if hasattr(app.state, 'itsm_client') and app.state.itsm_client:
+    if hasattr(app.state, "itsm_client") and app.state.itsm_client:
         await app.state.itsm_client.close()
 
     # Desregistrar do Service Registry
@@ -505,7 +495,7 @@ app = FastAPI(
     title="Guard Agents",
     description="Neural Hive-Mind Guard Agents - Threat Detection and Policy Enforcement",
     version=settings.service_version,
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # Incluir routers
@@ -513,14 +503,17 @@ app.include_router(health.router, tags=["health"])
 
 # Incluir router de validação
 from src.api import validation
+
 app.include_router(validation.router, prefix="/api/v1", tags=["validation"])
 
 # Incluir router de incidentes
 from src.api import incidents
+
 app.include_router(incidents.router, prefix="/api/v1", tags=["incidents"])
 
 # Incluir router de enforcement
 from src.api import enforcement
+
 app.include_router(enforcement.router, prefix="/api/v1", tags=["enforcement"])
 
 
@@ -542,5 +535,5 @@ if __name__ == "__main__":
         host="0.0.0.0",
         port=8080,
         log_level=settings.log_level.lower(),
-        access_log=True
+        access_log=True,
     )

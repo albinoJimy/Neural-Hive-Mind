@@ -9,7 +9,7 @@ Este módulo testa a detecção de problemas que requerem remediação:
 
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 
 from src.services.detection_service import (
     DetectionService,
@@ -57,7 +57,7 @@ class TestDetectionService:
     @pytest.mark.asyncio
     async def test_detect_deadlocks_detected(self, detection_service, mock_orchestrator_client):
         """Testa detecção de deadlock (sem progresso por 30+ min)."""
-        old_time = (datetime.utcnow() - timedelta(minutes=35)).isoformat()
+        old_time = (datetime.now(timezone.utc) - timedelta(minutes=35)).isoformat()
 
         mock_orchestrator_client.get_workflow_status = AsyncMock(
             return_value={
@@ -103,10 +103,10 @@ class TestDetectionService:
         """Testa detecção de memory leak (>90% por 5min)."""
         # Simular métricas diretamente no _memory_history
         # Para forçar a detecção de leak
-        from datetime import datetime, timedelta
+        from datetime import datetime, timezone, timedelta
 
         key = "neural-hive-orchestration/worker-1/app"
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         # Adicionar vários timestamps acima do threshold
         for i in range(10):
             detection_service._memory_history[key] = [
@@ -145,7 +145,7 @@ class TestDetectionService:
             incident_type="deadlock",
             workflow_id="wf-123",
             severity="high",
-            detected_at=datetime.utcnow()
+            detected_at=datetime.now(timezone.utc)
         )
 
         # Mock playbook executor
@@ -167,7 +167,7 @@ class TestDetectionService:
             pod_name="worker-1",
             namespace="neural-hive-orchestration",
             severity="medium",
-            detected_at=datetime.utcnow()
+            detected_at=datetime.now(timezone.utc)
         )
 
         # Mock playbook executor
@@ -211,7 +211,7 @@ class TestDetectionService:
             incident_type="deadlock",
             workflow_id="wf-123",
             severity="high",
-            detected_at=datetime.utcnow()
+            detected_at=datetime.now(timezone.utc)
         )
         assert trigger.incident_type == "deadlock"
         assert trigger.severity == "high"
@@ -223,7 +223,7 @@ class TestDetectionServiceIntegration:
     @pytest.mark.asyncio
     async def test_detect_and_remediate_deadlock(self, detection_service, mock_orchestrator_client):
         """Teste de ponta a ponta: detectar deadlock → remeditar."""
-        old_time = (datetime.utcnow() - timedelta(minutes=35)).isoformat()
+        old_time = (datetime.now(timezone.utc) - timedelta(minutes=35)).isoformat()
 
         mock_orchestrator_client.get_workflow_status = AsyncMock(
             return_value={
@@ -245,7 +245,7 @@ class TestDetectionServiceIntegration:
                 incident_type="deadlock",
                 workflow_id="wf-123",
                 severity="high",
-                detected_at=datetime.utcnow(),
+                detected_at=datetime.now(timezone.utc),
                 metadata={"stuck_duration_seconds": status.stuck_duration_seconds}
             )
 

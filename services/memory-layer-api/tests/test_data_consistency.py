@@ -10,7 +10,7 @@ Testes abrangentes para verificar consistência entre camadas de memória:
 import json
 import pytest
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 import uuid
 
@@ -200,7 +200,7 @@ class TestSyncEventConsumer:
             'data_type': 'context',
             'operation': 'INSERT',
             'collection': 'operational_context',
-            'timestamp': int(datetime.utcnow().timestamp() * 1000),
+            'timestamp': int(datetime.now(timezone.utc).timestamp() * 1000),
             'data': json.dumps({'content': 'test data'}),
             'metadata': json.dumps({'source': 'test'})
         }
@@ -232,7 +232,7 @@ class TestSyncEventConsumer:
             'data_type': 'context',
             'operation': 'INSERT',
             'collection': 'operational_context',
-            'timestamp': int(datetime.utcnow().timestamp() * 1000),
+            'timestamp': int(datetime.now(timezone.utc).timestamp() * 1000),
             'data': json.dumps({'content': 'test data'}),
             'metadata': None
         }
@@ -259,7 +259,7 @@ class TestSyncEventConsumer:
             'data_type': 'context',
             'operation': 'DELETE',
             'collection': 'operational_context',
-            'timestamp': int(datetime.utcnow().timestamp() * 1000),
+            'timestamp': int(datetime.now(timezone.utc).timestamp() * 1000),
             'data': '{}',
             'metadata': None
         }
@@ -456,7 +456,7 @@ class TestKafkaSyncProducer:
                 'data_type': 'context',
                 'operation': 'INSERT',
                 'collection': 'operational_context',
-                'timestamp': int(datetime.utcnow().timestamp() * 1000),
+                'timestamp': int(datetime.now(timezone.utc).timestamp() * 1000),
                 'data': '{}',
                 'metadata': None
             }
@@ -496,7 +496,7 @@ class TestAvroSerializationConsistency:
             'data_type': 'context',
             'operation': 'INSERT',
             'collection': 'operational_context',
-            'timestamp': int(datetime.utcnow().timestamp() * 1000),
+            'timestamp': int(datetime.now(timezone.utc).timestamp() * 1000),
             'data': json.dumps({'content': 'test', 'nested': {'key': 'value'}}),
             'metadata': json.dumps({'source': 'test'})
         }
@@ -531,7 +531,7 @@ class TestAvroSerializationConsistency:
             'data_type': 'context',
             'operation': 'INSERT',
             'collection': 'operational_context',
-            'timestamp': int(datetime.utcnow().timestamp() * 1000),
+            'timestamp': int(datetime.now(timezone.utc).timestamp() * 1000),
             'data': '{}',
             'metadata': None
         }
@@ -589,7 +589,7 @@ class TestTimestampConsistency:
         sync_job = MongoToClickHouseSync(settings)
 
         # Documento com datetime UTC
-        utc_now = datetime.utcnow()
+        utc_now = datetime.now(timezone.utc)
         document = {
             '_id': 'mongo-id-tz-test',
             'entity_id': 'test-entity-tz',
@@ -622,7 +622,7 @@ class TestLargeBatchProcessing:
                 '_id': f'mongo-id-{i}',
                 'entity_id': f'entity-{i}',
                 'data_type': 'context',
-                'created_at': datetime.utcnow(),
+                'created_at': datetime.now(timezone.utc),
                 'content': f'content {i}',
                 'metadata': {}
             }

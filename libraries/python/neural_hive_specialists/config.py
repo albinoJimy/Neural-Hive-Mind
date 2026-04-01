@@ -4,7 +4,7 @@ Configuração base para especialistas neurais usando Pydantic.
 
 import os
 from pydantic import Field, field_validator
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List, Optional, Literal
 import structlog
 
@@ -1610,11 +1610,11 @@ class SpecialistConfig(BaseSettings):
             raise ValueError(f"backup_mode deve ser um de {valid_modes}, recebido: {v}")
         return v
 
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = False
-
+        model_config = SettingsConfigDict(
+        env_file='.env',
+        env_file_encoding='utf-8',
+        case_sensitive=False
+    )
     def to_dict(self) -> dict:
         """Converte configuração para dicionário."""
         return self.dict()

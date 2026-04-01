@@ -4,25 +4,24 @@ Approval API Endpoints
 Endpoints REST para gerenciamento de aprovacoes de planos cognitivos.
 """
 
-import structlog
-from typing import Optional, List
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pymongo.errors import DuplicateKeyError
+from typing import List, Optional
 
-from src.config.settings import Settings, get_settings
+import structlog
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel
+
 from src.models.approval import (
-    ApprovalRequest,
     ApprovalDecision,
+    ApprovalRequest,
+    ApprovalResponse,
     ApprovalStats,
     ApproveRequestBody,
     RejectRequestBody,
     RepublishRequestBody,
     RevertRequestBody,
     RevertResponse,
-    ApprovalResponse,
-    RiskBand
+    RiskBand,
 )
-from pydantic import BaseModel
 from src.security.auth import get_current_admin_user
 from src.services.approval_service import ApprovalService
 
@@ -33,6 +32,7 @@ router = APIRouter(prefix="/api/v1/approvals", tags=["approvals"])
 
 class MLPredictionResponse(BaseModel):
     """Resposta da predição ML"""
+
     plan_id: str
     decision: Optional[str] = None  # 'approve', 'reject', 'review_required'
     confidence: float = 0.0
@@ -43,12 +43,14 @@ class MLPredictionResponse(BaseModel):
 
 class AutoDecisionResponse(BaseModel):
     """Resposta da decisão automática ML"""
+
     plan_id: str
     auto_decision: Optional[str] = None  # 'approve' ou 'reject'
     confidence: float = 0.0
     reason: Optional[str] = None
     ml_enabled: bool = False
     can_auto_decide: bool = False
+
 
 # Referencia global para o servico
 _approval_service: Optional[ApprovalService] = None
@@ -65,7 +67,7 @@ def get_approval_service() -> ApprovalService:
     if _approval_service is None:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Servico de aprovacao nao inicializado"
+            detail="Servico de aprovacao nao inicializado",
         )
     return _approval_service
 
@@ -77,7 +79,7 @@ async def list_pending_approvals(
     risk_band: Optional[RiskBand] = Query(default=None, description="Filtro por banda de risco"),
     is_destructive: Optional[bool] = Query(default=None, description="Filtro por destrutivo"),
     user: dict = Depends(get_current_admin_user),
-    service: ApprovalService = Depends(get_approval_service)
+    service: ApprovalService = Depends(get_approval_service),
 ):
     """
     Lista aprovacoes pendentes
@@ -96,12 +98,12 @@ async def list_pending_approvals(
         Lista de aprovacoes pendentes ordenadas por data (DESC)
     """
     logger.info(
-        'Listando aprovacoes pendentes',
-        user_id=user['user_id'],
+        "Listando aprovacoes pendentes",
+        user_id=user["user_id"],
         limit=limit,
         offset=offset,
         risk_band=risk_band,
-        is_destructive=is_destructive
+        is_destructive=is_destructive,
     )
 
     try:
@@ -109,22 +111,22 @@ async def list_pending_approvals(
             limit=limit,
             offset=offset,
             risk_band=risk_band.value if risk_band else None,
-            is_destructive=is_destructive
+            is_destructive=is_destructive,
         )
         return approvals
 
     except Exception as e:
-        logger.error('Erro ao listar aprovacoes pendentes', error=str(e))
+        logger.error("Erro ao listar aprovacoes pendentes", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Erro ao listar aprovacoes: {str(e)}"
+            detail=f"Erro ao listar aprovacoes: {str(e)}",
         )
 
 
 @router.get("/stats", response_model=ApprovalStats)
 async def get_approval_stats(
     user: dict = Depends(get_current_admin_user),
-    service: ApprovalService = Depends(get_approval_service)
+    service: ApprovalService = Depends(get_approval_service),
 ):
     """
     Retorna estatisticas de aprovacao
@@ -138,17 +140,17 @@ async def get_approval_stats(
     Returns:
         Estatisticas agregadas de aprovacoes
     """
-    logger.info('Consultando estatisticas de aprovacao', user_id=user['user_id'])
+    logger.info("Consultando estatisticas de aprovacao", user_id=user["user_id"])
 
     try:
         stats = await service.get_approval_stats()
         return stats
 
     except Exception as e:
-        logger.error('Erro ao obter estatisticas', error=str(e))
+        logger.error("Erro ao obter estatisticas", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Erro ao obter estatisticas: {str(e)}"
+            detail=f"Erro ao obter estatisticas: {str(e)}",
         )
 
 
@@ -156,7 +158,7 @@ async def get_approval_stats(
 async def get_ml_prediction(
     plan_id: str,
     user: dict = Depends(get_current_admin_user),
-    service: ApprovalService = Depends(get_approval_service)
+    service: ApprovalService = Depends(get_approval_service),
 ):
     """
     Obtém predição ML para um plano de aprovação
@@ -177,11 +179,7 @@ async def get_ml_prediction(
     Raises:
         404: Se plan_id nao encontrado
     """
-    logger.info(
-        'Consultando predicao ML',
-        plan_id=plan_id,
-        user_id=user['user_id']
-    )
+    logger.info("Consultando predicao ML", plan_id=plan_id, user_id=user["user_id"])
 
     try:
         prediction = await service.get_ml_prediction(plan_id)
@@ -189,18 +187,18 @@ async def get_ml_prediction(
 
         return MLPredictionResponse(
             plan_id=plan_id,
-            decision=prediction.get('decision') if prediction else None,
-            confidence=prediction.get('confidence', 0.0) if prediction else 0.0,
-            probabilities=prediction.get('probabilities', {}) if prediction else {},
-            model_version=prediction.get('model_version') if prediction else None,
-            ml_enabled=ml_enabled
+            decision=prediction.get("decision") if prediction else None,
+            confidence=prediction.get("confidence", 0.0) if prediction else 0.0,
+            probabilities=prediction.get("probabilities", {}) if prediction else {},
+            model_version=prediction.get("model_version") if prediction else None,
+            ml_enabled=ml_enabled,
         )
 
     except Exception as e:
-        logger.error('Erro ao obter predicao ML', error=str(e), plan_id=plan_id)
+        logger.error("Erro ao obter predicao ML", error=str(e), plan_id=plan_id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Erro ao obter predicao ML: {str(e)}"
+            detail=f"Erro ao obter predicao ML: {str(e)}",
         )
 
 
@@ -208,7 +206,7 @@ async def get_ml_prediction(
 async def get_auto_decision(
     plan_id: str,
     user: dict = Depends(get_current_admin_user),
-    service: ApprovalService = Depends(get_approval_service)
+    service: ApprovalService = Depends(get_approval_service),
 ):
     """
     Verifica se há decisão automática disponível para um plano
@@ -231,31 +229,29 @@ async def get_auto_decision(
     Raises:
         404: Se plan_id nao encontrado
     """
-    logger.info(
-        'Consultando decisao automatica',
-        plan_id=plan_id,
-        user_id=user['user_id']
-    )
+    logger.info("Consultando decisao automatica", plan_id=plan_id, user_id=user["user_id"])
 
     try:
         auto_decision = await service.get_auto_decision(plan_id)
         ml_enabled = service.ml_predictor.is_enabled() if service.ml_predictor else False
-        can_auto_decide = service.ml_predictor.can_auto_decide('low') if service.ml_predictor else False
+        can_auto_decide = (
+            service.ml_predictor.can_auto_decide("low") if service.ml_predictor else False
+        )
 
         return AutoDecisionResponse(
             plan_id=plan_id,
-            auto_decision=auto_decision.get('auto_decision') if auto_decision else None,
-            confidence=auto_decision.get('confidence', 0.0) if auto_decision else 0.0,
-            reason=auto_decision.get('reason') if auto_decision else None,
+            auto_decision=auto_decision.get("auto_decision") if auto_decision else None,
+            confidence=auto_decision.get("confidence", 0.0) if auto_decision else 0.0,
+            reason=auto_decision.get("reason") if auto_decision else None,
             ml_enabled=ml_enabled,
-            can_auto_decide=can_auto_decide
+            can_auto_decide=can_auto_decide,
         )
 
     except Exception as e:
-        logger.error('Erro ao obter decisao automatica', error=str(e), plan_id=plan_id)
+        logger.error("Erro ao obter decisao automatica", error=str(e), plan_id=plan_id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Erro ao obter decisao automatica: {str(e)}"
+            detail=f"Erro ao obter decisao automatica: {str(e)}",
         )
 
 
@@ -263,7 +259,7 @@ async def get_auto_decision(
 async def get_approval(
     plan_id: str,
     user: dict = Depends(get_current_admin_user),
-    service: ApprovalService = Depends(get_approval_service)
+    service: ApprovalService = Depends(get_approval_service),
 ):
     """
     Busca aprovacao por plan_id
@@ -281,28 +277,23 @@ async def get_approval(
     Raises:
         404: Se plan_id nao encontrado
     """
-    logger.info(
-        'Buscando aprovacao',
-        plan_id=plan_id,
-        user_id=user['user_id']
-    )
+    logger.info("Buscando aprovacao", plan_id=plan_id, user_id=user["user_id"])
 
     try:
         approval = await service.get_approval_by_plan_id(plan_id)
         if not approval:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Plano nao encontrado: {plan_id}"
+                status_code=status.HTTP_404_NOT_FOUND, detail=f"Plano nao encontrado: {plan_id}"
             )
         return approval
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error('Erro ao buscar aprovacao', error=str(e), plan_id=plan_id)
+        logger.error("Erro ao buscar aprovacao", error=str(e), plan_id=plan_id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Erro ao buscar aprovacao: {str(e)}"
+            detail=f"Erro ao buscar aprovacao: {str(e)}",
         )
 
 
@@ -311,7 +302,7 @@ async def approve_plan(
     plan_id: str,
     body: Optional[ApproveRequestBody] = None,
     user: dict = Depends(get_current_admin_user),
-    service: ApprovalService = Depends(get_approval_service)
+    service: ApprovalService = Depends(get_approval_service),
 ):
     """
     Aprova um plano cognitivo
@@ -334,42 +325,28 @@ async def approve_plan(
     comments = body.comments if body else None
 
     logger.info(
-        'Aprovando plano',
-        plan_id=plan_id,
-        user_id=user['user_id'],
-        has_comments=bool(comments)
+        "Aprovando plano", plan_id=plan_id, user_id=user["user_id"], has_comments=bool(comments)
     )
 
     try:
         decision = await service.approve_plan(
-            plan_id=plan_id,
-            user_id=user['user_id'],
-            comments=comments
+            plan_id=plan_id, user_id=user["user_id"], comments=comments
         )
         return decision
 
     except ValueError as e:
         error_msg = str(e)
-        if 'nao encontrado' in error_msg:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=error_msg
-            )
-        elif 'nao esta pendente' in error_msg:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=error_msg
-            )
+        if "nao encontrado" in error_msg:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=error_msg)
+        elif "nao esta pendente" in error_msg:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=error_msg)
         else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=error_msg
-            )
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error_msg)
     except Exception as e:
-        logger.error('Erro ao aprovar plano', error=str(e), plan_id=plan_id)
+        logger.error("Erro ao aprovar plano", error=str(e), plan_id=plan_id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Erro ao aprovar plano: {str(e)}"
+            detail=f"Erro ao aprovar plano: {str(e)}",
         )
 
 
@@ -378,7 +355,7 @@ async def reject_plan(
     plan_id: str,
     body: RejectRequestBody,
     user: dict = Depends(get_current_admin_user),
-    service: ApprovalService = Depends(get_approval_service)
+    service: ApprovalService = Depends(get_approval_service),
 ):
     """
     Rejeita um plano cognitivo
@@ -399,49 +376,29 @@ async def reject_plan(
         404: Se plan_id nao encontrado
         409: Se plano ja foi aprovado/rejeitado
     """
-    logger.info(
-        'Rejeitando plano',
-        plan_id=plan_id,
-        user_id=user['user_id'],
-        reason=body.reason
-    )
+    logger.info("Rejeitando plano", plan_id=plan_id, user_id=user["user_id"], reason=body.reason)
 
     try:
         decision = await service.reject_plan(
-            plan_id=plan_id,
-            user_id=user['user_id'],
-            reason=body.reason,
-            comments=body.comments
+            plan_id=plan_id, user_id=user["user_id"], reason=body.reason, comments=body.comments
         )
         return decision
 
     except ValueError as e:
         error_msg = str(e)
-        if 'nao encontrado' in error_msg:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=error_msg
-            )
-        elif 'nao esta pendente' in error_msg:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=error_msg
-            )
-        elif 'obrigatorio' in error_msg:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=error_msg
-            )
+        if "nao encontrado" in error_msg:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=error_msg)
+        elif "nao esta pendente" in error_msg:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=error_msg)
+        elif "obrigatorio" in error_msg:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error_msg)
         else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=error_msg
-            )
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error_msg)
     except Exception as e:
-        logger.error('Erro ao rejeitar plano', error=str(e), plan_id=plan_id)
+        logger.error("Erro ao rejeitar plano", error=str(e), plan_id=plan_id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Erro ao rejeitar plano: {str(e)}"
+            detail=f"Erro ao rejeitar plano: {str(e)}",
         )
 
 
@@ -450,7 +407,7 @@ async def republish_approved_plan(
     plan_id: str,
     body: Optional[RepublishRequestBody] = None,
     user: dict = Depends(get_current_admin_user),
-    service: ApprovalService = Depends(get_approval_service)
+    service: ApprovalService = Depends(get_approval_service),
 ):
     """
     Republica um plano cognitivo ja aprovado no Kafka
@@ -487,48 +444,32 @@ async def republish_approved_plan(
     comments = body.comments if body else None
 
     logger.info(
-        'Republicando plano aprovado',
+        "Republicando plano aprovado",
         plan_id=plan_id,
-        user_id=user['user_id'],
+        user_id=user["user_id"],
         force=force,
-        has_comments=bool(comments)
+        has_comments=bool(comments),
     )
 
     try:
         response = await service.republish_approved_plan(
-            plan_id=plan_id,
-            user_id=user['user_id'],
-            force=force,
-            comments=comments
+            plan_id=plan_id, user_id=user["user_id"], force=force, comments=comments
         )
         return response
 
     except ValueError as e:
         error_msg = str(e)
-        if 'nao encontrado' in error_msg:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=error_msg
-            )
-        elif 'nao esta aprovado' in error_msg or 'nao possui cognitive_plan' in error_msg:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=error_msg
-            )
+        if "nao encontrado" in error_msg:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=error_msg)
+        elif "nao esta aprovado" in error_msg or "nao possui cognitive_plan" in error_msg:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error_msg)
         else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=error_msg
-            )
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error_msg)
     except Exception as e:
-        logger.error(
-            'Erro ao republicar plano',
-            error=str(e),
-            plan_id=plan_id
-        )
+        logger.error("Erro ao republicar plano", error=str(e), plan_id=plan_id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Erro ao republicar plano: {str(e)}"
+            detail=f"Erro ao republicar plano: {str(e)}",
         )
 
 
@@ -537,7 +478,7 @@ async def revert_approval(
     plan_id: str,
     body: RevertRequestBody,
     user: dict = Depends(get_current_admin_user),
-    service: ApprovalService = Depends(get_approval_service)
+    service: ApprovalService = Depends(get_approval_service),
 ):
     """
     F4: Reverte uma aprovacao (para compensacao Saga)
@@ -570,47 +511,34 @@ async def revert_approval(
         ```
     """
     logger.info(
-        'Revertendo aprovacao',
+        "Revertendo aprovacao",
         plan_id=plan_id,
-        user_id=user['user_id'],
+        user_id=user["user_id"],
         reason=body.reason,
-        ticket_id=body.ticket_id
+        ticket_id=body.ticket_id,
     )
 
     try:
         response = await service.revert_approval(
             plan_id=plan_id,
-            user_id=user['user_id'],
+            user_id=user["user_id"],
             reason=body.reason,
             comments=body.comments,
-            ticket_id=body.ticket_id
+            ticket_id=body.ticket_id,
         )
         return response
 
     except ValueError as e:
         error_msg = str(e)
-        if 'nao encontrado' in error_msg:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=error_msg
-            )
-        elif 'nao esta aprovado' in error_msg:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=error_msg
-            )
+        if "nao encontrado" in error_msg:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=error_msg)
+        elif "nao esta aprovado" in error_msg:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error_msg)
         else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=error_msg
-            )
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error_msg)
     except Exception as e:
-        logger.error(
-            'Erro ao reverter aprovacao',
-            error=str(e),
-            plan_id=plan_id
-        )
+        logger.error("Erro ao reverter aprovacao", error=str(e), plan_id=plan_id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Erro ao reverter aprovacao: {str(e)}"
+            detail=f"Erro ao reverter aprovacao: {str(e)}",
         )

@@ -7,7 +7,7 @@ Fornece clientes, configuracoes e helpers para testes de carga.
 import os
 import pytest
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any
 
 from tests.performance.prometheus_client import PrometheusClient
@@ -128,9 +128,9 @@ def empty_metrics() -> LoadTestMetrics:
 def sample_cognitive_plan() -> Dict[str, Any]:
     """Plano cognitivo de exemplo para testes."""
     return {
-        'plan_id': f'plan-load-test-{datetime.utcnow().strftime("%Y%m%d%H%M%S")}',
+        'plan_id': f'plan-load-test-{datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")}',
         'intent_id': 'intent-load-test',
-        'correlation_id': f'corr-{datetime.utcnow().timestamp()}',
+        'correlation_id': f'corr-{datetime.now(timezone.utc).timestamp()}',
         'risk_band': 'medium',
         'tasks': [
             {
@@ -164,7 +164,7 @@ def sample_cognitive_plan() -> Dict[str, Any]:
             'durability': 'PERSISTENT',
         },
         'sla': {
-            'deadline': int((datetime.utcnow().timestamp() + 14400) * 1000),  # +4h
+            'deadline': int((datetime.now(timezone.utc).timestamp() + 14400) * 1000),  # +4h
             'timeout_ms': 14400000,  # 4h
             'max_retries': 3,
         },
@@ -183,7 +183,7 @@ def sample_consolidated_decision(sample_cognitive_plan) -> Dict[str, Any]:
         'final_decision': 'approve',
         'consensus_type': 'UNANIMOUS',
         'cognitive_plan': sample_cognitive_plan,
-        'created_at': int(datetime.utcnow().timestamp() * 1000),
+        'created_at': int(datetime.now(timezone.utc).timestamp() * 1000),
     }
 
 
@@ -266,7 +266,7 @@ def generate_consolidated_decisions(plans: list) -> list:
             'final_decision': 'approve',
             'consensus_type': 'UNANIMOUS',
             'cognitive_plan': plan,
-            'created_at': int(datetime.utcnow().timestamp() * 1000),
+            'created_at': int(datetime.now(timezone.utc).timestamp() * 1000),
         })
 
     return decisions

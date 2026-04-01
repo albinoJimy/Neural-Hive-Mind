@@ -1,9 +1,9 @@
 # Neural Hive Mind - Software Engineering Pipeline Service
 
 from src.clients import (
+    ArgoCDClient,
     GitHubClient,
     GitLabClient,
-    ArgoCDClient,
 )
 
 __all__ = [

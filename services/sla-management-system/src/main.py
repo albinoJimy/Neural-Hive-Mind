@@ -4,29 +4,31 @@ Entry point principal do SLA Management System.
 
 import asyncio
 from contextlib import asynccontextmanager
+
+import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import structlog
 from prometheus_client import make_asgi_app
 
-from .config.settings import get_settings
-from .clients.prometheus_client import PrometheusClient
-from .clients.postgresql_client import PostgreSQLClient
-from .clients.redis_client import RedisClient
-from .clients.kafka_producer import KafkaProducerClient
+from .api import alerts, budgets, policies, slos, webhooks
 from .clients.alertmanager_client import AlertmanagerClient
+from .clients.kafka_producer import KafkaProducerClient
+from .clients.postgresql_client import PostgreSQLClient
+from .clients.prometheus_client import PrometheusClient
+from .clients.redis_client import RedisClient
+from .config.settings import get_settings
+from .services.alert_dispatcher import AlertDispatcher
+from .services.alert_engine import AlertEngine
 from .services.budget_calculator import BudgetCalculator
 from .services.policy_enforcer import PolicyEnforcer
 from .services.slo_manager import SLOManager
-from .api import slos, budgets, policies, webhooks
-
 
 # Configurar logging estruturado
 structlog.configure(
     processors=[
         structlog.processors.TimeStamper(fmt="iso"),
         structlog.processors.add_log_level,
-        structlog.processors.JSONRenderer()
+        structlog.processors.JSONRenderer(),
     ],
     context_class=dict,
     logger_factory=structlog.PrintLoggerFactory(),
@@ -48,9 +50,12 @@ alertmanager_client: AlertmanagerClient = None
 budget_calculator: BudgetCalculator = None
 policy_enforcer: PolicyEnforcer = None
 slo_manager: SLOManager = None
+alert_engine: AlertEngine = None
+alert_dispatcher: AlertDispatcher = None
 
-# Background task handle
+# Background task handles
 periodic_calculation_task: asyncio.Task = None
+alert_monitoring_task: asyncio.Task = None
 
 
 @asynccontextmanager
@@ -61,13 +66,14 @@ async def lifespan(app: FastAPI):
         "sla_management_system_starting",
         service=settings.service_name,
         version=settings.version,
-        environment=settings.environment
+        environment=settings.environment,
     )
 
     global prometheus_client, postgresql_client, redis_client
     global kafka_producer, alertmanager_client
     global budget_calculator, policy_enforcer, slo_manager
-    global periodic_calculation_task
+    global alert_engine, alert_dispatcher
+    global periodic_calculation_task, alert_monitoring_task
 
     try:
         # Inicializar clientes
@@ -98,24 +104,29 @@ async def lifespan(app: FastAPI):
 
         # Inicializar serviços
         budget_calculator = BudgetCalculator(
-            prometheus_client,
-            postgresql_client,
-            redis_client,
-            kafka_producer,
-            settings.calculator
+            prometheus_client, postgresql_client, redis_client, kafka_producer, settings.calculator
         )
 
         policy_enforcer = PolicyEnforcer(
-            postgresql_client,
-            redis_client,
-            kafka_producer,
-            settings.policy
+            postgresql_client, redis_client, kafka_producer, settings.policy
         )
 
-        slo_manager = SLOManager(
-            postgresql_client,
-            prometheus_client
+        slo_manager = SLOManager(postgresql_client, prometheus_client)
+
+        # Inicializar AlertDispatcher e AlertEngine
+        alert_dispatcher = AlertDispatcher(
+            slack_webhook_url=settings.slack.webhook_url,
+            pagerduty_routing_key=settings.pagerduty.routing_key,
         )
+        await alert_dispatcher.connect()
+
+        alert_engine = AlertEngine(
+            postgresql_client=postgresql_client,
+            redis_client=redis_client,
+            alert_dispatcher=alert_dispatcher,
+            check_interval_seconds=settings.calculator.calculation_interval_seconds,
+        )
+        await alert_engine.start()
 
         # Iniciar background task de cálculo periódico
         periodic_calculation_task = asyncio.create_task(
@@ -138,6 +149,14 @@ async def lifespan(app: FastAPI):
                 await periodic_calculation_task
             except asyncio.CancelledError:
                 pass
+
+        # Parar AlertEngine
+        if alert_engine:
+            await alert_engine.stop()
+
+        # Fechar AlertDispatcher
+        if alert_dispatcher:
+            await alert_dispatcher.disconnect()
 
         # Fechar clientes
         if kafka_producer:
@@ -163,7 +182,7 @@ app = FastAPI(
     title="SLA Management System",
     description="Gerenciamento de SLOs, error budgets e enforcement de políticas",
     version=settings.version,
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # CORS - usa configuração segura por ambiente via neural_hive_security
@@ -197,6 +216,10 @@ def override_prometheus_client():
     return prometheus_client
 
 
+def override_alert_engine():
+    return alert_engine
+
+
 app.dependency_overrides[slos.get_slo_manager] = override_slo_manager
 app.dependency_overrides[budgets.get_budget_calculator] = override_budget_calculator
 app.dependency_overrides[budgets.get_postgresql_client] = override_postgresql_client
@@ -208,6 +231,8 @@ app.dependency_overrides[webhooks.get_slo_manager] = override_slo_manager
 app.dependency_overrides[webhooks.get_budget_calculator] = override_budget_calculator
 app.dependency_overrides[webhooks.get_policy_enforcer] = override_policy_enforcer
 app.dependency_overrides[webhooks.get_postgresql_client] = override_postgresql_client
+app.dependency_overrides[alerts.get_alert_engine] = override_alert_engine
+app.dependency_overrides[alerts.get_postgresql_client] = override_postgresql_client
 
 
 # Registrar routers
@@ -215,6 +240,11 @@ app.include_router(slos.router)
 app.include_router(budgets.router)
 app.include_router(policies.router)
 app.include_router(webhooks.router)
+
+# Configurar router de alerts com injeção de dependências
+alerts.set_alert_engine(alert_engine)
+alerts.set_postgresql_client(postgresql_client)
+app.include_router(alerts.router)
 
 
 # Health checks
@@ -232,7 +262,7 @@ async def ready():
     # Verificar PostgreSQL
     try:
         # Simples query para verificar conectividade
-        slos = await postgresql_client.list_slos()
+        await postgresql_client.list_slos()
         checks["postgresql"] = "ok"
     except Exception as e:
         checks["postgresql"] = f"error: {str(e)}"
@@ -263,7 +293,6 @@ async def ready():
 
     # Determinar status geral (considera "disabled" como OK)
     all_ok = all(v in ("ok", "disabled") for v in checks.values())
-    status_code = 200 if all_ok else 503
 
     return {"status": "ready" if all_ok else "not ready", "checks": checks}
 
@@ -281,5 +310,5 @@ if __name__ == "__main__":
         host="0.0.0.0",
         port=8000,
         reload=settings.debug,
-        log_level=settings.log_level.lower()
+        log_level=settings.log_level.lower(),
     )

@@ -4,7 +4,7 @@ Testes de integração para rotação de credenciais PostgreSQL via Vault
 
 import pytest
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 import sys
 import os
@@ -79,7 +79,7 @@ async def test_postgres_credentials_renewal_at_threshold(mock_config, mock_vault
     assert vault_integration._postgres_credentials_expiry is not None
 
     # Simular passagem de tempo (81% do TTL consumido)
-    vault_integration._postgres_credentials_expiry = datetime.utcnow() + timedelta(seconds=19)
+    vault_integration._postgres_credentials_expiry = datetime.now(timezone.utc) + timedelta(seconds=19)
 
     # Chamar renovação
     await vault_integration._renew_postgres_credentials_if_needed()
@@ -108,7 +108,7 @@ async def test_postgres_credentials_no_renewal_before_threshold(mock_config, moc
     await vault_integration.get_postgres_credentials()
 
     # Simular passagem de tempo (apenas 50% do TTL consumido)
-    vault_integration._postgres_credentials_expiry = datetime.utcnow() + timedelta(seconds=50)
+    vault_integration._postgres_credentials_expiry = datetime.now(timezone.utc) + timedelta(seconds=50)
 
     # Chamar renovação
     await vault_integration._renew_postgres_credentials_if_needed()
@@ -137,7 +137,7 @@ async def test_postgres_credentials_renewal_on_expiry(mock_config, mock_vault_cl
     await vault_integration.get_postgres_credentials()
 
     # Simular expiração (expiry no passado)
-    vault_integration._postgres_credentials_expiry = datetime.utcnow() - timedelta(seconds=10)
+    vault_integration._postgres_credentials_expiry = datetime.now(timezone.utc) - timedelta(seconds=10)
 
     # Chamar renovação
     await vault_integration._renew_postgres_credentials_if_needed()

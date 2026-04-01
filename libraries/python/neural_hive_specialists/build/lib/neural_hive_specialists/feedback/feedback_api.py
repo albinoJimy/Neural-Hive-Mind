@@ -338,7 +338,7 @@ def create_feedback_router(
             return SubmitFeedbackResponse(
                 feedback_id=feedback_id,
                 opinion_id=request.opinion_id,
-                submitted_at=datetime.utcnow().isoformat(),
+                submitted_at=datetime.now(timezone.utc).isoformat(),
                 status='success'
             )
 

@@ -1,17 +1,18 @@
 import contextlib
+
 import structlog
 from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from opentelemetry import trace
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from prometheus_client import make_asgi_app
 
-from src.config.settings import settings
 from src.api import api_router
-from src.observability.middleware import MetricsMiddleware
+from src.config.settings import settings
 from src.observability.metrics import get_metrics_text
+from src.observability.middleware import MetricsMiddleware
 
 
 def configure_logging() -> None:
@@ -37,9 +38,7 @@ def configure_tracing() -> None:
     if not settings.otel_exporter_otlp_endpoint:
         return
     provider = TracerProvider()
-    processor = BatchSpanProcessor(
-        OTLPSpanExporter(endpoint=settings.otel_exporter_otlp_endpoint)
-    )
+    processor = BatchSpanProcessor(OTLPSpanExporter(endpoint=settings.otel_exporter_otlp_endpoint))
     provider.add_span_processor(processor)
     trace.set_tracer_provider(provider)
 

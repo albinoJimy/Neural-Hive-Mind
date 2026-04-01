@@ -10,7 +10,7 @@ Testes que validam o fluxo completo de sincronização:
 import json
 import pytest
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch, PropertyMock
 import uuid
 
@@ -187,7 +187,7 @@ class TestRealtimeSyncE2E:
                 '_id': f'mongo-id-{i}',
                 'entity_id': f'entity-{i}',
                 'data_type': 'context',
-                'created_at': datetime.utcnow() - timedelta(hours=i),
+                'created_at': datetime.now(timezone.utc) - timedelta(hours=i),
                 'content': f'test content {i}',
                 'metadata': {'batch': True}
             }
@@ -231,7 +231,7 @@ class TestRealtimeSyncE2E:
             'data_type': 'context',
             'operation': 'INSERT',
             'collection': 'operational_context',
-            'timestamp': int(datetime.utcnow().timestamp() * 1000),
+            'timestamp': int(datetime.now(timezone.utc).timestamp() * 1000),
             'data': json.dumps({'content': 'idempotency test'}),
             'metadata': None
         }
@@ -290,7 +290,7 @@ class TestRealtimeSyncE2E:
             'data_type': 'context',
             'operation': 'INSERT',
             'collection': 'operational_context',
-            'timestamp': int(datetime.utcnow().timestamp() * 1000),
+            'timestamp': int(datetime.now(timezone.utc).timestamp() * 1000),
             'data': json.dumps({'content': 'dlq test'}),
             'metadata': None
         }
@@ -320,7 +320,7 @@ class TestAvroSerializationE2E:
             'data_type': 'context',
             'operation': 'INSERT',
             'collection': 'operational_context',
-            'timestamp': int(datetime.utcnow().timestamp() * 1000),
+            'timestamp': int(datetime.now(timezone.utc).timestamp() * 1000),
             'data': json.dumps({
                 'content': 'test content',
                 'nested': {'key': 'value'}
@@ -394,7 +394,7 @@ class TestTimestampConsistency:
             '_id': 'mongo-id-tz',
             'entity_id': 'test-entity-tz',
             'data_type': 'context',
-            'created_at': datetime.utcnow(),
+            'created_at': datetime.now(timezone.utc),
             'content': 'timezone test',
             'metadata': {}
         }
@@ -424,7 +424,7 @@ class TestLargeBatchProcessing:
                 '_id': f'mongo-id-{i}',
                 'entity_id': f'entity-{i}',
                 'data_type': 'context',
-                'created_at': datetime.utcnow() - timedelta(minutes=i),
+                'created_at': datetime.now(timezone.utc) - timedelta(minutes=i),
                 'content': f'content {i}',
                 'metadata': {}
             }

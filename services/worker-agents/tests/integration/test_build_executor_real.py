@@ -15,11 +15,11 @@ from neural_hive_integration.clients.code_forge_client import PipelineStatus
 
 
 # Import test helpers
-from fixtures.executor_fixtures import (
+from tests.fixtures.executor_fixtures import (
     create_mock_code_forge_client,
     create_pipeline_status,
 )
-from helpers.integration_helpers import (
+from tests.helpers.integration_helpers import (
     ExecutorTestHelper,
     ResultValidator,
 )
@@ -297,7 +297,7 @@ class TestBuildExecutorValidation:
         self, build_executor
     ):
         """Test that missing ticket_id raises ValidationError."""
-        from services.worker_agents.src.executors.base_executor import ValidationError
+        from executors.base_executor import ValidationError
 
         ticket = {
             'task_id': 'task-123',
@@ -315,7 +315,7 @@ class TestBuildExecutorValidation:
         self, build_executor
     ):
         """Test that wrong task_type raises ValidationError."""
-        from services.worker_agents.src.executors.base_executor import ValidationError
+        from executors.base_executor import ValidationError
 
         ticket = {
             'ticket_id': 'ticket-123',

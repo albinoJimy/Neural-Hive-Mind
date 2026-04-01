@@ -6,7 +6,7 @@ Testa roteamento, NLU, e comunicação com STE.
 """
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch, Mock
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 import asyncio
 import json
@@ -26,7 +26,7 @@ class TestIntentProcessing:
             "intent_id": str(uuid4()),
             "user_id": "user-123",
             "text": "Quero saber o status do meu pedido",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         assert "intent_id" in request
@@ -74,7 +74,7 @@ class TestIntentProcessing:
 
         intent_id = str(uuid4())
         intent["intent_id"] = intent_id
-        intent["received_at"] = datetime.utcnow().isoformat()
+        intent["received_at"] = datetime.now(timezone.utc).isoformat()
 
         assert "intent_id" in intent
         assert "received_at" in intent
@@ -168,7 +168,7 @@ class TestSTECommunication:
         # Simular envio para STE
         ste_request = {
             "original_intent": intent,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         assert "original_intent" in ste_request
@@ -231,7 +231,7 @@ class TestResponseBuilding:
         response = {
             "status": "success",
             "result": result,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         assert response["status"] == "success"
@@ -248,7 +248,7 @@ class TestResponseBuilding:
         response = {
             "status": "error",
             "error": error,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         assert response["status"] == "error"
@@ -334,7 +334,7 @@ class TestContextManagement:
         context["history"].append({
             "turn": 1,
             "intent": "consulta_saldo",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         })
 
         assert len(context["history"]) == 1
@@ -357,12 +357,12 @@ class TestContextManagement:
     async def test_clear_expired_context(self):
         """Deve limpar contexto expirado."""
         context = {
-            "created_at": (datetime.utcnow() - timedelta(hours=2)).isoformat(),
+            "created_at": (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat(),
             "ttl_minutes": 30
         }
 
         created = datetime.fromisoformat(context["created_at"])
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         age_minutes = (now - created).total_seconds() / 60
 
         is_expired = age_minutes > context["ttl_minutes"]
@@ -383,7 +383,7 @@ class TestGatewayRateLimiting:
         user_requests = {
             "user-123": {
                 "count": 5,
-                "last_request": datetime.utcnow().isoformat()
+                "last_request": datetime.now(timezone.utc).isoformat()
             }
         }
 
@@ -412,11 +412,11 @@ class TestGatewayRateLimiting:
         """Deve resetar contador na janela."""
         counter_state = {
             "count": 50,
-            "window_start": (datetime.utcnow() - timedelta(minutes=2)).isoformat(),
+            "window_start": (datetime.now(timezone.utc) - timedelta(minutes=2)).isoformat(),
             "window_minutes": 1
         }
 
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         window_start = datetime.fromisoformat(counter_state["window_start"])
 
         should_reset = (now - window_start).total_seconds() / 60 >= counter_state["window_minutes"]
@@ -474,7 +474,7 @@ class TestGatewayErrorHandling:
             "error_type": "ValidationError",
             "error_message": "Missing required field",
             "stack_trace": "...",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         assert "intent_id" in error_context
@@ -493,7 +493,7 @@ class TestGatewayHealthChecks:
         """Deve verificar saúde do STE."""
         ste_health = {
             "status": "healthy",
-            "last_check": datetime.utcnow().isoformat(),
+            "last_check": datetime.now(timezone.utc).isoformat(),
             "response_time_ms": 50
         }
 
@@ -525,7 +525,7 @@ class TestGatewayHealthChecks:
                 "mongodb": "healthy",
                 "kafka": "healthy"
             },
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         assert health_status["gateway"] == "healthy"

@@ -7,27 +7,27 @@ Explainability API v3 - Task 6
 """
 
 import os
-import structlog
-from typing import Dict, Any, List, Optional
-from datetime import datetime
+from typing import Any, Dict, List, Optional
 
+import structlog
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
-from src.services.hierarchical_explainer import HierarchicalExplainer
 from src.services.counterfactual_analyzer import CounterfactualAnalyzer
+from src.services.hierarchical_explainer import HierarchicalExplainer
 from src.services.temporal_tracker import TemporalTracker
 
 logger = structlog.get_logger(__name__)
 
 # Feature flag para v3
-ENABLE_V3_API = os.getenv('ENABLE_V3_API', 'false').lower() == 'true'
+ENABLE_V3_API = os.getenv("ENABLE_V3_API", "false").lower() == "true"
 
 # Router
 router = APIRouter(prefix="/api/v3", tags=["v3"])
 
 
 # ========== PYDANTIC MODELS ==========
+
 
 class HierarchicalBreakdownResponse(BaseModel):
     """Response para breakdown hierárquico."""
@@ -107,9 +107,7 @@ class BatchExplanationRequest(BaseModel):
         max_length=10,
         description="Lista de IDs de decisão (máximo 10)",
     )
-    include_counterfactuals: bool = Field(
-        False, description="Incluir análise contrafactual"
-    )
+    include_counterfactuals: bool = Field(False, description="Incluir análise contrafactual")
     include_temporal: bool = Field(False, description="Incluir análise temporal")
 
 
@@ -119,12 +117,8 @@ class BatchExplanationResponse(BaseModel):
     explanations: List[Dict[str, Any]] = Field(
         ..., description="Lista de explicações (mesma ordem da request)"
     )
-    failed_ids: List[str] = Field(
-        ..., description="IDs que falharam (não encontrados ou erro)"
-    )
-    summary: Dict[str, Any] = Field(
-        ..., description="Resumo: total_requested, successful, failed"
-    )
+    failed_ids: List[str] = Field(..., description="IDs que falharam (não encontrados ou erro)")
+    summary: Dict[str, Any] = Field(..., description="Resumo: total_requested, successful, failed")
 
 
 class ExplanationComparison(BaseModel):
@@ -143,6 +137,7 @@ class ExplanationComparison(BaseModel):
 
 
 # ========== SERVICE CLASSES ==========
+
 
 class V3ExplanationService:
     """
@@ -175,9 +170,7 @@ class V3ExplanationService:
             Lista de votos ou None se não encontrado
         """
         # Buscar no consensus_decisions (não explainability_ledger)
-        decision = await self.db.consensus_decisions.find_one(
-            {"decision_id": decision_id}
-        )
+        decision = await self.db.consensus_decisions.find_one({"decision_id": decision_id})
 
         if not decision:
             return None
@@ -228,17 +221,25 @@ class V3ExplanationService:
             counterfactuals = self.counterfactual_analyzer.generate_all_counterfactuals(votes)
             result["counterfactuals"] = list(counterfactuals["scenarios"].values())
             # sensitivity_analysis contém {"flipped_count", "sensitivity_score", "stable"}
-            result["sensitivity_score"] = counterfactuals["sensitivity_analysis"].get("sensitivity_score", 0.0)
+            result["sensitivity_score"] = counterfactuals["sensitivity_analysis"].get(
+                "sensitivity_score", 0.0
+            )
 
         # Análise temporal (opcional)
         if include_temporal:
             # Extrair specialist_ids dos votos
-            specialist_ids = [vote.get("specialist_id") for vote in votes if vote.get("specialist_id")]
+            specialist_ids = [
+                vote.get("specialist_id") for vote in votes if vote.get("specialist_id")
+            ]
             if not specialist_ids:
                 # Fallback para specialist_type
-                specialist_ids = [vote.get("specialist_type") for vote in votes if vote.get("specialist_type")]
+                specialist_ids = [
+                    vote.get("specialist_type") for vote in votes if vote.get("specialist_type")
+                ]
             if specialist_ids:
-                seniority_changes = await self.temporal_tracker.get_seniority_changes(specialist_ids)
+                seniority_changes = await self.temporal_tracker.get_seniority_changes(
+                    specialist_ids
+                )
                 if seniority_changes and "history" in seniority_changes:
                     result["temporal_analysis"] = {
                         "current_seniority": seniority_changes.get("current_seniority", "unknown"),
@@ -271,9 +272,7 @@ class V3ExplanationService:
             "hierarchical_breakdown": result["hierarchical_breakdown"],
         }
 
-    async def get_individual_contributions(
-        self, decision_id: str
-    ) -> Optional[Dict[str, Any]]:
+    async def get_individual_contributions(self, decision_id: str) -> Optional[Dict[str, Any]]:
         """
         Retorna apenas as contribuições individuais.
 
@@ -340,7 +339,9 @@ class V3ExplanationService:
 
         if not specialist_ids:
             # Fallback para specialist_type se não tiver specialist_id
-            specialist_ids = [vote.get("specialist_type") for vote in votes if vote.get("specialist_type")]
+            specialist_ids = [
+                vote.get("specialist_type") for vote in votes if vote.get("specialist_type")
+            ]
 
         if not specialist_ids:
             return None
@@ -357,7 +358,7 @@ class V3ExplanationService:
                     "history": [],
                     "trend": "stable",
                     "volatility": 0.0,
-                }
+                },
             }
 
         # Construir análise temporal com o formato esperado
@@ -437,6 +438,7 @@ def get_v3_service() -> V3ExplanationService:
 
 # ========== ENDPOINTS ==========
 
+
 @router.get(
     "/explainability/{decision_id}",
     response_model=FullExplanationResponse,
@@ -445,9 +447,7 @@ def get_v3_service() -> V3ExplanationService:
 )
 async def get_full_explanation_endpoint(
     decision_id: str,
-    include_counterfactuals: bool = Query(
-        False, description="Include counterfactual analysis"
-    ),
+    include_counterfactuals: bool = Query(False, description="Include counterfactual analysis"),
     include_temporal: bool = Query(False, description="Include temporal analysis"),
 ):
     """
@@ -596,6 +596,7 @@ async def batch_explanation_endpoint(request: BatchExplanationRequest):
 
 
 # ========== HELPER FUNCTIONS ==========
+
 
 def create_v3_router(mongodb_client) -> APIRouter:
     """

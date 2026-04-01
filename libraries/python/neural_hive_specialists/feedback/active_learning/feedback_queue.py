@@ -7,7 +7,7 @@ de forma estratégica.
 
 import uuid
 from typing import Dict, Any, List, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 import structlog
 
@@ -142,8 +142,8 @@ class PriorityFeedbackQueue:
             'confidence': prediction.get('confidence'),
             'predicted_decision': prediction.get('decision'),
             'status': QueueStatus.PENDING,
-            'created_at': datetime.utcnow(),
-            'updated_at': datetime.utcnow(),
+            'created_at': datetime.now(timezone.utc),
+            'updated_at': datetime.now(timezone.utc),
             'metadata': {
                 'nlp_features': nlp_features
             }
@@ -204,7 +204,7 @@ class PriorityFeedbackQueue:
         Returns:
             Caso atualizado ou None se não encontrado
         """
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         expires_at = now + timedelta(hours=self.claim_expiry_hours)
 
         update = {
@@ -248,7 +248,7 @@ class PriorityFeedbackQueue:
         Returns:
             Caso atualizado ou None se não encontrado
         """
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         update = {
             '$set': {
@@ -287,7 +287,7 @@ class PriorityFeedbackQueue:
         Returns:
             Caso atualizado ou None se não encontrado
         """
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         update = {
             '$set': {
@@ -365,7 +365,7 @@ class PriorityFeedbackQueue:
         Returns:
             Número de casos expirados
         """
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         update = {
             '$set': {
@@ -404,7 +404,7 @@ class PriorityFeedbackQueue:
         Returns:
             Número de casos removidos
         """
-        cutoff = datetime.utcnow() - timedelta(hours=older_than_hours)
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=older_than_hours)
 
         result = self.collection.delete_many({
             'status': QueueStatus.COMPLETED,

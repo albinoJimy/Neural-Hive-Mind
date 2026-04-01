@@ -4,7 +4,7 @@ Testes para os endpoints principais do Explainability API.
 Cobre health, ready, metrics, explainability e shap.
 """
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 from datetime import datetime
 
 
@@ -37,9 +37,12 @@ async def test_readiness_endpoint_mongodb_connected():
 
     response = await readiness_check()
 
-    assert response["ready"] is True
-    assert response["checks"]["mongodb"] is True
-    assert response["checks"]["api"] is True
+    # Parse JSONResponse body
+    import json
+    body = json.loads(response.body.decode())
+    assert body["status"] == "ready"
+    assert body["checks"]["mongodb"] is True
+    assert body["checks"]["api"] is True
 
 
 @pytest.mark.asyncio
@@ -54,8 +57,11 @@ async def test_readiness_endpoint_mongodb_disconnected():
 
     response = await readiness_check()
 
-    assert response["ready"] is False
-    assert response["checks"]["mongodb"] is False
+    # Parse JSONResponse body
+    import json
+    body = json.loads(response.body.decode())
+    assert body["status"] == "not_ready"
+    assert body["checks"]["mongodb"] is False
 
 
 @pytest.mark.asyncio
@@ -75,8 +81,11 @@ async def test_readiness_endpoint_with_kafka():
 
     response = await readiness_check()
 
-    assert response["ready"] is True
-    assert response["checks"]["kafka_producer"] is True
+    # Parse JSONResponse body
+    import json
+    body = json.loads(response.body.decode())
+    assert body["status"] == "ready"
+    assert body["checks"]["kafka_producer"] is True
 
 
 @pytest.mark.asyncio
@@ -86,7 +95,8 @@ async def test_metrics_endpoint():
 
     response = await metrics()
 
-    assert response.headers["media_type"] == "text/plain; version=0.0.4"
+    assert "content-type" in response.headers
+    assert "text/plain" in response.headers["content-type"]
 
 
 @pytest.mark.asyncio
@@ -224,10 +234,13 @@ async def test_get_explainability_stats():
     from src.main import get_explainability_stats, db
 
     mock_db = MagicMock()
-    mock_db.explainability_ledger.aggregate = AsyncMock(return_value=[
+    # aggregate() retorna um cursor com método to_list
+    mock_cursor = AsyncMock()
+    mock_cursor.to_list = AsyncMock(return_value=[
         {"_id": "shap", "count": 150},
         {"_id": "hierarchical", "count": 80}
     ])
+    mock_db.explainability_ledger.aggregate = Mock(return_value=mock_cursor)
     mock_db.explainability_ledger.count_documents = AsyncMock(return_value=230)
 
     import src.main
@@ -246,9 +259,12 @@ async def test_get_explainability_stats_with_date_filter():
     from src.main import get_explainability_stats, db
 
     mock_db = MagicMock()
-    mock_db.explainability_ledger.aggregate = AsyncMock(return_value=[
+    # aggregate() retorna um cursor com método to_list
+    mock_cursor = AsyncMock()
+    mock_cursor.to_list = AsyncMock(return_value=[
         {"_id": "shap", "count": 50}
     ])
+    mock_db.explainability_ledger.aggregate = Mock(return_value=mock_cursor)
     mock_db.explainability_ledger.count_documents = AsyncMock(return_value=50)
 
     import src.main

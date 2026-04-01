@@ -1,14 +1,13 @@
 """
 Ponto de entrada do Behavior Specialist.
 """
-import logging
 import asyncio
-
+import logging
 import signal
 import sys
 import threading
-import structlog
 
+import structlog
 from config import BehaviorSpecialistConfig
 from specialist import BehaviorSpecialist
 
@@ -38,7 +37,7 @@ def main():
             "Configuration loaded",
             specialist_type=config.specialist_type,
             environment=config.environment,
-            log_level=config.log_level
+            log_level=config.log_level,
         )
     except Exception as e:
         logger.error("Failed to load configuration", error=str(e), exc_info=True)
@@ -63,17 +62,13 @@ def main():
     try:
         grpc_server = create_grpc_server_with_observability(specialist, config)
         grpc_server.start()
-        logger.info(
-            "gRPC server started",
-            port=config.grpc_port
-        )
+        logger.info("gRPC server started", port=config.grpc_port)
     except Exception as e:
         logger.error("Failed to start gRPC server", error=str(e), exc_info=True)
         sys.exit(1)
 
     # Criar servidor HTTP (health/metrics)
     http_server = None
-    http_server_task = None
 
     if USE_FASTAPI:
         try:
@@ -88,15 +83,12 @@ def main():
                     run_fastapi_server(fastapi_app, "0.0.0.0", config.http_port)
                 )
 
-            http_server_thread = threading.Thread(
-                target=run_fastapi_in_thread,
-                daemon=True
-            )
+            http_server_thread = threading.Thread(target=run_fastapi_in_thread, daemon=True)
             http_server_thread.start()
             logger.info(
                 "FastAPI HTTP server started",
                 port=config.http_port,
-                features=["circuit_breakers", "retry_logic", "async"]
+                features=["circuit_breakers", "retry_logic", "async"],
             )
         except Exception as e:
             logger.error("Failed to start FastAPI server", error=str(e), exc_info=True)
@@ -104,25 +96,16 @@ def main():
     else:
         try:
             http_server = create_http_server(specialist, config)
-            http_server_thread = threading.Thread(
-                target=http_server.serve_forever,
-                daemon=True
-            )
+            http_server_thread = threading.Thread(target=http_server.serve_forever, daemon=True)
             http_server_thread.start()
-            logger.info(
-                "HTTP server started",
-                port=config.http_port
-            )
+            logger.info("HTTP server started", port=config.http_port)
         except Exception as e:
             logger.error("Failed to start HTTP server", error=str(e), exc_info=True)
             sys.exit(1)
 
     # Graceful shutdown handler
     def shutdown_handler(signum, frame):
-        logger.info(
-            "Shutdown signal received",
-            signal=signum
-        )
+        logger.info("Shutdown signal received", signal=signum)
 
         logger.info("Stopping gRPC server...")
         grpc_server.stop(grace=5)
@@ -144,7 +127,7 @@ def main():
         "Behavior Specialist is ready",
         grpc_port=config.grpc_port,
         http_port=config.http_port,
-        prometheus_port=config.prometheus_port
+        prometheus_port=config.prometheus_port,
     )
 
     # Wait for termination

@@ -8,7 +8,7 @@ import asyncio
 import logging
 import time
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional, Set
 
@@ -57,7 +57,7 @@ class TicketStatusHistory:
 
     def add_transition(self, new_status: str) -> None:
         """Adiciona uma transição ao histórico."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         if self.first_seen is None:
             self.first_seen = now
@@ -418,12 +418,12 @@ class FlowCStatusTracker:
         """Registra início de uma etapa."""
         if step_name not in self._step_times:
             self._step_times[step_name] = {}
-        self._step_times[step_name]["start"] = datetime.utcnow()
+        self._step_times[step_name]["start"] = datetime.now(timezone.utc)
 
     def record_step_end(self, step_name: str) -> None:
         """Registra fim de uma etapa."""
         if step_name in self._step_times:
-            self._step_times[step_name]["end"] = datetime.utcnow()
+            self._step_times[step_name]["end"] = datetime.now(timezone.utc)
 
     def get_step_duration_ms(self, step_name: str) -> Optional[int]:
         """Retorna duração de uma etapa em millisegundos."""

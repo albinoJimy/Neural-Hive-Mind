@@ -8,7 +8,7 @@ import structlog
 import asyncio
 from uuid import uuid4
 from typing import Dict, Any, List, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from opentelemetry import trace
 from prometheus_client import Counter, Histogram, Gauge
 from tenacity import AsyncRetrying, stop_after_attempt, wait_fixed, retry_if_exception_type, RetryError
@@ -201,7 +201,7 @@ class FlowCOrchestrator:
             "destructive_tasks": cognitive_plan.get("destructive_tasks", []),
             "risk_matrix": consolidated_decision.get("risk_matrix"),
             "cognitive_plan": cognitive_plan,
-            "requested_at": datetime.utcnow().isoformat(),
+            "requested_at": datetime.now(timezone.utc).isoformat(),
             "status": "pending"
         }
 
@@ -243,7 +243,7 @@ class FlowCOrchestrator:
         Returns:
             Flow C execution result
         """
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc)
         steps: List[FlowCStep] = []
 
         intent_id = consolidated_decision.get("intent_id")
@@ -273,7 +273,7 @@ class FlowCOrchestrator:
             await self._publish_approval_request(consolidated_decision)
 
             # Retornar resultado indicando que aguarda aprovação
-            end_time = datetime.utcnow()
+            end_time = datetime.now(timezone.utc)
             total_duration = int((end_time - start_time).total_seconds() * 1000)
 
             self.logger.info(
@@ -360,14 +360,14 @@ class FlowCOrchestrator:
             # P3-001: Helper function para calcular SLA restante
             def calculate_sla_remaining() -> float:
                 """Calcula SLA restante em segundos."""
-                now = datetime.utcnow()
+                now = datetime.now(timezone.utc)
                 remaining = (context.sla_deadline - now).total_seconds()
                 return remaining
 
             def log_sla_status(step_name: str, step_duration_ms: int):
                 """Loga status do SLA após cada step."""
                 sla_remaining_seconds = calculate_sla_remaining()
-                total_elapsed_ms = int((datetime.utcnow() - start_time).total_seconds() * 1000)
+                total_elapsed_ms = int((datetime.now(timezone.utc) - start_time).total_seconds() * 1000)
 
                 if sla_remaining_seconds < 0:
                     self.logger.error(
@@ -414,11 +414,11 @@ class FlowCOrchestrator:
             steps.append(step_c1)
 
             # C2: Start Workflow and Generate Tickets
-            step_c2_start = datetime.utcnow()
+            step_c2_start = datetime.now(timezone.utc)
             workflow_id, tickets = await self._execute_c2_generate_tickets(
                 consolidated_decision, context
             )
-            step_c2_end = datetime.utcnow()
+            step_c2_end = datetime.now(timezone.utc)
             step_c2_duration = int((step_c2_end - step_c2_start).total_seconds() * 1000)
             log_sla_status("C2", step_c2_duration)
             step_c2 = FlowCStep(
@@ -432,9 +432,9 @@ class FlowCOrchestrator:
             steps.append(step_c2)
 
             # C3: Discover Workers
-            step_c3_start = datetime.utcnow()
+            step_c3_start = datetime.now(timezone.utc)
             workers = await self._execute_c3_discover_workers(tickets, context)
-            step_c3_end = datetime.utcnow()
+            step_c3_end = datetime.now(timezone.utc)
             step_c3_duration = int((step_c3_end - step_c3_start).total_seconds() * 1000)
             log_sla_status("C3", step_c3_duration)
             step_c3 = FlowCStep(
@@ -448,9 +448,9 @@ class FlowCOrchestrator:
             steps.append(step_c3)
 
             # C4: Assign Tickets to Workers
-            step_c4_start = datetime.utcnow()
+            step_c4_start = datetime.now(timezone.utc)
             assignments = await self._execute_c4_assign_tickets(tickets, workers, context)
-            step_c4_end = datetime.utcnow()
+            step_c4_end = datetime.now(timezone.utc)
             step_c4_duration = int((step_c4_end - step_c4_start).total_seconds() * 1000)
             log_sla_status("C4", step_c4_duration)
             step_c4 = FlowCStep(
@@ -464,9 +464,9 @@ class FlowCOrchestrator:
             steps.append(step_c4)
 
             # C5: Monitor Execution
-            step_c5_start = datetime.utcnow()
+            step_c5_start = datetime.now(timezone.utc)
             results = await self._execute_c5_monitor_execution(tickets, context)
-            step_c5_end = datetime.utcnow()
+            step_c5_end = datetime.now(timezone.utc)
             step_c5_duration = int((step_c5_end - step_c5_start).total_seconds() * 1000)
             log_sla_status("C5", step_c5_duration)
             step_c5 = FlowCStep(
@@ -480,9 +480,9 @@ class FlowCOrchestrator:
             steps.append(step_c5)
 
             # C6: Publish Telemetry
-            step_c6_start = datetime.utcnow()
+            step_c6_start = datetime.now(timezone.utc)
             await self._execute_c6_publish_telemetry(context, workflow_id, tickets, results)
-            step_c6_end = datetime.utcnow()
+            step_c6_end = datetime.now(timezone.utc)
             step_c6_duration = int((step_c6_end - step_c6_start).total_seconds() * 1000)
             log_sla_status("C6", step_c6_duration)
             step_c6 = FlowCStep(
@@ -495,11 +495,11 @@ class FlowCOrchestrator:
             steps.append(step_c6)
 
             # Calculate metrics
-            end_time = datetime.utcnow()
+            end_time = datetime.now(timezone.utc)
             total_duration = int((end_time - start_time).total_seconds() * 1000)
 
             # Calculate metrics
-            end_time = datetime.utcnow()
+            end_time = datetime.now(timezone.utc)
             total_duration = int((end_time - start_time).total_seconds() * 1000)
             sla_remaining_seconds = (context.sla_deadline - end_time).total_seconds()
 
@@ -569,7 +569,7 @@ class FlowCOrchestrator:
             self.logger.error("flow_c_failed", error=str(e))
 
             # Calcular duração e SLA mesmo em caso de erro
-            end_time = datetime.utcnow()
+            end_time = datetime.now(timezone.utc)
             total_duration = int((end_time - start_time).total_seconds() * 1000)
             sla_remaining_seconds = (context.sla_deadline - end_time).total_seconds()
 
@@ -590,7 +590,7 @@ class FlowCOrchestrator:
         self, decision: Dict[str, Any], context: FlowCContext
     ) -> FlowCStep:
         """C1: Validate consolidated decision."""
-        step_start = datetime.utcnow()
+        step_start = datetime.now(timezone.utc)
 
         self.logger.info(
             "step_c1_starting_validate_decision",
@@ -641,7 +641,7 @@ class FlowCOrchestrator:
                 metadata={},
             )
 
-            step_end = datetime.utcnow()
+            step_end = datetime.now(timezone.utc)
             return FlowCStep(
                 step_name="C1",
                 status="completed",
@@ -865,7 +865,7 @@ class FlowCOrchestrator:
 
         # Calcular deadline SLA
         sla_deadline = int(context.sla_deadline.timestamp() * 1000)
-        current_timestamp = int(datetime.utcnow().timestamp() * 1000)
+        current_timestamp = int(datetime.now(timezone.utc).timestamp() * 1000)
 
         for task in tasks:
             # Mapeamento de task_type do cognitive_plan para TaskType do ExecutionTicket
@@ -1371,7 +1371,7 @@ class FlowCOrchestrator:
         current_interval = base_interval
 
         # Calcular deadline baseado no SLA (4h) menos tempo já decorrido
-        remaining_time = (context.sla_deadline - datetime.utcnow()).total_seconds()
+        remaining_time = (context.sla_deadline - datetime.now(timezone.utc)).total_seconds()
         max_iterations = int(remaining_time / base_interval) if remaining_time > 0 else 1440  # Max 4h
 
         self.logger.info(
@@ -1479,7 +1479,7 @@ class FlowCOrchestrator:
                     break
 
                 # Verificar se deadline foi ultrapassado
-                if datetime.utcnow() >= context.sla_deadline:
+                if datetime.now(timezone.utc) >= context.sla_deadline:
                     self.logger.warning(
                         "step_c5_sla_deadline_reached",
                         completed=completed,

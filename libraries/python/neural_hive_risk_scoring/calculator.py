@@ -6,7 +6,7 @@ Cálculo agregado de risco multi-domínio com combinação inteligente de scores
 
 import structlog
 from typing import Dict, List, Optional, Tuple
-from datetime import datetime
+from datetime import datetime, timezone
 from collections import defaultdict
 
 from .config import RiskBand, RiskScoringConfig
@@ -104,7 +104,7 @@ class RiskCalculator:
             overall_score=overall_score,
             overall_band=overall_band,
             highest_risk_domain=highest_risk_domain,
-            created_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc)
         )
 
         logger.info(
@@ -258,7 +258,7 @@ class RiskCalculator:
             overall_score=0.0,
             overall_band=RiskBand.LOW,
             highest_risk_domain=UnifiedDomain.BUSINESS,
-            created_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc)
         )
 
     def calculate_domain_contribution(

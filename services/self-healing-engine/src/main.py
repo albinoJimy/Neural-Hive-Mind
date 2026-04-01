@@ -1,26 +1,24 @@
-import asyncio
-import signal
 import json
 import os
-from pathlib import Path
+import signal
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
-import structlog
-from neural_hive_observability import (
-    get_tracer,
-    init_observability,
-    instrument_kafka_consumer,
-)
+from pathlib import Path
 
-from src.config.settings import get_settings
-from src.api import health, remediation, chaos
-from src.services.playbook_executor import PlaybookExecutor
-from src.services.remediation_manager import RemediationManager
-from src.clients.service_registry_client import ServiceRegistryClient
+import structlog
+from fastapi import FastAPI
+
+from neural_hive_observability import (
+    init_observability,
+)
+from src.api import chaos, health, remediation
 from src.clients.execution_ticket_client import SelfHealingTicketClient
 from src.clients.orchestrator_client import OrchestratorClient
-from src.consumers.remediation_consumer import RemediationConsumer
+from src.clients.service_registry_client import ServiceRegistryClient
+from src.config.settings import get_settings
 from src.consumers.orchestration_incident_consumer import OrchestrationIncidentConsumer
+from src.consumers.remediation_consumer import RemediationConsumer
+from src.services.playbook_executor import PlaybookExecutor
+from src.services.remediation_manager import RemediationManager
 
 # Configure structured logging
 structlog.configure(
@@ -33,7 +31,7 @@ structlog.configure(
         structlog.processors.StackInfoRenderer(),
         structlog.processors.format_exc_info,
         structlog.processors.UnicodeDecoder(),
-        structlog.processors.JSONRenderer()
+        structlog.processors.JSONRenderer(),
     ],
     wrapper_class=structlog.stdlib.BoundLogger,
     logger_factory=structlog.stdlib.LoggerFactory(),
@@ -48,22 +46,26 @@ settings = get_settings()
 async def lifespan(app: FastAPI):
     """Manage application lifecycle"""
     # Startup
-    logger.info("self_healing_engine.startup", service=settings.service_name, version=settings.service_version)
+    logger.info(
+        "self_healing_engine.startup",
+        service=settings.service_name,
+        version=settings.service_version,
+    )
 
     init_observability(
-        service_name='self-healing-engine',
+        service_name="self-healing-engine",
         service_version=settings.service_version,
-        neural_hive_component='self-healing',
-        neural_hive_layer='governanca',
-        neural_hive_domain='remediation',
-        otel_endpoint=os.getenv('OTEL_EXPORTER_OTLP_ENDPOINT', 'http://otel-collector:4317'),
+        neural_hive_component="self-healing",
+        neural_hive_layer="governanca",
+        neural_hive_domain="remediation",
+        otel_endpoint=os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://otel-collector:4317"),
     )
 
     # Initialize Service Registry client (fail-open)
     service_registry_client = ServiceRegistryClient(
         host=settings.service_registry_host,
         port=settings.service_registry_port,
-        timeout_seconds=settings.service_registry_timeout_seconds
+        timeout_seconds=settings.service_registry_timeout_seconds,
     )
     await service_registry_client.initialize()
     app.state.service_registry_client = service_registry_client
@@ -95,7 +97,7 @@ async def lifespan(app: FastAPI):
         logger.warning(
             "self_healing_engine.orchestrator_client_init_failed",
             error=str(e),
-            note="Continuing without Orchestrator integration"
+            note="Continuing without Orchestrator integration",
         )
         orchestrator_client = None
         app.state.orchestrator_client = None
@@ -108,19 +110,20 @@ async def lifespan(app: FastAPI):
             # Import OPA client from orchestrator-dynamic module
             # This uses the same OPA client implementation
             from src.clients.opa_client import OPAClient as SelfHealingOPAClient
+
             opa_client = SelfHealingOPAClient(settings)
             await opa_client.initialize()
             app.state.opa_client = opa_client
         except ImportError:
             logger.warning(
                 "self_healing_engine.opa_client_import_failed",
-                note="OPA client not available, continuing without OPA validation"
+                note="OPA client not available, continuing without OPA validation",
             )
         except Exception as e:
             logger.warning(
                 "self_healing_engine.opa_client_init_failed",
                 error=str(e),
-                note="Continuing without OPA validation"
+                note="Continuing without OPA validation",
             )
 
     # Initialize Playbook Executor
@@ -140,7 +143,9 @@ async def lifespan(app: FastAPI):
     app.state.playbook_executor = playbook_executor
 
     # Initialize Remediation Manager
-    app.state.remediation_manager = RemediationManager(default_timeout_seconds=settings.playbook_timeout_seconds)
+    app.state.remediation_manager = RemediationManager(
+        default_timeout_seconds=settings.playbook_timeout_seconds
+    )
 
     # Initialize Kafka Consumer
     logger.info("self_healing_engine.initializing_kafka_consumer")
@@ -148,7 +153,7 @@ async def lifespan(app: FastAPI):
         bootstrap_servers=settings.kafka_bootstrap_servers,
         group_id=settings.kafka_consumer_group,
         topic=settings.kafka_remediation_topic,
-        playbook_executor=playbook_executor
+        playbook_executor=playbook_executor,
     )
     await remediation_consumer.start()
     # Instrumentação Kafka temporariamente desabilitada
@@ -157,12 +162,16 @@ async def lifespan(app: FastAPI):
 
     # Initialize Orchestration Incident Consumer (Kafka)
     incident_schema = None
-    schema_path = Path(settings.schemas_base_path) / "orchestration-incident" / "orchestration-incident.avsc"
+    schema_path = (
+        Path(settings.schemas_base_path) / "orchestration-incident" / "orchestration-incident.avsc"
+    )
     if schema_path.exists():
         try:
             incident_schema = json.loads(schema_path.read_text())
         except Exception as exc:  # noqa: BLE001
-            logger.warning("incident_consumer.schema_load_failed", error=str(exc), schema_path=str(schema_path))
+            logger.warning(
+                "incident_consumer.schema_load_failed", error=str(exc), schema_path=str(schema_path)
+            )
 
     incident_consumer = OrchestrationIncidentConsumer(
         bootstrap_servers=settings.kafka_bootstrap_servers,
@@ -170,7 +179,7 @@ async def lifespan(app: FastAPI):
         topic=settings.kafka_incident_topic,
         playbook_executor=playbook_executor,
         remediation_manager=app.state.remediation_manager,
-        incident_schema=incident_schema
+        incident_schema=incident_schema,
     )
     await incident_consumer.start()
     # Instrumentação Kafka temporariamente desabilitada
@@ -182,6 +191,7 @@ async def lifespan(app: FastAPI):
         logger.info("self_healing_engine.initializing_chaos_engine")
         try:
             from src.chaos import ChaosEngine
+
             chaos_engine = ChaosEngine(
                 k8s_in_cluster=settings.kubernetes_in_cluster,
                 playbook_executor=playbook_executor,
@@ -199,7 +209,7 @@ async def lifespan(app: FastAPI):
             logger.warning(
                 "self_healing_engine.chaos_engine_init_failed",
                 error=str(e),
-                note="Continuando sem Chaos Engine"
+                note="Continuando sem Chaos Engine",
             )
             app.state.chaos_engine = None
     else:
@@ -260,7 +270,7 @@ app = FastAPI(
     title="Self-Healing Engine",
     description="Neural Hive-Mind Self-Healing Engine - Automated Remediation Execution",
     version=settings.service_version,
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # Include routers
@@ -286,5 +296,5 @@ if __name__ == "__main__":
         host="0.0.0.0",
         port=8080,
         log_level=settings.log_level.lower(),
-        access_log=True
+        access_log=True,
     )

@@ -5,13 +5,13 @@ Implementa injeção de falhas de recursos como stress de CPU, memória,
 preenchimento de disco e esgotamento de file descriptors.
 """
 
-import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
+
 import structlog
 
-from .base_injector import BaseFaultInjector, InjectionResult
 from ..chaos_models import FaultInjection, FaultType, TargetSelector
+from .base_injector import BaseFaultInjector, InjectionResult
 
 logger = structlog.get_logger(__name__)
 
@@ -38,7 +38,7 @@ class ResourceFaultInjector(BaseFaultInjector):
 
     async def inject(self, injection: FaultInjection) -> InjectionResult:
         """Injeta falha de recursos no sistema."""
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc)
 
         if injection.fault_type not in self.supported_fault_types:
             return InjectionResult(
@@ -46,7 +46,7 @@ class ResourceFaultInjector(BaseFaultInjector):
                 injection_id=injection.id,
                 fault_type=injection.fault_type,
                 error_message=f"Tipo de falha não suportado: {injection.fault_type}",
-                start_time=start_time
+                start_time=start_time,
             )
 
         try:
@@ -63,7 +63,7 @@ class ResourceFaultInjector(BaseFaultInjector):
                     success=False,
                     injection_id=injection.id,
                     fault_type=injection.fault_type,
-                    error_message="Tipo de falha não implementado"
+                    error_message="Tipo de falha não implementado",
                 )
 
             if result.success:
@@ -76,7 +76,7 @@ class ResourceFaultInjector(BaseFaultInjector):
             self._record_injection_metrics(
                 injection.fault_type.value,
                 "success" if result.success else "failed",
-                injection.target.namespace
+                injection.target.namespace,
             )
 
             return result
@@ -86,19 +86,17 @@ class ResourceFaultInjector(BaseFaultInjector):
                 "resource_injector.inject_failed",
                 injection_id=injection.id,
                 fault_type=injection.fault_type.value,
-                error=str(e)
+                error=str(e),
             )
             self._record_injection_metrics(
-                injection.fault_type.value,
-                "error",
-                injection.target.namespace
+                injection.fault_type.value, "error", injection.target.namespace
             )
             return InjectionResult(
                 success=False,
                 injection_id=injection.id,
                 fault_type=injection.fault_type,
                 error_message=str(e),
-                start_time=start_time
+                start_time=start_time,
             )
 
     async def _stress_cpu(self, injection: FaultInjection) -> InjectionResult:
@@ -113,7 +111,7 @@ class ResourceFaultInjector(BaseFaultInjector):
                 success=False,
                 injection_id=injection.id,
                 fault_type=injection.fault_type,
-                error_message="Nenhum pod encontrado"
+                error_message="Nenhum pod encontrado",
             )
 
         params = injection.parameters
@@ -130,10 +128,7 @@ class ResourceFaultInjector(BaseFaultInjector):
                 stress_cmd = self._build_cpu_stress_command(cpu_cores, cpu_load, duration)
 
                 exec_result = await self._exec_in_pod_background(
-                    pod_name,
-                    injection.target.namespace,
-                    stress_cmd,
-                    params.container_name
+                    pod_name, injection.target.namespace, stress_cmd, params.container_name
                 )
 
                 if exec_result.get("success"):
@@ -144,28 +139,24 @@ class ResourceFaultInjector(BaseFaultInjector):
                         "resource_injector.cpu_stress_started",
                         pod=pod_name,
                         cores=cpu_cores,
-                        load=cpu_load
+                        load=cpu_load,
                     )
                 else:
                     logger.warning(
                         "resource_injector.cpu_stress_failed",
                         pod=pod_name,
-                        error=exec_result.get("error")
+                        error=exec_result.get("error"),
                     )
 
             except Exception as e:
-                logger.error(
-                    "resource_injector.cpu_stress_error",
-                    pod=pod_name,
-                    error=str(e)
-                )
+                logger.error("resource_injector.cpu_stress_error", pod=pod_name, error=str(e))
 
         if not affected_pods:
             return InjectionResult(
                 success=False,
                 injection_id=injection.id,
                 fault_type=injection.fault_type,
-                error_message="Falha ao aplicar stress de CPU"
+                error_message="Falha ao aplicar stress de CPU",
             )
 
         return InjectionResult(
@@ -174,14 +165,14 @@ class ResourceFaultInjector(BaseFaultInjector):
             fault_type=injection.fault_type,
             affected_resources=affected_pods,
             blast_radius=len(affected_pods),
-            start_time=datetime.utcnow(),
+            start_time=datetime.now(timezone.utc),
             rollback_data={
                 "type": "cpu_stress",
                 "pods": affected_pods,
                 "pids": process_pids,
                 "namespace": injection.target.namespace,
                 "container": params.container_name,
-            }
+            },
         )
 
     async def _stress_memory(self, injection: FaultInjection) -> InjectionResult:
@@ -196,7 +187,7 @@ class ResourceFaultInjector(BaseFaultInjector):
                 success=False,
                 injection_id=injection.id,
                 fault_type=injection.fault_type,
-                error_message="Nenhum pod encontrado"
+                error_message="Nenhum pod encontrado",
             )
 
         params = injection.parameters
@@ -212,10 +203,7 @@ class ResourceFaultInjector(BaseFaultInjector):
                 stress_cmd = self._build_memory_stress_command(memory_mb, duration)
 
                 exec_result = await self._exec_in_pod_background(
-                    pod_name,
-                    injection.target.namespace,
-                    stress_cmd,
-                    params.container_name
+                    pod_name, injection.target.namespace, stress_cmd, params.container_name
                 )
 
                 if exec_result.get("success"):
@@ -223,30 +211,24 @@ class ResourceFaultInjector(BaseFaultInjector):
                     if exec_result.get("pid"):
                         process_pids[pod_name] = exec_result["pid"]
                     logger.info(
-                        "resource_injector.memory_stress_started",
-                        pod=pod_name,
-                        memory_mb=memory_mb
+                        "resource_injector.memory_stress_started", pod=pod_name, memory_mb=memory_mb
                     )
                 else:
                     logger.warning(
                         "resource_injector.memory_stress_failed",
                         pod=pod_name,
-                        error=exec_result.get("error")
+                        error=exec_result.get("error"),
                     )
 
             except Exception as e:
-                logger.error(
-                    "resource_injector.memory_stress_error",
-                    pod=pod_name,
-                    error=str(e)
-                )
+                logger.error("resource_injector.memory_stress_error", pod=pod_name, error=str(e))
 
         if not affected_pods:
             return InjectionResult(
                 success=False,
                 injection_id=injection.id,
                 fault_type=injection.fault_type,
-                error_message="Falha ao aplicar stress de memória"
+                error_message="Falha ao aplicar stress de memória",
             )
 
         return InjectionResult(
@@ -255,14 +237,14 @@ class ResourceFaultInjector(BaseFaultInjector):
             fault_type=injection.fault_type,
             affected_resources=affected_pods,
             blast_radius=len(affected_pods),
-            start_time=datetime.utcnow(),
+            start_time=datetime.now(timezone.utc),
             rollback_data={
                 "type": "memory_stress",
                 "pods": affected_pods,
                 "pids": process_pids,
                 "namespace": injection.target.namespace,
                 "container": params.container_name,
-            }
+            },
         )
 
     async def _fill_disk(self, injection: FaultInjection) -> InjectionResult:
@@ -277,7 +259,7 @@ class ResourceFaultInjector(BaseFaultInjector):
                 success=False,
                 injection_id=injection.id,
                 fault_type=injection.fault_type,
-                error_message="Nenhum pod encontrado"
+                error_message="Nenhum pod encontrado",
             )
 
         params = injection.parameters
@@ -295,10 +277,7 @@ class ResourceFaultInjector(BaseFaultInjector):
                 fill_cmd = self._build_disk_fill_command(file_path, fill_mb)
 
                 exec_result = await self._exec_in_pod(
-                    pod_name,
-                    injection.target.namespace,
-                    fill_cmd,
-                    params.container_name
+                    pod_name, injection.target.namespace, fill_cmd, params.container_name
                 )
 
                 if exec_result.get("success"):
@@ -308,28 +287,24 @@ class ResourceFaultInjector(BaseFaultInjector):
                         "resource_injector.disk_filled",
                         pod=pod_name,
                         size_mb=fill_mb,
-                        path=file_path
+                        path=file_path,
                     )
                 else:
                     logger.warning(
                         "resource_injector.disk_fill_failed",
                         pod=pod_name,
-                        error=exec_result.get("error")
+                        error=exec_result.get("error"),
                     )
 
             except Exception as e:
-                logger.error(
-                    "resource_injector.disk_fill_error",
-                    pod=pod_name,
-                    error=str(e)
-                )
+                logger.error("resource_injector.disk_fill_error", pod=pod_name, error=str(e))
 
         if not affected_pods:
             return InjectionResult(
                 success=False,
                 injection_id=injection.id,
                 fault_type=injection.fault_type,
-                error_message="Falha ao preencher disco"
+                error_message="Falha ao preencher disco",
             )
 
         return InjectionResult(
@@ -338,14 +313,14 @@ class ResourceFaultInjector(BaseFaultInjector):
             fault_type=injection.fault_type,
             affected_resources=affected_pods,
             blast_radius=len(affected_pods),
-            start_time=datetime.utcnow(),
+            start_time=datetime.now(timezone.utc),
             rollback_data={
                 "type": "disk_fill",
                 "pods": affected_pods,
                 "files": created_files,
                 "namespace": injection.target.namespace,
                 "container": params.container_name,
-            }
+            },
         )
 
     async def _exhaust_fds(self, injection: FaultInjection) -> InjectionResult:
@@ -360,7 +335,7 @@ class ResourceFaultInjector(BaseFaultInjector):
                 success=False,
                 injection_id=injection.id,
                 fault_type=injection.fault_type,
-                error_message="Nenhum pod encontrado"
+                error_message="Nenhum pod encontrado",
             )
 
         params = injection.parameters
@@ -375,40 +350,30 @@ class ResourceFaultInjector(BaseFaultInjector):
                 fd_cmd = self._build_fd_exhaust_command(duration)
 
                 exec_result = await self._exec_in_pod_background(
-                    pod_name,
-                    injection.target.namespace,
-                    fd_cmd,
-                    params.container_name
+                    pod_name, injection.target.namespace, fd_cmd, params.container_name
                 )
 
                 if exec_result.get("success"):
                     affected_pods.append(pod_name)
                     if exec_result.get("pid"):
                         process_pids[pod_name] = exec_result["pid"]
-                    logger.info(
-                        "resource_injector.fd_exhaust_started",
-                        pod=pod_name
-                    )
+                    logger.info("resource_injector.fd_exhaust_started", pod=pod_name)
                 else:
                     logger.warning(
                         "resource_injector.fd_exhaust_failed",
                         pod=pod_name,
-                        error=exec_result.get("error")
+                        error=exec_result.get("error"),
                     )
 
             except Exception as e:
-                logger.error(
-                    "resource_injector.fd_exhaust_error",
-                    pod=pod_name,
-                    error=str(e)
-                )
+                logger.error("resource_injector.fd_exhaust_error", pod=pod_name, error=str(e))
 
         if not affected_pods:
             return InjectionResult(
                 success=False,
                 injection_id=injection.id,
                 fault_type=injection.fault_type,
-                error_message="Falha ao esgotar file descriptors"
+                error_message="Falha ao esgotar file descriptors",
             )
 
         return InjectionResult(
@@ -417,14 +382,14 @@ class ResourceFaultInjector(BaseFaultInjector):
             fault_type=injection.fault_type,
             affected_resources=affected_pods,
             blast_radius=len(affected_pods),
-            start_time=datetime.utcnow(),
+            start_time=datetime.now(timezone.utc),
             rollback_data={
                 "type": "fd_exhaust",
                 "pods": affected_pods,
                 "pids": process_pids,
                 "namespace": injection.target.namespace,
                 "container": params.container_name,
-            }
+            },
         )
 
     async def validate(self, injection_id: str) -> bool:
@@ -445,9 +410,7 @@ class ResourceFaultInjector(BaseFaultInjector):
             for pod_name, file_path in files.items():
                 try:
                     check_cmd = f"test -f {file_path} && echo 'exists'"
-                    result = await self._exec_in_pod(
-                        pod_name, namespace, check_cmd, container
-                    )
+                    result = await self._exec_in_pod(pod_name, namespace, check_cmd, container)
                     if result.get("success") and "exists" in result.get("output", ""):
                         return True
                 except Exception:
@@ -467,9 +430,7 @@ class ResourceFaultInjector(BaseFaultInjector):
             for pod_name, pid in pids.items():
                 try:
                     check_cmd = f"kill -0 {pid} 2>/dev/null && echo 'running'"
-                    result = await self._exec_in_pod(
-                        pod_name, namespace, check_cmd, container
-                    )
+                    result = await self._exec_in_pod(pod_name, namespace, check_cmd, container)
                     if result.get("success") and "running" in result.get("output", ""):
                         return True
                 except Exception:
@@ -485,7 +446,7 @@ class ResourceFaultInjector(BaseFaultInjector):
                 success=False,
                 injection_id=injection_id,
                 fault_type=FaultType.CPU_STRESS,
-                error_message="Injeção não encontrada"
+                error_message="Injeção não encontrada",
             )
 
         injection = self._active_injections[injection_id]
@@ -502,7 +463,7 @@ class ResourceFaultInjector(BaseFaultInjector):
                     success=False,
                     injection_id=injection_id,
                     fault_type=injection.fault_type,
-                    error_message=f"Tipo de rollback desconhecido: {rollback_type}"
+                    error_message=f"Tipo de rollback desconhecido: {rollback_type}",
                 )
 
             if result.success:
@@ -515,22 +476,18 @@ class ResourceFaultInjector(BaseFaultInjector):
 
         except Exception as e:
             logger.error(
-                "resource_injector.rollback_failed",
-                injection_id=injection_id,
-                error=str(e)
+                "resource_injector.rollback_failed", injection_id=injection_id, error=str(e)
             )
             self._record_rollback_metrics(injection.fault_type.value, "error")
             return InjectionResult(
                 success=False,
                 injection_id=injection_id,
                 fault_type=injection.fault_type,
-                error_message=str(e)
+                error_message=str(e),
             )
 
     async def _cleanup_disk_files(
-        self,
-        injection_id: str,
-        rollback_data: Dict[str, Any]
+        self, injection_id: str, rollback_data: Dict[str, Any]
     ) -> InjectionResult:
         """Remove arquivos criados para disk fill."""
         files = rollback_data.get("files", {})
@@ -542,31 +499,21 @@ class ResourceFaultInjector(BaseFaultInjector):
         for pod_name, file_path in files.items():
             try:
                 rm_cmd = f"rm -f {file_path}"
-                result = await self._exec_in_pod(
-                    pod_name, namespace, rm_cmd, container
-                )
+                result = await self._exec_in_pod(pod_name, namespace, rm_cmd, container)
 
                 if result.get("success"):
-                    logger.info(
-                        "resource_injector.disk_file_removed",
-                        pod=pod_name,
-                        file=file_path
-                    )
+                    logger.info("resource_injector.disk_file_removed", pod=pod_name, file=file_path)
                 else:
                     failed_pods.append(pod_name)
                     logger.warning(
                         "resource_injector.disk_cleanup_failed",
                         pod=pod_name,
-                        error=result.get("error")
+                        error=result.get("error"),
                     )
 
             except Exception as e:
                 failed_pods.append(pod_name)
-                logger.error(
-                    "resource_injector.disk_cleanup_error",
-                    pod=pod_name,
-                    error=str(e)
-                )
+                logger.error("resource_injector.disk_cleanup_error", pod=pod_name, error=str(e))
 
         if failed_pods:
             return InjectionResult(
@@ -574,20 +521,18 @@ class ResourceFaultInjector(BaseFaultInjector):
                 injection_id=injection_id,
                 fault_type=FaultType.DISK_FILL,
                 error_message=f"Cleanup falhou em pods: {failed_pods}",
-                end_time=datetime.utcnow()
+                end_time=datetime.now(timezone.utc),
             )
 
         return InjectionResult(
             success=True,
             injection_id=injection_id,
             fault_type=FaultType.DISK_FILL,
-            end_time=datetime.utcnow()
+            end_time=datetime.now(timezone.utc),
         )
 
     async def _kill_stress_processes(
-        self,
-        injection_id: str,
-        rollback_data: Dict[str, Any]
+        self, injection_id: str, rollback_data: Dict[str, Any]
     ) -> InjectionResult:
         """Mata processos de stress em execução."""
         pods = rollback_data.get("pods", [])
@@ -605,27 +550,20 @@ class ResourceFaultInjector(BaseFaultInjector):
                     kill_cmd = f"kill -9 {pids[pod_name]} 2>/dev/null || true"
                 else:
                     # Matar todos os processos stress-ng
-                    kill_cmd = "pkill -9 stress-ng 2>/dev/null || pkill -9 stress 2>/dev/null || true"
+                    kill_cmd = (
+                        "pkill -9 stress-ng 2>/dev/null || pkill -9 stress 2>/dev/null || true"
+                    )
 
-                result = await self._exec_in_pod(
-                    pod_name, namespace, kill_cmd, container
-                )
+                result = await self._exec_in_pod(pod_name, namespace, kill_cmd, container)
 
                 if result.get("success"):
-                    logger.info(
-                        "resource_injector.stress_killed",
-                        pod=pod_name
-                    )
+                    logger.info("resource_injector.stress_killed", pod=pod_name)
                 else:
                     failed_pods.append(pod_name)
 
             except Exception as e:
                 failed_pods.append(pod_name)
-                logger.error(
-                    "resource_injector.kill_stress_error",
-                    pod=pod_name,
-                    error=str(e)
-                )
+                logger.error("resource_injector.kill_stress_error", pod=pod_name, error=str(e))
 
         # Determinar fault_type baseado no rollback_type
         fault_type_map = {
@@ -641,14 +579,14 @@ class ResourceFaultInjector(BaseFaultInjector):
                 injection_id=injection_id,
                 fault_type=fault_type,
                 error_message=f"Kill falhou em pods: {failed_pods}",
-                end_time=datetime.utcnow()
+                end_time=datetime.now(timezone.utc),
             )
 
         return InjectionResult(
             success=True,
             injection_id=injection_id,
             fault_type=fault_type,
-            end_time=datetime.utcnow()
+            end_time=datetime.now(timezone.utc),
         )
 
     async def get_blast_radius(self, target: TargetSelector) -> int:
@@ -656,12 +594,7 @@ class ResourceFaultInjector(BaseFaultInjector):
         pods = await self.get_target_pods(target)
         return len(pods)
 
-    def _build_cpu_stress_command(
-        self,
-        cores: int,
-        load_percent: int,
-        duration: int
-    ) -> str:
+    def _build_cpu_stress_command(self, cores: int, load_percent: int, duration: int) -> str:
         """Constrói comando para stress de CPU."""
         # Tentar stress-ng, fallback para loop de busy wait
         return (
@@ -697,11 +630,7 @@ class ResourceFaultInjector(BaseFaultInjector):
         )
 
     async def _exec_in_pod(
-        self,
-        pod_name: str,
-        namespace: str,
-        command: str,
-        container: Optional[str] = None
+        self, pod_name: str, namespace: str, command: str, container: Optional[str] = None
     ) -> Dict[str, Any]:
         """Executa comando em um pod via Kubernetes API."""
         if not self.k8s_core_v1:
@@ -724,10 +653,7 @@ class ResourceFaultInjector(BaseFaultInjector):
                 kwargs["container"] = container
 
             resp = stream(
-                self.k8s_core_v1.connect_get_namespaced_pod_exec,
-                pod_name,
-                namespace,
-                **kwargs
+                self.k8s_core_v1.connect_get_namespaced_pod_exec, pod_name, namespace, **kwargs
             )
 
             return {"success": True, "output": resp}
@@ -736,11 +662,7 @@ class ResourceFaultInjector(BaseFaultInjector):
             return {"success": False, "error": str(e)}
 
     async def _exec_in_pod_background(
-        self,
-        pod_name: str,
-        namespace: str,
-        command: str,
-        container: Optional[str] = None
+        self, pod_name: str, namespace: str, command: str, container: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Executa comando em background em um pod.

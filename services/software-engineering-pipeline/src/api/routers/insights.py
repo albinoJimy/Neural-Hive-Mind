@@ -6,8 +6,8 @@ from fastapi import APIRouter, Query
 from pydantic import BaseModel, ConfigDict, Field
 
 from src.repositories.pipeline_repository import (
-    PipelineRunRepository,
     AnomalyRepository,
+    PipelineRunRepository,
 )
 
 router = APIRouter(prefix="/insights", tags=["insights"])
@@ -50,9 +50,7 @@ async def generate_insights(request: GenerateInsightsRequest) -> InsightsReportR
     successful = sum(1 for r in runs if r.get("status") == "success")
     success_rate = successful / total if total > 0 else 0.0
 
-    durations = [
-        r.get("duration_seconds", 0) for r in runs if r.get("duration_seconds")
-    ]
+    durations = [r.get("duration_seconds", 0) for r in runs if r.get("duration_seconds")]
     avg_duration = sum(durations) / len(durations) if durations else 0.0
 
     return InsightsReportResponse(
@@ -71,9 +69,7 @@ async def get_repository_health(
     days: int = Query(30, ge=1, le=365, description="Dias de análise"),
 ) -> dict:
     """Obtém um resumo de saúde de um repositório."""
-    full_repo_url = (
-        f"https://{repo_url}" if not repo_url.startswith("http") else repo_url
-    )
+    full_repo_url = f"https://{repo_url}" if not repo_url.startswith("http") else repo_url
 
     success_rate = await run_repo.get_success_rate(full_repo_url, days=days)
 
@@ -86,9 +82,7 @@ async def get_repository_health(
     recent_runs = await run_repo.find_by_date_range(full_repo_url, start_date, end_date)
 
     # Calcula duração média
-    durations = [
-        r.get("duration_seconds", 0) for r in recent_runs if r.get("duration_seconds")
-    ]
+    durations = [r.get("duration_seconds", 0) for r in recent_runs if r.get("duration_seconds")]
     avg_duration = sum(durations) / len(durations) if durations else 0
 
     # Classifica saúde

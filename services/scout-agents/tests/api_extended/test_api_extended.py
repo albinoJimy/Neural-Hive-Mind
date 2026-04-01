@@ -4,7 +4,7 @@ Nova funcionalidade de exploração e detecção de sinais.
 """
 import pytest
 from unittest.mock import Mock, MagicMock, AsyncMock, patch
-from datetime import datetime
+from datetime import datetime, timezone
 import sys
 from pathlib import Path
 from fastapi.testclient import TestClient
@@ -98,7 +98,7 @@ class TestExplorationsEndpoints:
         _explorations['exp_1'] = {
             'target': '/src',
             'status': 'active',
-            'created_at': datetime.utcnow().isoformat(),
+            'created_at': datetime.now(timezone.utc).isoformat(),
             'scouts_assigned': 2,
             'files_scanned': 10,
             'patterns_found': 3
@@ -118,7 +118,7 @@ class TestExplorationsEndpoints:
         _explorations['exp_1'] = {
             'target': '/src',
             'status': 'active',
-            'created_at': datetime.utcnow().isoformat(),
+            'created_at': datetime.now(timezone.utc).isoformat(),
             'scouts_assigned': 1
         }
 
@@ -142,7 +142,7 @@ class TestExplorationsEndpoints:
         _explorations['exp_1'] = {
             'target': '/src',
             'status': 'completed',
-            'created_at': datetime.utcnow().isoformat()
+            'created_at': datetime.now(timezone.utc).isoformat()
         }
 
         response = client.delete("/api/v1/explorations/exp_1")
@@ -157,7 +157,7 @@ class TestExplorationsEndpoints:
         _explorations['exp_1'] = {
             'target': '/src',
             'status': 'active',
-            'created_at': datetime.utcnow().isoformat(),
+            'created_at': datetime.now(timezone.utc).isoformat(),
             'scouts_assigned': 1,
             'scouts': ['scout_1']
         }

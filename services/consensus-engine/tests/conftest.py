@@ -35,6 +35,16 @@ class DomainMapper:
 
 mock_domain.DomainMapper = DomainMapper
 
+# Mock de observability (tracer) para evitar AttributeError
+mock_observability = MagicMock()
+mock_tracer = MagicMock()
+mock_span = MagicMock()
+mock_span.__enter__ = MagicMock(return_value=mock_span)
+mock_span.__exit__ = MagicMock(return_value=False)
+mock_tracer.start_as_current_span = MagicMock(return_value=mock_span)
+mock_observability.get_tracer = MagicMock(return_value=mock_tracer)
+sys.modules['neural_hive_observability'] = mock_observability
+
 # Add src to path for all tests
 src_path = Path(__file__).parent.resolve() / 'src'
 if str(src_path) not in sys.path:
@@ -361,6 +371,15 @@ def mock_consensus_orchestrator_config():
     config.critical_risk_threshold = 0.8
     config.enable_pheromones = False
     config.enable_bayesian_averaging = True
+    config.enable_hierarchical_consensus = False  # Desabilitar para testes simples
+    config.specialist_seniority = {
+        'business': 'senior',
+        'technical': 'senior',
+        'architecture': 'expert',
+        'behavior': 'mid_level',
+        'evolution': 'mid_level'
+    }
+    config.domain_specialist_weights = {}
     return config
 
 

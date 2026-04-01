@@ -1,7 +1,7 @@
 """Testes unitários para funcionalidades de histórico de budget."""
 
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi.testclient import TestClient
 
@@ -17,9 +17,9 @@ def mock_error_budget():
         budget_id="budget-123",
         slo_id="slo-test-001",
         service_name="test-service",
-        calculated_at=datetime.utcnow(),
-        window_start=datetime.utcnow() - timedelta(days=7),
-        window_end=datetime.utcnow(),
+        calculated_at=datetime.now(timezone.utc),
+        window_start=datetime.now(timezone.utc) - timedelta(days=7),
+        window_end=datetime.now(timezone.utc),
         sli_value=99.5,
         slo_target=99.0,
         error_budget_total=1.0,
@@ -39,7 +39,7 @@ def mock_error_budget():
 def mock_budget_list(mock_error_budget):
     """Fixture com lista de ErrorBudgets."""
     budgets = []
-    base_time = datetime.utcnow()
+    base_time = datetime.now(timezone.utc)
     for i in range(10):
         budget = ErrorBudget(
             budget_id=f"budget-{i}",

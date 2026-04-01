@@ -17,7 +17,7 @@ import logging
 import os
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 import httpx
@@ -168,7 +168,7 @@ def sample_execution_ticket() -> ExecutionTicket:
         task_type="code_generation",
         status="PENDING",
         priority=5,
-        sla_deadline=datetime.utcnow() + timedelta(hours=4),
+        sla_deadline=datetime.now(timezone.utc) + timedelta(hours=4),
         dependencies=[],
         allocation_metadata={"worker_type": "python"},
     )

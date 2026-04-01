@@ -4,7 +4,7 @@ import asyncio
 import json
 import logging
 import subprocess
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 from pathlib import Path
 
@@ -78,7 +78,7 @@ class RetrainingJob:
                 "has_enough_samples": has_enough,
                 "sample_count": sample_count,
                 "threshold": self.retrain_threshold,
-                "checked_at": datetime.utcnow().isoformat(),
+                "checked_at": datetime.now(timezone.utc).isoformat(),
             }
 
             logger.info(
@@ -91,7 +91,7 @@ class RetrainingJob:
             return {
                 "has_enough_samples": False,
                 "error": str(e),
-                "checked_at": datetime.utcnow().isoformat(),
+                "checked_at": datetime.now(timezone.utc).isoformat(),
             }
 
     async def _count_pending_samples(self) -> int:
@@ -139,8 +139,8 @@ class RetrainingJob:
         Returns:
             Dicionário com resultado do retreino
         """
-        job_id = f"retrain-{datetime.utcnow().strftime('%Y%m%d-%H%M%S')}"
-        started_at = datetime.utcnow()
+        job_id = f"retrain-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}"
+        started_at = datetime.now(timezone.utc)
 
         self._job_status = {
             "job_id": job_id,
@@ -167,7 +167,7 @@ class RetrainingJob:
             self._job_status.update(
                 {
                     "status": "completed" if result.returncode == 0 else "failed",
-                    "completed_at": datetime.utcnow(),
+                    "completed_at": datetime.now(timezone.utc),
                     "returncode": result.returncode,
                     "stdout": result.stdout,
                     "stderr": result.stderr,
@@ -329,7 +329,7 @@ class RetrainingJob:
         try:
             event = {
                 "event_type": event_type,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 **kwargs,
             }
 
@@ -366,7 +366,7 @@ class RetrainingJob:
         Returns:
             Dicionário com resultado completo
         """
-        version = f"v{datetime.utcnow().strftime('%Y%m%d-%H%M')}"
+        version = f"v{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M')}"
 
         try:
             # 1. Verificar threshold (a menos que force=True)

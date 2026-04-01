@@ -327,7 +327,7 @@ def synthetic_decision() -> Dict[str, Any]:
     Returns a valid consolidated decision dictionary.
     """
     import uuid
-    from datetime import datetime, timedelta
+    from datetime import datetime, timedelta, timezone
 
     intent_id = f"intent-test-{uuid.uuid4().hex[:8]}"
     plan_id = f"plan-test-{uuid.uuid4().hex[:8]}"
@@ -346,7 +346,7 @@ def synthetic_decision() -> Dict[str, Any]:
             "intent_id": intent_id,
             "correlation_id": correlation_id,
             "description": "Test Plan",
-            "created_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
             "tasks": [
                 {
                     "task_id": f"task-{uuid.uuid4().hex[:8]}",
@@ -360,7 +360,7 @@ def synthetic_decision() -> Dict[str, Any]:
                 }
             ],
             "estimated_duration_minutes": 10,
-            "sla_deadline": (datetime.utcnow() + timedelta(hours=4)).isoformat(),
+            "sla_deadline": (datetime.now(timezone.utc) + timedelta(hours=4)).isoformat(),
         },
         "specialists_opinions": [
             {
@@ -372,7 +372,7 @@ def synthetic_decision() -> Dict[str, Any]:
         ],
         "consensus_score": 0.9,
         "approved": True,
-        "created_at": datetime.utcnow().isoformat(),
+        "created_at": datetime.now(timezone.utc).isoformat(),
     }
 
 

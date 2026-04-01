@@ -1,6 +1,6 @@
 import time
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 
@@ -11,7 +11,7 @@ def sample_intent_request():
         "text": "Implementar sistema de autenticação OAuth2 com refresh tokens e integração com Google/GitHub",
         "language": "pt-BR",
         "correlation_id": f"e2e-test-{uuid.uuid4()}",
-        "context": {"source": "e2e_test", "timestamp": datetime.utcnow().isoformat()},
+        "context": {"source": "e2e_test", "timestamp": datetime.now(timezone.utc).isoformat()},
     }
 
 
@@ -36,7 +36,7 @@ def sample_execution_ticket():
         "correlation_id": str(uuid.uuid4()),
         "task": {"type": "code_generation", "template_id": "test_template", "parameters": {"test": True}},
         "status": "PENDING",
-        "sla_deadline_ms": int(datetime.utcnow().timestamp() * 1000) + 3_600_000,
+        "sla_deadline_ms": int(datetime.now(timezone.utc).timestamp() * 1000) + 3_600_000,
         "worker_id": str(uuid.uuid4()),
     }
 
@@ -48,7 +48,7 @@ def sample_opa_policy_violation():
         "correlation_id": str(uuid.uuid4()),
         "task": {"type": "compute_heavy", "template_id": "violation", "parameters": {"cpu": "8000m"}},
         "status": "PENDING",
-        "sla_deadline_ms": int(datetime.utcnow().timestamp() * 1000) + 60_000,
+        "sla_deadline_ms": int(datetime.now(timezone.utc).timestamp() * 1000) + 60_000,
         "worker_id": str(uuid.uuid4()),
     }
 
@@ -180,7 +180,7 @@ def sample_intent_for_avro_flow():
         "correlation_id": f"e2e-avro-{uuid.uuid4().hex[:8]}",
         "context": {
             "source": "e2e_avro_test",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "force_complex_plan": "true",
         },
         "metadata": {

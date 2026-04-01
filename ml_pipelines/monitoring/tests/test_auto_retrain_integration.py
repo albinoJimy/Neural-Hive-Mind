@@ -11,7 +11,7 @@ Valida o fluxo completo de:
 
 import pytest
 from unittest.mock import Mock, MagicMock, patch, PropertyMock
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import time
 import os
 import sys
@@ -35,7 +35,7 @@ def mock_performance_metrics_degraded():
         f1_score=0.65,   # Abaixo do threshold 0.72
         accuracy=0.70,
         run_id='baseline-run-123',
-        timestamp=datetime.utcnow() - timedelta(days=7)
+        timestamp=datetime.now(timezone.utc) - timedelta(days=7)
     )
 
 
@@ -49,7 +49,7 @@ def mock_performance_metrics_ok():
         f1_score=0.80,
         accuracy=0.81,
         run_id='baseline-run-456',
-        timestamp=datetime.utcnow() - timedelta(days=7)
+        timestamp=datetime.now(timezone.utc) - timedelta(days=7)
     )
 
 
@@ -81,7 +81,7 @@ def mock_performance_report_degraded(mock_performance_metrics_degraded, mock_fee
             'F1 Score (0.65) abaixo do threshold (0.72)',
             'Feedback médio (0.55) abaixo do threshold (0.6)'
         ],
-        timestamp=datetime.utcnow(),
+        timestamp=datetime.now(timezone.utc),
         recommendations=[
             'Retreinamento urgente recomendado',
             'Revisar feedback recente para identificar problemas'
@@ -106,7 +106,7 @@ def mock_performance_report_ok(mock_performance_metrics_ok):
         aggregate_score=0.78,
         is_degraded=False,
         degradation_reasons=[],
-        timestamp=datetime.utcnow(),
+        timestamp=datetime.now(timezone.utc),
         recommendations=['Performance dentro dos thresholds esperados']
     )
 
@@ -119,8 +119,8 @@ def mock_mlflow_client():
         info=Mock(
             run_id='new-run-123',
             status='FINISHED',
-            start_time=int((datetime.utcnow() - timedelta(hours=1)).timestamp() * 1000),
-            end_time=int(datetime.utcnow().timestamp() * 1000)
+            start_time=int((datetime.now(timezone.utc) - timedelta(hours=1)).timestamp() * 1000),
+            end_time=int(datetime.now(timezone.utc).timestamp() * 1000)
         ),
         data=Mock(
             metrics={

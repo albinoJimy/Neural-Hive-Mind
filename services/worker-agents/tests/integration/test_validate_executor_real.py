@@ -37,7 +37,7 @@ class TestValidateExecutorWithMockOPA:
         self, worker_config, mock_vault_client, mock_metrics
     ):
         """Test successful policy validation with OPA."""
-        from services.worker_agents.src.executors.validate_executor import ValidateExecutor
+        from executors.validate_executor import ValidateExecutor
 
         # Create mock OPA server that allows
         mock_server = MockOPAServer(default_allow=True)
@@ -77,7 +77,7 @@ class TestValidateExecutorWithMockOPA:
         self, worker_config, mock_vault_client, mock_metrics
     ):
         """Test policy validation with violations."""
-        from services.worker_agents.src.executors.validate_executor import ValidateExecutor
+        from executors.validate_executor import ValidateExecutor
 
         # Create mock OPA server that denies
         mock_server = MockOPAServer(default_allow=False)
@@ -115,7 +115,7 @@ class TestValidateExecutorWithMockOPA:
         self, worker_config, mock_vault_client, mock_metrics
     ):
         """Test with custom OPA policy handler."""
-        from services.worker_agents.src.executors.validate_executor import ValidateExecutor
+        from executors.validate_executor import ValidateExecutor
 
         # Create mock OPA server with custom policy
         mock_server = MockOPAServer()
@@ -162,7 +162,7 @@ class TestValidateExecutorWithMockOPA:
         self, worker_config, mock_vault_client, mock_metrics
     ):
         """Test handling of OPA connection error."""
-        from services.worker_agents.src.executors.validate_executor import ValidateExecutor
+        from executors.validate_executor import ValidateExecutor
 
         worker_config.opa_enabled = True
         worker_config.opa_url = 'http://opa-unreachable:8181'
@@ -195,7 +195,7 @@ class TestValidateExecutorWithMockTrivy:
         self, worker_config, mock_vault_client, mock_metrics
     ):
         """Test Trivy scan with no vulnerabilities."""
-        from services.worker_agents.src.executors.validate_executor import ValidateExecutor
+        from executors.validate_executor import ValidateExecutor
 
         worker_config.trivy_enabled = True
         worker_config.trivy_timeout_seconds = 30
@@ -234,7 +234,7 @@ class TestValidateExecutorWithMockTrivy:
         self, worker_config, mock_vault_client, mock_metrics
     ):
         """Test Trivy scan with critical vulnerabilities."""
-        from services.worker_agents.src.executors.validate_executor import ValidateExecutor
+        from executors.validate_executor import ValidateExecutor
 
         worker_config.trivy_enabled = True
 
@@ -278,7 +278,7 @@ class TestValidateExecutorWithMockTrivy:
         self, worker_config, mock_vault_client, mock_metrics
     ):
         """Test Trivy scan timeout handling."""
-        from services.worker_agents.src.executors.validate_executor import ValidateExecutor
+        from executors.validate_executor import ValidateExecutor
 
         worker_config.trivy_enabled = True
         worker_config.trivy_timeout_seconds = 1
@@ -310,7 +310,7 @@ class TestValidateExecutorWithMockSonarQube:
         self, worker_config, mock_vault_client, mock_metrics
     ):
         """Test SonarQube analysis that passes."""
-        from services.worker_agents.src.executors.validate_executor import ValidateExecutor
+        from executors.validate_executor import ValidateExecutor
 
         worker_config.sonarqube_enabled = True
         worker_config.sonarqube_url = 'http://sonarqube:9000'
@@ -342,7 +342,7 @@ class TestValidateExecutorWithMockSonarQube:
         self, worker_config, mock_vault_client, mock_metrics
     ):
         """Test SonarQube analysis with issues."""
-        from services.worker_agents.src.executors.validate_executor import ValidateExecutor
+        from executors.validate_executor import ValidateExecutor
 
         worker_config.sonarqube_enabled = True
         worker_config.sonarqube_url = 'http://sonarqube:9000'
@@ -382,7 +382,7 @@ class TestValidateExecutorWithMockSnyk:
         self, worker_config, mock_vault_client, mock_metrics
     ):
         """Test Snyk scan that passes."""
-        from services.worker_agents.src.executors.validate_executor import ValidateExecutor
+        from executors.validate_executor import ValidateExecutor
 
         worker_config.snyk_enabled = True
         worker_config.snyk_token = 'test-token'
@@ -412,7 +412,7 @@ class TestValidateExecutorWithMockSnyk:
         self, worker_config, mock_vault_client, mock_metrics
     ):
         """Test Snyk scan with vulnerabilities."""
-        from services.worker_agents.src.executors.validate_executor import ValidateExecutor
+        from executors.validate_executor import ValidateExecutor
 
         worker_config.snyk_enabled = True
         worker_config.snyk_token = 'test-token'
@@ -450,7 +450,7 @@ class TestValidateExecutorWithMockCheckov:
         self, worker_config, mock_vault_client, mock_metrics
     ):
         """Test Checkov IaC scan that passes."""
-        from services.worker_agents.src.executors.validate_executor import ValidateExecutor
+        from executors.validate_executor import ValidateExecutor
 
         worker_config.checkov_enabled = True
 
@@ -479,7 +479,7 @@ class TestValidateExecutorWithMockCheckov:
         self, worker_config, mock_vault_client, mock_metrics
     ):
         """Test Checkov IaC scan with findings."""
-        from services.worker_agents.src.executors.validate_executor import ValidateExecutor
+        from executors.validate_executor import ValidateExecutor
 
         worker_config.checkov_enabled = True
 
@@ -517,7 +517,7 @@ class TestValidateExecutorSimulation:
         self, worker_config_minimal, mock_vault_client, mock_metrics
     ):
         """Test validation in pure simulation mode."""
-        from services.worker_agents.src.executors.validate_executor import ValidateExecutor
+        from executors.validate_executor import ValidateExecutor
 
         executor = ValidateExecutor(
             config=worker_config_minimal,
@@ -541,7 +541,7 @@ class TestValidateExecutorSimulation:
         self, worker_config, mock_vault_client, mock_metrics
     ):
         """Test fallback to simulation when all tools are disabled."""
-        from services.worker_agents.src.executors.validate_executor import ValidateExecutor
+        from executors.validate_executor import ValidateExecutor
 
         # Disable all validation tools
         worker_config.opa_enabled = False
@@ -570,7 +570,7 @@ class TestValidateExecutorValidation:
     @pytest.mark.asyncio
     async def test_validate_executor_missing_ticket_id(self, validate_executor):
         """Test that missing ticket_id raises ValidationError."""
-        from services.worker_agents.src.executors.base_executor import ValidationError
+        from executors.base_executor import ValidationError
 
         ticket = {
             'task_id': 'task-123',
@@ -586,7 +586,7 @@ class TestValidateExecutorValidation:
     @pytest.mark.asyncio
     async def test_validate_executor_wrong_task_type(self, validate_executor):
         """Test that wrong task_type raises ValidationError."""
-        from services.worker_agents.src.executors.base_executor import ValidationError
+        from executors.base_executor import ValidationError
 
         ticket = {
             'ticket_id': 'ticket-123',
@@ -611,7 +611,7 @@ class TestValidateExecutorRealOPA:
         self, worker_config, mock_vault_client, mock_metrics
     ):
         """Test with real OPA (requires OPA_URL env var)."""
-        from services.worker_agents.src.executors.validate_executor import ValidateExecutor
+        from executors.validate_executor import ValidateExecutor
 
         opa_url = os.getenv('OPA_URL')
         if not opa_url:
@@ -650,7 +650,7 @@ class TestValidateExecutorRealTrivy:
         self, worker_config, mock_vault_client, mock_metrics
     ):
         """Test with real Trivy (requires trivy in PATH)."""
-        from services.worker_agents.src.executors.validate_executor import ValidateExecutor
+        from executors.validate_executor import ValidateExecutor
         import shutil
 
         if not shutil.which('trivy'):
@@ -688,7 +688,7 @@ class TestValidateExecutorRealSonarQube:
         self, worker_config, mock_vault_client, mock_metrics
     ):
         """Test with real SonarQube (requires SONARQUBE_URL and SONARQUBE_TOKEN)."""
-        from services.worker_agents.src.executors.validate_executor import ValidateExecutor
+        from executors.validate_executor import ValidateExecutor
 
         sonarqube_url = os.getenv('SONARQUBE_URL')
         sonarqube_token = os.getenv('SONARQUBE_TOKEN')
@@ -700,7 +700,7 @@ class TestValidateExecutorRealSonarQube:
         worker_config.sonarqube_url = sonarqube_url
         worker_config.sonarqube_token = sonarqube_token
 
-        from services.worker_agents.src.clients.sonarqube_client import SonarQubeClient
+        from clients.sonarqube_client import SonarQubeClient
         real_client = SonarQubeClient(sonarqube_url, sonarqube_token)
 
         executor = ValidateExecutor(

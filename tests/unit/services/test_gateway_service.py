@@ -6,7 +6,7 @@ Testa roteamento, validação e processamento de intenções.
 """
 import pytest
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 
@@ -209,7 +209,7 @@ class TestResponseFormatting:
         response = {
             "status": "success",
             "data": {"balance": "R$ 1.500,00"},
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         assert response["status"] == "success"
@@ -224,7 +224,7 @@ class TestResponseFormatting:
                 "type": type(error).__name__,
                 "message": str(error)
             },
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         assert response["status"] == "error"
@@ -295,10 +295,10 @@ class TestRateLimiting:
 
     def test_reset_counter(self):
         """Deve resetar contador."""
-        window_start = datetime.utcnow() - timedelta(seconds=65)
+        window_start = datetime.now(timezone.utc) - timedelta(seconds=65)
         window_size = 60
 
-        elapsed = (datetime.utcnow() - window_start).total_seconds()
+        elapsed = (datetime.now(timezone.utc) - window_start).total_seconds()
         should_reset = elapsed >= window_size
 
         assert should_reset is True
@@ -321,7 +321,7 @@ class TestRateLimiting:
         headers = {
             "X-RateLimit-Limit": 100,
             "X-RateLimit-Remaining": 95,
-            "X-RateLimit-Reset": int(datetime.utcnow().timestamp() + 60)
+            "X-RateLimit-Reset": int(datetime.now(timezone.utc).timestamp() + 60)
         }
 
         assert "X-RateLimit-Limit" in headers
@@ -362,10 +362,10 @@ class TestAuthentication:
 
     def test_token_expiration(self):
         """Deve verificar expiração do token."""
-        issued_at = datetime.utcnow() - timedelta(hours=2)
+        issued_at = datetime.now(timezone.utc) - timedelta(hours=2)
         expires_in_hours = 1
 
-        expired = (datetime.utcnow() - issued_at).total_seconds() > expires_in_hours * 3600
+        expired = (datetime.now(timezone.utc) - issued_at).total_seconds() > expires_in_hours * 3600
 
         assert expired is True
 
@@ -390,7 +390,7 @@ class TestContextManagement:
         session = {
             "session_id": str(uuid4()),
             "user_id": str(uuid4()),
-            "created_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
             "context": {}
         }
 
@@ -424,10 +424,10 @@ class TestContextManagement:
 
     def test_context_timeout(self):
         """Deve detectar timeout de contexto."""
-        last_activity = datetime.utcnow() - timedelta(minutes=35)
+        last_activity = datetime.now(timezone.utc) - timedelta(minutes=35)
         timeout_minutes = 30
 
-        timed_out = (datetime.utcnow() - last_activity).total_seconds() > timeout_minutes * 60
+        timed_out = (datetime.now(timezone.utc) - last_activity).total_seconds() > timeout_minutes * 60
 
         assert timed_out is True
 
@@ -468,7 +468,7 @@ class TestErrorHandling:
         error_log.append({
             "type": type(error).__name__,
             "message": str(error),
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         })
 
         assert len(error_log) == 1

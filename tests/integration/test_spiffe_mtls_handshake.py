@@ -13,7 +13,7 @@ import grpc
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 
 @dataclass
@@ -43,7 +43,7 @@ def mock_x509_svid():
         certificate="-----BEGIN CERTIFICATE-----\nMOCK_CERT\n-----END CERTIFICATE-----",
         private_key="-----BEGIN PRIVATE KEY-----\nMOCK_KEY\n-----END PRIVATE KEY-----",
         ca_bundle="-----BEGIN CERTIFICATE-----\nMOCK_CA\n-----END CERTIFICATE-----",
-        expires_at=datetime.utcnow() + timedelta(hours=1)
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=1)
     )
 
 
@@ -62,8 +62,8 @@ def mock_jwt_svid():
     payload = base64.urlsafe_b64encode(json.dumps({
         "sub": "spiffe://neural-hive.local/ns/neural-hive-execution/sa/worker-agents",
         "aud": ["service-registry.neural-hive.local"],
-        "exp": int((datetime.utcnow() + timedelta(hours=1)).timestamp()),
-        "iat": int(datetime.utcnow().timestamp()),
+        "exp": int((datetime.now(timezone.utc) + timedelta(hours=1)).timestamp()),
+        "iat": int(datetime.now(timezone.utc).timestamp()),
         "iss": "https://spire-server.spire-system.svc.cluster.local"
     }).encode()).decode().rstrip("=")
 
@@ -72,7 +72,7 @@ def mock_jwt_svid():
     return MockJWTSVID(
         token=f"{header}.{payload}.{signature}",
         spiffe_id="spiffe://neural-hive.local/ns/neural-hive-execution/sa/worker-agents",
-        expires_at=datetime.utcnow() + timedelta(hours=1)
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=1)
     )
 
 
@@ -103,7 +103,7 @@ class TestSPIFFEMTLSHandshake:
         assert x509_svid.certificate is not None
         assert x509_svid.private_key is not None
         assert x509_svid.ca_bundle is not None
-        assert x509_svid.expires_at > datetime.utcnow()
+        assert x509_svid.expires_at > datetime.now(timezone.utc)
 
         # Verificar que nao e placeholder
         assert not getattr(x509_svid, "is_placeholder", False)
@@ -119,7 +119,7 @@ class TestSPIFFEMTLSHandshake:
         assert jwt_svid is not None
         assert jwt_svid.token is not None
         assert jwt_svid.spiffe_id.startswith("spiffe://neural-hive.local/")
-        assert jwt_svid.expires_at > datetime.utcnow()
+        assert jwt_svid.expires_at > datetime.now(timezone.utc)
 
         # Verificar estrutura do JWT
         parts = jwt_svid.token.split(".")
@@ -182,7 +182,7 @@ class TestSPIFFEMTLSHandshake:
         payload = json.loads(payload_json)
 
         exp_timestamp = payload["exp"]
-        current_timestamp = datetime.utcnow().timestamp()
+        current_timestamp = datetime.now(timezone.utc).timestamp()
 
         assert exp_timestamp > current_timestamp, "JWT nao deve estar expirado"
 

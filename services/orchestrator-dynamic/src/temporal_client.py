@@ -2,11 +2,12 @@
 Wrapper para Temporal Client com Circuit Breaker.
 """
 import asyncio
-from typing import Optional, Any
-from temporalio.client import Client, WorkflowHandle
-import structlog
+from typing import Any
 
-from neural_hive_resilience.circuit_breaker import MonitoredCircuitBreaker, CircuitBreakerError
+import structlog
+from temporalio.client import Client, WorkflowHandle
+
+from neural_hive_resilience.circuit_breaker import CircuitBreakerError, MonitoredCircuitBreaker
 
 logger = structlog.get_logger(__name__)
 
@@ -28,7 +29,7 @@ class TemporalClientWrapper:
         circuit_breaker_enabled: bool = True,
         fail_max: int = 5,
         timeout_duration: int = 60,
-        recovery_timeout: int = 30
+        recovery_timeout: int = 30,
     ):
         """
         Inicializa wrapper com circuit breaker.
@@ -44,31 +45,25 @@ class TemporalClientWrapper:
         self.client = client
         self.service_name = service_name
         self.circuit_breaker_enabled = circuit_breaker_enabled
-        self.breaker: Optional[MonitoredCircuitBreaker] = None
+        self.breaker: MonitoredCircuitBreaker | None = None
 
         if circuit_breaker_enabled:
             self.breaker = MonitoredCircuitBreaker(
                 service_name=service_name,
-                circuit_name='temporal_client',
+                circuit_name="temporal_client",
                 fail_max=fail_max,
                 timeout_duration=timeout_duration,
-                recovery_timeout=recovery_timeout
+                recovery_timeout=recovery_timeout,
             )
             logger.info(
-                'Temporal client circuit breaker habilitado',
+                "Temporal client circuit breaker habilitado",
                 fail_max=fail_max,
                 timeout=timeout_duration,
-                recovery_timeout=recovery_timeout
+                recovery_timeout=recovery_timeout,
             )
 
     async def start_workflow(
-        self,
-        workflow: str,
-        arg: Any,
-        *,
-        id: str,
-        task_queue: str,
-        **kwargs
+        self, workflow: str, arg: Any, *, id: str, task_queue: str, **kwargs
     ) -> WorkflowHandle:
         """
         Inicia workflow protegido por circuit breaker.
@@ -88,36 +83,21 @@ class TemporalClientWrapper:
         """
         if not self.circuit_breaker_enabled or self.breaker is None:
             return await self.client.start_workflow(
-                workflow,
-                arg,
-                id=id,
-                task_queue=task_queue,
-                **kwargs
+                workflow, arg, id=id, task_queue=task_queue, **kwargs
             )
 
         try:
             return await self.breaker.call_async(
-                self.client.start_workflow,
-                workflow,
-                arg,
-                id=id,
-                task_queue=task_queue,
-                **kwargs
+                self.client.start_workflow, workflow, arg, id=id, task_queue=task_queue, **kwargs
             )
         except CircuitBreakerError:
-            logger.error(
-                'temporal_client_circuit_breaker_open',
-                workflow_id=id,
-                workflow=workflow
+            logger.exception(
+                "temporal_client_circuit_breaker_open", workflow_id=id, workflow=workflow
             )
             raise
 
     async def get_workflow_handle(
-        self,
-        workflow_id: str,
-        *,
-        run_id: Optional[str] = None,
-        **kwargs
+        self, workflow_id: str, *, run_id: str | None = None, **kwargs
     ) -> WorkflowHandle:
         """
         Obtém handle de workflow protegido por circuit breaker.
@@ -134,11 +114,7 @@ class TemporalClientWrapper:
             CircuitBreakerError: Se circuit breaker estiver aberto
         """
         if not self.circuit_breaker_enabled or self.breaker is None:
-            return self.client.get_workflow_handle(
-                workflow_id,
-                run_id=run_id,
-                **kwargs
-            )
+            return self.client.get_workflow_handle(workflow_id, run_id=run_id, **kwargs)
 
         try:
             # get_workflow_handle é síncrono, envolver em executor
@@ -147,29 +123,19 @@ class TemporalClientWrapper:
             async def _get_handle():
                 return await loop.run_in_executor(
                     None,
-                    lambda: self.client.get_workflow_handle(
-                        workflow_id,
-                        run_id=run_id,
-                        **kwargs
-                    )
+                    lambda: self.client.get_workflow_handle(workflow_id, run_id=run_id, **kwargs),
                 )
 
             return await self.breaker.call_async(_get_handle)
         except CircuitBreakerError:
-            logger.error(
-                'temporal_client_circuit_breaker_open',
+            logger.exception(
+                "temporal_client_circuit_breaker_open",
                 workflow_id=workflow_id,
-                operation='get_workflow_handle'
+                operation="get_workflow_handle",
             )
             raise
 
-    async def query_workflow(
-        self,
-        workflow_id: str,
-        query: str,
-        *args,
-        **kwargs
-    ) -> Any:
+    async def query_workflow(self, workflow_id: str, query: str, *args, **kwargs) -> Any:
         """
         Executa query em workflow protegido por circuit breaker.
 
@@ -190,17 +156,10 @@ class TemporalClientWrapper:
             return await handle.query(query, *args, **kwargs)
 
         try:
-            return await self.breaker.call_async(
-                handle.query,
-                query,
-                *args,
-                **kwargs
-            )
+            return await self.breaker.call_async(handle.query, query, *args, **kwargs)
         except CircuitBreakerError:
-            logger.error(
-                'temporal_client_circuit_breaker_open',
-                workflow_id=workflow_id,
-                query=query
+            logger.exception(
+                "temporal_client_circuit_breaker_open", workflow_id=workflow_id, query=query
             )
             raise
 

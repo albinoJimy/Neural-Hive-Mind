@@ -11,7 +11,7 @@ import os
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Any, Optional
 
 
@@ -92,8 +92,8 @@ def mock_spiffe_manager():
     payload = base64.urlsafe_b64encode(json.dumps({
         "sub": "spiffe://neural-hive.local/ns/neural-hive-orchestration/sa/orchestrator-dynamic",
         "aud": ["service-registry.neural-hive.local"],
-        "exp": int((datetime.utcnow() + timedelta(hours=1)).timestamp()),
-        "iat": int(datetime.utcnow().timestamp()),
+        "exp": int((datetime.now(timezone.utc) + timedelta(hours=1)).timestamp()),
+        "iat": int(datetime.now(timezone.utc).timestamp()),
         "iss": "https://spire-server.spire-system.svc.cluster.local"
     }).encode()).decode().rstrip("=")
 
@@ -105,14 +105,14 @@ def mock_spiffe_manager():
     manager.fetch_jwt_svid = AsyncMock(return_value=MagicMock(
         token=mock_jwt,
         spiffe_id="spiffe://neural-hive.local/ns/neural-hive-orchestration/sa/orchestrator-dynamic",
-        expires_at=datetime.utcnow() + timedelta(hours=1)
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=1)
     ))
     manager.fetch_x509_svid = AsyncMock(return_value=MagicMock(
         spiffe_id="spiffe://neural-hive.local/ns/neural-hive-orchestration/sa/orchestrator-dynamic",
         certificate="-----BEGIN CERTIFICATE-----\nMOCK\n-----END CERTIFICATE-----",
         private_key="-----BEGIN PRIVATE KEY-----\nMOCK\n-----END PRIVATE KEY-----",
         ca_bundle="-----BEGIN CERTIFICATE-----\nMOCK_CA\n-----END CERTIFICATE-----",
-        expires_at=datetime.utcnow() + timedelta(hours=1)
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=1)
     ))
     manager.initialize = AsyncMock()
     manager.close = AsyncMock()
@@ -171,7 +171,7 @@ class TestFlowCMTLSE2E:
         assert payload.get("sub").startswith("spiffe://neural-hive.local/"), \
             "Subject deve ser SPIFFE ID valido"
         assert payload.get("exp") is not None, "JWT deve ter claim 'exp'"
-        assert payload.get("exp") > datetime.utcnow().timestamp(), "JWT nao deve estar expirado"
+        assert payload.get("exp") > datetime.now(timezone.utc).timestamp(), "JWT nao deve estar expirado"
 
     async def test_flow_c_grpc_metadata_preparation(self, mock_spiffe_manager):
         """Testa preparacao de metadata gRPC com JWT."""
@@ -283,7 +283,7 @@ class TestFlowCMTLSMetrics:
         x509_svid = await mock_spiffe_manager.fetch_x509_svid()
 
         # Calcular tempo ate expiracao
-        time_to_expiry = x509_svid.expires_at - datetime.utcnow()
+        time_to_expiry = x509_svid.expires_at - datetime.now(timezone.utc)
         time_to_expiry_seconds = time_to_expiry.total_seconds()
 
         # Alerta se expira em menos de 1 hora

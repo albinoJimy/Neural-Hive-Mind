@@ -2,12 +2,12 @@
 Configuração específica do Technical Specialist.
 """
 
-from typing import List
-import sys
 import os
+import sys
+from typing import List
 
 # Adicionar biblioteca ao path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../..', 'libraries/python'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../..", "libraries/python"))
 
 from neural_hive_specialists import SpecialistConfig
 
@@ -27,7 +27,7 @@ class TechnicalSpecialistConfig(SpecialistConfig):
         "architecture-review",
         "performance-optimization",
         "code-quality",
-        "technical-debt"
+        "technical-debt",
     ]
 
     # Configurações específicas

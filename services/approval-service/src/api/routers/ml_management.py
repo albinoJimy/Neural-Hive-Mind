@@ -2,6 +2,7 @@
 
 import logging
 from typing import Optional
+
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
@@ -11,23 +12,14 @@ logger = logging.getLogger(__name__)
 class RetrainRequest(BaseModel):
     """Request para POST /retrain."""
 
-    force: bool = Field(
-        default=False,
-        description="Forçar retreino mesmo sem threshold"
-    )
-    samples_override: Optional[int] = Field(
-        default=None,
-        description="Override número de samples"
-    )
+    force: bool = Field(default=False, description="Forçar retreino mesmo sem threshold")
+    samples_override: Optional[int] = Field(default=None, description="Override número de samples")
 
 
 class PromoteRequest(BaseModel):
     """Request para POST /models/{version}/promote."""
 
-    strategy: str = Field(
-        default="immediate",
-        description="Estratégia: immediate ou canary"
-    )
+    strategy: str = Field(default="immediate", description="Estratégia: immediate ou canary")
 
 
 class MLManagementRouter:
@@ -39,11 +31,7 @@ class MLManagementRouter:
     """
 
     def __init__(
-        self,
-        mlflow_client: any,
-        model_repo: any,
-        retraining_job: any,
-        drift_detector: any
+        self, mlflow_client: any, model_repo: any, retraining_job: any, drift_detector: any
     ):
         """
         Inicializa o router.
@@ -75,9 +63,7 @@ class MLManagementRouter:
         try:
             # Buscar modelo atual em produção
             current_production = await self.model_repo.list_models(
-                stage="production",
-                is_active=True,
-                limit=1
+                stage="production", is_active=True, limit=1
             )
 
             # Desativar modelo atual se existir
@@ -86,17 +72,15 @@ class MLManagementRouter:
                     await self.model_repo.promote_model(
                         version=old_model.get("version"),
                         stage="production",
-                        promoted_by="manual_deactivate"
+                        promoted_by="manual_deactivate",
                     )
                     # Marcar como inativo (set is_active=False)
-                    if hasattr(self.model_repo, 'deactivate_model'):
+                    if hasattr(self.model_repo, "deactivate_model"):
                         await self.model_repo.deactivate_model(old_model.get("version"))
 
             # Ativar novo modelo
             return await self.model_repo.promote_model(
-                version=version,
-                stage="production",
-                promoted_by="manual"
+                version=version, stage="production", promoted_by="manual"
             )
         except Exception as e:
             logger.error(f"Erro na promoção imediata: {e}")
@@ -123,9 +107,7 @@ class MLManagementRouter:
 
             # Buscar modelo atual em produção
             current_production = await self.model_repo.list_models(
-                stage="production",
-                is_active=True,
-                limit=1
+                stage="production", is_active=True, limit=1
             )
 
             if not current_production:
@@ -137,9 +119,7 @@ class MLManagementRouter:
             # Em um cenário real, isso atualizaria uma tabela de configuração
             # com o split de tráfego entre as versões
             success = await self.model_repo.promote_model(
-                version=version,
-                stage="production",
-                promoted_by=f"canary_{canary_percentage}%"
+                version=version, stage="production", promoted_by=f"canary_{canary_percentage}%"
             )
 
             if success:
@@ -165,7 +145,6 @@ class MLManagementRouter:
             """
             try:
                 # Executa retreino em background
-                import asyncio
 
                 async def run_retrain_bg():
                     return await self.retraining_job.run_retraining(force=request.force)
@@ -177,7 +156,7 @@ class MLManagementRouter:
                 return {
                     "job_id": result.get("job_id", "unknown"),
                     "status": "queued" if result.get("success") else "failed",
-                    "estimated_samples": request.samples_override or 0
+                    "estimated_samples": request.samples_override or 0,
                 }
 
             except Exception as e:
@@ -210,7 +189,7 @@ class MLManagementRouter:
             stage: Optional[str] = Query(None, description="Filtro por estágio"),
             is_active: Optional[bool] = Query(None, description="Filtro por ativo"),
             limit: int = Query(20, ge=1, le=100),
-            offset: int = Query(0, ge=0)
+            offset: int = Query(0, ge=0),
         ):
             """
             Listar versões de modelos registrados.
@@ -220,31 +199,20 @@ class MLManagementRouter:
             try:
                 # Buscar modelos paginados
                 models = await self.model_repo.list_models(
-                    stage=stage,
-                    is_active=is_active,
-                    limit=limit,
-                    offset=offset
+                    stage=stage, is_active=is_active, limit=limit, offset=offset
                 )
 
                 # Count real: buscar todos sem paginação para obter total
                 try:
                     all_models = await self.model_repo.list_models(
-                        stage=stage,
-                        is_active=is_active,
-                        limit=None,
-                        offset=0
+                        stage=stage, is_active=is_active, limit=None, offset=0
                     )
                     total = len(all_models) if all_models else 0
                 except Exception:
                     # Fallback: usar length da página atual se count falhar
                     total = len(models)
 
-                return {
-                    "models": models,
-                    "total": total,
-                    "limit": limit,
-                    "offset": offset
-                }
+                return {"models": models, "total": total, "limit": limit, "offset": offset}
 
             except Exception as e:
                 logger.error(f"Erro ao listar modelos: {e}")
@@ -289,8 +257,7 @@ class MLManagementRouter:
 
                 if model.get("stage") != "staging":
                     raise HTTPException(
-                        status_code=400,
-                        detail="Only staging models can be promoted"
+                        status_code=400, detail="Only staging models can be promoted"
                     )
 
                 # Promove modelo conforme estratégia
@@ -303,7 +270,7 @@ class MLManagementRouter:
                 else:
                     raise HTTPException(
                         status_code=400,
-                        detail=f"Invalid strategy: {request.strategy}. Use 'immediate' or 'canary'"
+                        detail=f"Invalid strategy: {request.strategy}. Use 'immediate' or 'canary'",
                     )
 
                 if not success:
@@ -315,7 +282,7 @@ class MLManagementRouter:
                     "stage": "production",
                     "promoted_at": model.get("promoted_at"),
                     "strategy": request.strategy,
-                    "canary_percentage": 10 if request.strategy == "canary" else None
+                    "canary_percentage": 10 if request.strategy == "canary" else None,
                 }
 
             except HTTPException:
@@ -358,9 +325,15 @@ class MLManagementRouter:
 
                 metrics = []
                 if active_model:
-                    metrics.append(f'ml_approval_model_version{{version="{active_model["version"]}"}} 1')
-                    metrics.append(f'ml_approval_model_f1_score{{version="{active_model["version"]}"}} {active_model.get("f1_score", 0)}')
-                    metrics.append(f'ml_approval_model_accuracy{{version="{active_model["version"]}"}} {active_model.get("accuracy", 0)}')
+                    metrics.append(
+                        f'ml_approval_model_version{{version="{active_model["version"]}"}} 1'
+                    )
+                    metrics.append(
+                        f'ml_approval_model_f1_score{{version="{active_model["version"]}"}} {active_model.get("f1_score", 0)}'
+                    )
+                    metrics.append(
+                        f'ml_approval_model_accuracy{{version="{active_model["version"]}"}} {active_model.get("accuracy", 0)}'
+                    )
 
                 # Drift detected
                 # drift_data = await self.drift_detector.detect_drift()
@@ -371,7 +344,7 @@ class MLManagementRouter:
 
                 return "\n".join(metrics), {
                     "media_type": "text/plain",
-                    "Content-Type": "text/plain; charset=utf-8"
+                    "Content-Type": "text/plain; charset=utf-8",
                 }
 
             except Exception as e:

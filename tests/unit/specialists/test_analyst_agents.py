@@ -6,7 +6,7 @@ Testa análise de dados, insights, e recomendações.
 """
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 import asyncio
 
@@ -285,7 +285,7 @@ class TestReportGeneration:
 
         report = {
             "title": "Analysis Summary",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "metrics": analysis_results,
             "summary": (
                 f"Analyzed {analysis_results['total_records']} records, "
@@ -304,7 +304,7 @@ class TestReportGeneration:
             "id": str(uuid4()),
             "type": "analysis_report",
             "data": {"key": "value"},
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat()
         }
 
         import json

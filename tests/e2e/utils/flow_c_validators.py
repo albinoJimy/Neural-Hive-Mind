@@ -10,7 +10,7 @@ Fornece funções de validação para verificar:
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Set
 
 logger = logging.getLogger(__name__)
@@ -304,7 +304,7 @@ def validate_sla_compliance(
             else:
                 deadline_dt = datetime.fromisoformat(str(deadline).replace("Z", "+00:00"))
 
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
             if now > deadline_dt:
                 violations.append({
                     "type": "deadline",

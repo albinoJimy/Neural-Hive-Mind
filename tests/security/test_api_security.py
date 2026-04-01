@@ -5,7 +5,7 @@ GAP-04: Cobertura de Testes 16% → 70%
 Testa segurança de endpoints FastAPI: rate limiting, input validation, etc.
 """
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 import json
@@ -45,8 +45,8 @@ class TestRateLimiting:
         max_requests = 100
 
         requests_in_window = [
-            {"timestamp": datetime.utcnow(), "count": 60},
-            {"timestamp": datetime.utcnow() - timedelta(seconds=30), "count": 40}
+            {"timestamp": datetime.now(timezone.utc), "count": 60},
+            {"timestamp": datetime.now(timezone.utc) - timedelta(seconds=30), "count": 40}
         ]
 
         total_requests = sum(r["count"] for r in requests_in_window)
@@ -135,7 +135,7 @@ class TestInputValidation:
         payload = {
             "user_id": "123",
             "intent": "test",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         missing = [f for f in required_fields if f not in payload]
@@ -149,7 +149,7 @@ class TestInputValidation:
         payload = {
             "user_id": "123",
             "intent": "test",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "malicious_field": "should not be here"
         }
 

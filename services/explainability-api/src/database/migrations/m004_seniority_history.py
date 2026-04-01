@@ -19,7 +19,7 @@ Executar com:
 import asyncio
 import sys
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Adicionar projeto ao path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -30,7 +30,7 @@ import structlog
 logger = structlog.get_logger(__name__)
 
 
-async def upgrade(mongo_client: AsyncIOMotorClient, db_name: str = 'neural_hive') -> None:
+async def upgrade(mongo_client: AsyncIOMotorClient, db_name: str = "neural_hive") -> None:
     """
     Create seniority_history collection with indexes.
 
@@ -51,26 +51,21 @@ async def upgrade(mongo_client: AsyncIOMotorClient, db_name: str = 'neural_hive'
 
     # Create index for specialist history (most common query)
     await collection.create_index(
-        [("specialist_id", 1), ("changed_at", -1)],
-        name="specialist_id_1_changed_at_-1"
+        [("specialist_id", 1), ("changed_at", -1)], name="specialist_id_1_changed_at_-1"
     )
 
     # Create index for domain history
     await collection.create_index(
-        [("domain", 1), ("changed_at", -1)],
-        name="domain_1_changed_at_-1"
+        [("domain", 1), ("changed_at", -1)], name="domain_1_changed_at_-1"
     )
 
     # Create index for temporal queries
-    await collection.create_index(
-        [("changed_at", 1)],
-        name="changed_at_1"
-    )
+    await collection.create_index([("changed_at", 1)], name="changed_at_1")
 
     logger.info("migration_m004_complete", collection="seniority_history", indexes=3)
 
 
-async def downgrade(mongo_client: AsyncIOMotorClient, db_name: str = 'neural_hive') -> None:
+async def downgrade(mongo_client: AsyncIOMotorClient, db_name: str = "neural_hive") -> None:
     """
     Drop seniority_history collection.
 
@@ -81,21 +76,19 @@ async def downgrade(mongo_client: AsyncIOMotorClient, db_name: str = 'neural_hiv
     logger.info("migration_m004_downgrade_complete", collection="seniority_history")
 
 
-async def verify_schema(client: AsyncIOMotorClient, db_name: str = 'neural_hive'):
+async def verify_schema(client: AsyncIOMotorClient, db_name: str = "neural_hive"):
     """Verifica e retorna informacoes sobre o schema criado."""
     db = client[db_name]
     result = {
-        'timestamp': datetime.utcnow().isoformat(),
-        'collection_exists': False,
-        'indexes': []
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "collection_exists": False,
+        "indexes": [],
     }
 
-    if 'seniority_history' in await db.list_collection_names():
-        result['collection_exists'] = True
-        collection = db['seniority_history']
-        result['indexes'] = [
-            idx['name'] for idx in await collection.list_indexes()
-        ]
+    if "seniority_history" in await db.list_collection_names():
+        result["collection_exists"] = True
+        collection = db["seniority_history"]
+        result["indexes"] = [idx["name"] for idx in await collection.list_indexes()]
 
     return result
 
@@ -110,13 +103,14 @@ async def run_migration() -> None:
     # Em producao, usar settings reais
     try:
         from src.config.settings import get_settings
+
         settings = get_settings()
         mongo_uri = settings.mongodb_uri
-        database = settings.mongodb_database or 'neural_hive'
+        database = settings.mongodb_database or "neural_hive"
     except ImportError:
         # Fallback para testes
-        mongo_uri = 'mongodb://localhost:27017'
-        database = 'neural_hive'
+        mongo_uri = "mongodb://localhost:27017"
+        database = "neural_hive"
 
     # Conectar ao MongoDB
     client = AsyncIOMotorClient(mongo_uri)
@@ -138,7 +132,7 @@ async def run_migration() -> None:
         print("=" * 60)
         print(f"\nColecao: {'seniority_history' if result['collection_exists'] else 'N/A'}")
         print(f"Indices criados: {len(result['indexes'])}")
-        for idx in result['indexes']:
+        for idx in result["indexes"]:
             print(f"  - {idx}")
 
     except Exception as e:
@@ -149,5 +143,5 @@ async def run_migration() -> None:
         print("\nConexao MongoDB encerrada.")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     asyncio.run(run_migration())

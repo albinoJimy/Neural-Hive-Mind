@@ -30,7 +30,7 @@ def mongodb_test_data(mongodb_ml_client, event_loop) -> Dict[str, Any]:
     import datetime
 
     np.random.seed(42)
-    base_time = datetime.datetime.utcnow() - datetime.timedelta(days=30)
+    base_time = datetime.datetime.now(timezone.utc) - datetime.timedelta(days=30)
 
     opinions = []
     feedbacks = []
@@ -89,7 +89,7 @@ def mongodb_insufficient_data(mongodb_ml_client, event_loop) -> Dict[str, Any]:
     import datetime
 
     np.random.seed(42)
-    base_time = datetime.datetime.utcnow() - datetime.timedelta(days=30)
+    base_time = datetime.datetime.now(timezone.utc) - datetime.timedelta(days=30)
 
     opinions = []
     feedbacks = []
@@ -283,7 +283,7 @@ class TestValidationReportMLflowIntegration:
 
         # Criar relatório mock
         validation_report = {
-            'validation_timestamp': datetime.datetime.utcnow().isoformat() + 'Z',
+            'validation_timestamp': datetime.datetime.now(timezone.utc).isoformat() + 'Z',
             'specialist_type': 'technical',
             'passed': True,
             'recommendation': 'proceed',
@@ -358,7 +358,7 @@ class TestValidationEndToEnd:
             mock_db = MagicMock()
             mock_collection = MagicMock()
 
-            now = datetime.datetime.utcnow()
+            now = datetime.datetime.now(timezone.utc)
 
             def aggregate_side_effect(pipeline):
                 pipeline_str = str(pipeline)
@@ -435,7 +435,7 @@ class TestValidationEndToEnd:
             mock_db = MagicMock()
             mock_collection = MagicMock()
 
-            now = datetime.datetime.utcnow()
+            now = datetime.datetime.now(timezone.utc)
 
             def aggregate_side_effect(pipeline):
                 pipeline_str = str(pipeline)

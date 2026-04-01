@@ -6,7 +6,7 @@ Testa componentes de especialistas com baixa cobertura.
 """
 import pytest
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 
@@ -379,7 +379,7 @@ class TestNotificationSpecialist:
             "user_id": str(uuid4()),
             "type": "payment_confirmation",
             "message": "Pagamento confirmado",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         assert notification["type"] == "payment_confirmation"
@@ -449,7 +449,7 @@ class TestAuditLogging:
             "event_type": "access",
             "user_id": str(uuid4()),
             "resource": "/api/v1/balance",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "ip": "192.168.1.1"
         }
 

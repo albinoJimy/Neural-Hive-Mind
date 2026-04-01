@@ -5,7 +5,7 @@ GAP-04: Cobertura de Testes 16% → 70%
 Testa tradução semântica, NLP e geração de planos cognitivos.
 """
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 from enum import Enum
 
@@ -149,7 +149,7 @@ class TestCognitivePlanGeneration:
             "action": "query_balance",
             "required_specialists": ["business", "technical"],
             "priority": "normal",
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat()
         }
 
         assert "plan_id" in plan
@@ -339,7 +339,7 @@ class TestTranslationCaching:
 
         cache[intent_hash] = {
             "result": translated,
-            "cached_at": datetime.utcnow().isoformat()
+            "cached_at": datetime.now(timezone.utc).isoformat()
         }
 
         assert intent_hash in cache

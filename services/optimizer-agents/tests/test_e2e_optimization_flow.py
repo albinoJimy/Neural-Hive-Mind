@@ -11,7 +11,7 @@ Simula fluxo completo desde insight até aplicação de otimização:
 """
 import pytest
 from unittest.mock import Mock, AsyncMock, patch, MagicMock
-from datetime import datetime
+from datetime import datetime, timezone
 
 from src.services.optimization_engine import OptimizationEngine
 from src.services.experiment_manager import ExperimentManager
@@ -76,7 +76,7 @@ def mock_argo_client():
     client.get_workflow_status = AsyncMock(return_value={
         "status": "Succeeded",
         "phase": "Succeeded",
-        "finishedAt": datetime.utcnow().isoformat()
+        "finishedAt": datetime.now(timezone.utc).isoformat()
     })
     return client
 

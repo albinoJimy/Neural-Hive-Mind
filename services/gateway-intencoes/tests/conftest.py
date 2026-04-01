@@ -175,7 +175,7 @@ def sample_user_context() -> Dict[str, Any]:
 @pytest.fixture
 def sample_intent_envelope(sample_user_context) -> IntentEnvelope:
     """Envelope de intenção de exemplo"""
-    from datetime import datetime
+    from datetime import datetime, timezone
 
     return IntentEnvelope(
         id="intent-123",
@@ -204,7 +204,7 @@ def sample_intent_envelope(sample_user_context) -> IntentEnvelope:
         },
         confidence=0.85,
         context=sample_user_context,
-        timestamp=datetime.utcnow()
+        timestamp=datetime.now(timezone.utc)
     )
 
 

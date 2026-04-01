@@ -3,22 +3,23 @@ FastAPI servidor HTTP robusto com circuit breakers e health checks otimizados.
 """
 
 import asyncio
-from typing import Dict, Any, Optional
 from contextlib import asynccontextmanager
+from typing import Any, Dict
 
+import pybreaker
 import structlog
 from fastapi import FastAPI, Response, status
 from fastapi.responses import JSONResponse, PlainTextResponse
-from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
-import pybreaker
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 logger = structlog.get_logger()
 
 # Importar módulo de feedback (lazy import para evitar erros se não disponível)
 try:
-    from neural_hive_specialists.feedback import create_feedback_router, FeedbackCollector
     from neural_hive_specialists.compliance import AuditLogger, PIIDetector
+    from neural_hive_specialists.feedback import FeedbackCollector, create_feedback_router
+
     FEEDBACK_AVAILABLE = True
 except ImportError:
     logger.warning("Feedback module not available - feedback API will not be enabled")
@@ -30,19 +31,13 @@ class HealthCheckCircuitBreaker:
 
     def __init__(self):
         self.mongodb_breaker = pybreaker.CircuitBreaker(
-            fail_max=3,
-            reset_timeout=60,
-            name="mongodb_health"
+            fail_max=3, reset_timeout=60, name="mongodb_health"
         )
         self.neo4j_breaker = pybreaker.CircuitBreaker(
-            fail_max=3,
-            reset_timeout=60,
-            name="neo4j_health"
+            fail_max=3, reset_timeout=60, name="neo4j_health"
         )
         self.redis_breaker = pybreaker.CircuitBreaker(
-            fail_max=3,
-            reset_timeout=60,
-            name="redis_health"
+            fail_max=3, reset_timeout=60, name="redis_health"
         )
 
 
@@ -53,17 +48,17 @@ health_breakers = HealthCheckCircuitBreaker()
 @retry(
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=1, min=1, max=10),
-    retry=retry_if_exception_type(Exception)
+    retry=retry_if_exception_type(Exception),
 )
 async def check_mongodb_health(specialist) -> Dict[str, Any]:
     """Verifica saúde do MongoDB com retry e circuit breaker."""
     try:
-        result = await asyncio.wait_for(
+        await asyncio.wait_for(
             asyncio.to_thread(
                 health_breakers.mongodb_breaker.call,
-                lambda: specialist.ledger_client.check_health()
+                lambda: specialist.ledger_client.check_health(),
             ),
-            timeout=5.0
+            timeout=5.0,
         )
         return {"status": "healthy", "service": "mongodb"}
     except pybreaker.CircuitBreakerError:
@@ -80,18 +75,18 @@ async def check_mongodb_health(specialist) -> Dict[str, Any]:
 @retry(
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=1, min=1, max=10),
-    retry=retry_if_exception_type(Exception)
+    retry=retry_if_exception_type(Exception),
 )
 async def check_neo4j_health(specialist) -> Dict[str, Any]:
     """Verifica saúde do Neo4j com retry e circuit breaker."""
     try:
         # Neo4j health check implementation
-        result = await asyncio.wait_for(
+        await asyncio.wait_for(
             asyncio.to_thread(
                 health_breakers.neo4j_breaker.call,
-                lambda: {"connected": True}  # Placeholder - implement real check
+                lambda: {"connected": True},  # Placeholder - implement real check
             ),
-            timeout=5.0
+            timeout=5.0,
         )
         return {"status": "healthy", "service": "neo4j"}
     except pybreaker.CircuitBreakerError:
@@ -129,7 +124,7 @@ def create_fastapi_app(specialist, config) -> FastAPI:
         version=specialist.version,
         lifespan=lifespan,
         docs_url=None,  # Disable docs in production
-        redoc_url=None
+        redoc_url=None,
     )
 
     @app.get("/health", response_class=JSONResponse, status_code=200)
@@ -141,7 +136,7 @@ def create_fastapi_app(specialist, config) -> FastAPI:
         return {
             "status": "healthy",
             "specialist_type": specialist.specialist_type,
-            "version": specialist.version
+            "version": specialist.version,
         }
 
     @app.get("/ready", response_class=JSONResponse)
@@ -157,9 +152,9 @@ def create_fastapi_app(specialist, config) -> FastAPI:
                 asyncio.gather(
                     check_mongodb_health(specialist),
                     check_neo4j_health(specialist),
-                    return_exceptions=True
+                    return_exceptions=True,
                 ),
-                timeout=8.0  # Timeout total de 8s para todos os checks
+                timeout=8.0,  # Timeout total de 8s para todos os checks
             )
 
             # Processar resultados
@@ -167,11 +162,17 @@ def create_fastapi_app(specialist, config) -> FastAPI:
 
             # Determinar se está pronto
             # Circuit breaker aberto é considerado "ready" (fail open)
-            mongodb_ready = isinstance(mongodb_health, dict) and mongodb_health.get("status") in ["healthy", "circuit_open"]
-            neo4j_ready = isinstance(neo4j_health, dict) and neo4j_health.get("status") in ["healthy", "circuit_open"]
+            mongodb_ready = isinstance(mongodb_health, dict) and mongodb_health.get("status") in [
+                "healthy",
+                "circuit_open",
+            ]
+            neo4j_ready = isinstance(neo4j_health, dict) and neo4j_health.get("status") in [
+                "healthy",
+                "circuit_open",
+            ]
 
             # Verificar model_required para modo heurístico
-            model_required = getattr(specialist.config, 'model_required', True)
+            model_required = getattr(specialist.config, "model_required", True)
             model_loaded = specialist.model is not None
             heuristic_mode = not model_loaded and not model_required
 
@@ -180,7 +181,7 @@ def create_fastapi_app(specialist, config) -> FastAPI:
                 logger.info(
                     "Specialist em modo heurístico (sem modelo ML)",
                     specialist_type=specialist.specialist_type,
-                    model_required=model_required
+                    model_required=model_required,
                 )
 
             is_ready = mongodb_ready and neo4j_ready
@@ -192,7 +193,7 @@ def create_fastapi_app(specialist, config) -> FastAPI:
                     "Readiness falhou: modelo obrigatório não carregado",
                     specialist_type=specialist.specialist_type,
                     model_required=model_required,
-                    model_loaded=model_loaded
+                    model_loaded=model_loaded,
                 )
 
             if not is_ready:
@@ -203,7 +204,7 @@ def create_fastapi_app(specialist, config) -> FastAPI:
                     mongodb_ready=mongodb_ready,
                     neo4j_ready=neo4j_ready,
                     model_loaded=model_loaded,
-                    model_required=model_required
+                    model_required=model_required,
                 )
 
             return {
@@ -212,9 +213,13 @@ def create_fastapi_app(specialist, config) -> FastAPI:
                 "heuristic_mode": heuristic_mode,
                 "model_loaded": model_loaded,
                 "dependencies": {
-                    "mongodb": mongodb_health if isinstance(mongodb_health, dict) else {"status": "error"},
-                    "neo4j": neo4j_health if isinstance(neo4j_health, dict) else {"status": "error"}
-                }
+                    "mongodb": mongodb_health
+                    if isinstance(mongodb_health, dict)
+                    else {"status": "error"},
+                    "neo4j": neo4j_health
+                    if isinstance(neo4j_health, dict)
+                    else {"status": "error"},
+                },
             }
 
         except asyncio.TimeoutError:
@@ -223,16 +228,12 @@ def create_fastapi_app(specialist, config) -> FastAPI:
             return {
                 "ready": False,
                 "specialist_type": specialist.specialist_type,
-                "error": "health_check_timeout"
+                "error": "health_check_timeout",
             }
         except Exception as e:
             logger.error("Readiness check failed", error=str(e))
             response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
-            return {
-                "ready": False,
-                "specialist_type": specialist.specialist_type,
-                "error": str(e)
-            }
+            return {"ready": False, "specialist_type": specialist.specialist_type, "error": str(e)}
 
     @app.get("/metrics", response_class=PlainTextResponse)
     async def metrics():
@@ -241,16 +242,10 @@ def create_fastapi_app(specialist, config) -> FastAPI:
         """
         try:
             metrics_data = generate_latest()
-            return Response(
-                content=metrics_data,
-                media_type=CONTENT_TYPE_LATEST
-            )
+            return Response(content=metrics_data, media_type=CONTENT_TYPE_LATEST)
         except Exception as e:
             logger.error("Failed to generate metrics", error=str(e))
-            return Response(
-                content="",
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            return Response(content="", status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @app.get("/status", response_class=JSONResponse)
     async def status_check():
@@ -261,7 +256,7 @@ def create_fastapi_app(specialist, config) -> FastAPI:
         circuit_breaker_states = {
             "mongodb": health_breakers.mongodb_breaker.current_state,
             "neo4j": health_breakers.neo4j_breaker.current_state,
-            "redis": health_breakers.redis_breaker.current_state
+            "redis": health_breakers.redis_breaker.current_state,
         }
 
         try:
@@ -272,10 +267,12 @@ def create_fastapi_app(specialist, config) -> FastAPI:
             response = {
                 "specialist_type": specialist.specialist_type,
                 "version": specialist.version,
-                "mlflow_enabled": getattr(specialist.mlflow_client, '_enabled', False) if specialist.mlflow_client else False,
+                "mlflow_enabled": getattr(specialist.mlflow_client, "_enabled", False)
+                if specialist.mlflow_client
+                else False,
                 "circuit_breakers": circuit_breaker_states,
-                "status": health_info.get('status', 'UNKNOWN'),
-                "details": health_info.get('details', {})
+                "status": health_info.get("status", "UNKNOWN"),
+                "details": health_info.get("details", {}),
             }
 
             return response
@@ -285,12 +282,12 @@ def create_fastapi_app(specialist, config) -> FastAPI:
             return {
                 "specialist_type": specialist.specialist_type,
                 "version": specialist.version,
-                "mlflow_enabled": getattr(specialist.mlflow_client, '_enabled', False) if specialist.mlflow_client else False,
+                "mlflow_enabled": getattr(specialist.mlflow_client, "_enabled", False)
+                if specialist.mlflow_client
+                else False,
                 "circuit_breakers": circuit_breaker_states,
                 "status": "NOT_SERVING",
-                "details": {
-                    "degraded_reasons": [str(e)]
-                }
+                "details": {"degraded_reasons": [str(e)]},
             }
 
     # Integrar Feedback API se habilitado
@@ -311,13 +308,17 @@ def create_fastapi_app(specialist, config) -> FastAPI:
                 config,
                 metrics=specialist.metrics,
                 pii_detector=pii_detector,
-                audit_logger=audit_logger
+                audit_logger=audit_logger,
             )
             app.include_router(feedback_router, prefix="/api/v1", tags=["feedback"])
 
             logger.info(
                 "Feedback API router registered",
-                endpoints=["/api/v1/feedback", "/api/v1/feedback/opinion/{opinion_id}", "/api/v1/feedback/stats"]
+                endpoints=[
+                    "/api/v1/feedback",
+                    "/api/v1/feedback/opinion/{opinion_id}",
+                    "/api/v1/feedback/stats",
+                ],
             )
         except Exception as e:
             logger.error("Failed to register feedback router", error=str(e))
@@ -325,7 +326,7 @@ def create_fastapi_app(specialist, config) -> FastAPI:
     logger.info(
         "FastAPI app created",
         specialist_type=specialist.specialist_type,
-        endpoints=["/health", "/ready", "/metrics", "/status", "/api/v1/feedback"]
+        endpoints=["/health", "/ready", "/metrics", "/status", "/api/v1/feedback"],
     )
 
     return app
@@ -343,11 +344,7 @@ async def run_fastapi_server(app: FastAPI, host: str, port: int):
     import uvicorn
 
     config = uvicorn.Config(
-        app,
-        host=host,
-        port=port,
-        log_level="info",
-        access_log=False  # Reduce noise
+        app, host=host, port=port, log_level="info", access_log=False  # Reduce noise
     )
 
     server = uvicorn.Server(config)

@@ -146,7 +146,7 @@ class DriftDetector:
         try:
             document = {
                 'type': 'drift_detection',
-                'timestamp': datetime.utcnow(),
+                'timestamp': datetime.now(timezone.utc),
                 'drift_detected': drift_result['drift_detected'],
                 'drift_score': drift_result['drift_score'],
                 'drifted_features': drift_result['drifted_features'],

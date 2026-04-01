@@ -1,0 +1,21 @@
+# Kustomization para Infraestrutura Base - Dev
+# Configura serviços de infraestrutura: observabilidade, segurança, networking
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: neural-hive-dev
+
+resources:
+  # Network Policies
+  - ../../../k8s/network-policies.yaml
+  # RBAC base
+  - ../../../k8s/rbac/chaos-engineering-rbac.yaml
+
+# Configurações globais
+configMapGenerator:
+  - name: flux-settings
+    literals:
+      - ENVIRONMENT=dev
+      - CLUSTER=neural-hive-dev
+      - LOG_LEVEL=debug

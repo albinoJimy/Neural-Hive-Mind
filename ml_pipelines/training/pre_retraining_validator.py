@@ -16,7 +16,7 @@ treinamento deve prosseguir.
 
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Any, Optional
 import structlog
 from pymongo import MongoClient
@@ -165,7 +165,7 @@ class PreRetrainingValidator:
             - warnings: lista de avisos não-bloqueantes
             - blocking_issues: lista de problemas críticos
         """
-        validation_timestamp = datetime.utcnow().isoformat() + 'Z'
+        validation_timestamp = datetime.now(timezone.utc).isoformat() + 'Z'
 
         logger.info(
             "pre_retraining_validation_started",
@@ -311,7 +311,7 @@ class PreRetrainingValidator:
 
         Conta opiniões com feedback associado sem carregar dados completos.
         """
-        cutoff_date = datetime.utcnow() - timedelta(days=days)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
 
         try:
             # Pipeline para contar opiniões com feedback
@@ -395,7 +395,7 @@ class PreRetrainingValidator:
 
         Agrupa por human_recommendation e calcula percentuais.
         """
-        cutoff_date = datetime.utcnow() - timedelta(days=days)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
 
         try:
             # Pipeline para obter distribuição de labels
@@ -504,7 +504,7 @@ class PreRetrainingValidator:
         Amostra N opiniões, extrai features usando FeatureExtractor e calcula
         a taxa de valores ausentes por feature. Falha se missing_value_rate >= 5%.
         """
-        cutoff_date = datetime.utcnow() - timedelta(days=days)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
 
         try:
             # Pipeline para amostrar opiniões com feedback
@@ -721,8 +721,8 @@ class PreRetrainingValidator:
         - Sem timestamps no futuro
         - Range de datas razoável
         """
-        cutoff_date = datetime.utcnow() - timedelta(days=days)
-        now = datetime.utcnow()
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
+        now = datetime.now(timezone.utc)
 
         try:
             # Buscar min/max created_at

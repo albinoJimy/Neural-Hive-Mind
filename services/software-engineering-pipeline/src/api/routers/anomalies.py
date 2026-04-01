@@ -5,7 +5,6 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, ConfigDict, Field
 
-from src.models.pipeline import Anomaly
 from src.models.schemas import AnomalyType, Severity
 from src.repositories.pipeline_repository import AnomalyRepository
 
@@ -98,17 +97,13 @@ async def get_anomaly(anomaly_id: str) -> AnomalyResponse:
     return _anomaly_to_response_from_dict(anomaly)
 
 
-@router.get(
-    "/repositories/{repo_url:path}/unresolved", response_model=list[AnomalyResponse]
-)
+@router.get("/repositories/{repo_url:path}/unresolved", response_model=list[AnomalyResponse])
 async def get_unresolved_anomalies(
     repo_url: str,
     limit: int = Query(20, ge=1, le=100, description="Limite de itens"),
 ) -> list[AnomalyResponse]:
     """Obtém anomalias não resolvidas de um repositório."""
-    full_repo_url = (
-        f"https://{repo_url}" if not repo_url.startswith("http") else repo_url
-    )
+    full_repo_url = f"https://{repo_url}" if not repo_url.startswith("http") else repo_url
 
     anomalies = await repo.find_unresolved(full_repo_url)
 
@@ -116,9 +111,7 @@ async def get_unresolved_anomalies(
 
 
 @router.post("/{anomaly_id}/resolve", response_model=AnomalyResponse)
-async def resolve_anomaly(
-    anomaly_id: str, request: ResolveAnomalyRequest
-) -> AnomalyResponse:
+async def resolve_anomaly(anomaly_id: str, request: ResolveAnomalyRequest) -> AnomalyResponse:
     """Marca uma anomalia como resolvida."""
     # Primeiro verifica se existe
     anomaly = await repo.find_by_id(anomaly_id)

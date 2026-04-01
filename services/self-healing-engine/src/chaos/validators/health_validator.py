@@ -6,8 +6,9 @@ durante e após experimentos de chaos.
 """
 
 import asyncio
-from datetime import datetime
-from typing import Any, Dict, List, Optional
+from datetime import datetime, timezone
+from typing import Any, Dict, Optional
+
 import aiohttp
 import structlog
 
@@ -75,8 +76,8 @@ class HealthValidator:
             "service_name": service_name,
             "namespace": namespace,
             "healthy": False,
-            "timestamp": datetime.utcnow().isoformat(),
-            "checks": {}
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "checks": {},
         }
 
         try:
@@ -84,14 +85,12 @@ class HealthValidator:
             service_info = None
             if self.service_registry_client:
                 try:
-                    service_info = await self.service_registry_client.get_service_info(
-                        service_name
-                    )
+                    service_info = await self.service_registry_client.get_service_info(service_name)
                 except Exception as e:
                     logger.warning(
                         "health_validator.service_registry_failed",
                         service=service_name,
-                        error=str(e)
+                        error=str(e),
                     )
 
             # Construir URL do health endpoint
@@ -99,9 +98,7 @@ class HealthValidator:
                 health_url = service_info.get("health_url")
             else:
                 # Fallback para URL padrão Kubernetes
-                health_url = (
-                    f"http://{service_name}.{namespace}.svc.cluster.local:8080/health"
-                )
+                health_url = f"http://{service_name}.{namespace}.svc.cluster.local:8080/health"
 
             # Verificar health endpoint
             if self._http_session:
@@ -109,7 +106,7 @@ class HealthValidator:
                     async with self._http_session.get(health_url) as response:
                         result["checks"]["http_health"] = {
                             "status": response.status,
-                            "healthy": response.status == 200
+                            "healthy": response.status == 200,
                         }
 
                         if response.status == 200:
@@ -123,7 +120,7 @@ class HealthValidator:
                     result["checks"]["http_health"] = {
                         "status": "error",
                         "error": str(e),
-                        "healthy": False
+                        "healthy": False,
                     }
 
             # Verificar via Prometheus se disponível
@@ -140,17 +137,11 @@ class HealthValidator:
             result["healthy"] = all(health_checks) if health_checks else False
 
             logger.info(
-                "health_validator.check_complete",
-                service=service_name,
-                healthy=result["healthy"]
+                "health_validator.check_complete", service=service_name, healthy=result["healthy"]
             )
 
         except Exception as e:
-            logger.error(
-                "health_validator.check_failed",
-                service=service_name,
-                error=str(e)
-            )
+            logger.error("health_validator.check_failed", service=service_name, error=str(e))
             result["error"] = str(e)
 
         return result
@@ -173,8 +164,8 @@ class HealthValidator:
         result = {
             "service_name": service_name,
             "compliant": True,
-            "timestamp": datetime.utcnow().isoformat(),
-            "slos": []
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "slos": [],
         }
 
         if not self.sla_management_client:
@@ -189,9 +180,7 @@ class HealthValidator:
                 if slo_name and slo.get("name") != slo_name:
                     continue
 
-                slo_status = await self.sla_management_client.check_slo_status(
-                    slo.get("id")
-                )
+                slo_status = await self.sla_management_client.check_slo_status(slo.get("id"))
 
                 slo_result = {
                     "name": slo.get("name"),
@@ -199,7 +188,7 @@ class HealthValidator:
                     "target": slo.get("target"),
                     "current": slo_status.get("current_value"),
                     "compliant": slo_status.get("compliant", True),
-                    "error_budget_remaining": slo_status.get("error_budget_remaining")
+                    "error_budget_remaining": slo_status.get("error_budget_remaining"),
                 }
 
                 result["slos"].append(slo_result)
@@ -211,15 +200,11 @@ class HealthValidator:
                 "health_validator.slo_check_complete",
                 service=service_name,
                 compliant=result["compliant"],
-                slo_count=len(result["slos"])
+                slo_count=len(result["slos"]),
             )
 
         except Exception as e:
-            logger.error(
-                "health_validator.slo_check_failed",
-                service=service_name,
-                error=str(e)
-            )
+            logger.error("health_validator.slo_check_failed", service=service_name, error=str(e))
             result["error"] = str(e)
             result["compliant"] = False
 
@@ -243,8 +228,8 @@ class HealthValidator:
         result = {
             "service_name": service_name,
             "integrity_valid": True,
-            "timestamp": datetime.utcnow().isoformat(),
-            "checks": []
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "checks": [],
         }
 
         # Verificar se há endpoints de validação de dados
@@ -254,16 +239,12 @@ class HealthValidator:
             # Tentar endpoint padrão de healthcheck de dados
             namespace = context.get("namespace", "default")
             default_endpoint = (
-                f"http://{service_name}.{namespace}.svc.cluster.local:8080"
-                "/health/data"
+                f"http://{service_name}.{namespace}.svc.cluster.local:8080" "/health/data"
             )
             validation_endpoints = [default_endpoint]
 
         for endpoint in validation_endpoints:
-            check_result = {
-                "endpoint": endpoint,
-                "valid": False
-            }
+            check_result = {"endpoint": endpoint, "valid": False}
 
             try:
                 if self._http_session:
@@ -289,7 +270,7 @@ class HealthValidator:
         logger.info(
             "health_validator.data_integrity_check_complete",
             service=service_name,
-            valid=result["integrity_valid"]
+            valid=result["integrity_valid"],
         )
 
         return result
@@ -313,16 +294,13 @@ class HealthValidator:
             "service_name": service_name,
             "namespace": namespace,
             "observability_healthy": True,
-            "timestamp": datetime.utcnow().isoformat(),
-            "components": {}
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "components": {},
         }
 
         # Verificar métricas via Prometheus
         if self.prometheus_client:
-            metrics_result = await self._check_metrics_availability(
-                service_name,
-                namespace
-            )
+            metrics_result = await self._check_metrics_availability(service_name, namespace)
             result["components"]["metrics"] = metrics_result
             if not metrics_result.get("available"):
                 result["observability_healthy"] = False
@@ -331,19 +309,19 @@ class HealthValidator:
         # Por simplicidade, marcamos como disponível se Prometheus está ok
         result["components"]["traces"] = {
             "available": True,
-            "note": "Verificação via Tempo API não implementada"
+            "note": "Verificação via Tempo API não implementada",
         }
 
         # Verificar logs seria via Loki API
         result["components"]["logs"] = {
             "available": True,
-            "note": "Verificação via Loki API não implementada"
+            "note": "Verificação via Loki API não implementada",
         }
 
         logger.info(
             "health_validator.observability_check_complete",
             service=service_name,
-            healthy=result["observability_healthy"]
+            healthy=result["observability_healthy"],
         )
 
         return result
@@ -373,22 +351,26 @@ class HealthValidator:
             self.check_slo_compliance(service_name),
             self.check_data_integrity(service_name, {**context, "namespace": namespace}),
             self.check_observability(service_name, namespace),
-            return_exceptions=True
+            return_exceptions=True,
         )
 
         full_result = {
             "service_name": service_name,
             "namespace": namespace,
             "overall_healthy": True,
-            "timestamp": datetime.utcnow().isoformat(),
-            "service_health": results[0] if not isinstance(results[0], Exception)
-                else {"error": str(results[0])},
-            "slo_compliance": results[1] if not isinstance(results[1], Exception)
-                else {"error": str(results[1])},
-            "data_integrity": results[2] if not isinstance(results[2], Exception)
-                else {"error": str(results[2])},
-            "observability": results[3] if not isinstance(results[3], Exception)
-                else {"error": str(results[3])},
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "service_health": results[0]
+            if not isinstance(results[0], Exception)
+            else {"error": str(results[0])},
+            "slo_compliance": results[1]
+            if not isinstance(results[1], Exception)
+            else {"error": str(results[1])},
+            "data_integrity": results[2]
+            if not isinstance(results[2], Exception)
+            else {"error": str(results[2])},
+            "observability": results[3]
+            if not isinstance(results[3], Exception)
+            else {"error": str(results[3])},
         }
 
         # Determinar saúde geral
@@ -408,7 +390,7 @@ class HealthValidator:
         logger.info(
             "health_validator.full_check_complete",
             service=service_name,
-            overall_healthy=full_result["overall_healthy"]
+            overall_healthy=full_result["overall_healthy"],
         )
 
         return full_result
@@ -419,10 +401,7 @@ class HealthValidator:
         namespace: str,
     ) -> Dict[str, Any]:
         """Verifica se serviço está UP via Prometheus."""
-        result = {
-            "available": False,
-            "up": False
-        }
+        result = {"available": False, "up": False}
 
         try:
             query = f'up{{service="{service_name}",namespace="{namespace}"}}'
@@ -446,10 +425,7 @@ class HealthValidator:
         namespace: str,
     ) -> Dict[str, Any]:
         """Verifica se métricas estão sendo coletadas."""
-        result = {
-            "available": False,
-            "metrics_found": 0
-        }
+        result = {"available": False, "metrics_found": 0}
 
         try:
             # Verificar se há métricas sendo emitidas
@@ -496,7 +472,7 @@ class HealthValidator:
                 logger.info(
                     "health_validator.service_healthy",
                     service=service_name,
-                    elapsed_seconds=perf_counter() - start
+                    elapsed_seconds=perf_counter() - start,
                 )
                 return True
 
@@ -505,6 +481,6 @@ class HealthValidator:
         logger.warning(
             "health_validator.timeout_waiting_healthy",
             service=service_name,
-            timeout_seconds=timeout_seconds
+            timeout_seconds=timeout_seconds,
         )
         return False

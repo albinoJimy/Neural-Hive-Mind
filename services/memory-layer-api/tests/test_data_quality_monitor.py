@@ -9,7 +9,7 @@ Testes para o módulo DataQualityMonitor com foco em:
 """
 import os
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
 from src.services.data_quality_monitor import DataQualityMonitor
@@ -74,7 +74,7 @@ class TestDetectAnomalies:
         mock_clickhouse
     ):
         """Testa detecção de anomalias com Z-score"""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         # Dados históricos: 30 documentos com média ~95%
         historical_data = []
@@ -125,7 +125,7 @@ class TestDetectAnomalies:
         mock_clickhouse
     ):
         """Testa que dados normais não geram anomalias"""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         # Todos os dados com média 95% ± 2%
         all_data = []
@@ -156,7 +156,7 @@ class TestDetectAnomalies:
         """Testa que dados insuficientes retornam lista vazia"""
         # Apenas 5 documentos (mínimo é 10)
         mock_mongodb.find = AsyncMock(return_value=[
-            {'collection': 'context', 'timestamp': datetime.utcnow(), 'metrics': {}}
+            {'collection': 'context', 'timestamp': datetime.now(timezone.utc), 'metrics': {}}
             for _ in range(5)
         ])
 
@@ -173,7 +173,7 @@ class TestDetectAnomalies:
         mock_mongodb
     ):
         """Testa que sem ClickHouse usa fallback para MongoDB"""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         # Dados históricos no MongoDB
         historical_data = []
@@ -221,7 +221,7 @@ class TestDetectAnomalies:
         mock_clickhouse
     ):
         """Testa classificação de severidade baseada em Z-score"""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         # Dados históricos com média 95% e std ~2%
         historical_data = []
@@ -283,7 +283,7 @@ class TestCalculateQualityScore:
                 'entity_id': f'entity-{i}',
                 'field1': 'value1',
                 'field2': 'value2',
-                'created_at': datetime.utcnow() - timedelta(hours=i)
+                'created_at': datetime.now(timezone.utc) - timedelta(hours=i)
             }
             for i in range(10)
         ]
@@ -408,7 +408,7 @@ class TestClickHouseIntegration:
         mock_clickhouse_with_data
     ):
         """Testa que ClickHouse é usado como fonte primária quando disponível"""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         # Dados recentes com anomalia (70% quando baseline é 95% ± 2%)
         recent_data = [
@@ -443,7 +443,7 @@ class TestClickHouseIntegration:
         mock_mongodb
     ):
         """Testa fallback para MongoDB quando ClickHouse falha"""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         # ClickHouse que lança exceção
         clickhouse_with_error = MagicMock()
@@ -497,7 +497,7 @@ class TestClickHouseIntegration:
         mock_mongodb
     ):
         """Testa fallback quando ClickHouse retorna dados insuficientes"""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         # ClickHouse com poucos dados (count < 10)
         clickhouse_insufficient = MagicMock()

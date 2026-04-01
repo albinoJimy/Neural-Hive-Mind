@@ -22,7 +22,7 @@ class TestStructuredLogging:
     def test_log_with_context(self):
         """Deve criar log com contexto."""
         log_entry = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "level": "INFO",
             "message": "Agent registered",
             "context": {
@@ -63,7 +63,7 @@ class TestStructuredLogging:
             raise ValueError("Test error")
         except Exception as e:
             log_entry = {
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "level": "ERROR",
                 "message": "An error occurred",
                 "exception": {
@@ -175,7 +175,7 @@ class TestDistributedTracing:
             "span_id": str(uuid4()),
             "parent_span_id": None,
             "operation_name": "process_intent",
-            "start_time": datetime.utcnow().isoformat(),
+            "start_time": datetime.now(timezone.utc).isoformat(),
             "end_time": None,
             "status": "started"
         }
@@ -217,7 +217,7 @@ class TestDistributedTracing:
 
         span["events"].append({
             "name": "validation_complete",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         })
 
         assert len(span["events"]) == 1
@@ -226,12 +226,12 @@ class TestDistributedTracing:
         """Deve fechar span."""
         span = {
             "span_id": str(uuid4()),
-            "start_time": datetime.utcnow() - timedelta(seconds=1),
+            "start_time": datetime.now(timezone.utc) - timedelta(seconds=1),
             "end_time": None,
             "status": "started"
         }
 
-        span["end_time"] = datetime.utcnow()
+        span["end_time"] = datetime.now(timezone.utc)
         span["status"] = "completed"
 
         assert span["status"] == "completed"
@@ -313,13 +313,13 @@ class TestPerformanceMetrics:
 
     def test_measure_latency(self):
         """Deve medir latência."""
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc)
 
         # Simula operação
         import time
         time.sleep(0.01)
 
-        end_time = datetime.utcnow()
+        end_time = datetime.now(timezone.utc)
         latency_ms = (end_time - start_time).total_seconds() * 1000
 
         assert latency_ms >= 10

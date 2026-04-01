@@ -12,7 +12,7 @@ import os
 import sys
 import json
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 import pandas as pd
@@ -113,7 +113,7 @@ class ProductionDataCollector:
             logger.info(f"Partições encontradas: {[p.partition for p in partitions]}")
 
             # Calcular offset alvo (90 dias atrás)
-            cutoff_timestamp = int((datetime.utcnow() - timedelta(days=self.collection_days)).timestamp() * 1000)
+            cutoff_timestamp = int((datetime.now(timezone.utc) - timedelta(days=self.collection_days)).timestamp() * 1000)
 
             collected = 0
             timeout_counter = 0
@@ -187,7 +187,7 @@ class ProductionDataCollector:
             specialist_types=specialist_types
         )
 
-        cutoff_date = datetime.utcnow() - timedelta(days=self.collection_days)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=self.collection_days)
 
         plans_by_specialist = {stype: [] for stype in specialist_types}
 
@@ -262,7 +262,7 @@ class ProductionDataCollector:
         )
 
         # 1. Coletar planos cognitivos
-        cutoff_date = datetime.utcnow() - timedelta(days=self.collection_days)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=self.collection_days)
 
         cursor = self.db.cognitive_plans.find({
             'created_at': {'$gte': cutoff_date},

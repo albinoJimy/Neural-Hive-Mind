@@ -291,7 +291,7 @@ def main():
         )
 
     print("🔄 Neural Hive - Retraining Trigger Checker")
-    print(f"⏰ Execution time: {datetime.utcnow().isoformat()}")
+    print(f"⏰ Execution time: {datetime.now(timezone.utc).isoformat()}")
     print()
 
     # Carregar configuração

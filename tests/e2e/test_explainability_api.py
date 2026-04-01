@@ -6,7 +6,7 @@ Testes de integração para a API de explicabilidade do Neural Hive-Mind.
 
 import pytest
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 from httpx import AsyncClient
 from pymongo import MongoClient
 
@@ -31,7 +31,7 @@ def explainability_token():
             ],
             "confidence": 0.85
         },
-        "generated_at": datetime.utcnow()
+        "generated_at": datetime.now(timezone.utc)
     }
 
     db.explainability_ledger.insert_one(test_entry)

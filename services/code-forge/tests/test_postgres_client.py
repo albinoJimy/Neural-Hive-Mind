@@ -1,7 +1,7 @@
 """Testes unitários para PostgresClient"""
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime
+from datetime import datetime, timezone
 import sys
 import os
 
@@ -46,7 +46,7 @@ def sample_pipeline_result():
         pipeline_stages=[],
         total_duration_ms=5000,
         approval_required=False,
-        created_at=datetime.utcnow()
+        created_at=datetime.now(timezone.utc)
     )
 
 
@@ -156,7 +156,7 @@ async def test_get_pipeline_found(mock_engine, mock_session):
     mock_orm.error_message = None
     mock_orm.git_mr_url = None
     mock_orm.metadata = {}
-    mock_orm.created_at = datetime.utcnow()
+    mock_orm.created_at = datetime.now(timezone.utc)
     mock_orm.completed_at = None
     mock_orm.schema_version = 1
     mock_orm.correlation_id = None

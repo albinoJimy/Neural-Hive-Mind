@@ -5,7 +5,7 @@ GAP-04: Cobertura de Testes 16% → 70%
 Testes simples focados em aumentar contagem e cobertura.
 """
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 
@@ -305,11 +305,11 @@ class TestMassive10:
 class TestMassiveDatetime:
     """Testes de data/hora."""
 
-    def test_dt_001(self): assert datetime.utcnow() is not None
-    def test_dt_002(self): assert datetime.utcnow().date() is not None
-    def test_dt_003(self): assert datetime.utcnow().time() is not None
+    def test_dt_001(self): assert datetime.now(timezone.utc) is not None
+    def test_dt_002(self): assert datetime.now(timezone.utc).date() is not None
+    def test_dt_003(self): assert datetime.now(timezone.utc).time() is not None
     def test_dt_004(self): assert (timedelta(days=1)).days >= 0
-    def test_dt_005(self): assert (datetime.utcnow() + timedelta(hours=1)) is not None
+    def test_dt_005(self): assert (datetime.now(timezone.utc) + timedelta(hours=1)) is not None
     def test_dt_006(self): assert timedelta(days=1).total_seconds() == 86400
     def test_dt_007(self): assert timedelta(hours=1).total_seconds() == 3600
     def test_dt_008(self): assert timedelta(minutes=1).total_seconds() == 60

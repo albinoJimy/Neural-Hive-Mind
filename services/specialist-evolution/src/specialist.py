@@ -16,24 +16,27 @@ Evolution Hooks (meta-learning):
 """
 
 import sys
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional
+
 import structlog
 
-sys.path.insert(0, '/app/libraries/python')
+sys.path.insert(0, "/app/libraries/python")
+
+from config import EvolutionSpecialistConfig
 
 from neural_hive_specialists import BaseSpecialist
-from config import EvolutionSpecialistConfig
 
 # Evolution Hooks imports (opcional, só se habilitado)
 try:
     from neural_hive_specialists.evolution_hooks import (
+        DEFAULT_WEIGHTS,
         FingerprintExtractor,
         PatternMatcher,
-        WeightAdapter,
         PatternRegistry,
         SyncPatternRegistry,
-        DEFAULT_WEIGHTS,
+        WeightAdapter,
     )
+
     EVOLUTION_HOOKS_AVAILABLE = True
 except ImportError as e:
     logger = structlog.get_logger()
@@ -52,7 +55,7 @@ class EvolutionSpecialist(BaseSpecialist):
         "scalability": 0.25,
         "extensibility": 0.20,
         "modularity": 0.15,
-        "tech_debt_prevention": 0.15
+        "tech_debt_prevention": 0.15,
     }
 
     def __init__(self, config: Optional[EvolutionSpecialistConfig] = None):
@@ -89,12 +92,12 @@ class EvolutionSpecialist(BaseSpecialist):
             logger.info("Evolution hooks not available, using default weights")
             return
 
-        if not getattr(self.config, 'evolution_hooks_enabled', False):
+        if not getattr(self.config, "evolution_hooks_enabled", False):
             logger.info("Evolution hooks disabled in config")
             return
 
         # Verificar se temos mongo_client
-        if not hasattr(self, 'mongo_client') or self.mongo_client is None:
+        if not hasattr(self, "mongo_client") or self.mongo_client is None:
             logger.warning("Mongo client not available, evolution hooks disabled")
             return
 
@@ -103,29 +106,28 @@ class EvolutionSpecialist(BaseSpecialist):
             self._fingerprint_extractor = FingerprintExtractor()
             self._pattern_registry = SyncPatternRegistry(
                 self.mongo_client,
-                database=getattr(self.config, 'evolution_hooks_pattern_registry_db', 'neural_hive')
+                database=getattr(self.config, "evolution_hooks_pattern_registry_db", "neural_hive"),
             )
 
             # PatternMatcher e WeightAdapter dependem do registry
             self._pattern_matcher = PatternMatcher(self.mongo_client)
             self._weight_adapter = WeightAdapter(
                 self.mongo_client,
-                min_similar_patterns=getattr(self.config, 'evolution_hooks_min_similar_patterns', 5),
-                max_adjustment=getattr(self.config, 'evolution_hooks_max_adjustment', 0.05)
+                min_similar_patterns=getattr(
+                    self.config, "evolution_hooks_min_similar_patterns", 5
+                ),
+                max_adjustment=getattr(self.config, "evolution_hooks_max_adjustment", 0.05),
             )
 
             self._evolution_hooks_enabled = True
             logger.info(
                 "Evolution hooks initialized",
                 min_patterns=self.config.evolution_hooks_min_similar_patterns,
-                max_adjustment=self.config.evolution_hooks_max_adjustment
+                max_adjustment=self.config.evolution_hooks_max_adjustment,
             )
 
         except Exception as e:
-            logger.warning(
-                "Failed to initialize evolution hooks, using defaults",
-                error=str(e)
-            )
+            logger.warning("Failed to initialize evolution hooks, using defaults", error=str(e))
             self._evolution_hooks_enabled = False
 
     async def _get_adaptive_weights(self, cognitive_plan: Dict[str, Any]) -> Dict[str, float]:
@@ -154,9 +156,9 @@ class EvolutionSpecialist(BaseSpecialist):
 
             logger.debug(
                 "Weight adaptation completed",
-                plan_id=cognitive_plan.get('plan_id'),
+                plan_id=cognitive_plan.get("plan_id"),
                 similar_count=len(similar),
-                weights=adapted
+                weights=adapted,
             )
 
             return adapted
@@ -165,15 +167,12 @@ class EvolutionSpecialist(BaseSpecialist):
             logger.warning(
                 "Weight adaptation failed, using defaults",
                 error=str(e),
-                plan_id=cognitive_plan.get('plan_id')
+                plan_id=cognitive_plan.get("plan_id"),
             )
             return self.DEFAULT_WEIGHTS.copy()
 
     async def _store_evaluation_for_learning(
-        self,
-        plan_id: str,
-        cognitive_plan: Dict[str, Any],
-        evaluation_result: Dict[str, Any]
+        self, plan_id: str, cognitive_plan: Dict[str, Any], evaluation_result: Dict[str, Any]
     ) -> None:
         """
         Armazena avaliação para aprendizado futuro.
@@ -187,42 +186,29 @@ class EvolutionSpecialist(BaseSpecialist):
             return
 
         try:
-            from neural_hive_specialists.evolution_hooks import (
-                Fingerprint,
-                EvolutionEvaluation
-            )
+            from neural_hive_specialists.evolution_hooks import EvolutionEvaluation
 
             # Extrair fingerprint
             fingerprint = self._fingerprint_extractor.extract(cognitive_plan)
 
             # Criar EvolutionEvaluation
             evolution_eval = EvolutionEvaluation(
-                confidence_score=evaluation_result.get('confidence_score', 0.5),
-                risk_score=evaluation_result.get('risk_score', 0.5),
-                recommendation=evaluation_result.get('recommendation', 'conditional'),
-                weights_used=evaluation_result.get('adaptive_weights', self.DEFAULT_WEIGHTS),
-                reasoning_factors=evaluation_result.get('reasoning_factors', [])
+                confidence_score=evaluation_result.get("confidence_score", 0.5),
+                risk_score=evaluation_result.get("risk_score", 0.5),
+                recommendation=evaluation_result.get("recommendation", "conditional"),
+                weights_used=evaluation_result.get("adaptive_weights", self.DEFAULT_WEIGHTS),
+                reasoning_factors=evaluation_result.get("reasoning_factors", []),
             )
 
             # Armazenar no registry
             pattern_id = self._pattern_registry.store_evaluation(
-                plan_id=plan_id,
-                fingerprint=fingerprint,
-                evaluation=evolution_eval
+                plan_id=plan_id, fingerprint=fingerprint, evaluation=evolution_eval
             )
 
-            logger.debug(
-                "Stored evaluation for learning",
-                plan_id=plan_id,
-                pattern_id=pattern_id
-            )
+            logger.debug("Stored evaluation for learning", plan_id=plan_id, pattern_id=pattern_id)
 
         except Exception as e:
-            logger.warning(
-                "Failed to store evaluation for learning",
-                error=str(e),
-                plan_id=plan_id
-            )
+            logger.warning("Failed to store evaluation for learning", error=str(e), plan_id=plan_id)
 
     def _load_model(self) -> Any:
         """Carrega modelo de análise de evolução do MLflow."""
@@ -237,7 +223,7 @@ class EvolutionSpecialist(BaseSpecialist):
         if hasattr(self.mlflow_client, "is_enabled"):
             mlflow_enabled = self.mlflow_client.is_enabled()
         else:
-            mlflow_enabled = getattr(self.mlflow_client, '_enabled', False)
+            mlflow_enabled = getattr(self.mlflow_client, "_enabled", False)
 
         if not mlflow_enabled:
             logger.warning("MLflow not available - using heuristic-based evaluation")
@@ -246,21 +232,19 @@ class EvolutionSpecialist(BaseSpecialist):
         try:
             # Carregar modelo com fallback para cache expirado
             model = self.mlflow_client.load_model_with_fallback(
-                self.config.mlflow_model_name,
-                self.config.mlflow_model_stage
+                self.config.mlflow_model_name, self.config.mlflow_model_stage
             )
 
             if model:
                 metadata = self.mlflow_client.get_model_metadata(
-                    self.config.mlflow_model_name,
-                    self.config.mlflow_model_stage
+                    self.config.mlflow_model_name, self.config.mlflow_model_stage
                 )
 
                 if not metadata:
                     logger.warning(
                         "No model metadata found for configured stage - using heuristics",
                         model_name=self.config.mlflow_model_name,
-                        stage=self.config.mlflow_model_stage
+                        stage=self.config.mlflow_model_stage,
                     )
                     return None
 
@@ -268,24 +252,20 @@ class EvolutionSpecialist(BaseSpecialist):
                     "ML model loaded successfully",
                     model_name=self.config.mlflow_model_name,
                     stage=self.config.mlflow_model_stage,
-                    version=metadata.get('version', 'unknown'),
-                    stage_match=metadata.get('stage', self.config.mlflow_model_stage) == self.config.mlflow_model_stage
+                    version=metadata.get("version", "unknown"),
+                    stage_match=metadata.get("stage", self.config.mlflow_model_stage)
+                    == self.config.mlflow_model_stage,
                 )
 
             return model
 
         except Exception as e:
             # Fallback para heurísticas
-            logger.warning(
-                "ML model not available, using heuristics",
-                error=str(e)
-            )
+            logger.warning("ML model not available, using heuristics", error=str(e))
             return None
 
     def _evaluate_plan_internal(
-        self,
-        cognitive_plan: Dict[str, Any],
-        context: Dict[str, Any]
+        self, cognitive_plan: Dict[str, Any], context: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
         Avalia plano sob perspectiva de evolução.
@@ -299,16 +279,16 @@ class EvolutionSpecialist(BaseSpecialist):
         """
         logger.info(
             "Evaluating plan from evolution perspective",
-            plan_id=cognitive_plan.get('plan_id'),
-            domain=cognitive_plan.get('original_domain'),
-            evolution_hooks_enabled=self._evolution_hooks_enabled
+            plan_id=cognitive_plan.get("plan_id"),
+            domain=cognitive_plan.get("original_domain"),
+            evolution_hooks_enabled=self._evolution_hooks_enabled,
         )
 
         # Extrair informações do plano
-        tasks = cognitive_plan.get('tasks', [])
-        domain = cognitive_plan.get('original_domain')
-        priority = cognitive_plan.get('original_priority', 'normal')
-        plan_id = cognitive_plan.get('plan_id', 'unknown')
+        tasks = cognitive_plan.get("tasks", [])
+        domain = cognitive_plan.get("original_domain")
+        priority = cognitive_plan.get("original_priority", "normal")
+        plan_id = cognitive_plan.get("plan_id", "unknown")
 
         # Análise de manutenibilidade
         maintainability_score = self._analyze_maintainability(tasks, cognitive_plan)
@@ -334,6 +314,7 @@ class EvolutionSpecialist(BaseSpecialist):
         if self._evolution_hooks_enabled and self._fingerprint_extractor:
             try:
                 import asyncio
+
                 # Tentar rodar async em contexto sync
                 loop = asyncio.get_event_loop()
                 if loop.is_running():
@@ -347,11 +328,11 @@ class EvolutionSpecialist(BaseSpecialist):
 
         # Calcular scores agregados usando pesos adaptativos
         confidence_score = (
-            maintainability_score * adaptive_weights.get('maintainability', 0.25) +
-            scalability_score * adaptive_weights.get('scalability', 0.25) +
-            extensibility_score * adaptive_weights.get('extensibility', 0.20) +
-            modularity_score * adaptive_weights.get('modularity', 0.15) +
-            tech_debt_score * adaptive_weights.get('tech_debt_prevention', 0.15)
+            maintainability_score * adaptive_weights.get("maintainability", 0.25)
+            + scalability_score * adaptive_weights.get("scalability", 0.25)
+            + extensibility_score * adaptive_weights.get("extensibility", 0.20)
+            + modularity_score * adaptive_weights.get("modularity", 0.15)
+            + tech_debt_score * adaptive_weights.get("tech_debt_prevention", 0.15)
         )
 
         # Calcular risco de evolução
@@ -360,7 +341,7 @@ class EvolutionSpecialist(BaseSpecialist):
             scalability_score,
             extensibility_score,
             modularity_score,
-            tech_debt_score
+            tech_debt_score,
         )
 
         # Determinar recomendação
@@ -373,41 +354,41 @@ class EvolutionSpecialist(BaseSpecialist):
             extensibility_score,
             modularity_score,
             tech_debt_score,
-            recommendation
+            recommendation,
         )
 
         # Fatores de raciocínio estruturados (com pesos adaptativos)
         reasoning_factors = [
             {
-                'factor_name': 'maintainability',
-                'weight': adaptive_weights.get('maintainability', 0.25),
-                'score': maintainability_score,
-                'description': 'Facilidade de manutenção baseada em clareza, acoplamento e coesão'
+                "factor_name": "maintainability",
+                "weight": adaptive_weights.get("maintainability", 0.25),
+                "score": maintainability_score,
+                "description": "Facilidade de manutenção baseada em clareza, acoplamento e coesão",
             },
             {
-                'factor_name': 'scalability',
-                'weight': adaptive_weights.get('scalability', 0.25),
-                'score': scalability_score,
-                'description': 'Capacidade de escalar horizontal e verticalmente'
+                "factor_name": "scalability",
+                "weight": adaptive_weights.get("scalability", 0.25),
+                "score": scalability_score,
+                "description": "Capacidade de escalar horizontal e verticalmente",
             },
             {
-                'factor_name': 'extensibility',
-                'weight': adaptive_weights.get('extensibility', 0.20),
-                'score': extensibility_score,
-                'description': 'Facilidade de adicionar novos recursos no futuro'
+                "factor_name": "extensibility",
+                "weight": adaptive_weights.get("extensibility", 0.20),
+                "score": extensibility_score,
+                "description": "Facilidade de adicionar novos recursos no futuro",
             },
             {
-                'factor_name': 'modularity',
-                'weight': adaptive_weights.get('modularity', 0.15),
-                'score': modularity_score,
-                'description': 'Design modular e separação de responsabilidades'
+                "factor_name": "modularity",
+                "weight": adaptive_weights.get("modularity", 0.15),
+                "score": modularity_score,
+                "description": "Design modular e separação de responsabilidades",
             },
             {
-                'factor_name': 'tech_debt_prevention',
-                'weight': adaptive_weights.get('tech_debt_prevention', 0.15),
-                'score': tech_debt_score,
-                'description': 'Prevenção de débito técnico futuro'
-            }
+                "factor_name": "tech_debt_prevention",
+                "weight": adaptive_weights.get("tech_debt_prevention", 0.15),
+                "score": tech_debt_score,
+                "description": "Prevenção de débito técnico futuro",
+            },
         ]
 
         # Sugestões de mitigação
@@ -416,7 +397,7 @@ class EvolutionSpecialist(BaseSpecialist):
             scalability_score,
             extensibility_score,
             modularity_score,
-            tech_debt_score
+            tech_debt_score,
         )
 
         logger.info(
@@ -425,66 +406,61 @@ class EvolutionSpecialist(BaseSpecialist):
             confidence_score=confidence_score,
             risk_score=risk_score,
             recommendation=recommendation,
-            adaptive_weights=adaptive_weights if adaptive_weights != self.DEFAULT_WEIGHTS else None
+            adaptive_weights=adaptive_weights if adaptive_weights != self.DEFAULT_WEIGHTS else None,
         )
 
         # Construir resultado
         result = {
-            'confidence_score': confidence_score,
-            'risk_score': risk_score,
-            'recommendation': recommendation,
-            'reasoning_summary': reasoning_summary,
-            'reasoning_factors': reasoning_factors,
-            'mitigations': mitigations,
-            'metadata': {
-                'maintainability_score': maintainability_score,
-                'scalability_score': scalability_score,
-                'extensibility_score': extensibility_score,
-                'modularity_score': modularity_score,
-                'tech_debt_score': tech_debt_score,
-                'domain': domain,
-                'priority': priority,
-                'num_tasks': len(tasks),
-                'evolution_hooks_enabled': self._evolution_hooks_enabled
-            }
+            "confidence_score": confidence_score,
+            "risk_score": risk_score,
+            "recommendation": recommendation,
+            "reasoning_summary": reasoning_summary,
+            "reasoning_factors": reasoning_factors,
+            "mitigations": mitigations,
+            "metadata": {
+                "maintainability_score": maintainability_score,
+                "scalability_score": scalability_score,
+                "extensibility_score": extensibility_score,
+                "modularity_score": modularity_score,
+                "tech_debt_score": tech_debt_score,
+                "domain": domain,
+                "priority": priority,
+                "num_tasks": len(tasks),
+                "evolution_hooks_enabled": self._evolution_hooks_enabled,
+            },
         }
 
         # Adicionar pesos adaptativos ao resultado para metadados
         if adaptive_weights != self.DEFAULT_WEIGHTS:
-            result['adaptive_weights'] = adaptive_weights
-            result['metadata']['weights_source'] = 'adaptive'
+            result["adaptive_weights"] = adaptive_weights
+            result["metadata"]["weights_source"] = "adaptive"
         else:
-            result['metadata']['weights_source'] = 'default'
+            result["metadata"]["weights_source"] = "default"
 
         # Armazenar avaliação para aprendizado async (fire and forget)
         if self._evolution_hooks_enabled and self._pattern_registry:
             try:
                 import asyncio
+
                 loop = asyncio.get_event_loop()
                 if loop.is_running():
                     # Criar task mas não await
-                    asyncio.create_task(self._store_evaluation_for_learning(
-                        plan_id, cognitive_plan, result
-                    ))
+                    asyncio.create_task(
+                        self._store_evaluation_for_learning(plan_id, cognitive_plan, result)
+                    )
                 else:
                     # Rodar async se não temos loop
-                    asyncio.run(self._store_evaluation_for_learning(
-                        plan_id, cognitive_plan, result
-                    ))
+                    asyncio.run(
+                        self._store_evaluation_for_learning(plan_id, cognitive_plan, result)
+                    )
             except Exception as e:
                 logger.debug(
-                    "Could not store evaluation for learning",
-                    error=str(e),
-                    plan_id=plan_id
+                    "Could not store evaluation for learning", error=str(e), plan_id=plan_id
                 )
 
         return result
 
-    def _analyze_maintainability(
-        self,
-        tasks: List[Dict],
-        cognitive_plan: Dict
-    ) -> float:
+    def _analyze_maintainability(self, tasks: List[Dict], cognitive_plan: Dict) -> float:
         """
         Analisa manutenibilidade do plano.
 
@@ -518,7 +494,7 @@ class EvolutionSpecialist(BaseSpecialist):
             complexity_score = 0.5  # Muito complexo
 
         # Analisar acoplamento (baseado em dependências)
-        total_dependencies = sum(len(task.get('dependencies', [])) for task in tasks)
+        total_dependencies = sum(len(task.get("dependencies", [])) for task in tasks)
         avg_dependencies = total_dependencies / num_tasks if num_tasks > 0 else 0
 
         if avg_dependencies <= 1:
@@ -529,18 +505,11 @@ class EvolutionSpecialist(BaseSpecialist):
             coupling_score = 0.5  # Alto acoplamento
 
         # Analisar clareza (tarefas com nomes/tipos bem definidos)
-        clear_tasks = sum(
-            1 for task in tasks
-            if task.get('name') and task.get('task_type')
-        )
+        clear_tasks = sum(1 for task in tasks if task.get("name") and task.get("task_type"))
         clarity_score = clear_tasks / num_tasks if num_tasks > 0 else 0
 
         # Score final
-        maintainability_score = (
-            complexity_score * 0.3 +
-            coupling_score * 0.4 +
-            clarity_score * 0.3
-        )
+        maintainability_score = complexity_score * 0.3 + coupling_score * 0.4 + clarity_score * 0.3
 
         logger.debug(
             "Maintainability analysis",
@@ -548,16 +517,12 @@ class EvolutionSpecialist(BaseSpecialist):
             complexity_score=complexity_score,
             coupling_score=coupling_score,
             clarity_score=clarity_score,
-            maintainability_score=maintainability_score
+            maintainability_score=maintainability_score,
         )
 
         return max(0.0, min(1.0, maintainability_score))
 
-    def _analyze_scalability(
-        self,
-        tasks: List[Dict],
-        cognitive_plan: Dict
-    ) -> float:
+    def _analyze_scalability(self, tasks: List[Dict], cognitive_plan: Dict) -> float:
         """
         Analisa escalabilidade do plano.
 
@@ -580,7 +545,7 @@ class EvolutionSpecialist(BaseSpecialist):
             return 0.5
 
         # Calcular potencial de paralelização
-        total_dependencies = sum(len(task.get('dependencies', [])) for task in tasks)
+        total_dependencies = sum(len(task.get("dependencies", [])) for task in tasks)
         max_possible_deps = num_tasks * (num_tasks - 1) / 2
 
         if max_possible_deps > 0:
@@ -590,7 +555,7 @@ class EvolutionSpecialist(BaseSpecialist):
             parallelization_potential = 1.0
 
         # Analisar eficiência de recursos (baseado em duração estimada)
-        total_duration_ms = sum(task.get('estimated_duration_ms', 0) for task in tasks)
+        total_duration_ms = sum(task.get("estimated_duration_ms", 0) for task in tasks)
         avg_duration_ms = total_duration_ms / num_tasks if num_tasks > 0 else 0
 
         # Normalizar (1 segundo = 1000ms como ideal)
@@ -604,26 +569,19 @@ class EvolutionSpecialist(BaseSpecialist):
             resource_efficiency = 0.4
 
         # Score final
-        scalability_score = (
-            parallelization_potential * 0.6 +
-            resource_efficiency * 0.4
-        )
+        scalability_score = parallelization_potential * 0.6 + resource_efficiency * 0.4
 
         logger.debug(
             "Scalability analysis",
             num_tasks=num_tasks,
             parallelization_potential=parallelization_potential,
             resource_efficiency=resource_efficiency,
-            scalability_score=scalability_score
+            scalability_score=scalability_score,
         )
 
         return max(0.0, min(1.0, scalability_score))
 
-    def _analyze_extensibility(
-        self,
-        tasks: List[Dict],
-        cognitive_plan: Dict
-    ) -> float:
+    def _analyze_extensibility(self, tasks: List[Dict], cognitive_plan: Dict) -> float:
         """
         Analisa extensibilidade do plano.
 
@@ -645,7 +603,7 @@ class EvolutionSpecialist(BaseSpecialist):
             return 0.5
 
         # Analisar modularidade (baseado em tipos de tarefas)
-        task_types = set(task.get('task_type', 'unknown') for task in tasks)
+        task_types = set(task.get("task_type", "unknown") for task in tasks)
         type_diversity = len(task_types) / num_tasks if num_tasks > 0 else 0
 
         # Diversidade moderada indica boa separação de responsabilidades
@@ -658,17 +616,11 @@ class EvolutionSpecialist(BaseSpecialist):
 
         # Analisar flexibilidade (baseado em dependências condicionais)
         # Tarefas com poucas dependências hard-coded são mais flexíveis
-        tasks_with_few_deps = sum(
-            1 for task in tasks
-            if len(task.get('dependencies', [])) <= 2
-        )
+        tasks_with_few_deps = sum(1 for task in tasks if len(task.get("dependencies", [])) <= 2)
         flexibility_score = tasks_with_few_deps / num_tasks if num_tasks > 0 else 0
 
         # Score final
-        extensibility_score = (
-            modularity_score * 0.5 +
-            flexibility_score * 0.5
-        )
+        extensibility_score = modularity_score * 0.5 + flexibility_score * 0.5
 
         logger.debug(
             "Extensibility analysis",
@@ -676,7 +628,7 @@ class EvolutionSpecialist(BaseSpecialist):
             type_diversity=type_diversity,
             modularity_score=modularity_score,
             flexibility_score=flexibility_score,
-            extensibility_score=extensibility_score
+            extensibility_score=extensibility_score,
         )
 
         return max(0.0, min(1.0, extensibility_score))
@@ -712,7 +664,7 @@ class EvolutionSpecialist(BaseSpecialist):
             size_score = 0.5  # Muito grande
 
         # Analisar separação de responsabilidades (baseado em tipos de tarefas)
-        task_types = [task.get('task_type', 'unknown') for task in tasks]
+        task_types = [task.get("task_type", "unknown") for task in tasks]
         unique_types = len(set(task_types))
 
         if unique_types >= 3 and unique_types <= 7:
@@ -723,7 +675,7 @@ class EvolutionSpecialist(BaseSpecialist):
             separation_score = 0.6  # Poucos tipos
 
         # Score final
-        modularity_score = (size_score * 0.5 + separation_score * 0.5)
+        modularity_score = size_score * 0.5 + separation_score * 0.5
 
         logger.debug(
             "Modularity analysis",
@@ -731,16 +683,12 @@ class EvolutionSpecialist(BaseSpecialist):
             unique_types=unique_types,
             size_score=size_score,
             separation_score=separation_score,
-            modularity_score=modularity_score
+            modularity_score=modularity_score,
         )
 
         return max(0.0, min(1.0, modularity_score))
 
-    def _analyze_tech_debt_risk(
-        self,
-        tasks: List[Dict],
-        cognitive_plan: Dict
-    ) -> float:
+    def _analyze_tech_debt_risk(self, tasks: List[Dict], cognitive_plan: Dict) -> float:
         """
         Analisa risco de tech debt futuro.
 
@@ -764,9 +712,9 @@ class EvolutionSpecialist(BaseSpecialist):
 
         # Verificar se há tarefas de teste
         test_tasks = sum(
-            1 for task in tasks
-            if 'test' in (task.get('name') or '').lower() or
-            task.get('task_type', '') == 'testing'
+            1
+            for task in tasks
+            if "test" in (task.get("name") or "").lower() or task.get("task_type", "") == "testing"
         )
         test_coverage_score = min(1.0, test_tasks / max(1, num_tasks * 0.3))
 
@@ -779,7 +727,7 @@ class EvolutionSpecialist(BaseSpecialist):
             complexity_risk = 0.5  # Alto risco
 
         # Verificar acoplamento
-        total_dependencies = sum(len(task.get('dependencies', [])) for task in tasks)
+        total_dependencies = sum(len(task.get("dependencies", [])) for task in tasks)
         avg_dependencies = total_dependencies / num_tasks if num_tasks > 0 else 0
 
         if avg_dependencies <= 1.5:
@@ -791,9 +739,7 @@ class EvolutionSpecialist(BaseSpecialist):
 
         # Score final (quanto maior, menor o risco de tech debt)
         tech_debt_prevention_score = (
-            test_coverage_score * 0.4 +
-            complexity_risk * 0.3 +
-            coupling_risk * 0.3
+            test_coverage_score * 0.4 + complexity_risk * 0.3 + coupling_risk * 0.3
         )
 
         logger.debug(
@@ -803,7 +749,7 @@ class EvolutionSpecialist(BaseSpecialist):
             test_coverage_score=test_coverage_score,
             complexity_risk=complexity_risk,
             coupling_risk=coupling_risk,
-            tech_debt_prevention_score=tech_debt_prevention_score
+            tech_debt_prevention_score=tech_debt_prevention_score,
         )
 
         return max(0.0, min(1.0, tech_debt_prevention_score))
@@ -814,7 +760,7 @@ class EvolutionSpecialist(BaseSpecialist):
         scalability_score: float,
         extensibility_score: float,
         modularity_score: float,
-        tech_debt_score: float
+        tech_debt_score: float,
     ) -> float:
         """
         Calcula risco de evolução geral.
@@ -838,11 +784,11 @@ class EvolutionSpecialist(BaseSpecialist):
         """
         # Média ponderada invertida
         weighted_avg = (
-            maintainability_score * 0.25 +
-            scalability_score * 0.25 +
-            extensibility_score * 0.20 +
-            modularity_score * 0.15 +
-            tech_debt_score * 0.15
+            maintainability_score * 0.25
+            + scalability_score * 0.25
+            + extensibility_score * 0.20
+            + modularity_score * 0.15
+            + tech_debt_score * 0.15
         )
         risk_score = 1.0 - weighted_avg
 
@@ -853,7 +799,7 @@ class EvolutionSpecialist(BaseSpecialist):
             extensibility_score=extensibility_score,
             modularity_score=modularity_score,
             tech_debt_score=tech_debt_score,
-            risk_score=risk_score
+            risk_score=risk_score,
         )
 
         return max(0.0, min(1.0, risk_score))
@@ -870,13 +816,13 @@ class EvolutionSpecialist(BaseSpecialist):
             Recomendação (approve, reject, review_required, conditional)
         """
         if confidence_score >= 0.8 and risk_score < 0.3:
-            return 'approve'
+            return "approve"
         elif confidence_score < 0.5 or risk_score > 0.7:
-            return 'reject'
+            return "reject"
         elif risk_score > 0.5:
-            return 'review_required'
+            return "review_required"
         else:
-            return 'conditional'
+            return "conditional"
 
     def _generate_reasoning(
         self,
@@ -885,7 +831,7 @@ class EvolutionSpecialist(BaseSpecialist):
         extensibility_score: float,
         modularity_score: float,
         tech_debt_score: float,
-        recommendation: str
+        recommendation: str,
     ) -> str:
         """Gera narrativa de justificativa."""
         return (
@@ -904,80 +850,90 @@ class EvolutionSpecialist(BaseSpecialist):
         scalability_score: float,
         extensibility_score: float,
         modularity_score: float,
-        tech_debt_score: float
+        tech_debt_score: float,
     ) -> List[Dict]:
         """Gera sugestões de mitigação de riscos."""
         mitigations = []
 
         if maintainability_score < 0.6:
-            mitigations.append({
-                'mitigation_id': 'improve_maintainability',
-                'description': 'Melhorar manutenibilidade reduzindo complexidade e acoplamento',
-                'priority': 'high',
-                'estimated_impact': 0.3,
-                'required_actions': [
-                    'Simplificar tarefas complexas',
-                    'Reduzir dependências entre módulos',
-                    'Adicionar documentação clara',
-                    'Aplicar princípios SOLID'
-                ]
-            })
+            mitigations.append(
+                {
+                    "mitigation_id": "improve_maintainability",
+                    "description": "Melhorar manutenibilidade reduzindo complexidade e acoplamento",
+                    "priority": "high",
+                    "estimated_impact": 0.3,
+                    "required_actions": [
+                        "Simplificar tarefas complexas",
+                        "Reduzir dependências entre módulos",
+                        "Adicionar documentação clara",
+                        "Aplicar princípios SOLID",
+                    ],
+                }
+            )
 
         if scalability_score < 0.6:
-            mitigations.append({
-                'mitigation_id': 'enhance_scalability',
-                'description': 'Aumentar capacidade de escalabilidade horizontal e vertical',
-                'priority': 'high',
-                'estimated_impact': 0.35,
-                'required_actions': [
-                    'Aumentar paralelização de tarefas',
-                    'Implementar design stateless',
-                    'Otimizar uso de recursos',
-                    'Considerar arquitetura distribuída'
-                ]
-            })
+            mitigations.append(
+                {
+                    "mitigation_id": "enhance_scalability",
+                    "description": "Aumentar capacidade de escalabilidade horizontal e vertical",
+                    "priority": "high",
+                    "estimated_impact": 0.35,
+                    "required_actions": [
+                        "Aumentar paralelização de tarefas",
+                        "Implementar design stateless",
+                        "Otimizar uso de recursos",
+                        "Considerar arquitetura distribuída",
+                    ],
+                }
+            )
 
         if extensibility_score < 0.6:
-            mitigations.append({
-                'mitigation_id': 'improve_extensibility',
-                'description': 'Facilitar adição de novos recursos no futuro',
-                'priority': 'medium',
-                'estimated_impact': 0.25,
-                'required_actions': [
-                    'Aplicar padrões de design (Strategy, Factory, etc)',
-                    'Usar abstrações e interfaces',
-                    'Reduzir acoplamento entre componentes',
-                    'Implementar dependency injection'
-                ]
-            })
+            mitigations.append(
+                {
+                    "mitigation_id": "improve_extensibility",
+                    "description": "Facilitar adição de novos recursos no futuro",
+                    "priority": "medium",
+                    "estimated_impact": 0.25,
+                    "required_actions": [
+                        "Aplicar padrões de design (Strategy, Factory, etc)",
+                        "Usar abstrações e interfaces",
+                        "Reduzir acoplamento entre componentes",
+                        "Implementar dependency injection",
+                    ],
+                }
+            )
 
         if modularity_score < 0.6:
-            mitigations.append({
-                'mitigation_id': 'enhance_modularity',
-                'description': 'Melhorar design modular e separação de responsabilidades',
-                'priority': 'medium',
-                'estimated_impact': 0.2,
-                'required_actions': [
-                    'Aplicar Single Responsibility Principle',
-                    'Dividir módulos grandes em menores',
-                    'Definir interfaces claras entre módulos',
-                    'Agrupar funcionalidades relacionadas'
-                ]
-            })
+            mitigations.append(
+                {
+                    "mitigation_id": "enhance_modularity",
+                    "description": "Melhorar design modular e separação de responsabilidades",
+                    "priority": "medium",
+                    "estimated_impact": 0.2,
+                    "required_actions": [
+                        "Aplicar Single Responsibility Principle",
+                        "Dividir módulos grandes em menores",
+                        "Definir interfaces claras entre módulos",
+                        "Agrupar funcionalidades relacionadas",
+                    ],
+                }
+            )
 
         if tech_debt_score < 0.6:
-            mitigations.append({
-                'mitigation_id': 'prevent_tech_debt',
-                'description': 'Prevenir acúmulo de débito técnico futuro',
-                'priority': 'high',
-                'estimated_impact': 0.4,
-                'required_actions': [
-                    'Adicionar testes automatizados (unit, integration)',
-                    'Implementar code reviews',
-                    'Documentar decisões arquiteturais',
-                    'Estabelecer métricas de qualidade de código',
-                    'Planejar refatorações regulares'
-                ]
-            })
+            mitigations.append(
+                {
+                    "mitigation_id": "prevent_tech_debt",
+                    "description": "Prevenir acúmulo de débito técnico futuro",
+                    "priority": "high",
+                    "estimated_impact": 0.4,
+                    "required_actions": [
+                        "Adicionar testes automatizados (unit, integration)",
+                        "Implementar code reviews",
+                        "Documentar decisões arquiteturais",
+                        "Estabelecer métricas de qualidade de código",
+                        "Planejar refatorações regulares",
+                    ],
+                }
+            )
 
         return mitigations

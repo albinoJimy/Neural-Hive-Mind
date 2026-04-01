@@ -2,7 +2,7 @@
 
 import pytest
 import numpy as np
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import Mock, AsyncMock, patch, MagicMock, call
 
 from neural_hive_ml.drift_detector import DriftDetector, CanaryDeployer
@@ -130,7 +130,7 @@ class TestBuildAggregationPipeline:
         window_hours = 24
         pipeline = drift_detector._build_aggregation_pipeline(window_hours)
 
-        since = datetime.utcnow() - timedelta(hours=window_hours)
+        since = datetime.now(timezone.utc) - timedelta(hours=window_hours)
         match_since = pipeline[0]["$match"]["created_at"]["$gte"]
 
         # Verifica que o timestamp está próximo (diferença de segundos aceitável)
@@ -247,7 +247,7 @@ class TestGetActiveModelVersion:
             "version": "v1.2.3",
             "stage": "production",
             "is_active": True,
-            "created_at": datetime.utcnow()
+            "created_at": datetime.now(timezone.utc)
         }
         drift_detector.db.model_versions.find_one = AsyncMock(return_value=mock_doc)
 
@@ -1158,7 +1158,7 @@ class TestDriftDetectorRealLogic:
         for window in [1, 6, 24, 48, 168, 720]:
             pipeline = drift_detector._build_aggregation_pipeline(window)
             match_since = pipeline[0]["$match"]["created_at"]["$gte"]
-            expected = datetime.utcnow() - timedelta(hours=window)
+            expected = datetime.now(timezone.utc) - timedelta(hours=window)
             # Verifica que timestamp está correto (±5 segundos tolerância)
             time_diff = abs((expected - match_since).total_seconds())
             assert time_diff < 5, f"Janela {window}h produziu timestamp incorreto"

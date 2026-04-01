@@ -8,7 +8,7 @@ import pytest
 import json
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime
+from datetime import datetime, timezone
 from collections import defaultdict
 
 from src.consumers.signal_consumer import SignalFeedbackConsumer
@@ -210,7 +210,7 @@ class TestAdjustExplorationParameters:
             'acted_upon': 3,  # 15% utilização (baixa)
             'ignored': 17,
             'avg_curiosity': 0.8,  # Alta curiosidade
-            'last_updated': datetime.utcnow()
+            'last_updated': datetime.now(timezone.utc)
         }
 
         signal = {
@@ -240,7 +240,7 @@ class TestAdjustExplorationParameters:
             'acted_upon': 18,  # 90% utilização (alta)
             'ignored': 2,
             'avg_curiosity': 0.4,  # Baixa curiosidade
-            'last_updated': datetime.utcnow()
+            'last_updated': datetime.now(timezone.utc)
         }
 
         signal = {
@@ -270,7 +270,7 @@ class TestAdjustExplorationParameters:
             'acted_upon': 1,
             'ignored': 4,
             'avg_curiosity': 0.8,
-            'last_updated': datetime.utcnow()
+            'last_updated': datetime.now(timezone.utc)
         }
 
         signal = {
@@ -295,7 +295,7 @@ class TestAdjustExplorationParameters:
             'acted_upon': 10,
             'ignored': 10,
             'avg_curiosity': 0.7,
-            'last_updated': datetime.utcnow()
+            'last_updated': datetime.now(timezone.utc)
         }
 
         signal = {
@@ -331,14 +331,14 @@ class TestGetFeedbackStats:
             'acted_upon': 7,
             'ignored': 3,
             'avg_curiosity': 0.75,
-            'last_updated': datetime.utcnow()
+            'last_updated': datetime.now(timezone.utc)
         }
         consumer.signal_stats['TECHNICAL:ANOMALY_POSITIVE'] = {
             'total': 5,
             'acted_upon': 2,
             'ignored': 3,
             'avg_curiosity': 0.6,
-            'last_updated': datetime.utcnow()
+            'last_updated': datetime.now(timezone.utc)
         }
 
         stats = consumer.get_feedback_stats()

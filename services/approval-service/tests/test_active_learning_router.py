@@ -7,7 +7,7 @@ Espec: @.agent-os/specs/2026-03-17-active-learning-feedback/
 
 import pytest
 from unittest.mock import Mock, MagicMock, AsyncMock
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import FastAPI, testclient
 from fastapi.responses import JSONResponse
 import asyncio
@@ -43,7 +43,7 @@ class TestMetricsEndpoint:
             'priority_recommendations': [
                 {'type': 'class', 'value': 'reject', 'gap': 26.0}
             ],
-            'last_updated': datetime.utcnow().isoformat()
+            'last_updated': datetime.now(timezone.utc).isoformat()
         }
 
         analyzer = MagicMock()
@@ -198,8 +198,8 @@ class TestClaimEndpoint:
             'queue_id': 'queue-1',
             'status': 'in_review',
             'assigned_to': 'user@example.com',
-            'claimed_at': datetime.utcnow(),
-            'expires_at': datetime.utcnow()
+            'claimed_at': datetime.now(timezone.utc),
+            'expires_at': datetime.now(timezone.utc)
         }
         return queue
 

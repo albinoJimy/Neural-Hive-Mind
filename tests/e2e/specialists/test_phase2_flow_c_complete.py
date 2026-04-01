@@ -20,7 +20,7 @@ import logging
 import os
 import sys
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Optional
 
 import httpx
@@ -122,7 +122,7 @@ def create_synthetic_consolidated_decision(
             "intent_id": intent_id,
             "correlation_id": correlation_id,
             "description": "E2E Test Plan - Generate FastAPI microservice",
-            "created_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
             "tasks": [
                 {
                     "task_id": f"task-1-{uuid.uuid4().hex[:8]}",
@@ -164,7 +164,7 @@ def create_synthetic_consolidated_decision(
                 },
             ],
             "estimated_duration_minutes": 30,
-            "sla_deadline": (datetime.utcnow() + timedelta(hours=4)).isoformat(),
+            "sla_deadline": (datetime.now(timezone.utc) + timedelta(hours=4)).isoformat(),
         },
         "specialists_opinions": [
             {
@@ -188,7 +188,7 @@ def create_synthetic_consolidated_decision(
         ],
         "consensus_score": 0.85,
         "approved": True,
-        "created_at": datetime.utcnow().isoformat(),
+        "created_at": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -397,7 +397,7 @@ class FlowCTestResult:
     """Container for Flow C test results."""
 
     def __init__(self):
-        self.started_at = datetime.utcnow()
+        self.started_at = datetime.now(timezone.utc)
         self.completed_at: Optional[datetime] = None
         self.success = False
         self.plan_id: Optional[str] = None
@@ -421,7 +421,7 @@ class FlowCTestResult:
 
     def complete(self, success: bool):
         """Mark test as complete."""
-        self.completed_at = datetime.utcnow()
+        self.completed_at = datetime.now(timezone.utc)
         self.success = success
 
     def to_dict(self) -> Dict[str, Any]:

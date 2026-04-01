@@ -235,7 +235,7 @@ class S3StorageClient(StorageClient):
                 ExtraArgs={
                     'ServerSideEncryption': 'AES256',
                     'Metadata': {
-                        'uploaded_at': datetime.utcnow().isoformat(),
+                        'uploaded_at': datetime.now(timezone.utc).isoformat(),
                         'source': 'neural-hive-disaster-recovery'
                     }
                 }
@@ -501,7 +501,7 @@ class GCSStorageClient(StorageClient):
 
             blob = self.bucket.blob(full_key)
             blob.metadata = {
-                'uploaded_at': datetime.utcnow().isoformat(),
+                'uploaded_at': datetime.now(timezone.utc).isoformat(),
                 'source': 'neural-hive-disaster-recovery'
             }
 

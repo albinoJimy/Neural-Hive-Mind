@@ -6,7 +6,7 @@ Testa aprovação, rejeição, e feedback de decisões.
 """
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 from typing import Dict, Any, List
 
@@ -27,7 +27,7 @@ class TestApprovalService:
             "approved": True,
             "approver": "admin",
             "reasoning": "Cumpre todos os requisitos",
-            "approved_at": datetime.utcnow().isoformat()
+            "approved_at": datetime.now(timezone.utc).isoformat()
         }
 
         assert approval_data["approved"] is True
@@ -42,7 +42,7 @@ class TestApprovalService:
             "approved": False,
             "approver": "admin",
             "reasoning": "Riscos de segurança não mitigados",
-            "rejected_at": datetime.utcnow().isoformat()
+            "rejected_at": datetime.now(timezone.utc).isoformat()
         }
 
         assert rejection_data["approved"] is False
@@ -57,7 +57,7 @@ class TestApprovalService:
             "approved": None,  # Deferred
             "status": "pending_review",
             "reasoning": "Requer análise adicional",
-            "deferred_at": datetime.utcnow().isoformat()
+            "deferred_at": datetime.now(timezone.utc).isoformat()
         }
 
         assert defer_data["approved"] is None
@@ -145,7 +145,7 @@ class TestApprovalQueue:
             "request_id": str(uuid4()),
             "plan_id": str(uuid4()),
             "priority": "high",
-            "enqueued_at": datetime.utcnow().isoformat()
+            "enqueued_at": datetime.now(timezone.utc).isoformat()
         }
 
         queue.append(request)
@@ -180,7 +180,7 @@ class TestApprovalQueue:
         # Claim requisição
         request["status"] = "claimed"
         request["claimed_by"] = "user123"
-        request["claimed_at"] = datetime.utcnow().isoformat()
+        request["claimed_at"] = datetime.now(timezone.utc).isoformat()
 
         assert request["status"] == "claimed"
         assert request["claimed_by"] == "user123"
@@ -205,7 +205,7 @@ class TestFeedbackCollection:
                 "quality": "high",
                 "suggestions": None
             },
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         assert feedback["decision"] == "approve"
@@ -223,7 +223,7 @@ class TestFeedbackCollection:
                 "reason": "Riscos de segurança identificados",
                 "suggestions": ["Adicionar validação de entrada", "Limitar permissões"]
             },
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         assert feedback["decision"] == "reject"
@@ -241,7 +241,7 @@ class TestFeedbackCollection:
                 "actual_outcome": "failed",
                 "reason": "O plano falhou em produção"
             },
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         assert feedback["feedback"]["correct"] is False
@@ -322,7 +322,7 @@ class TestNotificationHandling:
                 "risk_band": "high",
                 "url": f"/approvals/{uuid4()}"
             },
-            "sent_at": datetime.utcnow().isoformat()
+            "sent_at": datetime.now(timezone.utc).isoformat()
         }
 
         assert notification["type"] == "approval_required"
@@ -338,7 +338,7 @@ class TestNotificationHandling:
                 "approved": True,
                 "reasoning": "Plano aprovado após revisão"
             },
-            "sent_at": datetime.utcnow().isoformat()
+            "sent_at": datetime.now(timezone.utc).isoformat()
         }
 
         assert notification["type"] == "decision_made"
@@ -360,13 +360,13 @@ class TestApprovalHistory:
                 "decision_id": str(uuid4()),
                 "approved": True,
                 "approver": "admin",
-                "timestamp": (datetime.utcnow() - timedelta(hours=2)).isoformat()
+                "timestamp": (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
             },
             {
                 "decision_id": str(uuid4()),
                 "approved": False,
                 "approver": "admin",
-                "timestamp": (datetime.utcnow() - timedelta(hours=1)).isoformat()
+                "timestamp": (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
             }
         ]
 
@@ -377,7 +377,7 @@ class TestApprovalHistory:
     @pytest.mark.asyncio
     async def test_filter_history_by_date_range(self):
         """Deve filtrar histórico por range de datas."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         history = [
             {"timestamp": (now - timedelta(days=2)).isoformat()},
             {"timestamp": (now - timedelta(days=1)).isoformat()},
@@ -413,7 +413,7 @@ class TestBulkApprovalOperations:
         # Aprovar todas
         for req in requests:
             req["approved"] = True
-            req["approved_at"] = datetime.utcnow().isoformat()
+            req["approved_at"] = datetime.now(timezone.utc).isoformat()
 
         assert all(r["approved"] for r in requests)
 

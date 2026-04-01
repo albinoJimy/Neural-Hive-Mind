@@ -7,7 +7,7 @@ Implementa validação paralela de modelos online comparando com modelo batch
 
 import time
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, Optional, List, Tuple
 import structlog
 import numpy as np
@@ -364,7 +364,7 @@ class ShadowValidator:
                     specialist_type=self.specialist_type,
                     metrics=metrics,
                     failures=failures,
-                    timestamp=datetime.utcnow()
+                    timestamp=datetime.now(timezone.utc)
                 )
 
                 # Adicionar ao histórico
@@ -416,7 +416,7 @@ class ShadowValidator:
                     specialist_type=self.specialist_type,
                     metrics={'error': str(e)},
                     failures=[f"Erro durante validação: {str(e)}"],
-                    timestamp=datetime.utcnow()
+                    timestamp=datetime.now(timezone.utc)
                 )
 
     def get_validation_summary(self, window_size: int = 10) -> Dict[str, Any]:

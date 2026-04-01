@@ -5,13 +5,15 @@ Fornece cenários pré-definidos para testes comuns de resiliência,
 cada um configurado para validar playbooks específicos.
 """
 
-from datetime import datetime
 from typing import Any, Dict, List, Optional
+
 import structlog
 
+from ..chaos_config import (
+    get_default_timeout,
+)
 from ..chaos_models import (
     ChaosExperiment,
-    ChaosExperimentStatus,
     FaultInjection,
     FaultParameters,
     FaultType,
@@ -19,10 +21,6 @@ from ..chaos_models import (
     ScenarioConfig,
     TargetSelector,
     ValidationCriteria,
-)
-from ..chaos_config import (
-    PLAYBOOK_FAULT_MAPPING,
-    get_default_timeout,
 )
 
 logger = structlog.get_logger(__name__)
@@ -59,7 +57,7 @@ class ScenarioLibrary:
                 "playbook": "restart-pod",
                 "fault_types": [FaultType.POD_KILL],
                 "typical_duration": 180,
-                "risk_level": "low"
+                "risk_level": "low",
             },
             "network_partition": {
                 "name": "Network Partition",
@@ -67,7 +65,7 @@ class ScenarioLibrary:
                 "playbook": "check-network-connectivity",
                 "fault_types": [FaultType.NETWORK_PARTITION],
                 "typical_duration": 300,
-                "risk_level": "medium"
+                "risk_level": "medium",
             },
             "resource_exhaustion": {
                 "name": "Resource Exhaustion",
@@ -75,7 +73,7 @@ class ScenarioLibrary:
                 "playbook": "scale-up-deployment",
                 "fault_types": [FaultType.CPU_STRESS, FaultType.MEMORY_STRESS],
                 "typical_duration": 300,
-                "risk_level": "medium"
+                "risk_level": "medium",
             },
             "cascading_failure": {
                 "name": "Cascading Failure",
@@ -83,7 +81,7 @@ class ScenarioLibrary:
                 "playbook": None,
                 "fault_types": [FaultType.POD_KILL, FaultType.HTTP_ERROR],
                 "typical_duration": 600,
-                "risk_level": "high"
+                "risk_level": "high",
             },
             "slow_dependency": {
                 "name": "Slow Dependency",
@@ -91,8 +89,8 @@ class ScenarioLibrary:
                 "playbook": None,
                 "fault_types": [FaultType.HTTP_DELAY, FaultType.NETWORK_LATENCY],
                 "typical_duration": 180,
-                "risk_level": "low"
-            }
+                "risk_level": "low",
+            },
         }
         return scenarios_info.get(scenario_name)
 
@@ -137,7 +135,7 @@ class ScenarioLibrary:
             namespace=config.target_namespace,
             service_name=config.target_service,
             labels={"app": config.target_service},
-            percentage=config.custom_parameters.get("pod_percentage", 50)
+            percentage=config.custom_parameters.get("pod_percentage", 50),
         )
 
         injection = FaultInjection(
@@ -148,16 +146,10 @@ class ScenarioLibrary:
         )
 
         criteria = ValidationCriteria(
-            max_recovery_time_seconds=config.custom_parameters.get(
-                "max_recovery_time", 180
-            ),
-            min_availability_percent=config.custom_parameters.get(
-                "min_availability", 99.0
-            ),
-            max_error_rate_percent=config.custom_parameters.get(
-                "max_error_rate", 5.0
-            ),
-            required_playbook=config.playbook_to_validate or "restart-pod"
+            max_recovery_time_seconds=config.custom_parameters.get("max_recovery_time", 180),
+            min_availability_percent=config.custom_parameters.get("min_availability", 99.0),
+            max_error_rate_percent=config.custom_parameters.get("max_error_rate", 5.0),
+            required_playbook=config.playbook_to_validate or "restart-pod",
         )
 
         return ChaosExperiment(
@@ -172,7 +164,7 @@ class ScenarioLibrary:
             metadata={
                 "scenario": "pod_failure",
                 "target_service": config.target_service,
-            }
+            },
         )
 
     def network_partition_scenario(self, config: ScenarioConfig) -> ChaosExperiment:
@@ -199,16 +191,12 @@ class ScenarioLibrary:
         )
 
         criteria = ValidationCriteria(
-            max_recovery_time_seconds=config.custom_parameters.get(
-                "max_recovery_time", 120
-            ),
+            max_recovery_time_seconds=config.custom_parameters.get("max_recovery_time", 120),
             min_availability_percent=config.custom_parameters.get(
                 "min_availability", 95.0  # Menor pois há partição
             ),
-            max_error_rate_percent=config.custom_parameters.get(
-                "max_error_rate", 20.0
-            ),
-            required_playbook=config.playbook_to_validate
+            max_error_rate_percent=config.custom_parameters.get("max_error_rate", 20.0),
+            required_playbook=config.playbook_to_validate,
         )
 
         return ChaosExperiment(
@@ -223,7 +211,7 @@ class ScenarioLibrary:
             metadata={
                 "scenario": "network_partition",
                 "target_service": config.target_service,
-            }
+            },
         )
 
     def resource_exhaustion_scenario(self, config: ScenarioConfig) -> ChaosExperiment:
@@ -241,7 +229,7 @@ class ScenarioLibrary:
             namespace=config.target_namespace,
             service_name=config.target_service,
             labels={"app": config.target_service},
-            percentage=100  # Stress em todos os pods
+            percentage=100,  # Stress em todos os pods
         )
 
         if resource_type == "memory":
@@ -255,7 +243,7 @@ class ScenarioLibrary:
             fault_type = FaultType.CPU_STRESS
             params = FaultParameters(
                 cpu_cores=config.custom_parameters.get("cpu_cores", 2),
-                cpu_load_percent=config.custom_parameters.get("cpu_load", 80)
+                cpu_load_percent=config.custom_parameters.get("cpu_load", 80),
             )
 
         injection = FaultInjection(
@@ -266,19 +254,11 @@ class ScenarioLibrary:
         )
 
         criteria = ValidationCriteria(
-            max_recovery_time_seconds=config.custom_parameters.get(
-                "max_recovery_time", 300
-            ),
-            min_availability_percent=config.custom_parameters.get(
-                "min_availability", 99.0
-            ),
-            max_error_rate_percent=config.custom_parameters.get(
-                "max_error_rate", 5.0
-            ),
-            max_latency_p95_ms=config.custom_parameters.get(
-                "max_latency_p95", 1000
-            ),
-            required_playbook=config.playbook_to_validate or "scale-up-deployment"
+            max_recovery_time_seconds=config.custom_parameters.get("max_recovery_time", 300),
+            min_availability_percent=config.custom_parameters.get("min_availability", 99.0),
+            max_error_rate_percent=config.custom_parameters.get("max_error_rate", 5.0),
+            max_latency_p95_ms=config.custom_parameters.get("max_latency_p95", 1000),
+            required_playbook=config.playbook_to_validate or "scale-up-deployment",
         )
 
         return ChaosExperiment(
@@ -294,7 +274,7 @@ class ScenarioLibrary:
                 "scenario": "resource_exhaustion",
                 "resource_type": resource_type,
                 "target_service": config.target_service,
-            }
+            },
         )
 
     def cascading_failure_scenario(self, config: ScenarioConfig) -> ChaosExperiment:
@@ -308,8 +288,7 @@ class ScenarioLibrary:
         4. Valida que circuit breakers são acionados
         """
         dependency_service = config.custom_parameters.get(
-            "dependency_service",
-            f"{config.target_service}-db"
+            "dependency_service", f"{config.target_service}-db"
         )
 
         target_main = TargetSelector(
@@ -343,16 +322,12 @@ class ScenarioLibrary:
         )
 
         criteria = ValidationCriteria(
-            max_recovery_time_seconds=config.custom_parameters.get(
-                "max_recovery_time", 300
-            ),
+            max_recovery_time_seconds=config.custom_parameters.get("max_recovery_time", 300),
             min_availability_percent=config.custom_parameters.get(
                 "min_availability", 90.0  # Mais relaxado para cascading
             ),
-            max_error_rate_percent=config.custom_parameters.get(
-                "max_error_rate", 30.0
-            ),
-            required_playbook=config.playbook_to_validate
+            max_error_rate_percent=config.custom_parameters.get("max_error_rate", 30.0),
+            required_playbook=config.playbook_to_validate,
         )
 
         return ChaosExperiment(
@@ -368,7 +343,7 @@ class ScenarioLibrary:
                 "scenario": "cascading_failure",
                 "target_service": config.target_service,
                 "dependency_service": dependency_service,
-            }
+            },
         )
 
     def slow_dependency_scenario(self, config: ScenarioConfig) -> ChaosExperiment:
@@ -385,11 +360,11 @@ class ScenarioLibrary:
             namespace=config.target_namespace,
             service_name=config.target_service,
             labels={"app": config.target_service},
-            percentage=config.custom_parameters.get("affected_percentage", 50)
+            percentage=config.custom_parameters.get("affected_percentage", 50),
         )
 
         latency_ms = config.custom_parameters.get("latency_ms", 2000)
-        jitter_ms = config.custom_parameters.get("jitter_ms", 500)
+        config.custom_parameters.get("jitter_ms", 500)
 
         injection = FaultInjection(
             fault_type=FaultType.HTTP_DELAY,
@@ -401,20 +376,13 @@ class ScenarioLibrary:
         )
 
         criteria = ValidationCriteria(
-            max_recovery_time_seconds=config.custom_parameters.get(
-                "max_recovery_time", 60
-            ),
-            min_availability_percent=config.custom_parameters.get(
-                "min_availability", 99.0
-            ),
-            max_error_rate_percent=config.custom_parameters.get(
-                "max_error_rate", 10.0
-            ),
+            max_recovery_time_seconds=config.custom_parameters.get("max_recovery_time", 60),
+            min_availability_percent=config.custom_parameters.get("min_availability", 99.0),
+            max_error_rate_percent=config.custom_parameters.get("max_error_rate", 10.0),
             max_latency_p95_ms=config.custom_parameters.get(
-                "max_latency_p95",
-                latency_ms + 1000  # Latência injetada + buffer
+                "max_latency_p95", latency_ms + 1000  # Latência injetada + buffer
             ),
-            required_playbook=config.playbook_to_validate
+            required_playbook=config.playbook_to_validate,
         )
 
         return ChaosExperiment(
@@ -430,7 +398,7 @@ class ScenarioLibrary:
                 "scenario": "slow_dependency",
                 "target_service": config.target_service,
                 "injected_latency_ms": latency_ms,
-            }
+            },
         )
 
     def create_custom_scenario(
@@ -471,7 +439,7 @@ class ScenarioLibrary:
             rollback_strategy=rollback_strategy,
             timeout_seconds=timeout_seconds,
             blast_radius_limit=blast_radius_limit,
-            metadata=metadata or {"scenario": "custom"}
+            metadata=metadata or {"scenario": "custom"},
         )
 
     def get_recommended_scenarios(

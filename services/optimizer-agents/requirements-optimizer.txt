@@ -1,56 +1,15 @@
-# Core
-fastapi==0.115.6
-uvicorn[standard]==0.34.0
-pydantic==2.10.4
-pydantic-settings==2.6.1  # 2.7.x has _lenient_issubclass bug
-structlog==24.4.0
+# Dependências base consolidadas para Neural-Hive-Mind
+-r ../../requirements-base.txt
 
-# Kafka
-confluent-kafka==2.6.1
-avro-python3==1.10.2
-
-# gRPC - versão consolidada
-grpcio==1.68.1
-grpcio-tools==1.68.1
-grpcio-health-checking==1.68.1
-protobuf==5.29.2
-
-# Databases
-pymongo==4.10.1
-motor==3.7.1
-redis[hiredis]==5.2.1
-neo4j==5.14.0
-
+# Service-specific dependencies
 # ML/Optimization
-# Pin numpy<2.0 to avoid Prophet compatibility issues (np.float_ removed in NumPy 2.0)
-numpy<2.0
-dowhy>=0.12,<1.0  # 0.10.1 nao suporta Python 3.12, usar >=0.12
+numpy<2.0  # Pin for Prophet compatibility
+dowhy>=0.12,<1.0
 gymnasium==0.29.1
 prophet==1.1.5
 statsmodels==0.14.0
 clickhouse-driver==0.2.6
 pmdarima==2.0.4
 holidays==0.35
-
-# Observability
-opentelemetry-api==1.29.0
-opentelemetry-sdk==1.29.0
-opentelemetry-instrumentation-fastapi==0.50b0
-opentelemetry-instrumentation-grpc==0.50b0
-opentelemetry-exporter-otlp-proto-grpc==1.29.0
-prometheus-client==0.21.1
-
-# Kubernetes / Argo Workflows
 kubernetes==28.1.0
-
-# Utilities
-httpx==0.28.1
-pyyaml==6.0.1
-python-dotenv==1.0.1
-
-# Biblioteca centralizada de modelos preditivos
-# NOTA: neural_hive_ml é copiada e instalada no Dockerfile
-# Para desenvolvimento local: pip install -e ../../libraries/python/neural_hive_ml
-
-# HTTP Client (required by neural_hive_observability health checks)
-aiohttp>=3.9.0
+grpcio-health-checking==1.68.1

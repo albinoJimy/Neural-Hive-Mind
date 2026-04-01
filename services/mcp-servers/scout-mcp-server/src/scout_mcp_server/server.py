@@ -18,7 +18,7 @@ settings = get_settings()
 mcp = FastMCP(
     name="Scout MCP Server",
     version=settings.service_version,
-    description="Ferramentas de descoberta e análise de código para Scout Agents"
+    instructions="Ferramentas de descoberta e análise de código para Scout Agents"
 )
 
 

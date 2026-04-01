@@ -6,7 +6,7 @@ Testa circuit breakers, retries, e timeouts.
 """
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 import asyncio
 
@@ -49,11 +49,11 @@ class TestCircuitBreaker:
     async def test_circuit_half_open_after_timeout(self):
         """Circuit deve ir para half-open após timeout."""
         circuit_state = "open"
-        last_failure_time = datetime.utcnow() - timedelta(seconds=60)
+        last_failure_time = datetime.now(timezone.utc) - timedelta(seconds=60)
         cooldown_seconds = 30
 
         # Verificar se cooldown passou
-        time_since_failure = (datetime.utcnow() - last_failure_time).total_seconds()
+        time_since_failure = (datetime.now(timezone.utc) - last_failure_time).total_seconds()
         if circuit_state == "open" and time_since_failure > cooldown_seconds:
             circuit_state = "half_open"
 
@@ -340,7 +340,7 @@ class TestHealthCheckIntegration:
                 "attempts": 5,
                 "success_rate": 0.8
             },
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         assert health["status"] == "healthy"
@@ -656,7 +656,7 @@ class TestCircuitBreakerExtended:
 
         # Transição closed -> open
         metrics["state_transitions"].append(("closed", "open"))
-        metrics["last_state_change"] = datetime.utcnow()
+        metrics["last_state_change"] = datetime.now(timezone.utc)
 
         assert len(metrics["state_transitions"]) == 1
         assert metrics["last_state_change"] is not None
@@ -811,7 +811,7 @@ class TestRateLimiterExtended:
     @pytest.mark.asyncio
     async def test_rate_limit_sliding_window(self):
         """Deve implementar janela deslizante."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         window = 60  # segundos
         requests = [
             {"timestamp": now - timedelta(seconds=30)},

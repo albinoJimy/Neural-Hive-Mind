@@ -5,7 +5,7 @@ Estas fixtures podem ser usadas em todos os testes do projeto,
 garantindo consistência e reduzindo duplicação.
 """
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import AsyncGenerator, Generator, Dict, Any, Optional
 from unittest.mock import AsyncMock, MagicMock, Mock
 from uuid import uuid4
@@ -82,7 +82,7 @@ def sample_cognitive_plan() -> Dict[str, Any]:
         "risk_band": "medium",
         "estimated_duration_ms": 5000,
         "priority": "normal",
-        "created_at": datetime.utcnow().isoformat()
+        "created_at": datetime.now(timezone.utc).isoformat()
     }
 
 
@@ -104,8 +104,8 @@ def sample_execution_result() -> Dict[str, Any]:
             "output": {"data": [1, 2, 3]},
             "error": None
         },
-        "started_at": (datetime.utcnow() - timedelta(seconds=10)).isoformat(),
-        "completed_at": datetime.utcnow().isoformat(),
+        "started_at": (datetime.now(timezone.utc) - timedelta(seconds=10)).isoformat(),
+        "completed_at": datetime.now(timezone.utc).isoformat(),
         "duration_ms": 10000
     }
 
@@ -324,8 +324,8 @@ def sample_jwt_token():
         "name": "Test User",
         "email": "test@example.com",
         "role": "admin",
-        "exp": (datetime.utcnow() + timedelta(hours=1)).timestamp(),
-        "iat": datetime.utcnow().timestamp()
+        "exp": (datetime.now(timezone.utc) + timedelta(hours=1)).timestamp(),
+        "iat": datetime.now(timezone.utc).timestamp()
     }
 
 

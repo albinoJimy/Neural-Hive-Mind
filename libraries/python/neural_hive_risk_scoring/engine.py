@@ -6,7 +6,7 @@ Extraído e generalizado de services/semantic-translation-engine/src/services/ri
 """
 
 import structlog
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any
 from prometheus_client import Counter, Histogram
 
@@ -110,7 +110,7 @@ class RiskScoringEngine:
             factors=factors,
             reasoning=reasoning,
             domain=domain,
-            assessed_at=datetime.utcnow()
+            assessed_at=datetime.now(timezone.utc)
         )
 
     def _calculate_factors(self, entity: Dict, domain: UnifiedDomain) -> Dict[str, float]:

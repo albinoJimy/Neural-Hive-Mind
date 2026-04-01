@@ -9,15 +9,28 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime
 from motor.motor_asyncio import AsyncIOMotorClient
 
-from src.services.feature_store import FeatureStoreService
-from src.services.cache_service import RedisCacheService
-from src.services.computation import FeatureComputationPipeline
+# Import lineage models FIRST to resolve forward references
+from src.models.lineage import (
+    SourceType,
+    TransformationType,
+    LineageMetadata,
+    FeatureLineage,
+    LineageTree,
+    LineageImpact,
+    LineageIntegrityReport,
+)
+
+# Then import feature models
 from src.models.feature import (
     FeatureVector,
     MetadataFeatures,
     FeatureComputationRequest,
     ComputationStatus
 )
+
+from src.services.feature_store import FeatureStoreService
+from src.services.cache_service import RedisCacheService
+from src.services.computation import FeatureComputationPipeline
 
 
 @pytest.fixture
@@ -420,15 +433,28 @@ class TestGetFeaturesByPlanIds:
         sample_feature_vector
     ):
         """Testa buscar features por múltiplos IDs"""
-        # Mock cursor
-        mock_cursor = AsyncMock()
-        mock_cursor.__aiter__ = AsyncMock(
-            return_value=iter([
-                {**sample_feature_vector.model_dump(mode='json'), 'plan_id': 'plan-1'},
-                {**sample_feature_vector.model_dump(mode='json'), 'plan_id': 'plan-2'}
-            ])
-        )
-        feature_store_service.collection.find = MagicMock(return_value=mock_cursor)
+        # Create async iterator function
+        async def async_cursor():
+            docs = [
+                {**sample_feature_vector.model_dump(mode='json'), 'plan_id': 'plan-1', '_id': 'id1'},
+                {**sample_feature_vector.model_dump(mode='json'), 'plan_id': 'plan-2', '_id': 'id2'}
+            ]
+            for doc in docs:
+                yield doc
+
+        # Mock cursor properly
+        class AsyncCursor:
+            def __init__(self):
+                self._iter = async_cursor()
+
+            def __aiter__(self):
+                return self._aiter_gen()
+
+            async def _aiter_gen(self):
+                async for item in self._iter:
+                    yield item
+
+        feature_store_service.collection.find = MagicMock(return_value=AsyncCursor())
 
         result = await feature_store_service.get_features_by_plan_ids(['plan-1', 'plan-2'])
 

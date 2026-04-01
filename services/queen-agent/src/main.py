@@ -1,51 +1,55 @@
 import asyncio
-import structlog
 from contextlib import asynccontextmanager
+from typing import TYPE_CHECKING
+
+import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from grpc import aio
+
 from neural_hive_observability import (
-    init_observability,
-    create_instrumented_async_grpc_server,
     ObservabilityConfig,
+    create_instrumented_async_grpc_server,
+    init_observability,
 )
 
-from .config import get_settings
-from .clients import (
-    MongoDBClient,
-    RedisClient,
-    Neo4jClient,
-    PrometheusClient,
-    OrchestratorClient,
-    ServiceRegistryClient,
-    PheromoneClient,
-    OPAClient,
-)
-from .clients.mcp_client import MCPClient, HTTPMCPClient
-from .services import (
-    StrategicDecisionEngine,
-    ConflictArbitrator,
-    ReplanningCoordinator,
-    ExceptionApprovalService,
-    TelemetryAggregator,
-    MCPToolOrchestrator,
-    LeaderElection,
-    LoadBalancer,
-)
-from .consumers import ConsensusConsumer, TelemetryConsumer, IncidentConsumer
-from .producers import StrategicDecisionProducer
 from .api import (
-    health_router,
     decisions_router,
-    exceptions_router,
-    status_router,
-    mcp_router,
     election_router,
+    exceptions_router,
+    health_router,
+    mcp_router,
+    status_router,
     workers_router,
 )
+from .clients import (
+    MongoDBClient,
+    Neo4jClient,
+    OPAClient,
+    OrchestratorClient,
+    PheromoneClient,
+    PrometheusClient,
+    RedisClient,
+    ServiceRegistryClient,
+)
+from .clients.mcp_client import HTTPMCPClient, MCPClient
+from .config import get_settings
+from .consumers import ConsensusConsumer, IncidentConsumer, TelemetryConsumer
 from .grpc_server import QueenAgentServicer
+from .producers import StrategicDecisionProducer
 from .proto import queen_agent_pb2_grpc
+from .services import (
+    ConflictArbitrator,
+    ExceptionApprovalService,
+    LeaderElection,
+    LoadBalancer,
+    MCPToolOrchestrator,
+    ReplanningCoordinator,
+    StrategicDecisionEngine,
+    TelemetryAggregator,
+)
 
+if TYPE_CHECKING:
+    from grpc import aio
 
 # Configurar structured logging
 structlog.configure(
@@ -168,14 +172,10 @@ async def lifespan(app: FastAPI):
                 logger.info("opa_client_connected")
             except Exception as e:
                 if not settings.OPA_FAIL_OPEN:
-                    logger.error(
-                        "opa_client_connection_failed_fail_closed", error=str(e)
-                    )
+                    logger.exception("opa_client_connection_failed_fail_closed", error=str(e))
                     raise
                 else:
-                    logger.warning(
-                        "opa_client_connection_failed_fail_open", error=str(e)
-                    )
+                    logger.warning("opa_client_connection_failed_fail_open", error=str(e))
 
         # 3. Inicializar serviços
         logger.info("initializing_services")
@@ -196,13 +196,9 @@ async def lifespan(app: FastAPI):
             settings,
         )
 
-        app_state.conflict_arbitrator = ConflictArbitrator(
-            app_state.neo4j_client, settings
-        )
+        app_state.conflict_arbitrator = ConflictArbitrator(app_state.neo4j_client, settings)
 
-        app_state.exception_service = ExceptionApprovalService(
-            app_state.mongodb_client, settings
-        )
+        app_state.exception_service = ExceptionApprovalService(app_state.mongodb_client, settings)
 
         app_state.telemetry_aggregator = TelemetryAggregator(
             app_state.prometheus_client, app_state.redis_client, settings
@@ -245,6 +241,7 @@ async def lifespan(app: FastAPI):
             if node_id == "queen-agent-1":
                 # Adicionar timestamp para garantir unicidade
                 import socket
+
                 hostname = socket.gethostname()
                 node_id = f"queen-agent-{hostname}-{settings.SERVICE_VERSION}"
 
@@ -332,7 +329,7 @@ async def lifespan(app: FastAPI):
 
         if settings.SPIFFE_ENABLED and settings.SPIFFE_ENABLE_X509:
             try:
-                from neural_hive_security import SPIFFEManager, SPIFFEConfig
+                from neural_hive_security import SPIFFEConfig, SPIFFEManager
 
                 spiffe_config = SPIFFEConfig(
                     workload_api_socket=settings.SPIFFE_SOCKET_PATH,
@@ -344,50 +341,36 @@ async def lifespan(app: FastAPI):
                 await spiffe_manager.initialize()
 
                 server_credentials = await spiffe_manager.get_grpc_server_credentials()
-                app_state.grpc_server.add_secure_port(
-                    f"[::]:{grpc_port}", server_credentials
-                )
+                app_state.grpc_server.add_secure_port(f"[::]:{grpc_port}", server_credentials)
                 logger.info("grpc_server_mtls_enabled", port=grpc_port)
             except ImportError:
-                logger.warning(
-                    "neural_hive_security_not_available", fallback="insecure_port"
-                )
+                logger.warning("neural_hive_security_not_available", fallback="insecure_port")
                 app_state.grpc_server.add_insecure_port(f"[::]:{grpc_port}")
             except Exception as e:
-                logger.error("grpc_mtls_setup_failed", error=str(e))
+                logger.exception("grpc_mtls_setup_failed", error=str(e))
                 if settings.ENVIRONMENT in ["production", "staging", "prod"]:
                     raise
                 app_state.grpc_server.add_insecure_port(f"[::]:{grpc_port}")
         else:
             app_state.grpc_server.add_insecure_port(f"[::]:{grpc_port}")
             if settings.ENVIRONMENT in ["production", "staging", "prod"]:
-                logger.warning(
-                    "grpc_server_insecure_mode_in_production", port=grpc_port
-                )
+                logger.warning("grpc_server_insecure_mode_in_production", port=grpc_port)
 
         # Iniciar servidor gRPC
         await app_state.grpc_server.start()
-        logger.info(
-            "grpc_server_started", port=grpc_port, mtls=settings.SPIFFE_ENABLE_X509
-        )
+        logger.info("grpc_server_started", port=grpc_port, mtls=settings.SPIFFE_ENABLE_X509)
 
         # 7. Iniciar consumers em background
         logger.info("starting_kafka_consumers_background_tasks")
 
-        app_state.consumer_tasks.append(
-            asyncio.create_task(app_state.consensus_consumer.start())
-        )
-        app_state.consumer_tasks.append(
-            asyncio.create_task(app_state.telemetry_consumer.start())
-        )
-        app_state.consumer_tasks.append(
-            asyncio.create_task(app_state.incident_consumer.start())
-        )
+        app_state.consumer_tasks.append(asyncio.create_task(app_state.consensus_consumer.start()))
+        app_state.consumer_tasks.append(asyncio.create_task(app_state.telemetry_consumer.start()))
+        app_state.consumer_tasks.append(asyncio.create_task(app_state.incident_consumer.start()))
 
         logger.info("queen_agent_started_successfully")
 
     except Exception as e:
-        logger.error("queen_agent_startup_failed", error=str(e))
+        logger.exception("queen_agent_startup_failed", error=str(e))
         raise
 
     # === APP RUNNING ===
@@ -454,7 +437,7 @@ async def lifespan(app: FastAPI):
         logger.info("queen_agent_shutdown_complete")
 
     except Exception as e:
-        logger.error("queen_agent_shutdown_failed", error=str(e))
+        logger.exception("queen_agent_shutdown_failed", error=str(e))
 
 
 # Criar aplicação FastAPI

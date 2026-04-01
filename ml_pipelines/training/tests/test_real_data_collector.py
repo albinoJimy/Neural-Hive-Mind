@@ -12,7 +12,7 @@ Testa:
 """
 
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 import pytest
@@ -43,7 +43,7 @@ def mock_feature_names():
 @pytest.fixture
 def mock_opinions():
     """Opiniões mockadas do MongoDB."""
-    base_date = datetime.utcnow() - timedelta(days=30)
+    base_date = datetime.now(timezone.utc) - timedelta(days=30)
     return [
         {
             'opinion_id': f'opinion_{i}',
@@ -178,7 +178,7 @@ class TestRealDataCollectorMocked:
                 'specialist_type': 'technical',
                 'recommendation': 'approve',
                 'cognitive_plan': {'plan_id': f'plan_{i}', 'tasks': []},
-                'created_at': datetime.utcnow()
+                'created_at': datetime.now(timezone.utc)
             }
             for i in range(100)
         ]
@@ -329,7 +329,7 @@ class TestCreateTemporalSplits:
     def test_create_temporal_splits_invalid_ratios(self, collector, mock_feature_names):
         """Testa erro com ratios inválidos."""
         data = {name: [0.0] * 100 for name in mock_feature_names}
-        data['created_at'] = [datetime.utcnow() for _ in range(100)]
+        data['created_at'] = [datetime.now(timezone.utc) for _ in range(100)]
         df = pd.DataFrame(data)
 
         with pytest.raises(ValueError) as exc_info:

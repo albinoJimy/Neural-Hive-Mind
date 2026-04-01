@@ -14,7 +14,7 @@ Este teste valida o fluxo completo:
 import pytest
 import asyncio
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from aiokafka import AIOKafkaProducer, AIOKafkaConsumer
 from motor.motor_asyncio import AsyncIOMotorClient
 
@@ -44,7 +44,7 @@ async def mongodb_client():
 def create_sample_ticket():
     """Cria ticket de teste."""
     return {
-        "ticket_id": f"test-{int(datetime.utcnow().timestamp())}",
+        "ticket_id": f"test-{int(datetime.now(timezone.utc).timestamp())}",
         "plan_id": "test-plan",
         "intent_id": "test-intent",
         "correlation_id": "test-corr",

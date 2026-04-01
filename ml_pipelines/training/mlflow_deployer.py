@@ -31,7 +31,7 @@ import json
 import os
 import sys
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 import tempfile
@@ -158,7 +158,7 @@ class MLflowDeployer:
                 name=registered_model_name,
                 version=model_version,
                 key="registered_at",
-                value=datetime.utcnow().isoformat()
+                value=datetime.now(timezone.utc).isoformat()
             )
             for key, value in tags.items():
                 self.client.set_model_version_tag(
@@ -233,7 +233,7 @@ class MLflowDeployer:
                 name=registered_model_name,
                 version=model_version,
                 key=f"promoted_to_{target_stage.lower()}",
-                value=datetime.utcnow().isoformat()
+                value=datetime.now(timezone.utc).isoformat()
             )
 
             logger.info(
@@ -356,7 +356,7 @@ class MLflowDeployer:
                 name=registered_model_name,
                 version=target_version,
                 key="rollback",
-                value=datetime.utcnow().isoformat()
+                value=datetime.now(timezone.utc).isoformat()
             )
 
             logger.info(
@@ -427,7 +427,7 @@ class MLflowDeployer:
                 name=registered_model_name,
                 version=model_version,
                 key=f"alias_{alias}",
-                value=datetime.utcnow().isoformat()
+                value=datetime.now(timezone.utc).isoformat()
             )
 
             logger.info(

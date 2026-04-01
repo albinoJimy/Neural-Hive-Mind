@@ -10,7 +10,7 @@ import argparse
 import asyncio
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from importlib import util
 from pathlib import Path
 from typing import Dict, Any, Tuple, Optional
@@ -488,7 +488,7 @@ def create_synthetic_dataset(n_samples: int = 1000) -> pd.DataFrame:
 
     # Adicionar created_at sintético para suportar split temporal
     # Distribuir uniformemente nos últimos 30 dias
-    end_date = datetime.utcnow()
+    end_date = datetime.now(timezone.utc)
     start_date = end_date - timedelta(days=30)
     random_timestamps = [
         start_date + timedelta(seconds=np.random.randint(0, 30 * 24 * 3600))
@@ -919,7 +919,7 @@ def load_feedback_data(
         client = MongoClient(mongodb_uri)
         db = client['neural_hive']
 
-        cutoff_date = datetime.utcnow() - timedelta(days=window_days)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=window_days)
 
         # Query feedbacks
         feedbacks = list(db.specialist_feedback.find({
@@ -1508,7 +1508,7 @@ def main():
 
         # Inicializar audit logger para rastreamento do ciclo de vida do modelo
         audit_logger = create_audit_logger()
-        training_start_time = datetime.utcnow()
+        training_start_time = datetime.now(timezone.utc)
         model_version = f"v{training_start_time.strftime('%Y%m%d%H%M%S')}"
 
         # Obter ou criar event loop para operações assíncronas
@@ -1904,7 +1904,7 @@ def main():
 
             # Audit log: training_failed
             if audit_logger and _MODEL_AUDIT_LOGGER_AVAILABLE:
-                training_end_time = datetime.utcnow()
+                training_end_time = datetime.now(timezone.utc)
                 training_duration_seconds = (training_end_time - training_start_time).total_seconds()
                 failure_context = AuditEventContext(
                     user_id='training_pipeline',
@@ -1934,7 +1934,7 @@ def main():
 
             # Audit log: training_failed (avaliação falhou)
             if audit_logger and _MODEL_AUDIT_LOGGER_AVAILABLE:
-                training_end_time = datetime.utcnow()
+                training_end_time = datetime.now(timezone.utc)
                 training_duration_seconds = (training_end_time - training_start_time).total_seconds()
                 failure_context = AuditEventContext(
                     user_id='training_pipeline',
@@ -2210,7 +2210,7 @@ def main():
                     mlflow.log_param('promotion_skip_reason', 'metrics_below_threshold')
 
         # Calcular duração do treinamento
-        training_end_time = datetime.utcnow()
+        training_end_time = datetime.now(timezone.utc)
         training_duration_seconds = (training_end_time - training_start_time).total_seconds()
 
         # Audit log: training_completed

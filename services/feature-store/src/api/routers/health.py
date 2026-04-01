@@ -4,11 +4,11 @@ Health Check Endpoint
 Endpoint para verificar saúde do serviço e dependências.
 """
 
-import structlog
-from datetime import datetime
-from fastapi import APIRouter
+from datetime import datetime, timezone
 from typing import Literal
 
+import structlog
+from fastapi import APIRouter
 from src.models.feature import HealthResponse
 
 logger = structlog.get_logger()
@@ -36,20 +36,20 @@ async def health_check():
 
     # Verifica MongoDB
     mongo_healthy: Literal["healthy", "unhealthy", "unknown"] = "unknown"
-    if 'mongodb' in state and state['mongodb']:
+    if "mongodb" in state and state["mongodb"]:
         try:
-            await state['mongodb'].client.admin.command('ping')
+            await state["mongodb"].client.admin.command("ping")
             mongo_healthy = "healthy"
         except Exception as e:
-            logger.warning('MongoDB health check falhou', error=str(e))
+            logger.warning("MongoDB health check falhou", error=str(e))
             mongo_healthy = "unhealthy"
     else:
         mongo_healthy = "unhealthy"
 
     # Verifica Redis
     redis_healthy: Literal["healthy", "unhealthy", "unknown"] = "unknown"
-    if 'cache' in state and state['cache']:
-        if state['cache'].is_available():
+    if "cache" in state and state["cache"]:
+        if state["cache"].is_available():
             redis_healthy = "healthy"
         else:
             redis_healthy = "unhealthy"
@@ -68,11 +68,8 @@ async def health_check():
         status=overall_status,
         service="feature-store",
         version="1.0.0",
-        timestamp=datetime.utcnow(),
-        dependencies={
-            "mongodb": mongo_healthy,
-            "redis": redis_healthy
-        }
+        timestamp=datetime.now(timezone.utc),
+        dependencies={"mongodb": mongo_healthy, "redis": redis_healthy},
     )
 
 
@@ -82,7 +79,7 @@ async def readiness_check():
     Readiness check - serviço está pronto para receber requests?
     """
     state = _app_state
-    feature_store = state.get('feature_store')
+    feature_store = state.get("feature_store")
 
     if feature_store is None:
         raise RuntimeError("Feature Store não inicializado")

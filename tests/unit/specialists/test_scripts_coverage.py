@@ -5,7 +5,7 @@ GAP-04: Cobertura de Testes 16% → 70%
 Testa scripts de utilidade e manutenção.
 """
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import Mock, patch, MagicMock
 from uuid import uuid4
 
@@ -35,7 +35,7 @@ class TestDisasterRecoveryBackup:
 
     def test_backup_naming_convention(self):
         """Deve seguir convenção de nome de backup."""
-        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         backup_name = f"backup_{timestamp}.tar.gz"
 
         assert "backup_" in backup_name
@@ -43,8 +43,8 @@ class TestDisasterRecoveryBackup:
 
     def test_backup_incremental(self):
         """Deve criar backup incremental."""
-        last_backup = datetime.utcnow() - timedelta(hours=2)
-        now = datetime.utcnow()
+        last_backup = datetime.now(timezone.utc) - timedelta(hours=2)
+        now = datetime.now(timezone.utc)
 
         # Incremental: apenas mudanças desde último backup
         files_to_backup = ["file1_new.db", "file2_modified.db"]
@@ -67,15 +67,15 @@ class TestDisasterRecoveryBackup:
     def test_backup_retention_policy(self):
         """Deve aplicar política de retenção."""
         backups = [
-            {"name": "backup_1", "created_at": datetime.utcnow() - timedelta(days=10)},
-            {"name": "backup_2", "created_at": datetime.utcnow() - timedelta(days=40)},
-            {"name": "backup_3", "created_at": datetime.utcnow() - timedelta(days=5)}
+            {"name": "backup_1", "created_at": datetime.now(timezone.utc) - timedelta(days=10)},
+            {"name": "backup_2", "created_at": datetime.now(timezone.utc) - timedelta(days=40)},
+            {"name": "backup_3", "created_at": datetime.now(timezone.utc) - timedelta(days=5)}
         ]
         retention_days = 30
 
         expired_backups = [
             b for b in backups
-            if (datetime.utcnow() - b["created_at"]).days > retention_days
+            if (datetime.now(timezone.utc) - b["created_at"]).days > retention_days
         ]
 
         assert len(expired_backups) == 1
@@ -139,12 +139,12 @@ class TestDisasterRecoveryRestore:
         restore_log = []
 
         restore_log.append({
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "action": "start",
             "backup": "backup_20260329.tar.gz"
         })
         restore_log.append({
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "action": "complete",
             "files_restored": 5
         })
@@ -162,15 +162,15 @@ class TestRetentionPolicies:
     def test_retention_by_age(self):
         """Deve reter baseado em idade."""
         items = [
-            {"id": 1, "created_at": datetime.utcnow() - timedelta(days=10)},
-            {"id": 2, "created_at": datetime.utcnow() - timedelta(days=100)},
-            {"id": 3, "created_at": datetime.utcnow() - timedelta(days=5)}
+            {"id": 1, "created_at": datetime.now(timezone.utc) - timedelta(days=10)},
+            {"id": 2, "created_at": datetime.now(timezone.utc) - timedelta(days=100)},
+            {"id": 3, "created_at": datetime.now(timezone.utc) - timedelta(days=5)}
         ]
         retention_days = 30
 
         expired_items = [
             item for item in items
-            if (datetime.utcnow() - item["created_at"]).days > retention_days
+            if (datetime.now(timezone.utc) - item["created_at"]).days > retention_days
         ]
 
         assert len(expired_items) == 1
@@ -262,10 +262,10 @@ class TestRetrainingTrigger:
 
     def test_trigger_cooldown(self):
         """Deve respeitar cooldown entre retreinamentos."""
-        last_retrain = datetime.utcnow() - timedelta(hours=2)
+        last_retrain = datetime.now(timezone.utc) - timedelta(hours=2)
         cooldown_hours = 24
 
-        elapsed = (datetime.utcnow() - last_retrain).total_seconds() / 3600
+        elapsed = (datetime.now(timezone.utc) - last_retrain).total_seconds() / 3600
         can_retrain = elapsed >= cooldown_hours
 
         assert can_retrain is False
@@ -457,7 +457,7 @@ class TestAnomalyDetectorTraining:
         """Deve versionar modelo treinado."""
         model_version = {
             "version": "1.0.0",
-            "trained_at": datetime.utcnow().isoformat(),
+            "trained_at": datetime.now(timezone.utc).isoformat(),
             "training_samples": 1000
         }
 
@@ -474,16 +474,16 @@ class TestRetrainingMonitoring:
     def test_track_active_runs(self):
         """Deve rastrear execuções ativas."""
         active_runs = [
-            {"run_id": "run1", "start_time": datetime.utcnow() - timedelta(minutes=5)},
-            {"run_id": "run2", "start_time": datetime.utcnow() - timedelta(minutes=10)}
+            {"run_id": "run1", "start_time": datetime.now(timezone.utc) - timedelta(minutes=5)},
+            {"run_id": "run2", "start_time": datetime.now(timezone.utc) - timedelta(minutes=10)}
         ]
 
         assert len(active_runs) == 2
 
     def test_track_run_duration(self):
         """Deve rastrear duração da execução."""
-        start_time = datetime.utcnow() - timedelta(minutes=30)
-        now = datetime.utcnow()
+        start_time = datetime.now(timezone.utc) - timedelta(minutes=30)
+        now = datetime.now(timezone.utc)
 
         duration = (now - start_time).total_seconds() / 60
 
@@ -570,7 +570,7 @@ class TestDisasterRecoveryTest:
         """Deve logar resultados do teste."""
         test_results = {
             "test_id": str(uuid4()),
-            "start_time": datetime.utcnow().isoformat(),
+            "start_time": datetime.now(timezone.utc).isoformat(),
             "scenarios": {
                 "backup": {"status": "passed", "duration": 30},
                 "restore": {"status": "passed", "duration": 60},
@@ -600,8 +600,8 @@ class TestDisasterRecoveryTest:
         """Deve gerar relatório do teste."""
         report = {
             "test_id": str(uuid4()),
-            "start_time": datetime.utcnow().isoformat(),
-            "end_time": (datetime.utcnow() + timedelta(minutes=10)).isoformat(),
+            "start_time": datetime.now(timezone.utc).isoformat(),
+            "end_time": (datetime.now(timezone.utc) + timedelta(minutes=10)).isoformat(),
             "total_scenarios": 5,
             "passed_scenarios": 4,
             "failed_scenarios": 1

@@ -7,7 +7,7 @@ dados de teste consistentes em todo o projecto.
 
 import random
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
@@ -70,8 +70,8 @@ class TestCognitivePlanFactory:
             "priority": priority,
             "tasks": tasks or default_tasks,
             "estimated_duration_ms": 30000,
-            "created_at": datetime.utcnow().isoformat(),
-            "updated_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
         }
 
     @staticmethod
@@ -138,7 +138,7 @@ class TestSpecialistOpinionFactory:
                 "processing_time_ms": random.randint(100, 500),
                 "model_version": "1.0.0",
             },
-            "created_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
     @staticmethod
@@ -211,7 +211,7 @@ class TestConsolidatedDecisionFactory:
                 "mid_level": 1.0,
                 "trainee": 0.7,
             },
-            "created_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
 
@@ -246,7 +246,7 @@ class TestExecutionTicketFactory:
         Returns:
             Dict com dados do ExecutionTicket
         """
-        now_ms = int(datetime.utcnow().timestamp() * 1000)
+        now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
         default_deadline = now_ms + 3_600_000  # 1 hora
 
         default_task_data = {
@@ -269,8 +269,8 @@ class TestExecutionTicketFactory:
             "status": status,
             "sla_deadline_ms": sla_deadline_ms or default_deadline,
             "worker_id": worker_id or f"worker-{uuid4().hex[:8]}",
-            "created_at": datetime.utcnow().isoformat(),
-            "updated_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
         }
 
     @staticmethod
@@ -334,7 +334,7 @@ class TestSpecialistFeedbackFactory:
                 "complexity_score": 0.5,
                 "risk_assessment": 0.3,
             },
-            "created_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
     @staticmethod

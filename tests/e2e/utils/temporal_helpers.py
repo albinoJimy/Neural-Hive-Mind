@@ -3,7 +3,7 @@
 import asyncio
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 from temporalio.client import Client, WorkflowHandle
@@ -170,10 +170,10 @@ class TemporalTestHelper:
         Raises:
             TimeoutError if workflow doesn't complete within timeout
         """
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc)
         deadline = start_time + timedelta(seconds=timeout_seconds)
 
-        while datetime.utcnow() < deadline:
+        while datetime.now(timezone.utc) < deadline:
             status = await self.get_workflow_status(workflow_id)
 
             if status.status in ["completed", "failed", "cancelled", "terminated", "timed_out"]:

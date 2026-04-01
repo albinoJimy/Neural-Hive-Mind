@@ -4,11 +4,13 @@ YAML Parser - Análise de arquivos YAML.
 Suporta detecção de recursos Kubernetes, docker-compose, CI/CD configs.
 """
 import re
+from typing import Any, Dict, List, Optional
+
 import structlog
-from typing import Dict, List, Any, Optional
 
 try:
     import yaml
+
     YAML_AVAILABLE = True
 except ImportError:
     YAML_AVAILABLE = False
@@ -30,7 +32,7 @@ class YAMLParser:
     ]
 
     # Padrões para detecção base64
-    BASE64_PATTERN = r'[A-Za-z0-9+/]{20,}={0,2}'
+    BASE64_PATTERN = r"[A-Za-z0-9+/]{20,}={0,2}"
 
     def __init__(self):
         """Inicializa o YAMLParser."""
@@ -50,15 +52,15 @@ class YAMLParser:
         """
         if not code or not code.strip():
             return {
-                'keys': [],
-                'has_secrets': False,
-                'secret_keys': [],
-                'has_base64': False,
-                'document_count': 1,
-                'kind': None,
-                'ci_platform': None,
-                'ci_type': None,
-                'has_errors': False
+                "keys": [],
+                "has_secrets": False,
+                "secret_keys": [],
+                "has_base64": False,
+                "document_count": 1,
+                "kind": None,
+                "ci_platform": None,
+                "ci_type": None,
+                "has_errors": False,
             }
 
         try:
@@ -68,16 +70,12 @@ class YAMLParser:
                 logger.warning(
                     "yaml_not_available",
                     filename=filename,
-                    message="Using regex-based fallback parser"
+                    message="Using regex-based fallback parser",
                 )
                 return self._parse_with_regex(code, filename)
 
         except Exception as e:
-            logger.error(
-                "yaml_parse_error",
-                filename=filename,
-                error=str(e)
-            )
+            logger.error("yaml_parse_error", filename=filename, error=str(e))
             self._parse_errors.add(filename)
             return None
 
@@ -88,102 +86,97 @@ class YAMLParser:
             docs = list(yaml.safe_load_all(code))
 
             result = {
-                'keys': [],
-                'has_secrets': False,
-                'secret_keys': [],
-                'has_base64': False,
-                'document_count': len(docs),
-                'kind': None,
-                'ci_platform': None,
-                'ci_type': None,
-                'has_errors': False
+                "keys": [],
+                "has_secrets": False,
+                "secret_keys": [],
+                "has_base64": False,
+                "document_count": len(docs),
+                "kind": None,
+                "ci_platform": None,
+                "ci_type": None,
+                "has_errors": False,
             }
 
             all_keys = set()
-            all_secrets = []
 
             for doc in docs:
                 if doc is None:
                     continue
 
                 # Extrair chaves do documento
-                self._extract_keys_recursive(doc, all_keys, '')
+                self._extract_keys_recursive(doc, all_keys, "")
 
                 # Detectar tipo de recurso
-                kind = doc.get('kind') if isinstance(doc, dict) else None
+                kind = doc.get("kind") if isinstance(doc, dict) else None
                 if kind:
-                    result['kind'] = kind
+                    result["kind"] = kind
 
                 # Detectar metadados Kubernetes
                 if kind:
-                    metadata = doc.get('metadata', {})
+                    metadata = doc.get("metadata", {})
                     if isinstance(metadata, dict):
-                        result['name'] = metadata.get('name')
-                        result['namespace'] = metadata.get('namespace')
-                        result['api_version'] = doc.get('apiVersion')
+                        result["name"] = metadata.get("name")
+                        result["namespace"] = metadata.get("namespace")
+                        result["api_version"] = doc.get("apiVersion")
 
                 # Detectar plataforma CI
                 ci_platform = self._detect_ci_platform(doc)
                 if ci_platform:
-                    result['ci_platform'] = ci_platform
-                    result['ci_type'] = ci_platform
+                    result["ci_platform"] = ci_platform
+                    result["ci_type"] = ci_platform
 
-            result['keys'] = list(all_keys)
+            result["keys"] = list(all_keys)
 
             # Detectar segredos no código original
-            result['has_secrets'], result['secret_keys'] = self._detect_secrets(code)
-            result['has_base64'] = self._has_base64(code)
+            result["has_secrets"], result["secret_keys"] = self._detect_secrets(code)
+            result["has_base64"] = self._has_base64(code)
 
             return result
 
         except yaml.YAMLError as e:
-            logger.debug(
-                "yaml_parse_failed",
-                filename=filename,
-                error=str(e)
-            )
+            logger.debug("yaml_parse_failed", filename=filename, error=str(e))
             # Fallback para regex, mas marca erro
             result = self._parse_with_regex(code, filename)
             if result:
-                result['has_errors'] = True
+                result["has_errors"] = True
             return result
 
     def _parse_with_regex(self, code: str, filename: str) -> Dict[str, Any]:
         """Parse baseado em regex (fallback)."""
         result = {
-            'keys': [],
-            'has_secrets': False,
-            'secret_keys': [],
-            'has_base64': False,
-            'document_count': code.count('---') + 1,
-            'kind': None,
-            'ci_platform': None,
-            'ci_type': None,
-            'has_errors': False
+            "keys": [],
+            "has_secrets": False,
+            "secret_keys": [],
+            "has_base64": False,
+            "document_count": code.count("---") + 1,
+            "kind": None,
+            "ci_platform": None,
+            "ci_type": None,
+            "has_errors": False,
         }
 
         # Extrair chaves de nível superior
-        for match in re.finditer(r'^([A-Za-z_][A-Za-z0-9_-]*)\s*:', code, re.MULTILINE):
-            result['keys'].append(match.group(1))
+        for match in re.finditer(r"^([A-Za-z_][A-Za-z0-9_-]*)\s*:", code, re.MULTILINE):
+            result["keys"].append(match.group(1))
 
         # Detectar kind Kubernetes
-        kind_match = re.search(r'kind:\s*([A-Za-z]+)', code)
+        kind_match = re.search(r"kind:\s*([A-Za-z]+)", code)
         if kind_match:
-            result['kind'] = kind_match.group(1)
+            result["kind"] = kind_match.group(1)
 
         # Detectar nome Kubernetes
-        name_match = re.search(r'name:\s*([A-Za-z0-9-]+)', code)
+        name_match = re.search(r"name:\s*([A-Za-z0-9-]+)", code)
         if name_match:
-            result['name'] = name_match.group(1)
+            result["name"] = name_match.group(1)
 
         # Detectar segredos
-        result['has_secrets'], result['secret_keys'] = self._detect_secrets(code)
-        result['has_base64'] = self._has_base64(code)
+        result["has_secrets"], result["secret_keys"] = self._detect_secrets(code)
+        result["has_base64"] = self._has_base64(code)
 
         # Detectar plataforma CI
-        result['ci_platform'] = self._detect_ci_platform_regex(code)
-        if result['ci_platform']:
-            result['ci_type'] = result['ci_platform']
+        result["ci_platform"] = self._detect_ci_platform_regex(code)
+        if result["ci_platform"]:
+            result["ci_type"] = result["ci_platform"]
 
         return result
 
@@ -201,33 +194,34 @@ class YAMLParser:
 
     def _detect_ci_platform(self, doc: Any) -> Optional[str]:
         """Detecta plataforma CI baseada no conteúdo."""
+
         def check_recursive(obj: Any) -> Optional[str]:
             """Busca recursivamente por indicadores de plataforma CI."""
             if isinstance(obj, dict):
                 # GitHub Actions
-                if 'on' in obj or 'runs-on' in obj:
-                    return 'github-actions'
+                if "on" in obj or "runs-on" in obj:
+                    return "github-actions"
 
                 # GitLab CI
-                if 'stages' in obj:
-                    return 'gitlab-ci'
-                if 'image' in obj:
+                if "stages" in obj:
+                    return "gitlab-ci"
+                if "image" in obj:
                     # Verificar se tem jobs com script
                     for val in obj.values():
-                        if isinstance(val, dict) and 'script' in val:
-                            return 'gitlab-ci'
+                        if isinstance(val, dict) and "script" in val:
+                            return "gitlab-ci"
 
                 # CircleCI (tem ambos version e jobs)
-                if 'version' in obj and 'jobs' in obj:
-                    return 'circleci'
+                if "version" in obj and "jobs" in obj:
+                    return "circleci"
 
                 # Kubernetes
-                if 'kind' in obj or 'apiVersion' in obj:
-                    return 'kubernetes'
+                if "kind" in obj or "apiVersion" in obj:
+                    return "kubernetes"
 
                 # Docker Compose (tem services, mas NÃO tem jobs juntos com version)
-                if 'services' in obj:
-                    return 'docker-compose'
+                if "services" in obj:
+                    return "docker-compose"
 
                 # Recursão para valores aninhados
                 for val in obj.values():
@@ -247,14 +241,14 @@ class YAMLParser:
 
     def _detect_ci_platform_regex(self, code: str) -> Optional[str]:
         """Detecta plataforma CI usando regex."""
-        if re.search(r'^\s*(name|on|runs-on)\s*:', code, re.MULTILINE):
-            return 'github-actions'
-        if re.search(r'^\s*(stages|image)\s*:', code, re.MULTILINE):
-            return 'gitlab-ci'
-        if re.search(r'kind:\s*(Deployment|Service|Pod)', code):
-            return 'kubernetes'
-        if re.search(r'^\s*services\s*:', code, re.MULTILINE):
-            return 'docker-compose'
+        if re.search(r"^\s*(name|on|runs-on)\s*:", code, re.MULTILINE):
+            return "github-actions"
+        if re.search(r"^\s*(stages|image)\s*:", code, re.MULTILINE):
+            return "gitlab-ci"
+        if re.search(r"kind:\s*(Deployment|Service|Pod)", code):
+            return "kubernetes"
+        if re.search(r"^\s*services\s*:", code, re.MULTILINE):
+            return "docker-compose"
         return None
 
     def _detect_secrets(self, code: str) -> tuple[bool, List[str]]:
@@ -264,18 +258,29 @@ class YAMLParser:
         # Padrão mais simples: apenas verificar nomes de chaves suspeitas
         # seguidas por algum valor (não vazio, não null)
         suspicious_keys = [
-            'password', 'passwd', 'pwd',
-            'api_key', 'apikey', 'api-key',
-            'secret', 'secret_key', 'private_key',
-            'access_token', 'auth_token', 'token',
-            'credential', 'credentials',
-            'jwt', 'bearer', 'authorization'
+            "password",
+            "passwd",
+            "pwd",
+            "api_key",
+            "apikey",
+            "api-key",
+            "secret",
+            "secret_key",
+            "private_key",
+            "access_token",
+            "auth_token",
+            "token",
+            "credential",
+            "credentials",
+            "jwt",
+            "bearer",
+            "authorization",
         ]
 
         for key in suspicious_keys:
             # Procurar chave seguida por dois pontos e valor
             # Suporta: key: value, key: "value", key: 'value', key: | multiline
-            pattern = rf'(?:^|\n)\s*([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(?:"[^"]*"|\'[^\']*\'|[^\s\n#]+|\|\s*\n(?:\s+[^\n]*\n)+)'
+            pattern = r'(?:^|\n)\s*([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(?:"[^"]*"|\'[^\']*\'|[^\s\n#]+|\|\s*\n(?:\s+[^\n]*\n)+)'
             for match in re.finditer(pattern, code, re.MULTILINE):
                 key_name = match.group(1).lower()
                 if key in key_name and key_name not in secret_keys:
@@ -301,7 +306,7 @@ class YAMLParser:
             value = match.group(1)
 
             # Limpar valor de possíveis caracteres de fim
-            value = value.rstrip(')').rstrip(',').rstrip(']').rstrip('}').rstrip('=')
+            value = value.rstrip(")").rstrip(",").rstrip("]").rstrip("}").rstrip("=")
 
             # Pular se muito curto
             if len(value) < 20:
@@ -309,7 +314,7 @@ class YAMLParser:
 
             # Se é apenas letras (maiúsculas ou minúsculas), pode ser texto normal
             # Mas se for muito longo e parecer aleatório, pode ser base64
-            if re.match(r'^[a-zA-Z]+$', value):
+            if re.match(r"^[a-zA-Z]+$", value):
                 # Texto muito longo com apenas letras é suspeito
                 # Verificar se parece codificado (mistura upper/lower sem espaços)
                 if len(value) > 40:
@@ -321,16 +326,16 @@ class YAMLParser:
                 continue
 
             # Verificar se tem apenas caracteres base64 válidos
-            if not re.match(r'^[A-Za-z0-9+/=]+$', value):
+            if not re.match(r"^[A-Za-z0-9+/=]+$", value):
                 continue
 
             # Verificar padding - base64 tem 0, 1 ou 2 = no final
-            padding_count = value.count('=')
+            padding_count = value.count("=")
             if padding_count > 2:
                 continue
 
             # Se tem + ou / ou mistura de upper/lower/digits, provavelmente é base64
-            has_special = any(c in '/+' for c in value)
+            has_special = any(c in "/+" for c in value)
             has_upper = any(c.isupper() for c in value)
             has_lower = any(c.islower() for c in value)
             has_digit = any(c.isdigit() for c in value)
@@ -349,6 +354,6 @@ class YAMLParser:
     def get_stats(self) -> Dict[str, int]:
         """Retorna estatísticas do parser."""
         return {
-            'parsed_files': len(self._parsed_cache),
-            'files_with_errors': len(self._parse_errors)
+            "parsed_files": len(self._parsed_cache),
+            "files_with_errors": len(self._parse_errors),
         }

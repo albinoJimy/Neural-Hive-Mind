@@ -1,0 +1,83 @@
+# HelmRelease para Business Specialist - Prod
+# Gerenciado pelo FluxCD Helm Controller
+
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: specialist-business
+  namespace: neural-hive
+
+spec:
+  interval: 5m
+  timeout: 10m
+
+  chart:
+    spec:
+      chart: ./helm-charts/specialist-business
+      sourceRef:
+        kind: GitRepository
+        name: neural-hive-mind
+        namespace: flux-system
+
+  # Valores do Helm - override para produção
+  values:
+    image:
+      repository: ghcr.io/albinojimy/neural-hive-mind/specialist-business
+      tag: "1.0.0"
+      pullPolicy: IfNotPresent
+
+    replicas: 2
+
+    resources:
+      requests:
+        cpu: 200m
+        memory: 256Mi
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+
+    # Configurações de senioridade hierárquica
+    seniority: senior
+    domains:
+      - business
+      - process-mining
+      - cost-analysis
+
+    # Pheromone Client para Swarm Intelligence
+    pheromone:
+      enabled: true
+      ttl: 3600
+      decayRate: 0.1
+
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: "kafka.neural-hive.svc.cluster.local:9092"
+      MONGODB_URL: "mongodb://mongodb-cluster-0.mongodb-cluster.neural-hive.svc.cluster.local:27017"
+      REDIS_URL: "redis://redis-cluster.neural-hive.svc.cluster.local:6379"
+      LOG_LEVEL: "INFO"
+
+    # gRPC Server
+    grpc:
+      port: 50051
+      reflection: true
+
+    # Health checks
+    livenessProbe:
+      exec:
+        command:
+          - /bin/grpc_health_probe
+          - -addr=:50051
+      initialDelaySeconds: 30
+      periodSeconds: 10
+
+    readinessProbe:
+      exec:
+        command:
+          - /bin/grpc_health_probe
+          - -addr=:50051
+      initialDelaySeconds: 10
+      periodSeconds: 5
+
+    # Pod disruption budget
+    podDisruptionBudget:
+      enabled: true
+      minAvailable: 1

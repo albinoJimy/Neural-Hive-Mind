@@ -9,7 +9,7 @@ import os
 import sys
 import asyncio
 import pickle
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
@@ -200,7 +200,7 @@ def main():
     metrics_path = output_dir / f"{SPECIALIST_TYPE}_metrics.txt"
     with open(metrics_path, 'w') as f:
         f.write(f"Model: {SPECIALIST_TYPE}-evaluator\n")
-        f.write(f"Data: {datetime.utcnow().isoformat()}\n")
+        f.write(f"Data: {datetime.now(timezone.utc).isoformat()}\n")
         f.write(f"Samples: {len(df)}\n")
         f.write(f"Data source: real (MongoDB)\n")
         f.write(f"\nMetrics:\n")

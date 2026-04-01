@@ -13,7 +13,7 @@ Aprova modelos apenas se métricas superiores ao baseline.
 
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Tuple
 import pandas as pd
@@ -100,7 +100,7 @@ class ModelValidator:
         report = {
             'specialist_type': specialist_type,
             'model_version': model_version,
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
             'test_samples': len(X_test),
         }
 

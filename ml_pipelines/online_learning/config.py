@@ -8,7 +8,7 @@ rollback automático e deployment gradual.
 import os
 from typing import List, Optional
 from pydantic import Field, field_validator
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -39,6 +39,11 @@ class OnlineLearningConfig(BaseSettings):
         default=0.001,
         env="ONLINE_LEARNING_RATE",
         description="Taxa de aprendizado para SGD"
+    )
+    regularization_alpha: float = Field(
+        default=0.0001,
+        env="REGULARIZATION_ALPHA",
+        description="Parâmetro de regularização (alpha)"
     )
     update_frequency_minutes: int = Field(
         default=30,
@@ -254,6 +259,16 @@ class OnlineLearningConfig(BaseSettings):
     )
 
     # =========================================================================
+    # Pydantic Configuration
+    # =========================================================================
+    model_config = SettingsConfigDict(
+        env_file='.env',
+        env_file_encoding='utf-8',
+        case_sensitive=False,
+        extra='allow'  # Permitir campos extras para compatibilidade
+    )
+
+    # =========================================================================
     # Validators
     # =========================================================================
     @field_validator('incremental_algorithm')
@@ -325,12 +340,6 @@ class OnlineLearningConfig(BaseSettings):
                 mini_batch_size=v
             )
         return v
-
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = False
-        extra = "allow"  # Permitir campos extras para compatibilidade
 
 
 def load_config() -> OnlineLearningConfig:

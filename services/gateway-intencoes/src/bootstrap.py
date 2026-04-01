@@ -8,9 +8,9 @@ eliminando a complexidade de múltiplos try/except e stubs.
 import asyncio
 import json
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
-from typing import Optional, Dict, Any, List, Callable
 from contextlib import AsyncExitStack
+from dataclasses import dataclass, field
+from typing import Any
 
 import structlog
 
@@ -29,7 +29,7 @@ class ApplicationContext:
     kafka_producer: Any = None
     health_manager: Any = None
     initialized: bool = False
-    errors: List[str] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
 
 
 class InitializationPhase(ABC):
@@ -45,7 +45,7 @@ class InitializationPhase(ABC):
         self.required = required
         self.max_retries = max_retries
         self.initialized = False
-        self.error: Optional[str] = None
+        self.error: str | None = None
 
     async def execute(self, context: ApplicationContext) -> bool:
         """
@@ -60,7 +60,7 @@ class InitializationPhase(ABC):
         Raises:
             Exception: Propaga exceção após esgotar retries em fase obrigatória
         """
-        last_error: Optional[Exception] = None
+        last_error: Exception | None = None
 
         for attempt in range(1, self.max_retries + 1):
             try:
@@ -81,13 +81,12 @@ class InitializationPhase(ABC):
                         attempts=attempt,
                     )
                     return True
-                else:
-                    logger.warning(
-                        "phase_execute_failed_no_exception",
-                        phase=self.name,
-                        attempt=attempt,
-                    )
-                    return False
+                logger.warning(
+                    "phase_execute_failed_no_exception",
+                    phase=self.name,
+                    attempt=attempt,
+                )
+                return False
 
             except Exception as e:
                 last_error = e
@@ -103,7 +102,7 @@ class InitializationPhase(ABC):
 
                 if attempt < self.max_retries:
                     # Exponential backoff: 2^attempt * 100ms
-                    backoff = (2 ** attempt) * 0.1
+                    backoff = (2**attempt) * 0.1
                     logger.debug(
                         "phase_execute_retry_backoff",
                         phase=self.name,
@@ -121,7 +120,7 @@ class InitializationPhase(ABC):
 
         # Se chegou aqui, todos os retries falharam
         context.errors.append(
-            f"{self.name} phase failed after {self.max_retries} attempts: {str(last_error)}"
+            f"{self.name} phase failed after {self.max_retries} attempts: {last_error!s}"
         )
 
         # Para fases obrigatórias, marca como não inicializado
@@ -146,7 +145,6 @@ class InitializationPhase(ABC):
         Raises:
             Exception: Em caso de erro na inicialização
         """
-        pass
 
 
 class InfrastructurePhase(InitializationPhase):
@@ -157,12 +155,11 @@ class InfrastructurePhase(InitializationPhase):
         self.settings = settings
 
     async def _execute_phase(self, context: ApplicationContext) -> bool:
-        from cache.redis_client import get_redis_client, close_redis_client
+        from cache.redis_client import get_redis_client
+        from middleware.rate_limiter import RateLimiter, set_rate_limiter
         from security.oauth2_validator import (
             get_oauth2_validator,
-            close_oauth2_validator,
         )
-        from middleware.rate_limiter import RateLimiter, set_rate_limiter
 
         try:
             # Redis
@@ -198,7 +195,7 @@ class InfrastructurePhase(InitializationPhase):
             return True
 
         except Exception as e:
-            error_msg = f"Infrastructure phase failed: {str(e)}"
+            error_msg = f"Infrastructure phase failed: {e!s}"
             logger.error("phase_infrastructure_failed", error=str(e), exc_info=True)
             context.errors.append(error_msg)
             return False
@@ -257,7 +254,7 @@ class SecurityValidationPhase(InitializationPhase):
             return True
 
         except Exception as e:
-            error_msg = f"Security validation phase failed: {str(e)}"
+            error_msg = f"Security validation phase failed: {e!s}"
             logger.error("phase_security_validation_failed", error=str(e), exc_info=True)
             context.errors.append(error_msg)
             return False
@@ -295,7 +292,7 @@ class ProcessingPhase(InitializationPhase):
             return True
 
         except Exception as e:
-            error_msg = f"Processing phase failed: {str(e)}"
+            error_msg = f"Processing phase failed: {e!s}"
             logger.error("phase_processing_failed", error=str(e), exc_info=True)
             context.errors.append(error_msg)
             return False
@@ -344,7 +341,7 @@ class ObservabilityPhase(InitializationPhase):
 
         except Exception as e:
             logger.error("phase_observability_failed", error=str(e), exc_info=True)
-            context.errors.append(f"Observability phase failed: {str(e)}")
+            context.errors.append(f"Observability phase failed: {e!s}")
             return not self.required  # Se não é obrigatório, continua
 
 
@@ -369,7 +366,7 @@ class MessagingPhase(InitializationPhase):
             return True
 
         except Exception as e:
-            error_msg = f"Messaging phase failed: {str(e)}"
+            error_msg = f"Messaging phase failed: {e!s}"
             logger.error("phase_messaging_failed", error=str(e), exc_info=True)
             context.errors.append(error_msg)
             return False
@@ -388,14 +385,14 @@ class HealthChecksPhase(InitializationPhase):
 
             # Detectar versão da biblioteca de observabilidade
             try:
-                from neural_hive_observability.health import HealthManager
                 from neural_hive_observability.config import ObservabilityConfig
+                from neural_hive_observability.health import (
+                    CustomHealthCheck,
+                    HealthManager,
+                    RedisHealthCheck,
+                )
                 from neural_hive_observability.health_checks.otel import (
                     OTELPipelineHealthCheck,
-                )
-                from neural_hive_observability.health import (
-                    RedisHealthCheck,
-                    CustomHealthCheck,
                 )
 
                 # Criar config
@@ -425,8 +422,8 @@ class HealthChecksPhase(InitializationPhase):
             return True
 
         except Exception as e:
-            logger.error("phase_health_checks_failed", error=str(e))
-            context.errors.append(f"Health checks phase failed: {str(e)}")
+            logger.exception("phase_health_checks_failed", error=str(e))
+            context.errors.append(f"Health checks phase failed: {e!s}")
             return not self.required
 
     def _register_checks(
@@ -442,9 +439,7 @@ class HealthChecksPhase(InitializationPhase):
             context.health_manager.register_check(
                 CustomHealthCheck(
                     "asr_pipeline",
-                    lambda: context.asr_pipeline.is_ready()
-                    if context.asr_pipeline
-                    else False,
+                    lambda: context.asr_pipeline.is_ready() if context.asr_pipeline else False,
                     "ASR Pipeline",
                 )
             )
@@ -453,9 +448,7 @@ class HealthChecksPhase(InitializationPhase):
             context.health_manager.register_check(
                 CustomHealthCheck(
                     "nlu_pipeline",
-                    lambda: context.nlu_pipeline.is_ready()
-                    if context.nlu_pipeline
-                    else False,
+                    lambda: context.nlu_pipeline.is_ready() if context.nlu_pipeline else False,
                     "NLU Pipeline",
                 )
             )
@@ -464,9 +457,7 @@ class HealthChecksPhase(InitializationPhase):
             context.health_manager.register_check(
                 CustomHealthCheck(
                     "kafka_producer",
-                    lambda: context.kafka_producer.is_ready()
-                    if context.kafka_producer
-                    else False,
+                    lambda: context.kafka_producer.is_ready() if context.kafka_producer else False,
                     "Kafka Producer",
                 )
             )
@@ -523,7 +514,7 @@ class ApplicationBootstrapper:
 
     def __init__(self, settings):
         self.settings = settings
-        self.phases: List[InitializationPhase] = []
+        self.phases: list[InitializationPhase] = []
         self.exit_stack = AsyncExitStack()
 
         # Configurar fases
@@ -590,21 +581,21 @@ class ApplicationBootstrapper:
                 await context.kafka_producer.close()
                 logger.info("shutdown_kafka_complete")
             except Exception as e:
-                logger.error("shutdown_kafka_error", error=str(e))
+                logger.exception("shutdown_kafka_error", error=str(e))
 
         if context.asr_pipeline:
             try:
                 await context.asr_pipeline.close()
                 logger.info("shutdown_asr_complete")
             except Exception as e:
-                logger.error("shutdown_asr_error", error=str(e))
+                logger.exception("shutdown_asr_error", error=str(e))
 
         if context.nlu_pipeline:
             try:
                 await context.nlu_pipeline.close()
                 logger.info("shutdown_nlu_complete")
             except Exception as e:
-                logger.error("shutdown_nlu_error", error=str(e))
+                logger.exception("shutdown_nlu_error", error=str(e))
 
         if context.redis_client:
             try:
@@ -613,7 +604,7 @@ class ApplicationBootstrapper:
                 await close_redis_client()
                 logger.info("shutdown_redis_complete")
             except Exception as e:
-                logger.error("shutdown_redis_error", error=str(e))
+                logger.exception("shutdown_redis_error", error=str(e))
 
         if context.oauth2_validator:
             try:
@@ -622,7 +613,7 @@ class ApplicationBootstrapper:
                 await close_oauth2_validator()
                 logger.info("shutdown_oauth2_complete")
             except Exception as e:
-                logger.error("shutdown_oauth2_error", error=str(e))
+                logger.exception("shutdown_oauth2_error", error=str(e))
 
         if context.rate_limiter:
             try:
@@ -631,7 +622,7 @@ class ApplicationBootstrapper:
                 close_rate_limiter()
                 logger.info("shutdown_rate_limiter_complete")
             except Exception as e:
-                logger.error("shutdown_rate_limiter_error", error=str(e))
+                logger.exception("shutdown_rate_limiter_error", error=str(e))
 
         logger.info("shutdown_complete")
 

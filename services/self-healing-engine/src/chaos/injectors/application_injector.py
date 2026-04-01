@@ -5,15 +5,14 @@ Implementa injeção de falhas em nível de aplicação como erros HTTP,
 respostas lentas e trigger de circuit breakers.
 """
 
-import asyncio
-from datetime import datetime
-from typing import Any, Dict, List, Optional
-import structlog
-from kubernetes import client
+from datetime import datetime, timezone
+from typing import Any, Dict, List
 
-from .base_injector import BaseFaultInjector, InjectionResult
+import structlog
+
+from ..chaos_config import CHAOS_LABELS
 from ..chaos_models import FaultInjection, FaultType, TargetSelector
-from ..chaos_config import CHAOS_LABELS, CHAOS_ANNOTATIONS
+from .base_injector import BaseFaultInjector, InjectionResult
 
 logger = structlog.get_logger(__name__)
 
@@ -48,7 +47,7 @@ class ApplicationFaultInjector(BaseFaultInjector):
 
     async def inject(self, injection: FaultInjection) -> InjectionResult:
         """Injeta falha em nível de aplicação."""
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc)
 
         if injection.fault_type not in self.supported_fault_types:
             return InjectionResult(
@@ -56,7 +55,7 @@ class ApplicationFaultInjector(BaseFaultInjector):
                 injection_id=injection.id,
                 fault_type=injection.fault_type,
                 error_message=f"Tipo de falha não suportado: {injection.fault_type}",
-                start_time=start_time
+                start_time=start_time,
             )
 
         try:
@@ -71,7 +70,7 @@ class ApplicationFaultInjector(BaseFaultInjector):
                     success=False,
                     injection_id=injection.id,
                     fault_type=injection.fault_type,
-                    error_message="Tipo de falha não implementado"
+                    error_message="Tipo de falha não implementado",
                 )
 
             if result.success:
@@ -83,7 +82,7 @@ class ApplicationFaultInjector(BaseFaultInjector):
             self._record_injection_metrics(
                 injection.fault_type.value,
                 "success" if result.success else "failed",
-                injection.target.namespace
+                injection.target.namespace,
             )
 
             return result
@@ -93,19 +92,17 @@ class ApplicationFaultInjector(BaseFaultInjector):
                 "application_injector.inject_failed",
                 injection_id=injection.id,
                 fault_type=injection.fault_type.value,
-                error=str(e)
+                error=str(e),
             )
             self._record_injection_metrics(
-                injection.fault_type.value,
-                "error",
-                injection.target.namespace
+                injection.fault_type.value, "error", injection.target.namespace
             )
             return InjectionResult(
                 success=False,
                 injection_id=injection.id,
                 fault_type=injection.fault_type,
                 error_message=str(e),
-                start_time=start_time
+                start_time=start_time,
             )
 
     async def _inject_http_error(self, injection: FaultInjection) -> InjectionResult:
@@ -120,7 +117,7 @@ class ApplicationFaultInjector(BaseFaultInjector):
                 success=False,
                 injection_id=injection.id,
                 fault_type=injection.fault_type,
-                error_message="Cliente CustomObjectsApi não disponível para Istio"
+                error_message="Cliente CustomObjectsApi não disponível para Istio",
             )
 
         params = injection.parameters
@@ -134,7 +131,7 @@ class ApplicationFaultInjector(BaseFaultInjector):
                 success=False,
                 injection_id=injection.id,
                 fault_type=injection.fault_type,
-                error_message="service_name é obrigatório para HTTP fault injection"
+                error_message="service_name é obrigatório para HTTP fault injection",
             )
 
         try:
@@ -152,32 +149,26 @@ class ApplicationFaultInjector(BaseFaultInjector):
                     },
                     "annotations": {
                         "chaos.neuralhive.io/experiment-id": injection.id,
-                        "chaos.neuralhive.io/created-at": datetime.utcnow().isoformat(),
-                    }
+                        "chaos.neuralhive.io/created-at": datetime.now(timezone.utc).isoformat(),
+                    },
                 },
                 "spec": {
                     "hosts": [service_name],
                     "http": [
                         {
-                            "match": [
-                                {"uri": {"prefix": path_pattern.replace("*", "")}}
-                            ] if path_pattern != "/*" else [],
+                            "match": [{"uri": {"prefix": path_pattern.replace("*", "")}}]
+                            if path_pattern != "/*"
+                            else [],
                             "fault": {
                                 "abort": {
                                     "percentage": {"value": percentage},
-                                    "httpStatus": status_code
+                                    "httpStatus": status_code,
                                 }
                             },
-                            "route": [
-                                {
-                                    "destination": {
-                                        "host": service_name
-                                    }
-                                }
-                            ]
+                            "route": [{"destination": {"host": service_name}}],
                         }
-                    ]
-                }
+                    ],
+                },
             }
 
             self.k8s_custom_objects.create_namespaced_custom_object(
@@ -185,7 +176,7 @@ class ApplicationFaultInjector(BaseFaultInjector):
                 version="v1beta1",
                 namespace=injection.target.namespace,
                 plural="virtualservices",
-                body=virtual_service
+                body=virtual_service,
             )
 
             logger.info(
@@ -193,7 +184,7 @@ class ApplicationFaultInjector(BaseFaultInjector):
                 vs_name=vs_name,
                 service=service_name,
                 status_code=status_code,
-                percentage=percentage
+                percentage=percentage,
             )
 
             return InjectionResult(
@@ -202,24 +193,21 @@ class ApplicationFaultInjector(BaseFaultInjector):
                 fault_type=injection.fault_type,
                 affected_resources=[service_name],
                 blast_radius=1,
-                start_time=datetime.utcnow(),
+                start_time=datetime.now(timezone.utc),
                 rollback_data={
                     "type": "istio_virtual_service",
                     "vs_name": vs_name,
                     "namespace": injection.target.namespace,
-                }
+                },
             )
 
         except Exception as e:
-            logger.error(
-                "application_injector.http_error_failed",
-                error=str(e)
-            )
+            logger.error("application_injector.http_error_failed", error=str(e))
             return InjectionResult(
                 success=False,
                 injection_id=injection.id,
                 fault_type=injection.fault_type,
-                error_message=str(e)
+                error_message=str(e),
             )
 
     async def _inject_http_delay(self, injection: FaultInjection) -> InjectionResult:
@@ -233,7 +221,7 @@ class ApplicationFaultInjector(BaseFaultInjector):
                 success=False,
                 injection_id=injection.id,
                 fault_type=injection.fault_type,
-                error_message="Cliente CustomObjectsApi não disponível para Istio"
+                error_message="Cliente CustomObjectsApi não disponível para Istio",
             )
 
         params = injection.parameters
@@ -247,7 +235,7 @@ class ApplicationFaultInjector(BaseFaultInjector):
                 success=False,
                 injection_id=injection.id,
                 fault_type=injection.fault_type,
-                error_message="service_name é obrigatório para HTTP fault injection"
+                error_message="service_name é obrigatório para HTTP fault injection",
             )
 
         try:
@@ -265,32 +253,26 @@ class ApplicationFaultInjector(BaseFaultInjector):
                     },
                     "annotations": {
                         "chaos.neuralhive.io/experiment-id": injection.id,
-                        "chaos.neuralhive.io/created-at": datetime.utcnow().isoformat(),
-                    }
+                        "chaos.neuralhive.io/created-at": datetime.now(timezone.utc).isoformat(),
+                    },
                 },
                 "spec": {
                     "hosts": [service_name],
                     "http": [
                         {
-                            "match": [
-                                {"uri": {"prefix": path_pattern.replace("*", "")}}
-                            ] if path_pattern != "/*" else [],
+                            "match": [{"uri": {"prefix": path_pattern.replace("*", "")}}]
+                            if path_pattern != "/*"
+                            else [],
                             "fault": {
                                 "delay": {
                                     "percentage": {"value": percentage},
-                                    "fixedDelay": f"{delay_ms}ms"
+                                    "fixedDelay": f"{delay_ms}ms",
                                 }
                             },
-                            "route": [
-                                {
-                                    "destination": {
-                                        "host": service_name
-                                    }
-                                }
-                            ]
+                            "route": [{"destination": {"host": service_name}}],
                         }
-                    ]
-                }
+                    ],
+                },
             }
 
             self.k8s_custom_objects.create_namespaced_custom_object(
@@ -298,7 +280,7 @@ class ApplicationFaultInjector(BaseFaultInjector):
                 version="v1beta1",
                 namespace=injection.target.namespace,
                 plural="virtualservices",
-                body=virtual_service
+                body=virtual_service,
             )
 
             logger.info(
@@ -306,7 +288,7 @@ class ApplicationFaultInjector(BaseFaultInjector):
                 vs_name=vs_name,
                 service=service_name,
                 delay_ms=delay_ms,
-                percentage=percentage
+                percentage=percentage,
             )
 
             return InjectionResult(
@@ -315,30 +297,24 @@ class ApplicationFaultInjector(BaseFaultInjector):
                 fault_type=injection.fault_type,
                 affected_resources=[service_name],
                 blast_radius=1,
-                start_time=datetime.utcnow(),
+                start_time=datetime.now(timezone.utc),
                 rollback_data={
                     "type": "istio_virtual_service",
                     "vs_name": vs_name,
                     "namespace": injection.target.namespace,
-                }
+                },
             )
 
         except Exception as e:
-            logger.error(
-                "application_injector.http_delay_failed",
-                error=str(e)
-            )
+            logger.error("application_injector.http_delay_failed", error=str(e))
             return InjectionResult(
                 success=False,
                 injection_id=injection.id,
                 fault_type=injection.fault_type,
-                error_message=str(e)
+                error_message=str(e),
             )
 
-    async def _trigger_circuit_breaker(
-        self,
-        injection: FaultInjection
-    ) -> InjectionResult:
+    async def _trigger_circuit_breaker(self, injection: FaultInjection) -> InjectionResult:
         """
         Força abertura de circuit breakers via carga artificial.
 
@@ -350,12 +326,11 @@ class ApplicationFaultInjector(BaseFaultInjector):
                 success=False,
                 injection_id=injection.id,
                 fault_type=injection.fault_type,
-                error_message="service_name é obrigatório para circuit breaker trigger"
+                error_message="service_name é obrigatório para circuit breaker trigger",
             )
 
         # Usar combinação de HTTP errors e delays para forçar abertura
         # Criar VirtualService com alto percentual de erros
-        params = injection.parameters
         error_percentage = 80  # 80% de erros para forçar abertura rápida
 
         try:
@@ -379,19 +354,13 @@ class ApplicationFaultInjector(BaseFaultInjector):
                             "fault": {
                                 "abort": {
                                     "percentage": {"value": error_percentage},
-                                    "httpStatus": 503
+                                    "httpStatus": 503,
                                 }
                             },
-                            "route": [
-                                {
-                                    "destination": {
-                                        "host": service_name
-                                    }
-                                }
-                            ]
+                            "route": [{"destination": {"host": service_name}}],
                         }
-                    ]
-                }
+                    ],
+                },
             }
 
             if self.k8s_custom_objects:
@@ -400,14 +369,14 @@ class ApplicationFaultInjector(BaseFaultInjector):
                     version="v1beta1",
                     namespace=injection.target.namespace,
                     plural="virtualservices",
-                    body=virtual_service
+                    body=virtual_service,
                 )
 
                 logger.info(
                     "application_injector.circuit_breaker_trigger_started",
                     vs_name=vs_name,
                     service=service_name,
-                    error_percentage=error_percentage
+                    error_percentage=error_percentage,
                 )
 
                 return InjectionResult(
@@ -416,19 +385,19 @@ class ApplicationFaultInjector(BaseFaultInjector):
                     fault_type=injection.fault_type,
                     affected_resources=[service_name],
                     blast_radius=1,
-                    start_time=datetime.utcnow(),
+                    start_time=datetime.now(timezone.utc),
                     rollback_data={
                         "type": "istio_virtual_service",
                         "vs_name": vs_name,
                         "namespace": injection.target.namespace,
-                    }
+                    },
                 )
             else:
                 # Fallback: apenas registrar que CB deveria ser trigado
                 logger.warning(
                     "application_injector.circuit_breaker_trigger_no_istio",
                     service=service_name,
-                    note="Istio não disponível, trigger manual necessário"
+                    note="Istio não disponível, trigger manual necessário",
                 )
                 return InjectionResult(
                     success=True,
@@ -436,25 +405,22 @@ class ApplicationFaultInjector(BaseFaultInjector):
                     fault_type=injection.fault_type,
                     affected_resources=[service_name],
                     blast_radius=1,
-                    start_time=datetime.utcnow(),
+                    start_time=datetime.now(timezone.utc),
                     rollback_data={
                         "type": "manual",
                         "service": service_name,
                         "namespace": injection.target.namespace,
                     },
-                    metadata={"note": "Circuit breaker trigger sem Istio"}
+                    metadata={"note": "Circuit breaker trigger sem Istio"},
                 )
 
         except Exception as e:
-            logger.error(
-                "application_injector.circuit_breaker_trigger_failed",
-                error=str(e)
-            )
+            logger.error("application_injector.circuit_breaker_trigger_failed", error=str(e))
             return InjectionResult(
                 success=False,
                 injection_id=injection.id,
                 fault_type=injection.fault_type,
-                error_message=str(e)
+                error_message=str(e),
             )
 
     async def validate(self, injection_id: str) -> bool:
@@ -478,7 +444,7 @@ class ApplicationFaultInjector(BaseFaultInjector):
                     version="v1beta1",
                     namespace=namespace,
                     plural="virtualservices",
-                    name=vs_name
+                    name=vs_name,
                 )
                 return True
             except Exception:
@@ -497,7 +463,7 @@ class ApplicationFaultInjector(BaseFaultInjector):
                 success=False,
                 injection_id=injection_id,
                 fault_type=FaultType.HTTP_ERROR,
-                error_message="Injeção não encontrada"
+                error_message="Injeção não encontrada",
             )
 
         injection = self._active_injections[injection_id]
@@ -512,15 +478,15 @@ class ApplicationFaultInjector(BaseFaultInjector):
                     success=True,
                     injection_id=injection_id,
                     fault_type=injection.fault_type,
-                    end_time=datetime.utcnow(),
-                    metadata={"note": "Rollback manual - nenhuma ação automática"}
+                    end_time=datetime.now(timezone.utc),
+                    metadata={"note": "Rollback manual - nenhuma ação automática"},
                 )
             else:
                 result = InjectionResult(
                     success=False,
                     injection_id=injection_id,
                     fault_type=injection.fault_type,
-                    error_message=f"Tipo de rollback desconhecido: {rollback_type}"
+                    error_message=f"Tipo de rollback desconhecido: {rollback_type}",
                 )
 
             if result.success:
@@ -533,22 +499,18 @@ class ApplicationFaultInjector(BaseFaultInjector):
 
         except Exception as e:
             logger.error(
-                "application_injector.rollback_failed",
-                injection_id=injection_id,
-                error=str(e)
+                "application_injector.rollback_failed", injection_id=injection_id, error=str(e)
             )
             self._record_rollback_metrics(injection.fault_type.value, "error")
             return InjectionResult(
                 success=False,
                 injection_id=injection_id,
                 fault_type=injection.fault_type,
-                error_message=str(e)
+                error_message=str(e),
             )
 
     async def _delete_virtual_service(
-        self,
-        injection_id: str,
-        rollback_data: Dict[str, Any]
+        self, injection_id: str, rollback_data: Dict[str, Any]
     ) -> InjectionResult:
         """Remove VirtualService do Istio."""
         vs_name = rollback_data.get("vs_name")
@@ -559,7 +521,7 @@ class ApplicationFaultInjector(BaseFaultInjector):
                 success=False,
                 injection_id=injection_id,
                 fault_type=FaultType.HTTP_ERROR,
-                error_message="Cliente CustomObjectsApi não disponível"
+                error_message="Cliente CustomObjectsApi não disponível",
             )
 
         try:
@@ -568,20 +530,18 @@ class ApplicationFaultInjector(BaseFaultInjector):
                 version="v1beta1",
                 namespace=namespace,
                 plural="virtualservices",
-                name=vs_name
+                name=vs_name,
             )
 
             logger.info(
-                "application_injector.virtual_service_deleted",
-                vs_name=vs_name,
-                namespace=namespace
+                "application_injector.virtual_service_deleted", vs_name=vs_name, namespace=namespace
             )
 
             return InjectionResult(
                 success=True,
                 injection_id=injection_id,
                 fault_type=FaultType.HTTP_ERROR,
-                end_time=datetime.utcnow()
+                end_time=datetime.now(timezone.utc),
             )
 
         except Exception as e:
@@ -589,7 +549,7 @@ class ApplicationFaultInjector(BaseFaultInjector):
                 success=False,
                 injection_id=injection_id,
                 fault_type=FaultType.HTTP_ERROR,
-                error_message=str(e)
+                error_message=str(e),
             )
 
     async def get_blast_radius(self, target: TargetSelector) -> int:

@@ -20,7 +20,7 @@ import httpx
 @pytest.fixture
 def argocd_client():
     """Fixture para ArgoCDClient."""
-    from services.worker_agents.src.clients.argocd_client import ArgoCDClient
+    from clients.argocd_client import ArgoCDClient
     return ArgoCDClient(
         base_url='http://argocd.test:8080',
         token='test-token',
@@ -31,7 +31,7 @@ def argocd_client():
 @pytest.fixture
 def application_request():
     """Fixture para ApplicationCreateRequest."""
-    from services.worker_agents.src.clients.argocd_client import (
+    from clients.argocd_client import (
         ApplicationCreateRequest,
         ApplicationMetadata,
         ApplicationSpec,
@@ -67,7 +67,7 @@ class TestArgoCDClientInit:
 
     def test_init_with_token(self):
         """Deve inicializar com token."""
-        from services.worker_agents.src.clients.argocd_client import ArgoCDClient
+        from clients.argocd_client import ArgoCDClient
         client = ArgoCDClient(
             base_url='http://argocd.test:8080',
             token='my-token',
@@ -79,13 +79,13 @@ class TestArgoCDClientInit:
 
     def test_init_without_token(self):
         """Deve inicializar sem token."""
-        from services.worker_agents.src.clients.argocd_client import ArgoCDClient
+        from clients.argocd_client import ArgoCDClient
         client = ArgoCDClient(base_url='http://argocd.test:8080')
         assert client.token is None
 
     def test_base_url_trailing_slash_removed(self):
         """Deve remover trailing slash da URL."""
-        from services.worker_agents.src.clients.argocd_client import ArgoCDClient
+        from clients.argocd_client import ArgoCDClient
         client = ArgoCDClient(base_url='http://argocd.test:8080/')
         assert client.base_url == 'http://argocd.test:8080'
 
@@ -97,7 +97,7 @@ class TestArgoCDClientInit:
 
     def test_get_headers_without_token(self):
         """Deve nao incluir Authorization quando sem token."""
-        from services.worker_agents.src.clients.argocd_client import ArgoCDClient
+        from clients.argocd_client import ArgoCDClient
         client = ArgoCDClient(base_url='http://argocd.test:8080')
         headers = client._get_headers()
         assert 'Authorization' not in headers
@@ -127,7 +127,7 @@ class TestCreateApplication:
     @pytest.mark.asyncio
     async def test_create_application_http_error(self, argocd_client, application_request):
         """Deve tratar erro HTTP na criacao."""
-        from services.worker_agents.src.clients.argocd_client import ArgoCDAPIError
+        from clients.argocd_client import ArgoCDAPIError
 
         mock_response = MagicMock()
         mock_response.status_code = 409
@@ -148,7 +148,7 @@ class TestCreateApplication:
     @pytest.mark.asyncio
     async def test_create_application_timeout(self, argocd_client, application_request):
         """Deve tratar timeout na criacao."""
-        from services.worker_agents.src.clients.argocd_client import ArgoCDTimeoutError
+        from clients.argocd_client import ArgoCDTimeoutError
 
         with patch.object(argocd_client.client, 'post', new_callable=AsyncMock) as mock_post:
             mock_post.side_effect = httpx.TimeoutException('Timeout')
@@ -188,7 +188,7 @@ class TestGetApplicationStatus:
     @pytest.mark.asyncio
     async def test_get_status_not_found(self, argocd_client):
         """Deve tratar aplicacao nao encontrada."""
-        from services.worker_agents.src.clients.argocd_client import ArgoCDAPIError
+        from clients.argocd_client import ArgoCDAPIError
 
         mock_response = MagicMock()
         mock_response.status_code = 404
@@ -213,7 +213,7 @@ class TestWaitForHealth:
     @pytest.mark.asyncio
     async def test_wait_for_health_immediate_success(self, argocd_client):
         """Deve retornar imediatamente se ja healthy."""
-        from services.worker_agents.src.clients.argocd_client import (
+        from clients.argocd_client import (
             ApplicationStatus,
             HealthStatus,
             SyncStatus
@@ -236,7 +236,7 @@ class TestWaitForHealth:
     @pytest.mark.asyncio
     async def test_wait_for_health_polling(self, argocd_client):
         """Deve fazer polling ate ficar healthy."""
-        from services.worker_agents.src.clients.argocd_client import (
+        from clients.argocd_client import (
             ApplicationStatus,
             HealthStatus,
             SyncStatus
@@ -276,7 +276,7 @@ class TestWaitForHealth:
     @pytest.mark.asyncio
     async def test_wait_for_health_timeout(self, argocd_client):
         """Deve levantar timeout se nao ficar healthy."""
-        from services.worker_agents.src.clients.argocd_client import (
+        from clients.argocd_client import (
             ApplicationStatus,
             HealthStatus,
             SyncStatus,

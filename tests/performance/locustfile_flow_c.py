@@ -21,7 +21,7 @@ import threading
 import time
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Set
 
 from locust import HttpUser, TaskSet, task, events, between
@@ -82,7 +82,7 @@ class LoadTestState:
             if count > self.max_replicas_observed:
                 self.max_replicas_observed = count
                 self.scaling_events.append({
-                    'timestamp': datetime.utcnow().isoformat(),
+                    'timestamp': datetime.now(timezone.utc).isoformat(),
                     'replicas': count,
                     'event': 'scale_up',
                 })

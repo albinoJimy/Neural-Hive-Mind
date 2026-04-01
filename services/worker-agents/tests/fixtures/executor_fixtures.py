@@ -80,7 +80,7 @@ def create_mock_github_actions_client(
     should_fail: bool = False,
 ) -> AsyncMock:
     """Create a mock GitHub Actions client."""
-    from services.worker_agents.src.clients.github_actions_client import WorkflowRunStatus
+    from clients.github_actions_client import WorkflowRunStatus
 
     client = AsyncMock()
 
@@ -122,7 +122,7 @@ def create_mock_sonarqube_client(
     issues: Optional[list] = None,
 ) -> AsyncMock:
     """Create a mock SonarQube client."""
-    from services.worker_agents.src.clients.sonarqube_client import SonarQubeAnalysis
+    from clients.sonarqube_client import SonarQubeAnalysis
 
     client = AsyncMock()
     client.trigger_analysis = AsyncMock(return_value=SonarQubeAnalysis(
@@ -140,7 +140,7 @@ def create_mock_snyk_client(
     vulnerabilities: Optional[list] = None,
 ) -> AsyncMock:
     """Create a mock Snyk client."""
-    from services.worker_agents.src.clients.snyk_client import SnykReport
+    from clients.snyk_client import SnykReport
 
     client = AsyncMock()
     client.test_dependencies = AsyncMock(return_value=SnykReport(
@@ -157,7 +157,7 @@ def create_mock_checkov_client(
     findings: Optional[list] = None,
 ) -> AsyncMock:
     """Create a mock Checkov client."""
-    from services.worker_agents.src.clients.checkov_client import CheckovReport
+    from clients.checkov_client import CheckovReport
 
     client = AsyncMock()
     client.scan_iac = AsyncMock(return_value=CheckovReport(

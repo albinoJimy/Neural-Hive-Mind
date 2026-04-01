@@ -11,11 +11,23 @@ This module provides:
 import asyncio
 import logging
 import os
+import sys
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Dict, Generator, Optional
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+
+# Adicionar src ao path com precedencia para evitar conflitos de nomes (clients)
+_src_path = Path(__file__).parent.parent / "src"
+if str(_src_path) not in sys.path:
+    sys.path.insert(0, str(_src_path))
+
+# Adicionar caminho do repositório para imports absolutos tipo "services.worker_agents"
+_repo_root = Path(__file__).parent.parent.parent.parent
+if str(_repo_root) not in sys.path:
+    sys.path.insert(0, str(_repo_root))
 
 
 # Configuration from environment
@@ -109,12 +121,12 @@ def worker_config():
     This creates a mock config that can be customized per test.
     """
     from src.config.settings import WorkerAgentSettings
+    from pydantic_settings import SettingsConfigDict
 
     class TestSettings(WorkerAgentSettings):
         """Test settings with environment overrides."""
 
-        class Config:
-            env_prefix = 'TEST_'
+        model_config = SettingsConfigDict(env_prefix='TEST_')
 
     settings = TestSettings(
         service_name='worker-agents-test',
@@ -148,6 +160,7 @@ def worker_config():
 def worker_config_minimal():
     """Minimal config with all integrations disabled."""
     from src.config.settings import WorkerAgentSettings
+    from pydantic_settings import SettingsConfigDict
 
     return WorkerAgentSettings(
         service_name='worker-agents-test-minimal',
@@ -263,7 +276,7 @@ def mock_metrics():
 @pytest.fixture
 def build_executor(worker_config, mock_code_forge_client, mock_vault_client, mock_metrics):
     """BuildExecutor with mocked dependencies."""
-    from services.worker_agents.src.executors.build_executor import BuildExecutor
+    from executors.build_executor import BuildExecutor
 
     return BuildExecutor(
         config=worker_config,
@@ -276,7 +289,7 @@ def build_executor(worker_config, mock_code_forge_client, mock_vault_client, moc
 @pytest.fixture
 def build_executor_no_forge(worker_config_minimal, mock_vault_client, mock_metrics):
     """BuildExecutor without Code Forge client (simulation mode)."""
-    from services.worker_agents.src.executors.build_executor import BuildExecutor
+    from executors.build_executor import BuildExecutor
 
     return BuildExecutor(
         config=worker_config_minimal,
@@ -289,7 +302,7 @@ def build_executor_no_forge(worker_config_minimal, mock_vault_client, mock_metri
 @pytest.fixture
 def deploy_executor(worker_config, mock_vault_client, mock_metrics):
     """DeployExecutor with mocked dependencies."""
-    from services.worker_agents.src.executors.deploy_executor import DeployExecutor
+    from executors.deploy_executor import DeployExecutor
 
     return DeployExecutor(
         config=worker_config,
@@ -301,7 +314,7 @@ def deploy_executor(worker_config, mock_vault_client, mock_metrics):
 @pytest.fixture
 def deploy_executor_argocd_enabled(worker_config, mock_vault_client, mock_metrics):
     """DeployExecutor with ArgoCD enabled."""
-    from services.worker_agents.src.executors.deploy_executor import DeployExecutor
+    from executors.deploy_executor import DeployExecutor
 
     worker_config.argocd_enabled = True
     return DeployExecutor(
@@ -314,7 +327,7 @@ def deploy_executor_argocd_enabled(worker_config, mock_vault_client, mock_metric
 @pytest.fixture
 def test_executor(worker_config, mock_vault_client, mock_metrics):
     """TestExecutor with mocked dependencies."""
-    from services.worker_agents.src.executors.test_executor import TestExecutor
+    from executors.test_executor import TestExecutor
 
     return TestExecutor(
         config=worker_config,
@@ -326,7 +339,7 @@ def test_executor(worker_config, mock_vault_client, mock_metrics):
 @pytest.fixture
 def validate_executor(worker_config, mock_vault_client, mock_metrics):
     """ValidateExecutor with mocked dependencies."""
-    from services.worker_agents.src.executors.validate_executor import ValidateExecutor
+    from executors.validate_executor import ValidateExecutor
 
     return ValidateExecutor(
         config=worker_config,
@@ -338,7 +351,7 @@ def validate_executor(worker_config, mock_vault_client, mock_metrics):
 @pytest.fixture
 def validate_executor_minimal(worker_config_minimal, mock_vault_client, mock_metrics):
     """ValidateExecutor without any validation tools enabled."""
-    from services.worker_agents.src.executors.validate_executor import ValidateExecutor
+    from executors.validate_executor import ValidateExecutor
 
     return ValidateExecutor(
         config=worker_config_minimal,
@@ -879,7 +892,7 @@ def mock_local_runtime_client():
 @pytest.fixture
 def execute_executor(worker_config, mock_vault_client, mock_metrics):
     """ExecuteExecutor with mocked dependencies."""
-    from services.worker_agents.src.executors.execute_executor import ExecuteExecutor
+    from executors.execute_executor import ExecuteExecutor
 
     return ExecuteExecutor(
         config=worker_config,

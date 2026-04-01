@@ -71,7 +71,7 @@ class BackupManager:
             Caminho do arquivo de backup ou None se erro
         """
         try:
-            timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+            timestamp = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')
             backup_name = f"ledger_full_{timestamp}.json"
 
             if self.enable_compression:
@@ -91,7 +91,7 @@ class BackupManager:
             # Serializar para JSON
             backup_data = {
                 'backup_type': 'full',
-                'created_at': datetime.utcnow().isoformat(),
+                'created_at': datetime.now(timezone.utc).isoformat(),
                 'database': self.mongodb_database,
                 'collection': 'cognitive_ledger',
                 'documents_count': len(documents),
@@ -141,7 +141,7 @@ class BackupManager:
             Caminho do arquivo de backup ou None se erro
         """
         try:
-            timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+            timestamp = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')
             backup_name = f"ledger_incremental_{timestamp}.json"
 
             if self.enable_compression:
@@ -149,7 +149,7 @@ class BackupManager:
 
             backup_file_path = os.path.join(self.backup_path, backup_name)
 
-            cutoff_time = datetime.utcnow() - timedelta(hours=since_hours)
+            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=since_hours)
 
             logger.info(
                 "Starting incremental backup",
@@ -169,7 +169,7 @@ class BackupManager:
             # Serializar
             backup_data = {
                 'backup_type': 'incremental',
-                'created_at': datetime.utcnow().isoformat(),
+                'created_at': datetime.now(timezone.utc).isoformat(),
                 'database': self.mongodb_database,
                 'collection': 'cognitive_ledger',
                 'since_timestamp': cutoff_time.isoformat(),
@@ -275,7 +275,7 @@ class BackupManager:
             Número de arquivos deletados
         """
         try:
-            cutoff_date = datetime.utcnow() - timedelta(days=self.backup_retention_days)
+            cutoff_date = datetime.now(timezone.utc) - timedelta(days=self.backup_retention_days)
             deleted_count = 0
 
             backup_dir = Path(self.backup_path)
@@ -297,7 +297,7 @@ class BackupManager:
                     logger.info(
                         "Old backup deleted",
                         backup_file=backup_file.name,
-                        age_days=(datetime.utcnow() - mtime).days
+                        age_days=(datetime.now(timezone.utc) - mtime).days
                     )
 
             logger.info(
@@ -389,7 +389,7 @@ class BackupManager:
         metadata = {
             'file_name': os.path.basename(backup_file_path),
             'file_path': backup_file_path,
-            'created_at': datetime.utcnow().isoformat(),
+            'created_at': datetime.now(timezone.utc).isoformat(),
             'checksum': checksum,
             'documents_count': documents_count,
             'file_size_bytes': file_size,

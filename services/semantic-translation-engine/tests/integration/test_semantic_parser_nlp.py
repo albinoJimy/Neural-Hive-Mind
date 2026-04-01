@@ -6,7 +6,7 @@ Testa o fluxo completo de parsing com extração NLP.
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class TestSemanticParserWithNLP:
@@ -87,7 +87,7 @@ class TestSemanticParserWithNLP:
         """Fixture de Intent Envelope para operação de criação"""
         return {
             'id': 'test-intent-001',
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
             'confidence': 0.95,
             'intent': {
                 'text': 'Criar novo serviço REST para gerenciamento de produtos usando FastAPI',
@@ -107,7 +107,7 @@ class TestSemanticParserWithNLP:
         """Fixture de Intent Envelope para operação de consulta"""
         return {
             'id': 'test-intent-002',
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
             'confidence': 0.88,
             'intent': {
                 'text': 'Buscar todos os pedidos dos últimos 30 dias no MongoDB',

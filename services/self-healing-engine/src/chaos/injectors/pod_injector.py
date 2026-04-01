@@ -4,15 +4,14 @@ Pod Fault Injector para Chaos Engineering.
 Implementa injeção de falhas em pods como kill, restart, pause e eviction.
 """
 
-import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
+
 import structlog
 from kubernetes import client
 
-from .base_injector import BaseFaultInjector, InjectionResult
 from ..chaos_models import FaultInjection, FaultType, TargetSelector
-from ..chaos_config import CHAOS_LABELS
+from .base_injector import BaseFaultInjector, InjectionResult
 
 logger = structlog.get_logger(__name__)
 
@@ -39,7 +38,7 @@ class PodFaultInjector(BaseFaultInjector):
 
     async def inject(self, injection: FaultInjection) -> InjectionResult:
         """Injeta falha em pods."""
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc)
 
         if injection.fault_type not in self.supported_fault_types:
             return InjectionResult(
@@ -47,7 +46,7 @@ class PodFaultInjector(BaseFaultInjector):
                 injection_id=injection.id,
                 fault_type=injection.fault_type,
                 error_message=f"Tipo de falha não suportado: {injection.fault_type}",
-                start_time=start_time
+                start_time=start_time,
             )
 
         try:
@@ -64,7 +63,7 @@ class PodFaultInjector(BaseFaultInjector):
                     success=False,
                     injection_id=injection.id,
                     fault_type=injection.fault_type,
-                    error_message="Tipo de falha não implementado"
+                    error_message="Tipo de falha não implementado",
                 )
 
             if result.success:
@@ -77,7 +76,7 @@ class PodFaultInjector(BaseFaultInjector):
             self._record_injection_metrics(
                 injection.fault_type.value,
                 "success" if result.success else "failed",
-                injection.target.namespace
+                injection.target.namespace,
             )
 
             return result
@@ -87,19 +86,17 @@ class PodFaultInjector(BaseFaultInjector):
                 "pod_injector.inject_failed",
                 injection_id=injection.id,
                 fault_type=injection.fault_type.value,
-                error=str(e)
+                error=str(e),
             )
             self._record_injection_metrics(
-                injection.fault_type.value,
-                "error",
-                injection.target.namespace
+                injection.fault_type.value, "error", injection.target.namespace
             )
             return InjectionResult(
                 success=False,
                 injection_id=injection.id,
                 fault_type=injection.fault_type,
                 error_message=str(e),
-                start_time=start_time
+                start_time=start_time,
             )
 
     async def _kill_pods(self, injection: FaultInjection) -> InjectionResult:
@@ -114,7 +111,7 @@ class PodFaultInjector(BaseFaultInjector):
                 success=False,
                 injection_id=injection.id,
                 fault_type=injection.fault_type,
-                error_message="Nenhum pod encontrado para kill"
+                error_message="Nenhum pod encontrado para kill",
             )
 
         killed_pods = []
@@ -123,43 +120,33 @@ class PodFaultInjector(BaseFaultInjector):
         for pod_name in pods:
             try:
                 # Salvar estado antes de deletar
-                pod = self.k8s_core_v1.read_namespaced_pod(
-                    pod_name,
-                    injection.target.namespace
-                )
+                pod = self.k8s_core_v1.read_namespaced_pod(pod_name, injection.target.namespace)
                 original_state[pod_name] = {
                     "labels": pod.metadata.labels,
                     "deployment": pod.metadata.owner_references[0].name
-                    if pod.metadata.owner_references else None
+                    if pod.metadata.owner_references
+                    else None,
                 }
 
                 # Deletar pod com grace period curto
                 self.k8s_core_v1.delete_namespaced_pod(
-                    pod_name,
-                    injection.target.namespace,
-                    grace_period_seconds=0
+                    pod_name, injection.target.namespace, grace_period_seconds=0
                 )
 
                 killed_pods.append(pod_name)
                 logger.info(
-                    "pod_injector.pod_killed",
-                    pod=pod_name,
-                    namespace=injection.target.namespace
+                    "pod_injector.pod_killed", pod=pod_name, namespace=injection.target.namespace
                 )
 
             except Exception as e:
-                logger.error(
-                    "pod_injector.kill_failed",
-                    pod=pod_name,
-                    error=str(e)
-                )
+                logger.error("pod_injector.kill_failed", pod=pod_name, error=str(e))
 
         if not killed_pods:
             return InjectionResult(
                 success=False,
                 injection_id=injection.id,
                 fault_type=injection.fault_type,
-                error_message="Falha ao deletar todos os pods"
+                error_message="Falha ao deletar todos os pods",
             )
 
         return InjectionResult(
@@ -168,13 +155,13 @@ class PodFaultInjector(BaseFaultInjector):
             fault_type=injection.fault_type,
             affected_resources=killed_pods,
             blast_radius=len(killed_pods),
-            start_time=datetime.utcnow(),
+            start_time=datetime.now(timezone.utc),
             rollback_data={
                 "type": "pod_kill",
                 "pods": original_state,
                 "namespace": injection.target.namespace,
-                "note": "Pods serão recriados automaticamente pelo controller"
-            }
+                "note": "Pods serão recriados automaticamente pelo controller",
+            },
         )
 
     async def _kill_containers(self, injection: FaultInjection) -> InjectionResult:
@@ -189,7 +176,7 @@ class PodFaultInjector(BaseFaultInjector):
                 success=False,
                 injection_id=injection.id,
                 fault_type=injection.fault_type,
-                error_message="Nenhum pod encontrado"
+                error_message="Nenhum pod encontrado",
             )
 
         container_name = injection.parameters.container_name
@@ -203,10 +190,7 @@ class PodFaultInjector(BaseFaultInjector):
                 kill_cmd = f"kill -{signal.replace('SIG', '')} 1"
 
                 exec_result = await self._exec_in_pod(
-                    pod_name,
-                    injection.target.namespace,
-                    kill_cmd,
-                    container_name
+                    pod_name, injection.target.namespace, kill_cmd, container_name
                 )
 
                 if exec_result.get("success"):
@@ -215,28 +199,24 @@ class PodFaultInjector(BaseFaultInjector):
                         "pod_injector.container_killed",
                         pod=pod_name,
                         container=container_name,
-                        signal=signal
+                        signal=signal,
                     )
                 else:
                     logger.warning(
                         "pod_injector.container_kill_failed",
                         pod=pod_name,
-                        error=exec_result.get("error")
+                        error=exec_result.get("error"),
                     )
 
             except Exception as e:
-                logger.error(
-                    "pod_injector.container_kill_error",
-                    pod=pod_name,
-                    error=str(e)
-                )
+                logger.error("pod_injector.container_kill_error", pod=pod_name, error=str(e))
 
         if not killed_containers:
             return InjectionResult(
                 success=False,
                 injection_id=injection.id,
                 fault_type=injection.fault_type,
-                error_message="Falha ao matar containers"
+                error_message="Falha ao matar containers",
             )
 
         return InjectionResult(
@@ -245,12 +225,12 @@ class PodFaultInjector(BaseFaultInjector):
             fault_type=injection.fault_type,
             affected_resources=killed_containers,
             blast_radius=len(killed_containers),
-            start_time=datetime.utcnow(),
+            start_time=datetime.now(timezone.utc),
             rollback_data={
                 "type": "container_kill",
                 "containers": killed_containers,
-                "note": "Containers serão reiniciados automaticamente"
-            }
+                "note": "Containers serão reiniciados automaticamente",
+            },
         )
 
     async def _pause_containers(self, injection: FaultInjection) -> InjectionResult:
@@ -265,7 +245,7 @@ class PodFaultInjector(BaseFaultInjector):
                 success=False,
                 injection_id=injection.id,
                 fault_type=injection.fault_type,
-                error_message="Nenhum pod encontrado"
+                error_message="Nenhum pod encontrado",
             )
 
         container_name = injection.parameters.container_name
@@ -277,39 +257,30 @@ class PodFaultInjector(BaseFaultInjector):
                 stop_cmd = "kill -STOP 1"
 
                 exec_result = await self._exec_in_pod(
-                    pod_name,
-                    injection.target.namespace,
-                    stop_cmd,
-                    container_name
+                    pod_name, injection.target.namespace, stop_cmd, container_name
                 )
 
                 if exec_result.get("success"):
                     paused_containers.append(f"{pod_name}/{container_name or 'main'}")
                     logger.info(
-                        "pod_injector.container_paused",
-                        pod=pod_name,
-                        container=container_name
+                        "pod_injector.container_paused", pod=pod_name, container=container_name
                     )
                 else:
                     logger.warning(
                         "pod_injector.container_pause_failed",
                         pod=pod_name,
-                        error=exec_result.get("error")
+                        error=exec_result.get("error"),
                     )
 
             except Exception as e:
-                logger.error(
-                    "pod_injector.container_pause_error",
-                    pod=pod_name,
-                    error=str(e)
-                )
+                logger.error("pod_injector.container_pause_error", pod=pod_name, error=str(e))
 
         if not paused_containers:
             return InjectionResult(
                 success=False,
                 injection_id=injection.id,
                 fault_type=injection.fault_type,
-                error_message="Falha ao pausar containers"
+                error_message="Falha ao pausar containers",
             )
 
         return InjectionResult(
@@ -318,13 +289,13 @@ class PodFaultInjector(BaseFaultInjector):
             fault_type=injection.fault_type,
             affected_resources=paused_containers,
             blast_radius=len(paused_containers),
-            start_time=datetime.utcnow(),
+            start_time=datetime.now(timezone.utc),
             rollback_data={
                 "type": "container_pause",
                 "pods": pods,
                 "namespace": injection.target.namespace,
                 "container": container_name,
-            }
+            },
         )
 
     async def _evict_pods(self, injection: FaultInjection) -> InjectionResult:
@@ -339,7 +310,7 @@ class PodFaultInjector(BaseFaultInjector):
                 success=False,
                 injection_id=injection.id,
                 fault_type=injection.fault_type,
-                error_message="Nenhum pod encontrado"
+                error_message="Nenhum pod encontrado",
             )
 
         evicted_pods = []
@@ -349,40 +320,29 @@ class PodFaultInjector(BaseFaultInjector):
                 # Criar objeto Eviction
                 eviction = client.V1Eviction(
                     metadata=client.V1ObjectMeta(
-                        name=pod_name,
-                        namespace=injection.target.namespace
+                        name=pod_name, namespace=injection.target.namespace
                     ),
-                    delete_options=client.V1DeleteOptions(
-                        grace_period_seconds=30
-                    )
+                    delete_options=client.V1DeleteOptions(grace_period_seconds=30),
                 )
 
                 self.k8s_core_v1.create_namespaced_pod_eviction(
-                    pod_name,
-                    injection.target.namespace,
-                    eviction
+                    pod_name, injection.target.namespace, eviction
                 )
 
                 evicted_pods.append(pod_name)
                 logger.info(
-                    "pod_injector.pod_evicted",
-                    pod=pod_name,
-                    namespace=injection.target.namespace
+                    "pod_injector.pod_evicted", pod=pod_name, namespace=injection.target.namespace
                 )
 
             except Exception as e:
-                logger.error(
-                    "pod_injector.eviction_failed",
-                    pod=pod_name,
-                    error=str(e)
-                )
+                logger.error("pod_injector.eviction_failed", pod=pod_name, error=str(e))
 
         if not evicted_pods:
             return InjectionResult(
                 success=False,
                 injection_id=injection.id,
                 fault_type=injection.fault_type,
-                error_message="Falha ao fazer eviction de pods"
+                error_message="Falha ao fazer eviction de pods",
             )
 
         return InjectionResult(
@@ -391,13 +351,13 @@ class PodFaultInjector(BaseFaultInjector):
             fault_type=injection.fault_type,
             affected_resources=evicted_pods,
             blast_radius=len(evicted_pods),
-            start_time=datetime.utcnow(),
+            start_time=datetime.now(timezone.utc),
             rollback_data={
                 "type": "pod_eviction",
                 "pods": evicted_pods,
                 "namespace": injection.target.namespace,
-                "note": "Pods serão rescheduled automaticamente"
-            }
+                "note": "Pods serão rescheduled automaticamente",
+            },
         )
 
     async def validate(self, injection_id: str) -> bool:
@@ -436,7 +396,7 @@ class PodFaultInjector(BaseFaultInjector):
                 success=False,
                 injection_id=injection_id,
                 fault_type=FaultType.POD_KILL,
-                error_message="Injeção não encontrada"
+                error_message="Injeção não encontrada",
             )
 
         injection = self._active_injections[injection_id]
@@ -453,8 +413,8 @@ class PodFaultInjector(BaseFaultInjector):
                     success=True,
                     injection_id=injection_id,
                     fault_type=injection.fault_type,
-                    end_time=datetime.utcnow(),
-                    metadata={"note": "Pods recriados automaticamente pelo controller"}
+                    end_time=datetime.now(timezone.utc),
+                    metadata={"note": "Pods recriados automaticamente pelo controller"},
                 )
 
             if result.success:
@@ -466,23 +426,17 @@ class PodFaultInjector(BaseFaultInjector):
             return result
 
         except Exception as e:
-            logger.error(
-                "pod_injector.rollback_failed",
-                injection_id=injection_id,
-                error=str(e)
-            )
+            logger.error("pod_injector.rollback_failed", injection_id=injection_id, error=str(e))
             self._record_rollback_metrics(injection.fault_type.value, "error")
             return InjectionResult(
                 success=False,
                 injection_id=injection_id,
                 fault_type=injection.fault_type,
-                error_message=str(e)
+                error_message=str(e),
             )
 
     async def _resume_containers(
-        self,
-        injection_id: str,
-        rollback_data: Dict[str, Any]
+        self, injection_id: str, rollback_data: Dict[str, Any]
     ) -> InjectionResult:
         """Resume containers pausados com SIGCONT."""
         pods = rollback_data.get("pods", [])
@@ -496,33 +450,19 @@ class PodFaultInjector(BaseFaultInjector):
                 # Enviar SIGCONT para resumir
                 cont_cmd = "kill -CONT 1"
 
-                exec_result = await self._exec_in_pod(
-                    pod_name,
-                    namespace,
-                    cont_cmd,
-                    container
-                )
+                exec_result = await self._exec_in_pod(pod_name, namespace, cont_cmd, container)
 
                 if not exec_result.get("success"):
                     failed_pods.append(pod_name)
                     logger.warning(
-                        "pod_injector.resume_failed",
-                        pod=pod_name,
-                        error=exec_result.get("error")
+                        "pod_injector.resume_failed", pod=pod_name, error=exec_result.get("error")
                     )
                 else:
-                    logger.info(
-                        "pod_injector.container_resumed",
-                        pod=pod_name
-                    )
+                    logger.info("pod_injector.container_resumed", pod=pod_name)
 
             except Exception as e:
                 failed_pods.append(pod_name)
-                logger.error(
-                    "pod_injector.resume_error",
-                    pod=pod_name,
-                    error=str(e)
-                )
+                logger.error("pod_injector.resume_error", pod=pod_name, error=str(e))
 
         if failed_pods:
             return InjectionResult(
@@ -530,14 +470,14 @@ class PodFaultInjector(BaseFaultInjector):
                 injection_id=injection_id,
                 fault_type=FaultType.CONTAINER_PAUSE,
                 error_message=f"Rollback falhou em pods: {failed_pods}",
-                end_time=datetime.utcnow()
+                end_time=datetime.now(timezone.utc),
             )
 
         return InjectionResult(
             success=True,
             injection_id=injection_id,
             fault_type=FaultType.CONTAINER_PAUSE,
-            end_time=datetime.utcnow()
+            end_time=datetime.now(timezone.utc),
         )
 
     async def get_blast_radius(self, target: TargetSelector) -> int:
@@ -546,11 +486,7 @@ class PodFaultInjector(BaseFaultInjector):
         return len(pods)
 
     async def _exec_in_pod(
-        self,
-        pod_name: str,
-        namespace: str,
-        command: str,
-        container: Optional[str] = None
+        self, pod_name: str, namespace: str, command: str, container: Optional[str] = None
     ) -> Dict[str, Any]:
         """Executa comando em um pod via Kubernetes API."""
         if not self.k8s_core_v1:
@@ -573,10 +509,7 @@ class PodFaultInjector(BaseFaultInjector):
                 kwargs["container"] = container
 
             resp = stream(
-                self.k8s_core_v1.connect_get_namespaced_pod_exec,
-                pod_name,
-                namespace,
-                **kwargs
+                self.k8s_core_v1.connect_get_namespaced_pod_exec, pod_name, namespace, **kwargs
             )
 
             return {"success": True, "output": resp}

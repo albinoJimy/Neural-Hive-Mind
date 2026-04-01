@@ -12,7 +12,7 @@ Testa cenários de:
 import pytest
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 
 
 # Mock de configurações
@@ -57,7 +57,7 @@ def mock_vault_client():
     """Mock do VaultClient da biblioteca neural_hive_security."""
     mock_client = AsyncMock()
     mock_client.token = "s.test_token_12345"
-    mock_client.token_expiry = datetime.utcnow() + timedelta(seconds=3600)
+    mock_client.token_expiry = datetime.now(timezone.utc) + timedelta(seconds=3600)
     mock_client.initialize = AsyncMock()
     mock_client.renew_token = AsyncMock(return_value=True)
     mock_client.get_database_credentials = AsyncMock(return_value={
@@ -104,7 +104,7 @@ async def test_vault_token_renewal_success(mock_config, mock_vault_client):
 
             # Simular token próximo da expiração (20% do TTL restante = threshold)
             original_expiry = mock_vault_client.token_expiry
-            mock_vault_client.token_expiry = datetime.utcnow() + timedelta(seconds=720)  # 20% de 3600
+            mock_vault_client.token_expiry = datetime.now(timezone.utc) + timedelta(seconds=720)  # 20% de 3600
 
             # Chamar método de renovação diretamente
             await vault_client._renew_vault_token_if_needed()
@@ -148,7 +148,7 @@ async def test_postgres_credential_rotation(mock_config, mock_vault_client):
             }
 
             # Simular TTL baixo (20% restante = threshold)
-            vault_client._postgres_credentials_expiry = datetime.utcnow() + timedelta(seconds=720)  # 20% de 3600
+            vault_client._postgres_credentials_expiry = datetime.now(timezone.utc) + timedelta(seconds=720)  # 20% de 3600
 
             # Chamar renovação
             await vault_client._renew_postgres_credentials_if_needed()
@@ -172,8 +172,8 @@ async def test_credential_renewal_task_interval_calculation(mock_config, mock_va
             await vault_client.initialize()
 
             # Configurar TTLs
-            mock_vault_client.token_expiry = datetime.utcnow() + timedelta(seconds=3600)
-            vault_client._postgres_credentials_expiry = datetime.utcnow() + timedelta(seconds=1800)
+            mock_vault_client.token_expiry = datetime.now(timezone.utc) + timedelta(seconds=3600)
+            vault_client._postgres_credentials_expiry = datetime.now(timezone.utc) + timedelta(seconds=1800)
 
             # Calcular intervalo
             interval = await vault_client._calculate_next_check_interval()
@@ -299,7 +299,7 @@ async def test_postgres_credentials_expired_immediate_renewal(mock_config, mock_
                 "password": "old_pass",
                 "ttl": 3600
             }
-            vault_client._postgres_credentials_expiry = datetime.utcnow() - timedelta(seconds=10)  # Expirado
+            vault_client._postgres_credentials_expiry = datetime.now(timezone.utc) - timedelta(seconds=10)  # Expirado
 
             # Configurar mock para retornar novas credenciais
             mock_vault_client.get_database_credentials.return_value = {

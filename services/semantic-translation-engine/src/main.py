@@ -7,43 +7,43 @@ do Neural Hive-Mind. Converte Intent Envelopes em Cognitive Plans executáveis.
 
 import asyncio
 import json
-import structlog
 from contextlib import asynccontextmanager
+
+import structlog
+from confluent_kafka.admin import AdminClient
 from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
-from confluent_kafka.admin import AdminClient
+from src.clients.mongodb_client import MongoDBClient
+from src.clients.neo4j_client import Neo4jClient
+from src.clients.redis_client import RedisClient
+from src.config.settings import get_settings
+from src.consumers.approval_dlq_consumer import ApprovalDLQConsumer
+from src.consumers.approval_response_consumer import ApprovalResponseConsumer
+from src.consumers.intent_consumer import IntentConsumer
+from src.observability.metrics import register_metrics
+from src.producers.approval_dlq_producer import ApprovalDLQProducer
+from src.producers.approval_producer import KafkaApprovalProducer
+from src.producers.plan_producer import KafkaPlanProducer
+from src.producers.rejection_notifier import RejectionNotifier
+from src.services.approval_processor import ApprovalProcessor
+from src.services.dag_generator import DAGGenerator
+from src.services.dlq_reprocessor import DLQReprocessor
+from src.services.explainability_generator import ExplainabilityGenerator
+from src.services.nlp_processor import NLPProcessor
+from src.services.orchestrator import SemanticTranslationOrchestrator
+from src.services.pattern_matcher import PatternMatcher
+from src.services.risk_scorer import RiskScorer
+from src.services.semantic_parser import SemanticParser
+from src.services.task_splitter import TaskSplitter
+
 from neural_hive_observability import (
-    get_tracer,
     init_observability,
     instrument_kafka_consumer,
     instrument_kafka_producer,
 )
+from neural_hive_observability.config import ObservabilityConfig
 from neural_hive_observability.health import HealthChecker, HealthStatus
 from neural_hive_observability.health_checks.otel import OTELPipelineHealthCheck
-from neural_hive_observability.config import ObservabilityConfig
-
-from src.config.settings import get_settings
-from src.consumers.intent_consumer import IntentConsumer
-from src.consumers.approval_response_consumer import ApprovalResponseConsumer
-from src.producers.plan_producer import KafkaPlanProducer
-from src.producers.approval_producer import KafkaApprovalProducer
-from src.producers.rejection_notifier import RejectionNotifier
-from src.producers.approval_dlq_producer import ApprovalDLQProducer
-from src.consumers.approval_dlq_consumer import ApprovalDLQConsumer
-from src.services.dlq_reprocessor import DLQReprocessor
-from src.clients.neo4j_client import Neo4jClient
-from src.clients.mongodb_client import MongoDBClient
-from src.clients.redis_client import RedisClient
-from src.services.semantic_parser import SemanticParser
-from src.services.dag_generator import DAGGenerator
-from src.services.risk_scorer import RiskScorer
-from src.services.explainability_generator import ExplainabilityGenerator
-from src.services.orchestrator import SemanticTranslationOrchestrator
-from src.services.approval_processor import ApprovalProcessor
-from src.services.nlp_processor import NLPProcessor
-from src.services.pattern_matcher import PatternMatcher
-from src.services.task_splitter import TaskSplitter
-from src.observability.metrics import register_metrics
 
 # Configure structured logging
 logger = structlog.get_logger()
@@ -70,26 +70,26 @@ async def validate_kafka_topics_exist(settings) -> None:
         await validate_kafka_topics_exist(settings)
     """
     logger.info(
-        'Iniciando validação de tópicos Kafka',
+        "Iniciando validação de tópicos Kafka",
         topics=settings.kafka_topics,
-        bootstrap_servers=settings.kafka_bootstrap_servers
+        bootstrap_servers=settings.kafka_bootstrap_servers,
     )
 
     # Construir configuração do AdminClient
     admin_config = {
-        'bootstrap.servers': settings.kafka_bootstrap_servers,
-        'socket.timeout.ms': 10000,
+        "bootstrap.servers": settings.kafka_bootstrap_servers,
+        "socket.timeout.ms": 10000,
     }
 
     # Adicionar configurações de segurança se necessário
-    if settings.kafka_security_protocol != 'PLAINTEXT':
-        admin_config['security.protocol'] = settings.kafka_security_protocol
+    if settings.kafka_security_protocol != "PLAINTEXT":
+        admin_config["security.protocol"] = settings.kafka_security_protocol
         if settings.kafka_sasl_mechanism:
-            admin_config['sasl.mechanism'] = settings.kafka_sasl_mechanism
+            admin_config["sasl.mechanism"] = settings.kafka_sasl_mechanism
         if settings.kafka_sasl_username:
-            admin_config['sasl.username'] = settings.kafka_sasl_username
+            admin_config["sasl.username"] = settings.kafka_sasl_username
         if settings.kafka_sasl_password:
-            admin_config['sasl.password'] = settings.kafka_sasl_password
+            admin_config["sasl.password"] = settings.kafka_sasl_password
 
     try:
         admin_client = AdminClient(admin_config)
@@ -101,38 +101,36 @@ async def validate_kafka_topics_exist(settings) -> None:
         missing_topics = configured_topics - available_topics
 
         if missing_topics:
-            sorted_available = sorted(list(available_topics))[:20]
+            sorted_available = sorted(available_topics)[:20]
             logger.error(
-                'STARTUP FAILED: Tópicos Kafka obrigatórios não encontrados',
-                missing_topics=sorted(list(missing_topics)),
-                configured_topics=sorted(list(configured_topics)),
-                available_topics=sorted_available
+                "STARTUP FAILED: Tópicos Kafka obrigatórios não encontrados",
+                missing_topics=sorted(missing_topics),
+                configured_topics=sorted(configured_topics),
+                available_topics=sorted_available,
             )
             raise RuntimeError(
-                f"Tópicos Kafka obrigatórios não encontrados: {sorted(list(missing_topics))}. "
+                f"Tópicos Kafka obrigatórios não encontrados: {sorted(missing_topics)}. "
                 f"Verifique se os tópicos foram criados no cluster Kafka. "
                 f"Tópicos disponíveis: {sorted_available[:10]}"
             )
 
         logger.info(
-            'Todos os tópicos Kafka configurados existem no cluster',
-            topics=sorted(list(configured_topics)),
-            total_available_topics=len(available_topics)
+            "Todos os tópicos Kafka configurados existem no cluster",
+            topics=sorted(configured_topics),
+            total_available_topics=len(available_topics),
         )
 
     except RuntimeError:
         # Re-raise RuntimeError (já tratado acima)
         raise
     except Exception as e:
-        logger.error(
-            'STARTUP FAILED: Não foi possível conectar ao Kafka para validar tópicos',
+        logger.exception(
+            "STARTUP FAILED: Não foi possível conectar ao Kafka para validar tópicos",
             error=str(e),
             error_type=type(e).__name__,
-            bootstrap_servers=settings.kafka_bootstrap_servers
+            bootstrap_servers=settings.kafka_bootstrap_servers,
         )
-        raise RuntimeError(
-            f"Não foi possível conectar ao Kafka para validar tópicos: {e}"
-        ) from e
+        raise RuntimeError(f"Não foi possível conectar ao Kafka para validar tópicos: {e}") from e
 
 
 @asynccontextmanager
@@ -143,39 +141,39 @@ async def lifespan(app: FastAPI):
     logger.info(
         "Starting Semantic Translation Engine",
         version=settings.service_version,
-        environment=settings.environment
+        environment=settings.environment,
     )
 
     init_observability(
-        service_name='semantic-translation-engine',
-        service_version='1.0.0',
-        neural_hive_component='semantic-translator',
-        neural_hive_layer='cognitiva',
-        neural_hive_domain='plan-generation',
+        service_name="semantic-translation-engine",
+        service_version="1.0.0",
+        neural_hive_component="semantic-translator",
+        neural_hive_layer="cognitiva",
+        neural_hive_domain="plan-generation",
         otel_endpoint=settings.otel_endpoint,
         prometheus_port=0,  # Desabilitado - usando /metrics endpoint do FastAPI
     )
 
     # Initialize HealthChecker for OTEL pipeline validation
     observability_config = ObservabilityConfig(
-        service_name='semantic-translation-engine',
-        service_version='1.0.0',
-        neural_hive_component='semantic-translator',
-        neural_hive_layer='cognitiva',
+        service_name="semantic-translation-engine",
+        service_version="1.0.0",
+        neural_hive_component="semantic-translator",
+        neural_hive_layer="cognitiva",
     )
     health_checker = HealthChecker(config=observability_config)
 
     # Register OTEL pipeline health check
     otel_health_check = OTELPipelineHealthCheck(
         otel_endpoint=settings.otel_endpoint,
-        service_name='semantic-translation-engine',
-        name='otel_pipeline',
+        service_name="semantic-translation-engine",
+        name="otel_pipeline",
         timeout_seconds=5.0,
-        verify_trace_export=True
+        verify_trace_export=True,
     )
     health_checker.register_check(otel_health_check)
-    state['health_checker'] = health_checker
-    logger.info('otel_pipeline_health_check_registered', otel_endpoint=settings.otel_endpoint)
+    state["health_checker"] = health_checker
+    logger.info("otel_pipeline_health_check_registered", otel_endpoint=settings.otel_endpoint)
 
     try:
         # Initialize clients
@@ -184,17 +182,17 @@ async def lifespan(app: FastAPI):
         # Neo4j client
         neo4j_client = Neo4jClient(settings)
         await neo4j_client.initialize()
-        state['neo4j'] = neo4j_client
+        state["neo4j"] = neo4j_client
 
         # MongoDB client
         mongodb_client = MongoDBClient(settings)
         await mongodb_client.initialize()
-        state['mongodb'] = mongodb_client
+        state["mongodb"] = mongodb_client
 
         # Redis client
         redis_client = RedisClient(settings)
         await redis_client.initialize()
-        state['redis'] = redis_client
+        state["redis"] = redis_client
 
         # Initialize NLP Processor
         nlp_processor = None
@@ -205,102 +203,96 @@ async def lifespan(app: FastAPI):
                     cache_enabled=settings.nlp_cache_enabled,
                     cache_ttl_seconds=settings.nlp_cache_ttl_seconds,
                     model_pt=settings.nlp_model_pt,
-                    model_en=settings.nlp_model_en
+                    model_en=settings.nlp_model_en,
                 )
                 await nlp_processor.initialize()
-                state['nlp_processor'] = nlp_processor
+                state["nlp_processor"] = nlp_processor
                 logger.info(
-                    'NLP Processor inicializado',
+                    "NLP Processor inicializado",
                     cache_enabled=settings.nlp_cache_enabled,
                     cache_ttl=settings.nlp_cache_ttl_seconds,
                     model_pt=settings.nlp_model_pt,
-                    model_en=settings.nlp_model_en
+                    model_en=settings.nlp_model_en,
                 )
             except Exception as e:
                 logger.warning(
-                    'NLP Processor não inicializado, usando fallback heurístico',
-                    error=str(e)
+                    "NLP Processor não inicializado, usando fallback heurístico", error=str(e)
                 )
 
         # Fail-fast validation: verificar tópicos antes de criar consumer
-        logger.info('Validando existência de tópicos Kafka no cluster...')
+        logger.info("Validando existência de tópicos Kafka no cluster...")
         await validate_kafka_topics_exist(settings)
 
         # Initialize Kafka producers
         plan_producer = KafkaPlanProducer(settings)
         await plan_producer.initialize()
         plan_producer = instrument_kafka_producer(plan_producer)
-        state['producer'] = plan_producer
+        state["producer"] = plan_producer
 
         # Initialize Kafka approval producer
         approval_producer = KafkaApprovalProducer(settings)
         await approval_producer.initialize()
         approval_producer = instrument_kafka_producer(approval_producer)
-        state['approval_producer'] = approval_producer
+        state["approval_producer"] = approval_producer
 
         # Initialize Rejection Notifier
         rejection_notifier = RejectionNotifier(settings)
         await rejection_notifier.initialize()
-        state['rejection_notifier'] = rejection_notifier
+        state["rejection_notifier"] = rejection_notifier
         logger.info(
-            'Rejection Notifier inicializado',
-            topic=settings.kafka_rejection_notifications_topic
+            "Rejection Notifier inicializado", topic=settings.kafka_rejection_notifications_topic
         )
 
         # Initialize Approval DLQ Producer
         approval_dlq_producer = ApprovalDLQProducer(settings)
         await approval_dlq_producer.initialize()
-        state['approval_dlq_producer'] = approval_dlq_producer
-        logger.info(
-            'Approval DLQ Producer inicializado',
-            topic=settings.kafka_approval_dlq_topic
-        )
+        state["approval_dlq_producer"] = approval_dlq_producer
+        logger.info("Approval DLQ Producer inicializado", topic=settings.kafka_approval_dlq_topic)
 
         # Initialize DLQ Reprocessor and Consumer
         if settings.dlq_consumer_enabled:
             try:
                 # Inicializar métricas primeiro para uso no reprocessor
                 from src.observability.metrics import NeuralHiveMetrics
+
                 dlq_metrics = NeuralHiveMetrics(
                     service_name=settings.service_name,
-                    component='dlq-reprocessor',
-                    layer='cognitiva'
+                    component="dlq-reprocessor",
+                    layer="cognitiva",
                 )
 
                 dlq_reprocessor = DLQReprocessor(
                     mongodb_client=mongodb_client,
                     metrics=dlq_metrics,
                     settings=settings,
-                    dlq_producer=approval_dlq_producer
+                    dlq_producer=approval_dlq_producer,
                 )
                 await dlq_reprocessor.initialize()
-                state['dlq_reprocessor'] = dlq_reprocessor
-                logger.info('DLQ Reprocessor inicializado com DLQ producer')
+                state["dlq_reprocessor"] = dlq_reprocessor
+                logger.info("DLQ Reprocessor inicializado com DLQ producer")
 
                 # Initialize DLQ Consumer
-                logger.info('Inicializando DLQ Consumer...')
+                logger.info("Inicializando DLQ Consumer...")
                 dlq_consumer = ApprovalDLQConsumer(settings, metrics=dlq_metrics)
                 await dlq_consumer.initialize()
                 dlq_consumer = instrument_kafka_consumer(dlq_consumer)
-                state['dlq_consumer'] = dlq_consumer
+                state["dlq_consumer"] = dlq_consumer
                 logger.info(
-                    'DLQ Consumer inicializado com sucesso',
+                    "DLQ Consumer inicializado com sucesso",
                     topic=settings.kafka_approval_dlq_topic,
-                    polling_interval_seconds=settings.dlq_polling_interval_seconds
+                    polling_interval_seconds=settings.dlq_polling_interval_seconds,
                 )
             except RuntimeError as e:
-                logger.error(
-                    'Erro ao inicializar DLQ Consumer',
-                    error=str(e),
-                    error_type=type(e).__name__
+                logger.exception(
+                    "Erro ao inicializar DLQ Consumer", error=str(e), error_type=type(e).__name__
                 )
                 # DLQ consumer é opcional - não bloqueia startup
-                state['dlq_consumer'] = None
-                state['dlq_reprocessor'] = None
+                state["dlq_consumer"] = None
+                state["dlq_reprocessor"] = None
         else:
-            logger.info('DLQ Consumer desabilitado via configuração')
-            state['dlq_consumer'] = None
-            state['dlq_reprocessor'] = None
+            logger.info("DLQ Consumer desabilitado via configuração")
+            state["dlq_consumer"] = None
+            state["dlq_reprocessor"] = None
 
         # Initialize services
         logger.info("Initializing processing services...")
@@ -313,12 +305,12 @@ async def lifespan(app: FastAPI):
         if settings.pattern_matching_enabled:
             pattern_matcher = PatternMatcher(
                 config_path=settings.pattern_config_path,
-                min_confidence_override=settings.pattern_min_confidence
+                min_confidence_override=settings.pattern_min_confidence,
             )
             logger.info(
-                'PatternMatcher inicializado com configurações',
+                "PatternMatcher inicializado com configurações",
                 config_path=settings.pattern_config_path,
-                min_confidence=settings.pattern_min_confidence
+                min_confidence=settings.pattern_min_confidence,
             )
 
         semantic_parser = SemanticParser(
@@ -327,21 +319,18 @@ async def lifespan(app: FastAPI):
             redis_client,
             nlp_processor=nlp_processor,
             pattern_matcher=pattern_matcher,
-            pattern_matching_enabled=settings.pattern_matching_enabled
+            pattern_matching_enabled=settings.pattern_matching_enabled,
         )
 
         # Inicializar TaskSplitter apenas se habilitado
         task_splitter = None
         if settings.task_splitting_enabled:
-            task_splitter = TaskSplitter(
-                settings=settings,
-                pattern_matcher=pattern_matcher
-            )
+            task_splitter = TaskSplitter(settings=settings, pattern_matcher=pattern_matcher)
             logger.info(
-                'TaskSplitter inicializado',
+                "TaskSplitter inicializado",
                 max_depth=settings.task_splitting_max_depth,
                 complexity_threshold=settings.task_splitting_complexity_threshold,
-                pattern_matcher_enabled=pattern_matcher is not None
+                pattern_matcher_enabled=pattern_matcher is not None,
             )
 
         # Inicializar DAGGenerator com decomposição avançada e por intent
@@ -349,17 +338,16 @@ async def lifespan(app: FastAPI):
             pattern_matcher=pattern_matcher,
             task_splitter=task_splitter,
             intent_decomposition_enabled=True,
-            config={'intent_classification_min_confidence': 0.3}
+            config={"intent_classification_min_confidence": 0.3},
         )
         risk_scorer = RiskScorer(settings)
         explainability_generator = ExplainabilityGenerator(mongodb_client)
 
         # Initialize orchestrator
         from src.observability.metrics import NeuralHiveMetrics
+
         metrics = NeuralHiveMetrics(
-            service_name=settings.service_name,
-            component='semantic-translator',
-            layer='cognitiva'
+            service_name=settings.service_name, component="semantic-translator", layer="cognitiva"
         )
 
         orchestrator = SemanticTranslationOrchestrator(
@@ -371,13 +359,13 @@ async def lifespan(app: FastAPI):
             neo4j_client=neo4j_client,
             plan_producer=plan_producer,
             approval_producer=approval_producer,
-            metrics=metrics
+            metrics=metrics,
         )
-        state['orchestrator'] = orchestrator
+        state["orchestrator"] = orchestrator
 
         logger.info(
-            'Orchestrator inicializado com persistencia Neo4j habilitada',
-            neo4j_uri=settings.neo4j_uri
+            "Orchestrator inicializado com persistencia Neo4j habilitada",
+            neo4j_uri=settings.neo4j_uri,
         )
 
         # Initialize Approval Processor
@@ -386,58 +374,58 @@ async def lifespan(app: FastAPI):
             plan_producer=plan_producer,
             metrics=metrics,
             rejection_notifier=rejection_notifier,
-            dlq_producer=approval_dlq_producer
+            dlq_producer=approval_dlq_producer,
         )
-        state['approval_processor'] = approval_processor
-        logger.info('Approval Processor inicializado com rejection notifier e DLQ producer')
+        state["approval_processor"] = approval_processor
+        logger.info("Approval Processor inicializado com rejection notifier e DLQ producer")
 
         # Initialize Approval Response Consumer
         try:
-            logger.info('Inicializando Approval Response Consumer...')
+            logger.info("Inicializando Approval Response Consumer...")
             approval_response_consumer = ApprovalResponseConsumer(settings)
             await approval_response_consumer.initialize()
             approval_response_consumer = instrument_kafka_consumer(approval_response_consumer)
-            state['approval_response_consumer'] = approval_response_consumer
+            state["approval_response_consumer"] = approval_response_consumer
             logger.info(
-                'Approval Response Consumer inicializado com sucesso',
-                topic=settings.kafka_approval_responses_topic
+                "Approval Response Consumer inicializado com sucesso",
+                topic=settings.kafka_approval_responses_topic,
             )
         except RuntimeError as e:
-            logger.error(
-                'Erro ao inicializar Approval Response Consumer',
+            logger.exception(
+                "Erro ao inicializar Approval Response Consumer",
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
             # Não propaga erro - approval consumer é opcional para startup
-            state['approval_response_consumer'] = None
+            state["approval_response_consumer"] = None
 
         # Initialize Kafka consumer
         try:
-            logger.info('Inicializando Kafka consumer...')
+            logger.info("Inicializando Kafka consumer...")
             intent_consumer = IntentConsumer(settings)
             await intent_consumer.initialize()
             intent_consumer = instrument_kafka_consumer(intent_consumer)
-            state['consumer'] = intent_consumer
+            state["consumer"] = intent_consumer
             logger.info(
-                'Kafka consumer inicializado com sucesso',
+                "Kafka consumer inicializado com sucesso",
                 group_id=settings.kafka_consumer_group_id,
-                topics=settings.kafka_topics
+                topics=settings.kafka_topics,
             )
         except RuntimeError as e:
-            logger.error(
-                'STARTUP FAILED: Erro crítico ao inicializar Kafka consumer',
+            logger.exception(
+                "STARTUP FAILED: Erro crítico ao inicializar Kafka consumer",
                 error=str(e),
                 error_type=type(e).__name__,
                 group_id=settings.kafka_consumer_group_id,
-                topics=settings.kafka_topics
+                topics=settings.kafka_topics,
             )
             # Re-raise para impedir startup do serviço
             raise
         except Exception as e:
-            logger.error(
-                'STARTUP FAILED: Erro inesperado ao inicializar Kafka consumer',
+            logger.exception(
+                "STARTUP FAILED: Erro inesperado ao inicializar Kafka consumer",
                 error=str(e),
-                error_type=type(e).__name__
+                error_type=type(e).__name__,
             )
             raise RuntimeError(f"Falha ao inicializar Kafka consumer: {e}") from e
 
@@ -447,68 +435,69 @@ async def lifespan(app: FastAPI):
             try:
                 await intent_consumer.start_consuming(orchestrator.process_intent)
             except Exception as e:
-                logger.error(
-                    'Consumer task failed with exception',
-                    error=str(e),
-                    error_type=type(e).__name__
+                logger.exception(
+                    "Consumer task failed with exception", error=str(e), error_type=type(e).__name__
                 )
                 import traceback
-                logger.error(f'Consumer traceback: {traceback.format_exc()}')
+
+                logger.exception(f"Consumer traceback: {traceback.format_exc()}")
                 # Atualiza estado para indicar falha do consumer
-                if 'consumer' in state and state['consumer']:
-                    state['consumer'].running = False
-                state['consumer_error'] = str(e)
+                if state.get("consumer"):
+                    state["consumer"].running = False
+                state["consumer_error"] = str(e)
 
         consumer_task = asyncio.create_task(consume_with_error_handling())
-        state['consumer_task'] = consumer_task  # Store task for monitoring
+        state["consumer_task"] = consumer_task  # Store task for monitoring
 
         # Start consuming approval responses in background
-        if state.get('approval_response_consumer'):
+        if state.get("approval_response_consumer"):
+
             async def consume_approvals_with_error_handling():
                 """Wrapper para capturar exceções do consumer de aprovações"""
                 try:
-                    await state['approval_response_consumer'].start_consuming(
+                    await state["approval_response_consumer"].start_consuming(
                         approval_processor.process_approval_response
                     )
                 except Exception as e:
-                    logger.error(
-                        'Approval response consumer task failed',
+                    logger.exception(
+                        "Approval response consumer task failed",
                         error=str(e),
-                        error_type=type(e).__name__
+                        error_type=type(e).__name__,
                     )
                     import traceback
-                    logger.error(f'Approval consumer traceback: {traceback.format_exc()}')
-                    if 'approval_response_consumer' in state:
-                        state['approval_response_consumer'].running = False
-                    state['approval_consumer_error'] = str(e)
+
+                    logger.exception(f"Approval consumer traceback: {traceback.format_exc()}")
+                    if "approval_response_consumer" in state:
+                        state["approval_response_consumer"].running = False
+                    state["approval_consumer_error"] = str(e)
 
             approval_consumer_task = asyncio.create_task(consume_approvals_with_error_handling())
-            state['approval_consumer_task'] = approval_consumer_task
-            logger.info('Approval Response Consumer iniciado em background')
+            state["approval_consumer_task"] = approval_consumer_task
+            logger.info("Approval Response Consumer iniciado em background")
 
         # Start consuming DLQ in background
-        if state.get('dlq_consumer') and state.get('dlq_reprocessor'):
+        if state.get("dlq_consumer") and state.get("dlq_reprocessor"):
+
             async def consume_dlq_with_error_handling():
                 """Wrapper para capturar exceções do DLQ consumer"""
                 try:
-                    await state['dlq_consumer'].start_consuming(
-                        state['dlq_reprocessor'].reprocess_dlq_entry
+                    await state["dlq_consumer"].start_consuming(
+                        state["dlq_reprocessor"].reprocess_dlq_entry
                     )
                 except Exception as e:
-                    logger.error(
-                        'DLQ consumer task failed',
-                        error=str(e),
-                        error_type=type(e).__name__
+                    logger.exception(
+                        "DLQ consumer task failed", error=str(e), error_type=type(e).__name__
                     )
                     import traceback
-                    logger.error(f'DLQ consumer traceback: {traceback.format_exc()}')
-                    if 'dlq_consumer' in state:
-                        state['dlq_consumer'].running = False
-                    state['dlq_consumer_error'] = str(e)
+
+                    logger.exception(f"DLQ consumer traceback: {traceback.format_exc()}")
+                    if "dlq_consumer" in state:
+                        state["dlq_consumer"].running = False
+                    state["dlq_consumer_error"] = str(e)
 
             dlq_consumer_task = asyncio.create_task(consume_dlq_with_error_handling())
-            state['dlq_consumer_task'] = dlq_consumer_task
-            logger.info('DLQ Consumer iniciado em background')
+            state["dlq_consumer_task"] = dlq_consumer_task
+            logger.info("DLQ Consumer iniciado em background")
 
         logger.info("Semantic Translation Engine started successfully")
 
@@ -518,38 +507,38 @@ async def lifespan(app: FastAPI):
         # Cleanup on shutdown
         logger.info("Shutting down Semantic Translation Engine...")
 
-        if 'consumer' in state:
-            await state['consumer'].close()
+        if "consumer" in state:
+            await state["consumer"].close()
 
-        if 'approval_response_consumer' in state and state['approval_response_consumer']:
-            await state['approval_response_consumer'].close()
+        if state.get("approval_response_consumer"):
+            await state["approval_response_consumer"].close()
 
-        if 'producer' in state:
-            await state['producer'].close()
+        if "producer" in state:
+            await state["producer"].close()
 
-        if 'approval_producer' in state:
-            await state['approval_producer'].close()
+        if "approval_producer" in state:
+            await state["approval_producer"].close()
 
-        if 'rejection_notifier' in state:
-            await state['rejection_notifier'].close()
+        if "rejection_notifier" in state:
+            await state["rejection_notifier"].close()
 
-        if 'approval_dlq_producer' in state:
-            await state['approval_dlq_producer'].close()
+        if "approval_dlq_producer" in state:
+            await state["approval_dlq_producer"].close()
 
-        if 'dlq_consumer' in state and state['dlq_consumer']:
-            await state['dlq_consumer'].close()
+        if state.get("dlq_consumer"):
+            await state["dlq_consumer"].close()
 
-        if 'dlq_reprocessor' in state and state['dlq_reprocessor']:
-            await state['dlq_reprocessor'].close()
+        if state.get("dlq_reprocessor"):
+            await state["dlq_reprocessor"].close()
 
-        if 'neo4j' in state:
-            await state['neo4j'].close()
+        if "neo4j" in state:
+            await state["neo4j"].close()
 
-        if 'mongodb' in state:
-            await state['mongodb'].close()
+        if "mongodb" in state:
+            await state["mongodb"].close()
 
-        if 'redis' in state:
-            await state['redis'].close()
+        if "redis" in state:
+            await state["redis"].close()
 
         logger.info("Shutdown complete")
 
@@ -559,7 +548,7 @@ app = FastAPI(
     title="Semantic Translation Engine",
     description="Motor de Tradução Semântica - Geração de Planos Cognitivos (Fluxo B)",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # Configure CORS - usa configuração segura por ambiente via neural_hive_security
@@ -579,11 +568,7 @@ register_metrics()
 @app.get("/health")
 async def health_check():
     """Basic health check endpoint"""
-    return {
-        "status": "healthy",
-        "service": "semantic-translation-engine",
-        "version": "1.0.0"
-    }
+    return {"status": "healthy", "service": "semantic-translation-engine", "version": "1.0.0"}
 
 
 @app.get("/ready")
@@ -596,174 +581,157 @@ async def readiness_check():
         "neo4j": False,
         "mongodb": False,
         "redis": False,
-        "nlp_processor": False
+        "nlp_processor": False,
     }
 
     try:
         # Check Redis connectivity
-        if 'redis' in state and state['redis'].client:
+        if "redis" in state and state["redis"].client:
             try:
-                await state['redis'].client.ping()
-                checks['redis'] = True
+                await state["redis"].client.ping()
+                checks["redis"] = True
             except Exception as e:
                 logger.warning("Redis ping failed", error=str(e))
 
         # Check MongoDB connectivity
-        if 'mongodb' in state and state['mongodb'].client:
+        if "mongodb" in state and state["mongodb"].client:
             try:
-                await state['mongodb'].client.admin.command('ping')
-                checks['mongodb'] = True
+                await state["mongodb"].client.admin.command("ping")
+                checks["mongodb"] = True
             except Exception as e:
                 logger.warning("MongoDB ping failed", error=str(e))
 
         # Check Neo4j connectivity
-        if 'neo4j' in state and state['neo4j'].driver:
+        if "neo4j" in state and state["neo4j"].driver:
             try:
-                await state['neo4j'].driver.verify_connectivity()
-                checks['neo4j'] = True
+                await state["neo4j"].driver.verify_connectivity()
+                checks["neo4j"] = True
             except Exception as e:
                 logger.warning("Neo4j connectivity check failed", error=str(e))
 
         # Check Kafka producer
-        if 'producer' in state and state['producer'].producer:
+        if "producer" in state and state["producer"].producer:
             try:
                 # Lightweight metadata fetch with timeout
-                state['producer'].producer.list_topics(timeout=2)
-                checks['kafka_producer'] = True
+                state["producer"].producer.list_topics(timeout=2)
+                checks["kafka_producer"] = True
             except Exception as e:
                 logger.warning("Kafka producer check failed", error=str(e))
 
         # Check Kafka consumer usando método is_healthy()
-        if 'consumer' in state and state['consumer']:
+        if state.get("consumer"):
             try:
-                is_healthy, reason = state['consumer'].is_healthy(max_poll_age_seconds=60.0)
-                checks['kafka_consumer'] = is_healthy
+                is_healthy, reason = state["consumer"].is_healthy(max_poll_age_seconds=60.0)
+                checks["kafka_consumer"] = is_healthy
 
                 if is_healthy:
                     logger.debug("Kafka consumer saudável", reason=reason)
                 else:
                     logger.warning("Kafka consumer não saudável", reason=reason)
             except Exception as e:
-                logger.error(
-                    "Falha ao verificar Kafka consumer",
-                    error=str(e),
-                    error_type=type(e).__name__
+                logger.exception(
+                    "Falha ao verificar Kafka consumer", error=str(e), error_type=type(e).__name__
                 )
-                checks['kafka_consumer'] = False
+                checks["kafka_consumer"] = False
         else:
-            checks['kafka_consumer'] = False
+            checks["kafka_consumer"] = False
             logger.warning("Kafka consumer não encontrado no state")
 
         # Check Approval Response Consumer
-        if 'approval_response_consumer' in state and state['approval_response_consumer']:
+        if state.get("approval_response_consumer"):
             try:
-                is_healthy, reason = state['approval_response_consumer'].is_healthy(
+                is_healthy, reason = state["approval_response_consumer"].is_healthy(
                     max_poll_age_seconds=60.0
                 )
-                checks['approval_response_consumer'] = is_healthy
+                checks["approval_response_consumer"] = is_healthy
                 if not is_healthy:
                     logger.warning("Approval response consumer não saudável", reason=reason)
             except Exception as e:
-                logger.error(
+                logger.exception(
                     "Falha ao verificar approval response consumer",
                     error=str(e),
-                    error_type=type(e).__name__
+                    error_type=type(e).__name__,
                 )
-                checks['approval_response_consumer'] = False
+                checks["approval_response_consumer"] = False
         else:
             # Approval consumer é opcional - marcar como ready se não configurado
-            checks['approval_response_consumer'] = True
+            checks["approval_response_consumer"] = True
 
         # Check DLQ Consumer (opcional)
         settings = get_settings()
-        if 'dlq_consumer' in state and state['dlq_consumer']:
+        if state.get("dlq_consumer"):
             try:
-                is_healthy, reason = state['dlq_consumer'].is_healthy(
+                is_healthy, reason = state["dlq_consumer"].is_healthy(
                     max_poll_age_seconds=settings.dlq_polling_interval_seconds * 2
                 )
-                checks['dlq_consumer'] = is_healthy
+                checks["dlq_consumer"] = is_healthy
                 if not is_healthy:
                     logger.warning("DLQ consumer não saudável", reason=reason)
             except Exception as e:
-                logger.error(
-                    "Falha ao verificar DLQ consumer",
-                    error=str(e),
-                    error_type=type(e).__name__
+                logger.exception(
+                    "Falha ao verificar DLQ consumer", error=str(e), error_type=type(e).__name__
                 )
-                checks['dlq_consumer'] = False
+                checks["dlq_consumer"] = False
         else:
             # DLQ consumer é opcional - marcar como ready se não configurado ou desabilitado
-            checks['dlq_consumer'] = True
+            checks["dlq_consumer"] = True
 
         # Check NLP Processor
-        if 'nlp_processor' in state:
-            checks['nlp_processor'] = state['nlp_processor'].is_ready()
+        if "nlp_processor" in state:
+            checks["nlp_processor"] = state["nlp_processor"].is_ready()
         else:
             # NLP é opcional, marcar como ready se não estiver habilitado
-            checks['nlp_processor'] = not settings.nlp_enabled
+            checks["nlp_processor"] = not settings.nlp_enabled
 
         # Check OTEL pipeline health
         otel_healthy = True
-        if 'health_checker' in state and state['health_checker']:
+        if state.get("health_checker"):
             try:
-                otel_result = await state['health_checker'].check_single('otel_pipeline')
+                otel_result = await state["health_checker"].check_single("otel_pipeline")
                 if otel_result:
                     if otel_result.status == HealthStatus.HEALTHY:
-                        checks['otel_pipeline'] = True
+                        checks["otel_pipeline"] = True
                     elif otel_result.status == HealthStatus.DEGRADED:
-                        checks['otel_pipeline'] = True  # Degraded is still acceptable
-                        logger.warning('otel_pipeline_degraded', message=otel_result.message)
+                        checks["otel_pipeline"] = True  # Degraded is still acceptable
+                        logger.warning("otel_pipeline_degraded", message=otel_result.message)
                     else:
-                        checks['otel_pipeline'] = False
+                        checks["otel_pipeline"] = False
                         otel_healthy = False
-                        logger.warning('otel_pipeline_unhealthy', message=otel_result.message)
+                        logger.warning("otel_pipeline_unhealthy", message=otel_result.message)
                 else:
-                    checks['otel_pipeline'] = True  # Not configured, mark as ready
+                    checks["otel_pipeline"] = True  # Not configured, mark as ready
             except Exception as e:
-                logger.warning('otel_pipeline_health_check_error', error=str(e))
-                checks['otel_pipeline'] = False
+                logger.warning("otel_pipeline_health_check_error", error=str(e))
+                checks["otel_pipeline"] = False
                 otel_healthy = False
         else:
-            checks['otel_pipeline'] = True  # Health checker not available, skip
+            checks["otel_pipeline"] = True  # Health checker not available, skip
 
         all_ready = all(checks.values()) and otel_healthy
 
-        response_data = {
-            "ready": all_ready,
-            "checks": checks
-        }
+        response_data = {"ready": all_ready, "checks": checks}
 
         if all_ready:
             return response_data
-        else:
-            return Response(
-                content=json.dumps(response_data),
-                status_code=503,
-                media_type="application/json"
-            )
+        return Response(
+            content=json.dumps(response_data), status_code=503, media_type="application/json"
+        )
 
     except Exception as e:
-        logger.error("Readiness check failed", error=str(e))
+        logger.exception("Readiness check failed", error=str(e))
         return Response(
-            content=json.dumps({
-                "ready": False,
-                "checks": checks,
-                "error": str(e)
-            }),
+            content=json.dumps({"ready": False, "checks": checks, "error": str(e)}),
             status_code=503,
-            media_type="application/json"
+            media_type="application/json",
         )
 
 
 @app.get("/metrics")
 async def metrics():
     """Prometheus metrics endpoint"""
-    from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+    from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
-    return Response(
-        content=generate_latest(),
-        media_type=CONTENT_TYPE_LATEST
-    )
+    return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 
 if __name__ == "__main__":
@@ -772,9 +740,5 @@ if __name__ == "__main__":
     settings = get_settings()
 
     uvicorn.run(
-        "src.main:app",
-        host="0.0.0.0",
-        port=8000,
-        workers=1,
-        log_level=settings.log_level.lower()
+        "src.main:app", host="0.0.0.0", port=8000, workers=1, log_level=settings.log_level.lower()
     )

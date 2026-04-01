@@ -3,7 +3,7 @@
 import pytest
 import numpy as np
 from unittest.mock import Mock, MagicMock, patch
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 
 # ============================================================================
@@ -299,7 +299,7 @@ class TestAlerts:
         monitor._initial_memory_mb = 100
         for _ in range(100):
             monitor._memory_history.append(
-                (datetime.utcnow(), 600.0)
+                (datetime.now(timezone.utc), 600.0)
             )  # Acima do threshold
 
         # Verificar alerta de memory leak

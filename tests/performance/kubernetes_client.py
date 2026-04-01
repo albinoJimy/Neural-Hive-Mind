@@ -7,7 +7,7 @@ Observa eventos de autoscaling e metricas de pods.
 import asyncio
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 try:
@@ -316,7 +316,7 @@ class KubernetesClient:
                     namespace=ns,
                     cpu_usage_millicores=total_cpu,
                     memory_usage_bytes=total_memory,
-                    timestamp=datetime.utcnow(),
+                    timestamp=datetime.now(timezone.utc),
                 ))
 
         except ApiException as e:
@@ -391,7 +391,7 @@ class KubernetesClient:
                     continue
 
                 events_list.append(PodEvent(
-                    timestamp=event.last_timestamp or datetime.utcnow(),
+                    timestamp=event.last_timestamp or datetime.now(timezone.utc),
                     pod_name=involved.name,
                     event_type=event.type,
                     reason=event.reason,
@@ -443,7 +443,7 @@ class KubernetesClient:
                             break
 
                     events.append(ScalingEvent(
-                        timestamp=datetime.utcnow(),
+                        timestamp=datetime.now(timezone.utc),
                         event_type=event_type,
                         from_replicas=last_replicas,
                         to_replicas=current,

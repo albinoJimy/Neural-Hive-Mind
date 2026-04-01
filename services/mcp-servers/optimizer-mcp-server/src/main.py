@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.config.settings import get_settings
+from src.server import mcp
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -37,14 +38,14 @@ async def health_check():
     }
 
 
-@app.get("/")
-async def root():
-    """Root endpoint."""
-    return {
-        "service": settings.service_name,
-        "version": settings.service_version,
-        "message": "Optimizer MCP Server running",
-    }
+# Montar servidor MCP
+app.mount("/mcp", mcp.get_app())
+
+
+@app.post("/")
+async def jsonrpc_endpoint(request: dict) -> dict:
+    """Endpoint JSON-RPC 2.0 para protocolo MCP."""
+    return await mcp.handle_jsonrpc(request)
 
 
 if __name__ == "__main__":

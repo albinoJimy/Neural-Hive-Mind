@@ -3,7 +3,7 @@ Testes para Analytics API V2 endpoints.
 """
 import pytest
 from httpx import AsyncClient, ASGITransport
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from unittest.mock import AsyncMock, MagicMock
 import sys
 import os
@@ -39,7 +39,7 @@ def create_mock_insight(insight_id: str, title: str = "Test Insight") -> Insight
         metadata=InsightMetadata(source=InsightSource.API),
         tags=["test"],
         status=InsightStatus.COMPLETED,
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
         metrics=InsightMetrics(
             processing_time_ms=100,
             confidence_score=0.9,
@@ -71,12 +71,12 @@ async def app_client():
     # Import TimeSeriesResponse to create proper mock
     from src.models.insight_extended import TimeSeriesResponse, AnomalyDetectionResponse
 
-    start_time = datetime.utcnow() - timedelta(hours=1)
+    start_time = datetime.now(timezone.utc) - timedelta(hours=1)
 
     # Create proper mock response for analyze_timeseries
     mock_timeseries_response = TimeSeriesResponse(
         metric_name="cpu_usage",
-        time_range={"start": start_time, "end": datetime.utcnow()},
+        time_range={"start": start_time, "end": datetime.now(timezone.utc)},
         resolution="5m",
         data=[{"timestamp": start_time.isoformat(), "value": 50.0}],
         statistics={"min": 10, "max": 90, "avg": 50},
@@ -257,8 +257,9 @@ async def test_get_metrics(app_client):
 @pytest.mark.asyncio
 async def test_get_timeseries(app_client):
     """Testar obter série temporal."""
-    start = (datetime.utcnow() - timedelta(hours=1)).isoformat()
-    end = datetime.utcnow().isoformat()
+    from urllib.parse import quote
+    start = quote((datetime.now(timezone.utc) - timedelta(hours=1)).isoformat())
+    end = quote(datetime.now(timezone.utc).isoformat())
 
     response = await app_client.get(
         f"/api/v1/analytics/timeseries/cpu_usage?start={start}&end={end}&resolution=5m"
@@ -272,8 +273,9 @@ async def test_get_timeseries(app_client):
 @pytest.mark.asyncio
 async def test_detect_anomalies(app_client):
     """Testar detecção de anomalias."""
-    start = (datetime.utcnow() - timedelta(hours=1)).isoformat()
-    end = datetime.utcnow().isoformat()
+    from urllib.parse import quote
+    start = quote((datetime.now(timezone.utc) - timedelta(hours=1)).isoformat())
+    end = quote(datetime.now(timezone.utc).isoformat())
 
     response = await app_client.get(
         f"/api/v1/analytics/timeseries/cpu_usage/anomalies?start={start}&end={end}&method=zscore&threshold=2.5"

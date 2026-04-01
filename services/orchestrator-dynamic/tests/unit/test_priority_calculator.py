@@ -12,7 +12,7 @@ Cobertura:
 """
 
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from unittest.mock import MagicMock, patch
 from typing import Dict, Any
 
@@ -39,8 +39,8 @@ def mock_config_custom():
 @pytest.fixture
 def ticket_critical() -> Dict[str, Any]:
     """Ticket com risco crítico, QoS alto, deadline se aproximando."""
-    deadline = datetime.utcnow() + timedelta(minutes=6)  # 90% do tempo consumido (1h total)
-    created = datetime.utcnow() - timedelta(minutes=54)
+    deadline = datetime.now(timezone.utc) + timedelta(minutes=6)  # 90% do tempo consumido (1h total)
+    created = datetime.now(timezone.utc) - timedelta(minutes=54)
 
     return {
         "ticket_id": "ticket-critical",
@@ -62,8 +62,8 @@ def ticket_critical() -> Dict[str, Any]:
 @pytest.fixture
 def ticket_low() -> Dict[str, Any]:
     """Ticket com risco baixo, QoS baixo, deadline segura."""
-    deadline = datetime.utcnow() + timedelta(minutes=48)  # 20% do tempo consumido
-    created = datetime.utcnow() - timedelta(minutes=12)
+    deadline = datetime.now(timezone.utc) + timedelta(minutes=48)  # 20% do tempo consumido
+    created = datetime.now(timezone.utc) - timedelta(minutes=12)
 
     return {
         "ticket_id": "ticket-low",
@@ -85,8 +85,8 @@ def ticket_low() -> Dict[str, Any]:
 @pytest.fixture
 def ticket_deadline_approaching() -> Dict[str, Any]:
     """Ticket com 90% do SLA consumido."""
-    deadline = datetime.utcnow() + timedelta(minutes=6)
-    created = datetime.utcnow() - timedelta(minutes=54)
+    deadline = datetime.now(timezone.utc) + timedelta(minutes=6)
+    created = datetime.now(timezone.utc) - timedelta(minutes=54)
 
     return {
         "ticket_id": "ticket-deadline-approaching",
@@ -108,8 +108,8 @@ def ticket_deadline_approaching() -> Dict[str, Any]:
 @pytest.fixture
 def ticket_deadline_safe() -> Dict[str, Any]:
     """Ticket com 20% do SLA consumido."""
-    deadline = datetime.utcnow() + timedelta(minutes=48)
-    created = datetime.utcnow() - timedelta(minutes=12)
+    deadline = datetime.now(timezone.utc) + timedelta(minutes=48)
+    created = datetime.now(timezone.utc) - timedelta(minutes=12)
 
     return {
         "ticket_id": "ticket-deadline-safe",
@@ -131,7 +131,7 @@ def ticket_deadline_safe() -> Dict[str, Any]:
 @pytest.fixture
 def ticket_no_deadline() -> Dict[str, Any]:
     """Ticket sem deadline explícito."""
-    created = datetime.utcnow() - timedelta(minutes=30)
+    created = datetime.now(timezone.utc) - timedelta(minutes=30)
 
     return {
         "ticket_id": "ticket-no-deadline",
@@ -180,8 +180,8 @@ class TestPriorityCalculator:
         ticket = {
             "risk_band": "high",
             "qos": {"delivery_mode": "AT_LEAST_ONCE", "consistency": "EVENTUAL", "durability": "PERSISTENT"},
-            "sla": {"deadline": (datetime.utcnow() + timedelta(hours=1)).isoformat(), "timeout_ms": 3600000},
-            "created_at": datetime.utcnow().isoformat()
+            "sla": {"deadline": (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(), "timeout_ms": 3600000},
+            "created_at": datetime.now(timezone.utc).isoformat()
         }
 
         score = calculator.calculate_priority_score(ticket)
@@ -197,8 +197,8 @@ class TestPriorityCalculator:
         ticket = {
             "risk_band": "critical",
             "qos": {"delivery_mode": "EXACTLY_ONCE", "consistency": "STRONG", "durability": "PERSISTENT"},
-            "sla": {"deadline": (datetime.utcnow() + timedelta(hours=1)).isoformat(), "timeout_ms": 3600000},
-            "created_at": datetime.utcnow().isoformat()
+            "sla": {"deadline": (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(), "timeout_ms": 3600000},
+            "created_at": datetime.now(timezone.utc).isoformat()
         }
 
         score = calculator.calculate_priority_score(ticket)
@@ -295,8 +295,8 @@ class TestPriorityCalculator:
         calculator = PriorityCalculator(mock_config_default)
 
         # Deadline no passado
-        deadline = datetime.utcnow() - timedelta(minutes=10)
-        created = datetime.utcnow() - timedelta(hours=2)
+        deadline = datetime.now(timezone.utc) - timedelta(minutes=10)
+        created = datetime.now(timezone.utc) - timedelta(hours=2)
 
         sla = {
             "deadline": deadline.isoformat(),
@@ -333,19 +333,19 @@ class TestPriorityCalculator:
                 "risk_band": "critical",
                 "qos": {"delivery_mode": "EXACTLY_ONCE", "consistency": "STRONG", "durability": "PERSISTENT"},
                 "sla": {
-                    "deadline": (datetime.utcnow() - timedelta(hours=1)).isoformat(),  # Passado
+                    "deadline": (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat(),  # Passado
                     "timeout_ms": 3600000
                 },
-                "created_at": (datetime.utcnow() - timedelta(hours=2)).isoformat()
+                "created_at": (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
             },
             {
                 "risk_band": "low",
                 "qos": {"delivery_mode": "AT_MOST_ONCE", "consistency": "EVENTUAL", "durability": "EPHEMERAL"},
                 "sla": {
-                    "deadline": (datetime.utcnow() + timedelta(days=1)).isoformat(),
+                    "deadline": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
                     "timeout_ms": 3600000
                 },
-                "created_at": datetime.utcnow().isoformat()
+                "created_at": datetime.now(timezone.utc).isoformat()
             }
         ]
 

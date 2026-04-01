@@ -427,7 +427,7 @@ class FeedbackCollector:
             FeedbackStoreUnavailable: Se store estiver indisponível
         """
         try:
-            cutoff_date = datetime.utcnow() - timedelta(days=window_days)
+            cutoff_date = datetime.now(timezone.utc) - timedelta(days=window_days)
 
             results = self._with_breaker(lambda: list(self._collection.find({
                 'specialist_type': specialist_type,
@@ -493,7 +493,7 @@ class FeedbackCollector:
             FeedbackStoreUnavailable: Se store estiver indisponível
         """
         try:
-            cutoff_date = datetime.utcnow() - timedelta(days=window_days)
+            cutoff_date = datetime.now(timezone.utc) - timedelta(days=window_days)
 
             count = self._with_breaker(lambda: self._collection.count_documents({
                 'specialist_type': specialist_type,

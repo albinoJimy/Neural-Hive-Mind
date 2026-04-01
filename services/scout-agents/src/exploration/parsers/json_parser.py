@@ -5,8 +5,9 @@ Suporta package.json, tsconfig.json, configs genéricas.
 """
 import json
 import re
+from typing import Any, Dict, List, Optional
+
 import structlog
-from typing import Dict, List, Any, Optional
 
 logger = structlog.get_logger()
 
@@ -16,31 +17,31 @@ class JSONParser:
 
     # Padrões para detecção de segredos
     SECRET_KEY_PATTERNS = [
-        r'password',
-        r'api_key',
-        r'apikey',
-        r'secret',
-        r'token',
-        r'private_key',
-        r'access_token',
-        r'auth_token',
-        r'jwt',
-        r'credential',
+        r"password",
+        r"api_key",
+        r"apikey",
+        r"secret",
+        r"token",
+        r"private_key",
+        r"access_token",
+        r"auth_token",
+        r"jwt",
+        r"credential",
     ]
 
     # Padrões para valores de segredo
     SECRET_VALUE_PATTERNS = [
-        r'sk_live_[a-zA-Z0-9]+',  # Stripe
-        r'sk_test_[a-zA-Z0-9]+',  # Stripe test
-        r'ghp_[a-zA-Z0-9]{36}',   # GitHub PAT
-        r'gho_[a-zA-Z0-9]{36}',   # GitHub OAuth
-        r'ghu_[a-zA-Z0-9]{36}',   # GitHub user
-        r'ghs_[a-zA-Z0-9]{36}',   # GitHub server
-        r'ghr_[a-zA-Z0-9]{36}',   # GitHub refresh
-        r'eyJ[a-zA-Z0-9+/=]+\.',  # JWT start
-        r'AIza[a-zA-Z0-9\-_]{35}', # Google API key
-        r'AKIA[0-9A-Z]{16}',      # AWS Access Key
-        r'[a-zA-Z0-9+/]{32,}={0,2}', # Possible base64
+        r"sk_live_[a-zA-Z0-9]+",  # Stripe
+        r"sk_test_[a-zA-Z0-9]+",  # Stripe test
+        r"ghp_[a-zA-Z0-9]{36}",  # GitHub PAT
+        r"gho_[a-zA-Z0-9]{36}",  # GitHub OAuth
+        r"ghu_[a-zA-Z0-9]{36}",  # GitHub user
+        r"ghs_[a-zA-Z0-9]{36}",  # GitHub server
+        r"ghr_[a-zA-Z0-9]{36}",  # GitHub refresh
+        r"eyJ[a-zA-Z0-9+/=]+\.",  # JWT start
+        r"AIza[a-zA-Z0-9\-_]{35}",  # Google API key
+        r"AKIA[0-9A-Z]{16}",  # AWS Access Key
+        r"[a-zA-Z0-9+/]{32,}={0,2}",  # Possible base64
     ]
 
     def __init__(self):
@@ -61,28 +62,28 @@ class JSONParser:
         """
         if not code or not code.strip():
             return {
-                'keys': [],
-                'has_secrets': False,
-                'secret_keys': [],
-                'has_empty_containers': False,
-                'empty_count': 0,
-                'max_depth': 0,
-                'type': self._detect_file_type(filename),
-                'has_errors': False
+                "keys": [],
+                "has_secrets": False,
+                "secret_keys": [],
+                "has_empty_containers": False,
+                "empty_count": 0,
+                "max_depth": 0,
+                "type": self._detect_file_type(filename),
+                "has_errors": False,
             }
 
         try:
             data = json.loads(code)
 
             result = {
-                'keys': [],
-                'has_secrets': False,
-                'secret_keys': [],
-                'has_empty_containers': False,
-                'empty_count': 0,
-                'max_depth': 0,
-                'type': self._detect_file_type(filename),
-                'has_errors': False
+                "keys": [],
+                "has_secrets": False,
+                "secret_keys": [],
+                "has_empty_containers": False,
+                "empty_count": 0,
+                "max_depth": 0,
+                "type": self._detect_file_type(filename),
+                "has_errors": False,
             }
 
             # Analisar estrutura
@@ -92,40 +93,34 @@ class JSONParser:
 
             self._analyze_structure(data, all_keys, 0, max_depth, empty_count)
 
-            result['keys'] = list(all_keys)
-            result['max_depth'] = max_depth[0]
-            result['has_empty_containers'] = empty_count[0] > 0
-            result['empty_count'] = empty_count[0]
+            result["keys"] = list(all_keys)
+            result["max_depth"] = max_depth[0]
+            result["has_empty_containers"] = empty_count[0] > 0
+            result["empty_count"] = empty_count[0]
 
             # Detectar tipo específico de arquivo
             if isinstance(data, dict):
                 result.update(self._extract_file_specific_info(data, filename))
 
             # Detectar segredos no código original
-            result['has_secrets'], result['secret_keys'] = self._detect_secrets(code)
+            result["has_secrets"], result["secret_keys"] = self._detect_secrets(code)
 
             return result
 
         except json.JSONDecodeError as e:
             logger.error(
-                "json_parse_error",
-                filename=filename,
-                error=str(e),
-                line=e.lineno,
-                column=e.colno
+                "json_parse_error", filename=filename, error=str(e), line=e.lineno, column=e.colno
             )
             self._parse_errors.add(filename)
             return None
         except Exception as e:
-            logger.error(
-                "json_parse_error",
-                filename=filename,
-                error=str(e)
-            )
+            logger.error("json_parse_error", filename=filename, error=str(e))
             self._parse_errors.add(filename)
             return None
 
-    def _analyze_structure(self, obj: Any, keys: set, depth: int, max_depth: list, empty_count: list):
+    def _analyze_structure(
+        self, obj: Any, keys: set, depth: int, max_depth: list, empty_count: list
+    ):
         """Analisa estrutura recursivamente."""
         max_depth[0] = max(max_depth[0], depth)
 
@@ -146,18 +141,18 @@ class JSONParser:
         """Detecta tipo de arquivo baseado no nome."""
         filename_lower = filename.lower()
 
-        if filename_lower.endswith('package.json'):
-            return 'package.json'
-        if filename_lower.endswith('tsconfig.json'):
-            return 'tsconfig.json'
-        if filename_lower.endswith('.eslintrc.json') or filename_lower == '.eslintrc':
-            return '.eslintrc.json'
-        if filename_lower.endswith('babelrc.json') or filename_lower == '.babelrc':
-            return 'babelrc.json'
-        if 'prettierrc' in filename_lower:
-            return 'prettierrc.json'
-        if filename_lower.endswith('config.json'):
-            return 'config.json'
+        if filename_lower.endswith("package.json"):
+            return "package.json"
+        if filename_lower.endswith("tsconfig.json"):
+            return "tsconfig.json"
+        if filename_lower.endswith(".eslintrc.json") or filename_lower == ".eslintrc":
+            return ".eslintrc.json"
+        if filename_lower.endswith("babelrc.json") or filename_lower == ".babelrc":
+            return "babelrc.json"
+        if "prettierrc" in filename_lower:
+            return "prettierrc.json"
+        if filename_lower.endswith("config.json"):
+            return "config.json"
 
         return None
 
@@ -166,27 +161,31 @@ class JSONParser:
         info = {}
         file_type = self._detect_file_type(filename)
 
-        if file_type == 'package.json':
+        if file_type == "package.json":
             # Extrair scripts
-            scripts = data.get('scripts', {})
+            scripts = data.get("scripts", {})
             if scripts:
-                info['scripts'] = scripts
+                info["scripts"] = scripts
 
             # Extrair dependências
-            for dep_type in ['dependencies', 'devDependencies',
-                           'peerDependencies', 'optionalDependencies']:
+            for dep_type in [
+                "dependencies",
+                "devDependencies",
+                "peerDependencies",
+                "optionalDependencies",
+            ]:
                 if dep_type in data:
                     info[dep_type] = list(data[dep_type].keys())
 
-        elif file_type == 'tsconfig.json':
+        elif file_type == "tsconfig.json":
             # Extrai compiler options
-            if 'compilerOptions' in data:
-                info['compiler_options'] = data['compilerOptions']
+            if "compilerOptions" in data:
+                info["compiler_options"] = data["compilerOptions"]
 
-        elif file_type == '.eslintrc.json':
+        elif file_type == ".eslintrc.json":
             # Extrai regras
-            if 'rules' in data:
-                info['rules'] = data['rules']
+            if "rules" in data:
+                info["rules"] = data["rules"]
 
         return info
 
@@ -209,8 +208,7 @@ class JSONParser:
             if re.search(pattern, code):
                 # Encontrar chave associada
                 context_match = re.search(
-                    rf'"([A-Za-z_][A-Za-z0-9_]*)"\s*:\s*"[^"]*{re.escape(pattern)}',
-                    code
+                    rf'"([A-Za-z_][A-Za-z0-9_]*)"\s*:\s*"[^"]*{re.escape(pattern)}', code
                 )
                 if context_match:
                     key = context_match.group(1)
@@ -227,6 +225,6 @@ class JSONParser:
     def get_stats(self) -> Dict[str, int]:
         """Retorna estatísticas do parser."""
         return {
-            'parsed_files': len(self._parsed_cache),
-            'files_with_errors': len(self._parse_errors)
+            "parsed_files": len(self._parsed_cache),
+            "files_with_errors": len(self._parse_errors),
         }

@@ -6,7 +6,7 @@ Testa validação, segurança, e políticas de acesso.
 """
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 import asyncio
 
@@ -238,10 +238,10 @@ class TestRateLimiting:
     @pytest.mark.asyncio
     async def test_reset_rate_limit_window(self):
         """Deve resetar janela de rate limit."""
-        window_start = datetime.utcnow() - timedelta(minutes=2)
+        window_start = datetime.now(timezone.utc) - timedelta(minutes=2)
         window_duration_minutes = 1
 
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         time_since_start = (now - window_start).total_seconds() / 60
 
         should_reset = time_since_start >= window_duration_minutes
@@ -352,7 +352,7 @@ class TestAuditLogging:
     async def test_log_security_event(self):
         """Deve logar evento de segurança."""
         event = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "event_type": "access_denied",
             "user_id": "user-123",
             "resource": "/admin/settings",
@@ -368,7 +368,7 @@ class TestAuditLogging:
         log_entry = {
             "who": "user-123",
             "what": "delete_document",
-            "when": datetime.utcnow().isoformat(),
+            "when": datetime.now(timezone.utc).isoformat(),
             "where": "/api/documents/doc-123",
             "result": "success"
         }
@@ -559,7 +559,7 @@ class TestComplianceChecks:
         ]
 
         retention_days = 365
-        cutoff_date = datetime.utcnow() - timedelta(days=retention_days)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=retention_days)
 
         expired_records = [
             r for r in records

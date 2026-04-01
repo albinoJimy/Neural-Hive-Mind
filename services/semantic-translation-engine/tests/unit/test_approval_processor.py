@@ -6,7 +6,7 @@ publicação de planos aprovados e métricas.
 """
 
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from unittest.mock import MagicMock, AsyncMock, patch
 from tenacity import RetryError
 
@@ -55,7 +55,7 @@ class TestApprovalProcessorApproved:
         return {
             'plan_id': 'plan-123',
             'intent_id': 'intent-456',
-            'timestamp': datetime.utcnow() - timedelta(hours=1),
+            'timestamp': datetime.now(timezone.utc) - timedelta(hours=1),
             'plan_data': {
                 'plan_id': 'plan-123',
                 'intent_id': 'intent-456',
@@ -87,7 +87,7 @@ class TestApprovalProcessorApproved:
             'intent_id': 'intent-456',
             'decision': 'approved',
             'approved_by': 'admin@example.com',
-            'approved_at': int(datetime.utcnow().timestamp() * 1000)
+            'approved_at': int(datetime.now(timezone.utc).timestamp() * 1000)
         }
 
         await processor.process_approval_response(approval_response, {})
@@ -115,7 +115,7 @@ class TestApprovalProcessorApproved:
             'intent_id': 'intent-456',
             'decision': 'approved',
             'approved_by': 'admin@example.com',
-            'approved_at': int(datetime.utcnow().timestamp() * 1000)
+            'approved_at': int(datetime.now(timezone.utc).timestamp() * 1000)
         }
 
         await processor.process_approval_response(approval_response, {})
@@ -134,7 +134,7 @@ class TestApprovalProcessorApproved:
             'intent_id': 'intent-456',
             'decision': 'approved',
             'approved_by': 'admin@example.com',
-            'approved_at': int(datetime.utcnow().timestamp() * 1000)
+            'approved_at': int(datetime.now(timezone.utc).timestamp() * 1000)
         }
 
         await processor.process_approval_response(approval_response, {})
@@ -187,7 +187,7 @@ class TestApprovalProcessorRejected:
         return {
             'plan_id': 'plan-789',
             'intent_id': 'intent-abc',
-            'timestamp': datetime.utcnow() - timedelta(minutes=30),
+            'timestamp': datetime.now(timezone.utc) - timedelta(minutes=30),
             'plan_data': {
                 'plan_id': 'plan-789',
                 'approval_status': 'pending',
@@ -208,7 +208,7 @@ class TestApprovalProcessorRejected:
             'intent_id': 'intent-abc',
             'decision': 'rejected',
             'approved_by': 'security@example.com',
-            'approved_at': int(datetime.utcnow().timestamp() * 1000),
+            'approved_at': int(datetime.now(timezone.utc).timestamp() * 1000),
             'rejection_reason': 'Operação muito arriscada para produção'
         }
 
@@ -232,7 +232,7 @@ class TestApprovalProcessorRejected:
             'intent_id': 'intent-abc',
             'decision': 'rejected',
             'approved_by': 'security@example.com',
-            'approved_at': int(datetime.utcnow().timestamp() * 1000),
+            'approved_at': int(datetime.now(timezone.utc).timestamp() * 1000),
             'rejection_reason': 'Risco muito alto'
         }
 
@@ -252,7 +252,7 @@ class TestApprovalProcessorRejected:
             'intent_id': 'intent-abc',
             'decision': 'rejected',
             'approved_by': 'security@example.com',
-            'approved_at': int(datetime.utcnow().timestamp() * 1000)
+            'approved_at': int(datetime.now(timezone.utc).timestamp() * 1000)
         }
 
         await processor.process_approval_response(approval_response, {})
@@ -317,7 +317,7 @@ class TestApprovalProcessorIdempotency:
             'intent_id': 'intent-x',
             'decision': 'approved',
             'approved_by': 'admin',
-            'approved_at': int(datetime.utcnow().timestamp() * 1000)
+            'approved_at': int(datetime.now(timezone.utc).timestamp() * 1000)
         }
 
         await processor.process_approval_response(approval_response, {})
@@ -344,7 +344,7 @@ class TestApprovalProcessorIdempotency:
             'intent_id': 'intent-x',
             'decision': 'approved',
             'approved_by': 'admin',
-            'approved_at': int(datetime.utcnow().timestamp() * 1000)
+            'approved_at': int(datetime.now(timezone.utc).timestamp() * 1000)
         }
 
         await processor.process_approval_response(approval_response, {})
@@ -403,7 +403,7 @@ class TestApprovalProcessorErrorHandling:
             'intent_id': 'intent-x',
             'decision': 'approved',
             'approved_by': 'admin',
-            'approved_at': int(datetime.utcnow().timestamp() * 1000)
+            'approved_at': int(datetime.now(timezone.utc).timestamp() * 1000)
         }
 
         # Não deve lançar exceção
@@ -434,7 +434,7 @@ class TestApprovalProcessorErrorHandling:
         ledger_entry = {
             'plan_id': 'plan-123',
             'intent_id': 'intent-x',
-            'timestamp': datetime.utcnow(),
+            'timestamp': datetime.now(timezone.utc),
             'plan_data': {
                 'plan_id': 'plan-123',
                 'intent_id': 'intent-x',
@@ -462,7 +462,7 @@ class TestApprovalProcessorErrorHandling:
             'intent_id': 'intent-x',
             'decision': 'approved',
             'approved_by': 'admin',
-            'approved_at': int(datetime.utcnow().timestamp() * 1000)
+            'approved_at': int(datetime.now(timezone.utc).timestamp() * 1000)
         }
 
         with pytest.raises(RuntimeError):
@@ -604,7 +604,7 @@ class TestApprovalProcessorRetry:
         return {
             'plan_id': 'plan-retry-123',
             'intent_id': 'intent-retry-456',
-            'timestamp': datetime.utcnow() - timedelta(hours=1),
+            'timestamp': datetime.now(timezone.utc) - timedelta(hours=1),
             'plan_data': {
                 'plan_id': 'plan-retry-123',
                 'intent_id': 'intent-retry-456',
@@ -636,7 +636,7 @@ class TestApprovalProcessorRetry:
             'intent_id': 'intent-retry-456',
             'decision': 'approved',
             'approved_by': 'admin@example.com',
-            'approved_at': int(datetime.utcnow().timestamp() * 1000)
+            'approved_at': int(datetime.now(timezone.utc).timestamp() * 1000)
         }
 
         await processor.process_approval_response(approval_response, {})
@@ -663,7 +663,7 @@ class TestApprovalProcessorRetry:
             'intent_id': 'intent-retry-456',
             'decision': 'approved',
             'approved_by': 'admin@example.com',
-            'approved_at': int(datetime.utcnow().timestamp() * 1000)
+            'approved_at': int(datetime.now(timezone.utc).timestamp() * 1000)
         }
 
         # Patch para acelerar os testes (sem esperar backoff real)
@@ -694,7 +694,7 @@ class TestApprovalProcessorRetry:
             'intent_id': 'intent-retry-456',
             'decision': 'approved',
             'approved_by': 'admin@example.com',
-            'approved_at': int(datetime.utcnow().timestamp() * 1000)
+            'approved_at': int(datetime.now(timezone.utc).timestamp() * 1000)
         }
 
         # Patch para acelerar os testes (sem esperar backoff real)
@@ -732,7 +732,7 @@ class TestApprovalProcessorRetry:
             'intent_id': 'intent-retry-456',
             'decision': 'approved',
             'approved_by': 'admin@example.com',
-            'approved_at': int(datetime.utcnow().timestamp() * 1000)
+            'approved_at': int(datetime.now(timezone.utc).timestamp() * 1000)
         }
 
         # Patch para acelerar os testes (saga usa wait_exponential)
@@ -806,7 +806,7 @@ class TestApprovalProcessorDLQ:
         return {
             'plan_id': 'plan-dlq-123',
             'intent_id': 'intent-dlq-456',
-            'timestamp': datetime.utcnow() - timedelta(hours=1),
+            'timestamp': datetime.now(timezone.utc) - timedelta(hours=1),
             'plan_data': {
                 'plan_id': 'plan-dlq-123',
                 'intent_id': 'intent-dlq-456',
@@ -841,7 +841,7 @@ class TestApprovalProcessorDLQ:
             'intent_id': 'intent-dlq-456',
             'decision': 'approved',
             'approved_by': 'admin@example.com',
-            'approved_at': int(datetime.utcnow().timestamp() * 1000)
+            'approved_at': int(datetime.now(timezone.utc).timestamp() * 1000)
         }
 
         trace_context = {
@@ -882,7 +882,7 @@ class TestApprovalProcessorDLQ:
             'intent_id': 'intent-dlq-456',
             'decision': 'approved',
             'approved_by': 'admin@example.com',
-            'approved_at': int(datetime.utcnow().timestamp() * 1000)
+            'approved_at': int(datetime.now(timezone.utc).timestamp() * 1000)
         }
 
         with patch('src.sagas.approval_saga.wait_exponential', return_value=lambda x: 0):
@@ -918,7 +918,7 @@ class TestApprovalProcessorDLQ:
             'intent_id': 'intent-dlq-456',
             'decision': 'approved',
             'approved_by': 'admin@example.com',
-            'approved_at': int(datetime.utcnow().timestamp() * 1000)
+            'approved_at': int(datetime.now(timezone.utc).timestamp() * 1000)
         }
 
         with patch('src.sagas.approval_saga.wait_exponential', return_value=lambda x: 0):
@@ -945,7 +945,7 @@ class TestApprovalProcessorDLQ:
             'intent_id': 'intent-dlq-456',
             'decision': 'approved',
             'approved_by': 'admin@example.com',
-            'approved_at': int(datetime.utcnow().timestamp() * 1000)
+            'approved_at': int(datetime.now(timezone.utc).timestamp() * 1000)
         }
 
         with patch('src.sagas.approval_saga.wait_exponential', return_value=lambda x: 0):
@@ -968,7 +968,7 @@ class TestApprovalProcessorDLQ:
             'intent_id': 'intent-dlq-456',
             'decision': 'approved',
             'approved_by': 'admin@example.com',
-            'approved_at': int(datetime.utcnow().timestamp() * 1000)
+            'approved_at': int(datetime.now(timezone.utc).timestamp() * 1000)
         }
 
         with patch('src.sagas.approval_saga.wait_exponential', return_value=lambda x: 0):
@@ -1041,7 +1041,7 @@ class TestApprovalProcessorIdempotencyWithSagaState:
             'intent_id': 'intent-x',
             'decision': 'approved',
             'approved_by': 'admin',
-            'approved_at': int(datetime.utcnow().timestamp() * 1000)
+            'approved_at': int(datetime.now(timezone.utc).timestamp() * 1000)
         }
 
         await processor.process_approval_response(approval_response, {})
@@ -1058,7 +1058,7 @@ class TestApprovalProcessorIdempotencyWithSagaState:
         ledger_entry = {
             'plan_id': 'plan-executing',
             'intent_id': 'intent-crash',
-            'timestamp': datetime.utcnow() - timedelta(hours=1),
+            'timestamp': datetime.now(timezone.utc) - timedelta(hours=1),
             'plan_data': {
                 'plan_id': 'plan-executing',
                 'intent_id': 'intent-crash',
@@ -1085,7 +1085,7 @@ class TestApprovalProcessorIdempotencyWithSagaState:
             'intent_id': 'intent-crash',
             'decision': 'approved',
             'approved_by': 'admin',
-            'approved_at': int(datetime.utcnow().timestamp() * 1000)
+            'approved_at': int(datetime.now(timezone.utc).timestamp() * 1000)
         }
 
         await processor.process_approval_response(approval_response, {})
@@ -1102,7 +1102,7 @@ class TestApprovalProcessorIdempotencyWithSagaState:
         ledger_entry = {
             'plan_id': 'plan-compensated',
             'intent_id': 'intent-retry',
-            'timestamp': datetime.utcnow() - timedelta(hours=1),
+            'timestamp': datetime.now(timezone.utc) - timedelta(hours=1),
             'plan_data': {
                 'plan_id': 'plan-compensated',
                 'intent_id': 'intent-retry',
@@ -1129,7 +1129,7 @@ class TestApprovalProcessorIdempotencyWithSagaState:
             'intent_id': 'intent-retry',
             'decision': 'approved',
             'approved_by': 'admin',
-            'approved_at': int(datetime.utcnow().timestamp() * 1000)
+            'approved_at': int(datetime.now(timezone.utc).timestamp() * 1000)
         }
 
         await processor.process_approval_response(approval_response, {})
@@ -1146,7 +1146,7 @@ class TestApprovalProcessorIdempotencyWithSagaState:
         ledger_entry = {
             'plan_id': 'plan-failed',
             'intent_id': 'intent-retry',
-            'timestamp': datetime.utcnow() - timedelta(hours=1),
+            'timestamp': datetime.now(timezone.utc) - timedelta(hours=1),
             'plan_data': {
                 'plan_id': 'plan-failed',
                 'intent_id': 'intent-retry',
@@ -1173,7 +1173,7 @@ class TestApprovalProcessorIdempotencyWithSagaState:
             'intent_id': 'intent-retry',
             'decision': 'approved',
             'approved_by': 'admin',
-            'approved_at': int(datetime.utcnow().timestamp() * 1000)
+            'approved_at': int(datetime.now(timezone.utc).timestamp() * 1000)
         }
 
         await processor.process_approval_response(approval_response, {})
@@ -1190,7 +1190,7 @@ class TestApprovalProcessorIdempotencyWithSagaState:
         ledger_entry = {
             'plan_id': 'plan-legacy',
             'intent_id': 'intent-legacy',
-            'timestamp': datetime.utcnow() - timedelta(hours=1),
+            'timestamp': datetime.now(timezone.utc) - timedelta(hours=1),
             'plan_data': {
                 'plan_id': 'plan-legacy',
                 'intent_id': 'intent-legacy',
@@ -1217,7 +1217,7 @@ class TestApprovalProcessorIdempotencyWithSagaState:
             'intent_id': 'intent-legacy',
             'decision': 'approved',
             'approved_by': 'admin',
-            'approved_at': int(datetime.utcnow().timestamp() * 1000)
+            'approved_at': int(datetime.now(timezone.utc).timestamp() * 1000)
         }
 
         await processor.process_approval_response(approval_response, {})
@@ -1238,7 +1238,7 @@ class TestApprovalProcessorIdempotencyWithSagaState:
         ledger_entry = {
             'plan_id': 'plan-crash-001',
             'intent_id': 'intent-crash-001',
-            'timestamp': datetime.utcnow() - timedelta(minutes=30),
+            'timestamp': datetime.now(timezone.utc) - timedelta(minutes=30),
             'plan_data': {
                 'plan_id': 'plan-crash-001',
                 'intent_id': 'intent-crash-001',
@@ -1246,7 +1246,7 @@ class TestApprovalProcessorIdempotencyWithSagaState:
                 'approval_status': 'approved',
                 'saga_state': 'executing',  # Crash ocorreu aqui
                 'approved_by': 'original-admin',
-                'approved_at': datetime.utcnow() - timedelta(minutes=30),
+                'approved_at': datetime.now(timezone.utc) - timedelta(minutes=30),
                 'risk_band': 'high',
                 'is_destructive': True,
                 'tasks': [],
@@ -1268,7 +1268,7 @@ class TestApprovalProcessorIdempotencyWithSagaState:
             'intent_id': 'intent-crash-001',
             'decision': 'approved',
             'approved_by': 'original-admin',
-            'approved_at': int((datetime.utcnow() - timedelta(minutes=30)).timestamp() * 1000)
+            'approved_at': int((datetime.now(timezone.utc) - timedelta(minutes=30)).timestamp() * 1000)
         }
 
         await processor.process_approval_response(approval_response, {})

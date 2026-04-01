@@ -17,7 +17,7 @@ import os
 import time
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 import grpc
@@ -163,7 +163,7 @@ def test_agent_telemetry() -> AgentTelemetry:
         success_rate=0.95,
         avg_duration_ms=150,
         total_executions=100,
-        last_execution_time=datetime.utcnow(),
+        last_execution_time=datetime.now(timezone.utc),
         cpu_usage=0.5,
         memory_usage=0.6,
     )
@@ -393,7 +393,7 @@ async def test_heartbeat_updates_telemetry(service_registry_client, etcd_client,
     # Validate last_heartbeat updated
     assert "last_heartbeat" in stored_data
     last_heartbeat = datetime.fromisoformat(stored_data["last_heartbeat"])
-    assert (datetime.utcnow() - last_heartbeat).total_seconds() < 5
+    assert (datetime.now(timezone.utc) - last_heartbeat).total_seconds() < 5
 
     logger.info(f"Heartbeat successfully updated telemetry for agent {agent_id}")
 

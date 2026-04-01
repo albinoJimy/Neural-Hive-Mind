@@ -18,7 +18,7 @@ Cobertura:
 
 import asyncio
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 from typing import Dict, List, Any
 
@@ -163,7 +163,7 @@ def sample_consolidated_decision() -> Dict[str, Any]:
         "decision_id": "decision-123",
         "correlation_id": "corr-123",
         "trace_id": "trace-123",
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.now(timezone.utc).isoformat()
     }
 
 
@@ -199,14 +199,14 @@ class TestSchedulerIntegration:
                 "durability": "PERSISTENT"
             },
             "sla": {
-                "deadline": (datetime.utcnow() + timedelta(hours=1)).isoformat(),
+                "deadline": (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(),
                 "timeout_ms": 3600000
             },
             "required_capabilities": ["python", "data-processing"],
             "namespace": "default",
             "security_level": "standard",
             "estimated_duration_ms": 1000,
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat()
         }
 
         # Executar
@@ -252,7 +252,7 @@ class TestSchedulerIntegration:
             "namespace": "default",
             "security_level": "standard",
             "estimated_duration_ms": 1000,
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat()
         }
 
         # Executar
@@ -291,7 +291,7 @@ class TestSchedulerIntegration:
             "namespace": "default",
             "security_level": "standard",
             "estimated_duration_ms": 1000,
-            "created_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
             "predictions": {
                 "duration_ms": 1800,  # 180% do estimado
                 "anomaly": {
@@ -339,7 +339,7 @@ class TestSchedulerIntegration:
                 "namespace": "default",
                 "security_level": "standard",
                 "estimated_duration_ms": 1000,
-                "created_at": datetime.utcnow().isoformat()
+                "created_at": datetime.now(timezone.utc).isoformat()
             }
             tickets.append(ticket)
 
@@ -381,7 +381,7 @@ class TestSchedulerIntegration:
                 "namespace": "default",
                 "security_level": "standard",
                 "estimated_duration_ms": 1000,
-                "created_at": datetime.utcnow().isoformat()
+                "created_at": datetime.now(timezone.utc).isoformat()
             }
             tickets.append(ticket)
 
@@ -428,7 +428,7 @@ class TestSchedulerIntegration:
                 "namespace": "default",
                 "security_level": "standard",
                 "estimated_duration_ms": 1000,
-                "created_at": datetime.utcnow().isoformat()
+                "created_at": datetime.now(timezone.utc).isoformat()
             }
 
             result = await scheduler.schedule_ticket(ticket)
@@ -468,13 +468,13 @@ class TestSchedulerIntegration:
             "namespace": "default",
             "security_level": "standard",
             "estimated_duration_ms": 1000,
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat()
         }
 
         # Medir latência
-        start = datetime.utcnow()
+        start = datetime.now(timezone.utc)
         await scheduler.schedule_ticket(ticket)
-        duration = (datetime.utcnow() - start).total_seconds()
+        duration = (datetime.now(timezone.utc) - start).total_seconds()
 
         # Verificar SLO (<200ms = 0.2s)
         assert duration < 0.2
@@ -522,7 +522,7 @@ class TestSchedulerIntegration:
             "namespace": "default",
             "security_level": "standard",
             "estimated_duration_ms": 1000,
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat()
         }
 
         # Simular activity allocate_resources
@@ -574,7 +574,7 @@ class TestSchedulerIntegration:
             "namespace": "default",
             "security_level": "standard",
             "estimated_duration_ms": 1000,
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat()
         }
 
         # Simular lógica de allocate_resources com feature flag

@@ -6,7 +6,7 @@ Testa cenários de sucesso, falhas, cache e fallback de JWT-SVID.
 
 import pytest
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 from dataclasses import dataclass
 
@@ -55,7 +55,7 @@ def mock_spiffe_manager():
     manager.fetch_jwt_svid.return_value = JWTSVID(
         token='eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzcGlmZmU6Ly9uZXVyYWwtaGl2ZS5sb2NhbC9ucy9uZXVyYWwtaGl2ZS1vcmNoZXN0cmF0aW9uL3NhL29yY2hlc3RyYXRvci1keW5hbWljIiwiYXVkIjoic2VydmljZS1yZWdpc3RyeS5uZXVyYWwtaGl2ZS5sb2NhbCIsImV4cCI6OTk5OTk5OTk5OX0.valid',
         spiffe_id='spiffe://neural-hive.local/ns/neural-hive-orchestration/sa/orchestrator-dynamic',
-        expiry=datetime.utcnow() + timedelta(hours=1)
+        expiry=datetime.now(timezone.utc) + timedelta(hours=1)
     )
 
     return manager
@@ -209,7 +209,7 @@ async def test_jwt_auth_failure_invalid_token(mock_spiffe_manager, mock_settings
     mock_spiffe_manager.fetch_jwt_svid.return_value = JWTSVID(
         token='expired.jwt.token',
         spiffe_id='spiffe://neural-hive.local/ns/neural-hive-orchestration/sa/orchestrator-dynamic',
-        expiry=datetime.utcnow() - timedelta(hours=1)  # Expirado
+        expiry=datetime.now(timezone.utc) - timedelta(hours=1)  # Expirado
     )
 
     with patch('src.clients.service_registry_client.service_registry_pb2') as mock_pb2, \
@@ -261,7 +261,7 @@ async def test_jwt_auth_failure_unauthorized_spiffe_id(mock_spiffe_manager, mock
     mock_spiffe_manager.fetch_jwt_svid.return_value = JWTSVID(
         token='valid.jwt.token',
         spiffe_id='spiffe://wrong-domain.com/ns/attacker/sa/malicious',
-        expiry=datetime.utcnow() + timedelta(hours=1)
+        expiry=datetime.now(timezone.utc) + timedelta(hours=1)
     )
 
     with patch('src.clients.service_registry_client.service_registry_pb2') as mock_pb2, \

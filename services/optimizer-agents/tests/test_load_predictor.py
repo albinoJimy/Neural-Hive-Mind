@@ -12,7 +12,7 @@ Cobertura:
 
 import pytest
 import pytest_asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 import pandas as pd
 import numpy as np
@@ -83,7 +83,7 @@ def mock_metrics():
 @pytest.fixture
 def sample_historical_data():
     """Dados históricos de exemplo."""
-    base_time = datetime.utcnow() - timedelta(days=7)
+    base_time = datetime.now(timezone.utc) - timedelta(days=7)
     data = []
     for i in range(1000):  # 1000 pontos
         data.append({
@@ -128,7 +128,7 @@ class TestLoadPredictorInitialization:
         mock_prophet_model = Mock()
         mock_prophet_model.make_future_dataframe = Mock()
         mock_prophet_model.predict = Mock(return_value=pd.DataFrame({
-            'ds': [datetime.utcnow()],
+            'ds': [datetime.now(timezone.utc)],
             'yhat': [100],
             'yhat_lower': [90],
             'yhat_upper': [110]
@@ -175,7 +175,7 @@ class TestLoadPrediction:
         # Mock modelo Prophet
         mock_prophet = Mock()
         future_df = pd.DataFrame({
-            'ds': pd.date_range(start=datetime.utcnow(), periods=60, freq='T')
+            'ds': pd.date_range(start=datetime.now(timezone.utc), periods=60, freq='T')
         })
         forecast_df = pd.DataFrame({
             'ds': future_df['ds'],
@@ -216,7 +216,7 @@ class TestLoadPrediction:
         # Mock cache retornando previsão
         cached_forecast = {
             'forecast': [
-                {'timestamp': datetime.utcnow().isoformat(), 'ticket_count': 100, 'resource_demand': {'cpu_cores': 10, 'memory_mb': 1000}}
+                {'timestamp': datetime.now(timezone.utc).isoformat(), 'ticket_count': 100, 'resource_demand': {'cpu_cores': 10, 'memory_mb': 1000}}
             ],
             'metadata': {}
         }
@@ -242,7 +242,7 @@ class TestLoadPrediction:
 
         # Mock dados históricos insuficientes (< 100)
         minimal_data = [
-            {'timestamp': datetime.utcnow() - timedelta(minutes=i), 'ticket_count': 50 + i}
+            {'timestamp': datetime.now(timezone.utc) - timedelta(minutes=i), 'ticket_count': 50 + i}
             for i in range(50)
         ]
         mock_clickhouse.query_execution_timeseries = AsyncMock(return_value=minimal_data)
@@ -302,7 +302,7 @@ class TestBottleneckPrediction:
         mock_forecast = {
             'forecast': [
                 {
-                    'timestamp': (datetime.utcnow() + timedelta(minutes=i)).isoformat(),
+                    'timestamp': (datetime.now(timezone.utc) + timedelta(minutes=i)).isoformat(),
                     'ticket_count': 950,  # > 90% de 1000 (capacidade)
                     'resource_demand': {'cpu_cores': 95, 'memory_mb': 95000},
                     'confidence_lower': 900,
@@ -336,7 +336,7 @@ class TestBottleneckPrediction:
         mock_forecast = {
             'forecast': [
                 {
-                    'timestamp': (datetime.utcnow() + timedelta(minutes=i)).isoformat(),
+                    'timestamp': (datetime.now(timezone.utc) + timedelta(minutes=i)).isoformat(),
                     'ticket_count': 50 if i < 5 else 150,  # Pico em i >= 5
                     'resource_demand': {'cpu_cores': 5, 'memory_mb': 5000},
                     'confidence_lower': 40,
@@ -413,7 +413,7 @@ class TestTraining:
 
         # Mock dados insuficientes
         minimal_data = [
-            {'timestamp': datetime.utcnow() - timedelta(minutes=i), 'ticket_count': 50}
+            {'timestamp': datetime.now(timezone.utc) - timedelta(minutes=i), 'ticket_count': 50}
             for i in range(50)  # < 100 (min_training_samples)
         ]
         mock_clickhouse.query_execution_timeseries = AsyncMock(return_value=minimal_data)
@@ -517,7 +517,7 @@ class TestHelpers:
 
         # Dados insuficientes
         invalid_data = [
-            {'timestamp': datetime.utcnow(), 'ticket_count': 50}
+            {'timestamp': datetime.now(timezone.utc), 'ticket_count': 50}
             for _ in range(10)
         ]
 
@@ -555,7 +555,7 @@ class TestHelpers:
 
         # Mock métricas de utilização
         mock_clickhouse.query_resource_utilization = AsyncMock(return_value=[
-            {'timestamp': datetime.utcnow(), 'metric_name': 'active_workers', 'avg_value': 10, 'max_value': 12}
+            {'timestamp': datetime.now(timezone.utc), 'metric_name': 'active_workers', 'avg_value': 10, 'max_value': 12}
         ])
 
         capacity = await predictor._get_current_worker_capacity()

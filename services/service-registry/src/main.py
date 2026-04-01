@@ -1,20 +1,26 @@
 import asyncio
 import signal
+
 import grpc
 import structlog
 from grpc.health.v1 import health, health_pb2, health_pb2_grpc
-from neural_hive_observability import init_observability, create_instrumented_async_grpc_server, ObservabilityConfig
-
-from src.config import get_settings
 from src.clients import EtcdClient, PheromoneClient
-from src.services import RegistryService, HealthCheckManager, MatchingEngine
+from src.config import get_settings
 from src.grpc_server import ServiceRegistryServicer
 from src.grpc_server.auth_interceptor import SPIFFEAuthInterceptor
 from src.proto import service_registry_pb2_grpc
+from src.services import HealthCheckManager, MatchingEngine, RegistryService
+
+from neural_hive_observability import (
+    ObservabilityConfig,
+    create_instrumented_async_grpc_server,
+    init_observability,
+)
 
 # Import SPIFFE manager if available
 try:
-    from neural_hive_security import SPIFFEManager, SPIFFEConfig
+    from neural_hive_security import SPIFFEConfig, SPIFFEManager
+
     SECURITY_LIB_AVAILABLE = True
 except ImportError:
     SECURITY_LIB_AVAILABLE = False
@@ -24,6 +30,7 @@ except ImportError:
 # Import Vault integration (optional dependency)
 try:
     from src.clients.vault_integration import ServiceRegistryVaultClient
+
     VAULT_AVAILABLE = True
 except ImportError:
     VAULT_AVAILABLE = False
@@ -41,7 +48,7 @@ structlog.configure(
         structlog.processors.StackInfoRenderer(),
         structlog.processors.format_exc_info,
         structlog.processors.UnicodeDecoder(),
-        structlog.processors.JSONRenderer()
+        structlog.processors.JSONRenderer(),
     ],
     wrapper_class=structlog.stdlib.BoundLogger,
     context_class=dict,
@@ -79,7 +86,7 @@ class ServiceRegistryServer:
         """
         spiffe_x509_enabled = (
             self.settings.SPIFFE_ENABLED
-            and getattr(self.settings, 'SPIFFE_ENABLE_X509', False)
+            and getattr(self.settings, "SPIFFE_ENABLE_X509", False)
             and self.spiffe_manager is not None
         )
 
@@ -93,22 +100,22 @@ class ServiceRegistryServer:
             # Criar credenciais de servidor com certificados SPIFFE
             # require_client_auth=True forca mTLS (cliente deve apresentar certificado)
             credentials = grpc.ssl_server_credentials(
-                [(x509_svid.private_key.encode('utf-8'), x509_svid.certificate.encode('utf-8'))],
-                root_certificates=x509_svid.ca_bundle.encode('utf-8'),
-                require_client_auth=True  # Forca mTLS
+                [(x509_svid.private_key.encode("utf-8"), x509_svid.certificate.encode("utf-8"))],
+                root_certificates=x509_svid.ca_bundle.encode("utf-8"),
+                require_client_auth=True,  # Forca mTLS
             )
 
             logger.info(
-                'server_mtls_credentials_created',
+                "server_mtls_credentials_created",
                 spiffe_id=x509_svid.spiffe_id,
-                expires_at=x509_svid.expires_at.isoformat()
+                expires_at=x509_svid.expires_at.isoformat(),
             )
 
             return credentials
         except Exception as e:
-            logger.error('server_credentials_creation_failed', error=str(e))
+            logger.error("server_credentials_creation_failed", error=str(e))
             # Em producao, falhar se mTLS nao puder ser configurado
-            if self.settings.ENVIRONMENT in ['production', 'prod']:
+            if self.settings.ENVIRONMENT in ["production", "prod"]:
                 raise RuntimeError(f"Failed to create mTLS credentials in production: {e}")
             return None
 
@@ -118,7 +125,7 @@ class ServiceRegistryServer:
             "initializing_service_registry",
             service_name=self.settings.SERVICE_NAME,
             version=self.settings.SERVICE_VERSION,
-            environment=self.settings.ENVIRONMENT
+            environment=self.settings.ENVIRONMENT,
         )
 
         # Inicializar OpenTelemetry
@@ -131,14 +138,14 @@ class ServiceRegistryServer:
                 environment=self.settings.ENVIRONMENT,
                 otel_endpoint=self.settings.OTEL_EXPORTER_ENDPOINT,
                 prometheus_port=self.settings.METRICS_PORT,
-                log_level=self.settings.LOG_LEVEL
+                log_level=self.settings.LOG_LEVEL,
             )
         except Exception as e:
             logger.warning(
                 "observability_init_failed",
                 error=str(e),
                 otel_endpoint=self.settings.OTEL_EXPORTER_ENDPOINT,
-                prometheus_port=self.settings.METRICS_PORT
+                prometheus_port=self.settings.METRICS_PORT,
             )
 
         # Inicializar Vault integration se habilitado
@@ -156,8 +163,7 @@ class ServiceRegistryServer:
                     logger.info("redis_password_obtained_from_vault")
                 except Exception as redis_vault_error:
                     logger.warning(
-                        "redis_password_vault_fetch_failed",
-                        error=str(redis_vault_error)
+                        "redis_password_vault_fetch_failed", error=str(redis_vault_error)
                     )
 
             except Exception as vault_error:
@@ -177,28 +183,24 @@ class ServiceRegistryServer:
             cluster_nodes=self.settings.ETCD_ENDPOINTS,
             prefix=self.settings.ETCD_PREFIX,
             password=redis_password,
-            timeout=self.settings.ETCD_TIMEOUT_SECONDS
+            timeout=self.settings.ETCD_TIMEOUT_SECONDS,
         )
         await self.etcd_client.initialize()
 
         self.pheromone_client = PheromoneClient(
-            cluster_nodes=self.settings.REDIS_CLUSTER_NODES,
-            password=redis_password
+            cluster_nodes=self.settings.REDIS_CLUSTER_NODES, password=redis_password
         )
         await self.pheromone_client.initialize()
 
         # Inicializar serviços
         self.registry_service = RegistryService(self.etcd_client)
 
-        self.matching_engine = MatchingEngine(
-            self.etcd_client,
-            self.pheromone_client
-        )
+        self.matching_engine = MatchingEngine(self.etcd_client, self.pheromone_client)
 
         self.health_check_manager = HealthCheckManager(
             etcd_client=self.etcd_client,
             check_interval_seconds=self.settings.HEALTH_CHECK_INTERVAL_SECONDS,
-            heartbeat_timeout_seconds=self.settings.HEARTBEAT_TIMEOUT_SECONDS
+            heartbeat_timeout_seconds=self.settings.HEARTBEAT_TIMEOUT_SECONDS,
         )
 
         # Inicializar SPIFFE manager se habilitado
@@ -209,9 +211,11 @@ class ServiceRegistryServer:
                 spiffe_config = SPIFFEConfig(
                     workload_api_socket=self.settings.SPIFFE_SOCKET_PATH,
                     trust_domain=self.settings.SPIFFE_TRUST_DOMAIN,
-                    jwt_audience=getattr(self.settings, 'SPIFFE_JWT_AUDIENCE', 'vault.neural-hive.local'),
-                    enable_x509=getattr(self.settings, 'SPIFFE_ENABLE_X509', True),
-                    environment=self.settings.ENVIRONMENT
+                    jwt_audience=getattr(
+                        self.settings, "SPIFFE_JWT_AUDIENCE", "vault.neural-hive.local"
+                    ),
+                    enable_x509=getattr(self.settings, "SPIFFE_ENABLE_X509", True),
+                    environment=self.settings.ENVIRONMENT,
                 )
 
                 self.spiffe_manager = SPIFFEManager(spiffe_config)
@@ -220,8 +224,7 @@ class ServiceRegistryServer:
                 # Criar auth interceptor se verificação de peer estiver habilitada
                 if self.settings.SPIFFE_VERIFY_PEER:
                     self.auth_interceptor = SPIFFEAuthInterceptor(
-                        self.spiffe_manager,
-                        self.settings
+                        self.spiffe_manager, self.settings
                     )
                     logger.info("spiffe_auth_interceptor_created")
 
@@ -244,25 +247,18 @@ class ServiceRegistryServer:
             service_version=self.settings.SERVICE_VERSION,
             environment=self.settings.ENVIRONMENT,
             otel_endpoint=self.settings.OTEL_EXPORTER_ENDPOINT,
-            prometheus_port=self.settings.METRICS_PORT
+            prometheus_port=self.settings.METRICS_PORT,
         )
 
         # Iniciar servidor gRPC async
         self.server = create_instrumented_async_grpc_server(
-            config=otel_config,
-            interceptors=interceptors if interceptors else None
+            config=otel_config, interceptors=interceptors if interceptors else None
         )
 
         # Registrar servicer
-        servicer = ServiceRegistryServicer(
-            self.registry_service,
-            self.matching_engine
-        )
+        servicer = ServiceRegistryServicer(self.registry_service, self.matching_engine)
 
-        service_registry_pb2_grpc.add_ServiceRegistryServicer_to_server(
-            servicer,
-            self.server
-        )
+        service_registry_pb2_grpc.add_ServiceRegistryServicer_to_server(servicer, self.server)
 
         # Registrar health check
         self.health_servicer = health.HealthServicer()
@@ -277,33 +273,29 @@ class ServiceRegistryServer:
 
         if server_credentials:
             # Usar porta segura com mTLS
-            self.server.add_secure_port(f'[::]:{self.settings.GRPC_PORT}', server_credentials)
-            logger.info(
-                'secure_port_added',
-                grpc_port=self.settings.GRPC_PORT,
-                mtls_enabled=True
-            )
+            self.server.add_secure_port(f"[::]:{self.settings.GRPC_PORT}", server_credentials)
+            logger.info("secure_port_added", grpc_port=self.settings.GRPC_PORT, mtls_enabled=True)
         else:
             # Fallback para porta insegura (apenas desenvolvimento)
-            if self.settings.ENVIRONMENT in ['production', 'prod']:
+            if self.settings.ENVIRONMENT in ["production", "prod"]:
                 raise RuntimeError(
                     "mTLS is required in production but server credentials could not be created. "
                     "Ensure SPIFFE is enabled and configured correctly."
                 )
 
-            self.server.add_insecure_port(f'[::]:{self.settings.GRPC_PORT}')
+            self.server.add_insecure_port(f"[::]:{self.settings.GRPC_PORT}")
             logger.warning(
-                'insecure_port_added',
+                "insecure_port_added",
                 grpc_port=self.settings.GRPC_PORT,
                 environment=self.settings.ENVIRONMENT,
-                warning='mTLS disabled - not for production use'
+                warning="mTLS disabled - not for production use",
             )
 
         logger.info(
             "service_registry_initialized",
             grpc_port=self.settings.GRPC_PORT,
             metrics_port=self.settings.METRICS_PORT,
-            mtls_enabled=server_credentials is not None
+            mtls_enabled=server_credentials is not None,
         )
 
     async def _update_health_status(self):
@@ -328,20 +320,17 @@ class ServiceRegistryServer:
                         self.health_servicer.set("", health_pb2.HealthCheckResponse.NOT_SERVING)
                         logger.warning(
                             "vault_health_check_failed_setting_not_serving",
-                            reason="Vault health check returned false"
+                            reason="Vault health check returned false",
                         )
                 except Exception as e:
                     self.health_servicer.set("", health_pb2.HealthCheckResponse.NOT_SERVING)
-                    logger.error(
-                        "vault_health_check_exception_setting_not_serving",
-                        error=str(e)
-                    )
+                    logger.error("vault_health_check_exception_setting_not_serving", error=str(e))
             else:
                 # Vault habilitado mas client não inicializado
                 self.health_servicer.set("", health_pb2.HealthCheckResponse.NOT_SERVING)
                 logger.warning(
                     "vault_client_not_initialized_setting_not_serving",
-                    reason="Vault enabled but client not initialized"
+                    reason="Vault enabled but client not initialized",
                 )
         else:
             # Vault desabilitado ou fail_open=true
@@ -388,7 +377,7 @@ class ServiceRegistryServer:
         logger.info(
             "service_registry_started",
             grpc_port=self.settings.GRPC_PORT,
-            metrics_port=self.settings.METRICS_PORT
+            metrics_port=self.settings.METRICS_PORT,
         )
 
         # Aguardar shutdown
@@ -456,10 +445,7 @@ async def main():
     # Registrar handlers de sinais
     loop = asyncio.get_running_loop()
     for sig in (signal.SIGTERM, signal.SIGINT):
-        loop.add_signal_handler(
-            sig,
-            lambda s=sig: server._handle_signal(s)
-        )
+        loop.add_signal_handler(sig, lambda s=sig: server._handle_signal(s))
 
     try:
         await server.start()

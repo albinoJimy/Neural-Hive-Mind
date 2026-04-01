@@ -5,15 +5,15 @@ Implementa injeção de falhas de rede como latência, perda de pacotes,
 particionamento e limitação de bandwidth.
 """
 
-import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
+
 import structlog
 from kubernetes import client
 
-from .base_injector import BaseFaultInjector, InjectionResult
+from ..chaos_config import CHAOS_ANNOTATIONS, CHAOS_LABELS
 from ..chaos_models import FaultInjection, FaultType, TargetSelector
-from ..chaos_config import CHAOS_LABELS, CHAOS_ANNOTATIONS
+from .base_injector import BaseFaultInjector, InjectionResult
 
 logger = structlog.get_logger(__name__)
 
@@ -40,7 +40,7 @@ class NetworkFaultInjector(BaseFaultInjector):
 
     async def inject(self, injection: FaultInjection) -> InjectionResult:
         """Injeta falha de rede no sistema."""
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc)
 
         if injection.fault_type not in self.supported_fault_types:
             return InjectionResult(
@@ -48,7 +48,7 @@ class NetworkFaultInjector(BaseFaultInjector):
                 injection_id=injection.id,
                 fault_type=injection.fault_type,
                 error_message=f"Tipo de falha não suportado: {injection.fault_type}",
-                start_time=start_time
+                start_time=start_time,
             )
 
         try:
@@ -66,7 +66,7 @@ class NetworkFaultInjector(BaseFaultInjector):
             self._record_injection_metrics(
                 injection.fault_type.value,
                 "success" if result.success else "failed",
-                injection.target.namespace
+                injection.target.namespace,
             )
 
             return result
@@ -76,19 +76,17 @@ class NetworkFaultInjector(BaseFaultInjector):
                 "network_injector.inject_failed",
                 injection_id=injection.id,
                 fault_type=injection.fault_type.value,
-                error=str(e)
+                error=str(e),
             )
             self._record_injection_metrics(
-                injection.fault_type.value,
-                "error",
-                injection.target.namespace
+                injection.fault_type.value, "error", injection.target.namespace
             )
             return InjectionResult(
                 success=False,
                 injection_id=injection.id,
                 fault_type=injection.fault_type,
                 error_message=str(e),
-                start_time=start_time
+                start_time=start_time,
             )
 
     async def _inject_tc_fault(self, injection: FaultInjection) -> InjectionResult:
@@ -103,7 +101,7 @@ class NetworkFaultInjector(BaseFaultInjector):
                 success=False,
                 injection_id=injection.id,
                 fault_type=injection.fault_type,
-                error_message="Nenhum pod encontrado para injeção"
+                error_message="Nenhum pod encontrado para injeção",
             )
 
         tc_command = self._build_tc_command(injection)
@@ -112,7 +110,7 @@ class NetworkFaultInjector(BaseFaultInjector):
                 success=False,
                 injection_id=injection.id,
                 fault_type=injection.fault_type,
-                error_message="Não foi possível construir comando tc"
+                error_message="Não foi possível construir comando tc",
             )
 
         affected_pods = []
@@ -125,10 +123,7 @@ class NetworkFaultInjector(BaseFaultInjector):
 
                 # Aplicar regra tc
                 exec_result = await self._exec_in_pod(
-                    pod_name,
-                    injection.target.namespace,
-                    tc_command,
-                    container_name
+                    pod_name, injection.target.namespace, tc_command, container_name
                 )
 
                 if exec_result.get("success"):
@@ -137,28 +132,22 @@ class NetworkFaultInjector(BaseFaultInjector):
                     logger.info(
                         "network_injector.tc_applied",
                         pod=pod_name,
-                        fault_type=injection.fault_type.value
+                        fault_type=injection.fault_type.value,
                     )
                 else:
                     logger.warning(
-                        "network_injector.tc_failed",
-                        pod=pod_name,
-                        error=exec_result.get("error")
+                        "network_injector.tc_failed", pod=pod_name, error=exec_result.get("error")
                     )
 
             except Exception as e:
-                logger.error(
-                    "network_injector.pod_injection_failed",
-                    pod=pod_name,
-                    error=str(e)
-                )
+                logger.error("network_injector.pod_injection_failed", pod=pod_name, error=str(e))
 
         if not affected_pods:
             return InjectionResult(
                 success=False,
                 injection_id=injection.id,
                 fault_type=injection.fault_type,
-                error_message="Falha ao aplicar tc em todos os pods"
+                error_message="Falha ao aplicar tc em todos os pods",
             )
 
         return InjectionResult(
@@ -167,13 +156,13 @@ class NetworkFaultInjector(BaseFaultInjector):
             fault_type=injection.fault_type,
             affected_resources=affected_pods,
             blast_radius=len(affected_pods),
-            start_time=datetime.utcnow(),
+            start_time=datetime.now(timezone.utc),
             rollback_data={
                 "type": "tc",
                 "pods": rollback_commands,
                 "namespace": injection.target.namespace,
                 "container": injection.parameters.container_name,
-            }
+            },
         )
 
     async def _inject_network_partition(self, injection: FaultInjection) -> InjectionResult:
@@ -187,7 +176,7 @@ class NetworkFaultInjector(BaseFaultInjector):
                 success=False,
                 injection_id=injection.id,
                 fault_type=injection.fault_type,
-                error_message="Cliente NetworkingV1Api não disponível"
+                error_message="Cliente NetworkingV1Api não disponível",
             )
 
         pods = await self.get_target_pods(injection.target)
@@ -196,7 +185,7 @@ class NetworkFaultInjector(BaseFaultInjector):
                 success=False,
                 injection_id=injection.id,
                 fault_type=injection.fault_type,
-                error_message="Nenhum pod encontrado para particionamento"
+                error_message="Nenhum pod encontrado para particionamento",
             )
 
         try:
@@ -216,17 +205,15 @@ class NetworkFaultInjector(BaseFaultInjector):
                     annotations={
                         **CHAOS_ANNOTATIONS,
                         "chaos.neuralhive.io/experiment-id": injection.id,
-                        "chaos.neuralhive.io/created-at": datetime.utcnow().isoformat(),
-                    }
+                        "chaos.neuralhive.io/created-at": datetime.now(timezone.utc).isoformat(),
+                    },
                 ),
                 spec=client.V1NetworkPolicySpec(
-                    pod_selector=client.V1LabelSelector(
-                        match_labels=injection.target.labels or {}
-                    ),
+                    pod_selector=client.V1LabelSelector(match_labels=injection.target.labels or {}),
                     policy_types=["Ingress", "Egress"],
                     ingress=[],  # Bloqueia todo ingress
-                    egress=[],   # Bloqueia todo egress
-                )
+                    egress=[],  # Bloqueia todo egress
+                ),
             )
 
             # Se há labels específicos, usar; caso contrário, selecionar por pod names
@@ -235,19 +222,18 @@ class NetworkFaultInjector(BaseFaultInjector):
                 # Esta abordagem requer que os pods tenham um label identificável
                 logger.warning(
                     "network_injector.partition_requires_labels",
-                    note="Particionamento por pod_names requer labels comuns"
+                    note="Particionamento por pod_names requer labels comuns",
                 )
 
             self.k8s_networking_v1.create_namespaced_network_policy(
-                injection.target.namespace,
-                network_policy
+                injection.target.namespace, network_policy
             )
 
             logger.info(
                 "network_injector.partition_created",
                 policy_name=policy_name,
                 namespace=injection.target.namespace,
-                affected_pods=len(pods)
+                affected_pods=len(pods),
             )
 
             return InjectionResult(
@@ -256,24 +242,21 @@ class NetworkFaultInjector(BaseFaultInjector):
                 fault_type=injection.fault_type,
                 affected_resources=pods,
                 blast_radius=len(pods),
-                start_time=datetime.utcnow(),
+                start_time=datetime.now(timezone.utc),
                 rollback_data={
                     "type": "network_policy",
                     "policy_name": policy_name,
                     "namespace": injection.target.namespace,
-                }
+                },
             )
 
         except Exception as e:
-            logger.error(
-                "network_injector.partition_failed",
-                error=str(e)
-            )
+            logger.error("network_injector.partition_failed", error=str(e))
             return InjectionResult(
                 success=False,
                 injection_id=injection.id,
                 fault_type=injection.fault_type,
-                error_message=str(e)
+                error_message=str(e),
             )
 
     async def validate(self, injection_id: str) -> bool:
@@ -288,8 +271,7 @@ class NetworkFaultInjector(BaseFaultInjector):
             # Verificar se NetworkPolicy existe
             try:
                 self.k8s_networking_v1.read_namespaced_network_policy(
-                    rollback_data["policy_name"],
-                    rollback_data["namespace"]
+                    rollback_data["policy_name"], rollback_data["namespace"]
                 )
                 return True
             except Exception:
@@ -309,7 +291,7 @@ class NetworkFaultInjector(BaseFaultInjector):
                 success=False,
                 injection_id=injection_id,
                 fault_type=FaultType.NETWORK_LATENCY,
-                error_message="Injeção não encontrada"
+                error_message="Injeção não encontrada",
             )
 
         injection = self._active_injections[injection_id]
@@ -325,7 +307,7 @@ class NetworkFaultInjector(BaseFaultInjector):
                     success=False,
                     injection_id=injection_id,
                     fault_type=injection.fault_type,
-                    error_message=f"Tipo de rollback desconhecido: {rollback_data.get('type')}"
+                    error_message=f"Tipo de rollback desconhecido: {rollback_data.get('type')}",
                 )
 
             if result.success:
@@ -338,41 +320,36 @@ class NetworkFaultInjector(BaseFaultInjector):
 
         except Exception as e:
             logger.error(
-                "network_injector.rollback_failed",
-                injection_id=injection_id,
-                error=str(e)
+                "network_injector.rollback_failed", injection_id=injection_id, error=str(e)
             )
             self._record_rollback_metrics(injection.fault_type.value, "error")
             return InjectionResult(
                 success=False,
                 injection_id=injection_id,
                 fault_type=injection.fault_type,
-                error_message=str(e)
+                error_message=str(e),
             )
 
     async def _rollback_network_policy(
-        self,
-        injection_id: str,
-        rollback_data: Dict[str, Any]
+        self, injection_id: str, rollback_data: Dict[str, Any]
     ) -> InjectionResult:
         """Remove NetworkPolicy criada para particionamento."""
         try:
             self.k8s_networking_v1.delete_namespaced_network_policy(
-                rollback_data["policy_name"],
-                rollback_data["namespace"]
+                rollback_data["policy_name"], rollback_data["namespace"]
             )
 
             logger.info(
                 "network_injector.partition_removed",
                 policy_name=rollback_data["policy_name"],
-                namespace=rollback_data["namespace"]
+                namespace=rollback_data["namespace"],
             )
 
             return InjectionResult(
                 success=True,
                 injection_id=injection_id,
                 fault_type=FaultType.NETWORK_PARTITION,
-                end_time=datetime.utcnow()
+                end_time=datetime.now(timezone.utc),
             )
 
         except Exception as e:
@@ -380,13 +357,11 @@ class NetworkFaultInjector(BaseFaultInjector):
                 success=False,
                 injection_id=injection_id,
                 fault_type=FaultType.NETWORK_PARTITION,
-                error_message=str(e)
+                error_message=str(e),
             )
 
     async def _rollback_tc(
-        self,
-        injection_id: str,
-        rollback_data: Dict[str, Any]
+        self, injection_id: str, rollback_data: Dict[str, Any]
     ) -> InjectionResult:
         """Remove regras tc dos pods."""
         pods_data = rollback_data.get("pods", {})
@@ -397,33 +372,21 @@ class NetworkFaultInjector(BaseFaultInjector):
 
         for pod_name, rollback_cmd in pods_data.items():
             try:
-                exec_result = await self._exec_in_pod(
-                    pod_name,
-                    namespace,
-                    rollback_cmd,
-                    container
-                )
+                exec_result = await self._exec_in_pod(pod_name, namespace, rollback_cmd, container)
 
                 if not exec_result.get("success"):
                     failed_pods.append(pod_name)
                     logger.warning(
                         "network_injector.tc_rollback_failed",
                         pod=pod_name,
-                        error=exec_result.get("error")
+                        error=exec_result.get("error"),
                     )
                 else:
-                    logger.info(
-                        "network_injector.tc_removed",
-                        pod=pod_name
-                    )
+                    logger.info("network_injector.tc_removed", pod=pod_name)
 
             except Exception as e:
                 failed_pods.append(pod_name)
-                logger.error(
-                    "network_injector.tc_rollback_error",
-                    pod=pod_name,
-                    error=str(e)
-                )
+                logger.error("network_injector.tc_rollback_error", pod=pod_name, error=str(e))
 
         injection = self._active_injections.get(injection_id)
         fault_type = injection.fault_type if injection else FaultType.NETWORK_LATENCY
@@ -434,14 +397,14 @@ class NetworkFaultInjector(BaseFaultInjector):
                 injection_id=injection_id,
                 fault_type=fault_type,
                 error_message=f"Rollback falhou em pods: {failed_pods}",
-                end_time=datetime.utcnow()
+                end_time=datetime.now(timezone.utc),
             )
 
         return InjectionResult(
             success=True,
             injection_id=injection_id,
             fault_type=fault_type,
-            end_time=datetime.utcnow()
+            end_time=datetime.now(timezone.utc),
         )
 
     async def get_blast_radius(self, target: TargetSelector) -> int:
@@ -480,11 +443,7 @@ class NetworkFaultInjector(BaseFaultInjector):
         return "tc qdisc del dev eth0 root 2>/dev/null || true"
 
     async def _exec_in_pod(
-        self,
-        pod_name: str,
-        namespace: str,
-        command: str,
-        container: Optional[str] = None
+        self, pod_name: str, namespace: str, command: str, container: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Executa comando em um pod via Kubernetes API.
@@ -511,10 +470,7 @@ class NetworkFaultInjector(BaseFaultInjector):
                 kwargs["container"] = container
 
             resp = stream(
-                self.k8s_core_v1.connect_get_namespaced_pod_exec,
-                pod_name,
-                namespace,
-                **kwargs
+                self.k8s_core_v1.connect_get_namespaced_pod_exec, pod_name, namespace, **kwargs
             )
 
             # Stream retorna string diretamente

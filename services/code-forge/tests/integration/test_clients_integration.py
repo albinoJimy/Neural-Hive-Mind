@@ -12,7 +12,7 @@ Variáveis de ambiente necessárias:
 import pytest
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
@@ -38,7 +38,7 @@ async def test_mongodb_roundtrip():
     await client.start()
 
     try:
-        artifact_id = f'test-art-{datetime.utcnow().timestamp()}'
+        artifact_id = f'test-art-{datetime.now(timezone.utc).timestamp()}'
 
         # Salvar artefato
         await client.save_artifact_content(artifact_id, 'print("test")')
@@ -71,7 +71,7 @@ async def test_mongodb_pipeline_logs():
     await client.start()
 
     try:
-        pipeline_id = f'test-pipe-{datetime.utcnow().timestamp()}'
+        pipeline_id = f'test-pipe-{datetime.now(timezone.utc).timestamp()}'
         logs = [
             {'stage': 'build', 'status': 'success', 'duration_ms': 1000},
             {'stage': 'test', 'status': 'success', 'duration_ms': 2000},
@@ -123,7 +123,7 @@ async def test_postgres_roundtrip():
     await client.start()
 
     try:
-        pipeline_id = f'test-pipe-{datetime.utcnow().timestamp()}'
+        pipeline_id = f'test-pipe-{datetime.now(timezone.utc).timestamp()}'
 
         result = PipelineResult(
             pipeline_id=pipeline_id,
@@ -136,7 +136,7 @@ async def test_postgres_roundtrip():
             pipeline_stages=[],
             total_duration_ms=1000,
             approval_required=False,
-            created_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc)
         )
 
         # Salvar pipeline
@@ -164,12 +164,12 @@ async def test_postgres_list_pipelines():
     await client.start()
 
     try:
-        ticket_id = f'test-ticket-{datetime.utcnow().timestamp()}'
+        ticket_id = f'test-ticket-{datetime.now(timezone.utc).timestamp()}'
 
         # Criar alguns pipelines
         for i in range(3):
             result = PipelineResult(
-                pipeline_id=f'test-pipe-list-{i}-{datetime.utcnow().timestamp()}',
+                pipeline_id=f'test-pipe-list-{i}-{datetime.now(timezone.utc).timestamp()}',
                 ticket_id=ticket_id,
                 plan_id='test-plan-1',
                 intent_id='test-intent-1',
@@ -179,7 +179,7 @@ async def test_postgres_list_pipelines():
                 pipeline_stages=[],
                 total_duration_ms=1000,
                 approval_required=False,
-                created_at=datetime.utcnow()
+                created_at=datetime.now(timezone.utc)
             )
             await client.save_pipeline(result)
 
@@ -203,7 +203,7 @@ async def test_postgres_update_status():
     await client.start()
 
     try:
-        pipeline_id = f'test-pipe-update-{datetime.utcnow().timestamp()}'
+        pipeline_id = f'test-pipe-update-{datetime.now(timezone.utc).timestamp()}'
 
         result = PipelineResult(
             pipeline_id=pipeline_id,
@@ -216,7 +216,7 @@ async def test_postgres_update_status():
             pipeline_stages=[],
             total_duration_ms=1000,
             approval_required=False,
-            created_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc)
         )
         await client.save_pipeline(result)
 
@@ -291,7 +291,7 @@ async def test_redis_cache_template():
     await client.start()
 
     try:
-        template_id = f'test-tpl-{datetime.utcnow().timestamp()}'
+        template_id = f'test-tpl-{datetime.now(timezone.utc).timestamp()}'
         template = {'name': 'test', 'content': 'print("hello")'}
 
         # Cachear template
@@ -325,7 +325,7 @@ async def test_redis_pipeline_state():
     await client.start()
 
     try:
-        pipeline_id = f'test-pipe-{datetime.utcnow().timestamp()}'
+        pipeline_id = f'test-pipe-{datetime.now(timezone.utc).timestamp()}'
         state = {
             'stage': 'build',
             'progress': 50,
@@ -366,7 +366,7 @@ async def test_redis_distributed_lock():
     await client.start()
 
     try:
-        resource_id = f'test-resource-{datetime.utcnow().timestamp()}'
+        resource_id = f'test-resource-{datetime.now(timezone.utc).timestamp()}'
 
         # Adquirir lock
         acquired = await client.acquire_lock(resource_id, timeout=30, owner='test-owner')
@@ -425,7 +425,7 @@ async def test_redis_generic_values():
     await client.start()
 
     try:
-        key = f'test-key-{datetime.utcnow().timestamp()}'
+        key = f'test-key-{datetime.now(timezone.utc).timestamp()}'
 
         # Salvar valor com TTL
         await client.set_value(key, 'test-value', ttl=60)

@@ -18,7 +18,7 @@ settings = get_settings()
 mcp = FastMCP(
     name="Trivy MCP Server",
     version=settings.service_version,
-    description="Scanner de vulnerabilidades para containers, filesystems e repositórios"
+    instructions="Scanner de vulnerabilidades para containers, filesystems e repositórios"
 )
 
 

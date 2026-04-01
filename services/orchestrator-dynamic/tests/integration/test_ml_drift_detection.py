@@ -13,7 +13,7 @@ Testa detecção de drift em modelos ML incluindo:
 import pytest
 import pytest_asyncio
 from unittest.mock import Mock, AsyncMock, MagicMock
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 import numpy as np
 
 from src.ml.drift_detector import DriftDetector
@@ -59,7 +59,7 @@ async def baseline_tickets():
     """
     np.random.seed(42)  # Fixed seed for reproducibility
     tickets = []
-    base_time = datetime.utcnow() - timedelta(days=60)
+    base_time = datetime.now(timezone.utc) - timedelta(days=60)
 
     for i in range(200):
         # Deterministic duration values centered around 62000
@@ -102,7 +102,7 @@ async def drifted_tickets():
     """
     np.random.seed(123)  # Different fixed seed for drifted data
     tickets = []
-    base_time = datetime.utcnow() - timedelta(days=3)
+    base_time = datetime.now(timezone.utc) - timedelta(days=3)
 
     for i in range(100):
         # Shift to critical risk (80% critical vs baseline 33%)
@@ -180,7 +180,7 @@ async def test_drift_detector_no_drift(test_drift_config, baseline_tickets, mock
         }
 
     baseline_doc = {
-        'timestamp': datetime.utcnow() - timedelta(days=30),
+        'timestamp': datetime.now(timezone.utc) - timedelta(days=30),
         'model_name': 'duration-predictor',
         'version': '1',
         'features': baseline_features,
@@ -246,7 +246,7 @@ async def test_drift_detector_feature_drift(test_drift_config, baseline_tickets,
         }
 
     baseline_doc = {
-        'timestamp': datetime.utcnow() - timedelta(days=30),
+        'timestamp': datetime.now(timezone.utc) - timedelta(days=30),
         'model_name': 'duration-predictor',
         'version': '1',
         'features': baseline_features,
@@ -283,7 +283,7 @@ async def test_drift_detector_prediction_drift(test_drift_config, baseline_ticke
 
     # Baseline with low MAE
     baseline_doc = {
-        'timestamp': datetime.utcnow() - timedelta(days=30),
+        'timestamp': datetime.now(timezone.utc) - timedelta(days=30),
         'features': {},
         'target_distribution': {
             'values': [t['actual_duration_ms'] for t in baseline_tickets],
@@ -318,7 +318,7 @@ async def test_drift_detector_target_drift(test_drift_config, baseline_tickets, 
 
     # Baseline with different distribution
     baseline_doc = {
-        'timestamp': datetime.utcnow() - timedelta(days=30),
+        'timestamp': datetime.now(timezone.utc) - timedelta(days=30),
         'features': {},
         'target_distribution': {
             'values': [t['actual_duration_ms'] for t in baseline_tickets],  # Mean ~62k

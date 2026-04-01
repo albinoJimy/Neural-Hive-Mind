@@ -6,7 +6,7 @@ Testa fluxo completo: Gateway → STE → Specialists → Consensus.
 """
 import asyncio
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 import json
 
@@ -26,7 +26,7 @@ class TestCompleteCognitiveFlow:
             "intent_id": str(uuid4()),
             "user_id": "user-123",
             "text": "Quero saber meu saldo",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         # 2. STE traduz intent
@@ -109,7 +109,7 @@ class TestCompleteCognitiveFlow:
     @pytest.mark.asyncio
     async def test_flow_timeout_handling(self):
         """Deve tratar timeout no fluxo."""
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc)
 
         # Simular atraso em specialist
         response_times = {
@@ -294,12 +294,12 @@ class TestPerformanceMonitoring:
     @pytest.mark.asyncio
     async def test_measure_end_to_end_latency(self):
         """Deve medir latência end-to-end."""
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc)
 
         # Simular processamento
         await asyncio.sleep(0.01)
 
-        end_time = datetime.utcnow()
+        end_time = datetime.now(timezone.utc)
         latency_ms = (end_time - start_time).total_seconds() * 1000
 
         assert latency_ms >= 10
@@ -378,7 +378,7 @@ class TestAuditTrail:
             "final_verdict": "approve",
             "confidence": 0.85,
             "participating_specialists": ["business", "technical"],
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         audit_log = [decision]
@@ -469,10 +469,10 @@ class TestFlowCircuitBreaker:
     async def test_close_circuit_on_recovery(self):
         """Deve fechar circuito na recuperação."""
         circuit_state = "open"
-        last_failure_time = datetime.utcnow() - timedelta(minutes=35)
+        last_failure_time = datetime.now(timezone.utc) - timedelta(minutes=35)
         cooldown_minutes = 30
 
-        time_since_failure = (datetime.utcnow() - last_failure_time).total_seconds() / 60
+        time_since_failure = (datetime.now(timezone.utc) - last_failure_time).total_seconds() / 60
 
         if circuit_state == "open" and time_since_failure > cooldown_minutes:
             circuit_state = "half_open"

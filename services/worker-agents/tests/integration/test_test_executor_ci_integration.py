@@ -11,11 +11,11 @@ import os
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, timezone
 
-from services.worker_agents.src.executors.test_executor import TestExecutor
-from services.worker_agents.src.clients.github_actions_client import GitHubActionsClient, WorkflowRunStatus
-from services.worker_agents.src.clients.gitlab_ci_client import GitLabCIClient, PipelineStatus
-from services.worker_agents.src.clients.jenkins_client import JenkinsClient, JenkinsBuildStatus
-from services.worker_agents.src.config.settings import WorkerAgentSettings
+from executors.test_executor import TestExecutor
+from clients.github_actions_client import GitHubActionsClient, WorkflowRunStatus
+from clients.gitlab_ci_client import GitLabCIClient, PipelineStatus
+from clients.jenkins_client import JenkinsClient, JenkinsBuildStatus
+from src.config.settings import WorkerAgentSettings
 
 
 @pytest.fixture

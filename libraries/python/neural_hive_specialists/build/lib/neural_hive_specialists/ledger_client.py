@@ -466,7 +466,7 @@ class LedgerClient:
                 correlation_id=correlation_id,
                 trace_id=trace_id,
                 span_id=span_id,
-                evaluated_at=datetime.utcnow(),
+                evaluated_at=datetime.now(timezone.utc),
                 processing_time_ms=processing_time_ms if processing_time_ms is not None else int((time.time() - start_save_time) * 1000),
                 buffered=False,
                 content_hash=''  # Will be calculated by DigitalSigner
@@ -856,7 +856,7 @@ class LedgerClient:
                 'specialist_type': specialist_type,
                 'correlation_id': correlation_id,
                 'opinion_data': opinion,
-                'timestamp': datetime.utcnow(),
+                'timestamp': datetime.now(timezone.utc),
                 'immutable': True,
                 'buffered': True
             }

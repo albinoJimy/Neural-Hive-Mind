@@ -10,7 +10,7 @@ Execute com: docker-compose up -d mongodb
 import pytest
 from motor.motor_asyncio import AsyncIOMotorClient
 from unittest.mock import MagicMock, AsyncMock
-from datetime import datetime
+from datetime import datetime, timezone
 import os
 
 # Import das funções de migration
@@ -129,7 +129,7 @@ async def test_active_learning_queue_document_structure(mongo_client):
         'confidence': 0.5,
         'predicted_decision': 'approve',
         'status': 'pending',
-        'created_at': datetime.utcnow()
+        'created_at': datetime.now(timezone.utc)
     }
 
     await collection.insert_one(test_doc)

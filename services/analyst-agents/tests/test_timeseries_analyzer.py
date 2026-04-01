@@ -2,7 +2,7 @@
 Testes para TimeSeriesAnalyzer.
 """
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 import numpy as np
 
 from src.services.timeseries_analyzer import TimeSeriesAnalyzer
@@ -16,7 +16,7 @@ from src.models.insight_extended import (
 @pytest.mark.asyncio
 async def test_analyze_trend_increasing(timeseries_analyzer):
     """Testar análise de tendência crescente."""
-    base_time = datetime.utcnow()
+    base_time = datetime.now(timezone.utc)
     # Usar minutos para maior slope, não horas
     data = [(base_time + timedelta(minutes=i), 10.0 + i * 5) for i in range(15)]
 
@@ -30,7 +30,7 @@ async def test_analyze_trend_increasing(timeseries_analyzer):
 @pytest.mark.asyncio
 async def test_analyze_trend_decreasing(timeseries_analyzer):
     """Testar análise de tendência decrescente."""
-    base_time = datetime.utcnow()
+    base_time = datetime.now(timezone.utc)
     data = [(base_time + timedelta(hours=i), 100.0 - i * 5) for i in range(10)]
 
     result = timeseries_analyzer.analyze_trend(data)
@@ -42,7 +42,7 @@ async def test_analyze_trend_decreasing(timeseries_analyzer):
 @pytest.mark.asyncio
 async def test_analyze_trend_stable(timeseries_analyzer):
     """Testar análise de tendência estável."""
-    base_time = datetime.utcnow()
+    base_time = datetime.now(timezone.utc)
     data = [(base_time + timedelta(hours=i), 50.0 + np.random.randn() * 0.1) for i in range(10)]
 
     result = timeseries_analyzer.analyze_trend(data)
@@ -64,7 +64,7 @@ async def test_detect_anomalies_zscore(timeseries_analyzer, sample_timeseries_wi
 @pytest.mark.asyncio
 async def test_detect_anomalies_iqr(timeseries_analyzer):
     """Testar detecção de anomalias com IQR."""
-    base_time = datetime.utcnow()
+    base_time = datetime.now(timezone.utc)
     # Dados com variância normal (45-55)
     np.random.seed(42)
     data = [(base_time + timedelta(minutes=i), 50.0 + np.random.randn() * 3) for i in range(20)]
@@ -81,7 +81,7 @@ async def test_detect_anomalies_iqr(timeseries_analyzer):
 @pytest.mark.asyncio
 async def test_detect_anomalies_moving_avg(timeseries_analyzer):
     """Testar detecção de anomalias com média móvel."""
-    base_time = datetime.utcnow()
+    base_time = datetime.now(timezone.utc)
     # Dados com variância para permitir std > 0 na janela
     np.random.seed(42)
     data = [(base_time + timedelta(minutes=i), 50.0 + np.random.randn() * 2) for i in range(20)]
@@ -97,7 +97,7 @@ async def test_detect_anomalies_moving_avg(timeseries_analyzer):
 @pytest.mark.asyncio
 async def test_detect_seasonality(timeseries_analyzer):
     """Testar detecção de sazonalidade."""
-    base_time = datetime.utcnow()
+    base_time = datetime.now(timezone.utc)
     # Criar dados com padrão sazonal
     data = []
     for i in range(50):
@@ -115,7 +115,7 @@ async def test_detect_seasonality(timeseries_analyzer):
 @pytest.mark.asyncio
 async def test_calculate_statistics(timeseries_analyzer):
     """Testar cálculo de estatísticas."""
-    base_time = datetime.utcnow()
+    base_time = datetime.now(timezone.utc)
     data = [(base_time + timedelta(minutes=i), float(i)) for i in range(1, 11)]
 
     stats = timeseries_analyzer.calculate_statistics(data)
@@ -152,8 +152,8 @@ async def test_generate_cache_key(timeseries_analyzer):
 @pytest.mark.asyncio
 async def test_analyze_timeseries(timeseries_analyzer, sample_timeseries_data):
     """Testar análise completa de série temporal."""
-    start = datetime.utcnow() - timedelta(hours=1)
-    end = datetime.utcnow()
+    start = datetime.now(timezone.utc) - timedelta(hours=1)
+    end = datetime.now(timezone.utc)
 
     response = await timeseries_analyzer.analyze_timeseries(
         metric_name="test_metric",
@@ -174,14 +174,14 @@ async def test_detect_anomalies_async_zscore(timeseries_analyzer):
     """Testar detecção assíncrona com Z-Score."""
     query = AnomalyDetectionQuery(
         metric_name="test_metric",
-        start=datetime.utcnow() - timedelta(hours=1),
-        end=datetime.utcnow(),
+        start=datetime.now(timezone.utc) - timedelta(hours=1),
+        end=datetime.now(timezone.utc),
         method="zscore",
         threshold=2.5,
     )
 
     data = [
-        (datetime.utcnow() - timedelta(minutes=i), 50.0 + np.random.randn() * 2)
+        (datetime.now(timezone.utc) - timedelta(minutes=i), 50.0 + np.random.randn() * 2)
         for i in range(20)
     ]
     # Adicionar anomalia
@@ -200,15 +200,15 @@ async def test_detect_anomalies_async_iqr(timeseries_analyzer):
     """Testar detecção assíncrona com IQR."""
     query = AnomalyDetectionQuery(
         metric_name="test_metric",
-        start=datetime.utcnow() - timedelta(hours=1),
-        end=datetime.utcnow(),
+        start=datetime.now(timezone.utc) - timedelta(hours=1),
+        end=datetime.now(timezone.utc),
         method="iqr",
         threshold=3.0,
     )
 
     # Dados com variância
     np.random.seed(42)
-    data = [(datetime.utcnow() - timedelta(minutes=i), 50.0 + np.random.randn() * 3) for i in range(20)]
+    data = [(datetime.now(timezone.utc) - timedelta(minutes=i), 50.0 + np.random.randn() * 3) for i in range(20)]
     data[5] = (data[5][0], 100.0)
 
     response = await timeseries_analyzer.detect_anomalies_async(query, data)
@@ -222,15 +222,15 @@ async def test_detect_anomalies_async_moving_avg(timeseries_analyzer):
     """Testar detecção assíncrona com média móvel."""
     query = AnomalyDetectionQuery(
         metric_name="test_metric",
-        start=datetime.utcnow() - timedelta(hours=1),
-        end=datetime.utcnow(),
+        start=datetime.now(timezone.utc) - timedelta(hours=1),
+        end=datetime.now(timezone.utc),
         method="moving_avg",
         threshold=2.0,
     )
 
     # Dados com variância
     np.random.seed(42)
-    data = [(datetime.utcnow() - timedelta(minutes=i), 50.0 + np.random.randn() * 2) for i in range(20)]
+    data = [(datetime.now(timezone.utc) - timedelta(minutes=i), 50.0 + np.random.randn() * 2) for i in range(20)]
     data[10] = (data[10][0], 95.0)
 
     response = await timeseries_analyzer.detect_anomalies_async(query, data)
@@ -244,14 +244,14 @@ async def test_anomaly_summary_severity(timeseries_analyzer):
     """Testar contagem de severidade de anomalias."""
     query = AnomalyDetectionQuery(
         metric_name="test_metric",
-        start=datetime.utcnow() - timedelta(hours=1),
-        end=datetime.utcnow(),
+        start=datetime.now(timezone.utc) - timedelta(hours=1),
+        end=datetime.now(timezone.utc),
         method="zscore",
         threshold=1.5,
     )
 
     # Criar dados com anomalias de diferentes severidades
-    data = [(datetime.utcnow() - timedelta(minutes=i), 50.0) for i in range(30)]
+    data = [(datetime.now(timezone.utc) - timedelta(minutes=i), 50.0) for i in range(30)]
     data[5] = (data[5][0], 95.0)  # High
     data[10] = (data[10][0], 80.0)  # Medium
     data[15] = (data[15][0], 70.0)  # Medium/Low
@@ -268,7 +268,7 @@ async def test_anomaly_summary_severity(timeseries_analyzer):
 @pytest.mark.asyncio
 async def test_insufficient_data_points(timeseries_analyzer):
     """Testar comportamento com dados insuficientes."""
-    data = [(datetime.utcnow(), 50.0)]
+    data = [(datetime.now(timezone.utc), 50.0)]
 
     # Trend analysis deve retornar estável
     result = timeseries_analyzer.analyze_trend(data)

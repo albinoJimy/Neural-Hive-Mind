@@ -1,6 +1,5 @@
 """Router para manifests de pipeline."""
 
-from typing import Any
 import uuid
 
 from fastapi import APIRouter, HTTPException, Query, status
@@ -23,9 +22,7 @@ class CreateManifestRequest(BaseModel):
     branch: str = Field(default="main", description="Branch")
     provider: PipelineProvider = Field(..., description="Provider de CI/CD")
     content: str = Field(..., description="Conteúdo YAML do pipeline")
-    stack: dict[str, str] = Field(
-        default_factory=dict, description="Informações da stack"
-    )
+    stack: dict[str, str] = Field(default_factory=dict, description="Informações da stack")
 
 
 class ManifestResponse(BaseModel):
@@ -67,9 +64,7 @@ async def get_manifest(
     branch: str = Query("main", description="Branch"),
 ) -> ManifestResponse:
     """Obtém o manifesto de um repositório."""
-    full_repo_url = (
-        f"https://{repo_url}" if not repo_url.startswith("http") else repo_url
-    )
+    full_repo_url = f"https://{repo_url}" if not repo_url.startswith("http") else repo_url
 
     manifest = await repo.find_by_repo(full_repo_url, branch)
 

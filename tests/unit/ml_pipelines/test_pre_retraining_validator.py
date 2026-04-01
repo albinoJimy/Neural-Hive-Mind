@@ -397,7 +397,7 @@ class TestPreRetrainingValidatorTemporalIntegrity:
         mock_db = MagicMock()
         mock_collection = MagicMock()
 
-        now = datetime.datetime.utcnow()
+        now = datetime.datetime.now(timezone.utc)
         min_date = now - datetime.timedelta(days=30)
         max_date = now - datetime.timedelta(hours=1)
 
@@ -437,7 +437,7 @@ class TestPreRetrainingValidatorTemporalIntegrity:
         mock_db = MagicMock()
         mock_collection = MagicMock()
 
-        now = datetime.datetime.utcnow()
+        now = datetime.datetime.now(timezone.utc)
         min_date = now - datetime.timedelta(days=30)
         max_date = now + datetime.timedelta(days=1)  # Futuro
 
@@ -476,7 +476,7 @@ class TestPreRetrainingValidatorTemporalIntegrity:
         mock_db = MagicMock()
         mock_collection = MagicMock()
 
-        now = datetime.datetime.utcnow()
+        now = datetime.datetime.now(timezone.utc)
         min_date = now - datetime.timedelta(days=2)
         max_date = now - datetime.timedelta(hours=1)
 
@@ -582,7 +582,7 @@ class TestPreRetrainingValidatorFullValidation:
         mock_db = MagicMock()
         mock_collection = MagicMock()
 
-        now = datetime.datetime.utcnow()
+        now = datetime.datetime.now(timezone.utc)
 
         def aggregate_side_effect(pipeline):
             pipeline_str = str(pipeline)
@@ -638,7 +638,7 @@ class TestPreRetrainingValidatorFullValidation:
         mock_db = MagicMock()
         mock_collection = MagicMock()
 
-        now = datetime.datetime.utcnow()
+        now = datetime.datetime.now(timezone.utc)
 
         def aggregate_side_effect(pipeline):
             pipeline_str = str(pipeline)
@@ -718,7 +718,7 @@ class TestValidationReportFormat:
         mock_db = MagicMock()
         mock_collection = MagicMock()
 
-        now = datetime.datetime.utcnow()
+        now = datetime.datetime.now(timezone.utc)
 
         def aggregate_side_effect(pipeline):
             pipeline_str = str(pipeline)

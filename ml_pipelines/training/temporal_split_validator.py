@@ -7,7 +7,7 @@ Garante que dados de treino, validação e teste estejam em ordem cronológica c
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any, Union
 import pandas as pd
 import numpy as np
@@ -202,7 +202,7 @@ class TemporalSplitValidator:
                 warnings.append(warning_msg)
         
         # Validação 4: Dados no futuro
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         if train_max > now:
             hours_in_future = (train_max - now).total_seconds() / 3600
             if hours_in_future > self.max_future_data_hours:

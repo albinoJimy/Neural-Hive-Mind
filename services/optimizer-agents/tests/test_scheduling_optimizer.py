@@ -8,7 +8,7 @@ e persistência de Q-table.
 import pytest
 import pytest_asyncio
 from unittest.mock import Mock, AsyncMock, patch
-from datetime import datetime
+from datetime import datetime, timezone
 import numpy as np
 
 from src.ml.scheduling_optimizer import SchedulingOptimizer, SchedulingAction
@@ -96,7 +96,7 @@ def sample_load_forecast():
     return {
         'forecast': [
             {
-                'timestamp': datetime.utcnow().isoformat(),
+                'timestamp': datetime.now(timezone.utc).isoformat(),
                 'ticket_count': 120 + i,
                 'resource_demand': {'cpu_cores': 12, 'memory_mb': 12000}
             }
