@@ -1,8 +1,27 @@
 from functools import lru_cache
-from typing import Optional
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from neural_hive_api.kafka import KafkaTopicsConfig
+
+
+class CodeForgeTopics(KafkaTopicsConfig):
+    """Configuração de tópicos Kafka para code-forge."""
+
+    PREFIX = "code-forge"
+
+    def __init__(self):
+        super().__init__()
+        self.TICKETS = self.get_topic("execution", "tickets")
+        self.RESULTS = self.get_topic("code-forge", "results")
+
+    def get_all_topics(self) -> dict[str, str]:
+        """Retorna mapping nome_topico -> topico."""
+        return {
+            "tickets": self.TICKETS,
+            "results": self.RESULTS,
+        }
 
 
 class Settings(BaseSettings):
@@ -144,7 +163,7 @@ class Settings(BaseSettings):
     OTEL_TLS_VERIFY: bool = Field(
         default=True, description="Verificar certificado TLS do OTEL Collector"
     )
-    OTEL_CA_BUNDLE: Optional[str] = Field(
+    OTEL_CA_BUNDLE: str | None = Field(
         default=None, description="Caminho para CA bundle do OTEL Collector"
     )
     OTEL_SERVICE_NAME: str = Field(
@@ -249,10 +268,21 @@ class Settings(BaseSettings):
 
         return self
 
-        SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", case_sensitive=True)
+    # Kafka Topics (gerenciado via CodeForgeTopics)
+    @property
+    def topics(self) -> CodeForgeTopics:
+        """Retorna instancia de CodeForgeTopics com valores das configuracoes."""
+        topics_instance = CodeForgeTopics()
+        topics_instance.TICKETS = self.KAFKA_TICKETS_TOPIC
+        topics_instance.RESULTS = self.KAFKA_RESULTS_TOPIC
+        return topics_instance
+
+    model_config = SettingsConfigDict(
+        env_file=".env", env_file_encoding="utf-8", case_sensitive=True
+    )
 
 
-@lru_cache()
+@lru_cache
 def get_settings() -> Settings:
     """Retorna singleton de Settings"""
     return Settings()
