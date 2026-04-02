@@ -5,6 +5,7 @@ import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from neural_hive_api.health import HealthRouter
 from neural_hive_observability import init_observability
 from neural_hive_observability.config import ObservabilityConfig
 from neural_hive_observability.health import HealthChecker
@@ -80,6 +81,9 @@ class AppState:
 
         # Health checker
         self.health_checker = None
+
+        # Health Router (neural_hive_api)
+        self.health_router = HealthRouter("analyst-agents")
 
 
 app_state = AppState()
@@ -274,7 +278,7 @@ async def lifespan(app: FastAPI):
     try:
         app_state.insight_producer = InsightProducer(
             bootstrap_servers=settings.KAFKA_BOOTSTRAP_SERVERS,
-            default_topic=settings.KAFKA_TOPICS_INSIGHTS,
+            default_topic=settings.topics.INSIGHTS,
         )
         await app_state.insight_producer.initialize()
         logger.info("kafka_producer_initialized")
@@ -288,7 +292,7 @@ async def lifespan(app: FastAPI):
         # Telemetry Consumer
         app_state.telemetry_consumer = TelemetryConsumer(
             bootstrap_servers=settings.KAFKA_BOOTSTRAP_SERVERS,
-            topic=settings.KAFKA_TOPICS_TELEMETRY,
+            topic=settings.topics.TELEMETRY,
             group_id=settings.KAFKA_CONSUMER_GROUP,
             analytics_engine=app_state.analytics_engine,
             insight_generator=app_state.insight_generator,
@@ -303,7 +307,7 @@ async def lifespan(app: FastAPI):
         # Consensus Consumer
         app_state.consensus_consumer = ConsensusConsumer(
             bootstrap_servers=settings.KAFKA_BOOTSTRAP_SERVERS,
-            topic=settings.KAFKA_TOPICS_CONSENSUS,
+            topic=settings.topics.CONSENSUS,
             group_id=settings.KAFKA_CONSUMER_GROUP,
             analytics_engine=app_state.analytics_engine,
             insight_generator=app_state.insight_generator,
@@ -317,7 +321,7 @@ async def lifespan(app: FastAPI):
         # Execution Consumer
         app_state.execution_consumer = ExecutionConsumer(
             bootstrap_servers=settings.KAFKA_BOOTSTRAP_SERVERS,
-            topic=settings.KAFKA_TOPICS_EXECUTION,
+            topic=settings.topics.EXECUTION,
             group_id=settings.KAFKA_CONSUMER_GROUP,
             insight_generator=app_state.insight_generator,
             mongodb_client=app_state.mongodb_client,
@@ -330,7 +334,7 @@ async def lifespan(app: FastAPI):
         # Pheromone Consumer
         app_state.pheromone_consumer = PheromoneConsumer(
             bootstrap_servers=settings.KAFKA_BOOTSTRAP_SERVERS,
-            topic=settings.KAFKA_TOPICS_PHEROMONES,
+            topic=settings.topics.PHEROMONES,
             group_id=settings.KAFKA_CONSUMER_GROUP,
             insight_generator=app_state.insight_generator,
             mongodb_client=app_state.mongodb_client,
@@ -462,6 +466,9 @@ app.add_middleware(
 )
 
 # Routers
+# HealthRouter (neural_hive_api) - rotas padronizadas
+app_state.health_router.add_route(app)
+# Manter compatibilidade com health.py existente
 app.include_router(health.router, tags=["health"])
 app.include_router(insights.router, prefix="/api/v1", tags=["insights"])
 app.include_router(analytics.router, prefix="/api/v1", tags=["analytics"])

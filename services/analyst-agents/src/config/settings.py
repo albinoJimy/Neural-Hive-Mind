@@ -1,10 +1,34 @@
 from functools import lru_cache
-from typing import List, Optional
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings
 
+from neural_hive_api.kafka import KafkaTopicsConfig
 from neural_hive_security.cors import CORSConfig
+
+
+class AnalystTopics(KafkaTopicsConfig):
+    """Configuração de tópicos Kafka para analyst-agents."""
+
+    PREFIX = "analyst"
+
+    def __init__(self):
+        super().__init__()
+        self.TELEMETRY = self.get_topic("telemetry", "aggregated")
+        self.CONSENSUS = self.get_topic("plans", "consensus")
+        self.EXECUTION = self.get_topic("execution", "results")
+        self.PHEROMONES = self.get_topic("pheromones", "signals")
+        self.INSIGHTS = self.get_topic("insights", "analyzed")
+
+    def get_all_topics(self) -> dict[str, str]:
+        """Retorna mapping nome_tópico → tópico."""
+        return {
+            "telemetry": self.TELEMETRY,
+            "consensus": self.CONSENSUS,
+            "execution": self.EXECUTION,
+            "pheromones": self.PHEROMONES,
+            "insights": self.INSIGHTS,
+        }
 
 
 class Settings(BaseSettings):
@@ -22,7 +46,7 @@ class Settings(BaseSettings):
     IS_PUBLIC_API: bool = Field(default=False)
 
     @property
-    def CORS_ORIGINS(self) -> List[str]:
+    def CORS_ORIGINS(self) -> list[str]:
         """CORS origins dinâmicas por ambiente."""
         return CORSConfig.get_origins_for_environment(
             self.ENVIRONMENT, is_public_api=self.IS_PUBLIC_API
@@ -37,13 +61,11 @@ class Settings(BaseSettings):
     # Kafka
     KAFKA_BOOTSTRAP_SERVERS: str
     KAFKA_CONSUMER_GROUP: str = "analyst-agents-group"
-    KAFKA_TOPICS_TELEMETRY: str = "telemetry.aggregated"
-    KAFKA_TOPICS_CONSENSUS: str = "plans.consensus"
-    KAFKA_TOPICS_EXECUTION: str = "execution.results"
-    KAFKA_TOPICS_PHEROMONES: str = "pheromones.signals"
-    KAFKA_TOPICS_INSIGHTS: str = "insights.analyzed"
     KAFKA_AUTO_OFFSET_RESET: str = "earliest"
     KAFKA_ENABLE_AUTO_COMMIT: bool = False
+
+    # Kafka Topics (gerenciado via AnalystTopics)
+    topics: AnalystTopics = AnalystTopics()
 
     # MongoDB
     MONGODB_URI: str
@@ -55,36 +77,36 @@ class Settings(BaseSettings):
     # Redis
     REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379
-    REDIS_PASSWORD: Optional[str] = None
+    REDIS_PASSWORD: str | None = None
     REDIS_DB: int = 0
     REDIS_INSIGHTS_TTL: int = 3600
 
     # Neo4j
     NEO4J_URI: str = "bolt://localhost:7687"
     NEO4J_USER: str = "neo4j"
-    NEO4J_PASSWORD: Optional[str] = None
+    NEO4J_PASSWORD: str | None = None
     NEO4J_DATABASE: str = "neo4j"
 
     # ClickHouse
     CLICKHOUSE_HOST: str = "localhost"
     CLICKHOUSE_PORT: int = 9000
     CLICKHOUSE_USER: str = "default"
-    CLICKHOUSE_PASSWORD: Optional[str] = None
+    CLICKHOUSE_PASSWORD: str | None = None
     CLICKHOUSE_DATABASE: str = "neural_hive"
 
     # PostgreSQL
     POSTGRESQL_HOST: str = "localhost"
     POSTGRESQL_PORT: int = 5432
     POSTGRESQL_USER: str = "postgres"
-    POSTGRESQL_PASSWORD: Optional[str] = None
+    POSTGRESQL_PASSWORD: str | None = None
     POSTGRESQL_DATABASE: str = "neural_hive"
     POSTGRESQL_MIN_POOL_SIZE: int = 10
     POSTGRESQL_MAX_POOL_SIZE: int = 100
 
     # Elasticsearch
-    ELASTICSEARCH_HOSTS: List[str] = Field(default=["http://localhost:9200"])
-    ELASTICSEARCH_USER: Optional[str] = None
-    ELASTICSEARCH_PASSWORD: Optional[str] = None
+    ELASTICSEARCH_HOSTS: list[str] = Field(default=["http://localhost:9200"])
+    ELASTICSEARCH_USER: str | None = None
+    ELASTICSEARCH_PASSWORD: str | None = None
 
     # Prometheus
     PROMETHEUS_URL: str = "http://localhost:9090"
@@ -146,6 +168,6 @@ class Settings(BaseSettings):
         case_sensitive = True
 
 
-@lru_cache()
+@lru_cache
 def get_settings() -> Settings:
     return Settings()
