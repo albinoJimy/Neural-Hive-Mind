@@ -16,7 +16,7 @@ class GatewayTopics(KafkaTopicsConfig):
     - dlq.intentions.{domain} (Dead Letter Queue)
     """
 
-    PREFIX = ""
+    PREFIX = "gateway"
 
     def __init__(self):
         super().__init__()

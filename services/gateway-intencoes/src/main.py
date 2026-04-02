@@ -36,6 +36,9 @@ from models.intent_envelope import IntentEnvelope, IntentRequest
 from pipelines.asr_pipeline import ASRPipeline
 from pipelines.nlu_pipeline import NLUPipeline
 
+# Health Router
+from api.routers.health import router as health_router, set_health_manager
+
 # Tentar importar observabilidade - usar stubs se não disponível
 try:
     from neural_hive_observability import get_context_manager, get_metrics, trace_intent
@@ -296,6 +299,9 @@ async def lifespan(app: FastAPI):
         kafka_producer = app_context.kafka_producer
         health_manager = app_context.health_manager
 
+        # Injetar health_manager no HealthRouter
+        set_health_manager(health_manager)
+
         logger.info("gateway_startup_completed")
 
         yield
@@ -398,6 +404,9 @@ if settings.otel_enabled and OBSERVABILITY_AVAILABLE:
 
     FastAPIInstrumentor.instrument_app(app)
 
+# Include Health Router
+app.include_router(health_router)
+
 
 # Dependências
 async def get_user_context_from_request(request: Request) -> dict[str, Any]:
@@ -432,160 +441,6 @@ async def get_user_context_from_request(request: Request) -> dict[str, Any]:
 
 
 # Endpoints
-
-
-@app.get("/health")
-async def health_check():
-    """Standardized health check endpoint using Neural Hive-Mind observability library"""
-    if not health_manager:
-        return JSONResponse(
-            status_code=503,
-            content={
-                "status": "unhealthy",
-                "message": "Health manager not initialized",
-                "timestamp": datetime.now(UTC).isoformat(),
-                "version": "1.0.0",
-            },
-        )
-
-    try:
-        # Run all health checks
-        health_results = await health_manager.check_all()
-        overall_status = health_manager.get_overall_status()
-
-        # Format results for response (dev local mode - simplified)
-        component_statuses = {}
-        if isinstance(health_results, dict) and "checks" in health_results:
-            # Stub mode
-            component_statuses = health_results.get("checks", {})
-        else:
-            # Production mode com neural_hive_observability
-            for name, result in health_results.items():
-                component_statuses[name] = {
-                    "status": result.status.value
-                    if hasattr(result, "status")
-                    else result.get("status", "unknown"),
-                    "message": result.message
-                    if hasattr(result, "message")
-                    else result.get("message", ""),
-                    "duration_seconds": result.duration_seconds
-                    if hasattr(result, "duration_seconds")
-                    else 0,
-                    "timestamp": result.timestamp
-                    if hasattr(result, "timestamp")
-                    else datetime.now(UTC).isoformat(),
-                    "details": result.details
-                    if hasattr(result, "details")
-                    else result.get("details", {}),
-                }
-
-        # Overall status handling
-        status_value = (
-            overall_status
-            if isinstance(overall_status, str)
-            else (overall_status.value if hasattr(overall_status, "value") else "unknown")
-        )
-
-        response_data = {
-            "status": status_value,
-            "timestamp": datetime.now(UTC).isoformat(),
-            "version": "1.0.0",
-            "service_name": "gateway-intencoes",
-            "neural_hive_component": "gateway",
-            "neural_hive_layer": "experiencia",
-            "components": component_statuses,
-        }
-
-        # Return appropriate HTTP status code based on health
-        if overall_status in [HealthStatus.UNHEALTHY]:
-            return JSONResponse(status_code=503, content=response_data)
-        if overall_status in [HealthStatus.DEGRADED]:
-            return JSONResponse(status_code=200, content=response_data)
-        return response_data
-
-    except Exception as e:
-        logger.exception(f"Erro ao executar health check: {e}")
-        return JSONResponse(
-            status_code=503,
-            content={
-                "status": "unhealthy",
-                "message": f"Health check error: {e!s}",
-                "timestamp": datetime.now(UTC).isoformat(),
-                "version": "1.0.0",
-                "service_name": "gateway-intencoes",
-            },
-        )
-
-
-@app.get("/ready")
-async def readiness_check():
-    """Kubernetes readiness probe endpoint - checks if service is ready to accept traffic"""
-    if not health_manager:
-        return JSONResponse(
-            status_code=503,
-            content={
-                "status": "not_ready",
-                "message": "Health manager not initialized",
-                "timestamp": datetime.now(UTC).isoformat(),
-            },
-        )
-
-    try:
-        # Check critical components for readiness
-        critical_checks = ["redis", "kafka_producer"]
-        overall_ready = True
-        check_results = {}
-
-        for check_name in critical_checks:
-            result = await health_manager.check_single(check_name)
-            if result:
-                check_results[check_name] = (
-                    result.status.value if hasattr(result.status, "value") else str(result.status)
-                )
-                if result.status != HealthStatus.HEALTHY:
-                    overall_ready = False
-            else:
-                check_results[check_name] = "not_configured"
-
-        # Check OTEL pipeline health (if enabled)
-        if settings.otel_enabled and OTEL_HEALTH_CHECK_AVAILABLE:
-            otel_result = await health_manager.check_single("otel_pipeline")
-            if otel_result:
-                check_results["otel_pipeline"] = (
-                    otel_result.status.value
-                    if hasattr(otel_result.status, "value")
-                    else str(otel_result.status)
-                )
-                if otel_result.status == HealthStatus.UNHEALTHY:
-                    overall_ready = False
-                    logger.warning(
-                        "otel_pipeline_unhealthy",
-                        status=otel_result.status,
-                        message=otel_result.message,
-                    )
-            else:
-                check_results["otel_pipeline"] = "not_configured"
-
-        response_data = {
-            "status": "ready" if overall_ready else "not_ready",
-            "timestamp": datetime.now(UTC).isoformat(),
-            "service_name": "gateway-intencoes",
-            "neural_hive_component": "gateway",
-            "checks": check_results,
-        }
-
-        return JSONResponse(status_code=200 if overall_ready else 503, content=response_data)
-
-    except Exception as e:
-        logger.exception(f"Erro ao executar readiness check: {e}")
-        return JSONResponse(
-            status_code=503,
-            content={
-                "status": "not_ready",
-                "message": f"Readiness check error: {e!s}",
-                "timestamp": datetime.now(UTC).isoformat(),
-            },
-        )
 
 
 @app.get("/cache/stats")
