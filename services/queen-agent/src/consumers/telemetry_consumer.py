@@ -30,7 +30,7 @@ class TelemetryConsumer:
         """Inicializar consumer Kafka"""
         try:
             self.consumer = AIOKafkaConsumer(
-                self.settings.KAFKA_TOPICS_TELEMETRY,
+                self.settings.topics.TELEMETRY,
                 bootstrap_servers=self.settings.KAFKA_BOOTSTRAP_SERVERS,
                 group_id=self.settings.KAFKA_CONSUMER_GROUP,
                 auto_offset_reset=self.settings.KAFKA_AUTO_OFFSET_RESET,
@@ -42,7 +42,7 @@ class TelemetryConsumer:
             await self.consumer.start()
             logger.info(
                 "telemetry_consumer_initialized",
-                topic=self.settings.KAFKA_TOPICS_TELEMETRY,
+                topic=self.settings.topics.TELEMETRY,
             )
 
         except Exception as e:

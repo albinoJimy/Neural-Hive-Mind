@@ -30,7 +30,7 @@ class ConsensusConsumer:
         """Inicializar consumer Kafka"""
         try:
             self.consumer = AIOKafkaConsumer(
-                self.settings.KAFKA_TOPICS_CONSENSUS,
+                self.settings.topics.CONSENSUS,
                 bootstrap_servers=self.settings.KAFKA_BOOTSTRAP_SERVERS,
                 group_id=self.settings.KAFKA_CONSUMER_GROUP,
                 auto_offset_reset=self.settings.KAFKA_AUTO_OFFSET_RESET,
@@ -42,7 +42,7 @@ class ConsensusConsumer:
             await self.consumer.start()
             logger.info(
                 "consensus_consumer_initialized",
-                topic=self.settings.KAFKA_TOPICS_CONSENSUS,
+                topic=self.settings.topics.CONSENSUS,
                 group=self.settings.KAFKA_CONSUMER_GROUP,
             )
 

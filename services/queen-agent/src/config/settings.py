@@ -3,7 +3,30 @@ from functools import lru_cache
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from neural_hive_api.kafka import KafkaTopicsConfig
 from neural_hive_security.cors import CORSConfig
+
+
+class QueenTopics(KafkaTopicsConfig):
+    """Configuração de tópicos Kafka para queen-agent."""
+
+    PREFIX = "queen"
+
+    def __init__(self):
+        super().__init__()
+        self.CONSENSUS = self.get_topic("plans", "consensus")
+        self.TELEMETRY = self.get_topic("telemetry", "aggregated")
+        self.INCIDENTS = self.get_topic("incidents", "critical")
+        self.STRATEGIC = self.get_topic("strategic", "decisions")
+
+    def get_all_topics(self) -> dict[str, str]:
+        """Retorna mapping nome_tópico → tópico."""
+        return {
+            "consensus": self.CONSENSUS,
+            "telemetry": self.TELEMETRY,
+            "incidents": self.INCIDENTS,
+            "strategic": self.STRATEGIC,
+        }
 
 
 class Settings(BaseSettings):
@@ -40,11 +63,10 @@ class Settings(BaseSettings):
     # Kafka
     KAFKA_BOOTSTRAP_SERVERS: str
     KAFKA_CONSUMER_GROUP: str = "queen-agent-group"
-    KAFKA_TOPICS_CONSENSUS: str = "plans.consensus"
-    KAFKA_TOPICS_TELEMETRY: str = "telemetry.aggregated"
-    KAFKA_TOPICS_INCIDENTS: str = "incidents.critical"
-    KAFKA_TOPICS_STRATEGIC: str = "strategic.decisions"
     KAFKA_AUTO_OFFSET_RESET: str = "earliest"
+
+    # Kafka Topics (gerenciado via QueenTopics)
+    topics: QueenTopics = QueenTopics()
 
     # MongoDB
     MONGODB_URI: str

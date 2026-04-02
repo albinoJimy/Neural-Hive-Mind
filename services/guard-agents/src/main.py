@@ -4,10 +4,14 @@ from contextlib import asynccontextmanager
 import structlog
 from fastapi import FastAPI
 
+from neural_hive_api.health import HealthRouter
 from neural_hive_observability import init_observability
 from src.api import health
 from src.config.settings import get_settings
 from src.services.threat_detector import ThreatDetector
+
+# Health Router (neural_hive_api)
+health_router = HealthRouter("guard-agents")
 
 # Configurar logger estruturado
 structlog.configure(
@@ -121,7 +125,7 @@ async def lifespan(app: FastAPI):
     # Inicializar Kafka Producer para remediações
     logger.info("guard_agent.initializing_kafka_producer")
     remediation_producer = RemediationProducer(
-        bootstrap_servers=settings.kafka_bootstrap_servers, topic=settings.kafka_remediation_topic
+        bootstrap_servers=settings.kafka_bootstrap_servers, topic=settings.topics.REMEDIATION
     )
     await remediation_producer.connect()
     app.state.remediation_producer = remediation_producer
@@ -362,7 +366,7 @@ async def lifespan(app: FastAPI):
     from src.producers.validation_producer import ValidationProducer
 
     validation_producer = ValidationProducer(
-        bootstrap_servers=settings.kafka_bootstrap_servers, topic=settings.kafka_validations_topic
+        bootstrap_servers=settings.kafka_bootstrap_servers, topic=settings.topics.VALIDATIONS
     )
     await validation_producer.connect()
     app.state.validation_producer = validation_producer
@@ -392,7 +396,7 @@ async def lifespan(app: FastAPI):
     security_consumer = KafkaConsumerClient(
         bootstrap_servers=settings.kafka_bootstrap_servers,
         group_id=settings.kafka_consumer_group,
-        topics=[settings.kafka_incidents_topic],
+        topics=[settings.topics.INCIDENTS],
         auto_offset_reset=settings.kafka_auto_offset_reset,
         enable_auto_commit=settings.kafka_enable_auto_commit,
     )
@@ -424,10 +428,10 @@ async def lifespan(app: FastAPI):
         security_validator=security_validator,
         guardrail_enforcer=guardrail_enforcer,
         validation_producer=validation_producer,
-        tickets_topic=settings.kafka_tickets_topic,
-        tickets_validated_topic=settings.kafka_tickets_validated_topic,
-        tickets_rejected_topic=settings.kafka_tickets_rejected_topic,
-        tickets_pending_approval_topic=settings.kafka_tickets_pending_approval_topic,
+        tickets_topic=settings.topics.TICKETS,
+        tickets_validated_topic=settings.topics.TICKETS_VALIDATED,
+        tickets_rejected_topic=settings.topics.TICKETS_REJECTED,
+        tickets_pending_approval_topic=settings.topics.TICKETS_PENDING_APPROVAL,
     )
     await ticket_consumer.connect()
     await ticket_consumer.start_consuming()
@@ -499,6 +503,9 @@ app = FastAPI(
 )
 
 # Incluir routers
+# HealthRouter (neural_hive_api) - rotas padronizadas
+health_router.add_route(app)
+# Manter compatibilidade com health.router existente
 app.include_router(health.router, tags=["health"])
 
 # Incluir router de validação

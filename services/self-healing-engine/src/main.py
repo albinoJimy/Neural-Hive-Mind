@@ -7,6 +7,7 @@ from pathlib import Path
 import structlog
 from fastapi import FastAPI
 
+from neural_hive_api.health import HealthRouter
 from neural_hive_observability import (
     init_observability,
 )
@@ -19,6 +20,9 @@ from src.consumers.orchestration_incident_consumer import OrchestrationIncidentC
 from src.consumers.remediation_consumer import RemediationConsumer
 from src.services.playbook_executor import PlaybookExecutor
 from src.services.remediation_manager import RemediationManager
+
+# Health Router (neural_hive_api)
+health_router = HealthRouter("self-healing-engine")
 
 # Configure structured logging
 structlog.configure(
@@ -152,7 +156,7 @@ async def lifespan(app: FastAPI):
     remediation_consumer = RemediationConsumer(
         bootstrap_servers=settings.kafka_bootstrap_servers,
         group_id=settings.kafka_consumer_group,
-        topic=settings.kafka_remediation_topic,
+        topic=settings.topics.REMEDIATION,
         playbook_executor=playbook_executor,
     )
     await remediation_consumer.start()
@@ -176,7 +180,7 @@ async def lifespan(app: FastAPI):
     incident_consumer = OrchestrationIncidentConsumer(
         bootstrap_servers=settings.kafka_bootstrap_servers,
         group_id=settings.kafka_incident_group,
-        topic=settings.kafka_incident_topic,
+        topic=settings.topics.INCIDENT,
         playbook_executor=playbook_executor,
         remediation_manager=app.state.remediation_manager,
         incident_schema=incident_schema,
@@ -274,6 +278,9 @@ app = FastAPI(
 )
 
 # Include routers
+# HealthRouter (neural_hive_api) - rotas padronizadas
+health_router.add_route(app)
+# Manter compatibilidade com health.router existente
 app.include_router(health.router, tags=["health"])
 app.include_router(remediation.router, tags=["remediation"])
 app.include_router(chaos.router, tags=["chaos"])

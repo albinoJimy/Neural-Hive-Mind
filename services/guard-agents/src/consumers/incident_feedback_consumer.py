@@ -97,7 +97,7 @@ class IncidentFeedbackConsumer:
 
     async def initialize(self):
         """Inicializa o consumer Kafka."""
-        topic = self.settings.kafka_incidents_topic
+        topic = self.settings.topics.INCIDENTS
         logger.info("Inicializando IncidentFeedbackConsumer", topic=topic)
 
         consumer_config = {

@@ -3,6 +3,26 @@ from functools import lru_cache
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from neural_hive_api.kafka import KafkaTopicsConfig
+
+
+class SelfHealingTopics(KafkaTopicsConfig):
+    """Configuração de tópicos Kafka para self-healing-engine."""
+
+    PREFIX = "self-healing"
+
+    def __init__(self):
+        super().__init__()
+        self.REMEDIATION = self.get_topic("remediation", "actions")
+        self.INCIDENT = self.get_topic("orchestration", "incidents")
+
+    def get_all_topics(self) -> dict[str, str]:
+        """Retorna mapping nome_tópico → tópico."""
+        return {
+            "remediation": self.REMEDIATION,
+            "incident": self.INCIDENT,
+        }
+
 
 class Settings(BaseSettings):
     """Self-Healing Engine configuration"""
@@ -20,11 +40,12 @@ class Settings(BaseSettings):
     # Kafka Config
     kafka_bootstrap_servers: str
     kafka_consumer_group: str = "self-healing-engine"
-    kafka_remediation_topic: str = "remediation-actions"
     kafka_auto_offset_reset: str = "earliest"
-    kafka_incident_topic: str = "orchestration.incidents"
     kafka_incident_group: str = "self-healing-incidents"
     schemas_base_path: str = "./schemas"
+
+    # Kafka Topics (gerenciado via SelfHealingTopics)
+    topics: SelfHealingTopics = SelfHealingTopics()
 
     # Kubernetes Config
     kubernetes_in_cluster: bool = True

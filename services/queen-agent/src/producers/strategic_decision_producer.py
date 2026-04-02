@@ -31,7 +31,7 @@ class StrategicDecisionProducer:
             await self.producer.start()
             logger.info(
                 "strategic_decision_producer_initialized",
-                topic=self.settings.KAFKA_TOPICS_STRATEGIC,
+                topic=self.settings.topics.STRATEGIC,
             )
 
         except Exception as e:
@@ -64,7 +64,7 @@ class StrategicDecisionProducer:
 
             # Enviar com key=decision_id para particionamento consistente
             await self.producer.send_and_wait(
-                self.settings.KAFKA_TOPICS_STRATEGIC,
+                self.settings.topics.STRATEGIC,
                 key=decision.decision_id.encode("utf-8"),
                 value=decision_dict,
                 headers=headers,
@@ -74,7 +74,7 @@ class StrategicDecisionProducer:
                 "strategic_decision_published",
                 decision_id=decision.decision_id,
                 decision_type=decision.decision_type.value,
-                topic=self.settings.KAFKA_TOPICS_STRATEGIC,
+                topic=self.settings.topics.STRATEGIC,
             )
 
             return True

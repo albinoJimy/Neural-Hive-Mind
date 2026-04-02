@@ -7,6 +7,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import PlainTextResponse
 from prometheus_client import generate_latest
 
+from neural_hive_api.health import HealthRouter
 from neural_hive_domain import UnifiedDomain
 
 from ..config import get_settings
@@ -26,13 +27,18 @@ app = FastAPI(
 _engine: Optional[ExplorationEngine] = None
 _agent_start_time: datetime = datetime.now(timezone.utc)
 _agent_id: str = ""
+_health_router: Optional[HealthRouter] = None
 
 
 def init_app(engine: ExplorationEngine, agent_id: str):
     """Initialize app with engine reference"""
-    global _engine, _agent_id
+    global _engine, _agent_id, _health_router
     _engine = engine
     _agent_id = agent_id
+
+    # Adicionar HealthRouter padronizado
+    _health_router = HealthRouter("scout-agents")
+    _health_router.add_route(app)
 
 
 @app.get("/health/live")

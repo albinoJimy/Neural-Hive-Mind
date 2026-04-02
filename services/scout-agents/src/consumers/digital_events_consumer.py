@@ -65,7 +65,7 @@ class DigitalEventsConsumer:
 
     async def initialize(self):
         """Inicializa o consumer Kafka."""
-        topic = getattr(self.settings.kafka, "topics_digital_events", "digital.events")
+        topic = self.settings.topics.DIGITAL_EVENTS
         logger.info("Inicializando DigitalEventsConsumer", topic=topic)
 
         self.consumer = AIOKafkaConsumer(

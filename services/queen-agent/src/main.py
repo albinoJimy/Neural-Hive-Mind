@@ -6,6 +6,7 @@ import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from neural_hive_api.health import HealthRouter
 from neural_hive_observability import (
     ObservabilityConfig,
     create_instrumented_async_grpc_server,
@@ -106,6 +107,9 @@ class AppState:
 
         # Background tasks
         self.consumer_tasks: list[asyncio.Task] = []
+
+        # Health Router (neural_hive_api)
+        self.health_router = HealthRouter("queen-agent")
 
 
 app_state = AppState()
@@ -461,6 +465,9 @@ app.add_middleware(
 )
 
 # Montar routers
+# HealthRouter (neural_hive_api) - rotas padronizadas
+app_state.health_router.add_route(app)
+# Manter compatibilidade com health_router existente
 app.include_router(health_router)
 app.include_router(decisions_router)
 app.include_router(exceptions_router)

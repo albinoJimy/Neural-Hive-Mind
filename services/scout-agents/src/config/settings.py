@@ -5,6 +5,28 @@ from typing import Any, Dict, Optional
 from pydantic import BaseModel, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from neural_hive_api.kafka import KafkaTopicsConfig
+
+
+class ScoutTopics(KafkaTopicsConfig):
+    """Configuração de tópicos Kafka para scout-agents."""
+
+    PREFIX = "scout"
+
+    def __init__(self):
+        super().__init__()
+        self.SIGNALS = self.get_topic("exploration", "signals")
+        self.OPPORTUNITIES = self.get_topic("exploration", "opportunities")
+        self.DIGITAL_EVENTS = self.get_topic("digital", "events")
+
+    def get_all_topics(self) -> dict[str, str]:
+        """Retorna mapping nome_tópico → tópico."""
+        return {
+            "signals": self.SIGNALS,
+            "opportunities": self.OPPORTUNITIES,
+            "digital_events": self.DIGITAL_EVENTS,
+        }
+
 
 class ServiceConfig(BaseModel):
     """Service configuration"""
@@ -20,11 +42,12 @@ class KafkaConfig(BaseModel):
 
     bootstrap_servers: str = Field(default="localhost:9092", description="Kafka bootstrap servers")
     consumer_group_id: str = Field(default="scout-agents-dev", description="Consumer group ID")
-    topics_signals: str = Field(default="exploration-signals", description="Signals topic")
+    # Topics gerenciados via ScoutTopics - mantidos para compatibilidade
+    topics_signals: str = Field(default="scout.exploration.signals", description="Signals topic (deprecated)")
     topics_opportunities: str = Field(
-        default="exploration-opportunities", description="Opportunities topic"
+        default="scout.exploration.opportunities", description="Opportunities topic (deprecated)"
     )
-    topics_digital_events: str = Field(default="digital.events", description="Digital events topic")
+    topics_digital_events: str = Field(default="scout.digital.events", description="Digital events topic (deprecated)")
     enable_sasl: bool = Field(default=False, description="Enable SASL authentication")
     sasl_mechanism: str = Field(default="PLAIN", description="SASL mechanism")
     sasl_username: Optional[str] = Field(default=None, description="SASL username")
@@ -145,6 +168,9 @@ class Settings(BaseSettings):
     pheromone: PheromoneConfig = Field(default_factory=PheromoneConfig)
     detection: DetectionConfig = Field(default_factory=DetectionConfig)
     observability: ObservabilityConfig = Field(default_factory=ObservabilityConfig)
+
+    # Kafka Topics (gerenciado via ScoutTopics)
+    topics: ScoutTopics = Field(default_factory=ScoutTopics)
 
 
 @lru_cache

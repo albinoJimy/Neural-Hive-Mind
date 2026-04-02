@@ -4,6 +4,38 @@ from typing import Optional
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from neural_hive_api.kafka import KafkaTopicsConfig
+
+
+class GuardTopics(KafkaTopicsConfig):
+    """Configuração de tópicos Kafka para guard-agents."""
+
+    PREFIX = "guard"
+
+    def __init__(self):
+        super().__init__()
+        self.INCIDENTS = self.get_topic("security", "incidents")
+        self.ORCHESTRATION_INCIDENTS = self.get_topic("orchestration", "incidents")
+        self.REMEDIATION = self.get_topic("remediation", "actions")
+        self.TICKETS = self.get_topic("execution", "tickets")
+        self.TICKETS_VALIDATED = self.get_topic("execution", "tickets.validated")
+        self.TICKETS_REJECTED = self.get_topic("execution", "tickets.rejected")
+        self.TICKETS_PENDING_APPROVAL = self.get_topic("execution", "tickets.pending_approval")
+        self.VALIDATIONS = self.get_topic("security", "validations")
+
+    def get_all_topics(self) -> dict[str, str]:
+        """Retorna mapping nome_tópico → tópico."""
+        return {
+            "incidents": self.INCIDENTS,
+            "orchestration_incidents": self.ORCHESTRATION_INCIDENTS,
+            "remediation": self.REMEDIATION,
+            "tickets": self.TICKETS,
+            "tickets_validated": self.TICKETS_VALIDATED,
+            "tickets_rejected": self.TICKETS_REJECTED,
+            "tickets_pending_approval": self.TICKETS_PENDING_APPROVAL,
+            "validations": self.VALIDATIONS,
+        }
+
 
 class Settings(BaseSettings):
     """Configurações do Guard Agents via variáveis de ambiente"""
@@ -25,16 +57,11 @@ class Settings(BaseSettings):
     # Kafka Config
     kafka_bootstrap_servers: str = "neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092"
     kafka_consumer_group: str = "guard-agents"
-    kafka_incidents_topic: str = "security-incidents"
-    kafka_orchestration_incidents_topic: str = "orchestration-incidents"
-    kafka_remediation_topic: str = "remediation-actions"
-    kafka_tickets_topic: str = "execution.tickets"
-    kafka_tickets_validated_topic: str = "execution.tickets.validated"
-    kafka_tickets_rejected_topic: str = "execution.tickets.rejected"
-    kafka_tickets_pending_approval_topic: str = "execution.tickets.pending_approval"
-    kafka_validations_topic: str = "security.validations"
     kafka_auto_offset_reset: str = "earliest"
     kafka_enable_auto_commit: bool = False
+
+    # Kafka Topics (gerenciado via GuardTopics)
+    topics: GuardTopics = GuardTopics()
 
     # Service Registry Config (use _GRPC_ to avoid Kubernetes service discovery collision)
     service_registry_grpc_host: str = "service-registry.neural-hive.svc.cluster.local"

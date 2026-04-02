@@ -244,7 +244,7 @@ async def approve_validation(
         # 4. Publicar ticket aprovado em execution.tickets.validated
         # (buscar ticket original do MongoDB ou reconstruir a partir dos dados da validação)
         await validation_producer.publish_to_topic(
-            topic=settings.kafka_tickets_validated_topic,
+            topic=settings.topics.TICKETS_VALIDATED,
             key=validation.ticket_id,
             value={
                 "ticket_id": validation.ticket_id,
@@ -330,7 +330,7 @@ async def reject_validation(validation_id: str, request: ApprovalRequest, fastap
 
         # 4. Publicar ticket rejeitado em execution.tickets.rejected
         await validation_producer.publish_to_topic(
-            topic=settings.kafka_tickets_rejected_topic,
+            topic=settings.topics.TICKETS_REJECTED,
             key=validation.ticket_id,
             value={
                 "ticket_id": validation.ticket_id,

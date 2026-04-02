@@ -34,7 +34,7 @@ class IncidentConsumer:
         """Inicializar consumer Kafka"""
         try:
             self.consumer = AIOKafkaConsumer(
-                self.settings.KAFKA_TOPICS_INCIDENTS,
+                self.settings.topics.INCIDENTS,
                 bootstrap_servers=self.settings.KAFKA_BOOTSTRAP_SERVERS,
                 group_id=self.settings.KAFKA_CONSUMER_GROUP,
                 auto_offset_reset=self.settings.KAFKA_AUTO_OFFSET_RESET,
@@ -46,7 +46,7 @@ class IncidentConsumer:
             await self.consumer.start()
             logger.info(
                 "incident_consumer_initialized",
-                topic=self.settings.KAFKA_TOPICS_INCIDENTS,
+                topic=self.settings.topics.INCIDENTS,
             )
 
         except Exception as e:
