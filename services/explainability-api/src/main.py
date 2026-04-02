@@ -27,8 +27,13 @@ from starlette.responses import Response
 
 # Inicializar observabilidade
 from neural_hive_observability import init_observability
+from neural_hive_api.health import HealthRouter
 from src.consumers.consensus_decision_consumer import ConsensusDecisionConsumer
 from src.producers.explanation_producer import ExplanationProducer
+
+
+# Health Router (neural_hive_api)
+health_router = HealthRouter("explainability-api")
 
 # Serviços internos
 from src.services.api_extensions import ExplainabilityAPIExtensions
@@ -189,6 +194,9 @@ if ENABLE_V3_API:
 app = FastAPI(
     title="Explainability API", description=api_description, version=api_version, lifespan=lifespan
 )
+
+# HealthRouter (neural_hive_api) - rotas padronizadas
+health_router.add_route(app)
 
 # ========== HEALTH ENDPOINTS ==========
 

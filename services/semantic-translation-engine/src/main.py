@@ -36,6 +36,7 @@ from src.services.risk_scorer import RiskScorer
 from src.services.semantic_parser import SemanticParser
 from src.services.task_splitter import TaskSplitter
 
+from neural_hive_api.health import HealthRouter
 from neural_hive_observability import (
     init_observability,
     instrument_kafka_consumer,
@@ -50,6 +51,9 @@ logger = structlog.get_logger()
 
 # Global state for clients
 state = {}
+
+# Health Router (neural_hive_api)
+health_router = HealthRouter("semantic-translation-engine")
 
 
 async def validate_kafka_topics_exist(settings) -> None:
@@ -563,6 +567,9 @@ app.add_middleware(
 
 # Register metrics
 register_metrics()
+
+# HealthRouter (neural_hive_api) - rotas padronizadas
+health_router.add_route(app)
 
 
 @app.get("/health")

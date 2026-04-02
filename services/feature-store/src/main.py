@@ -16,6 +16,8 @@ from src.config.settings import get_settings
 from src.services.cache_service import RedisCacheService
 from src.services.feature_store import FeatureStoreService
 
+from neural_hive_api.health import HealthRouter
+
 # Configure structured logging
 structlog.configure(
     processors=[
@@ -36,6 +38,9 @@ logger = structlog.get_logger()
 
 # Estado global para clientes
 state = {}
+
+# Health Router (neural_hive_api)
+health_router = HealthRouter("feature-store")
 
 
 @asynccontextmanager
@@ -111,6 +116,9 @@ app.add_middleware(
 )
 
 # Inclui routers
+# HealthRouter (neural_hive_api) - rotas padronizadas
+health_router.add_route(app)
+# Manter compatibilidade com health.py existente
 app.include_router(health.router)
 app.include_router(features.router)
 

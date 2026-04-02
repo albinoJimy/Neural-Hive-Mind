@@ -1,10 +1,30 @@
 """
 Memory Layer API Settings
 """
-from typing import Optional
+from typing import Dict, Optional
 
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings
+
+from neural_hive_api.kafka import KafkaTopicsConfig
+
+
+class MemoryTopics(KafkaTopicsConfig):
+    """Configuracao de topicos Kafka para memory-layer-api."""
+
+    PREFIX = "memory"
+
+    def __init__(self):
+        super().__init__()
+        self.SYNC_EVENTS = self.get_topic("sync", "events")
+        self.DLQ = self.get_topic("sync", "events.dlq")
+
+    def get_all_topics(self) -> Dict[str, str]:
+        """Retorna mapping nome_topico -> topico."""
+        return {
+            "sync_events": self.SYNC_EVENTS,
+            "dlq": self.DLQ,
+        }
 
 
 class Settings(BaseSettings):
@@ -85,6 +105,15 @@ class Settings(BaseSettings):
         default="memory.sync.events.dlq",
         description="Topic de Dead Letter Queue para eventos com falha",
     )
+
+    # Kafka Topics (gerenciado via MemoryTopics)
+    @property
+    def topics(self) -> MemoryTopics:
+        """Retorna instancia de MemoryTopics com valores das configuracoes."""
+        topics_instance = MemoryTopics()
+        topics_instance.SYNC_EVENTS = self.kafka_sync_topic
+        topics_instance.DLQ = self.kafka_dlq_topic
+        return topics_instance
     kafka_schema_registry_url: str = Field(
         default="https://schema-registry.kafka.svc.cluster.local:8081",
         description="URL do Schema Registry",

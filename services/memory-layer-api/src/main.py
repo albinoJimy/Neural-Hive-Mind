@@ -9,6 +9,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
+from neural_hive_api.health import HealthRouter
 from src.clients.clickhouse_client import ClickHouseClient
 from src.clients.kafka_sync_producer import KafkaSyncProducer
 from src.clients.unified_memory_client import UnifiedMemoryClient
@@ -24,6 +25,9 @@ logger = structlog.get_logger(__name__)
 
 # Global state
 app_state: Dict[str, Any] = {}
+
+# Health Router (neural_hive_api)
+health_router = HealthRouter("memory-layer-api")
 
 
 @asynccontextmanager
@@ -198,6 +202,9 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+# HealthRouter (neural_hive_api) - rotas padronizadas
+health_router.add_route(app)
 
 
 @app.get("/health")

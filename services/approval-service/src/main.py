@@ -25,6 +25,8 @@ from src.producers.approval_response_producer import ApprovalResponseProducer
 from src.services.approval_service import ApprovalService
 from src.services.ml_predictor_service import get_ml_predictor_service
 
+from neural_hive_api.health import HealthRouter
+
 # Import opcional - pode nao estar disponivel em todos os ambientes
 try:
     from neural_hive_specialists.feedback import FeedbackCollector
@@ -54,6 +56,9 @@ logger = structlog.get_logger()
 
 # Estado global para clientes
 state = {}
+
+# Health Router (neural_hive_api)
+health_router = HealthRouter("approval-service")
 
 
 async def validate_kafka_topics_exist(settings) -> None:
@@ -362,6 +367,9 @@ app.add_middleware(
 register_metrics()
 
 # Inclui routers
+# HealthRouter (neural_hive_api) - rotas padronizadas
+health_router.add_route(app)
+# Manter compatibilidade com health.py existente
 app.include_router(health.router)
 app.include_router(approvals.router)
 app.include_router(active_learning.router)

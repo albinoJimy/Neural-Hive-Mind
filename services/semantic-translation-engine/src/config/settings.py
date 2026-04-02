@@ -4,12 +4,45 @@ Configuration Settings for Semantic Translation Engine
 Manages all configuration using Pydantic Settings with environment variable support.
 """
 
-from typing import Any
+from typing import Any, Dict
 
 from pydantic import Field, ValidationInfo, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from neural_hive_api.kafka import KafkaTopicsConfig
 from neural_hive_security.cors import CORSConfig
+
+
+class SemanticTranslationTopics(KafkaTopicsConfig):
+    """Configuracao de topicos Kafka para semantic-translation-engine."""
+
+    PREFIX = "semantic"
+
+    def __init__(self):
+        super().__init__()
+        self.INTENTIONS = [
+            self.get_topic("intentions", "business"),
+            self.get_topic("intentions", "technical"),
+            self.get_topic("intentions", "infrastructure"),
+            self.get_topic("intentions", "security"),
+            self.get_topic("intentions", "validation"),
+        ]
+        self.PLANS_READY = self.get_topic("plans", "ready")
+        self.APPROVAL_REQUESTS = self.get_topic("cognitive-plans", "approval-requests")
+        self.APPROVAL_RESPONSES = self.get_topic("cognitive-plans", "approval-responses")
+        self.REJECTION_NOTIFICATIONS = self.get_topic("cognitive-plans", "rejection-notifications")
+        self.APPROVAL_DLQ = self.get_topic("cognitive-plans", "approval-dlq")
+
+    def get_all_topics(self) -> Dict[str, str]:
+        """Retorna mapping nome_topico -> topico."""
+        return {
+            "intentions": self.INTENTIONS,
+            "plans_ready": self.PLANS_READY,
+            "approval_requests": self.APPROVAL_REQUESTS,
+            "approval_responses": self.APPROVAL_RESPONSES,
+            "rejection_notifications": self.REJECTION_NOTIFICATIONS,
+            "approval_dlq": self.APPROVAL_DLQ,
+        }
 
 
 class Settings(BaseSettings):
@@ -87,6 +120,20 @@ class Settings(BaseSettings):
 
     kafka_enable_idempotence: bool = Field(default=True, description="Enable idempotence")
     kafka_transactional_id: str | None = Field(None, description="Transactional ID")
+
+    # Kafka Topics (gerenciado via SemanticTranslationTopics)
+    @property
+    def topics(self) -> SemanticTranslationTopics:
+        """Retorna instancia de SemanticTranslationTopics com valores das configuracoes."""
+        topics_instance = SemanticTranslationTopics()
+        # Sobrescrever valores com configuracoes existentes (backward compatibility)
+        topics_instance.INTENTIONS = self.kafka_topics
+        topics_instance.PLANS_READY = self.kafka_plans_topic
+        topics_instance.APPROVAL_REQUESTS = self.kafka_approval_topic
+        topics_instance.APPROVAL_RESPONSES = self.kafka_approval_responses_topic
+        topics_instance.REJECTION_NOTIFICATIONS = self.kafka_rejection_notifications_topic
+        topics_instance.APPROVAL_DLQ = self.kafka_approval_dlq_topic
+        return topics_instance
 
     # Kafka Security
     kafka_security_protocol: str = Field(default="PLAINTEXT", description="Security protocol")

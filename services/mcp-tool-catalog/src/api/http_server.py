@@ -5,6 +5,8 @@ from typing import Optional
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
+from neural_hive_api.health import HealthRouter
+
 # OpenTelemetry instrumentation - optional due to dependency issues
 try:
     from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
@@ -43,7 +45,11 @@ def create_app(lifespan: Optional[asynccontextmanager] = None) -> FastAPI:
         except Exception:
             pass  # Continue without telemetry if instrumentation fails
 
-    # Health endpoints
+    # HealthRouter (neural_hive_api) - rotas padronizadas
+    health_router = HealthRouter("mcp-tool-catalog")
+    health_router.add_route(app)
+
+    # Health endpoints legados para compatibilidade
     @app.get("/health")
     async def health():
         """Health check endpoint - verifica se o serviço está vivo."""

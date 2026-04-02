@@ -5,7 +5,26 @@ from typing import Dict, List, Optional
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from neural_hive_api.kafka import KafkaTopicsConfig
 from neural_hive_security.cors import CORSConfig
+
+
+class McpToolCatalogTopics(KafkaTopicsConfig):
+    """Configuracao de topicos Kafka para mcp-tool-catalog."""
+
+    PREFIX = "mcp"
+
+    def __init__(self):
+        super().__init__()
+        self.TOOL_SELECTION_REQUESTS = self.get_topic("tool", "selection.requests")
+        self.TOOL_SELECTION_RESPONSES = self.get_topic("tool", "selection.responses")
+
+    def get_all_topics(self) -> Dict[str, str]:
+        """Retorna mapping nome_topico -> topico."""
+        return {
+            "tool_selection_requests": self.TOOL_SELECTION_REQUESTS,
+            "tool_selection_responses": self.TOOL_SELECTION_RESPONSES,
+        }
 
 
 class Settings(BaseSettings):
@@ -33,6 +52,15 @@ class Settings(BaseSettings):
     KAFKA_TOOL_SELECTION_REQUEST_TOPIC: str = "mcp.tool.selection.requests"
     KAFKA_TOOL_SELECTION_RESPONSE_TOPIC: str = "mcp.tool.selection.responses"
     KAFKA_CONSUMER_GROUP_ID: str = "mcp-tool-catalog-group"
+
+    # Kafka Topics (gerenciado via McpToolCatalogTopics)
+    @property
+    def topics(self) -> McpToolCatalogTopics:
+        """Retorna instancia de McpToolCatalogTopics com valores das configuracoes."""
+        topics_instance = McpToolCatalogTopics()
+        topics_instance.TOOL_SELECTION_REQUESTS = self.KAFKA_TOOL_SELECTION_REQUEST_TOPIC
+        topics_instance.TOOL_SELECTION_RESPONSES = self.KAFKA_TOOL_SELECTION_RESPONSE_TOPIC
+        return topics_instance
 
     # MongoDB Configuration
     MONGODB_URL: str = Field(

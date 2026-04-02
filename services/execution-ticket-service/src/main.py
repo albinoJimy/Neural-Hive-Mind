@@ -11,12 +11,17 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from neural_hive_api.health import HealthRouter
 from neural_hive_observability import init_observability
 
 from .api import health_router, tickets_router
 from .config import get_settings
 from .database import close_redis_client, get_mongodb_client, get_postgres_client, get_redis_client
 from .observability import TicketServiceMetrics
+
+
+# Health Router (neural_hive_api)
+health_router_api = HealthRouter("execution-ticket-service")
 
 # Configurar logging
 logging.basicConfig(
@@ -273,6 +278,9 @@ def create_app() -> FastAPI:
     )
 
     # Registrar routers
+    # HealthRouter (neural_hive_api) - rotas padronizadas
+    health_router_api.add_route(app)
+    # Manter compatibilidade com health_router existente
     app.include_router(health_router, tags=["Health"])
     app.include_router(tickets_router, tags=["Tickets"])
 

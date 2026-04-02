@@ -4,12 +4,33 @@ Configuracao do Approval Service
 Gerencia todas as configuracoes usando Pydantic Settings com suporte a variaveis de ambiente.
 """
 
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings
 
+from neural_hive_api.kafka import KafkaTopicsConfig
 from neural_hive_security.cors import CORSConfig
+
+
+class ApprovalTopics(KafkaTopicsConfig):
+    """Configuracao de topicos Kafka para approval-service."""
+
+    PREFIX = "approval"
+
+    def __init__(self):
+        super().__init__()
+        self.REQUESTS = self.get_topic("cognitive-plans", "approval-requests")
+        self.RESPONSES = self.get_topic("cognitive-plans", "approval-responses")
+        self.SPECIALIST_FEEDBACK = self.get_topic("specialists", "feedback")
+
+    def get_all_topics(self) -> Dict[str, str]:
+        """Retorna mapping nome_topico -> topico."""
+        return {
+            "requests": self.REQUESTS,
+            "responses": self.RESPONSES,
+            "specialist_feedback": self.SPECIALIST_FEEDBACK,
+        }
 
 
 class Settings(BaseSettings):
@@ -52,6 +73,17 @@ class Settings(BaseSettings):
     # Kafka Producer configuration
     kafka_enable_idempotence: bool = Field(default=True, description="Habilitar idempotencia")
     kafka_transactional_id: Optional[str] = Field(None, description="ID transacional")
+
+    # Kafka Topics (gerenciado via ApprovalTopics)
+    @property
+    def topics(self) -> ApprovalTopics:
+        """Retorna instancia de ApprovalTopics com valores das configuracoes."""
+        topics_instance = ApprovalTopics()
+        # Sobrescrever valores com configuracoes existentes (backward compatibility)
+        topics_instance.REQUESTS = self.kafka_approval_requests_topic
+        topics_instance.RESPONSES = self.kafka_approval_responses_topic
+        topics_instance.SPECIALIST_FEEDBACK = self.kafka_specialist_feedback_topic
+        return topics_instance
 
     # Kafka Security
     kafka_security_protocol: str = Field(default="PLAINTEXT", description="Protocolo de seguranca")

@@ -2,12 +2,33 @@
 Configurações do Execution Ticket Service usando Pydantic Settings.
 """
 from functools import lru_cache
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from neural_hive_api.kafka import KafkaTopicsConfig
 from neural_hive_security.cors import CORSConfig
+
+
+class TicketTopics(KafkaTopicsConfig):
+    """Configuração de tópicos Kafka para execution-ticket-service."""
+
+    PREFIX = "tickets"
+
+    def __init__(self):
+        super().__init__()
+        self.EXECUTION = self.get_topic("execution", "tickets")
+        self.STATUS_UPDATES = self.get_topic("execution", "status-updates")
+        self.DLQ = self.get_topic("execution", "tickets.dlq")
+
+    def get_all_topics(self) -> Dict[str, str]:
+        """Retorna mapping nome_topico -> topico."""
+        return {
+            "execution": self.EXECUTION,
+            "status_updates": self.STATUS_UPDATES,
+            "dlq": self.DLQ,
+        }
 
 
 class TicketServiceSettings(BaseSettings):
@@ -48,6 +69,22 @@ class TicketServiceSettings(BaseSettings):
         default="execution-ticket-service", description="Group ID do consumer"
     )
     kafka_tickets_topic: str = Field(default="execution.tickets", description="Tópico de tickets")
+    kafka_status_updates_topic: str = Field(
+        default="execution.status-updates", description="Tópico de atualizações de status"
+    )
+    kafka_dlq_topic: str = Field(
+        default="execution.tickets.dlq", description="Tópico Dead Letter Queue"
+    )
+
+    # Kafka Topics (gerenciado via TicketTopics)
+    @property
+    def topics(self) -> TicketTopics:
+        """Retorna instancia de TicketTopics com valores das configuracoes."""
+        topics_instance = TicketTopics()
+        topics_instance.EXECUTION = self.kafka_tickets_topic
+        topics_instance.STATUS_UPDATES = self.kafka_status_updates_topic
+        topics_instance.DLQ = self.kafka_dlq_topic
+        return topics_instance
     kafka_auto_offset_reset: str = Field(default="earliest", description="Reset de offset")
     kafka_enable_auto_commit: bool = Field(
         default=False, description="Auto commit (manual para controle)"
