@@ -11,7 +11,7 @@ from neural_hive_api.health import HealthRouter
 from neural_hive_observability import (
     init_observability,
 )
-from src.api import chaos, health, remediation
+from src.api import chaos, remediation
 from src.clients.execution_ticket_client import SelfHealingTicketClient
 from src.clients.orchestrator_client import OrchestratorClient
 from src.clients.service_registry_client import ServiceRegistryClient
@@ -280,8 +280,6 @@ app = FastAPI(
 # Include routers
 # HealthRouter (neural_hive_api) - rotas padronizadas
 health_router.add_route(app)
-# Manter compatibilidade com health.router existente
-app.include_router(health.router, tags=["health"])
 app.include_router(remediation.router, tags=["remediation"])
 app.include_router(chaos.router, tags=["chaos"])
 

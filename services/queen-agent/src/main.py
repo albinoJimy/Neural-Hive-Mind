@@ -17,7 +17,6 @@ from .api import (
     decisions_router,
     election_router,
     exceptions_router,
-    health_router,
     mcp_router,
     status_router,
     workers_router,
@@ -467,8 +466,6 @@ app.add_middleware(
 # Montar routers
 # HealthRouter (neural_hive_api) - rotas padronizadas
 app_state.health_router.add_route(app)
-# Manter compatibilidade com health_router existente
-app.include_router(health_router)
 app.include_router(decisions_router)
 app.include_router(exceptions_router)
 app.include_router(status_router)

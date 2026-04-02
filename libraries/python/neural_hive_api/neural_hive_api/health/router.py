@@ -22,6 +22,9 @@ class HealthRouter:
         app.add_api_route("/health", self._health)
         app.add_api_route("/health/live", self._liveness)
         app.add_api_route("/health/ready", self._readiness)
+        # Legacy endpoints for backward compatibility
+        app.add_api_route("/live", self._liveness)
+        app.add_api_route("/ready", self._readiness)
 
     async def _execute_checks(self) -> dict[str, tuple[HealthStatus, bool]]:
         """Executa todos os checks e retorna resultados com criticidade."""

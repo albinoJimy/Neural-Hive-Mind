@@ -14,7 +14,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.adapters.feedback_config_adapter import create_feedback_collector_config
-from src.api.routers import active_learning, approvals, dashboard, health
+from src.api.routers import active_learning, approvals, dashboard
 from src.clients.cognitive_ledger_client import CognitiveLedgerClient
 from src.clients.feature_store_client import FeatureStoreClient
 from src.clients.mongodb_client import MongoDBClient
@@ -369,8 +369,6 @@ register_metrics()
 # Inclui routers
 # HealthRouter (neural_hive_api) - rotas padronizadas
 health_router.add_route(app)
-# Manter compatibilidade com health.py existente
-app.include_router(health.router)
 app.include_router(approvals.router)
 app.include_router(active_learning.router)
 app.include_router(dashboard.router)

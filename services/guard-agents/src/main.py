@@ -6,7 +6,6 @@ from fastapi import FastAPI
 
 from neural_hive_api.health import HealthRouter
 from neural_hive_observability import init_observability
-from src.api import health
 from src.config.settings import get_settings
 from src.services.threat_detector import ThreatDetector
 
@@ -505,8 +504,6 @@ app = FastAPI(
 # Incluir routers
 # HealthRouter (neural_hive_api) - rotas padronizadas
 health_router.add_route(app)
-# Manter compatibilidade com health.router existente
-app.include_router(health.router, tags=["health"])
 
 # Incluir router de validação
 from src.api import validation

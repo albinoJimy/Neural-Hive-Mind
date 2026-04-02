@@ -11,7 +11,7 @@ from neural_hive_observability.config import ObservabilityConfig
 from neural_hive_observability.health import HealthChecker
 from neural_hive_observability.health_checks.clickhouse import ClickHouseSchemaHealthCheck
 
-from .api import analytics, analytics_v2, health, insights, multi_source, semantics, status
+from .api import analytics, analytics_v2, insights, multi_source, semantics, status
 from .clients import (
     ClickHouseClient,
     ElasticsearchClient,
@@ -468,8 +468,6 @@ app.add_middleware(
 # Routers
 # HealthRouter (neural_hive_api) - rotas padronizadas
 app_state.health_router.add_route(app)
-# Manter compatibilidade com health.py existente
-app.include_router(health.router, tags=["health"])
 app.include_router(insights.router, prefix="/api/v1", tags=["insights"])
 app.include_router(analytics.router, prefix="/api/v1", tags=["analytics"])
 app.include_router(analytics_v2.router, prefix="/api/v1", tags=["analytics-v2"])

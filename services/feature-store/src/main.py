@@ -10,7 +10,7 @@ from contextlib import asynccontextmanager
 import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from src.api.routers import features, health
+from src.api.routers import features
 from src.clients.mongodb_client import MongoDBClient
 from src.config.settings import get_settings
 from src.services.cache_service import RedisCacheService
@@ -118,8 +118,6 @@ app.add_middleware(
 # Inclui routers
 # HealthRouter (neural_hive_api) - rotas padronizadas
 health_router.add_route(app)
-# Manter compatibilidade com health.py existente
-app.include_router(health.router)
 app.include_router(features.router)
 
 
