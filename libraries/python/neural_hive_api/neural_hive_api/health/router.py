@@ -1,8 +1,8 @@
 """Health router implementation."""
 
-from datetime import datetime
-from fastapi import FastAPI, Response
-from .models import HealthResponse, HealthStatus, CheckResult
+from datetime import datetime, timezone
+from fastapi import FastAPI
+from .models import HealthResponse, HealthStatus
 from .checks import BaseHealthCheck
 
 
@@ -66,7 +66,7 @@ class HealthRouter:
         return HealthResponse(
             status=status,
             service=self.service_name,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             checks=checks
         )
 
@@ -75,7 +75,7 @@ class HealthRouter:
         return HealthResponse(
             status=HealthStatus.HEALTHY,
             service=self.service_name,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             checks={}
         )
 
@@ -87,6 +87,6 @@ class HealthRouter:
         return HealthResponse(
             status=status,
             service=self.service_name,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             checks=checks
         )
