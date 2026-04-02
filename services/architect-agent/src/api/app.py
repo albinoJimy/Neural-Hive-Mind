@@ -4,6 +4,7 @@ import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from neural_hive_api.health import HealthRouter
 from src.api.routers import architecture, validation
 from src.config.settings import get_settings
 
@@ -35,16 +36,9 @@ def create_app() -> FastAPI:
     app.include_router(architecture.router)
     app.include_router(validation.router)
 
-    # Health checks
-    @app.get("/health/live")
-    async def liveness():
-        """Health check - liveness."""
-        return {"status": "alive"}
-
-    @app.get("/health/ready")
-    async def readiness():
-        """Health check - readiness."""
-        return {"status": "ready"}
+    # Health checks - usa HealthRouter padronizado do neural_hive_api
+    health_router = HealthRouter(settings.service.service_name)
+    health_router.add_route(app)
 
     logger.info(
         "app_created",

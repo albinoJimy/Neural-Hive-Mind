@@ -1,13 +1,12 @@
 """Testes unitários para API REST."""
 
-import pytest
-from unittest.mock import Mock, AsyncMock, patch
 from datetime import datetime, timezone
+from unittest.mock import AsyncMock, Mock, patch
 
+import pytest
 from fastapi.testclient import TestClient
 from src.api.app import create_app
-from src.api.schemas import ArchitectureRequest, ValidationRequest
-from src.models.architecture import Component, ArchitectureType, Pattern
+from src.models.architecture import Component, Pattern
 
 
 @pytest.fixture
@@ -18,19 +17,37 @@ def client():
 
 # Health check tests (no mocking needed)
 def test_liveness(client):
-    """Testa health check liveness."""
+    """Testa health check liveness com HealthRouter do neural_hive_api."""
     response = client.get("/health/live")
 
     assert response.status_code == 200
-    assert response.json() == {"status": "alive"}
+    data = response.json()
+    assert data["status"] == "healthy"
+    assert data["service"] == "architect-agent"
+    assert "timestamp" in data
 
 
 def test_readiness(client):
-    """Testa health check readiness."""
+    """Testa health check readiness com HealthRouter do neural_hive_api."""
     response = client.get("/health/ready")
 
     assert response.status_code == 200
-    assert response.json() == {"status": "ready"}
+    data = response.json()
+    assert data["service"] == "architect-agent"
+    assert "timestamp" in data
+    assert "checks" in data
+
+
+def test_health_endpoint(client):
+    """Testa health endpoint principal."""
+    response = client.get("/health")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["service"] == "architect-agent"
+    assert "status" in data
+    assert "timestamp" in data
+    assert "checks" in data
 
 
 def test_create_architecture_invalid(client):
@@ -65,9 +82,7 @@ def test_create_architecture():
     plan_mock.plan_id = "arch-123"
     plan_mock.cognitive_plan_id = "cog-123"
     plan_mock.architecture_type = Mock(value="microservices")
-    plan_mock.components = [
-        Component(name="api", stack="python/fastapi", replicas=1, ha=False)
-    ]
+    plan_mock.components = [Component(name="api", stack="python/fastapi", replicas=1, ha=False)]
     plan_mock.patterns = [Pattern.REPOSITORY]
     plan_mock.rationale = "Test architecture"
     plan_mock.created_at = datetime.now(timezone.utc)
