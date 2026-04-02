@@ -4,7 +4,46 @@ from typing import Optional
 from pydantic import Field, PrivateAttr, field_validator, model_validator
 from pydantic_settings import BaseSettings
 
+from neural_hive_api.kafka import KafkaTopicsConfig
 from neural_hive_security.cors import CORSConfig
+
+
+class GatewayTopics(KafkaTopicsConfig):
+    """Configuração de tópicos Kafka para gateway-intencoes.
+
+    O gateway constrói tópicos dinamicamente baseados no domínio da intent:
+    - intentions.{domain} (ex: intentions.business, intentions.technical)
+    - dlq.intentions.{domain} (Dead Letter Queue)
+    """
+
+    PREFIX = ""
+
+    def __init__(self):
+        super().__init__()
+        # Exemplos de tópicos comuns (referência)
+        self.INTENTIONS_BUSINESS = "intentions.business"
+        self.INTENTIONS_TECHNICAL = "intentions.technical"
+        self.INTENTIONS_BEHAVIOR = "intentions.behavior"
+        self.DLQ_BUSINESS = "dlq.intentions.business"
+        self.DLQ_TECHNICAL = "dlq.intentions.technical"
+
+    def get_domain_topic(self, domain: str) -> str:
+        """Retorna tópico para um domínio específico."""
+        return f"intentions.{domain.lower()}"
+
+    def get_dlq_topic(self, domain: str) -> str:
+        """Retorna tópico DLQ para um domínio específico."""
+        return f"dlq.intentions.{domain.lower()}"
+
+    def get_all_topics(self) -> dict[str, str]:
+        """Retorna mapping nome_tópico → tópico."""
+        return {
+            "intentions_business": self.INTENTIONS_BUSINESS,
+            "intentions_technical": self.INTENTIONS_TECHNICAL,
+            "intentions_behavior": self.INTENTIONS_BEHAVIOR,
+            "dlq_business": self.DLQ_BUSINESS,
+            "dlq_technical": self.DLQ_TECHNICAL,
+        }
 
 
 class Settings(BaseSettings):
@@ -79,6 +118,12 @@ class Settings(BaseSettings):
         description="Allowlist de tópicos (separados por vírgula) permitidos para fast producer. "
         "Vazio = nenhum tópico permitido. Usar apenas para tópicos não-críticos.",
     )
+
+    # Kafka Topics (gerenciado via GatewayTopics)
+    @property
+    def topics(self) -> GatewayTopics:
+        """Retorna instância de GatewayTopics."""
+        return GatewayTopics()
 
     # ASR Pipeline
     # Modelos disponíveis: tiny (39MB), base (142MB), small (466MB), medium (1.5GB), large (2.9GB)

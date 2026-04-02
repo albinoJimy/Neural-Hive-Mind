@@ -16,6 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from prometheus_client import make_asgi_app
 
+from neural_hive_api.health import HealthRouter
 from neural_hive_observability import get_logger, init_observability
 from src.config import get_settings
 from src.consumers.decision_consumer import DecisionConsumer
@@ -152,6 +153,7 @@ class AppState:
         self.self_healing_client: SelfHealingClient | None = None
         self.redis_client: Any | None = None
         self.vault_client: Any | None = None
+        self.health_router: HealthRouter | None = None  # neural_hive_api
         self.drift_detector: Any | None = None
         self.ml_training_jobs: dict[str, Any] = {}  # Dict para rastrear jobs de treinamento
         self.vault_renewal_task: asyncio.Task | None = None
@@ -253,6 +255,17 @@ async def lifespan(app: FastAPI):
                     service_name=config.service_name,
                 )
             except Exception as observability_error:
+                logger.warning(
+                    "Failed to initialize OpenTelemetry tracing via neural_hive_observability",
+                    error=str(observability_error),
+                )
+
+        # Initialize HealthRouter (neural_hive_api)
+        app_state.health_router = HealthRouter("orchestrator-dynamic")
+        app_state.health_router.add_route(app)
+        logger.info("health_router_initialized")
+
+        try:
                 logger.warning(
                     "Failed to initialize OpenTelemetry tracing via neural_hive_observability",
                     error=str(observability_error),
@@ -1396,6 +1409,13 @@ def _get_predictor_info(model_name: str) -> dict | None:
 async def health_check():
     """Health check básico com status do Redis e Vault."""
     from datetime import datetime
+
+    # Usar HealthRouter do neural_hive_api se disponível (fallback)
+    if app_state.health_router:
+        try:
+            return await app_state.health_router.get_health()
+        except Exception:
+            pass  # Fallback para implementação customizada
 
     config = get_settings()
     overall_status = "healthy"

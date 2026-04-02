@@ -16,6 +16,7 @@ from src.config import get_settings
 from src.consumers import PlanConsumer
 from src.producers import DecisionProducer
 
+from neural_hive_api.health import HealthRouter
 from neural_hive_observability import (
     init_observability,
     instrument_kafka_consumer,
@@ -52,6 +53,9 @@ class AppState:
     consumer_task = None
     producer_task = None
     health_checker: HealthChecker = None
+
+    # Health Router (neural_hive_api)
+    health_router: HealthRouter = None
 
 
 state = AppState()
@@ -91,6 +95,11 @@ async def startup_event():
     )
     state.health_checker.register_check(otel_health_check)
     logger.info("otel_pipeline_health_check_registered", otel_endpoint=settings.otel_endpoint)
+
+    # Initialize HealthRouter (neural_hive_api)
+    state.health_router = HealthRouter("consensus-engine")
+    state.health_router.add_route(app)
+    logger.info("health_router_initialized")
 
     try:
         # Inicializar clientes
@@ -229,6 +238,9 @@ async def shutdown_event():
 @app.get("/health")
 async def health():
     """Health check básico"""
+    # Usar HealthRouter do neural_hive_api se disponível
+    if state.health_router:
+        return await state.health_router.get_health()
     return {"status": "healthy", "service": "consensus-engine"}
 
 

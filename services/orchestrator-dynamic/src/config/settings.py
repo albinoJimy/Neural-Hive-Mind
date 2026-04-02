@@ -10,7 +10,30 @@ from functools import lru_cache
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from neural_hive_api.kafka import KafkaTopicsConfig
 from neural_hive_security.cors import CORSConfig
+
+
+class OrchestratorTopics(KafkaTopicsConfig):
+    """Configuração de tópicos Kafka para orchestrator-dynamic."""
+
+    PREFIX = "orchestrator"
+
+    def __init__(self):
+        super().__init__()
+        self.CONSENSUS = self.get_topic("plans", "consensus")
+        self.TICKETS = self.get_topic("execution", "tickets")
+        self.SAGA_EVENTS = self.get_topic("saga", "events")
+        self.EXECUTION_RESULTS = self.get_topic("execution", "results")
+
+    def get_all_topics(self) -> dict[str, str]:
+        """Retorna mapping nome_tópico → tópico."""
+        return {
+            "consensus": self.CONSENSUS,
+            "tickets": self.TICKETS,
+            "saga_events": self.SAGA_EVENTS,
+            "execution_results": self.EXECUTION_RESULTS,
+        }
 
 
 class OrchestratorSettings(BaseSettings):
@@ -77,6 +100,17 @@ class OrchestratorSettings(BaseSettings):
     )
     kafka_enable_idempotence: bool = Field(default=True, description="Habilitar idempotência")
     kafka_transactional_id: str | None = Field(default=None, description="ID transacional")
+
+    # Kafka Topics (gerenciado via OrchestratorTopics)
+    @property
+    def topics(self) -> OrchestratorTopics:
+        """Retorna instância de OrchestratorTopics com valores das configurações."""
+        topics_instance = OrchestratorTopics()
+        # Sobrescrever valores com configurações existentes (backward compatibility)
+        topics_instance.CONSENSUS = self.kafka_consensus_topic
+        topics_instance.TICKETS = self.kafka_tickets_topic
+        topics_instance.SAGA_EVENTS = self.kafka_saga_events_topic
+        return topics_instance
     kafka_schema_registry_url: str = Field(
         default="https://schema-registry.kafka.svc.cluster.local:8081",
         description="URL do Schema Registry para serialização Avro",

@@ -3,6 +3,28 @@ from typing import Dict, Optional
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from neural_hive_api.kafka import KafkaTopicsConfig
+
+
+class ConsensusTopics(KafkaTopicsConfig):
+    """Configuração de tópicos Kafka para consensus-engine."""
+
+    PREFIX = "consensus"
+
+    def __init__(self):
+        super().__init__()
+        self.PLANS_READY = self.get_topic("plans", "ready")
+        self.CONSENSUS = self.get_topic("plans", "consensus")
+        self.DLQ = self.get_topic("plans", "ready.dlq")
+
+    def get_all_topics(self) -> dict[str, str]:
+        """Retorna mapping nome_tópico → tópico."""
+        return {
+            "plans_ready": self.PLANS_READY,
+            "consensus": self.CONSENSUS,
+            "dlq": self.DLQ,
+        }
+
 
 class Settings(BaseSettings):
     """Configurações do Consensus Engine"""
@@ -37,6 +59,18 @@ class Settings(BaseSettings):
     )
     kafka_enable_idempotence: bool = Field(default=True, description="Enable idempotence")
     kafka_transactional_id: Optional[str] = Field(default=None, description="Transactional ID")
+
+    # Kafka Topics (gerenciado via ConsensusTopics)
+    @property
+    def topics(self) -> ConsensusTopics:
+        """Retorna instância de ConsensusTopics com valores das configurações."""
+        topics_instance = ConsensusTopics()
+        # Sobrescrever valores com configurações existentes (backward compatibility)
+        topics_instance.PLANS_READY = self.kafka_plans_topic
+        topics_instance.CONSENSUS = self.kafka_consensus_topic
+        if hasattr(self, "kafka_dlq_topic"):
+            topics_instance.DLQ = self.kafka_dlq_topic
+        return topics_instance
 
     # gRPC Clients (Especialistas)
     specialist_business_endpoint: str = Field(
