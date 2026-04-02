@@ -10,10 +10,11 @@ class KafkaTopicsConfig(ABC):
     @classmethod
     def get_topic(cls, domain: str, event: str) -> str:
         """Retorna tópico no formato {PREFIX}.{domain}.{event}."""
-        prefix = cls.PREFIX if cls.PREFIX else cls.__name__.lower().replace("topics", "")
+        prefix = (
+            cls.PREFIX if cls.PREFIX else cls.__name__.lower().replace("topics", "")
+        )
         return f"{prefix}.{domain}.{event}"
 
     @abstractmethod
     def get_all_topics(self) -> dict[str, str]:
         """Retorna mapping nome_tópico → tópico."""
-        pass

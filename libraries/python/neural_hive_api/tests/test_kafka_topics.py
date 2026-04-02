@@ -1,5 +1,6 @@
 # libraries/python/neural_hive_api/tests/test_kafka_topics.py
 import pytest
+
 from neural_hive_api.kafka import KafkaTopicsConfig
 
 
@@ -18,6 +19,7 @@ def test_topic_format_service_domain_event():
 
 def test_empty_prefix_allowed():
     """PREFIX vazio deve ser permitido."""
+
     class NoPrefixTopics(KafkaTopicsConfig):
         PREFIX = ""
 
