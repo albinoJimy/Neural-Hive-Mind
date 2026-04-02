@@ -476,3 +476,18 @@ def flow_c_test_context(
         "postgresql_helper": postgresql_tickets_helper,
         "temporal_helper": temporal_test_helper,
     }
+
+
+# ============================================================================
+# Import fixtures from conftest_platform.py for platform health tests
+# ============================================================================
+
+from tests.e2e.conftest_platform import (  # noqa: E402, F401
+    ServiceHealthHelper,
+    get_kafka_config,
+    get_service_urls,
+    http_client,
+    kafka_config,
+    platform_health_helpers,
+    service_urls,
+)

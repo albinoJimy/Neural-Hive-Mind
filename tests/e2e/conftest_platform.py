@@ -14,7 +14,7 @@ import os
 import time
 import uuid
 from collections.abc import AsyncGenerator
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock
 
 import httpx
@@ -432,7 +432,7 @@ def sample_intent() -> dict[str, any]:
         "text": "Criar endpoint para health check",
         "intent_type": "code_generation",
         "priority": 5,
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "session_id": f"session-test-{uuid.uuid4().hex[:8]}",
     }
 
@@ -450,7 +450,7 @@ def sample_cognitive_plan() -> dict[str, any]:
         "intent_id": intent_id,
         "correlation_id": f"corr-test-{uuid.uuid4().hex[:8]}",
         "description": "Test Plan",
-        "created_at": datetime.now(UTC).isoformat(),
+        "created_at": datetime.now(timezone.utc).isoformat(),
         "tasks": [
             {
                 "task_id": f"task-{uuid.uuid4().hex[:8]}",
@@ -464,5 +464,5 @@ def sample_cognitive_plan() -> dict[str, any]:
             }
         ],
         "estimated_duration_minutes": 10,
-        "sla_deadline": (datetime.now(UTC) + timedelta(hours=4)).isoformat(),
+        "sla_deadline": (datetime.now(timezone.utc) + timedelta(hours=4)).isoformat(),
     }
