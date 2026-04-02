@@ -7,14 +7,10 @@ class KafkaTopicsConfig(ABC):
 
     PREFIX: str = ""
 
-    def get_topic(self, domain: str, event: str) -> str:
+    @classmethod
+    def get_topic(cls, domain: str, event: str) -> str:
         """Retorna tópico no formato {PREFIX}.{domain}.{event}."""
-        # Get PREFIX from the instance's class
-        prefix = getattr(self.__class__, "PREFIX", "")
-        if not prefix:
-            # Derive from class name if PREFIX not set
-            name = self.__class__.__name__.lower().replace("topics", "").replace("config", "")
-            prefix = name if name else "kafka"
+        prefix = cls.PREFIX if cls.PREFIX else cls.__name__.lower().replace("topics", "")
         return f"{prefix}.{domain}.{event}"
 
     @abstractmethod
