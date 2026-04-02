@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from prometheus_client import make_asgi_app
 
 from .api import alerts, budgets, health, policies, slos, webhooks
+from .api.health import configure_health_checks
 from .clients.alertmanager_client import AlertmanagerClient
 from .clients.kafka_producer import KafkaProducerClient
 from .clients.postgresql_client import PostgreSQLClient
@@ -250,8 +251,16 @@ app.dependency_overrides[alerts.get_alert_engine] = override_alert_engine
 app.dependency_overrides[alerts.get_postgresql_client] = override_postgresql_client
 
 
+# Configurar HealthRouter com checks de dependências
+configure_health_checks(
+    postgresql_client=postgresql_client,
+    redis_client=redis_client,
+    prometheus_client=prometheus_client,
+    kafka_producer=kafka_producer,
+    alertmanager_client=alertmanager_client,
+).add_route(app)
+
 # Registrar routers
-app.include_router(health.router)
 app.include_router(slos.router)
 app.include_router(budgets.router)
 app.include_router(policies.router)

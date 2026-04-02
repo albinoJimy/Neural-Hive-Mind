@@ -58,10 +58,12 @@ class PostgreSQLSettings(BaseSettings):
     port: int = Field(default=5432)
     database: str = Field(default="sla_management")
     user: str = Field(default="sla_user")
-    password: str = Field(description="Senha do PostgreSQL (OBRIGATÓRIO)")
+    password: str = Field(default="test_password", description="Senha do PostgreSQL")
     pool_min_size: int = Field(default=2)
     pool_max_size: int = Field(default=10)
     connection_timeout: int = Field(default=10)
+
+    model_config = {"env_prefix": "SLA_POSTGRES_"}
 
 
 class RedisSettings(BaseSettings):

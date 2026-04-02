@@ -1,105 +1,135 @@
 """Health check API para sla-management-system."""
 
-import structlog
-from fastapi import APIRouter, Request
-from fastapi.responses import JSONResponse
+from neural_hive_api.health import HealthRouter, BaseHealthCheck, HealthStatus, CheckResult
 
-from neural_hive_observability.health import HealthStatus
-
-logger = structlog.get_logger()
-router = APIRouter()
+# Health router global - será configurado em main.py
+_health_router: HealthRouter = None
 
 
-@router.get("/health")
-async def health_check():
-    """Health check básico"""
-    return {"status": "healthy", "service": "sla-management-system"}
+def get_health_router() -> HealthRouter:
+    """Retorna o health router configurado."""
+    global _health_router
+    if _health_router is None:
+        _health_router = HealthRouter("sla-management-system")
+    return _health_router
 
 
-@router.get("/ready")
-async def readiness_check(request: Request):
-    """Readiness check - verifica dependências"""
-    app_state = request.app.state.app_state
-    dependencies = {}
+def configure_health_checks(
+    postgresql_client=None,
+    redis_client=None,
+    prometheus_client=None,
+    kafka_producer=None,
+    alertmanager_client=None,
+) -> HealthRouter:
+    """Configura os health checks para o sla-management-system."""
+    router = get_health_router()
 
-    try:
-        # Verificar PostgreSQL
-        if app_state.postgresql_client:
-            try:
-                await app_state.postgresql_client.list_slos()
-                dependencies["postgresql"] = "connected"
-            except Exception as e:
-                dependencies["postgresql"] = f"error: {str(e)}"
-        else:
-            dependencies["postgresql"] = "disconnected"
+    # Registrar checks apenas se os clientes forem fornecidos
+    if postgresql_client:
+        router.register_check(PostgreSQLHealthCheck(postgresql_client))
 
-        # Verificar Redis
-        if app_state.redis_client:
-            try:
-                redis_ok = await app_state.redis_client.health_check()
-                dependencies["redis"] = "connected" if redis_ok else "error"
-            except Exception as e:
-                dependencies["redis"] = f"error: {str(e)}"
-        else:
-            dependencies["redis"] = "disconnected"
+    if redis_client:
+        router.register_check(RedisHealthCheck(redis_client))
 
-        # Verificar Prometheus
-        if app_state.prometheus_client:
-            try:
-                prom_ok = await app_state.prometheus_client.health_check()
-                dependencies["prometheus"] = "connected" if prom_ok else "error"
-            except Exception as e:
-                dependencies["prometheus"] = f"error: {str(e)}"
-        else:
-            dependencies["prometheus"] = "disconnected"
+    if prometheus_client:
+        router.register_check(PrometheusHealthCheck(prometheus_client))
 
-        # Verificar Kafka (opcional)
-        if app_state.kafka_producer:
-            try:
-                kafka_ok = await app_state.kafka_producer.health_check()
-                dependencies["kafka"] = "connected" if kafka_ok else "error"
-            except Exception as e:
-                dependencies["kafka"] = f"error: {str(e)}"
-        else:
-            dependencies["kafka"] = "disabled"
+    if kafka_producer:
+        router.register_check(KafkaHealthCheck(kafka_producer, critical=False))
 
-        # Verificar Alertmanager (opcional)
-        if app_state.alertmanager_client:
-            try:
-                await app_state.alertmanager_client.connect()
-                dependencies["alertmanager"] = "connected"
-            except Exception as e:
-                dependencies["alertmanager"] = f"error: {str(e)}"
-        else:
-            dependencies["alertmanager"] = "disabled"
+    if alertmanager_client:
+        router.register_check(AlertmanagerHealthCheck(alertmanager_client, critical=False))
 
-        ready = all(
-            "connected" in status or "disabled" in status
-            for status in dependencies.values()
-        )
-
-        if not ready:
-            return JSONResponse(
-                status_code=503,
-                content={
-                    "ready": False,
-                    "dependencies": dependencies,
-                    "timestamp": int(__import__("time").time() * 1000),
-                },
-            )
-
-        return {
-            "ready": ready,
-            "dependencies": dependencies,
-            "timestamp": int(__import__("time").time() * 1000),
-        }
-
-    except Exception as e:
-        logger.error("readiness_check_failed", error=str(e))
-        return {"ready": False, "dependencies": dependencies, "error": str(e)}
+    return router
 
 
-@router.get("/live")
-async def liveness_check():
-    """Liveness check - verifica se serviço está responsivo"""
-    return {"alive": True}
+class PostgreSQLHealthCheck(BaseHealthCheck):
+    """Health check para PostgreSQL."""
+
+    def __init__(self, client):
+        super().__init__("postgresql", critical=True)
+        self.client = client
+
+    async def check(self) -> CheckResult:
+        """Verifica conexão com PostgreSQL."""
+        try:
+            # Usa uma query simples para verificar health
+            if self.client.pool:
+                async with self.client.pool.acquire() as conn:
+                    await conn.fetchval("SELECT 1")
+                return CheckResult(name=self.name, status=HealthStatus.HEALTHY)
+            return CheckResult(name=self.name, status=HealthStatus.UNHEALTHY, message="No pool")
+        except Exception as e:
+            return CheckResult(name=self.name, status=HealthStatus.UNHEALTHY, message=str(e))
+
+
+class RedisHealthCheck(BaseHealthCheck):
+    """Health check para Redis."""
+
+    def __init__(self, client):
+        super().__init__("redis", critical=True)
+        self.client = client
+
+    async def check(self) -> CheckResult:
+        """Verifica conexão com Redis."""
+        try:
+            is_healthy = await self.client.health_check()
+            status = HealthStatus.HEALTHY if is_healthy else HealthStatus.UNHEALTHY
+            return CheckResult(name=self.name, status=status)
+        except Exception as e:
+            return CheckResult(name=self.name, status=HealthStatus.UNHEALTHY, message=str(e))
+
+
+class PrometheusHealthCheck(BaseHealthCheck):
+    """Health check para Prometheus."""
+
+    def __init__(self, client):
+        super().__init__("prometheus", critical=True)
+        self.client = client
+
+    async def check(self) -> CheckResult:
+        """Verifica conexão com Prometheus."""
+        try:
+            is_healthy = await self.client.health_check()
+            status = HealthStatus.HEALTHY if is_healthy else HealthStatus.UNHEALTHY
+            return CheckResult(name=self.name, status=status)
+        except Exception as e:
+            return CheckResult(name=self.name, status=HealthStatus.UNHEALTHY, message=str(e))
+
+
+class KafkaHealthCheck(BaseHealthCheck):
+    """Health check para Kafka (opcional)."""
+
+    def __init__(self, client, critical: bool = False):
+        super().__init__("kafka", critical=critical)
+        self.client = client
+
+    async def check(self) -> CheckResult:
+        """Verifica conexão com Kafka."""
+        try:
+            is_healthy = await self.client.health_check()
+            status = HealthStatus.HEALTHY if is_healthy else HealthStatus.DEGRADED
+            return CheckResult(name=self.name, status=status)
+        except Exception as e:
+            return CheckResult(name=self.name, status=HealthStatus.DEGRADED, message=str(e))
+
+
+class AlertmanagerHealthCheck(BaseHealthCheck):
+    """Health check para Alertmanager (opcional)."""
+
+    def __init__(self, client, critical: bool = False):
+        super().__init__("alertmanager", critical=critical)
+        self.client = client
+
+    async def check(self) -> CheckResult:
+        """Verifica conexão com Alertmanager."""
+        try:
+            is_healthy = await self.client.health_check()
+            status = HealthStatus.HEALTHY if is_healthy else HealthStatus.DEGRADED
+            return CheckResult(name=self.name, status=status)
+        except Exception as e:
+            return CheckResult(name=self.name, status=HealthStatus.DEGRADED, message=str(e))
+
+
+# Router para compatibilidade com código existente (será substituído)
+router = get_health_router()
