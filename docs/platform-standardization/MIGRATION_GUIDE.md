@@ -146,7 +146,7 @@ class MeuServicoTopics(KafkaTopicsConfig):
 
     # Eventos de execucao
     EXECUTION_STARTED = get_topic("execution", "started")
-    EXPORTION_RESULTS = get_topic("execution", "results")
+    EXECUTION_RESULTS = get_topic("execution", "results")
     EXECUTION_FAILED = get_topic("execution", "failed")
 
     # Eventos de insights
