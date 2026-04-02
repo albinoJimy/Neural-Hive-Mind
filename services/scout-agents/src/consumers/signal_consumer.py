@@ -62,7 +62,16 @@ class SignalFeedbackConsumer:
 
     async def initialize(self):
         """Inicializa o consumer Kafka."""
-        topic = self.settings.kafka.topics_signals
+        # Suporte a ambos os padrões: novo flat (settings.topics.SIGNALS)
+        # e legado nested (settings.kafka.topics_signals) para compatibilidade
+        topic = None
+        if hasattr(self.settings, 'topics') and hasattr(self.settings.topics, 'SIGNALS'):
+            topic = self.settings.topics.SIGNALS
+            # Verificar se é uma string (não um Mock)
+            if not isinstance(topic, str):
+                topic = None
+        if topic is None:
+            topic = getattr(self.settings.kafka, "topics_signals", "exploration-signals")
         logger.info("Inicializando SignalFeedbackConsumer", topic=topic)
 
         self.consumer = AIOKafkaConsumer(

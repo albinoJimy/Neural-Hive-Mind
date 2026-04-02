@@ -13,6 +13,28 @@ from ..models.scout_signal import ScoutSignal
 logger = structlog.get_logger()
 
 
+def _get_topic(settings, topic_name: str, default: str) -> str:
+    """
+    Obtém tópico do settings com suporte a ambos os padrões.
+
+    Args:
+        settings: Instância de settings
+        topic_name: Nome do atributo (ex: 'SIGNALS')
+        default: Valor padrão caso não encontrado
+
+    Returns:
+        str: Nome do tópico Kafka
+    """
+    # Tentar padrão novo flat (settings.topics.SIGNALS)
+    if hasattr(settings, 'topics') and hasattr(settings.topics, topic_name):
+        topic = getattr(settings.topics, topic_name)
+        if isinstance(topic, str):
+            return topic
+    # Fallback para padrão legado nested (settings.kafka.topics_signals)
+    legacy_name = f"topics_{topic_name.lower()}"
+    return getattr(settings.kafka, legacy_name, default)
+
+
 class KafkaSignalProducer:
     """Produces Scout Signals to Kafka topics"""
 
@@ -74,7 +96,9 @@ class KafkaSignalProducer:
 
             # Send message
             future = await self.producer.send(
-                self.settings.kafka.topics_signals, value=signal_dict, key=partition_key
+                _get_topic(self.settings, 'SIGNALS', 'scout.exploration.signals'),
+                value=signal_dict,
+                key=partition_key
             )
 
             # Wait for acknowledgment
@@ -128,7 +152,9 @@ class KafkaSignalProducer:
             partition_key = signal.exploration_domain.value.encode("utf-8")
 
             future = await self.producer.send(
-                self.settings.kafka.topics_opportunities, value=signal_dict, key=partition_key
+                _get_topic(self.settings, 'OPPORTUNITIES', 'scout.exploration.opportunities'),
+                value=signal_dict,
+                key=partition_key
             )
 
             record_metadata = await future

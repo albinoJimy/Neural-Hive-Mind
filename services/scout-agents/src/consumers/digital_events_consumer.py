@@ -65,7 +65,16 @@ class DigitalEventsConsumer:
 
     async def initialize(self):
         """Inicializa o consumer Kafka."""
-        topic = self.settings.topics.DIGITAL_EVENTS
+        # Suporte a ambos os padrões: novo flat (settings.topics.DIGITAL_EVENTS)
+        # e legado nested (settings.kafka.topics_digital_events) para compatibilidade
+        topic = None
+        if hasattr(self.settings, 'topics') and hasattr(self.settings.topics, 'DIGITAL_EVENTS'):
+            topic = self.settings.topics.DIGITAL_EVENTS
+            # Verificar se é uma string (não um Mock)
+            if not isinstance(topic, str):
+                topic = None
+        if topic is None:
+            topic = getattr(self.settings.kafka, "topics_digital_events", "digital.events")
         logger.info("Inicializando DigitalEventsConsumer", topic=topic)
 
         self.consumer = AIOKafkaConsumer(
