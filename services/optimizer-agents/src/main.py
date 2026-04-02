@@ -5,6 +5,8 @@ import sys
 import structlog
 import uvicorn
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from neural_hive_api.health import HealthRouter
 from neural_hive_observability import (
     init_observability,
     instrument_kafka_consumer,
@@ -120,13 +122,13 @@ async def startup():
 
     settings = get_settings()
     logger.info(
-        "optimizer_agents_starting", service=settings.service_name, version=settings.service_version
+        "optimizer_agents_starting", service=settings.SERVICE_NAME, version=settings.SERVICE_VERSION
     )
 
     # Inicializar observabilidade
     init_observability(
         service_name="optimizer-agents",
-        service_version=settings.service_version,
+        service_version=settings.SERVICE_VERSION,
         neural_hive_component="optimizer-agent",
         neural_hive_layer="otimizacao",
         neural_hive_domain="continuous-improvement",
@@ -169,8 +171,8 @@ async def startup():
     # Initialize HealthChecker and register ClickHouse schema health check
     global health_checker
     observability_config = ObservabilityConfig(
-        service_name=settings.service_name,
-        service_version=settings.service_version,
+        service_name=settings.SERVICE_NAME,
+        service_version=settings.SERVICE_VERSION,
         neural_hive_component="optimizer-agent",
         neural_hive_layer="otimizacao",
     )
@@ -284,8 +286,8 @@ async def startup():
             agent_id = await service_registry_client.register(
                 capabilities=capabilities,
                 metadata={
-                    "version": settings.service_version,
-                    "environment": settings.environment,
+                    "version": settings.SERVICE_VERSION,
+                    "environment": settings.ENVIRONMENT,
                 },
             )
             logger.info("agent_registered", agent_id=agent_id)
@@ -1015,12 +1017,29 @@ def signal_handler(signum, frame):
     sys.exit(0)
 
 
+# Get settings
+settings = get_settings()
+
+
 # Create FastAPI app
 app = FastAPI(
     title="Optimizer Agents",
     description="Continuous Improvement and Policy Recalibration",
-    version="1.0.0",
+    version=settings.SERVICE_VERSION,
 )
+
+# CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# HealthRouter (neural_hive_api) - rotas padronizadas
+health_router = HealthRouter("optimizer-agents")
+health_router.add_route(app)
 
 # Include API routers
 app.include_router(api_router)
@@ -1033,6 +1052,8 @@ signal.signal(signal.SIGTERM, signal_handler)
 signal.signal(signal.SIGINT, signal_handler)
 
 if __name__ == "__main__":
-    config = uvicorn.Config(app, host="0.0.0.0", port=8000, log_level="info")
+    config = uvicorn.Config(
+        app, host=settings.FASTAPI_HOST, port=settings.FASTAPI_PORT, log_level="info"
+    )
     server = uvicorn.Server(config)
     asyncio.run(server.serve())

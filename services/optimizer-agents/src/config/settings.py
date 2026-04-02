@@ -1,31 +1,70 @@
 from functools import lru_cache
 
+from neural_hive_api.kafka import KafkaTopicsConfig
+from neural_hive_security.cors import CORSConfig
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class OptimizerTopics(KafkaTopicsConfig):
+    """Configuração de tópicos Kafka para optimizer-agents."""
+
+    PREFIX = "optimizer"
+
+    def __init__(self):
+        super().__init__()
+        self.TELEMETRY = self.get_topic("telemetry", "aggregated")
+        self.RECOMMENDATIONS = self.get_topic("recommendations", "generated")
+        self.EXPERIMENTS = self.get_topic("experiments", "results")
+        self.FEEDBACK = self.get_topic("feedback", "received")
+
+    def get_all_topics(self) -> dict[str, str]:
+        """Retorna mapping nome_tópico → tópico."""
+        return {
+            "telemetry": self.TELEMETRY,
+            "recommendations": self.RECOMMENDATIONS,
+            "experiments": self.EXPERIMENTS,
+            "feedback": self.FEEDBACK,
+        }
 
 
 class Settings(BaseSettings):
     """Configuration settings for Optimizer Agents."""
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=".env", env_file_encoding="utf-8", extra="ignore", case_sensitive=True
+    )
 
-    # Application
-    environment: str = Field(default="dev", description="Environment (dev, staging, prod)")
-    debug: bool = Field(default=False, description="Debug mode")
-    log_level: str = Field(default="INFO", description="Logging level")
-    service_name: str = Field(default="optimizer-agents", description="Service name")
-    service_version: str = Field(default="1.0.0", description="Service version")
+    # Service
+    SERVICE_NAME: str = "optimizer-agents"
+    SERVICE_VERSION: str = "1.0.0"
+    ENVIRONMENT: str = "development"
+    LOG_LEVEL: str = "INFO"
+
+    # FastAPI
+    FASTAPI_HOST: str = "0.0.0.0"
+    FASTAPI_PORT: int = 8000
+
+    # CORS - Serviço interno (gRPC/Kafka), sem CORS
+    IS_PUBLIC_API: bool = Field(default=False)
+
+    @property
+    def CORS_ORIGINS(
+        self,
+    ) -> list[str]:  # noqa: N802 - Intentional uppercase as config-like property
+        """CORS origins dinâmicas por ambiente."""
+        return CORSConfig.get_origins_for_environment(
+            self.ENVIRONMENT, is_public_api=self.IS_PUBLIC_API
+        )
 
     # Kafka
-    kafka_bootstrap_servers: str = Field(default="kafka.kafka.svc.cluster.local:9092")
-    kafka_consumer_group_id: str = Field(default="optimizer-agents")
-    kafka_insights_topic: str = Field(default="insights.generated")
-    kafka_telemetry_topic: str = Field(default="telemetry.aggregated")
-    kafka_optimization_topic: str = Field(default="optimization.applied")
-    kafka_experiments_topic: str = Field(default="experiments.results")
-    kafka_experiment_requests_topic: str = Field(
-        default="experiments.requests", description="Kafka topic for experiment requests"
-    )
+    KAFKA_BOOTSTRAP_SERVERS: str
+    KAFKA_CONSUMER_GROUP: str = "optimizer-agents-group"
+    KAFKA_AUTO_OFFSET_RESET: str = "earliest"
+    KAFKA_ENABLE_AUTO_COMMIT: bool = False
+
+    # Kafka Topics (gerenciado via OptimizerTopics)
+    topics: OptimizerTopics = OptimizerTopics()
 
     # gRPC Server
     grpc_port: int = Field(default=50051, description="gRPC server port")
@@ -283,7 +322,7 @@ class Settings(BaseSettings):
         Endpoints verificados: MLflow, OTEL, Schema Registry, Prometheus.
         Endpoints internos do cluster (.svc.cluster.local) sao permitidos via HTTP.
         """
-        is_prod_staging = self.environment.lower() in ("production", "staging", "prod")
+        is_prod_staging = self.ENVIRONMENT.lower() in ("production", "staging", "prod")
         if not is_prod_staging:
             return self
 
@@ -304,9 +343,28 @@ class Settings(BaseSettings):
         if http_endpoints:
             endpoint_list = ", ".join(f"{name}={url}" for name, url in http_endpoints)
             raise ValueError(
-                f"Endpoints HTTP inseguros detectados em ambiente {self.environment}: {endpoint_list}. "
+                f"Endpoints HTTP inseguros detectados em ambiente {self.ENVIRONMENT}: {endpoint_list}. "
                 "Use HTTPS em producao/staging para garantir seguranca de dados em transito. "
                 "Endpoints internos do cluster (.svc.cluster.local) sao permitidos via HTTP."
+            )
+
+        return self
+
+    @model_validator(mode="after")
+    def validate_cors_in_production(self) -> "Settings":
+        """
+        Valida que serviços internos não usam wildcard CORS em produção.
+        """
+        is_prod = self.ENVIRONMENT.lower() in ("production", "prod")
+
+        if not is_prod:
+            return self
+
+        # Serviços internos NÃO podem usar wildcard
+        if not self.IS_PUBLIC_API and "*" in self.CORS_ORIGINS:
+            raise ValueError(
+                "Internal services cannot use wildcard CORS in production. "
+                f"Service: {self.SERVICE_NAME}, Environment: {self.ENVIRONMENT}"
             )
 
         return self
