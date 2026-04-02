@@ -8,7 +8,32 @@ from typing import Any, Dict, List, Optional
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings
 
+from neural_hive_api.kafka import KafkaTopicsConfig
 from neural_hive_security.cors import CORSConfig
+
+
+class SLATopics(KafkaTopicsConfig):
+    """Configuração de tópicos Kafka para sla-management-system."""
+
+    PREFIX = "sla"
+
+    def __init__(self):
+        super().__init__()
+        self.BUDGETS = self.get_topic("budgets", "events")
+        self.FREEZE = self.get_topic("freeze", "events")
+        self.VIOLATIONS = self.get_topic("violations", "events")
+        self.SLOS = self.get_topic("slos", "updates")
+        self.POLICIES = self.get_topic("policies", "changes")
+
+    def get_all_topics(self) -> dict[str, str]:
+        """Retorna mapping nome_tópico → tópico."""
+        return {
+            "budgets": self.BUDGETS,
+            "freeze": self.FREEZE,
+            "violations": self.VIOLATIONS,
+            "slos": self.SLOS,
+            "policies": self.POLICIES,
+        }
 
 
 class PrometheusSettings(BaseSettings):
@@ -68,10 +93,25 @@ class KafkaSettings(BaseSettings):
         default=["neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092"]
     )
     enabled: bool = Field(default=True, description="Habilitar conexão Kafka")
-    budget_topic: str = Field(default="sla.budgets")
-    freeze_topic: str = Field(default="sla.freeze.events")
-    violations_topic: str = Field(default="sla.violations")
     producer_config: Dict[str, Any] = Field(default={"compression_type": "gzip", "acks": "all"})
+
+    # Kafka Topics (gerenciado via SLATopics)
+    topics: SLATopics = Field(default_factory=SLATopics)
+
+    @property
+    def budget_topic(self) -> str:
+        """Legacy: retorna tópico de budgets."""
+        return self.topics.BUDGETS
+
+    @property
+    def freeze_topic(self) -> str:
+        """Legacy: retorna tópico de freeze."""
+        return self.topics.FREEZE
+
+    @property
+    def violations_topic(self) -> str:
+        """Legacy: retorna tópico de violações."""
+        return self.topics.VIOLATIONS
 
 
 class AlertmanagerSettings(BaseSettings):

@@ -10,7 +10,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_client import make_asgi_app
 
-from .api import alerts, budgets, policies, slos, webhooks
+from .api import alerts, budgets, health, policies, slos, webhooks
 from .clients.alertmanager_client import AlertmanagerClient
 from .clients.kafka_producer import KafkaProducerClient
 from .clients.postgresql_client import PostgreSQLClient
@@ -75,16 +75,25 @@ async def lifespan(app: FastAPI):
     global alert_engine, alert_dispatcher
     global periodic_calculation_task, alert_monitoring_task
 
+    # Criar container para app_state
+    class AppState:
+        pass
+
+    app_state = AppState()
+
     try:
         # Inicializar clientes
         prometheus_client = PrometheusClient(settings.prometheus)
         await prometheus_client.connect()
+        app_state.prometheus_client = prometheus_client
 
         postgresql_client = PostgreSQLClient(settings.postgresql)
         await postgresql_client.connect()
+        app_state.postgresql_client = postgresql_client
 
         redis_client = RedisClient(settings.redis)
         await redis_client.connect()
+        app_state.redis_client = redis_client
 
         # Kafka é opcional - continua sem ele se não conectar
         kafka_producer = KafkaProducerClient(settings.kafka)
@@ -92,11 +101,14 @@ async def lifespan(app: FastAPI):
             if settings.kafka.enabled:
                 await kafka_producer.start()
                 logger.info("kafka_producer_connected")
+                app_state.kafka_producer = kafka_producer
         except Exception as e:
             logger.warning("kafka_connection_failed_continuing_without", error=str(e))
             kafka_producer = None
+            app_state.kafka_producer = None
 
         alertmanager_client = AlertmanagerClient(settings.alertmanager)
+        app_state.alertmanager_client = alertmanager_client
         try:
             await alertmanager_client.connect()
         except Exception as e:
@@ -132,6 +144,9 @@ async def lifespan(app: FastAPI):
         periodic_calculation_task = asyncio.create_task(
             budget_calculator.run_periodic_calculation()
         )
+
+        # Armazenar app_state na app FastAPI
+        app.state.app_state = app_state
 
         logger.info("sla_management_system_started")
 
@@ -236,6 +251,7 @@ app.dependency_overrides[alerts.get_postgresql_client] = override_postgresql_cli
 
 
 # Registrar routers
+app.include_router(health.router)
 app.include_router(slos.router)
 app.include_router(budgets.router)
 app.include_router(policies.router)
@@ -245,56 +261,6 @@ app.include_router(webhooks.router)
 alerts.set_alert_engine(alert_engine)
 alerts.set_postgresql_client(postgresql_client)
 app.include_router(alerts.router)
-
-
-# Health checks
-@app.get("/health")
-async def health():
-    """Liveness probe."""
-    return {"status": "healthy"}
-
-
-@app.get("/ready")
-async def ready():
-    """Readiness probe."""
-    checks = {}
-
-    # Verificar PostgreSQL
-    try:
-        # Simples query para verificar conectividade
-        await postgresql_client.list_slos()
-        checks["postgresql"] = "ok"
-    except Exception as e:
-        checks["postgresql"] = f"error: {str(e)}"
-
-    # Verificar Redis
-    try:
-        redis_ok = await redis_client.health_check()
-        checks["redis"] = "ok" if redis_ok else "error"
-    except Exception as e:
-        checks["redis"] = f"error: {str(e)}"
-
-    # Verificar Prometheus
-    try:
-        prom_ok = await prometheus_client.health_check()
-        checks["prometheus"] = "ok" if prom_ok else "error"
-    except Exception as e:
-        checks["prometheus"] = f"error: {str(e)}"
-
-    # Verificar Kafka (opcional)
-    if kafka_producer:
-        try:
-            kafka_ok = await kafka_producer.health_check()
-            checks["kafka"] = "ok" if kafka_ok else "error"
-        except Exception as e:
-            checks["kafka"] = f"error: {str(e)}"
-    else:
-        checks["kafka"] = "disabled"
-
-    # Determinar status geral (considera "disabled" como OK)
-    all_ok = all(v in ("ok", "disabled") for v in checks.values())
-
-    return {"status": "ready" if all_ok else "not ready", "checks": checks}
 
 
 # Métricas Prometheus
