@@ -8,6 +8,8 @@ from confluent_kafka.schema_registry import SchemaRegistryClient
 from confluent_kafka.schema_registry.avro import AvroDeserializer
 from confluent_kafka.serialization import MessageField, SerializationContext
 
+from src.config.topics import WorkerTopics
+
 logger = structlog.get_logger()
 
 
@@ -75,7 +77,9 @@ class KafkaTicketConsumer:
                 self.schema_registry_client = None
                 self.avro_deserializer = None
 
-            self.consumer.subscribe([self.config.kafka_tickets_topic])
+            topics = WorkerTopics()
+            tickets_topic = topics.get_all_topics()["tickets"]
+            self.consumer.subscribe([tickets_topic])
 
             self.logger.info(
                 "kafka_consumer_initialized",
@@ -649,7 +653,8 @@ class KafkaTicketConsumer:
         }
 
         # Publicar no topico DLQ
-        dlq_topic = getattr(self.config, "kafka_dlq_topic", "execution.tickets.dlq")
+        topics = WorkerTopics()
+        dlq_topic = topics.get_all_topics()["dlq"]
 
         # Usar producer simples (JSON) para DLQ
         producer_config = {

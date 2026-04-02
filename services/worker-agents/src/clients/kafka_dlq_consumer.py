@@ -5,6 +5,8 @@ from datetime import datetime
 import structlog
 from confluent_kafka import Consumer, KafkaError
 
+from src.config.topics import WorkerTopics
+
 logger = structlog.get_logger()
 
 
@@ -59,7 +61,8 @@ class KafkaDLQConsumer:
 
             self.consumer = Consumer(consumer_config)
 
-            dlq_topic = getattr(self.config, "kafka_dlq_topic", "execution.tickets.dlq")
+            topics = WorkerTopics()
+            dlq_topic = topics.get_all_topics()["dlq"]
             self.consumer.subscribe([dlq_topic])
 
             self.logger.info(

@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 import structlog
 import uvicorn
 
+from neural_hive_api.health import HealthRouter
 from neural_hive_integration import ServiceRegistryClient as IntegrationServiceRegistry
 from neural_hive_integration.clients.code_forge_client import CodeForgeClient
 from neural_hive_observability import (

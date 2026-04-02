@@ -9,6 +9,8 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from pydantic import BaseModel, Field
 
+from neural_hive_api.health import HealthRouter
+
 
 class TaskCancellationRequest(BaseModel):
     """Request model for task cancellation/preemption."""
@@ -164,6 +166,10 @@ def create_http_server(config, app_state):
         description="Worker Agents para execução distribuída de tarefas",
     )
 
+    # Health checks - usa HealthRouter padronizado do neural_hive_api
+    health_router = HealthRouter("worker-agents")
+    health_router.add_route(app)
+
     # SPIFFE JWT validator instance
     jwt_validator = SPIFFEJWTValidator(config, app_state)
 
@@ -231,52 +237,32 @@ def create_http_server(config, app_state):
 
         return spiffe_id
 
-    @app.get("/health")
-    async def health():
-        """Health check (liveness probe) with Vault status"""
-        overall_status = "healthy"
-        vault_status = {"enabled": getattr(config, "vault_enabled", False), "status": "disabled"}
-
-        if vault_status["enabled"]:
-            vault_client = app_state.get("vault_client")
-            if vault_client:
-                try:
-                    # Check if Vault client has health_check method
-                    if hasattr(vault_client, "vault_client") and vault_client.vault_client:
-                        vault_healthy = await vault_client.vault_client.health_check()
-                        vault_status["status"] = "healthy" if vault_healthy else "unhealthy"
-                    else:
-                        vault_status["status"] = "client_not_initialized"
-
-                    if vault_status["status"] == "unhealthy":
-                        # Check fail-open policy
-                        vault_fail_open = getattr(config, "vault_fail_open", False)
-                        if not vault_fail_open:
-                            overall_status = "unhealthy"
-                            vault_status["error"] = "Vault unhealthy and fail_open=false"
-                except Exception as e:
-                    vault_status["status"] = "error"
-                    vault_status["error"] = str(e)
-                    vault_fail_open = getattr(config, "vault_fail_open", False)
-                    if not vault_fail_open:
-                        overall_status = "unhealthy"
-            else:
-                vault_status["status"] = "not_initialized"
-                vault_fail_open = getattr(config, "vault_fail_open", False)
-                if not vault_fail_open:
-                    overall_status = "unhealthy"
-                    vault_status["error"] = "Vault enabled but client not initialized"
+    @app.get("/api/v1/status")
+    async def status(spiffe_id: str | None = Depends(verify_spiffe_token)):
+        """Status do Worker Agent - requires SPIFFE JWT authentication"""
+        registry_client = app_state.get("registry_client")
+        execution_engine = app_state.get("execution_engine")
+        uptime_seconds = (datetime.now() - start_time).total_seconds()
 
         return {
-            "status": overall_status,
             "agent_id": config.agent_id,
-            "timestamp": int(datetime.now().timestamp() * 1000),
-            "checks": {"vault": vault_status},
+            "agent_type": "WORKER",
+            "capabilities": config.supported_task_types,
+            "active_tasks": len(execution_engine.active_tasks) if execution_engine else 0,
+            "max_concurrent_tasks": config.max_concurrent_tasks,
+            "registered": registry_client.is_registered() if registry_client else False,
+            "uptime_seconds": int(uptime_seconds),
+            "telemetry": {
+                "namespace": config.namespace,
+                "cluster": config.cluster,
+                "version": config.service_version,
+            },
+            "authenticated_spiffe_id": spiffe_id,
         }
 
     @app.get("/ready")
     async def ready():
-        """Readiness check"""
+        """Readiness check (legado para compatibilidade)"""
         registry_client = app_state.get("registry_client")
         execution_engine = app_state.get("execution_engine")
 

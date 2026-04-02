@@ -10,6 +10,8 @@ from confluent_kafka.schema_registry import SchemaRegistryClient
 from confluent_kafka.schema_registry.avro import AvroSerializer
 from confluent_kafka.serialization import MessageField, SerializationContext
 
+from src.config.topics import WorkerTopics
+
 logger = structlog.get_logger()
 
 
@@ -66,7 +68,9 @@ class KafkaResultProducer:
                 self.schema_registry_client = None
                 self.avro_serializer = None
 
-            self.logger.info("kafka_producer_initialized", topic=self.config.kafka_results_topic)
+            topics = WorkerTopics()
+            results_topic = topics.get_all_topics()["results"]
+            self.logger.info("kafka_producer_initialized", topic=results_topic)
 
             if self.metrics:
                 self.metrics.kafka_producer_initialized_total.inc()
@@ -104,7 +108,8 @@ class KafkaResultProducer:
                 "correlation_id": correlation_id,
             }
 
-            topic = self.config.kafka_results_topic
+            topics = WorkerTopics()
+            topic = topics.get_all_topics()["results"]
             serialization_context = SerializationContext(topic, MessageField.VALUE)
 
             if self.avro_serializer:
