@@ -2,5 +2,6 @@
 
 from .models import HealthResponse, HealthStatus, CheckResult
 from .checks import BaseHealthCheck
+from .router import HealthRouter
 
-__all__ = ["HealthResponse", "HealthStatus", "CheckResult", "BaseHealthCheck"]
+__all__ = ["HealthResponse", "HealthStatus", "CheckResult", "BaseHealthCheck", "HealthRouter"]
