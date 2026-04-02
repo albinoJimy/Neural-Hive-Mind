@@ -13,6 +13,8 @@ from fastapi.responses import JSONResponse, PlainTextResponse
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
+from neural_hive_api.health import HealthRouter, BaseHealthCheck, HealthStatus, CheckResult
+
 logger = structlog.get_logger()
 
 # Importar módulo de feedback (lazy import para evitar erros se não disponível)

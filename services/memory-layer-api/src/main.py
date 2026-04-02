@@ -207,54 +207,6 @@ app = FastAPI(
 health_router.add_route(app)
 
 
-@app.get("/health")
-async def health_check():
-    """Basic health check"""
-    return {"status": "healthy"}
-
-
-@app.get("/ready")
-async def readiness_check():
-    """Readiness check - verify core memory layers are connected"""
-    ready = True
-    layers = {}
-    settings = app_state.get("settings")
-
-    # Core layers (required)
-    for layer in ["redis_client", "mongodb_client"]:
-        client = app_state.get(layer)
-        if client:
-            layers[layer.replace("_client", "")] = "connected"
-        else:
-            layers[layer.replace("_client", "")] = "disconnected"
-            ready = False
-
-    # Optional layers (Neo4j, ClickHouse - don't fail readiness if missing)
-    for layer in ["neo4j_client", "clickhouse_client"]:
-        client = app_state.get(layer)
-        if client:
-            layers[layer.replace("_client", "")] = "connected"
-        else:
-            layers[layer.replace("_client", "")] = "not_configured"
-
-    # Kafka sync status (opcional)
-    kafka_producer = app_state.get("kafka_producer")
-    sync_consumer = app_state.get("sync_consumer")
-
-    if settings and settings.enable_realtime_sync:
-        layers["kafka_producer"] = (
-            "running" if (kafka_producer and kafka_producer.is_running) else "not_configured"
-        )
-        layers["kafka_consumer"] = (
-            "running" if (sync_consumer and sync_consumer.is_running) else "not_configured"
-        )
-    else:
-        layers["kafka_producer"] = "disabled"
-        layers["kafka_consumer"] = "disabled"
-
-    return {"ready": ready, "layers": layers}
-
-
 @app.get("/metrics")
 async def metrics():
     """Prometheus metrics endpoint"""

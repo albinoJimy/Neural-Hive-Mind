@@ -37,6 +37,7 @@ from src.services.semantic_parser import SemanticParser
 from src.services.task_splitter import TaskSplitter
 
 from neural_hive_api.health import HealthRouter
+from src.api.health_config import configure_health_checks
 from neural_hive_observability import (
     init_observability,
     instrument_kafka_consumer,
@@ -505,6 +506,9 @@ async def lifespan(app: FastAPI):
 
         logger.info("Semantic Translation Engine started successfully")
 
+        # Configurar health checks com neural_hive_api
+        configure_health_checks(state)
+
         yield  # Application is running
 
     finally:
@@ -572,165 +576,6 @@ register_metrics()
 health_router.add_route(app)
 
 
-@app.get("/health")
-async def health_check():
-    """Basic health check endpoint"""
-    return {"status": "healthy", "service": "semantic-translation-engine", "version": "1.0.0"}
-
-
-@app.get("/ready")
-async def readiness_check():
-    """Readiness check - verifies all dependencies are connected"""
-    checks = {
-        "kafka_consumer": False,
-        "kafka_producer": False,
-        "approval_response_consumer": False,
-        "neo4j": False,
-        "mongodb": False,
-        "redis": False,
-        "nlp_processor": False,
-    }
-
-    try:
-        # Check Redis connectivity
-        if "redis" in state and state["redis"].client:
-            try:
-                await state["redis"].client.ping()
-                checks["redis"] = True
-            except Exception as e:
-                logger.warning("Redis ping failed", error=str(e))
-
-        # Check MongoDB connectivity
-        if "mongodb" in state and state["mongodb"].client:
-            try:
-                await state["mongodb"].client.admin.command("ping")
-                checks["mongodb"] = True
-            except Exception as e:
-                logger.warning("MongoDB ping failed", error=str(e))
-
-        # Check Neo4j connectivity
-        if "neo4j" in state and state["neo4j"].driver:
-            try:
-                await state["neo4j"].driver.verify_connectivity()
-                checks["neo4j"] = True
-            except Exception as e:
-                logger.warning("Neo4j connectivity check failed", error=str(e))
-
-        # Check Kafka producer
-        if "producer" in state and state["producer"].producer:
-            try:
-                # Lightweight metadata fetch with timeout
-                state["producer"].producer.list_topics(timeout=2)
-                checks["kafka_producer"] = True
-            except Exception as e:
-                logger.warning("Kafka producer check failed", error=str(e))
-
-        # Check Kafka consumer usando método is_healthy()
-        if state.get("consumer"):
-            try:
-                is_healthy, reason = state["consumer"].is_healthy(max_poll_age_seconds=60.0)
-                checks["kafka_consumer"] = is_healthy
-
-                if is_healthy:
-                    logger.debug("Kafka consumer saudável", reason=reason)
-                else:
-                    logger.warning("Kafka consumer não saudável", reason=reason)
-            except Exception as e:
-                logger.exception(
-                    "Falha ao verificar Kafka consumer", error=str(e), error_type=type(e).__name__
-                )
-                checks["kafka_consumer"] = False
-        else:
-            checks["kafka_consumer"] = False
-            logger.warning("Kafka consumer não encontrado no state")
-
-        # Check Approval Response Consumer
-        if state.get("approval_response_consumer"):
-            try:
-                is_healthy, reason = state["approval_response_consumer"].is_healthy(
-                    max_poll_age_seconds=60.0
-                )
-                checks["approval_response_consumer"] = is_healthy
-                if not is_healthy:
-                    logger.warning("Approval response consumer não saudável", reason=reason)
-            except Exception as e:
-                logger.exception(
-                    "Falha ao verificar approval response consumer",
-                    error=str(e),
-                    error_type=type(e).__name__,
-                )
-                checks["approval_response_consumer"] = False
-        else:
-            # Approval consumer é opcional - marcar como ready se não configurado
-            checks["approval_response_consumer"] = True
-
-        # Check DLQ Consumer (opcional)
-        settings = get_settings()
-        if state.get("dlq_consumer"):
-            try:
-                is_healthy, reason = state["dlq_consumer"].is_healthy(
-                    max_poll_age_seconds=settings.dlq_polling_interval_seconds * 2
-                )
-                checks["dlq_consumer"] = is_healthy
-                if not is_healthy:
-                    logger.warning("DLQ consumer não saudável", reason=reason)
-            except Exception as e:
-                logger.exception(
-                    "Falha ao verificar DLQ consumer", error=str(e), error_type=type(e).__name__
-                )
-                checks["dlq_consumer"] = False
-        else:
-            # DLQ consumer é opcional - marcar como ready se não configurado ou desabilitado
-            checks["dlq_consumer"] = True
-
-        # Check NLP Processor
-        if "nlp_processor" in state:
-            checks["nlp_processor"] = state["nlp_processor"].is_ready()
-        else:
-            # NLP é opcional, marcar como ready se não estiver habilitado
-            checks["nlp_processor"] = not settings.nlp_enabled
-
-        # Check OTEL pipeline health
-        otel_healthy = True
-        if state.get("health_checker"):
-            try:
-                otel_result = await state["health_checker"].check_single("otel_pipeline")
-                if otel_result:
-                    if otel_result.status == HealthStatus.HEALTHY:
-                        checks["otel_pipeline"] = True
-                    elif otel_result.status == HealthStatus.DEGRADED:
-                        checks["otel_pipeline"] = True  # Degraded is still acceptable
-                        logger.warning("otel_pipeline_degraded", message=otel_result.message)
-                    else:
-                        checks["otel_pipeline"] = False
-                        otel_healthy = False
-                        logger.warning("otel_pipeline_unhealthy", message=otel_result.message)
-                else:
-                    checks["otel_pipeline"] = True  # Not configured, mark as ready
-            except Exception as e:
-                logger.warning("otel_pipeline_health_check_error", error=str(e))
-                checks["otel_pipeline"] = False
-                otel_healthy = False
-        else:
-            checks["otel_pipeline"] = True  # Health checker not available, skip
-
-        all_ready = all(checks.values()) and otel_healthy
-
-        response_data = {"ready": all_ready, "checks": checks}
-
-        if all_ready:
-            return response_data
-        return Response(
-            content=json.dumps(response_data), status_code=503, media_type="application/json"
-        )
-
-    except Exception as e:
-        logger.exception("Readiness check failed", error=str(e))
-        return Response(
-            content=json.dumps({"ready": False, "checks": checks, "error": str(e)}),
-            status_code=503,
-            media_type="application/json",
-        )
 
 
 @app.get("/metrics")

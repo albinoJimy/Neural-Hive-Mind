@@ -36,8 +36,8 @@ from models.intent_envelope import IntentEnvelope, IntentRequest
 from pipelines.asr_pipeline import ASRPipeline
 from pipelines.nlu_pipeline import NLUPipeline
 
-# Health Router
-from api.routers.health import router as health_router, set_health_manager
+# Health Router (neural_hive_api)
+from api.health_v2 import configure_health_checks, get_health_router
 
 # Tentar importar observabilidade - usar stubs se não disponível
 try:
@@ -297,10 +297,9 @@ async def lifespan(app: FastAPI):
         asr_pipeline = app_context.asr_pipeline
         nlu_pipeline = app_context.nlu_pipeline
         kafka_producer = app_context.kafka_producer
-        health_manager = app_context.health_manager
 
-        # Injetar health_manager no HealthRouter
-        set_health_manager(health_manager)
+        # Configurar health checks com neural_hive_api
+        configure_health_checks(redis_client=redis_client, kafka_producer=kafka_producer)
 
         logger.info("gateway_startup_completed")
 
@@ -404,8 +403,8 @@ if settings.otel_enabled and OBSERVABILITY_AVAILABLE:
 
     FastAPIInstrumentor.instrument_app(app)
 
-# Include Health Router
-app.include_router(health_router)
+# Add Health Router (neural_hive_api)
+get_health_router().add_route(app)
 
 
 # Dependências

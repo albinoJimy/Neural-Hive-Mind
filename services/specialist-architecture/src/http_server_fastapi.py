@@ -13,6 +13,8 @@ from fastapi.responses import JSONResponse, PlainTextResponse
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
+from neural_hive_api.health import HealthRouter, BaseHealthCheck, HealthStatus, CheckResult
+
 logger = structlog.get_logger()
 
 # Importar módulo de feedback (lazy import para evitar erros se não disponível)
@@ -100,9 +102,49 @@ async def check_neo4j_health(specialist) -> Dict[str, Any]:
         return {"status": "unhealthy", "service": "neo4j", "error": str(e)}
 
 
+# ============================================================================
+# Health Check Classes for neural_hive_api
+# ============================================================================
+
+class MongoDBHealthCheck(BaseHealthCheck):
+    """Health check para MongoDB."""
+
+    def __init__(self, specialist):
+        super().__init__("mongodb", critical=True)
+        self.specialist = specialist
+
+    async def check(self) -> CheckResult:
+        """Verifica conexão com MongoDB."""
+        try:
+            result = await check_mongodb_health(self.specialist)
+            if result.get("status") in ["healthy", "circuit_open"]:
+                return CheckResult(name=self.name, status=HealthStatus.HEALTHY)
+            return CheckResult(name=self.name, status=HealthStatus.DEGRADED, message=str(result))
+        except Exception as e:
+            return CheckResult(name=self.name, status=HealthStatus.DEGRADED, message=str(e))
+
+
+class Neo4jHealthCheck(BaseHealthCheck):
+    """Health check para Neo4j."""
+
+    def __init__(self, specialist):
+        super().__init__("neo4j", critical=True)
+        self.specialist = specialist
+
+    async def check(self) -> CheckResult:
+        """Verifica conexão com Neo4j."""
+        try:
+            result = await check_neo4j_health(self.specialist)
+            if result.get("status") in ["healthy", "circuit_open"]:
+                return CheckResult(name=self.name, status=HealthStatus.HEALTHY)
+            return CheckResult(name=self.name, status=HealthStatus.DEGRADED, message=str(result))
+        except Exception as e:
+            return CheckResult(name=self.name, status=HealthStatus.DEGRADED, message=str(e))
+
+
 def create_fastapi_app(specialist, config) -> FastAPI:
     """
-    Cria aplicação FastAPI com health checks robustos.
+    Cria aplicação FastAPI com health checks usando neural_hive_api.
 
     Args:
         specialist: Instância do especialista
@@ -127,113 +169,12 @@ def create_fastapi_app(specialist, config) -> FastAPI:
         redoc_url=None,
     )
 
-    @app.get("/health", response_class=JSONResponse, status_code=200)
-    async def health_check():
-        """
-        Liveness probe - verifica apenas se o processo está vivo.
-        Responde rapidamente sem verificar dependências.
-        """
-        return {
-            "status": "healthy",
-            "specialist_type": specialist.specialist_type,
-            "version": specialist.version,
-        }
-
-    @app.get("/ready", response_class=JSONResponse)
-    async def readiness_check(response: Response):
-        """
-        Readiness probe - verifica dependências críticas com circuit breakers.
-        Retorna 200 se pronto, 503 se não pronto.
-        Considera model_required para permitir modo heurístico.
-        """
-        try:
-            # Executar health checks em paralelo com timeout total
-            health_checks = await asyncio.wait_for(
-                asyncio.gather(
-                    check_mongodb_health(specialist),
-                    check_neo4j_health(specialist),
-                    return_exceptions=True,
-                ),
-                timeout=8.0,  # Timeout total de 8s para todos os checks
-            )
-
-            # Processar resultados
-            mongodb_health, neo4j_health = health_checks
-
-            # Determinar se está pronto
-            # Circuit breaker aberto é considerado "ready" (fail open)
-            mongodb_ready = isinstance(mongodb_health, dict) and mongodb_health.get("status") in [
-                "healthy",
-                "circuit_open",
-            ]
-            neo4j_ready = isinstance(neo4j_health, dict) and neo4j_health.get("status") in [
-                "healthy",
-                "circuit_open",
-            ]
-
-            # Verificar model_required para modo heurístico
-            model_required = getattr(specialist.config, "model_required", True)
-            model_loaded = specialist.model is not None
-            heuristic_mode = not model_loaded and not model_required
-
-            # Log modo de operação
-            if heuristic_mode:
-                logger.info(
-                    "Specialist em modo heurístico (sem modelo ML)",
-                    specialist_type=specialist.specialist_type,
-                    model_required=model_required,
-                )
-
-            is_ready = mongodb_ready and neo4j_ready
-
-            # Se modelo é obrigatório e não está carregado, não está pronto
-            if model_required and not model_loaded:
-                is_ready = False
-                logger.warning(
-                    "Readiness falhou: modelo obrigatório não carregado",
-                    specialist_type=specialist.specialist_type,
-                    model_required=model_required,
-                    model_loaded=model_loaded,
-                )
-
-            if not is_ready:
-                response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
-                logger.warning(
-                    "Readiness check failed",
-                    specialist_type=specialist.specialist_type,
-                    mongodb_ready=mongodb_ready,
-                    neo4j_ready=neo4j_ready,
-                    model_loaded=model_loaded,
-                    model_required=model_required,
-                )
-
-            return {
-                "ready": is_ready,
-                "specialist_type": specialist.specialist_type,
-                "heuristic_mode": heuristic_mode,
-                "model_loaded": model_loaded,
-                "dependencies": {
-                    "mongodb": mongodb_health
-                    if isinstance(mongodb_health, dict)
-                    else {"status": "error"},
-                    "neo4j": neo4j_health
-                    if isinstance(neo4j_health, dict)
-                    else {"status": "error"},
-                },
-            }
-
-        except asyncio.TimeoutError:
-            logger.warning("Readiness check timeout - dependencies slow")
-            response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
-            return {
-                "ready": False,
-                "specialist_type": specialist.specialist_type,
-                "error": "health_check_timeout",
-            }
-        except Exception as e:
-            logger.error("Readiness check failed", error=str(e))
-            response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
-            return {"ready": False, "specialist_type": specialist.specialist_type, "error": str(e)}
+    # HealthRouter (neural_hive_api)
+    service_type = specialist.specialist_type.replace("-", "_")
+    health_router = HealthRouter(f"specialist-{service_type}")
+    health_router.register_check(MongoDBHealthCheck(specialist))
+    health_router.register_check(Neo4jHealthCheck(specialist))
+    health_router.add_route(app)
 
     @app.get("/metrics", response_class=PlainTextResponse)
     async def metrics():
