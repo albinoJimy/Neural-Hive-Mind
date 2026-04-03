@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: execution-mcp-server
+  labels:
+    app: execution-mcp-server
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: execution-mcp-server
+  template:
+    metadata:
+      labels:
+        app: execution-mcp-server
+    spec:
+      containers:
+      - name: execution-mcp-server
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - containerPort: {{ .Values.service.port }}
+          name: http
+        env:
+        - name: EXECUTION_MCP_PORT
+          value: "{{ .Values.service.port }}"
+        - name: EXECUTION_MCP_EXECUTION_TICKET_HOST
+          value: {{ .Values.env.executionTicketHost | quote }}
+        - name: EXECUTION_MCP_EXECUTION_TICKET_PORT
+          value: {{ .Values.env.executionTicketPort | quote }}
+        - name: EXECUTION_MCP_JWT_SECRET
+          value: {{ .Values.env.jwtSecret | quote }}
+        - name: EXECUTION_MCP_LOG_LEVEL
+          value: {{ .Values.env.logLevel | quote }}
+        resources:
+          {{- toYaml .Values.resources | nindent 10 }}

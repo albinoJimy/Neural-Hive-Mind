@@ -1,0 +1,6 @@
+apiVersion: v2
+name: execution-mcp-server
+description: MCP Server for Execution Ticket management
+type: application
+version: 1.0.0
+appVersion: "1.0.0"

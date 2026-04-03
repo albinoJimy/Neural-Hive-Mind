@@ -14,6 +14,7 @@ class AnalystSettings(BaseSettings):
     service_name: str = "analyst-mcp-server"
     service_version: str = "1.0.0"
     environment: str = "development"
+    port: int = 3016  # spec: INFRA-001-05
 
     # MongoDB para armazenamento de insights
     mongodb_uri: str = "mongodb://localhost:27017"

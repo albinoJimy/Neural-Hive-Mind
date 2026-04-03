@@ -697,7 +697,7 @@ class TestSettings:
 
         assert settings.service_name == "guard-mcp-server"
         assert settings.service_version == "1.0.0"
-        assert settings.port == 3014
+        assert settings.port == 3015  # spec: INFRA-001-04
         assert settings.guard_agent_host == "guard-agents"
         assert settings.guard_agent_port == 8008
         assert settings.trivy_host == "trivy"
