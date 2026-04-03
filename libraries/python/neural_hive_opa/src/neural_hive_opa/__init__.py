@@ -3,6 +3,12 @@ neural_hive_opa - Biblioteca padronizada para integração OPA.
 
 Cliente Open Policy Agent com cache, circuit breaker e métricas.
 """
+from neural_hive_opa.bundles import (
+    PolicyBundle,
+    PolicyBundleInfo,
+    PolicyBundleManager,
+    PolicyStatus,
+)
 from neural_hive_opa.cache import OPACache
 from neural_hive_opa.client import OPAClient
 from neural_hive_opa.config import OPAConfig
@@ -37,6 +43,11 @@ __all__ = [
     "OPAAuthorizationMiddleware",
     "OPADependency",
     "OPAMiddlewareConfig",
+    # Bundles
+    "PolicyStatus",
+    "PolicyBundle",
+    "PolicyBundleInfo",
+    "PolicyBundleManager",
 ]
 
 __version__ = "0.1.0"
