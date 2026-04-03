@@ -1,6 +1,9 @@
 # Dependências base consolidadas para Neural-Hive-Mind
 -r ../../requirements-base.txt
 
+# Neural Hive OPA - Biblioteca padronizada para integração OPA
+../../libraries/python/neural_hive_opa
+
 # Service-specific dependencies
 openai==1.10.0; python_version >= "3.10"
 anthropic==0.18.0; python_version >= "3.10"

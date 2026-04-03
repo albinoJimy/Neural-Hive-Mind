@@ -1,5 +1,8 @@
 # Dependências base consolidadas para Neural-Hive-Mind
 -r ../../requirements-base.txt
 
+# Neural Hive OPA - Biblioteca padronizada para integração OPA
+../../libraries/python/neural_hive_opa
+
 # Específicos do Queen Agent
 pybreaker>=1.0.1  # Circuit breaker específico

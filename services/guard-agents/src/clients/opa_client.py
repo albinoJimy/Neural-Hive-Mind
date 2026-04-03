@@ -1,7 +1,14 @@
-"""Cliente HTTP para integração com Open Policy Agent (OPA)"""
+"""
+Wrapper de compatibilidade para neural_hive_opa.
+
+Mantém compatibilidade com a API original do OPAClient do guard-agents
+enquanto usa a biblioteca unificada neural_hive_opa por baixo.
+"""
 from typing import Any, Dict, Optional
 
-import httpx
+from neural_hive_opa import OPAClient as NeuralHiveOPAClient
+from neural_hive_opa import OPAConfig
+from neural_hive_opa.exceptions import OPAConnectionError, OPAPolicyNotFoundError
 import structlog
 
 logger = structlog.get_logger()
@@ -9,26 +16,57 @@ logger = structlog.get_logger()
 
 class OPAClient:
     """
-    Cliente HTTP para validação de políticas com OPA.
-    Integra com servidor OPA para decisões de enforcement.
+    Wrapper de compatibilidade para OPAClient.
+
+    Mantém a mesma interface do OPAClient original do guard-agents
+    mas usa a biblioteca neural_hive_opa internamente.
     """
 
-    def __init__(self, base_url: str = "http://opa:8181", timeout: float = 5.0):
+    def __init__(
+        self,
+        base_url: str = "http://opa:8181",
+        timeout: float = 5.0,
+    ):
+        """
+        Inicializa wrapper OPA.
+
+        Args:
+            base_url: URL base do OPA (compatibilidade com assinatura original)
+            timeout: Timeout em segundos (compatibilidade com assinatura original)
+        """
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
-        self._client: Optional[httpx.AsyncClient] = None
+        self._client: Optional[NeuralHiveOPAClient] = None
 
     async def connect(self):
-        """Inicializa cliente HTTP assíncrono"""
-        self._client = httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout)
+        """
+        Inicializa cliente HTTP assíncrono (compatibilidade).
 
-        # Verifica conectividade
+        Este método é um alias para initialize() para manter compatibilidade.
+        """
+        await self.initialize()
+
+    async def initialize(self):
+        """Inicializa cliente OPA."""
+        # Criar configuração OPA
+        opa_config = OPAConfig(
+            opa_url=self.base_url,
+            opa_timeout_seconds=int(self.timeout),
+        )
+
+        # Criar cliente unificado
+        self._client = NeuralHiveOPAClient(config=opa_config, metrics=None)
+
+        # Inicializar cliente
+        await self._client.initialize()
+
+        # Verifica conectividade (health check)
         try:
-            response = await self._client.get("/health")
-            if response.status_code == 200:
+            is_healthy = await self._client.health_check()
+            if is_healthy:
                 logger.info("opa_client.connected", base_url=self.base_url)
             else:
-                logger.warning("opa_client.health_check_failed", status_code=response.status_code)
+                logger.warning("opa_client.health_check_failed")
         except Exception as e:
             logger.error("opa_client.connect_failed", base_url=self.base_url, error=str(e))
             raise
@@ -36,10 +74,16 @@ class OPAClient:
     async def close(self):
         """Fecha cliente HTTP"""
         if self._client:
-            await self._client.aclose()
+            await self._client.close()
             logger.info("opa_client.closed")
 
-    async def evaluate_policy(self, policy_path: str, input_data: Dict[str, Any]) -> Dict[str, Any]:
+    def is_connected(self) -> bool:
+        """Verifica se cliente está conectado"""
+        return self._client is not None
+
+    async def evaluate_policy(
+        self, policy_path: str, input_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """
         Avalia política OPA com dados de entrada.
 
@@ -48,45 +92,79 @@ class OPAClient:
             input_data: Dados para avaliação
 
         Returns:
-            Dict com decisão OPA
+            Dict com decisão OPA (formato compatível com código original)
         """
         if not self._client:
             raise RuntimeError("Client not connected")
 
         try:
-            # OPA endpoint: /v1/data/{policy_path}
-            url = f"/v1/data/{policy_path}"
-
-            payload = {"input": input_data}
-
             logger.debug("opa_client.evaluating_policy", policy_path=policy_path)
 
-            response = await self._client.post(url, json=payload)
-            response.raise_for_status()
+            # Usar cliente unificado para avaliar
+            # O cliente unificado retorna resultado direto da OPA, que pode ter formato
+            # diferente do esperado pelo código original
+            result = await self._client.evaluate(policy_path, input_data)
 
-            result = response.json()
+            # Normalizar resultado para formato esperado pelo código original
+            # O código original espera: {"allowed": True/False, ...}
+            normalized_result = self._normalize_result(result)
 
             logger.debug(
                 "opa_client.policy_evaluated",
                 policy_path=policy_path,
-                allowed=result.get("result", {}).get("allowed"),
+                allowed=normalized_result.get("allowed"),
             )
 
-            return result.get("result", {})
+            return normalized_result
 
-        except httpx.HTTPStatusError as e:
+        except OPAPolicyNotFoundError as e:
             logger.error(
-                "opa_client.evaluation_failed",
+                "opa_client.policy_not_found",
                 policy_path=policy_path,
-                status_code=e.response.status_code,
                 error=str(e),
             )
-            # Em caso de erro, retorna negado por segurança
-            return {"allowed": False, "reason": f"OPA evaluation failed: {str(e)}", "error": True}
+            # Em caso de política não encontrada, retorna negado por segurança
+            return {"allowed": False, "reason": f"Policy not found: {policy_path}", "error": True}
+        except OPAConnectionError as e:
+            logger.error(
+                "opa_client.connection_failed",
+                policy_path=policy_path,
+                error=str(e),
+            )
+            # Em caso de erro de conexão, retorna negado por segurança
+            return {"allowed": False, "reason": f"OPA connection failed: {str(e)}", "error": True}
         except Exception as e:
             logger.error("opa_client.evaluation_error", policy_path=policy_path, error=str(e))
+            # Em caso de erro genérico, retorna negado por segurança
             return {"allowed": False, "reason": f"OPA error: {str(e)}", "error": True}
 
-    def is_connected(self) -> bool:
-        """Verifica se cliente está conectado"""
-        return self._client is not None
+    def _normalize_result(self, result: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Normaliza resultado do OPA para formato esperado pelo código original.
+
+        O neural_hive_opa retorna {"allow": True/False, ...}
+        O código original espera {"allowed": True/False, ...}
+
+        Args:
+            result: Resultado do neural_hive_opa
+
+        Returns:
+            Resultado normalizado
+        """
+        # Verificar se já tem formato esperado
+        if "allowed" in result:
+            return result
+
+        # Verificar se tem "allow" (formato neural_hive_opa)
+        if "allow" in result:
+            # Converter "allow" para "allowed" mantendo resto dos campos
+            normalized = dict(result)
+            normalized["allowed"] = result["allow"]
+            return normalized
+
+        # Se não tem nenhum dos dois, assumir permitido e retornar resultado como está
+        return {"allowed": True, **result}
+
+
+# Exportar classes para compatibilidade
+__all__ = ["OPAClient"]
