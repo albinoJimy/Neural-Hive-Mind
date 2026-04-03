@@ -11,8 +11,8 @@ import sys
 # Adicionar path do shared module
 sys.path.insert(0, "/app")
 
-from execution_mcp_server.server import mcp
 from execution_mcp_server.config import get_settings
+from execution_mcp_server.server import mcp
 
 
 async def main() -> None:

@@ -5,17 +5,15 @@ Inicializa o servidor HTTP com FastAPI + FastMCP,
 configurando observability e graceful shutdown.
 """
 
-import asyncio
 import sys
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
 
 import structlog
 import uvicorn
-from fastapi import FastAPI
-
 from execution_mcp_server.config import get_settings
 from execution_mcp_server.server import mcp
+from fastapi import FastAPI
 
 # Adicionar path do shared module
 sys.path.insert(0, "/app")
@@ -46,7 +44,7 @@ server = ExecutionMCPServer(
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:  # noqa: ARG001
     """Gerencia ciclo de vida da aplicação."""
     # Startup
     await server.initialize()
