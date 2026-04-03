@@ -13,17 +13,18 @@ Espec: .agent-os/specs/2026-03-18-gaps-06-mcp-integration/
 import asyncio
 import sys
 from datetime import datetime
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, Mock
 from uuid import uuid4
 
 import pytest
 
-# Mock de dependências externas ANTES de imports
-sys.modules["neural_hive_domain"] = Mock()
-sys.modules["neural_hive_specialists"] = Mock()
-sys.modules["neural_hive_agent_sdk"] = Mock()
-sys.modules["neural_hive_observability"] = Mock()
-sys.modules["neural_hive_observability"].get_logger = Mock(return_value=MagicMock())
+# Adicionar src ao path
+src_path = Path(__file__).parent.parent.parent / "src"
+sys.path.insert(0, str(src_path))
+
+# NOTA: Os mocks de dependências externas já estão configurados no conftest.py raiz
+# Não sobrescrever aqui para evitar conflitos com outros testes
 
 # Import direto via importlib para evitar __init__.py
 import importlib.util

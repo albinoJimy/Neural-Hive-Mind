@@ -10,7 +10,8 @@ Implementa distribuição de tarefas usando múltiplas estratégias:
 import asyncio
 import hashlib
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import datetime
+from neural_hive_domain import UTC
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Optional
 
@@ -53,7 +54,7 @@ class TaskAssignment:
 
     worker_id: str
     strategy: BalancingStrategy
-    assigned_at: datetime = field(default_factory=datetime.utcnow)
+    assigned_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 class LoadBalancer:

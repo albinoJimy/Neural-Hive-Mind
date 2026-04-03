@@ -8,13 +8,14 @@ com suporte a invocação síncrona e assíncrona.
 import asyncio
 import base64
 import json
-from enum import StrEnum
 from typing import Any
 
 import structlog
 from opentelemetry import trace
 from pydantic import BaseModel, Field
 from tenacity import retry, stop_after_attempt, wait_exponential
+
+from compat import StrEnum
 
 logger = structlog.get_logger()
 tracer = trace.get_tracer(__name__)

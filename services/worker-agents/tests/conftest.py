@@ -108,6 +108,39 @@ def _configure_logging() -> None:
     )
 
 
+@pytest.fixture(scope='session', autouse=True)
+def _mock_tracer():
+    """Mock get_tracer from neural_hive_observability."""
+    from unittest.mock import MagicMock, patch
+
+    mock_span = MagicMock()
+    mock_span.__enter__ = MagicMock(return_value=mock_span)
+    mock_span.__exit__ = MagicMock(return_value=False)
+    mock_span.set_attribute = MagicMock()
+
+    mock_tracer = MagicMock()
+    mock_tracer.start_as_current_span = MagicMock(return_value=mock_span)
+
+    # Patch all possible import paths for get_tracer
+    patches = [
+        patch('neural_hive_observability.get_tracer', return_value=mock_tracer),
+        patch('src.engine.execution_engine.get_tracer', return_value=mock_tracer),
+        patch('executors.validate_executor.get_tracer', return_value=mock_tracer),
+        patch('executors.build_executor.get_tracer', return_value=mock_tracer),
+        patch('executors.deploy_executor.get_tracer', return_value=mock_tracer),
+        patch('executors.test_executor.get_tracer', return_value=mock_tracer),
+        patch('executors.execute_executor.get_tracer', return_value=mock_tracer),
+    ]
+
+    for p in patches:
+        p.start()
+
+    yield mock_tracer
+
+    for p in patches:
+        p.stop()
+
+
 # ============================================
 # Settings Fixtures
 # ============================================

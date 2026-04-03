@@ -1,11 +1,12 @@
 import hashlib
 import json
 from datetime import datetime
-from enum import StrEnum
 from typing import Any
 from uuid import uuid4
 
 from pydantic import BaseModel, Field
+
+from neural_hive_domain import StrEnum
 
 
 class DecisionType(StrEnum):

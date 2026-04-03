@@ -6,13 +6,16 @@ Detecta problemas de saúde nos serviços e componentes do Neural Hive-Mind.
 
 import asyncio
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
 import aiohttp
 import structlog
 
 logger = structlog.get_logger()
+
+# UTC timezone
+UTC = timezone.utc
 
 
 @dataclass
@@ -21,7 +24,7 @@ class HealthStatus:
 
     service_name: str
     healthy: bool
-    checked_at: datetime = field(default_factory=datetime.utcnow)
+    checked_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     response_time_ms: Optional[float] = None
     error_message: Optional[str] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
@@ -47,7 +50,7 @@ class LagStatus:
     lag: int
     threshold: int
     within_threshold: bool
-    checked_at: datetime = field(default_factory=datetime.utcnow)
+    checked_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     partitions: Dict[int, int] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
@@ -70,7 +73,7 @@ class ConnectionStatus:
     connection_string: str
     connected: bool
     database_type: str
-    checked_at: datetime = field(default_factory=datetime.utcnow)
+    checked_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     response_time_ms: Optional[float] = None
     error: Optional[str] = None
     database_info: Optional[Dict[str, Any]] = None

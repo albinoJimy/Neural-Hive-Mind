@@ -6,7 +6,8 @@ Usa o padrão "Leader Election with Redis" baseado em locks distribuídos.
 """
 import asyncio
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime
+from neural_hive_domain import UTC
 from enum import Enum
 from typing import TYPE_CHECKING
 

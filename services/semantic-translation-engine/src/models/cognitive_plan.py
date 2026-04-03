@@ -5,9 +5,12 @@ Define os modelos Pydantic para Planos Cognitivos (artefato central do Fluxo B).
 """
 
 import uuid
-from datetime import datetime
-from enum import StrEnum
+from datetime import datetime, timezone
+from neural_hive_domain import StrEnum
 from typing import Any
+
+# UTC timezone
+UTC = timezone.utc
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from pydantic.functional_serializers import field_serializer
@@ -97,7 +100,7 @@ class CognitivePlan(BaseModel):
 
     # Metadata
     status: PlanStatus = Field(default=PlanStatus.DRAFT, description="Plan status")
-    created_at: datetime = Field(default_factory=datetime.utcnow, description="Creation timestamp")
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), description="Creation timestamp")
     valid_until: datetime | None = Field(None, description="Plan validity")
     estimated_total_duration_ms: int | None = Field(None, description="Total estimated duration")
     complexity_score: float = Field(..., ge=0.0, description="Complexity score")

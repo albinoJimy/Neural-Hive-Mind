@@ -15,10 +15,10 @@ from src.clients.gitlab_ci_client import (
 def gitlab_client():
     """Create GitLab CI client for testing."""
     return GitLabCIClient(
-        base_url='https://gitlab.example.com',
         token='test-token',
+        base_url='https://gitlab.example.com',
         timeout=30,
-        tls_verify=True
+        verify_ssl=True
     )
 
 

@@ -4,12 +4,15 @@ Modelos de dados para Schedule de Workflows.
 Define os modelos usados pelo scheduler de workflows do SLA Management System.
 Suporta schedules baseados em cron, eventos e triggers manuais.
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, Optional
 from uuid import uuid4
 
 from pydantic import BaseModel, Field
+
+# UTC timezone
+UTC = timezone.utc
 
 
 class ScheduleType(str, Enum):
@@ -70,8 +73,8 @@ class Schedule(BaseModel):
         default=SchedulePriority.MEDIUM, description="Prioridade do schedule"
     )
     status: ScheduleStatus = Field(default=ScheduleStatus.ACTIVE, description="Status do schedule")
-    created_at: datetime = Field(default_factory=datetime.utcnow, description="Data de criação")
-    updated_at: datetime = Field(default_factory=datetime.utcnow, description="Última atualização")
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), description="Data de criação")
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC), description="Última atualização")
     last_run_at: Optional[datetime] = Field(None, description="Última execução")
     next_run_at: Optional[datetime] = Field(None, description="Próxima execução programada")
     total_runs: int = Field(default=0, description="Número total de execuções")
@@ -85,7 +88,7 @@ class ScheduleExecution(BaseModel):
     execution_id: str = Field(default_factory=lambda: str(uuid4()))
     schedule_id: str = Field(..., description="ID do schedule")
     workflow_id: str = Field(..., description="ID do workflow executado")
-    started_at: datetime = Field(default_factory=datetime.utcnow)
+    started_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     completed_at: Optional[datetime] = Field(None)
     status: str = Field(default="running")  # running, completed, failed
     error_message: Optional[str] = Field(None)

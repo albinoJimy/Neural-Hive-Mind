@@ -3,11 +3,14 @@ Modelos Pydantic para error budgets calculados.
 """
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 
 from pydantic import BaseModel, Field
+
+# UTC timezone
+UTC = timezone.utc
 
 
 class BudgetStatus(str, Enum):
@@ -45,7 +48,7 @@ class ErrorBudget(BaseModel):
     budget_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     slo_id: str = Field(..., description="Referência ao SLO")
     service_name: str = Field(...)
-    calculated_at: datetime = Field(default_factory=datetime.utcnow)
+    calculated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     window_start: datetime = Field(...)
     window_end: datetime = Field(...)
     sli_value: float = Field(..., description="Valor atual do SLI")

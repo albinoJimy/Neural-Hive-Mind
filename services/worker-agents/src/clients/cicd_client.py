@@ -10,10 +10,11 @@ Este cliente implementa uma interface unificada que delega para os clientes espe
 """
 
 from dataclasses import dataclass, field
-from enum import StrEnum
 from typing import Any
 
 import structlog
+
+from compat import StrEnum
 
 logger = structlog.get_logger()
 

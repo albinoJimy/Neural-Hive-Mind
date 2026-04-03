@@ -7,7 +7,8 @@ atualizar o ledger e publicar planos aprovados para execução.
 
 import logging
 import time
-from datetime import UTC, datetime
+from datetime import datetime
+from neural_hive_domain import UTC
 from typing import Any
 
 import structlog

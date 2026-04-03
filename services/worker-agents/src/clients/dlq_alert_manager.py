@@ -5,10 +5,12 @@ Responsável por enviar alertas para SRE quando tickets falham definitivamente.
 """
 import json
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime
 
 import structlog
 from confluent_kafka import Producer
+
+from compat import UTC
 
 logger = structlog.get_logger()
 

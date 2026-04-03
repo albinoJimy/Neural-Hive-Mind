@@ -1,7 +1,8 @@
 # MCP Execution Repository
 
 import asyncio
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
+from neural_hive_domain import UTC
 from typing import Any
 
 from neural_hive_observability import get_logger

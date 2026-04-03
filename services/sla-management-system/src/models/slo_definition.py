@@ -3,11 +3,14 @@ Modelos Pydantic para definições de SLO.
 """
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, Optional
 
 from pydantic import BaseModel, Field
+
+# UTC timezone
+UTC = timezone.utc
 
 
 class SLOType(str, Enum):
@@ -53,8 +56,8 @@ class SLODefinition(BaseModel):
     sli_query: SLIQuery = Field(..., description="Query para calcular SLI")
     error_budget_percent: float = Field(default=0, description="% de budget permitido")
     enabled: bool = Field(default=True, description="SLO ativo")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
     def model_post_init(self, __context):

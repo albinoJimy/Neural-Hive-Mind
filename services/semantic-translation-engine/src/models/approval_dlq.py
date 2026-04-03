@@ -4,11 +4,14 @@ Approval DLQ Entry Model
 Define o modelo Pydantic para entradas da Dead Letter Queue de aprovações.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.functional_serializers import field_serializer
+
+# UTC timezone
+UTC = timezone.utc
 
 
 class ApprovalDLQEntry(BaseModel):
@@ -26,7 +29,7 @@ class ApprovalDLQEntry(BaseModel):
         ..., description="Resposta de aprovação original completa"
     )
     failed_at: datetime = Field(
-        default_factory=datetime.utcnow, description="Timestamp da falha final"
+        default_factory=lambda: datetime.now(UTC), description="Timestamp da falha final"
     )
 
     # Trace context para rastreabilidade

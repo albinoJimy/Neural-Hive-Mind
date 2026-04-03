@@ -6,11 +6,14 @@ injeção de falhas, validação e relatórios.
 """
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
+
+# UTC timezone
+UTC = timezone.utc
 
 
 class ChaosExperimentStatus(str, Enum):
@@ -180,7 +183,7 @@ class ChaosExperiment(BaseModel):
     status: ChaosExperimentStatus = Field(
         default=ChaosExperimentStatus.PLANNED, description="Status atual"
     )
-    created_at: datetime = Field(default_factory=datetime.utcnow, description="Data de criação")
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), description="Data de criação")
     started_at: Optional[datetime] = Field(default=None, description="Data de início")
     completed_at: Optional[datetime] = Field(default=None, description="Data de conclusão")
     approved_by: Optional[str] = Field(default=None, description="Aprovador do experimento")
@@ -210,7 +213,7 @@ class ValidationResult(BaseModel):
         default_factory=dict, description="Snapshot de métricas"
     )
     timestamp: datetime = Field(
-        default_factory=datetime.utcnow, description="Timestamp da validação"
+        default_factory=lambda: datetime.now(UTC), description="Timestamp da validação"
     )
 
 
@@ -239,7 +242,7 @@ class ExperimentReport(BaseModel):
     )
     metrics_summary: Dict[str, Any] = Field(default_factory=dict, description="Resumo de métricas")
     generated_at: datetime = Field(
-        default_factory=datetime.utcnow, description="Data de geração do relatório"
+        default_factory=lambda: datetime.now(UTC), description="Data de geração do relatório"
     )
 
 

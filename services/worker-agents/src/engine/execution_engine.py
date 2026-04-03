@@ -1,10 +1,11 @@
 import asyncio
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Any
 
 import structlog
 
+from compat import UTC
 from neural_hive_observability import get_tracer
 
 logger = structlog.get_logger()

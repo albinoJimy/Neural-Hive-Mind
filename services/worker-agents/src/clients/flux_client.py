@@ -370,7 +370,9 @@ class FluxClient:
                 import datetime
 
                 annotation_value = (
-                    datetime.datetime.now(datetime.UTC).isoformat().replace("+00:00", "Z")
+                    datetime.datetime.now(datetime.timezone.utc)
+                    .isoformat()
+                    .replace("+00:00", "Z")
                 )
 
                 patch_body = {

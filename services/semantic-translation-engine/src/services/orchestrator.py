@@ -6,7 +6,8 @@ Main orchestrator that coordinates all steps of plan generation.
 
 import time
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
+from neural_hive_domain import UTC
 
 import structlog
 from src.clients.mongodb_client import MongoDBClient

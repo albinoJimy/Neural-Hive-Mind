@@ -3,11 +3,14 @@ Modelos Pydantic para políticas de congelamento.
 """
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
+
+# UTC timezone
+UTC = timezone.utc
 
 
 class FreezeScope(str, Enum):
@@ -47,7 +50,7 @@ class FreezePolicy(BaseModel):
     auto_unfreeze: bool = Field(default=True)
     unfreeze_threshold_percent: float = Field(default=50, description="% para descongelar")
     enabled: bool = Field(default=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
     def should_trigger(self, budget) -> bool:
@@ -84,7 +87,7 @@ class FreezeEvent(BaseModel):
     slo_id: str = Field(...)
     service_name: str = Field(...)
     action: FreezeAction = Field(...)
-    triggered_at: datetime = Field(default_factory=datetime.utcnow)
+    triggered_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     resolved_at: Optional[datetime] = Field(None)
     trigger_reason: str = Field(...)
     budget_remaining_percent: float = Field(...)

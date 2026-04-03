@@ -1,10 +1,12 @@
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Any
 
 import httpx
 import jwt
 import structlog
 from tenacity import retry, stop_after_attempt, wait_exponential
+
+from compat import UTC
 
 logger = structlog.get_logger()
 

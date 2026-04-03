@@ -4,11 +4,13 @@ Cliente de integração Vault para worker-agents service
 
 import asyncio
 from collections.abc import Callable
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from typing import Any, Optional
 
 import structlog
 from prometheus_client import Counter
+
+from compat import UTC
 
 # Import security library components
 try:

@@ -10,7 +10,8 @@ com retry_count incrementado para controle de max retries.
 """
 
 import json
-from datetime import UTC, datetime
+from datetime import datetime
+from neural_hive_domain import UTC
 from typing import TYPE_CHECKING, Any, Optional
 
 import structlog

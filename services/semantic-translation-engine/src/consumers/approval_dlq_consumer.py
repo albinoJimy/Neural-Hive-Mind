@@ -9,7 +9,8 @@ import asyncio
 import json
 import time
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import datetime
+from neural_hive_domain import UTC
 
 import structlog
 from confluent_kafka import Consumer, KafkaError, TopicPartition

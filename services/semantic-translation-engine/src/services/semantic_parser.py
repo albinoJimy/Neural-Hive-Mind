@@ -5,7 +5,8 @@ Parses intents, maps entities to ontology, and enriches with historical context.
 """
 
 import hashlib
-from datetime import UTC, datetime
+from datetime import datetime
+from neural_hive_domain import UTC
 from typing import TYPE_CHECKING, Any, Optional
 
 import structlog

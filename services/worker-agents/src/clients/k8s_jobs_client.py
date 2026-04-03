@@ -7,13 +7,14 @@ com resource limits, security context e cleanup automático.
 
 import asyncio
 import uuid
-from enum import StrEnum
 from typing import Any
 
 import structlog
 from opentelemetry import trace
 from pydantic import BaseModel, Field
 from tenacity import retry, stop_after_attempt, wait_exponential
+
+from compat import StrEnum
 
 logger = structlog.get_logger()
 tracer = trace.get_tracer(__name__)

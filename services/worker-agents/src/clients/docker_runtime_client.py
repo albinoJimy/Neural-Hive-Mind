@@ -7,12 +7,13 @@ seguindo o padrão estabelecido pelos outros clientes do worker-agents.
 
 import asyncio
 import contextlib
-from enum import StrEnum
 
 import structlog
 from opentelemetry import trace
 from pydantic import BaseModel, Field
 from tenacity import retry, stop_after_attempt, wait_exponential
+
+from compat import StrEnum
 
 logger = structlog.get_logger()
 tracer = trace.get_tracer(__name__)
