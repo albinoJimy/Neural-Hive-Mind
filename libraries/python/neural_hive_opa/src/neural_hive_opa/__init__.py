@@ -12,6 +12,7 @@ from neural_hive_opa.exceptions import (
     OPAPolicyNotFoundError,
 )
 from neural_hive_opa.metrics import OPAMetrics
+from neural_hive_opa.middleware import OPAAuthorizationMiddleware, OPADependency, OPAMiddlewareConfig
 from neural_hive_opa.models import PolicyRequest, PolicyResponse, Violation, ViolationSeverity
 
 __all__ = [
@@ -32,6 +33,10 @@ __all__ = [
     "OPAPolicyNotFoundError",
     # Metrics
     "OPAMetrics",
+    # Middleware
+    "OPAAuthorizationMiddleware",
+    "OPADependency",
+    "OPAMiddlewareConfig",
 ]
 
 __version__ = "0.1.0"
