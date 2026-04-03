@@ -1,0 +1,14 @@
+apiVersion: v2
+name: queen-mcp-server
+description: Queen MCP Server - Decisões estratégicas e orquestração
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - mcp
+  - queen
+  - orchestration
+  - strategic-decisions
+maintainers:
+  - name: Neural Hive Mind
+    email: dev@neuralhive.local

@@ -1,0 +1,110 @@
+# Valores padrão para Queen MCP Server
+replicaCount: 1
+
+image:
+  repository: python
+  pullPolicy: IfNotPresent
+  tag: "3.12-slim"
+
+# Command e args
+command: ["python"]
+args: ["-m", "src.main"]
+
+# Configurações do Queen Agent
+queen:
+  logLevel: INFO
+  agentHost: queen-agent
+  agentPort: 8006
+  decisionTimeout: 30
+  cacheTtlSeconds: 300
+  # OPA configuration
+  opaUrl: http://opa:8181
+  opaPolicyPath: neuralhive/queen/ethical_guardrails
+  # MongoDB configuration
+  mongodbUri: mongodb://mongodb:27017
+  mongodbDatabase: queen_agent
+  # Neo4j configuration
+  neo4jUri: bolt://neo4j:7687
+  neo4jDatabase: neo4j
+  neo4jUser: neo4j
+  neo4jPassword: password
+  # Redis configuration
+  redisUri: redis://redis:6379
+
+# Serviço MCP
+service:
+  type: ClusterIP
+  port: 3012
+  annotations: {}
+
+# Ingress (opcional)
+ingress:
+  enabled: false
+  className: nginx
+  hosts:
+    - host: queen-mcp.neural-hive.local
+      paths:
+        - path: /
+          pathType: Prefix
+
+# Resources
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# Liveness e readiness probes
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 3012
+  initialDelaySeconds: 5
+  periodSeconds: 30
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 3012
+  initialDelaySeconds: 5
+  periodSeconds: 10
+
+# Environment variables (serão processados no deployment.yaml)
+env: []
+# Exemplo de uso (override em values override):
+# env:
+#   - name: QUEEN_MCP_LOG_LEVEL
+#     value: "DEBUG"
+#   - name: QUEEN_MCP_QUEEN_AGENT_HOST
+#     value: "queen-agent"
+
+# Pod security context
+podSecurityContext:
+  fsGroup: 1000
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+# Service account
+serviceAccount:
+  create: true
+  annotations: {}
+
+# Pod labels
+podLabels:
+  app: queen-mcp-server
+  component: strategic-orchestration
+  part-of: neural-hive-mind
+
+# Service annotations
+serviceAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "3012"
+  prometheus.io/path: "/metrics"

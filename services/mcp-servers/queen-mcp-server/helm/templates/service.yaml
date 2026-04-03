@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: queen-mcp-server
+  labels:
+    {{- include "queen-mcp-server.labels" . | nindent 4 }}
+  {{- with .Values.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: mcp
+      protocol: TCP
+      name: mcp
+  selector:
+    {{- include "queen-mcp-server.selectorLabels" . | nindent 4 }}
