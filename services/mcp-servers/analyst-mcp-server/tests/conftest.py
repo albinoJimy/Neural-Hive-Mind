@@ -16,7 +16,7 @@ if shared_path.exists():
 
 
 # Importar módulos para garantir cobertura
-def pytest_configure(config):
+def pytest_configure(config):  # noqa: ARG001
     """Configuração do pytest."""
-    import analyst_mcp_server.tools.analyst_tools
-    import analyst_mcp_server.server
+    import analyst_mcp_server.server  # noqa: F401
+    import analyst_mcp_server.tools.analyst_tools  # noqa: F401

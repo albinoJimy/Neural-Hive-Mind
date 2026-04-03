@@ -547,21 +547,18 @@ class TestValidateSecurityEdgeCases:
             )
             mock_response.raise_for_status = Mock()
 
-            with patch("httpx.AsyncClient"):
-                from unittest.mock import AsyncMock, patch
+            with patch("httpx.AsyncClient", autospec=True) as mock_client_class:
+                mock_client = AsyncMock()
+                mock_client.__aenter__.return_value.post = AsyncMock(return_value=mock_response)
+                mock_client_class.return_value = mock_client
 
-                with patch("httpx.AsyncClient", autospec=True) as mock_client_class:
-                    mock_client = AsyncMock()
-                    mock_client.__aenter__.return_value.post = AsyncMock(return_value=mock_response)
-                    mock_client_class.return_value = mock_client
+                result = await validate_security(
+                    ticket_id="ticket-123",
+                    task_type="DEPLOY",
+                    environment=env,
+                )
 
-                    result = await validate_security(
-                        ticket_id="ticket-123",
-                        task_type="DEPLOY",
-                        environment=env,
-                    )
-
-                    assert result["validation_status"] == "approved"
+                assert result["validation_status"] == "approved"
 
     @pytest.mark.asyncio
     async def test_validate_security_all_security_levels(self):
@@ -593,14 +590,14 @@ class TestValidateSecurityEdgeCases:
                 mock_client.__aenter__.return_value.post = AsyncMock(return_value=mock_response)
                 mock_client_class.return_value = mock_client
 
-                    result = await validate_security(
-                        ticket_id="ticket-123",
-                        task_type="DEPLOY",
-                        environment="production",
-                        security_level=sec_level,
-                    )
+                result = await validate_security(
+                    ticket_id="ticket-123",
+                    task_type="DEPLOY",
+                    environment="production",
+                    security_level=sec_level,
+                )
 
-                    assert result["validation_status"] == "approved"
+                assert result["validation_status"] == "approved"
 
 
 class TestScanVulnerabilitiesEdgeCases:

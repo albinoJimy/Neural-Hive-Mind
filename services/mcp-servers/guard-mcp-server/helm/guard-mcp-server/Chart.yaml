@@ -1,0 +1,15 @@
+apiVersion: v2
+name: guard-mcp-server
+description: Guard MCP Server - Servidor MCP para validações de segurança
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+maintainers:
+  - name: Neural Hive-Mind Team
+    email: team@neuralhive.io
+keywords:
+  - neural-hive-mind
+  - guard-mcp-server
+  - security
+  - validation
+  - mcp

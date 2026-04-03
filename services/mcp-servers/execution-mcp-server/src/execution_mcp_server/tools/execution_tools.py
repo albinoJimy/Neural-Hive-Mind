@@ -16,7 +16,6 @@ from urllib.parse import urlparse
 import httpx
 import jwt
 import structlog
-
 from execution_mcp_server.config import get_settings
 
 logger = structlog.get_logger(__name__)
@@ -545,7 +544,7 @@ async def _send_webhook(
 
         except httpx.HTTPStatusError as e:
             if attempt == max_retries:
-                logger.error("webhook_failed_final", url=url, status_code=e.response.status_code)
+                logger.exception("webhook_failed_final", url=url, status_code=e.response.status_code)
                 return {
                     "webhook_id": webhook_id,
                     "status": "failed",

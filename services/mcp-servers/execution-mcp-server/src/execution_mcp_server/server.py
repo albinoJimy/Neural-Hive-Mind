@@ -6,10 +6,9 @@ de gerenciamento de Execution Tickets.
 """
 
 import structlog
-from fastmcp import FastMCP
-
 from execution_mcp_server.config import get_settings
 from execution_mcp_server.tools.execution_tools import register_execution_tools
+from fastmcp import FastMCP
 
 logger = structlog.get_logger(__name__)
 
