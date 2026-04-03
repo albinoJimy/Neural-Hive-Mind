@@ -1,0 +1,49 @@
+replicaCount: 1
+
+image:
+  repository: 37.60.241.150:30500/guard-mcp-server
+  tag: "1.0.0"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  ports:
+    http: 3014
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    cpu: 200m
+    memory: 256Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+env:
+  GUARD_MCP_PORT: "3014"
+  GUARD_MCP_LOG_LEVEL: INFO
+  GUARD_MCP_GUARD_AGENT_HOST: guard-agents
+  GUARD_MCP_GUARD_AGENT_PORT: "8008"
+  GUARD_MCP_TRIVY_HOST: trivy
+  GUARD_MCP_TRIVY_PORT: "8080"
+
+secrets:
+  jwt_secret: ""
+
+serviceAccount:
+  create: true
+  name: guard-mcp-server
+
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+
+affinity: {}
+nodeSelector: {}
+tolerations: []

@@ -6,11 +6,10 @@ com o Execution Ticket Service via gRPC.
 """
 
 import asyncio
-from typing import Any, Optional
+from typing import Any
 
 import grpc
 import structlog
-
 from execution_mcp_server.config import get_settings
 
 logger = structlog.get_logger(__name__)
@@ -20,7 +19,7 @@ settings = get_settings()
 class ExecutionTicketClient:
     """
     Cliente gRPC para Execution Ticket Service.
-    
+
     Fornece métodos para:
     - Criar tickets
     - Consultar tickets
@@ -30,13 +29,13 @@ class ExecutionTicketClient:
 
     def __init__(
         self,
-        host: Optional[str] = None,
-        port: Optional[int] = None,
+        host: str | None = None,
+        port: int | None = None,
         timeout_seconds: int = 30
     ):
         """
         Inicializa cliente gRPC.
-        
+
         Args:
             host: Host do Execution Ticket Service
             port: Porta do Execution Ticket Service
@@ -45,8 +44,8 @@ class ExecutionTicketClient:
         self._host = host or settings.execution_ticket_host
         self._port = port or settings.execution_ticket_port
         self._timeout = timeout_seconds
-        self._channel: Optional[grpc.aio.Channel] = None
-        self._stub: Optional[Any] = None
+        self._channel: grpc.aio.Channel | None = None
+        self._stub: Any | None = None
         self._connected = False
 
     async def connect(self) -> None:
@@ -64,7 +63,7 @@ class ExecutionTicketClient:
             logger.info("execution_ticket_service_connected", target=target)
 
         except Exception as e:
-            logger.error("execution_ticket_service_connection_failed", error=str(e))
+            logger.exception("execution_ticket_service_connection_failed")
             raise
 
     async def disconnect(self) -> None:
@@ -86,10 +85,10 @@ class ExecutionTicketClient:
         task_type: str,
         description: str,
         priority: str = "NORMAL",
-        intent_id: Optional[str] = None,
-        decision_id: Optional[str] = None,
-        dependencies: Optional[list[str]] = None,
-        parameters: Optional[dict[str, Any]] = None
+        intent_id: str | None = None,
+        decision_id: str | None = None,  # noqa: ARG002
+        dependencies: list[str] | None = None,
+        parameters: dict[str, Any] | None = None
     ) -> dict[str, Any]:
         """
         Cria novo execution ticket via gRPC.
@@ -109,14 +108,14 @@ class ExecutionTicketClient:
             Dicionário com ticket criado
         """
         await self._ensure_connected()
-        
+
         # Import dinâmico para evitar dependências em ambiente de testes
         try:
             from neural_hive_domain.proto_gen import ticket_service_pb2, ticket_service_pb2_grpc
-            
+
             if not self._stub:
                 self._stub = ticket_service_pb2_grpc.TicketServiceStub(self._channel)
-            
+
             request = ticket_service_pb2.CreateTicketRequest(
                 plan_id=plan_id,
                 intent_id=intent_id or "",
@@ -125,18 +124,18 @@ class ExecutionTicketClient:
                 description=description,
                 priority=priority
             )
-            
+
             response = await asyncio.wait_for(
                 self._stub.CreateTicket(request, timeout=self._timeout),
                 timeout=self._timeout
             )
-            
+
             return {
                 "ticket_id": response.ticket.ticket_id,
                 "status": response.ticket.status,
                 "created_at": response.ticket.created_at
             }
-            
+
         except ImportError:
             logger.warning("grpc_proto_not_available", message="Using mock response")
             # Retornar mock quando protobuf não está disponível
@@ -147,7 +146,7 @@ class ExecutionTicketClient:
                 "created_at": 0
             }
 
-    async def get_ticket(self, ticket_id: str) -> Optional[dict[str, Any]]:
+    async def get_ticket(self, ticket_id: str) -> dict[str, Any] | None:
         """
         Busca ticket por ID via gRPC.
         
@@ -158,19 +157,19 @@ class ExecutionTicketClient:
             Dicionário com ticket ou None se não encontrado
         """
         await self._ensure_connected()
-        
+
         try:
             from neural_hive_domain.proto_gen import ticket_service_pb2, ticket_service_pb2_grpc
-            
+
             if not self._stub:
                 self._stub = ticket_service_pb2_grpc.TicketServiceStub(self._channel)
-            
+
             request = ticket_service_pb2.GetTicketRequest(ticket_id=ticket_id)
             response = await asyncio.wait_for(
                 self._stub.GetTicket(request, timeout=self._timeout),
                 timeout=self._timeout
             )
-            
+
             return {
                 "ticket_id": response.ticket.ticket_id,
                 "plan_id": response.ticket.plan_id,
@@ -179,7 +178,7 @@ class ExecutionTicketClient:
                 "priority": response.ticket.priority,
                 "created_at": response.ticket.created_at
             }
-            
+
         except ImportError:
             logger.warning("grpc_proto_not_available")
             return None
@@ -192,7 +191,7 @@ class ExecutionTicketClient:
         self,
         ticket_id: str,
         status: str,
-        error_message: Optional[str] = None
+        error_message: str | None = None
     ) -> dict[str, Any]:
         """
         Atualiza status do ticket via gRPC.
@@ -206,29 +205,29 @@ class ExecutionTicketClient:
             Dicionário com ticket atualizado
         """
         await self._ensure_connected()
-        
+
         try:
             from neural_hive_domain.proto_gen import ticket_service_pb2, ticket_service_pb2_grpc
-            
+
             if not self._stub:
                 self._stub = ticket_service_pb2_grpc.TicketServiceStub(self._channel)
-            
+
             request = ticket_service_pb2.UpdateTicketStatusRequest(
                 ticket_id=ticket_id,
                 status=status,
                 error_message=error_message or ""
             )
-            
+
             response = await asyncio.wait_for(
                 self._stub.UpdateTicketStatus(request, timeout=self._timeout),
                 timeout=self._timeout
             )
-            
+
             return {
                 "ticket_id": response.ticket.ticket_id,
                 "status": response.ticket.status
             }
-            
+
         except ImportError:
             logger.warning("grpc_proto_not_available")
             return {"ticket_id": ticket_id, "status": status}
@@ -236,7 +235,7 @@ class ExecutionTicketClient:
             logger.error("update_status_failed", code=e.code(), details=e.details())
             raise
 
-    async def generate_token(self, ticket_id: str) -> Optional[dict[str, Any]]:
+    async def generate_token(self, ticket_id: str) -> dict[str, Any] | None:
         """
         Gera token JWT para ticket via gRPC.
         
@@ -247,25 +246,25 @@ class ExecutionTicketClient:
             Dicionário com token ou None se falhar
         """
         await self._ensure_connected()
-        
+
         try:
             from neural_hive_domain.proto_gen import ticket_service_pb2, ticket_service_pb2_grpc
-            
+
             if not self._stub:
                 self._stub = ticket_service_pb2_grpc.TicketServiceStub(self._channel)
-            
+
             request = ticket_service_pb2.GenerateTokenRequest(ticket_id=ticket_id)
             response = await asyncio.wait_for(
                 self._stub.GenerateToken(request, timeout=self._timeout),
                 timeout=self._timeout
             )
-            
+
             return {
                 "access_token": response.access_token,
                 "expires_at": response.expires_at,
                 "ticket_id": ticket_id
             }
-            
+
         except ImportError:
             logger.warning("grpc_proto_not_available")
             return None
@@ -275,7 +274,7 @@ class ExecutionTicketClient:
 
 
 # Singleton instance
-_client_instance: Optional[ExecutionTicketClient] = None
+_client_instance: ExecutionTicketClient | None = None
 
 
 async def get_grpc_client() -> ExecutionTicketClient:

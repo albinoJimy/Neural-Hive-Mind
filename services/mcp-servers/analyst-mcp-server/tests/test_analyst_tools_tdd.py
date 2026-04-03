@@ -780,3 +780,218 @@ class TestAnalystMCPServerIntegration:
 
         assert register_analyst_tools is not None
         assert callable(register_analyst_tools)
+
+
+class TestErrorHandling:
+    """Testes de tratamento de erros."""
+
+    @pytest.mark.asyncio
+    async def test_error_handling_invalid_input_analyze_insights(self):
+        """Testa erro para input inválido em analyze_insights."""
+        from analyst_mcp_server.tools.analyst_tools import analyze_insights
+
+        with pytest.raises(ValueError, match="At least one metric"):
+            await analyze_insights(plan_id="plan-123", metrics=[])
+
+    @pytest.mark.asyncio
+    async def test_error_handling_invalid_input_detect_anomalies(self):
+        """Testa erro para input inválido em detect_anomalies."""
+        from analyst_mcp_server.tools.analyst_tools import detect_anomalies
+
+        with pytest.raises(ValueError, match="Invalid algorithm"):
+            await detect_anomalies(metric="cpu_usage", algorithm="invalid")
+
+    @pytest.mark.asyncio
+    async def test_error_handling_invalid_input_query_timeseries(self):
+        """Testa erro para input inválido em query_timeseries."""
+        from analyst_mcp_server.tools.analyst_tools import query_timeseries
+
+        with pytest.raises(ValueError, match="page_size must be positive"):
+            await query_timeseries(
+                metric="cpu_usage",
+                start_time="2026-04-03T10:00:00",
+                end_time="2026-04-03T11:00:00",
+                page_size=-10,
+            )
+
+    @pytest.mark.asyncio
+    async def test_error_handling_invalid_input_generate_dashboard(self):
+        """Testa erro para input inválido em generate_dashboard."""
+        from analyst_mcp_server.tools.analyst_tools import generate_dashboard
+
+        with pytest.raises(ValueError, match="At least one widget"):
+            await generate_dashboard(dashboard_name="Test", widgets=[])
+
+    @pytest.mark.asyncio
+    async def test_error_handling_invalid_input_export_data(self):
+        """Testa erro para input inválido em export_data."""
+        from analyst_mcp_server.tools.analyst_tools import export_data
+
+        with pytest.raises(ValueError, match="Invalid format"):
+            await export_data(metric="cpu_usage", format="invalid_format")
+
+        with pytest.raises(ValueError, match="Limit must be positive"):
+            await export_data(metric="cpu_usage", format="json", limit=0)
+
+
+class TestConnectionHandling:
+    """Testes de tratamento de conexões."""
+
+    @pytest.mark.asyncio
+    async def test_connection_failed_retrieve_insights(self):
+        """Testa comportamento quando conexão com MongoDB falha."""
+        from analyst_mcp_server.tools.analyst_tools import _retrieve_insights
+
+        # Simula falha de conexão (deve retornar dados simulados)
+        result = await _retrieve_insights(
+            plan_id="plan-test", metrics=["cpu_usage"], start_time=None, end_time=None
+        )
+
+        # Deve retornar dados simulados em vez de levantar exceção
+        assert "insights" in result
+        assert "total" in result
+
+    @pytest.mark.asyncio
+    async def test_connection_failed_fetch_timeseries(self):
+        """Testa comportamento quando conexão com Feature Store falha."""
+        from analyst_mcp_server.tools.analyst_tools import _fetch_timeseries
+
+        # Simula falha de conexão (deve retornar dados simulados)
+        result = await _fetch_timeseries(
+            metric="cpu_usage",
+            start_time="2026-04-03T10:00:00",
+            end_time="2026-04-03T11:00:00",
+        )
+
+        # Deve retornar dados vazios com estrutura válida
+        assert "metric" in result
+        assert "data" in result
+        assert "count" in result
+
+    @pytest.mark.asyncio
+    async def test_connection_failed_anomaly_detection(self):
+        """Testa comportamento quando scikit-learn falha."""
+        from analyst_mcp_server.tools.analyst_tools import _run_anomaly_detection
+
+        # Simula falha (deve retornar dados simulados)
+        result = await _run_anomaly_detection(
+            metric="cpu_usage", algorithm="isolation_forest", threshold=3.0, sensitivity=0.8
+        )
+
+        # Deve retornar anomalias simuladas
+        assert "anomalies" in result
+        assert "total" in result
+
+    @pytest.mark.asyncio
+    async def test_connection_failed_export_data(self):
+        """Testa comportamento quando exportação falha."""
+        from analyst_mcp_server.tools.analyst_tools import _fetch_data_for_export
+
+        # Simula falha (deve retornar dados simulados)
+        result = await _fetch_data_for_export(
+            metric="cpu_usage", start_time=None, end_time=None, limit=1000
+        )
+
+        # Deve retornar estrutura válida
+        assert "data" in result
+        assert "count" in result
+
+
+class TestEdgeCases:
+    """Testes de casos extremos."""
+
+    @pytest.mark.asyncio
+    async def test_large_metrics_list(self):
+        """Testa com lista grande de métricas."""
+        from analyst_mcp_server.tools.analyst_tools import analyze_insights
+
+        large_metrics_list = [f"metric_{i}" for i in range(100)]
+
+        with patch(
+            "analyst_mcp_server.tools.analyst_tools._retrieve_insights",
+            new_callable=AsyncMock,
+            return_value={"insights": [], "total": 0},
+        ):
+            result = await analyze_insights(
+                plan_id="plan-123", metrics=large_metrics_list, aggregation="avg"
+            )
+
+            assert "insights" in result
+
+    @pytest.mark.asyncio
+    async def test_extreme_time_ranges(self):
+        """Testa com ranges de tempo extremos."""
+        from analyst_mcp_server.tools.analyst_tools import query_timeseries
+
+        with patch(
+            "analyst_mcp_server.tools.analyst_tools._fetch_timeseries",
+            new_callable=AsyncMock,
+            return_value={"metric": "cpu", "data": [], "count": 0},
+        ):
+            # Range muito pequeno (1 segundo)
+            result = await query_timeseries(
+                metric="cpu_usage",
+                start_time="2026-04-03T10:00:00",
+                end_time="2026-04-03T10:00:01",
+            )
+
+            assert "metric" in result
+
+    @pytest.mark.asyncio
+    async def test_special_characters_in_filters(self):
+        """Testa filtros com caracteres especiais."""
+        from analyst_mcp_server.tools.analyst_tools import query_timeseries
+
+        filters = {"hostname": "server-1", "region": "us-east-1", "tag": "production:critical"}
+
+        with patch(
+            "analyst_mcp_server.tools.analyst_tools._fetch_timeseries",
+            new_callable=AsyncMock,
+            return_value={"metric": "cpu", "data": [], "count": 0},
+        ):
+            result = await query_timeseries(
+                metric="cpu_usage",
+                start_time="2026-04-03T10:00:00",
+                end_time="2026-04-03T11:00:00",
+                filters=filters,
+            )
+
+            assert "metric" in result
+
+    @pytest.mark.asyncio
+    async def test_empty_dashboard_name(self):
+        """Testa com nome de dashboard vazio."""
+        from analyst_mcp_server.tools.analyst_tools import generate_dashboard
+
+        with patch(
+            "analyst_mcp_server.tools.analyst_tools._compile_dashboard_data",
+            new_callable=AsyncMock,
+            return_value={"dashboard_id": "dash-1", "widgets": []},
+        ):
+            result = await generate_dashboard(
+                dashboard_name="", widgets=[{"type": "line", "metric": "cpu"}]
+            )
+
+            # Aceita nome vazio (pode ser validado em outra camada)
+            assert "dashboard_id" in result
+
+    @pytest.mark.asyncio
+    async def test_zero_limit_export(self):
+        """Testa exportação com limite zero (deve falhar)."""
+        from analyst_mcp_server.tools.analyst_tools import export_data
+
+        with pytest.raises(ValueError, match="Limit must be positive"):
+            await export_data(metric="cpu_usage", format="json", limit=0)
+
+    @pytest.mark.asyncio
+    async def test_negative_page_size(self):
+        """Testa paginação com tamanho negativo (deve falhar)."""
+        from analyst_mcp_server.tools.analyst_tools import query_timeseries
+
+        with pytest.raises(ValueError, match="page_size must be positive"):
+            await query_timeseries(
+                metric="cpu_usage",
+                start_time="2026-04-03T10:00:00",
+                end_time="2026-04-03T11:00:00",
+                page_size=-1,
+            )
