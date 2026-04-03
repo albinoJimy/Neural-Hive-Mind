@@ -1,0 +1,78 @@
+# Alertas para OPA Authorization Metrics
+
+groups:
+  - name: opa_authorization
+    interval: 30s
+    rules:
+      # Alerta: Alta taxa de erros de avaliação
+      - alert: HighEvaluationErrorRate
+        expr: |
+          sum(rate(neural_hive_opa_evaluation_errors_total[5m]))
+          / sum(rate(neural_hive_opa_authorization_total[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Alta taxa de erros de avaliação OPA"
+          description: "Mais de 5% das avaliações OPA estão falhando nos últimos 5 minutos."
+
+      # Alerta: Circuit breaker aberto
+      - alert: CircuitBreakerOpen
+        expr: neural_hive_opa_circuit_breaker_state == 2
+        for: 1m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Circuit breaker OPA está aberto"
+          description: "O circuit breaker do OPA está aberto, bloqueando avaliações."
+
+      # Alerta: Latência alta (p99)
+      - alert: HighLatency
+        expr: |
+          histogram_quantile(0.99, rate(neural_hive_opa_evaluation_duration_seconds[1m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Alta latência de avaliação OPA"
+          description: "O p99 da latência de avaliação OPA está acima de 1 segundo."
+
+      # Alerta: Cache hit rate baixa
+      - alert: LowCacheHitRate
+        expr: |
+          (sum(rate(neural_hive_opa_cache_hits_total[5m]))
+          / (sum(rate(neural_hive_opa_cache_hits_total[5m])) + sum(rate(neural_hive_opa_cache_misses_total[5m]))) < 0.5
+        for: 10m
+        labels:
+          severity: info
+          team: platform
+        annotations:
+          summary: "Taxa de cache hit baixa"
+          description: "A taxa de cache hit está abaixo de 50% nos últimos 10 minutos."
+
+      # Alerta: Taxa de negação alta
+      - alert: HighDenyRate
+        expr: |
+          sum(rate(neural_hive_opa_evaluation_results_total{result="deny"}[5m]))
+          / sum(rate(neural_hive_opa_authorization_total[5m])) > 0.3
+        for: 5m
+        labels:
+          severity: warning
+          team: security
+        annotations:
+          summary: "Alta taxa de negação de acesso"
+          description: "Mais de 30% das autorizações estão sendo negadas nos últimos 5 minutos."
+
+      # Alerta: OPA service down
+      - alert: OPADown
+        expr: up{job="opa"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Serviço OPA está down"
+          description: "O servidor OPA não está respondendo."

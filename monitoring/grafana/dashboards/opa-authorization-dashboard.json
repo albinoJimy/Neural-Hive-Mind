@@ -1,0 +1,296 @@
+{
+  "dashboard": {
+    "title": "OPA Authorization Metrics",
+    "description": "Dashboard para monitoramento de autorização OPA no Neural-Hive-Mind",
+    "tags": ["opa", "authorization", "neural-hive-mind"],
+    "timezone": "browser",
+    "schemaVersion": 16,
+    "version": 0,
+    "refresh": "10s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Authorization Rate",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisCenteredZero": false,
+              "axisColorMode": "text",
+              "axisLabel": "",
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "drawStyle": "line",
+              "fillOpacity": 0,
+              "gradientMode": "none",
+              "hideFrom": {"tooltip": false, "viz": false, "legend": false},
+              "insertNulls": false,
+              "lineWidth": 1,
+              "pointSize": 5,
+              "scaleDistribution": {"type": "linear"},
+              "showPoints": "auto",
+              "spanNulls": true,
+              "stacking": {"mode": "none", "group": "A"},
+              "axesLeft": {
+                "show": true,
+                "axisCenteredZero": true,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0
+              },
+              "axes": {
+                "show": true,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0
+              }
+            }
+          }
+        },
+        "targets": [
+          {
+            "expr": "sum(rate(neural_hive_opa_authorization_total[1m]))",
+            "legendFormat": "Authorizations/sec",
+            "refId": "A"
+          }
+        ],
+        "yAxes": [
+          {
+            "format": "ops"
+          }
+        ],
+        "yAxis": {
+          "label": "Requests per second",
+          "format": "ops"
+        }
+      },
+      {
+        "id": 2,
+        "title": "Authorization Latency (p99)",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisCenteredZero": false,
+              "axisColorMode": "text",
+              "axisLabel": "",
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "drawStyle": "line",
+              "fillOpacity": 0,
+              "gradientMode": "none",
+              "hideFrom": {"tooltip": false, "viz": false, "legend": false},
+              "insertNulls": false,
+              "lineWidth": 2,
+              "pointSize": 5,
+              "scaleDistribution": {"type": "linear"},
+              "showPoints": "auto",
+              "spanNulls": true,
+              "stacking": {"mode": "none", "group": "A"}
+            }
+          }
+        },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.99, rate(neural_hive_opa_evaluation_duration_seconds[1m]))",
+            "legendFormat": "p99 Latency",
+            "refId": "B"
+          }
+        ],
+        "yAxes": [
+          {
+            "format": "s"
+          }
+        ],
+        "yAxis": {
+          "label": "Latency (p99)",
+          "format": "s"
+        }
+      },
+      {
+        "id": 3,
+        "title": "Cache Hit Rate",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 8},
+        "fieldConfig": {
+          "defaults": {
+            "mappings": {}
+          }
+        },
+        "options": {
+          "graphMode": "area",
+          "colorMode": "value",
+          "orientation": "auto",
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"]
+          },
+          "text": {},
+          "color": {
+            "excl": ["heatmap"],
+            "pattern": "solid"
+          }
+        },
+        "targets": [
+          {
+            "expr": "sum(rate(neural_hive_opa_cache_hits_total[1m])) / (sum(rate(neural_hive_opa_cache_hits_total[1m])) + sum(rate(neural_hive_opa_cache_misses_total[1m])))",
+            "legendFormat": "Hit Rate",
+            "refId": "C"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Evaluation Errors",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 6, "y": 8},
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            }
+          }
+        },
+        "targets": [
+          {
+            "expr": "sum(rate(neural_hive_opa_evaluation_errors_total{error_type=~\".*\"}[1m])) by (error_type)",
+            "legendFormat": "{{error_type}}",
+            "refId": "D"
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Circuit Breaker State",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 6, "y": 16},
+        "options": {
+          "graphMode": "area",
+          "colorMode": "value",
+          "orientation": "auto",
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"]
+          },
+          "text": {},
+          "color": {
+            "excl": ["heatmap"],
+            "pattern": "solid"
+          }
+        },
+        "targets": [
+          {
+            "expr": "neural_hive_opa_circuit_breaker_state",
+            "legendFormat": "State",
+            "mapping": {
+              "0": "closed",
+              "1": "half_open",
+              "2": "open"
+            },
+            "refId": "E"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "mappings": {
+            "0": {"text": "closed"},
+            "1": {"text": "half_open"},
+            "2": {"text": "open"}
+            }
+          }
+        }
+      },
+      {
+        "id": 6,
+        "title": "Policy Evaluation Results",
+        "type": "piechart",
+        "gridPos": {"h": 8, "w": 6, "x": 12, "y": 16},
+        "options": {
+          "legend": {
+            "showLegend": true,
+            "placement": "right"
+          },
+          "pieType": "donut",
+          "tooltip": {
+            "mode": "single"
+          }
+        },
+        "targets": [
+          {
+            "expr": "sum(rate(neural_hive_opa_evaluation_results_total{result=\"allow\"}[1m]))",
+            "legendFormat": "Allow",
+            "refId": "F"
+          },
+          {
+            "expr": "sum(rate(neural_hive_opa_evaluation_results_total{result=\"deny\"}[1m]))",
+            "legendFormat": "Deny",
+            "refId": "G"
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "title": "Active Policies",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 24},
+        "options": {
+          "graphMode": "none",
+          "colorMode": "value",
+          "orientation": "auto",
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"]
+          },
+          "text": {}
+        },
+        "targets": [
+          {
+            "expr": "count(neural_hive_opa_policy_active)",
+            "legendFormat": "Active Policies",
+            "refId": "H"
+          }
+        ]
+      },
+      {
+        "id": 8,
+        "title": "Bundle Versions",
+        "type": "table",
+        "gridPos": {"h": 8, "w": 12, "x": 6, "y": 24},
+        "fieldConfig": {
+          "defaults": {
+            "custom": {}
+          }
+        },
+        "targets": [
+          {
+            "expr": "neural_hive_opa_bundle_version_info",
+            "format": "table",
+            "instant": true,
+            "refId": "I"
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {
+                "Time": true,
+                "__name__": true
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

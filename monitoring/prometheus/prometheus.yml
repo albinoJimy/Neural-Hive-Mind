@@ -1,0 +1,52 @@
+# Prometheus configuration for OPA metrics scraping
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'neural-hive-mind'
+    environment: 'production'
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+
+# Rule files
+rule_files:
+  - "/etc/prometheus/alerts/opa-alerts.yaml"
+
+# Scrape configurations
+scrape_configs:
+  # OPA Metrics
+  - job_name: 'opa'
+    static_configs:
+      - targets:
+        - opa:8181
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+    scrape_timeout: 5s
+
+  # Neural Hive OPA Library (se os serviços exportarem)
+  - job_name: 'neural_hive_opa_services'
+    kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names:
+            - nhm-system
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_label_app]
+        regex: '(.*)-.*'
+        target_label: "app"
+      - source_labels: [__meta_kubernetes_pod_label_app]
+        action: "keep"
+      - source_labels: [__meta_kubernetes_pod_name]
+        target_label: "pod"
+      - regex_labels:
+        - source_labels: [__address__]
+          regex: ':(\d+)'
+          target_label: "__meta__port"
+          action: "drop"
+    scrape_interval: 15s
