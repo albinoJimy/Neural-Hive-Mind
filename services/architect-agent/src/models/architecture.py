@@ -1,10 +1,13 @@
 """Modelos de dados para arquitetura de software."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
+
+# UTC timezone
+UTC = timezone.utc
 
 
 class ArchitectureType(str, Enum):
@@ -80,5 +83,5 @@ class ArchitecturePlan(BaseModel):
     requirements: Dict[str, Any] = Field(
         default_factory=dict, description="Requisitos não-funcionais"
     )
-    created_at: datetime = Field(default_factory=datetime.utcnow, description="Data de criação")
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), description="Data de criação")
     updated_at: Optional[datetime] = Field(None, description="Data da última atualização")

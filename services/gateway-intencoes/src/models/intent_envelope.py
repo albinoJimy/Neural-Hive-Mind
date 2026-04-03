@@ -3,8 +3,9 @@ Modelos Pydantic para Intent Envelope baseados no schema JSON-LD
 """
 
 import uuid
-from datetime import UTC, datetime
-from enum import Enum, StrEnum
+from datetime import datetime
+from enum import Enum
+from neural_hive_domain import StrEnum, UTC
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator

@@ -5,11 +5,14 @@ Modelos Pydantic para validação proativa de segurança de execution tickets.
 import hashlib
 import json
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
+
+# UTC timezone
+UTC = timezone.utc
 
 
 class ViolationType(str, Enum):
@@ -119,7 +122,7 @@ class SecurityValidation(BaseModel):
     correlation_id: str
     trace_id: Optional[str] = None
     span_id: Optional[str] = None
-    validated_at: datetime = Field(default_factory=datetime.utcnow)
+    validated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     validation_status: ValidationStatus
     validator_type: ValidatorType
     violations: List[GuardrailViolation] = Field(default_factory=list)

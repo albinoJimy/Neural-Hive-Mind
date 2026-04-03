@@ -21,8 +21,9 @@ Example usage:
     )
 """
 
+from .compat import PY311_PLUS, StrEnum, UTC
 from .domain import UnifiedDomain
 from .mapper import DomainMapper
 
-__version__ = '1.0.0'
-__all__ = ['UnifiedDomain', 'DomainMapper']
+__version__ = '1.2.0'
+__all__ = ['UnifiedDomain', 'DomainMapper', 'StrEnum', 'UTC', 'PY311_PLUS']

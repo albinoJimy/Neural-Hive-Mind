@@ -1,7 +1,7 @@
 """Pydantic models for Tool Selection Request and Response."""
 import hashlib
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Dict, List, Optional
 from uuid import uuid4
@@ -9,6 +9,9 @@ from uuid import uuid4
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from src.models.tool_descriptor import ToolCategory as ToolCategoryEnum
+
+# UTC timezone
+UTC = timezone.utc
 
 
 class ArtifactType(str, Enum):
@@ -48,7 +51,7 @@ class ToolSelectionRequest(BaseModel):
     context: Dict[str, str] = Field(default_factory=dict)
     preferred_tools: List[str] = Field(default_factory=list)
     excluded_tools: List[str] = Field(default_factory=list)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     schema_version: int = 1
 
     @field_validator("complexity_score")
@@ -128,7 +131,7 @@ class ToolSelectionResponse(BaseModel):
     reasoning_summary: str
     confidence_score: float = Field(ge=0.0, le=1.0)
     cached: bool = False
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     schema_version: int = 1
 
     def to_avro(self) -> Dict:

@@ -1,12 +1,15 @@
 """Modelos de dados para rastreamento de evolução de arquitetura."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import List
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from .validation import Severity
+
+# UTC timezone
+UTC = timezone.utc
 
 
 class DriftType(str, Enum):
@@ -45,7 +48,7 @@ class EvolutionHistory(BaseModel):
     drifts: List[DriftDetection] = Field(
         default_factory=list, description="Lista de divergências detectadas"
     )
-    created_at: datetime = Field(default_factory=datetime.utcnow, description="Data de criação")
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), description="Data de criação")
     created_by: str = Field(
         default="architect-agent",
         description="Autor da mudança (architect-agent ou user)",

@@ -1,10 +1,13 @@
 """Pydantic models for Tool Descriptor mirroring Avro schema."""
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+# UTC timezone
+UTC = timezone.utc
 
 
 class ToolCategory(str, Enum):
@@ -55,8 +58,8 @@ class ToolDescriptor(BaseModel):
     endpoint_url: Optional[str] = None
     authentication_method: AuthenticationMethod
     metadata: Dict[str, Any] = Field(default_factory=dict)  # Accept any value types from MongoDB
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     trace_id: Optional[str] = None
     span_id: Optional[str] = None
     schema_version: int = 1

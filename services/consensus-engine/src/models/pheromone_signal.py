@@ -7,6 +7,9 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from neural_hive_domain import DomainMapper, UnifiedDomain
 
+# UTC timezone
+UTC = timezone.utc
+
 
 class PheromoneType(str, Enum):
     """Tipo de feromônio digital"""
@@ -33,7 +36,7 @@ class PheromoneSignal(BaseModel):
     decision_id: Optional[str] = Field(default=None, description="ID da decisão")
 
     # Metadados
-    created_at: datetime = Field(default_factory=datetime.utcnow, description="Data de criação")
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), description="Data de criação")
     expires_at: datetime = Field(..., description="Expiração do feromônio")
     decay_rate: float = Field(default=0.1, description="Taxa de decay por hora", ge=0.0, le=1.0)
 

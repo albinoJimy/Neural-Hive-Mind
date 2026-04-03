@@ -5,11 +5,14 @@ Define os modelos Pydantic para o fluxo de aprovacao de planos.
 """
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
+
+# UTC timezone
+UTC = timezone.utc
 
 
 class RiskBand(str, Enum):
@@ -51,7 +54,7 @@ class ApprovalRequest(BaseModel):
         default=ApprovalStatus.PENDING, description="Status atual da aprovacao"
     )
     requested_at: datetime = Field(
-        default_factory=datetime.utcnow, description="Timestamp do request"
+        default_factory=lambda: datetime.now(UTC), description="Timestamp do request"
     )
     approved_by: Optional[str] = Field(None, description="ID do usuario que aprovou")
     approved_at: Optional[datetime] = Field(None, description="Timestamp da aprovacao")
@@ -69,7 +72,7 @@ class ApprovalDecision(BaseModel):
     decision: Literal["approved", "rejected"] = Field(..., description="Decisao")
     approved_by: str = Field(..., description="ID do usuario que decidiu")
     approved_at: datetime = Field(
-        default_factory=datetime.utcnow, description="Timestamp da decisao"
+        default_factory=lambda: datetime.now(UTC), description="Timestamp da decisao"
     )
     rejection_reason: Optional[str] = Field(None, description="Motivo da rejeicao")
     comments: Optional[str] = Field(None, description="Comentarios adicionais")
@@ -158,7 +161,7 @@ class RevertResponse(BaseModel):
     plan_id: str = Field(..., description="ID do plano")
     previous_status: str = Field(..., description="Status antes da reversao")
     new_status: str = Field(..., description="Status apos a reversao")
-    reverted_at: datetime = Field(default_factory=datetime.utcnow)
+    reverted_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     reverted_by: str = Field(..., description="ID do usuario que fez a reversao")
 
 

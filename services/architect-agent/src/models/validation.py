@@ -1,10 +1,13 @@
 """Modelos de dados para validação de código e arquitetura."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
+
+# UTC timezone
+UTC = timezone.utc
 
 
 class Severity(str, Enum):
@@ -122,4 +125,4 @@ class ValidationReport(BaseModel):
         default_factory=list, description="Lista de sugestões de melhoria"
     )
     metrics: Dict[str, Any] = Field(default_factory=dict, description="Métricas adicionais")
-    created_at: datetime = Field(default_factory=datetime.utcnow, description="Data de criação")
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), description="Data de criação")

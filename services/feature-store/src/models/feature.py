@@ -5,11 +5,14 @@ Define os modelos Pydantic para armazenamento e computação de features.
 """
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
+
+# UTC timezone
+UTC = timezone.utc
 
 # Import circular resolvido com TYPE_CHECKING
 if TYPE_CHECKING:
@@ -107,7 +110,7 @@ class FeatureVector(BaseModel):
     # Metadados
     feature_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     plan_id: str = Field(..., description="ID do plano cognitivo")
-    computed_at: datetime = Field(default_factory=datetime.utcnow)
+    computed_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     # Features por categoria
     metadata: MetadataFeatures

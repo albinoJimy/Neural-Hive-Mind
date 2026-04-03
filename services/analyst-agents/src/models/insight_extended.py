@@ -2,11 +2,14 @@
 Modelos estendidos para Insights Analyst Agents.
 """
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
+
+# UTC timezone
+UTC = timezone.utc
 
 
 class AnalysisType(str, Enum):
@@ -99,7 +102,7 @@ class InsightResponse(BaseModel):
     timeseries: Optional[TimeSeriesData] = None
     tags: List[str] = Field(default_factory=list)
     status: InsightStatus = InsightStatus.PENDING
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     expires_at: Optional[datetime] = None
 
 
@@ -187,5 +190,5 @@ class TimeSeriesCacheEntry(BaseModel):
     metric_name: str
     data: List[Dict[str, Any]]
     statistics: Dict[str, float]
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     expires_at: Optional[datetime] = None
