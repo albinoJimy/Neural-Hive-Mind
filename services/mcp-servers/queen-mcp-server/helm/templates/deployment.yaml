@@ -1,0 +1,99 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: queen-mcp-server
+  labels:
+    {{- include "queen-mcp-server.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "queen-mcp-server.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "queen-mcp-server.labels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "queen-mcp-server.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: queen-mcp-server
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- if .Values.command }}
+          command: {{- toYaml .Values.command | nindent 12 }}
+          {{- end }}
+          {{- if .Values.args }}
+          args: {{- toYaml .Values.args | nindent 12 }}
+          {{- end }}
+          ports:
+            - name: mcp
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          env:
+            # Configurações básicas
+            - name: QUEEN_MCP_LOG_LEVEL
+              value: {{ .Values.queen.logLevel | default "INFO" | quote }}
+            - name: QUEEN_MCP_PORT
+              value: {{ .Values.service.port | quote }}
+            # Queen Agent connection
+            - name: QUEEN_MCP_QUEEN_AGENT_HOST
+              value: {{ .Values.queen.agentHost | quote }}
+            - name: QUEEN_MCP_QUEEN_AGENT_PORT
+              value: {{ .Values.queen.agentPort | quote }}
+            - name: QUEEN_MCP_DECISION_TIMEOUT
+              value: {{ .Values.queen.decisionTimeout | quote }}
+            - name: QUEEN_MCP_CACHE_TTL_SECONDS
+              value: {{ .Values.queen.cacheTtlSeconds | quote }}
+            # OPA configuration
+            - name: QUEEN_MCP_OPA_URL
+              value: {{ .Values.queen.opaUrl | default "http://opa:8181" | quote }}
+            - name: QUEEN_MCP_OPA_POLICY_PATH
+              value: {{ .Values.queen.opaPolicyPath | default "neuralhive/queen/ethical_guardrails" | quote }}
+            # MongoDB configuration
+            - name: QUEEN_MCP_MONGODB_URI
+              value: {{ .Values.queen.mongodbUri | default "mongodb://mongodb:27017" | quote }}
+            - name: QUEEN_MCP_MONGODB_DATABASE
+              value: {{ .Values.queen.mongodbDatabase | default "queen_agent" | quote }}
+            # Neo4j configuration
+            - name: QUEEN_MCP_NEO4J_URI
+              value: {{ .Values.queen.neo4jUri | default "bolt://neo4j:7687" | quote }}
+            - name: QUEEN_MCP_NEO4J_DATABASE
+              value: {{ .Values.queen.neo4jDatabase | default "neo4j" | quote }}
+            - name: QUEEN_MCP_NEO4J_USER
+              value: {{ .Values.queen.neo4jUser | default "neo4j" | quote }}
+            - name: QUEEN_MCP_NEO4J_PASSWORD
+              value: {{ .Values.queen.neo4jPassword | default "password" | quote }}
+            # Redis configuration
+            - name: QUEEN_MCP_REDIS_URI
+              value: {{ .Values.queen.redisUri | default "redis://redis:6379" | quote }}
+            # Extra env from values
+            {{- range .Values.env }}
+            - name: {{ .name }}
+              value: {{ .value | quote }}
+            {{- end }}
+          livenessProbe:
+            {{- toYaml .Values.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.readinessProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
