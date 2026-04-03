@@ -9,7 +9,7 @@ class GuardMCPServerSettings(BaseSettings):
     service_name: str = "guard-mcp-server"
     service_version: str = "1.0.0"
     log_level: str = "INFO"
-    port: int = 3014
+    port: int = 3015  # spec: INFRA-001-04
     guard_agent_host: str = "guard-agents"
     guard_agent_port: int = 8008
     trivy_host: str = "trivy"

@@ -10,8 +10,8 @@ class ExecutionMCPServerSettings(BaseSettings):
     service_version: str = "1.0.0"
     log_level: str = "INFO"
 
-    # Porta do servidor
-    port: int = 3015
+    # Porta do servidor (spec: INFRA-001-06)
+    port: int = 3014
 
     # Execution Ticket Service configuration
     execution_ticket_host: str = "execution-ticket-service"
