@@ -1,4 +1,5 @@
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
+from neural_hive_domain import UTC
 from typing import Any
 
 import structlog

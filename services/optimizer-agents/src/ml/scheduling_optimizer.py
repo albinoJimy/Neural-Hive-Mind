@@ -7,10 +7,11 @@ ajuste de prioridades e balanceamento de carga.
 
 import logging
 import pickle
-from datetime import UTC, datetime
-from enum import StrEnum
+from datetime import datetime
 
 import numpy as np
+
+from neural_hive_domain import StrEnum, UTC
 
 logger = logging.getLogger(__name__)
 

@@ -16,7 +16,8 @@ Características:
 import asyncio
 import time
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+from neural_hive_domain import UTC
 from typing import Any
 
 import pybreaker

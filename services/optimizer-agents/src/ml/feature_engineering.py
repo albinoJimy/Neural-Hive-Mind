@@ -6,7 +6,8 @@ e métricas em tempo real para alimentar LoadPredictor e SchedulingOptimizer.
 """
 
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
+from neural_hive_domain import UTC
 
 import numpy as np
 import pandas as pd

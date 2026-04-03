@@ -11,7 +11,8 @@ Coordena toda a logica de testes A/B, incluindo:
 
 import uuid
 from dataclasses import asdict, dataclass
-from datetime import UTC, datetime
+from datetime import datetime
+from neural_hive_domain import UTC
 from typing import Any
 
 import structlog

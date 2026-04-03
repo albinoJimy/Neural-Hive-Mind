@@ -1,5 +1,6 @@
 """Factory para criar analyzers apropriados."""
-from enum import StrEnum
+
+from neural_hive_domain import StrEnum
 
 from .base import BaseAnalyzer
 from .clickhouse_analyzer import ClickHouseAnalyzer

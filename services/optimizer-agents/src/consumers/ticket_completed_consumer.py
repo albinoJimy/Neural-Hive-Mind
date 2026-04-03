@@ -1,7 +1,10 @@
 """Consumer Kafka para eventos ticket.completed."""
+from __future__ import annotations
+
 import asyncio
 import json
-from datetime import UTC, datetime
+from datetime import datetime
+from neural_hive_domain import UTC
 
 from aiokafka import AIOKafkaConsumer
 from aiokafka.errors import KafkaConnectionError

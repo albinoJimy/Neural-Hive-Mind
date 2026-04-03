@@ -1,8 +1,9 @@
 """Analyzer base para otimização."""
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from enum import StrEnum
 from typing import Any
+
+from neural_hive_domain import StrEnum
 
 
 class RecommendationType(StrEnum):

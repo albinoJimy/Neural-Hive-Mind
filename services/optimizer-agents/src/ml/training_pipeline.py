@@ -7,7 +7,8 @@ SchedulingOptimizer (Q-learning) usando dados históricos.
 
 import asyncio
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
+from neural_hive_domain import UTC
 
 import numpy as np
 

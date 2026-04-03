@@ -10,7 +10,8 @@ import asyncio
 import contextlib
 from collections import deque
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
+from neural_hive_domain import UTC
 from typing import Any
 
 import numpy as np
@@ -110,7 +111,7 @@ class ValidationAlert:
     message: str
     metrics: dict[str, Any]
     window: str
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     def to_dict(self) -> dict[str, Any]:
         return {

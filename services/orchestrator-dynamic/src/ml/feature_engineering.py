@@ -5,7 +5,8 @@ Utilitários compartilhados para extração e normalização de features de tick
 para modelos de predição de duração e detecção de anomalias.
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from neural_hive_domain import UTC
 from typing import Any
 
 import numpy as np

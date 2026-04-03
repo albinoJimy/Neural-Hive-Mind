@@ -28,7 +28,8 @@ try:
 except ImportError:
     EXECUTION_RESULT_CONSUMER_AVAILABLE = False
     ExecutionResultConsumer = None
-from datetime import UTC, datetime
+from datetime import datetime
+from neural_hive_domain import UTC
 from uuid import uuid4
 
 from pydantic import BaseModel, Field, ValidationError

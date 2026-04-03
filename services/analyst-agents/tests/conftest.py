@@ -151,6 +151,14 @@ sys.modules['neural_hive_observability.grpc_instrumentation'] = mock_grpc_instru
 sys.modules['neural_hive_observability.context'] = MagicMock()
 sys.modules['neural_hive_observability.health_checks.clickhouse'] = MagicMock()
 
+# Mock neural_hive_security package
+mock_security = MagicMock()
+mock_cors_config = MagicMock()
+mock_cors_config.get_origins_for_environment = lambda env, is_public_api=False: ["*"]
+mock_security.cors = mock_cors_config
+sys.modules['neural_hive_security'] = mock_security
+sys.modules['neural_hive_security.cors'] = mock_cors_config
+
 from src.models.insight_extended import (
     InsightCreate,
     InsightResponse,

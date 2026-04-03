@@ -6,7 +6,8 @@ baseado em dados históricos de 18 meses do ClickHouse.
 """
 
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
+from neural_hive_domain import UTC
 
 import holidays
 import numpy as np

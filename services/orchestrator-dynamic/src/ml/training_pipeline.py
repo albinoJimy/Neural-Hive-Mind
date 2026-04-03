@@ -10,7 +10,8 @@ baseado em drift, performance e volume de dados.
 
 import asyncio
 import contextlib
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
+from neural_hive_domain import UTC
 from typing import Any
 
 import pandas as pd

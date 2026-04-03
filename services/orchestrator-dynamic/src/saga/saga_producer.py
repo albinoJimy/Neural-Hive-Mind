@@ -1,13 +1,14 @@
 """Producer Kafka para publicar eventos de Saga."""
 import json
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+from neural_hive_domain import UTC
 from typing import Any, Optional
 
 from aiokafka import AIOKafkaProducer
 from aiokafka.errors import KafkaConnectionError
 from structlog import get_logger
 
-from src.config.settings import get_settings
+from src.config.settings import OrchestratorSettings, get_settings
 
 from .saga_state import SagaState
 
@@ -23,7 +24,7 @@ class SagaProducer:
     Publica eventos de Saga para observabilidade e tracing distribuido.
     """
 
-    def __init__(self, settings: get_settings | None = None):
+    def __init__(self, settings: OrchestratorSettings | None = None):
         """Inicializa producer.
 
         Args:
@@ -38,7 +39,7 @@ class SagaProducer:
         """Retorna o tópico configurado para eventos de Saga."""
         return getattr(self.settings, "kafka_saga_events_topic", "saga.events")
 
-    def __init__(self, settings: get_settings | None = None):
+    def __init__(self, settings: OrchestratorSettings | None = None):
         """Inicializa producer.
 
         Args:

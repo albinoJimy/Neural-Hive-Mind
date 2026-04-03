@@ -1,9 +1,14 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
 from src.models.optimization_event import Adjustment, CausalAnalysis, OptimizationType
+
+# Callable para UTC now compatível com Pydantic V2
+def utcnow() -> datetime:
+    """Retorna datetime UTC atual. Substituto para datetime.utcnow (deprecated)."""
+    return datetime.now(timezone.utc)
 
 
 class OptimizationHypothesis(BaseModel):
@@ -22,7 +27,7 @@ class OptimizationHypothesis(BaseModel):
     target_metrics: dict[str, float] = Field(..., description="Target metrics")
     priority: int = Field(..., ge=1, le=5, description="Priority (1-5)")
     requires_experiment: bool = Field(default=True, description="Requires validation")
-    created_at: datetime = Field(default_factory=datetime.utcnow, description="Creation timestamp")
+    created_at: datetime = Field(default_factory=utcnow, description="Creation timestamp")
     metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
 
     @field_validator("expected_improvement", "confidence_score", "risk_score")

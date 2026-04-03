@@ -13,8 +13,9 @@ Created: 2026-03-30 (Epic J)
 import asyncio
 import json
 from collections import defaultdict
-from datetime import UTC, datetime
-from enum import StrEnum
+from datetime import datetime
+
+from neural_hive_domain import StrEnum, UTC
 from typing import Any
 
 import structlog

@@ -1,12 +1,13 @@
 """Producer Kafka para eventos de otimização."""
 import json
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+from neural_hive_domain import UTC
 
 from aiokafka import AIOKafkaProducer
 from aiokafka.errors import KafkaConnectionError
 from structlog import get_logger
 
-from src.config.settings import get_settings
+from src.config.settings import OrchestratorSettings, get_settings
 
 logger = get_logger(__name__)
 
@@ -14,7 +15,7 @@ logger = get_logger(__name__)
 class OptimizationProducer:
     """Producer para enviar eventos ticket.completed."""
 
-    def __init__(self, settings: get_settings | None = None):
+    def __init__(self, settings: OrchestratorSettings | None = None):
         """Inicializa producer."""
         self.settings = settings or get_settings()
         self._producer: AIOKafkaProducer | None = None

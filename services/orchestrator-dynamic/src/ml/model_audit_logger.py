@@ -7,8 +7,9 @@ Provides full traceability for compliance, debugging, and operational insights.
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
-from enum import StrEnum
+from datetime import datetime, timedelta
+from neural_hive_domain import UTC
+from neural_hive_domain import StrEnum
 from typing import Any
 
 import structlog

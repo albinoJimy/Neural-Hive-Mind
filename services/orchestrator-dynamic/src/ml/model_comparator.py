@@ -10,7 +10,8 @@ import base64
 import io
 import time
 from dataclasses import asdict, dataclass, field
-from datetime import UTC, datetime
+from datetime import datetime
+from neural_hive_domain import UTC
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -50,7 +51,7 @@ class ComparisonResult:
     confidence_score: float = 0.5
 
     # Metadados
-    compared_at: datetime = field(default_factory=datetime.utcnow)
+    compared_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     test_samples_count: int = 0
 
     def to_dict(self) -> dict[str, Any]:

@@ -6,7 +6,8 @@ a operacoes assincronas, com metricas e logging.
 """
 import asyncio
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+from neural_hive_domain import UTC
 from functools import wraps
 from typing import Any, TypeVar
 

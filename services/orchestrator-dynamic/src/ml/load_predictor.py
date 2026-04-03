@@ -10,7 +10,8 @@ Não participa de treinamento/registro no MLflow; é um componente de fallback s
 """
 
 import time
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
+from neural_hive_domain import UTC
 from typing import Any
 
 import structlog

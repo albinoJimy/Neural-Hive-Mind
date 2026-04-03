@@ -5,7 +5,8 @@ Gerencia ciclo de vida de modelos ML: versionamento, registro, promoção e carr
 """
 
 import asyncio
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+from neural_hive_domain import UTC
 from typing import Any
 
 import mlflow

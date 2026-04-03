@@ -1,5 +1,6 @@
 import time
-from datetime import UTC, datetime
+from datetime import datetime
+from neural_hive_domain import UTC
 
 import grpc
 import structlog

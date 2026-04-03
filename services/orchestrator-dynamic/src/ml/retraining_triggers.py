@@ -10,8 +10,10 @@ Implementa múltiplos gatilhos:
 
 import asyncio
 from collections.abc import Callable
-from datetime import UTC, datetime, timedelta
-from enum import Enum, StrEnum
+from datetime import datetime, timedelta, timezone
+from neural_hive_domain import UTC
+from enum import Enum
+from neural_hive_domain import StrEnum
 from typing import Any
 
 import structlog

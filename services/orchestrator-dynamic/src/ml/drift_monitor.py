@@ -8,8 +8,9 @@ com janela deslizante, e dispara alertas quando drift detectado.
 import asyncio
 import contextlib
 from collections import deque
-from datetime import UTC, datetime, timedelta
-from enum import StrEnum
+from datetime import datetime, timedelta, timezone
+from neural_hive_domain import UTC
+from neural_hive_domain import StrEnum
 from typing import Any
 
 import numpy as np

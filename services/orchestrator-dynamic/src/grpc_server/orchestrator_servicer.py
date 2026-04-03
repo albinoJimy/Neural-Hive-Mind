@@ -11,7 +11,8 @@ Este servicer recebe comandos estratégicos da Queen Agent para:
 
 import time
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+from neural_hive_domain import UTC
 from typing import TYPE_CHECKING, Any, Optional
 
 import grpc

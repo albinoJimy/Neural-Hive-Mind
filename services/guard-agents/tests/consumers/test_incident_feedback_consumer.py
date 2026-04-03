@@ -48,7 +48,7 @@ def mock_security_validator():
 
 
 @pytest.fixture
-    def mock_policy_enforcer():
+def mock_policy_enforcer():
     """Policy enforcer mock."""
     enforcer = AsyncMock()
     return enforcer

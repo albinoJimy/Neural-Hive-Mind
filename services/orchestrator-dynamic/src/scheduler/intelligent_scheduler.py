@@ -5,6 +5,8 @@ Coordena PriorityCalculator e ResourceAllocator para alocação otimizada de rec
 Implementa cache de descobertas e fallback para Service Registry indisponível.
 """
 
+from __future__ import annotations
+
 import asyncio
 from datetime import datetime, timedelta
 from enum import Enum

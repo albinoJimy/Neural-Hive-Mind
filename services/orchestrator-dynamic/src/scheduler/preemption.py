@@ -4,8 +4,9 @@ PreemptionManager - Gerencia preempção de tickets em execução.
 Coordena a preempção de tickets de baixa prioridade
 para dar lugar a tickets de alta prioridade.
 """
-from datetime import UTC
-from enum import StrEnum
+from datetime import datetime, timezone
+from neural_hive_domain import UTC
+from neural_hive_domain import StrEnum
 from typing import Any
 
 import structlog

@@ -1,6 +1,7 @@
 """Repository MongoDB para recomendações de otimização."""
 import logging
-from datetime import UTC, datetime
+from datetime import datetime
+from neural_hive_domain import UTC
 from typing import Any
 
 from bson import ObjectId

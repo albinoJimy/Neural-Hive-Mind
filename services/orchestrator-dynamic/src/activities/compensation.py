@@ -4,7 +4,8 @@ Activities Temporal para compensacao automatica (Saga Pattern).
 Implementa logica de compensacao para reverter operacoes falhadas
 seguindo ordenacao topologica reversa das dependencias.
 """
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+from neural_hive_domain import UTC
 from typing import Any
 from uuid import uuid4
 

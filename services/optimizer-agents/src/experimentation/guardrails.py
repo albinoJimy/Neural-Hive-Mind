@@ -7,7 +7,8 @@ e aborta experimentos automaticamente quando limites sao violados.
 
 import math
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime
+from neural_hive_domain import UTC
 
 import numpy as np
 import structlog

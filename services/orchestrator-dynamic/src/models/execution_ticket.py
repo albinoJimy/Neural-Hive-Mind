@@ -9,10 +9,11 @@ NOTA: Este módulo usa Pydantic v2.
 import hashlib
 import json
 from datetime import datetime
-from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from neural_hive_domain import StrEnum
 
 
 def _get_enum_value(val) -> str:

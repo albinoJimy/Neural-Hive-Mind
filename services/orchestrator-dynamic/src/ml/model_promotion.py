@@ -12,8 +12,9 @@ Implementa promoção segura de modelos ML com:
 import asyncio
 import contextlib
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
-from enum import StrEnum
+from datetime import datetime
+from neural_hive_domain import UTC
+from neural_hive_domain import StrEnum
 from typing import TYPE_CHECKING, Any, Optional
 
 import structlog
@@ -87,7 +88,7 @@ class PromotionRequest:
     target_stage: str = "Production"
     initiated_by: str = "system"
     config: PromotionConfig = field(default_factory=PromotionConfig)
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     stage: PromotionStage = PromotionStage.PENDING
     result: PromotionResult | None = None
     error_message: str | None = None

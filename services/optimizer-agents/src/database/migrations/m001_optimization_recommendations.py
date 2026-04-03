@@ -1,6 +1,7 @@
 """Migration m001: Criar coleção optimization_recommendations."""
 import logging
-from datetime import UTC, datetime
+from datetime import datetime
+from neural_hive_domain import UTC
 from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorClient

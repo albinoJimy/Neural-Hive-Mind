@@ -4,7 +4,8 @@ Orchestrator de Saga para coordenacao de transaccoes distribuidas.
 Implementa a logica de coordenacao de Sagas com execucao sequencial
 de steps e compensacao automatica em caso de falha.
 """
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+from neural_hive_domain import UTC
 from typing import Any
 from uuid import uuid4
 
