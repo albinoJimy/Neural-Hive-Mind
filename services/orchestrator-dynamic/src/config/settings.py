@@ -6,6 +6,7 @@ NOTA: Este módulo usa Pydantic v2 com pydantic-settings.
 - SettingsConfigDict para configuração de BaseSettings
 """
 from functools import lru_cache
+from typing import Any
 
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -793,6 +794,111 @@ class OrchestratorSettings(BaseSettings):
     opa_premium_tenants: list = Field(
         default_factory=list, description="Tenants premium com prioridade"
     )
+
+    # Token Bucket Rate Limiting
+    enable_rate_limiting: bool = Field(
+        default=False,
+        description="Habilita rate limiting via Token Bucket",
+    )
+    rate_limit_default_capacity: int = Field(
+        default=100,
+        ge=1,
+        description="Capacidade padrão do token bucket",
+    )
+    rate_limit_default_refill_rate: float = Field(
+        default=10.0,
+        gt=0,
+        description="Taxa de refill padrão (tokens/segundo)",
+    )
+    rate_limit_burst_multiplier: float = Field(
+        default=2.0,
+        ge=1.0,
+        le=5.0,
+        description="Multiplicador de burst capacity (max 5.0)",
+    )
+    rate_limit_tier_limits: dict[str, dict[str, Any]] = Field(
+        default={
+            "premium": {"capacity": 1000, "refill_rate": 50},
+            "standard": {"capacity": 100, "refill_rate": 10},
+            "basic": {"capacity": 50, "refill_rate": 5},
+        },
+        description="Limites por tier de tenant",
+    )
+    rate_limit_redis_key_prefix: str = Field(
+        default="rate_limit",
+        description="Prefixo para chaves Redis",
+    )
+
+    @field_validator("rate_limit_burst_multiplier")
+    @classmethod
+    def validate_burst_multiplier(cls, v: float) -> float:
+        """
+        Validar que burst_multiplier está no intervalo permitido [1.0, 5.0].
+
+        O multiplicador de burst controla quanto a capacidade pode ser excedida
+        temporariamente. Valores muito altos podem sobrecarregar o sistema.
+        """
+        if v < 1.0:
+            raise ValueError(
+                f"rate_limit_burst_multiplier={v} é menor que o mínimo permitido (1.0). "
+                "O multiplicador de burst deve ser pelo menos 1.0 (sem burst adicional)."
+            )
+        if v > 5.0:
+            raise ValueError(
+                f"rate_limit_burst_multiplier={v} excede o máximo permitido (5.0). "
+                "Valores acima de 5.0x podem causar sobrecarga do sistema. "
+                "Configure RATE_LIMIT_BURST_MULTIPLIER entre 1.0 e 5.0."
+            )
+        return v
+
+    @field_validator("rate_limit_tier_limits")
+    @classmethod
+    def validate_tier_limits(cls, v: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
+        """
+        Validar estrutura e valores dos limites por tier.
+
+        Cada tier deve ter:
+        - capacity: inteiro positivo (número de tokens)
+        - refill_rate: float positivo (tokens/segundo)
+        """
+        if not v:
+            return v
+
+        required_fields = {"capacity", "refill_rate"}
+
+        for tier_name, tier_config in v.items():
+            # Validar campos obrigatórios
+            missing_fields = required_fields - set(tier_config.keys())
+            if missing_fields:
+                raise ValueError(
+                    f"Tier '{tier_name}' está faltando campos obrigatórios: {missing_fields}. "
+                    f"Cada tier deve ter {required_fields}."
+                )
+
+            capacity = tier_config.get("capacity")
+            refill_rate = tier_config.get("refill_rate")
+
+            # Validar capacity
+            if not isinstance(capacity, (int, float)):
+                raise ValueError(
+                    f"Tier '{tier_name}': capacity deve ser numérico, recebido {type(capacity).__name__}."
+                )
+            if capacity <= 0:
+                raise ValueError(
+                    f"Tier '{tier_name}': capacity={capacity} deve ser positivo (> 0)."
+                )
+
+            # Validar refill_rate
+            if not isinstance(refill_rate, (int, float)):
+                raise ValueError(
+                    f"Tier '{tier_name}': refill_rate deve ser numérico, recebido {type(refill_rate).__name__}."
+                )
+            if refill_rate <= 0:
+                raise ValueError(
+                    f"Tier '{tier_name}': refill_rate={refill_rate} deve ser positivo (> 0)."
+                )
+
+        return v
 
     # ML Predictions
     mlflow_experiment_name: str = Field(
