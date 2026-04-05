@@ -1,0 +1,231 @@
+# Exemplos de Configuração - Token Bucket Rate Limiting
+# Arquivo de referência para implementação
+
+# =============================================================================
+# VARIÁVEIS DE AMBIENTE (.env)
+# =============================================================================
+
+# Habilitar rate limiting
+ENABLE_RATE_LIMITING=true
+
+# Prefixo para chaves Redis
+RATE_LIMIT_REDIS_KEY_PREFIX=rate_limit
+
+# Configurações padrão (fallback)
+RATE_LIMIT_DEFAULT_CAPACITY=100
+RATE_LIMIT_DEFAULT_REFILL_RATE=10.0
+RATE_LIMIT_BURST_MULTIPLIER=2.0
+
+# Limites por tier (JSON string)
+RATE_LIMIT_TIER_LIMITS='{
+  "premium": {
+    "capacity": 1000,
+    "refill_rate": 100.0,
+    "burst_multiplier": 2.0
+  },
+  "basic": {
+    "capacity": 100,
+    "refill_rate": 10.0,
+    "burst_multiplier": 1.5
+  },
+  "free": {
+    "capacity": 10,
+    "refill_rate": 1.0,
+    "burst_multiplier": 1.0
+  }
+}'
+
+# =============================================================================
+# EXEMPLO DE CONFIGURAÇÃO POR ENDPOINT (Python)
+# =============================================================================
+
+"""
+Estrutura de configuração para endpoints específicos.
+Localização: src/config/rate_limit_config.py
+"""
+
+from dataclasses import dataclass
+from typing import NotRequired
+
+@dataclass
+class RateLimitConfig:
+    """Configuração de rate limit para um endpoint."""
+    capacity: int           # Capacidade máxima do bucket
+    refill_rate: float      # Taxa de reabastecimento (tokens/segundo)
+    burst_multiplier: float = 2.0  # Multiplicador para burst (padrão: 2.0)
+
+    @property
+    def burst_capacity(self) -> int:
+        """Capacidade de burst (tokens máximos acumuláveis)."""
+        return int(self.capacity * self.burst_capacity)
+
+
+# Configuração por endpoint (method:path -> RateLimitConfig)
+ENDPOINT_RATE_LIMITS: dict[str, RateLimitConfig] = {
+    # Endpoints de ML (custosos)
+    "POST:/api/v1/predict": RateLimitConfig(
+        capacity=10,
+        refill_rate=0.167,  # ~10 requests/minuto
+        burst_multiplier=1.5,
+    ),
+    "POST:/api/v1/workflows": RateLimitConfig(
+        capacity=50,
+        refill_rate=0.833,  # ~50 requests/minuto
+        burst_multiplier=2.0,
+    ),
+
+    # Endpoints de consulta
+    "GET:/api/v1/workflows": RateLimitConfig(
+        capacity=200,
+        refill_rate=3.333,  # ~200 requests/minuto
+        burst_multiplier=1.5,
+    ),
+    "GET:/api/v1/tickets": RateLimitConfig(
+        capacity=200,
+        refill_rate=3.333,
+        burst_multiplier=1.5,
+    ),
+
+    # Endpoints de health/metrics (sem limites efetivos)
+    "GET:/api/v1/health": RateLimitConfig(
+        capacity=10000,
+        refill_rate=166.67,  # ~10k requests/minuto
+        burst_multiplier=1.0,  # Sem burst
+    ),
+    "GET:/metrics": RateLimitConfig(
+        capacity=10000,
+        refill_rate=166.67,
+        burst_multiplier=1.0,
+    ),
+}
+
+# =============================================================================
+# EXEMPLO DE LUA SCRIPT PARA REDIS
+# =============================================================================
+
+"""
+Script Lua para operações atômicas de refill e acquire.
+Evita race conditions em cenários de alta concorrência.
+"""
+
+REFILL_AND_ACQUIRE_LUA = """
+local key = KEYS[1]                          -- Chave do bucket
+local capacity = tonumber(ARGV[1])           -- Capacidade máxima
+local refill_rate = tonumber(ARGV[2])        -- Taxa de reabastecimento
+local tokens_requested = tonumber(ARGV[3])   -- Tokens solicitados
+local now = tonumber(ARGV[4])                -- Timestamp atual
+
+-- Obter estado atual
+local current = redis.call('HMGET', key, 'tokens', 'last_refill')
+local tokens = tonumber(current[1]) or capacity
+local last_refill = tonumber(current[2]) or now
+
+-- Calcular reabastecimento
+local elapsed = math.max(0, now - last_refill)
+local new_tokens = math.min(capacity, tokens + (elapsed * refill_rate))
+
+-- Tentar adquirir tokens
+local allowed = new_tokens >= tokens_requested
+local remaining = 0
+if allowed then
+    remaining = new_tokens - tokens_requested
+    redis.call('HMSET', key, 'tokens', remaining, 'last_refill', now)
+else
+    redis.call('HMSET', key, 'tokens', new_tokens, 'last_refill', now)
+end
+
+-- Definir TTL (1 hora)
+redis.call('EXPIRE', key, 3600)
+
+-- Calcular tempo de espera
+local retry_after = 0
+if not allowed then
+    retry_after = (tokens_requested - new_tokens) / refill_rate
+end
+
+-- Retornar: allowed, remaining, retry_after
+return {allowed and 1 or 0, remaining, retry_after}
+"""
+
+# =============================================================================
+# EXEMPLO DE QUERIES PROMETHEUS
+# ============================================================================="""
+
+# Taxa de requisições permitidas por tenant
+rate(rate_limit_requests_total{status="allowed"}[5m]) by (tenant_id)
+
+# Taxa de requisições negadas (throttle) por tenant
+rate(rate_limit_requests_total{status="denied"}[5m]) by (tenant_id)
+
+# Percentil de tempo de espera por token
+histogram_quantile(0.99, sum(rate_limit_wait_duration_seconds) by (tenant_id))
+
+# Tokens restantes por tenant
+rate_limit_tokens_remaining{tenant_id="tenant_123"}
+
+# Taxa de throttle events por tier
+rate(rate_limit_throttle_total[5m]) by (tier)
+
+# Alerta: alto throttle rate
+alert: HighRateLimitThrottle
+expr: rate(rate_limit_requests_total{status="denied"}[5m]) > 10
+for: 5m
+labels:
+  severity: warning
+annotations:
+  summary: "Alta taxa de throttle para tenant {{ $labels.tenant_id }}"
+  description: "{{ $value }} requests/sec sendo negados"
+"""
+
+# =============================================================================
+# EXEMPLO DE LOG ESTRUTURADO
+# ============================================================================="""
+
+{
+  "event": "rate_limit_check",
+  "service": "orchestrator-dynamic",
+  "tenant_id": "tenant_123",
+  "user_id": "user_456",
+  "endpoint": "POST:/api/v1/workflows",
+  "tier": "premium",
+  "result": {
+    "allowed": false,
+    "tokens_remaining": 0,
+    "retry_after": 45.2
+  },
+  "limit": {
+    "capacity": 1000,
+    "refill_rate": 100.0,
+    "burst_capacity": 2000
+  },
+  "timestamp": "2026-04-05T14:30:00Z"
+}
+"""
+
+# =============================================================================
+# EXEMPLO DE RESPOSTA HTTP 429
+# ============================================================================="""
+
+HTTP/1.1 429 Too Many Requests
+Content-Type: application/json
+RateLimit-Limit: 100;w=60
+RateLimit-Remaining: 0
+RateLimit-Reset: 1743849600
+Retry-After: 45
+X-Tenant-ID: tenant_123
+X-Request-ID: req_abc123
+
+{
+  "error": "rate_limit_exceeded",
+  "message": "Rate limit exceeded. Retry after 45 seconds.",
+  "details": {
+    "tenant_id": "tenant_123",
+    "user_id": "user_456",
+    "endpoint": "POST:/api/v1/workflows",
+    "limit": 100,
+    "window": 60,
+    "retry_after": 45,
+    "tier": "basic"
+  }
+}
+"""

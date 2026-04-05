@@ -1,0 +1,36 @@
+Thank you for installing {{ .Chart.Name }}!
+
+Your release is named {{ .Release.Name }}.
+
+To learn more about the release, try:
+
+  $ helm status {{ .Release.Name }}
+  $ helm get all {{ .Release.Name }}
+
+{{- if .Values.ingress.enabled }}
+The service is accessible via Ingress:
+  {{- range .Values.ingress.hosts }}
+  http://{{ .host }}
+  {{- end }}
+{{- else }}
+To access the service, port-forward to the pod:
+
+  export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app={{ .Chart.Name }}" -o jsonpath="{.items[0].metadata.name}")
+  kubectl port-forward $POD_NAME {{ .Values.service.ports.http }}:{{ .Values.service.ports.http }}
+
+Then access the API at:
+  http://localhost:{{ .Values.service.ports.http }}
+
+The health endpoint is available at:
+  http://localhost:{{ .Values.service.ports.http }}/health
+
+The metrics endpoint is available at:
+  http://localhost:{{ .Values.service.ports.metrics }}/metrics
+{{- end }}
+
+GPU Support:
+{{- if .Values.gpuResources.enabled }}
+  GPU support is ENABLED with {{ .Values.gpuResources.nvidiaComGpu }} GPU(s)
+{{- else }}
+  GPU support is DISABLED. To enable, set gpuResources.enabled=true in values.yaml
+{{- end }}

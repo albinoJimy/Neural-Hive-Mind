@@ -1,0 +1,75 @@
+{
+  "type": "record",
+  "name": "InferenceResponse",
+  "namespace": "io.neuralhive.inference",
+  "doc": "Schema Avro para responses de inferência ML no Neural Hive-Mind",
+  "fields": [
+    {
+      "name": "request_id",
+      "type": "string",
+      "doc": "ID do request original"
+    },
+    {
+      "name": "decision",
+      "type": {
+        "type": "enum",
+        "name": "DecisionTypeEnum",
+        "symbols": ["approve", "reject", "review_required"]
+      },
+      "doc": "Decisão do modelo"
+    },
+    {
+      "name": "confidence",
+      "type": "double",
+      "doc": "Confiança da predição (0.0 - 1.0)"
+    },
+    {
+      "name": "probabilities",
+      "type": [
+        {
+          "type": "map",
+          "values": "double"
+        },
+        "null"
+      ],
+      "default": null,
+      "doc": "Probabilidades por classe"
+    },
+    {
+      "name": "features",
+      "type": [
+        {
+          "type": "map",
+          "values": "double"
+        },
+        "null"
+      ],
+      "default": null,
+      "doc": "Features usadas na predição"
+    },
+    {
+      "name": "model_version",
+      "type": "string",
+      "doc": "Versão do modelo usado"
+    },
+    {
+      "name": "inference_time_ms",
+      "type": "double",
+      "doc": "Tempo de inferência em ms"
+    },
+    {
+      "name": "timestamp",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      },
+      "doc": "Timestamp da resposta (milliseconds desde epoch)"
+    },
+    {
+      "name": "error",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Mensagem de erro se a predição falhou"
+    }
+  ]
+}

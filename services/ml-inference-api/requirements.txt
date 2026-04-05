@@ -1,0 +1,11 @@
+# Dependências base consolidadas para Neural-Hive-Mind
+-r ../../requirements-base.txt
+
+# Service-specific dependencies
+mlflow==2.18.0
+scikit-learn==1.6.1
+numpy==1.26.4
+joblib==1.4.2
+
+# Rate limiting
+slowapi==0.1.9

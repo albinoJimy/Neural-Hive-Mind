@@ -1,0 +1,46 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Chart.Name }}-config
+  labels:
+    app: {{ .Chart.Name }}
+data:
+  # Configuration file that can be mounted to the container
+  config.yaml: |
+    service:
+      name: {{ .Values.env.SERVICE_NAME | default "ml-inference-api" }}
+      version: {{ .Values.env.SERVICE_VERSION | default "1.0.0" }}
+      log_level: {{ .Values.env.LOG_LEVEL | default "INFO" }}
+
+    api:
+      host: {{ .Values.env.API_HOST | default "0.0.0.0" }}
+      port: {{ .Values.env.API_PORT | default "8008" }}
+
+    mlflow:
+      tracking_uri: {{ .Values.env.MLFLOW_TRACKING_URI | default "http://mlflow:5000" }}
+      model_name: {{ .Values.env.MLFLOW_MODEL_NAME | default "nhm_approval_model" }}
+      local_model_path: {{ .Values.env.LOCAL_MODEL_PATH | default "/app/ml_models" }}
+
+    batch:
+      default_size: {{ .Values.env.BATCH_DEFAULT_SIZE | default "10" }}
+      max_size: {{ .Values.env.BATCH_MAX_SIZE | default "100" }}
+      timeout_seconds: {{ .Values.env.BATCH_TIMEOUT_SECONDS | default "5.0" }}
+
+    rate_limiting:
+      enabled: {{ .Values.env.ENABLE_RATE_LIMITING | default "true" }}
+      requests_per_minute: {{ .Values.env.RATE_LIMIT_REQUESTS_PER_MINUTE | default "60" }}
+
+    gpu:
+      enabled: {{ .Values.env.ENABLE_GPU | default "false" }}
+      memory_fraction: {{ .Values.env.GPU_MEMORY_FRACTION | default "0.8" }}
+      device_id: {{ .Values.env.GPU_DEVICE_ID | default "0" }}
+
+    circuit_breaker:
+      threshold: {{ .Values.env.CIRCUIT_BREAKER_THRESHOLD | default "5" }}
+      timeout_seconds: {{ .Values.env.CIRCUIT_BREAKER_TIMEOUT_SECONDS | default "60" }}
+      recovery_timeout_seconds: {{ .Values.env.CIRCUIT_BREAKER_RECOVERY_TIMEOUT_SECONDS | default "30" }}
+
+    observability:
+      otel_endpoint: {{ .Values.env.OTEL_EXPORTER_ENDPOINT | default "http://otel-collector:4317" }}
+      prometheus_port: {{ .Values.env.PROMETHEUS_PORT | default "9098" }}
+      jaeger_sampling_rate: {{ .Values.env.JAEGER_SAMPLING_RATE | default "0.1" }}

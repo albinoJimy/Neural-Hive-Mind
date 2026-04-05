@@ -1,0 +1,61 @@
+{
+  "type": "record",
+  "name": "BatchInferenceResponse",
+  "namespace": "io.neuralhive.inference",
+  "doc": "Schema Avro para responses de inferência em batch no Neural Hive-Mind",
+  "fields": [
+    {
+      "name": "batch_id",
+      "type": "string",
+      "doc": "ID do batch original"
+    },
+    {
+      "name": "results",
+      "type": {
+        "type": "array",
+        "items": "InferenceResponse"
+      },
+      "doc": "Resultados individuais"
+    },
+    {
+      "name": "total_processed",
+      "type": "int",
+      "doc": "Total de itens processados"
+    },
+    {
+      "name": "successful",
+      "type": "int",
+      "doc": "Número de predições bem-sucedidas"
+    },
+    {
+      "name": "failed",
+      "type": "int",
+      "doc": "Número de predições falhadas"
+    },
+    {
+      "name": "aggregate_stats",
+      "type": [
+        {
+          "type": "map",
+          "values": "double"
+        },
+        "null"
+      ],
+      "default": null,
+      "doc": "Estatísticas agregadas"
+    },
+    {
+      "name": "total_inference_time_ms",
+      "type": "double",
+      "doc": "Tempo total de inferência em ms"
+    },
+    {
+      "name": "timestamp",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      },
+      "doc": "Timestamp da resposta"
+    }
+  ]
+}

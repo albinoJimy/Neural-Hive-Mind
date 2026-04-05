@@ -51,6 +51,16 @@ env:
   OTEL_EXPORTER_ENDPOINT: http://otel-collector:4317
   PROMETHEUS_PORT: "9090"
 
+# Feature Flags Configuration
+featureFlags:
+  enabled: true
+  mongodb_database: feature_flags
+  redis_cache_ttl_seconds: 60
+  redis_key_prefix: "feature_flag:"
+  opa_integration: true
+  opa_policy_path: neuralhive/orchestrator/feature_flags
+  opa_url: http://opa:8181
+
 secrets:
   mongodb_uri: ""
   redis_password: ""

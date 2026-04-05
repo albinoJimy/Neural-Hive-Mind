@@ -1,0 +1,63 @@
+{
+  "type": "record",
+  "name": "BatchInferenceRequest",
+  "namespace": "io.neuralhive.inference",
+  "doc": "Schema Avro para requests de inferência em batch no Neural Hive-Mind",
+  "fields": [
+    {
+      "name": "batch_id",
+      "type": "string",
+      "doc": "Identificador único do batch (UUID)"
+    },
+    {
+      "name": "requests",
+      "type": {
+        "type": "array",
+        "items": "InferenceRequest"
+      },
+      "doc": "Lista de requests de inferência"
+    },
+    {
+      "name": "options",
+      "type": [
+        {
+          "type": "record",
+          "name": "BatchOptions",
+          "namespace": "io.neuralhive.inference",
+          "doc": "Opções de processamento em batch",
+          "fields": [
+            {
+              "name": "parallel",
+              "type": "boolean",
+              "default": true,
+              "doc": "Processar em paralelo"
+            },
+            {
+              "name": "max_workers",
+              "type": ["null", "int"],
+              "default": null,
+              "doc": "Número máximo de workers"
+            },
+            {
+              "name": "aggregate_results",
+              "type": "boolean",
+              "default": true,
+              "doc": "Agregar estatísticas dos resultados"
+            }
+          ]
+        },
+        "null"
+      ],
+      "default": null,
+      "doc": "Opções de batch"
+    },
+    {
+      "name": "timestamp",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      },
+      "doc": "Timestamp do batch request"
+    }
+  ]
+}

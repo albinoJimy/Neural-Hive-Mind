@@ -1,0 +1,8 @@
+[project]
+name = "guard-agents"
+version = "1.0.0"
+
+[tool.pytest.ini_options]
+pythonpath = ["src", "../../libraries/python/neural_hive_opa/src"]
+testpaths = ["tests"]
+asyncio_mode = "strict"
