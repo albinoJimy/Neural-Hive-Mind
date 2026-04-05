@@ -1,0 +1,30 @@
+replicaCount: 1
+
+image:
+  repository: nhm/architect-mcp-server
+  pullPolicy: IfNotPresent
+  tag: "1.0.0"
+
+service:
+  type: ClusterIP
+  port: 3017
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 256Mi
+
+env:
+  - name: ARCHITECT_MCP_LOG_LEVEL
+    value: INFO
+  - name: ARCHITECT_MCP_ARCHITECT_AGENT_HOST
+    value: architect-agent
+  - name: ARCHITECT_MCP_ARCHITECT_AGENT_PORT
+    value: "8009"
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

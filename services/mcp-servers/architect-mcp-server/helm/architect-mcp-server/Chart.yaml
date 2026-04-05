@@ -1,0 +1,6 @@
+apiVersion: v2
+name: architect-mcp-server
+description: MCP Server for Neural-Hive-Mind Architect Agent
+type: application
+version: 1.0.0
+appVersion: "1.0.0"

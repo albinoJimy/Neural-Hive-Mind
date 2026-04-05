@@ -2,7 +2,6 @@
 Configurações do Execution Ticket Service usando Pydantic Settings.
 """
 from functools import lru_cache
-from typing import List, Optional
 
 from pydantic import Field, ValidationInfo, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -56,13 +55,13 @@ class TicketServiceSettings(BaseSettings):
         default="PLAINTEXT", description="Protocolo de segurança Kafka"
     )
     kafka_sasl_mechanism: str = Field(default="SCRAM-SHA-512", description="Mecanismo SASL")
-    kafka_sasl_username: Optional[str] = Field(default=None, description="Username SASL")
-    kafka_sasl_password: Optional[str] = Field(default=None, description="Password SASL")
-    kafka_ssl_ca_location: Optional[str] = Field(default=None, description="Caminho CA SSL")
-    kafka_ssl_certificate_location: Optional[str] = Field(
+    kafka_sasl_username: str | None = Field(default=None, description="Username SASL")
+    kafka_sasl_password: str | None = Field(default=None, description="Password SASL")
+    kafka_ssl_ca_location: str | None = Field(default=None, description="Caminho CA SSL")
+    kafka_ssl_certificate_location: str | None = Field(
         default=None, description="Caminho certificado SSL"
     )
-    kafka_ssl_key_location: Optional[str] = Field(default=None, description="Caminho chave SSL")
+    kafka_ssl_key_location: str | None = Field(default=None, description="Caminho chave SSL")
     kafka_schema_registry_url: str = Field(
         default="https://schema-registry.neural-hive-kafka.svc.cluster.local:8081",
         description="URL do Schema Registry para deserialização Avro",
@@ -70,7 +69,7 @@ class TicketServiceSettings(BaseSettings):
     schema_registry_tls_verify: bool = Field(
         default=True, description="Verificar certificado TLS do Schema Registry"
     )
-    schema_registry_ca_bundle: Optional[str] = Field(
+    schema_registry_ca_bundle: str | None = Field(
         default=None, description="Caminho para CA bundle do Schema Registry"
     )
     schemas_base_path: str = Field(
@@ -116,7 +115,7 @@ class TicketServiceSettings(BaseSettings):
     otel_tls_verify: bool = Field(
         default=True, description="Verificar certificado TLS do OTEL Collector"
     )
-    otel_ca_bundle: Optional[str] = Field(
+    otel_ca_bundle: str | None = Field(
         default=None, description="Caminho para CA bundle do OTEL Collector"
     )
     prometheus_port: int = Field(default=9090, description="Porta de métricas Prometheus")
@@ -139,12 +138,12 @@ class TicketServiceSettings(BaseSettings):
     )
 
     # Redis (Idempotency)
-    redis_url: Optional[str] = Field(
+    redis_url: str | None = Field(
         default=None, description="URL de conexão Redis (opcional, se não definido usa host/port)"
     )
     redis_host: str = Field(default="localhost", description="Host do Redis")
     redis_port: int = Field(default=6379, description="Porta do Redis")
-    redis_password: Optional[str] = Field(default=None, description="Senha do Redis")
+    redis_password: str | None = Field(default=None, description="Senha do Redis")
     redis_ssl_enabled: bool = Field(default=False, description="Habilitar SSL para Redis")
     redis_idempotency_ttl_seconds: int = Field(
         default=604800, description="TTL para chaves de idempotência (7 dias)"
@@ -157,7 +156,7 @@ class TicketServiceSettings(BaseSettings):
     @classmethod
     def validate_environment(cls, v: str) -> str:
         """Validar ambiente."""
-        allowed = ["development", "staging", "production"]
+        allowed = ["development", "staging", "production", "test"]
         if v not in allowed:
             raise ValueError(f"Environment must be one of {allowed}")
         return v
@@ -213,7 +212,7 @@ class TicketServiceSettings(BaseSettings):
         return self
 
     @property
-    def CORS_ORIGINS(self) -> List[str]:
+    def CORS_ORIGINS(self) -> list[str]:
         """
         CORS origins dinâmicas por ambiente usando neural_hive_security.
         """
@@ -226,7 +225,7 @@ class TicketServiceSettings(BaseSettings):
     )
 
 
-@lru_cache()
+@lru_cache
 def get_settings() -> TicketServiceSettings:
     """Retorna singleton de configurações."""
     return TicketServiceSettings()

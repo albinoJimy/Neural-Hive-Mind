@@ -259,7 +259,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="Execution Ticket Service",
         description="Serviço de gerenciamento de ciclo de vida de tickets de execução",
-        version="1.0.0",
+        version=settings.service_version,
         lifespan=lifespan,
     )
 

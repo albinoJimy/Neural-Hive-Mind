@@ -1,0 +1,6 @@
+apiVersion: v2
+name: healer-mcp-server
+description: MCP Server for Neural-Hive-Mind Healer Agent
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
