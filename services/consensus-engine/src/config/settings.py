@@ -225,6 +225,12 @@ class Settings(BaseSettings):
         default=True, description="Habilitar invocação paralela"
     )
 
+    # GAPS-02: Validação estrita de correlation_id
+    fail_on_missing_correlation_id: bool = Field(
+        default=False,
+        description="Se True, rejeita planos sem correlation_id. Default False para compatibilidade.",
+    )
+
     # Hierarchical Consensus Configuration (GAPS-03)
     # Consenso hierárquico permite que especialistas mais seniors tenham mais peso
     # nas decisões de consenso, baseado em senioridade e domínio de especialização.

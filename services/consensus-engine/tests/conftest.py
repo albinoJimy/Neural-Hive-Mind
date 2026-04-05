@@ -5,103 +5,13 @@ Fornece fixtures reutilizáveis para testes do consensus-engine, seguindo o padr
 estabelecido em libraries/python/neural_hive_specialists/tests/conftest.py.
 """
 
-import sys
-from pathlib import Path
-from enum import Enum
-from unittest.mock import MagicMock
-
-# ALWAYS set up UnifiedDomain mock BEFORE any imports
-# This ensures all tests use the same complete UnifiedDomain
-class UnifiedDomain(str, Enum):
-    BUSINESS = 'BUSINESS'
-    TECHNICAL = 'TECHNICAL'
-    SECURITY = 'SECURITY'
-    INFRASTRUCTURE = 'INFRASTRUCTURE'
-    BEHAVIOR = 'BEHAVIOR'
-    OPERATIONAL = 'OPERATIONAL'
-    COMPLIANCE = 'COMPLIANCE'
-    ARCHITECTURE = 'ARCHITECTURE'
-
-# Always set up the mock, replacing any partial mock
-mock_domain = MagicMock()
-mock_domain.UnifiedDomain = UnifiedDomain
-sys.modules['neural_hive_domain'] = mock_domain
-
-# Also set up DomainMapper
-class DomainMapper:
-    @staticmethod
-    def normalize(domain_str, context):
-        return UnifiedDomain.BUSINESS
-
-mock_domain.DomainMapper = DomainMapper
-
-# Mock de observability (tracer) para evitar AttributeError
-mock_observability = MagicMock()
-mock_tracer = MagicMock()
-mock_span = MagicMock()
-mock_span.__enter__ = MagicMock(return_value=mock_span)
-mock_span.__exit__ = MagicMock(return_value=False)
-mock_tracer.start_as_current_span = MagicMock(return_value=mock_span)
-mock_observability.get_tracer = MagicMock(return_value=mock_tracer)
-sys.modules['neural_hive_observability'] = mock_observability
-
-# Add src to path for all tests
-src_path = Path(__file__).parent.resolve() / 'src'
-if str(src_path) not in sys.path:
-    sys.path.insert(0, str(src_path))
-
 import pytest
 from unittest.mock import Mock, MagicMock, AsyncMock
 from datetime import datetime, timezone
 import uuid
-import os
 
-
-# ===========================
-# Autouse Fixtures
-# ===========================
-
-@pytest.fixture(autouse=True)
-def clear_settings_and_env(monkeypatch):
-    """Clear Settings singleton and env vars before each test."""
-    # Clear hierarchical env vars
-    hierarchical_vars = [
-        'ENABLE_HIERARCHICAL_CONSENSUS',
-        'SPECIALIST_SENIORITY',
-        'DEFAULT_SENIORITY_LEVEL',
-        'DOMAIN_SPECIALIST_WEIGHTS',
-        'KAFKA_BOOTSTRAP_SERVERS',
-        'MONGODB_URI',
-        'REDIS_CLUSTER_NODES',
-    ]
-    for var in hierarchical_vars:
-        monkeypatch.delenv(var, raising=False)
-
-    # Clear the Settings singleton
-    try:
-        import src.config.settings as settings_module
-        settings_module._settings = None
-    except ImportError:
-        pass
-
-    yield
-
-
-# ===========================
-# Fixtures de Configuração
-# ===========================
-
-# Imports opcionais - permitem rodar testes sem todas as dependências
-try:
-    from google.protobuf.timestamp_pb2 import Timestamp
-    from neural_hive_specialists.proto_gen import specialist_pb2, specialist_pb2_grpc
-    PROTOBUF_AVAILABLE = True
-except ImportError:
-    PROTOBUF_AVAILABLE = False
-    # Criar mocks para substituir quando não disponível
-    Timestamp = Mock
-    specialist_pb2 = MagicMock()
-    specialist_pb2_grpc = MagicMock()
+from google.protobuf.timestamp_pb2 import Timestamp
+from neural_hive_specialists.proto_gen import specialist_pb2, specialist_pb2_grpc
 
 
 # ===========================
@@ -371,15 +281,6 @@ def mock_consensus_orchestrator_config():
     config.critical_risk_threshold = 0.8
     config.enable_pheromones = False
     config.enable_bayesian_averaging = True
-    config.enable_hierarchical_consensus = False  # Desabilitar para testes simples
-    config.specialist_seniority = {
-        'business': 'senior',
-        'technical': 'senior',
-        'architecture': 'expert',
-        'behavior': 'mid_level',
-        'evolution': 'mid_level'
-    }
-    config.domain_specialist_weights = {}
     return config
 
 

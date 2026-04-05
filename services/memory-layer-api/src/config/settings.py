@@ -72,6 +72,21 @@ class Settings(BaseSettings):
     clickhouse_retention_months: int = Field(
         default=18, description="ClickHouse retention period in months"
     )
+    enable_clickhouse_fallback: bool = Field(
+        default=True, description="Habilitar fallback para buffer quando ClickHouse falha"
+    )
+    clickhouse_fallback_buffer_capacity: int = Field(
+        default=1000, description="Capacidade do buffer de fallback em memória"
+    )
+    clickhouse_fallback_redis_ttl: int = Field(
+        default=86400, description="TTL Redis para persistência do buffer (24h)"
+    )
+    clickhouse_fallback_drain_interval: int = Field(
+        default=30, description="Intervalo de drenagem do buffer em segundos"
+    )
+    clickhouse_fallback_batch_size: int = Field(
+        default=100, description="Tamanho do batch de drenagem do buffer"
+    )
 
     # Kafka (Real-time Sync)
     kafka_bootstrap_servers: str = Field(

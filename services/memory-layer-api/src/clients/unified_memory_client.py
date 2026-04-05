@@ -7,8 +7,16 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 import structlog
+from prometheus_client import Counter
 
 logger = structlog.get_logger(__name__)
+
+# Métricas Prometheus
+CLICKHOUSE_FALLBACK_TRIGGERED = Counter(
+    "memory_clickhouse_fallback_triggered_total",
+    "Total de vezes que fallback foi ativado para ClickHouse",
+    ["operation", "table"],
+)
 
 
 class UnifiedMemoryClient:
@@ -22,6 +30,7 @@ class UnifiedMemoryClient:
         clickhouse_client,
         settings,
         kafka_producer=None,
+        fallback_buffer=None,
     ):
         self.redis = redis_client
         self.mongodb = mongodb_client
@@ -29,6 +38,7 @@ class UnifiedMemoryClient:
         self.clickhouse = clickhouse_client
         self.settings = settings
         self.kafka_producer = kafka_producer
+        self.fallback_buffer = fallback_buffer
 
     async def query(
         self,
@@ -186,6 +196,64 @@ class UnifiedMemoryClient:
             return filtered
         except Exception as e:
             logger.warning("ClickHouse query failed", error=str(e), entity_id=entity_id)
+            # Tenta buscar dados drenados no MongoDB se ClickHouse falhar
+            return await self._query_drained_fallback(entity_id, time_range)
+
+    async def _query_drained_fallback(
+        self, entity_id: str, time_range: Tuple[datetime, datetime]
+    ) -> List[Dict]:
+        """
+        Query dados drenados para MongoDB quando ClickHouse falha.
+
+        Args:
+            entity_id: ID da entidade
+            time_range: Intervalo de tempo
+
+        Returns:
+            Lista de planos drenados
+        """
+        try:
+            from src.services.fallback_drainer import FallbackDrainer
+
+            query_filter = {
+                "table": "cognitive_plans_history",
+                "drained": False,
+            }
+
+            # Adiciona filtro por entity_id se disponível
+            # Busca em rows que contêm o entity_id (plan_id ou intent_id)
+            start, end = time_range
+
+            # Busca documentos recentes do buffer drenado
+            documents = await self.mongodb.find(
+                collection=FallbackDrainer.DRAINED_COLLECTION,
+                filter=query_filter,
+                limit=100,
+            )
+
+            # Filtra por entity_id e time_range
+            filtered = []
+            for doc in documents:
+                rows = doc.get("rows", [])
+                for row in rows:
+                    # row é uma lista: [plan_id, intent_id, domain, ...]
+                    if len(row) >= 2 and (row[0] == entity_id or row[1] == entity_id):
+                        filtered.append(row)
+                        break
+
+            if filtered:
+                logger.info(
+                    "Returned data from drained fallback",
+                    entity_id=entity_id,
+                    count=len(filtered),
+                )
+
+            return filtered
+
+        except Exception as e:
+            logger.warning(
+                "Drained fallback query failed", error=str(e), entity_id=entity_id
+            )
             return []
 
     async def _query_semantic_data(
@@ -377,3 +445,217 @@ class UnifiedMemoryClient:
         except Exception as e:
             logger.error("Cache invalidation failed", error=str(e), pattern=pattern)
             raise
+
+    # ========================================
+    # Métodos para ClickHouse com Fallback
+    # ========================================
+
+    async def insert_clickhouse_with_fallback(
+        self,
+        table: str,
+        rows: List[List[Any]],
+        column_names: List[str],
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> bool:
+        """
+        Insere dados no ClickHouse com fallback automático para buffer.
+
+        Args:
+            table: Nome da tabela ClickHouse
+            rows: Linhas a serem inseridas
+            column_names: Nomes das colunas
+            metadata: Metadados adicionais
+
+        Returns:
+            True se inserido com sucesso ou enviado para buffer
+        """
+        if not self.clickhouse:
+            # ClickHouse não configurado, usa buffer direto
+            return await self._send_to_fallback_buffer(table, rows, column_names, metadata)
+
+        try:
+            # Tenta inserir no ClickHouse
+            await self.clickhouse.insert_batch(table, rows, column_names)
+            logger.debug("Inserted into ClickHouse", table=table, row_count=len(rows))
+            return True
+
+        except Exception as e:
+            # Fallback para buffer
+            CLICKHOUSE_FALLBACK_TRIGGERED.labels(
+                operation="insert_batch", table=table
+            ).inc()
+            logger.warning(
+                "ClickHouse insert failed, using fallback buffer",
+                error=str(e),
+                table=table,
+                row_count=len(rows),
+            )
+            return await self._send_to_fallback_buffer(table, rows, column_names, metadata)
+
+    async def _send_to_fallback_buffer(
+        self,
+        table: str,
+        rows: List[List[Any]],
+        column_names: List[str],
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> bool:
+        """
+        Envia dados para o buffer de fallback.
+
+        Args:
+            table: Nome da tabela ClickHouse
+            rows: Linhas a serem bufferizadas
+            column_names: Nomes das colunas
+            metadata: Metadados adicionais
+
+        Returns:
+            True se adicionado ao buffer
+        """
+        if not self.fallback_buffer:
+            logger.warning(
+                "No fallback buffer available, data will be lost",
+                table=table,
+                row_count=len(rows),
+            )
+            return False
+
+        try:
+            success = await self.fallback_buffer.add_event(
+                table=table,
+                rows=rows,
+                column_names=column_names,
+                metadata=metadata,
+            )
+            if success:
+                logger.info(
+                    "Data sent to fallback buffer",
+                    table=table,
+                    row_count=len(rows),
+                )
+            return success
+        except Exception as e:
+            logger.error(
+                "Failed to send to fallback buffer",
+                error=str(e),
+                table=table,
+            )
+            return False
+
+    async def insert_cognitive_plan_history(self, plan: Dict[str, Any]) -> bool:
+        """
+        Insere plano cognitivo no histórico ClickHouse com fallback.
+
+        Args:
+            plan: Dicionário com dados do plano
+
+        Returns:
+            True se inserido ou bufferizado
+        """
+        try:
+            rows = [[
+                plan.get("plan_id"),
+                plan.get("intent_id"),
+                plan.get("domain"),
+                plan.get("created_at", datetime.now(timezone.utc)),
+                plan.get("risk_score", 0.0),
+                plan.get("complexity_score", 0.0),
+                str(plan.get("plan_data", {})),
+                str(plan.get("metadata", {})),
+            ]]
+
+            return await self.insert_clickhouse_with_fallback(
+                table="cognitive_plans_history",
+                rows=rows,
+                column_names=[
+                    "plan_id",
+                    "intent_id",
+                    "domain",
+                    "created_at",
+                    "risk_score",
+                    "complexity_score",
+                    "plan_data",
+                    "metadata",
+                ],
+                metadata={"source": "cognitive_plan"},
+            )
+        except Exception as e:
+            logger.error("Failed to insert cognitive plan history", error=str(e))
+            return False
+
+    async def insert_consensus_decision_history(self, decision: Dict[str, Any]) -> bool:
+        """
+        Insere decisão de consenso no histórico ClickHouse com fallback.
+
+        Args:
+            decision: Dicionário com dados da decisão
+
+        Returns:
+            True se inserido ou bufferizado
+        """
+        try:
+            rows = [[
+                decision.get("decision_id"),
+                decision.get("plan_id"),
+                decision.get("aggregated_confidence", 0.0),
+                decision.get("consensus_type"),
+                decision.get("created_at", datetime.now(timezone.utc)),
+                str(decision.get("decision_data", {})),
+                str(decision.get("metadata", {})),
+            ]]
+
+            return await self.insert_clickhouse_with_fallback(
+                table="consensus_decisions_history",
+                rows=rows,
+                column_names=[
+                    "decision_id",
+                    "plan_id",
+                    "aggregated_confidence",
+                    "consensus_type",
+                    "created_at",
+                    "decision_data",
+                    "metadata",
+                ],
+                metadata={"source": "consensus_decision"},
+            )
+        except Exception as e:
+            logger.error("Failed to insert consensus decision history", error=str(e))
+            return False
+
+    async def insert_specialist_opinion_history(self, opinion: Dict[str, Any]) -> bool:
+        """
+        Insere opinião de especialista no histórico ClickHouse com fallback.
+
+        Args:
+            opinion: Dicionário com dados da opinião
+
+        Returns:
+            True se inserido ou bufferizado
+        """
+        try:
+            rows = [[
+                opinion.get("opinion_id"),
+                opinion.get("specialist_type"),
+                opinion.get("plan_id"),
+                opinion.get("confidence_score", 0.0),
+                opinion.get("created_at", datetime.now(timezone.utc)),
+                str(opinion.get("opinion_data", {})),
+                str(opinion.get("metadata", {})),
+            ]]
+
+            return await self.insert_clickhouse_with_fallback(
+                table="specialist_opinions_history",
+                rows=rows,
+                column_names=[
+                    "opinion_id",
+                    "specialist_type",
+                    "plan_id",
+                    "confidence_score",
+                    "created_at",
+                    "opinion_data",
+                    "metadata",
+                ],
+                metadata={"source": "specialist_opinion"},
+            )
+        except Exception as e:
+            logger.error("Failed to insert specialist opinion history", error=str(e))
+            return False

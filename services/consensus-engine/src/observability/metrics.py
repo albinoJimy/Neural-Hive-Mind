@@ -242,6 +242,12 @@ correlation_id_generated_total = Counter(
     "Total de correlation_ids gerados automaticamente (UUID fallback)",
 )
 
+# GAPS-02: Métrica de validação falhada
+correlation_id_validation_failed_total = Counter(
+    "neural_hive_consensus_correlation_id_validation_failed_total",
+    "Total de validações de correlation_id que falharam (fail_on_missing_correlation_id=True)",
+)
+
 
 class ConsensusMetrics:
     """Wrapper para métricas de consenso com métodos de conveniência"""
@@ -330,6 +336,11 @@ class ConsensusMetrics:
     def increment_correlation_id_generated():
         """Incrementa contador de correlation_id gerado automaticamente"""
         correlation_id_generated_total.inc()
+
+    @staticmethod
+    def increment_correlation_id_validation_failed():
+        """Incrementa contador de validação de correlation_id falhada (GAPS-02)"""
+        correlation_id_validation_failed_total.inc()
 
     # ===========================
     # Métricas do Consumer Kafka

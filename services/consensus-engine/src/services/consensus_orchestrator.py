@@ -1,8 +1,9 @@
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, List
+from typing import Any
 
 import structlog
+from src.exceptions import MissingCorrelationIdError
 from src.models.consolidated_decision import (
     ConsensusMethod,
     ConsensusMetrics,
@@ -10,6 +11,7 @@ from src.models.consolidated_decision import (
     DecisionType,
     SpecialistVote,
 )
+from src.models.decision_method import infer_decision_method
 from src.observability.metrics import ConsensusMetrics as ObservabilityMetrics
 from src.services.bayesian_aggregator import BayesianAggregator
 from src.services.compliance_fallback import ComplianceFallback
@@ -36,7 +38,7 @@ class ConsensusOrchestrator:
         self.hierarchical = HierarchicalWeightCalculator(config)
 
     async def process_consensus(
-        self, cognitive_plan: Dict[str, Any], specialist_opinions: List[Dict[str, Any]]
+        self, cognitive_plan: dict[str, Any], specialist_opinions: list[dict[str, Any]]
     ) -> ConsolidatedDecision:
         """Processa consenso completo
 
@@ -137,10 +139,30 @@ class ConsensusOrchestrator:
         )
 
         # 9. Construir decisão consolidada
-        # Extrair correlation_id com fallback UUID para garantir rastreabilidade
-        # F1: VULN-001 corrigida - Mudar de ERROR para WARNING e adicionar contexto de debug
+        # GAPS-02: Validação estrita de correlation_id
         correlation_id = cognitive_plan.get("correlation_id")
         if not correlation_id or (isinstance(correlation_id, str) and not correlation_id.strip()):
+            # Verificar se modo estrito está habilitado
+            if self.config.fail_on_missing_correlation_id:
+                # Modo estrito: lançar exceção de validação
+                actual_value = str(correlation_id) if correlation_id else "None"
+
+                # Produzir métrica de validação falhada
+                ObservabilityMetrics.increment_correlation_id_validation_failed()
+
+                # Log de erro antes de lançar exceção
+                logger.error(
+                    "GAPS-02: correlation_id ausente no cognitive_plan - validação falhou",
+                    plan_id=cognitive_plan["plan_id"],
+                    intent_id=cognitive_plan["intent_id"],
+                    correlation_id_provided=actual_value,
+                    fail_on_missing_correlation_id=True,
+                    trace_id=cognitive_plan.get("trace_id"),
+                    span_id=cognitive_plan.get("span_id"),
+                )
+
+                raise MissingCorrelationIdError(actual_value=actual_value)
+            # Modo permissivo: gerar UUID (comportamento atual para compatibilidade)
             correlation_id = str(uuid.uuid4())
 
             # Registrar métricas
@@ -156,6 +178,7 @@ class ConsensusOrchestrator:
                 generated_correlation_id=correlation_id,
                 upstream_source="semantic-translation-engine",
                 action_required="Verificar propagação de correlation_id no STE (Gateway e STE agora geram UUID)",
+                fail_on_missing_correlation_id=False,
                 trace_id=cognitive_plan.get("trace_id"),
                 span_id=cognitive_plan.get("span_id"),
             )
@@ -232,8 +255,8 @@ class ConsensusOrchestrator:
         return decision
 
     async def _calculate_dynamic_weights(
-        self, cognitive_plan: Dict[str, Any], specialist_opinions: List[Dict[str, Any]]
-    ) -> Dict[str, float]:
+        self, cognitive_plan: dict[str, Any], specialist_opinions: list[dict[str, Any]]
+    ) -> dict[str, float]:
         """Calcula pesos dinâmicos baseados em feromônios e senioridade (GAPS-03-05)"""
         weights = {}
         # FIX BUG-002: Usar 'original_domain' (campo correto do schema Avro) em vez de 'domain'
@@ -300,7 +323,7 @@ class ConsensusOrchestrator:
         return weights
 
     async def _get_average_pheromone_strength(
-        self, specialist_opinions: List[Dict[str, Any]], domain: str
+        self, specialist_opinions: list[dict[str, Any]], domain: str
     ) -> float:
         """Obtém força média de feromônios para os especialistas"""
         if not self.config.enable_pheromones or not self.pheromone_client:
@@ -333,10 +356,9 @@ class ConsensusOrchestrator:
         """Determina qual método de consenso foi dominante"""
         if is_unanimous:
             return ConsensusMethod.UNANIMOUS
-        elif self.config.enable_bayesian_averaging:
+        if self.config.enable_bayesian_averaging:
             return ConsensusMethod.BAYESIAN
-        else:
-            return ConsensusMethod.VOTING
+        return ConsensusMethod.VOTING
 
     def _map_recommendation_to_decision(self, recommendation: str) -> DecisionType:
         """Mapeia recomendação de especialista para DecisionType"""
@@ -349,9 +371,9 @@ class ConsensusOrchestrator:
         return mapping.get(recommendation, DecisionType.REVIEW_REQUIRED)
 
     def _build_specialist_votes(
-        self, specialist_opinions: List[Dict[str, Any]], weights: Dict[str, float]
-    ) -> List[SpecialistVote]:
-        """Constrói lista de votos estruturados (GAPS-03-05: com campos de senioridade)"""
+        self, specialist_opinions: list[dict[str, Any]], weights: dict[str, float]
+    ) -> list[SpecialistVote]:
+        """Constrói lista de votos estruturados (GAPS-03-05: com campos de senioridade, GAPS-03 SPECIALIST-002: com decision_method)"""
         votes = []
         for opinion in specialist_opinions:
             specialist_type = opinion["specialist_type"]
@@ -389,9 +411,12 @@ class ConsensusOrchestrator:
                         try:
                             seniority = parse_seniority_level(config_seniority)
                             seniority_level = seniority.value
-                            seniority_multiplier = SENIORITY_MULTIPLIERS.get(seniorior)
+                            seniority_multiplier = SENIORITY_MULTIPLIERS.get(seniority)
                         except ValueError:
                             pass
+
+            # Detectar método de decisão (GAPS-03 SPECIALIST-002)
+            decision_method = infer_decision_method(op).value
 
             vote = SpecialistVote(
                 specialist_type=specialist_type,
@@ -403,6 +428,7 @@ class ConsensusOrchestrator:
                 processing_time_ms=opinion.get("processing_time_ms", 0),
                 seniority_level=seniority_level,
                 seniority_multiplier=seniority_multiplier,
+                decision_method=decision_method,
             )
             votes.append(vote)
 
@@ -414,7 +440,7 @@ class ConsensusOrchestrator:
         confidence: float,
         risk: float,
         is_unanimous: bool,
-        violations: List[str],
+        violations: list[str],
     ) -> str:
         """Gera resumo da justificativa da decisão"""
         if is_unanimous:
@@ -430,8 +456,8 @@ class ConsensusOrchestrator:
         return summary
 
     def _calculate_seniority_distribution(
-        self, specialist_opinions: List[Dict[str, Any]]
-    ) -> Dict[str, int]:
+        self, specialist_opinions: list[dict[str, Any]]
+    ) -> dict[str, int]:
         """Calcula distribuição de votos por nível de senioridade (GAPS-03-05)
 
         Args:
@@ -462,8 +488,8 @@ class ConsensusOrchestrator:
     async def _publish_pheromones(
         self,
         decision: ConsolidatedDecision,
-        cognitive_plan: Dict[str, Any],
-        specialist_opinions: List[Dict[str, Any]],
+        cognitive_plan: dict[str, Any],
+        specialist_opinions: list[dict[str, Any]],
     ):
         """Publica feromônios baseados na decisão final"""
         if not self.config.enable_pheromones or not self.pheromone_client:

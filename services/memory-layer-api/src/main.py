@@ -15,7 +15,9 @@ from src.clients.unified_memory_client import UnifiedMemoryClient
 from src.config.settings import Settings
 from src.consumers.sync_event_consumer import SyncEventConsumer
 from src.models.memory_query import MemoryQueryRequest, MemoryQueryResponse
+from src.services.clickhouse_fallback_buffer import ClickHouseFallbackBuffer
 from src.services.data_quality_monitor import DataQualityMonitor
+from src.services.fallback_drainer import FallbackDrainer
 from src.services.lineage_tracker import LineageTracker
 from src.services.retention_policy_manager import RetentionPolicyManager
 
@@ -100,6 +102,23 @@ async def lifespan(app: FastAPI):
         logger.warning("ClickHouse initialization failed, continuing without it", error=str(e))
         app_state["clickhouse_client"] = None
 
+    # Initialize ClickHouse fallback buffer
+    fallback_buffer = None
+    if redis_client and settings.enable_clickhouse_fallback:
+        try:
+            fallback_buffer = ClickHouseFallbackBuffer(
+                redis_client=redis_client,
+                settings=settings,
+                capacity=getattr(settings, "clickhouse_fallback_buffer_capacity", 1000),
+                redis_ttl_seconds=getattr(settings, "clickhouse_fallback_redis_ttl", 86400),
+            )
+            await fallback_buffer.initialize()
+            app_state["fallback_buffer"] = fallback_buffer
+            logger.info("ClickHouse fallback buffer initialized")
+        except Exception as e:
+            logger.warning("Fallback buffer initialization failed", error=str(e))
+            app_state["fallback_buffer"] = None
+
     # Kafka sync producer (para sincronização em tempo real)
     kafka_producer = None
     if settings.enable_realtime_sync:
@@ -114,7 +133,7 @@ async def lifespan(app: FastAPI):
             )
             app_state["kafka_producer"] = None
 
-    # Initialize unified memory client (com Kafka producer opcional)
+    # Initialize unified memory client (com Kafka producer e fallback buffer)
     unified_client = UnifiedMemoryClient(
         redis_client,
         mongodb_client,
@@ -122,6 +141,7 @@ async def lifespan(app: FastAPI):
         clickhouse_client,
         settings,
         kafka_producer=kafka_producer,
+        fallback_buffer=fallback_buffer,
     )
     app_state["unified_client"] = unified_client
     logger.info("Unified Memory client initialized")
@@ -162,12 +182,35 @@ async def lifespan(app: FastAPI):
     app_state["retention_manager"] = retention_manager
     logger.info("Retention Policy Manager initialized")
 
+    # Initialize fallback drainer
+    fallback_drainer = None
+    if fallback_buffer and mongodb_client and settings.enable_clickhouse_fallback:
+        try:
+            fallback_drainer = FallbackDrainer(
+                fallback_buffer=fallback_buffer,
+                mongodb_client=mongodb_client,
+                settings=settings,
+                drain_interval_seconds=getattr(settings, "clickhouse_fallback_drain_interval", 30),
+                batch_size=getattr(settings, "clickhouse_fallback_batch_size", 100),
+            )
+            await fallback_drainer.start()
+            app_state["fallback_drainer"] = fallback_drainer
+            logger.info("Fallback drainer started")
+        except Exception as e:
+            logger.warning("Fallback drainer initialization failed", error=str(e))
+            app_state["fallback_drainer"] = None
+
     logger.info("Memory Layer API startup complete")
 
     yield
 
     # Shutdown
     logger.info("Shutting down Memory Layer API...")
+
+    # Para fallback drainer primeiro (graceful shutdown)
+    if "fallback_drainer" in app_state and app_state["fallback_drainer"] is not None:
+        await app_state["fallback_drainer"].stop()
+        logger.info("Fallback drainer stopped")
 
     # Para Kafka consumer primeiro (graceful shutdown)
     if "sync_consumer" in app_state and app_state["sync_consumer"] is not None:
@@ -300,6 +343,60 @@ async def get_quality_stats(data_type: str = None):
     except Exception as e:
         logger.error("Quality stats query failed", error=str(e))
         raise HTTPException(status_code=500, detail=f"Quality stats failed: {str(e)}")
+
+
+@app.get("/api/v1/memory/fallback/status")
+async def get_fallback_status():
+    """Get ClickHouse fallback buffer and drainer status"""
+    result = {
+        "buffer": {"status": "not_initialized"},
+        "drainer": {"status": "not_initialized"},
+    }
+
+    try:
+        fallback_buffer = app_state.get("fallback_buffer")
+        if fallback_buffer:
+            result["buffer"] = await fallback_buffer.get_stats()
+        else:
+            result["buffer"]["status"] = "disabled"
+    except Exception as e:
+        logger.error("Failed to get fallback buffer status", error=str(e))
+        result["buffer"]["status"] = "error"
+        result["buffer"]["error"] = str(e)
+
+    try:
+        fallback_drainer = app_state.get("fallback_drainer")
+        if fallback_drainer:
+            result["drainer"] = await fallback_drainer.get_stats()
+        else:
+            result["drainer"]["status"] = "disabled"
+    except Exception as e:
+        logger.error("Failed to get fallback drainer status", error=str(e))
+        result["drainer"]["status"] = "error"
+        result["drainer"]["error"] = str(e)
+
+    return result
+
+
+@app.post("/api/v1/memory/fallback/drain")
+async def trigger_fallback_drain():
+    """Trigger manual drain of fallback buffer"""
+    fallback_drainer = app_state.get("fallback_drainer")
+
+    if not fallback_drainer:
+        raise HTTPException(
+            status_code=503, detail="Fallback drainer not initialized"
+        )
+
+    try:
+        result = await fallback_drainer.drain_once()
+        return {
+            "status": "drain_completed",
+            **result,
+        }
+    except Exception as e:
+        logger.error("Manual drain failed", error=str(e))
+        raise HTTPException(status_code=500, detail=f"Manual drain failed: {str(e)}")
 
 
 @app.post("/api/v1/memory/invalidate")
