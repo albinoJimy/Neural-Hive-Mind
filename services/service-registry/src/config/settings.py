@@ -11,7 +11,7 @@ class Settings(BaseSettings):
 
     # Informações do serviço
     SERVICE_NAME: str = Field(default="service-registry", description="Nome do serviço")
-    SERVICE_VERSION: str = Field(default="1.0.0", description="Versão do serviço")
+    SERVICE_VERSION: str = Field(default="1.3.0", description="Versão do serviço")
     ENVIRONMENT: str = Field(default="development", description="Ambiente de execução")
     LOG_LEVEL: str = Field(default="INFO", description="Nível de log")
 
@@ -20,15 +20,38 @@ class Settings(BaseSettings):
     METRICS_PORT: int = Field(default=9090, description="Porta de métricas Prometheus")
 
     # Configurações do Registry Backend (Redis)
-    # Nota: Mantemos nomes ETCD_* para compatibilidade com configs existentes
-    # mas agora usa Redis como backend
-    ETCD_ENDPOINTS: List[str] = Field(
-        default=["redis:6379"], description="Endpoints do Redis para registry (formato host:port)"
+    # Nota: Fase de migração etcd→Redis - suporta ambos os nomes por compatibilidade
+    # Prioridade: REGISTRY_REDIS_* > ETCD_* (deprecated)
+
+    # Nomes legados (deprecated, removidos em v1.6.0)
+    # Mantidos aqui para Pydantic ler do environment, mas uso interno via propriedades
+    ETCD_ENDPOINTS: Optional[List[str]] = Field(
+        default=None,
+        description="[DEPRECATED - use REGISTRY_REDIS_ENDPOINTS] Endpoints do Redis",
     )
-    ETCD_PREFIX: str = Field(
-        default="neural-hive:agents", description="Prefixo das chaves no Redis"
+    ETCD_PREFIX: Optional[str] = Field(
+        default=None,
+        description="[DEPRECATED - use REGISTRY_REDIS_PREFIX] Prefixo das chaves no Redis",
     )
-    ETCD_TIMEOUT_SECONDS: int = Field(default=5, description="Timeout para operações no Redis")
+    ETCD_TIMEOUT_SECONDS: Optional[int] = Field(
+        default=None,
+        description="[DEPRECATED - use REGISTRY_REDIS_TIMEOUT_SECONDS] Timeout Redis",
+    )
+
+    # Novos nomes (padrão para v1.4.0+)
+    # Nota: Podem ser omitidos em favor de ETCD_* durante Fase 1 (v1.3.0)
+    REGISTRY_REDIS_ENDPOINTS: Optional[List[str]] = Field(
+        default=None,
+        description="Endpoints do Redis para registry (formato host:port)",
+    )
+    REGISTRY_REDIS_PREFIX: Optional[str] = Field(
+        default=None,
+        description="Prefixo das chaves no Redis",
+    )
+    REGISTRY_REDIS_TIMEOUT_SECONDS: Optional[int] = Field(
+        default=None,
+        description="Timeout para operações no Redis",
+    )
 
     # Configurações de health checks
     HEALTH_CHECK_INTERVAL_SECONDS: int = Field(
@@ -46,15 +69,17 @@ class Settings(BaseSettings):
         default=None, description="Senha do Redis. Obrigatorio em producao (validacao automatica)."
     )
 
-    @field_validator("ETCD_ENDPOINTS", "REDIS_CLUSTER_NODES", mode="before")
+    @field_validator("REGISTRY_REDIS_ENDPOINTS", "ETCD_ENDPOINTS", "REDIS_CLUSTER_NODES", mode="before")
     @classmethod
-    def parse_list_from_json_string(cls, v: Union[str, List[str]]) -> List[str]:
+    def parse_list_from_json_string(cls, v: Union[str, List[str], None]) -> Union[List[str], None]:
         """
         Parseia listas que vem como JSON string de variaveis de ambiente.
 
         Helm passa listas como JSON: '["redis:6379"]'
         Pydantic precisa converter para lista Python: ["redis:6379"]
         """
+        if v is None:
+            return None
         if isinstance(v, str):
             v = v.strip()
             # Se parece com JSON array, faz parse
@@ -221,6 +246,109 @@ class Settings(BaseSettings):
             )
 
         return self
+
+    @model_validator(mode="after")
+    def migrate_etcd_to_redis_config(self) -> "Settings":
+        """
+        Migra configs ETCD_* (deprecated) para REGISTRY_REDIS_*.
+
+        Estratégia de 3 fases:
+        - Fase 1 (v1.3.0): Aceita ambos, usa REGISTRY_REDIS_* se disponível
+        - Fase 2 (v1.4.0): Atualiza Helm charts para usar novos nomes
+        - Fase 3 (v1.6.0): Remove suporte a ETCD_*
+
+        Emite aviso se ETCD_* está sendo usado como fallback.
+        """
+        import warnings
+        import os
+
+        # Verificar se REGISTRY_REDIS_* foi definido no environment
+        # (mesmo que seja None no modelo, pode ter sido setado explicitamente como vazio)
+        redis_endpoints_env = os.getenv("REGISTRY_REDIS_ENDPOINTS")
+        redis_prefix_env = os.getenv("REGISTRY_REDIS_PREFIX")
+        redis_timeout_env = os.getenv("REGISTRY_REDIS_TIMEOUT_SECONDS")
+
+        # Migrar ENDPOINTS
+        if not hasattr(self, "_resolved_redis_endpoints"):
+            if self.REGISTRY_REDIS_ENDPOINTS is not None:
+                # Novo nome definido explicitamente (ou via env)
+                self._resolved_redis_endpoints = self.REGISTRY_REDIS_ENDPOINTS
+            elif self.ETCD_ENDPOINTS is not None:
+                # Apenas nome legado definido
+                warnings.warn(
+                    "ETCD_ENDPOINTS is deprecated and will be removed in v1.6.0. "
+                    "Use REGISTRY_REDIS_ENDPOINTS instead. "
+                    "See docs/service-registry/MIGRATION_ETCD_TO_REDIS.md",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+                self._resolved_redis_endpoints = self.ETCD_ENDPOINTS
+            else:
+                # Nenhum definido, usar default
+                self._resolved_redis_endpoints = ["redis:6379"]
+
+        # Migrar PREFIX
+        if not hasattr(self, "_resolved_redis_prefix"):
+            if self.REGISTRY_REDIS_PREFIX is not None:
+                self._resolved_redis_prefix = self.REGISTRY_REDIS_PREFIX
+            elif self.ETCD_PREFIX is not None:
+                warnings.warn(
+                    "ETCD_PREFIX is deprecated. Use REGISTRY_REDIS_PREFIX instead.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+                self._resolved_redis_prefix = self.ETCD_PREFIX
+            else:
+                self._resolved_redis_prefix = "neural-hive:agents"
+
+        # Migrar TIMEOUT
+        if not hasattr(self, "_resolved_redis_timeout"):
+            if self.REGISTRY_REDIS_TIMEOUT_SECONDS is not None:
+                self._resolved_redis_timeout = self.REGISTRY_REDIS_TIMEOUT_SECONDS
+            elif self.ETCD_TIMEOUT_SECONDS is not None:
+                warnings.warn(
+                    "ETCD_TIMEOUT_SECONDS is deprecated. Use REGISTRY_REDIS_TIMEOUT_SECONDS instead.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+                self._resolved_redis_timeout = self.ETCD_TIMEOUT_SECONDS
+            else:
+                self._resolved_redis_timeout = 5
+
+        return self
+
+    # Propriedades para acessar valores migrados (abstração para código)
+    @property
+    def registry_redis_endpoints(self) -> List[str]:
+        """Endpoints do Redis para registry (mesclado de ETCD_ENDPOINTS para compatibilidade)"""
+        if not hasattr(self, "_resolved_redis_endpoints"):
+            # Força migração se propriedade acessada antes do validator
+            self.migrate_etcd_to_redis_config()
+        return getattr(self, "_resolved_redis_endpoints", ["redis:6379"])
+
+    @property
+    def registry_redis_prefix(self) -> str:
+        """Prefixo das chaves no Redis (mesclado de ETCD_PREFIX para compatibilidade)"""
+        if not hasattr(self, "_resolved_redis_prefix"):
+            self.migrate_etcd_to_redis_config()
+        return getattr(self, "_resolved_redis_prefix", "neural-hive:agents")
+
+    @property
+    def registry_redis_timeout(self) -> int:
+        """Timeout para operações no Redis (mesclado de ETCD_TIMEOUT_SECONDS para compatibilidade)"""
+        if not hasattr(self, "_resolved_redis_timeout"):
+            self.migrate_etcd_to_redis_config()
+        return getattr(self, "_resolved_redis_timeout", 5)
+
+    @property
+    def registry_redis_prefix(self) -> str:
+        """Prefixo das chaves no Redis (mesclado de ETCD_PREFIX para compatibilidade)"""
+        return getattr(self, "_resolved_redis_prefix", "neural-hive:agents")
+
+    @property
+    def registry_redis_timeout(self) -> int:
+        """Timeout para operações no Redis (mesclado de ETCD_TIMEOUT_SECONDS para compatibilidade)"""
+        return getattr(self, "_resolved_redis_timeout", 5)
 
 
 @lru_cache()

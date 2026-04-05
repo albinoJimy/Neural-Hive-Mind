@@ -4,7 +4,8 @@ import signal
 import grpc
 import structlog
 from grpc.health.v1 import health, health_pb2, health_pb2_grpc
-from src.clients import EtcdClient, PheromoneClient
+from src.clients import PheromoneClient
+from src.clients.redis_registry_client import RedisRegistryClient
 from src.config import get_settings
 from src.grpc_server import ServiceRegistryServicer
 from src.grpc_server.auth_interceptor import SPIFFEAuthInterceptor
@@ -65,7 +66,7 @@ class ServiceRegistryServer:
     def __init__(self):
         self.settings = get_settings()
         self.server = None
-        self.etcd_client = None
+        self.registry_client = None  # Renomeado de etcd_client para clareza
         self.pheromone_client = None
         self.registry_service = None
         self.matching_engine = None
@@ -178,14 +179,14 @@ class ServiceRegistryServer:
             logger.info("vault_integration_disabled")
 
         # Inicializar clientes
-        # Nota: EtcdClient é agora um alias para RedisRegistryClient
-        self.etcd_client = EtcdClient(
-            cluster_nodes=self.settings.ETCD_ENDPOINTS,
-            prefix=self.settings.ETCD_PREFIX,
+        # Nota: Usa propriedades que mesclam configs antigas (ETCD_*) e novas (REGISTRY_REDIS_*)
+        self.registry_client = RedisRegistryClient(
+            cluster_nodes=self.settings.registry_redis_endpoints,
+            prefix=self.settings.registry_redis_prefix,
             password=redis_password,
-            timeout=self.settings.ETCD_TIMEOUT_SECONDS,
+            timeout=self.settings.registry_redis_timeout,
         )
-        await self.etcd_client.initialize()
+        await self.registry_client.initialize()
 
         self.pheromone_client = PheromoneClient(
             cluster_nodes=self.settings.REDIS_CLUSTER_NODES, password=redis_password
@@ -193,12 +194,12 @@ class ServiceRegistryServer:
         await self.pheromone_client.initialize()
 
         # Inicializar serviços
-        self.registry_service = RegistryService(self.etcd_client)
+        self.registry_service = RegistryService(self.registry_client)
 
-        self.matching_engine = MatchingEngine(self.etcd_client, self.pheromone_client)
+        self.matching_engine = MatchingEngine(self.registry_client, self.pheromone_client)
 
         self.health_check_manager = HealthCheckManager(
-            etcd_client=self.etcd_client,
+            etcd_client=self.registry_client,  # Parâmetro mantido por compatibilidade
             check_interval_seconds=self.settings.HEALTH_CHECK_INTERVAL_SECONDS,
             heartbeat_timeout_seconds=self.settings.HEARTBEAT_TIMEOUT_SECONDS,
         )
@@ -421,8 +422,8 @@ class ServiceRegistryServer:
                 logger.warning("vault_client_close_failed", error=str(e))
 
         # Fechar clientes
-        if self.etcd_client:
-            await self.etcd_client.close()
+        if self.registry_client:
+            await self.registry_client.close()
 
         if self.pheromone_client:
             await self.pheromone_client.close()

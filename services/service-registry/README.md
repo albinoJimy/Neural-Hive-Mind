@@ -207,12 +207,25 @@ SERVICE_REGISTRY_HOST=localhost SERVICE_REGISTRY_PORT=50051 \
 
 ### Environment Variables
 
+> **⚠️ Migração etcd→Redis (v1.3.0):** As variáveis `ETCD_*` foram renomeadas para `REGISTRY_REDIS_*` para clareza. Ver [docs/service-registry/MIGRATION_ETCD_TO_REDIS.md](docs/service-registry/MIGRATION_ETCD_TO_REDIS.md) para detalhes.
+
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `SERVICE_REGISTRY_HOST` | gRPC server host | `localhost` |
-| `SERVICE_REGISTRY_PORT` | gRPC server port | `50051` |
-| `REDIS_URL` | Redis connection URL | `redis://localhost:6379` |
-| `HEARTBEAT_TIMEOUT` | Agent timeout in seconds | `60` |
+| `REGISTRY_REDIS_ENDPOINTS` | Redis endpoints for registry (JSON array) | `["redis:6379"]` |
+| `REGISTRY_REDIS_PREFIX` | Key prefix in Redis | `"neural-hive:agents"` |
+| `REGISTRY_REDIS_TIMEOUT_SECONDS` | Redis operation timeout (s) | `5` |
+| `REDIS_CLUSTER_NODES` | Redis nodes for pheromones | `["redis:6379"]` |
+| `REDIS_PASSWORD` | Redis password (required in prod) | `None` |
+| `HEARTBEAT_TIMEOUT_SECONDS` | Agent timeout (s) | `120` |
+| `HEALTH_CHECK_INTERVAL_SECONDS` | Health check interval (s) | `60` |
+
+### Deprecated Variables (v1.3.0 - v1.6.0)
+
+| Variable | Replacement | Removed In |
+|----------|-------------|------------|
+| `ETCD_ENDPOINTS` | `REGISTRY_REDIS_ENDPOINTS` | v1.6.0 |
+| `ETCD_PREFIX` | `REGISTRY_REDIS_PREFIX` | v1.6.0 |
+| `ETCD_TIMEOUT_SECONDS` | `REGISTRY_REDIS_TIMEOUT_SECONDS` | v1.6.0 |
 
 ### Kubernetes
 
@@ -228,6 +241,16 @@ spec:
       targetPort: 50051
       protocol: TCP
       name: grpc
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: service-registry-config
+data:
+  REGISTRY_REDIS_ENDPOINTS: |
+    ["redis:6379"]
+  REGISTRY_REDIS_PREFIX: "neural-hive:agents"
+  REGISTRY_REDIS_TIMEOUT_SECONDS: "5"
 ```
 
 ## Monitoring
@@ -257,7 +280,7 @@ grpc_health_probe -addr=localhost:50051
          |                           |
          v                           v
 +------------------------------------------------+
-|              Service Registry                   |
+|              Service Registry (v1.3.0)          |
 |  +------------------------------------------+  |
 |  |            gRPC Server                   |  |
 |  |  - Register()                            |  |
@@ -267,13 +290,23 @@ grpc_health_probe -addr=localhost:50051
 |  +------------------------------------------+  |
 |                      |                          |
 |  +------------------------------------------+  |
-|  |            Redis Backend                 |  |
-|  |  - Agent registry storage                |  |
-|  |  - TTL-based expiration                  |  |
+|  |       RedisRegistryClient                |  |
+|  |  - Redis-based registry storage          |  |
+|  |  - TTL-based expiration (5min)           |  |
 |  |  - Pub/Sub for events                    |  |
 |  +------------------------------------------+  |
 +------------------------------------------------+
+         |
+         v
++------------------------------------------------+
+|                  Redis                          |
+|  - Agent registry keys                         |
+|  - Agent type indexes                          |
+|  - Event channels                              |
++------------------------------------------------+
 ```
+
+**Nota:** O Service Registry foi migrado de etcd para Redis em v1.3.0. Ver [MIGRATION_ETCD_TO_REDIS.md](docs/service-registry/MIGRATION_ETCD_TO_REDIS.md) para detalhes.
 
 ## Development
 
