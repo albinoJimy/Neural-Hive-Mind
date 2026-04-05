@@ -902,6 +902,44 @@ class OrchestratorMetrics:
             buckets=[0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
         )
 
+        # LoadPredictor Metrics
+        self.load_forecast_latency_seconds = Histogram(
+            "orchestrator_load_forecast_latency_seconds",
+            "Latência de forecasts de carga do LoadPredictor",
+            ["horizon_minutes"],
+            buckets=[0.01, 0.05, 0.1, 0.5, 1, 2, 5],
+        )
+
+        self.load_forecast_mape = Gauge(
+            "orchestrator_load_forecast_mape",
+            "MAPE (Mean Absolute Percentage Error) dos forecasts de carga",
+            ["horizon_minutes"],
+        )
+
+        self.load_forecast_cache_hits_total = Counter(
+            "orchestrator_load_forecast_cache_hits_total",
+            "Total de cache hits/miss nos forecasts de carga",
+            ["hit"],  # hit=true, hit=false
+        )
+
+        self.load_forecast_errors_total = Counter(
+            "orchestrator_load_forecast_errors_total",
+            "Total de erros nos forecasts de carga",
+            ["error_type"],
+        )
+
+        self.bottlenecks_detected_total = Counter(
+            "orchestrator_bottlenecks_detected_total",
+            "Total de bottlenecks detectados pelo LoadPredictor",
+            ["severity"],  # HIGH, MEDIUM
+        )
+
+        self.bottlenecks_detected = Gauge(
+            "orchestrator_bottlenecks_detected",
+            "Número de bottlenecks detectados na última verificação",
+            ["severity"],
+        )
+
         logger.info("Métricas Prometheus inicializadas", service=service_name, component=component)
 
     # Métodos helper para registrar métricas
@@ -1847,6 +1885,52 @@ class OrchestratorMetrics:
 
     async def record_forecast_cache_hit(self, hit: bool):
         """Registra cache hit/miss de forecast (stub para compatibilidade)."""
+        self.load_forecast_cache_hits_total.labels(hit=str(hit).lower()).inc()
+
+    def record_load_forecast_latency(self, latency_seconds: float, horizon_minutes: int):
+        """
+        Registra latência de forecast de carga.
+
+        Args:
+            latency_seconds: Latência em segundos
+            horizon_minutes: Horizonte de previsão
+        """
+        self.load_forecast_latency_seconds.labels(horizon_minutes=horizon_minutes).observe(latency_seconds)
+
+    def record_load_forecast_mape(self, mape: float):
+        """
+        Registra MAPE de forecast de carga.
+
+        Args:
+            mape: Mean Absolute Percentage Error
+        """
+        # Usar horizonte mais longo como padrão para agregação
+        self.load_forecast_mape.labels(horizon_minutes=1440).set(mape)
+
+    def record_load_forecast_error(self, error_type: str):
+        """
+        Registra erro de forecast de carga.
+
+        Args:
+            error_type: Tipo do erro
+        """
+        self.load_forecast_errors_total.labels(error_type=error_type).inc()
+
+    def record_bottlenecks_detected(self, high_severity: int, medium_severity: int):
+        """
+        Registra bottlenecks detectados.
+
+        Args:
+            high_severity: Número de bottlenecks de alta severidade
+            medium_severity: Número de bottlenecks de média severidade
+        """
+        self.bottlenecks_detected.labels(severity="HIGH").set(high_severity)
+        self.bottlenecks_detected.labels(severity="MEDIUM").set(medium_severity)
+
+        if high_severity > 0:
+            self.bottlenecks_detected_total.labels(severity="HIGH").inc()
+        if medium_severity > 0:
+            self.bottlenecks_detected_total.labels(severity="MEDIUM").inc()
         if hit:
             self.ml_prediction_cache_hits_total.labels(model_name="load-predictor").inc()
 
