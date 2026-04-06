@@ -16,7 +16,7 @@ from prometheus_client import CollectorRegistry, REGISTRY
 # Adicionar diretório src ao path Python
 # Isso resolve os erros de import "ModuleNotFoundError: No module named 'src'"
 _project_root = Path(__file__).resolve().parents[1]
-_src_path = _project_root / "services" / "self-healing-engine" / "src"
+_src_path = _project_root / "src"
 
 if str(_src_path) not in sys.path:
     sys.path.insert(0, str(_src_path))

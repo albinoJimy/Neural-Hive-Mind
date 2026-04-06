@@ -1,0 +1,50 @@
+playbook_id: "database-connection-recovery-v1"
+playbook_name: "database_connection_recovery"
+playbook_type: "PLATFORM"
+version: "1.0.0"
+description: "Recupera conexões de banco de dados (MongoDB/PostgreSQL) reiniciando pods e verificando conectividade"
+trigger:
+  pattern: "database_connection_failure"
+  severity: "critical"
+parameters_schema:
+  type: object
+  properties:
+    service_name:
+      type: string
+    namespace:
+      type: string
+    connection_string:
+      type: string
+    database_type:
+      type: string
+      enum: ["mongodb", "postgresql", "redis"]
+    target_pod:
+      type: string
+  required: [service_name, namespace, database_type]
+timeout_seconds: 300
+rollback_playbook: null
+validation_checks:
+  - "connection_restored"
+  - "pods_restarted"
+status: "AVAILABLE"
+actions:
+  - name: "restart_pod"
+    type: "restart_pod"
+    parameters:
+      pod_name: "{{ service_name }}"
+      namespace: "{{ namespace }}"
+  - name: "wait_for_pods"
+    type: "wait"
+    parameters:
+      seconds: 30
+  - name: "check_database_connection"
+    type: "check_database_connection"
+    parameters:
+      connection_string: "{{ connection_string }}"
+      database_type: "{{ database_type }}"
+  - name: "notify_team"
+    type: "notify_agent"
+    parameters:
+      agent_id: "ops-team"
+      notification_type: "WARNING"
+      message: "Recuperação de conexão {{ database_type }} executada para {{ service_name }}"

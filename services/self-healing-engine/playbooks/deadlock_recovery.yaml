@@ -1,0 +1,44 @@
+playbook_id: "deadlock-recovery-v1"
+playbook_name: "deadlock_recovery"
+playbook_type: "ORCHESTRATION"
+version: "1.0.0"
+description: "Detecta e resolve deadlocks em workflows pausando e analisando tickets presos"
+trigger:
+  pattern: "workflow_deadlock"
+  severity: "critical"
+parameters_schema:
+  type: object
+  properties:
+    workflow_id:
+      type: string
+    stuck_duration_seconds:
+      type: integer
+    suspected_tickets:
+      type: array
+      items:
+        type: string
+  required: [workflow_id]
+timeout_seconds: 600
+rollback_playbook: null
+validation_checks:
+  - "workflow_paused"
+  - "tickets_analyzed"
+status: "AVAILABLE"
+actions:
+  - name: "get_workflow_status"
+    type: "get_workflow_status"
+    parameters:
+      workflow_id: "{{ workflow_id }}"
+      include_tickets: true
+  - name: "pause_workflow"
+    type: "pause_workflow"
+    parameters:
+      workflow_id: "{{ workflow_id }}"
+      reason: "Deadlock detected - stuck for {{ stuck_duration_seconds }} seconds"
+      duration_seconds: 300
+  - name: "notify_agent"
+    type: "notify_agent"
+    parameters:
+      agent_id: "pagerduty-slack"
+      notification_type: "CRITICAL"
+      message: "Deadlock detectado no workflow {{ workflow_id }} - {{ suspected_tickets }} tickets presos"
