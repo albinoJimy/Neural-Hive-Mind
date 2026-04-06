@@ -3,7 +3,7 @@ Slack Client para envio de notificações ao Slack via webhook.
 
 Este cliente envia mensagens para canais Slack usando Incoming Webhooks.
 """
-import logging
+import structlog
 from typing import Any
 
 import httpx
@@ -11,7 +11,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 
 from src.config.settings import get_settings
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class SlackClient:

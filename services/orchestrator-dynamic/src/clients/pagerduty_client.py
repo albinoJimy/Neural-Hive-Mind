@@ -4,7 +4,7 @@ PagerDuty Client para envio de alertas via Events API v2.
 Este cliente envia alertas para o PagerDuty usando a Events API v2,
 permitindo trigger, acknowledge e resolve de incidentes.
 """
-import logging
+import structlog
 from typing import Any
 
 import httpx
@@ -12,7 +12,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 
 from src.config.settings import get_settings
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class PagerDutyClient:

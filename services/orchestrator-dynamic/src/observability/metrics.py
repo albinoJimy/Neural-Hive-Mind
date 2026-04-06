@@ -177,6 +177,12 @@ class OrchestratorMetrics:
             ["alert_type", "severity"],
         )
 
+        self.sla_alerts_received_total = Counter(
+            "orchestration_sla_alerts_received_total",
+            "Total de alertas SLA recebidos do Kafka",
+            ["topic", "severity"],
+        )
+
         self.sla_violations_published_total = Counter(
             "orchestration_sla_violations_published_total",
             "Total de violações SLA publicadas no Kafka",
@@ -1764,6 +1770,10 @@ class OrchestratorMetrics:
     def record_sla_alert_sent(self, alert_type: str, severity: str):
         """Registra alerta SLA enviado."""
         self.sla_alerts_sent_total.labels(alert_type=alert_type, severity=severity).inc()
+
+    def record_sla_alert_received(self, topic: str, severity: str):
+        """Registra alerta SLA recebido."""
+        self.sla_alerts_received_total.labels(topic=topic, severity=severity).inc()
 
     def record_sla_violation_published(self, violation_type: str):
         """Registra violação SLA publicada."""

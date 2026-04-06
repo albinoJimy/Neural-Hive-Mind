@@ -731,6 +731,9 @@ class OrchestratorSettings(BaseSettings):
     opa_timeout_seconds: int = Field(default=2, description="Timeout para chamadas OPA")
     opa_retry_attempts: int = Field(default=3, description="Tentativas de retry")
     opa_cache_ttl_seconds: int = Field(default=30, description="TTL do cache de decisões")
+    opa_enable_metrics: bool = Field(
+        default=True, description="Habilitar métricas Prometheus para OPA"
+    )
     opa_fail_open: bool = Field(
         default=False, description="Fail-open em caso de erro OPA (False = fail-closed)"
     )
