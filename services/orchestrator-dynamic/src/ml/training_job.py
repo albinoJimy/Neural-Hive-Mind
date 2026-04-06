@@ -7,7 +7,7 @@ e do worker Temporal, permitindo treinamento confiável e isolado.
 
 import asyncio
 import sys
-from datetime import datetime, timezone
+from datetime import datetime
 from neural_hive_domain import UTC
 from typing import Any
 

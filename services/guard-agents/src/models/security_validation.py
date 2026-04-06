@@ -1,3 +1,4 @@
+from neural_hive_domain import UTC
 """
 Modelos Pydantic para validação proativa de segurança de execution tickets.
 """
@@ -5,14 +6,12 @@ Modelos Pydantic para validação proativa de segurança de execution tickets.
 import hashlib
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 from enum import Enum
 from typing import Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
-# UTC timezone
-UTC = timezone.utc
 
 
 class ViolationType(str, Enum):

@@ -1,3 +1,4 @@
+from neural_hive_domain import UTC
 """
 Comprehensive unit tests for DisasterRecoveryManager.
 
@@ -17,7 +18,7 @@ import tarfile
 import tempfile
 import tempfile as real_tempfile
 import hashlib
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, 
 from unittest.mock import Mock, MagicMock, patch, call, mock_open
 from pathlib import Path
 

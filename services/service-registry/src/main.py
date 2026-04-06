@@ -4,7 +4,7 @@ import signal
 import grpc
 import structlog
 from grpc.health.v1 import health, health_pb2, health_pb2_grpc
-from src.clients import EtcdClient, PheromoneClient
+from src.clients import PheromoneClient, RedisRegistryClient
 from src.config import get_settings
 from src.grpc_server import ServiceRegistryServicer
 from src.grpc_server.auth_interceptor import SPIFFEAuthInterceptor
@@ -178,12 +178,12 @@ class ServiceRegistryServer:
             logger.info("vault_integration_disabled")
 
         # Inicializar clientes
-        # Nota: EtcdClient é agora um alias para RedisRegistryClient
-        self.etcd_client = EtcdClient(
-            cluster_nodes=self.settings.ETCD_ENDPOINTS,
-            prefix=self.settings.ETCD_PREFIX,
+        # Nota: Usa RedisRegistryClient com propriedades de configuração (com backward compatibility)
+        self.etcd_client = RedisRegistryClient(
+            cluster_nodes=self.settings.registry_redis_endpoints,
+            prefix=self.settings.registry_redis_prefix,
             password=redis_password,
-            timeout=self.settings.ETCD_TIMEOUT_SECONDS,
+            timeout=self.settings.registry_redis_timeout_seconds,
         )
         await self.etcd_client.initialize()
 

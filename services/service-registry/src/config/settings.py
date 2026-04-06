@@ -1,6 +1,6 @@
 import json
+import warnings
 from functools import lru_cache
-from typing import List, Optional, Union
 
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -22,13 +22,24 @@ class Settings(BaseSettings):
     # Configurações do Registry Backend (Redis)
     # Nota: Mantemos nomes ETCD_* para compatibilidade com configs existentes
     # mas agora usa Redis como backend
-    ETCD_ENDPOINTS: List[str] = Field(
+    ETCD_ENDPOINTS: list[str] = Field(
         default=["redis:6379"], description="Endpoints do Redis para registry (formato host:port)"
     )
     ETCD_PREFIX: str = Field(
         default="neural-hive:agents", description="Prefixo das chaves no Redis"
     )
     ETCD_TIMEOUT_SECONDS: int = Field(default=5, description="Timeout para operações no Redis")
+
+    # Novas configs (Fase 1 - Backward Compatibility)
+    REGISTRY_REDIS_ENDPOINTS: list[str] = Field(
+        default=["redis:6379"], description="Endpoints do Redis para registry (formato host:port)"
+    )
+    REGISTRY_REDIS_PREFIX: str = Field(
+        default="neural-hive:agents", description="Prefixo das chaves no Redis"
+    )
+    REGISTRY_REDIS_TIMEOUT_SECONDS: int = Field(
+        default=5, description="Timeout para operações no Redis"
+    )
 
     # Configurações de health checks
     HEALTH_CHECK_INTERVAL_SECONDS: int = Field(
@@ -39,16 +50,16 @@ class Settings(BaseSettings):
     )
 
     # Configurações do Redis (para feromônios)
-    REDIS_CLUSTER_NODES: List[str] = Field(
+    REDIS_CLUSTER_NODES: list[str] = Field(
         default=["redis:6379"], description="Nós do cluster Redis"
     )
-    REDIS_PASSWORD: Optional[str] = Field(
+    REDIS_PASSWORD: str | None = Field(
         default=None, description="Senha do Redis. Obrigatorio em producao (validacao automatica)."
     )
 
     @field_validator("ETCD_ENDPOINTS", "REDIS_CLUSTER_NODES", mode="before")
     @classmethod
-    def parse_list_from_json_string(cls, v: Union[str, List[str]]) -> List[str]:
+    def parse_list_from_json_string(cls, v: str | list[str]) -> list[str]:
         """
         Parseia listas que vem como JSON string de variaveis de ambiente.
 
@@ -71,7 +82,7 @@ class Settings(BaseSettings):
 
     @field_validator("REDIS_PASSWORD")
     @classmethod
-    def validate_redis_password_in_production(cls, v: Optional[str], info) -> Optional[str]:
+    def validate_redis_password_in_production(cls, v: str | None, info) -> str | None:
         """
         Validar que REDIS_PASSWORD nao esta vazio em producao.
 
@@ -98,7 +109,7 @@ class Settings(BaseSettings):
     OTEL_TLS_VERIFY: bool = Field(
         default=True, description="Verificar certificado TLS do OTEL Collector"
     )
-    OTEL_CA_BUNDLE: Optional[str] = Field(
+    OTEL_CA_BUNDLE: str | None = Field(
         default=None, description="Caminho para CA bundle do OTEL Collector"
     )
 
@@ -109,7 +120,7 @@ class Settings(BaseSettings):
         description="Endereço do servidor Vault",
     )
     VAULT_TLS_VERIFY: bool = Field(default=True, description="Verificar certificado TLS do Vault")
-    VAULT_CA_BUNDLE: Optional[str] = Field(
+    VAULT_CA_BUNDLE: str | None = Field(
         default=None, description="Caminho para CA bundle do Vault"
     )
     VAULT_NAMESPACE: str = Field(default="", description="Namespace Vault (vazio para root)")
@@ -222,8 +233,65 @@ class Settings(BaseSettings):
 
         return self
 
+    @model_validator(mode="after")
+    def migrate_etcd_to_redis_configs(self) -> "Settings":
+        """
+        Migra configs ETCD_* para REGISTRY_REDIS_* com backward compatibility.
 
-@lru_cache()
+        Se as novas configs REGISTRY_REDIS_* não estiverem definidas,
+        utiliza os valores de ETCD_* e emite aviso de deprecation.
+        """
+        # Migrar ETCD_ENDPOINTS -> REGISTRY_REDIS_ENDPOINTS
+        if not self.REGISTRY_REDIS_ENDPOINTS and self.ETCD_ENDPOINTS:
+            warnings.warn(
+                "ETCD_ENDPOINTS is deprecated and will be removed in v1.6.0. "
+                "Use REGISTRY_REDIS_ENDPOINTS instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            object.__setattr__(self, "REGISTRY_REDIS_ENDPOINTS", self.ETCD_ENDPOINTS)
+
+        # Migrar ETCD_PREFIX -> REGISTRY_REDIS_PREFIX
+        if not self.REGISTRY_REDIS_PREFIX or self.REGISTRY_REDIS_PREFIX == "neural-hive:agents":
+            if self.ETCD_PREFIX and self.ETCD_PREFIX != "neural-hive:agents":
+                warnings.warn(
+                    "ETCD_PREFIX is deprecated and will be removed in v1.6.0. "
+                    "Use REGISTRY_REDIS_PREFIX instead.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+                object.__setattr__(self, "REGISTRY_REDIS_PREFIX", self.ETCD_PREFIX)
+
+        # Migrar ETCD_TIMEOUT_SECONDS -> REGISTRY_REDIS_TIMEOUT_SECONDS
+        if not self.REGISTRY_REDIS_TIMEOUT_SECONDS or self.REGISTRY_REDIS_TIMEOUT_SECONDS == 5:
+            if self.ETCD_TIMEOUT_SECONDS and self.ETCD_TIMEOUT_SECONDS != 5:
+                warnings.warn(
+                    "ETCD_TIMEOUT_SECONDS is deprecated and will be removed in v1.6.0. "
+                    "Use REGISTRY_REDIS_TIMEOUT_SECONDS instead.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+                object.__setattr__(self, "REGISTRY_REDIS_TIMEOUT_SECONDS", self.ETCD_TIMEOUT_SECONDS)
+
+        return self
+
+    @property
+    def registry_redis_endpoints(self) -> list[str]:
+        """Retorna endpoints do Redis para registry (com fallback para ETCD_ENDPOINTS)."""
+        return self.REGISTRY_REDIS_ENDPOINTS or self.ETCD_ENDPOINTS
+
+    @property
+    def registry_redis_prefix(self) -> str:
+        """Retorna prefixo das chaves no Redis (com fallback para ETCD_PREFIX)."""
+        return self.REGISTRY_REDIS_PREFIX or self.ETCD_PREFIX
+
+    @property
+    def registry_redis_timeout_seconds(self) -> int:
+        """Retorna timeout para operações no Redis (com fallback para ETCD_TIMEOUT_SECONDS)."""
+        return self.REGISTRY_REDIS_TIMEOUT_SECONDS or self.ETCD_TIMEOUT_SECONDS
+
+
+@lru_cache
 def get_settings() -> Settings:
     """Retorna configurações cacheadas"""
     return Settings()

@@ -1,3 +1,4 @@
+from neural_hive_domain import UTC
 """
 Logging estruturado com Structlog para Neural Hive-Mind.
 
@@ -8,8 +9,7 @@ intent_id e plan_id para facilitar troubleshooting distribuído.
 import sys
 import logging
 from typing import Dict, Any, Optional
-from datetime import datetime, timezone
-
+from datetime import datetime
 import structlog
 from opentelemetry import trace
 

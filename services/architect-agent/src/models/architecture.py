@@ -1,13 +1,12 @@
+from neural_hive_domain import UTC
 """Modelos de dados para arquitetura de software."""
 
-from datetime import datetime, timezone
+from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
-# UTC timezone
-UTC = timezone.utc
 
 
 class ArchitectureType(str, Enum):

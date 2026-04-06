@@ -1,3 +1,4 @@
+from neural_hive_domain import UTC
 """
 DLQ Alert Manager - Gerenciamento de alertas para mensagens no DLQ.
 

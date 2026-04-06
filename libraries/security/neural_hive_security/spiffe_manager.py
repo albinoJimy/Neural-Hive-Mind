@@ -3,21 +3,28 @@ SPIFFE Workload API client for workload identity management
 """
 
 import asyncio
-import grpc
-import json
-import base64
-from typing import Optional, Dict, Any, List
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from typing import Any
+
+import grpc
 import structlog
-from prometheus_client import Counter, Histogram, Gauge
+from prometheus_client import Counter, Gauge, Histogram
 
 from .config import SPIFFEConfig
 
+# Try to import JWT verification components (SEC-008)
+# Import controlado por feature flag para manter backward compatibility
+try:
+    from .jwt.jwk_validator import JWKValidator
+    from .jwt.key_cache import KeyCache
+    JWT_COMPONENTS_AVAILABLE = True
+except ImportError:
+    JWT_COMPONENTS_AVAILABLE = False
+
 # Try to import SPIRE Workload API stubs
 try:
-    from . import workload_pb2
-    from . import workload_pb2_grpc
+    from . import workload_pb2, workload_pb2_grpc
     SPIRE_API_AVAILABLE = True
 except ImportError:
     SPIRE_API_AVAILABLE = False
@@ -49,12 +56,14 @@ spiffe_trust_bundle_updates_total = Counter(
 # Custom exceptions
 class SPIFFEConnectionError(Exception):
     """SPIFFE connection error"""
-    pass
 
 
 class SPIFFEFetchError(Exception):
     """SPIFFE SVID fetch error"""
-    pass
+
+
+class TrustBundleValidationError(Exception):
+    """Trust bundle JWT validation error (SEC-008)"""
 
 
 @dataclass
@@ -95,13 +104,34 @@ class SPIFFEManager:
     def __init__(self, config: SPIFFEConfig):
         self.config = config
         self.logger = logger.bind(component="spiffe_manager")
-        self.channel: Optional[grpc.aio.Channel] = None
-        self.stub: Optional[Any] = None  # Workload API stub
-        self._jwt_svid_cache: Dict[str, JWTSVID] = {}
-        self._x509_svid: Optional[X509SVID] = None
-        self._trust_bundle: Optional[str] = None
-        self._trust_bundle_keys: Dict[str, str] = {}  # kid -> public key mapping
-        self._refresh_task: Optional[asyncio.Task] = None
+        self.channel: grpc.aio.Channel | None = None
+        self.stub: Any | None = None  # Workload API stub
+        self._jwt_svid_cache: dict[str, JWTSVID] = {}
+        self._x509_svid: X509SVID | None = None
+        self._trust_bundle: str | None = None
+        self._trust_bundle_keys: dict[str, str] = {}  # kid -> public key mapping
+        self._refresh_task: asyncio.Task | None = None
+
+        # SEC-008: JWT Verification Components (feature-flagged)
+        # Inicializa apenas se enable_jwt_verification=True na configuração
+        self._jwk_validator: JWKValidator | None = None
+        self._key_cache: KeyCache | None = None
+
+        if config.enable_jwt_verification and JWT_COMPONENTS_AVAILABLE:
+            self._jwk_validator = JWKValidator(strict_mode=True)
+            # Cache com TTL de 5 minutos (configurável via JWT_CACHE_TTL_SECONDS)
+            cache_ttl = getattr(config, "jwt_cache_ttl_seconds", 300)
+            self._key_cache = KeyCache(ttl_seconds=cache_ttl)
+            self.logger.info(
+                "jwt_verification_enabled",
+                cache_ttl_seconds=cache_ttl,
+                strict_mode=True
+            )
+        elif config.enable_jwt_verification and not JWT_COMPONENTS_AVAILABLE:
+            self.logger.warning(
+                "jwt_verification_requested_but_components_unavailable",
+                message="JWT components not available - install PyJWT and python-jose"
+            )
 
     async def initialize(self):
         """Initialize SPIFFE Workload API connection"""
@@ -116,7 +146,7 @@ class SPIFFEManager:
             self.channel = grpc.aio.insecure_channel(
                 self.config.workload_api_socket,
                 options=[
-                    ('grpc.default_authority', self.config.trust_domain),
+                    ("grpc.default_authority", self.config.trust_domain),
                 ]
             )
 
@@ -145,7 +175,7 @@ class SPIFFEManager:
             self.logger.error("spiffe_initialization_failed", error=str(e))
             raise SPIFFEConnectionError(f"Failed to initialize SPIFFE manager: {e}")
 
-    async def fetch_jwt_svid(self, audience: str, ttl_seconds: Optional[int] = None) -> JWTSVID:
+    async def fetch_jwt_svid(self, audience: str, ttl_seconds: int | None = None) -> JWTSVID:
         """
         Fetch JWT-SVID for specified audience using SPIRE Workload API
 
@@ -205,8 +235,7 @@ class SPIFFEManager:
                             )
 
                             return jwt_svid
-                        else:
-                            raise SPIFFEFetchError("No SVIDs returned from Workload API")
+                        raise SPIFFEFetchError("No SVIDs returned from Workload API")
 
                     except Exception as e:
                         self.logger.warning(
@@ -225,13 +254,13 @@ class SPIFFEManager:
                 # Try reading JWT from file (injected by SPIRE agent via volume mount)
                 jwt_token_path = os.getenv("SPIFFE_JWT_TOKEN_PATH", "/var/run/secrets/tokens/spiffe-jwt")
                 try:
-                    with open(jwt_token_path, "r") as f:
+                    with open(jwt_token_path) as f:
                         token = f.read().strip()
                     # Parse expiry from JWT (simplified - in production decode properly)
                     expiry = datetime.now(timezone.utc) + timedelta(seconds=desired_ttl)
                 except FileNotFoundError:
                     # Check environment - fail in production/staging if no real SVID
-                    if self.config.environment in ['production', 'staging']:
+                    if self.config.environment in ["production", "staging"]:
                         spiffe_svid_fetch_total.labels(svid_type=operation, status="error").inc()
                         self.logger.error(
                             "spiffe_unavailable_in_production",
@@ -318,10 +347,10 @@ class SPIFFEManager:
                             if response.svids:
                                 svid_data = response.svids[0]
                                 spiffe_id = svid_data.spiffe_id
-                                certificate = svid_data.x509_svid.decode('utf-8')
-                                private_key = svid_data.x509_svid_key.decode('utf-8')
+                                certificate = svid_data.x509_svid.decode("utf-8")
+                                private_key = svid_data.x509_svid_key.decode("utf-8")
                                 expiry = datetime.utcfromtimestamp(svid_data.expires_at)
-                                bundle_pem = svid_data.bundle.decode('utf-8') if svid_data.bundle else (self._trust_bundle or "")
+                                bundle_pem = svid_data.bundle.decode("utf-8") if svid_data.bundle else (self._trust_bundle or "")
 
                                 x509_svid = X509SVID(
                                     certificate=certificate,
@@ -364,7 +393,7 @@ class SPIFFEManager:
                 import os
 
                 # Fail in production/staging if no real X.509-SVID
-                if self.config.environment in ['production', 'staging']:
+                if self.config.environment in ["production", "staging"]:
                     spiffe_svid_fetch_total.labels(svid_type=operation, status="error").inc()
                     self.logger.error(
                         "x509_svid_unavailable_in_production",
@@ -436,7 +465,7 @@ class SPIFFEManager:
                     async for bundle_response in response_stream:
                         # Extract trust bundle from response
                         # In real implementation, parse JWKS format
-                        if hasattr(bundle_response, 'bundles'):
+                        if hasattr(bundle_response, "bundles"):
                             # Extract keys from JWKS
                             trust_domain_bundle = bundle_response.bundles.get(self.config.trust_domain)
                             if trust_domain_bundle:
@@ -447,8 +476,8 @@ class SPIFFEManager:
                                 try:
                                     import json
                                     jwks_data = json.loads(trust_domain_bundle)
-                                    for key in jwks_data.get('keys', []):
-                                        kid = key.get('kid')
+                                    for key in jwks_data.get("keys", []):
+                                        kid = key.get("kid")
                                         if kid:
                                             self._trust_bundle_keys[kid] = key
                                 except:
@@ -485,14 +514,113 @@ class SPIFFEManager:
             spiffe_trust_bundle_updates_total.labels(status="error").inc()
             raise SPIFFEFetchError(f"Failed to fetch trust bundle: {e}")
 
-    def get_trust_bundle_keys(self) -> Dict[str, str]:
+    def get_trust_bundle_keys(self) -> dict[str, str]:
         """
         Get parsed public keys from trust bundle for JWT validation
 
+        SEC-008: Se enable_jwt_verification=True, valida JWKS com
+        JWKValidator antes de retornar as chaves. Usa KeyCache com TTL
+        para evitar validações repetidas.
+
         Returns:
             Dictionary mapping key ID to public key
+
+        Raises:
+            TrustBundleValidationError: Se validação JWKS falhar
         """
-        return self._trust_bundle_keys.copy()
+        # Se validação JWT não está activada, retorna keys directamente
+        if self._jwk_validator is None or self._key_cache is None:
+            self.logger.debug("jwt_verification_disabled_returning_raw_keys")
+            return self._trust_bundle_keys.copy()
+
+        # Verificar cache primeiro
+        cached_keys = {}
+        keys_to_validate = {}
+
+        # Tentar obter do cache
+        for kid, key_data in self._trust_bundle_keys.items():
+            cached_key = self._key_cache.get(kid)
+            if cached_key is not None:
+                cached_keys[kid] = cached_key
+            else:
+                keys_to_validate[kid] = key_data
+
+        # Validar chaves não em cache
+        if keys_to_validate:
+            self.logger.debug(
+                "validating_jwks_keys",
+                cached_count=len(cached_keys),
+                to_validate_count=len(keys_to_validate)
+            )
+
+            # Construir JWKS para validação
+            jwks_to_validate = {"keys": list(keys_to_validate.values())}
+            validation_result = self._jwk_validator.validate_jwks(jwks_to_validate)
+
+            # Log de resultado
+            self.logger.info(
+                "jwks_validation_completed",
+                valid_count=validation_result.get("valid_count", 0),
+                invalid_count=validation_result.get("invalid_count", 0),
+                total_count=validation_result.get("total_count", 0)
+            )
+
+            # Se há chaves inválidas, levantar erro (modo strict)
+            invalid_count = validation_result.get("invalid_count", 0)
+            if invalid_count > 0:
+                invalid_ids = validation_result.get("invalid_key_ids", [])
+                raise TrustBundleValidationError(
+                    f"Trust bundle contém {invalid_count} chave(s) inválida(s): "
+                    f"{invalid_ids}. Modo strict activado - rejeitando keys."
+                )
+
+            # Armazenar chaves validadas no cache
+            for kid, key_data in keys_to_validate.items():
+                self._key_cache.put(kid, key_data)
+
+        # Retornar chaves em cache + validadas
+        result = {**cached_keys, **keys_to_validate}
+        self.logger.debug("trust_bundle_keys_returned", count=len(result))
+
+        return result
+
+    def get_key_cache(self) -> KeyCache | None:
+        """
+        Retorna a instância de KeyCache para gestão manual de chaves.
+
+        SEC-008: Permite acesso externo ao cache para operações como
+        invalidação, limpeza de expirados, e consulta de estatísticas.
+
+        Returns:
+            Instância de KeyCache ou None se JWT verification desactivado
+
+        Example:
+            cache = spiffe_manager.get_key_cache()
+            if cache:
+                # Limpar chaves expiradas
+                cache.cleanup_expired()
+                # Obter estatísticas
+                stats = cache.get_stats()
+        """
+        return self._key_cache
+
+    def get_jwk_validator(self) -> JWKValidator | None:
+        """
+        Retorna a instância de JWKValidator para validação manual de JWKs.
+
+        SEC-008: Permite validação de JWKs externos ao trust bundle.
+
+        Returns:
+            Instância de JWKValidator ou None se JWT verification desactivado
+
+        Example:
+            validator = spiffe_manager.get_jwk_validator()
+            if validator:
+                is_valid = validator.validate(jwk_data)
+                if not is_valid:
+                    errors = validator.get_errors()
+        """
+        return self._jwk_validator
 
     async def _refresh_loop(self):
         """Background task for SVID refresh"""
@@ -511,7 +639,7 @@ class SPIFFEManager:
                             await self.fetch_jwt_svid(audience)
                         except SPIFFEFetchError as e:
                             # In production, refresh failure is critical
-                            if self.config.environment in ['production', 'staging']:
+                            if self.config.environment in ["production", "staging"]:
                                 self.logger.error(
                                     "jwt_svid_refresh_failed_production",
                                     environment=self.config.environment,
@@ -520,13 +648,12 @@ class SPIFFEManager:
                                 )
                                 # Re-raise to alert on critical failure
                                 raise
-                            else:
-                                # Development: log warning but continue
-                                self.logger.warning(
-                                    "jwt_svid_refresh_failed_development",
-                                    audience=audience,
-                                    error=str(e)
-                                )
+                            # Development: log warning but continue
+                            self.logger.warning(
+                                "jwt_svid_refresh_failed_development",
+                                audience=audience,
+                                error=str(e)
+                            )
 
                 # Refresh X.509-SVID if enabled
                 if self.config.enable_x509 and self._x509_svid:
@@ -539,18 +666,17 @@ class SPIFFEManager:
                             await self.fetch_x509_svid()
                         except SPIFFEFetchError as e:
                             # In production, refresh failure is critical
-                            if self.config.environment in ['production', 'staging']:
+                            if self.config.environment in ["production", "staging"]:
                                 self.logger.error(
                                     "x509_svid_refresh_failed_production",
                                     environment=self.config.environment,
                                     error=str(e)
                                 )
                                 raise
-                            else:
-                                self.logger.warning(
-                                    "x509_svid_refresh_failed_development",
-                                    error=str(e)
-                                )
+                            self.logger.warning(
+                                "x509_svid_refresh_failed_development",
+                                error=str(e)
+                            )
 
             except asyncio.CancelledError:
                 self.logger.info("refresh_loop_cancelled")

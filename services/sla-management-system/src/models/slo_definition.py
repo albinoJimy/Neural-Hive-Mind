@@ -1,16 +1,15 @@
+from neural_hive_domain import UTC
 """
 Modelos Pydantic para definições de SLO.
 """
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, Optional
 
 from pydantic import BaseModel, Field
 
-# UTC timezone
-UTC = timezone.utc
 
 
 class SLOType(str, Enum):

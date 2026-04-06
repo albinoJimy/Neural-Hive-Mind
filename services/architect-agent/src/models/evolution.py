@@ -1,6 +1,7 @@
+from neural_hive_domain import UTC
 """Modelos de dados para rastreamento de evolução de arquitetura."""
 
-from datetime import datetime, timezone
+from datetime import datetime
 from enum import Enum
 from typing import List
 
@@ -8,8 +9,6 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from .validation import Severity
 
-# UTC timezone
-UTC = timezone.utc
 
 
 class DriftType(str, Enum):

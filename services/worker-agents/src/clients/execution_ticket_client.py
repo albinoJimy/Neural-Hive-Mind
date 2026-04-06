@@ -7,6 +7,7 @@ import structlog
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from compat import UTC
+from neural_hive_domain import UTC
 
 logger = structlog.get_logger()
 

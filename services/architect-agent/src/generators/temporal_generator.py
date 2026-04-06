@@ -52,7 +52,7 @@ class TemporalGenerator:
         """
         self.package_name = package_name
         self._base_imports = {
-            "from datetime import timedelta",
+            "from datetime import timedelta"
             "from typing import Any, Dict, List, Optional",
             "from temporalio import workflow, activity",
             "from temporalio.common import RetryPolicy",

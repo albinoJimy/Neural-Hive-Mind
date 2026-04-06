@@ -1,9 +1,10 @@
+from neural_hive_domain import UTC
 """
 Serviço de despacho de alertas para múltiplos canais.
 """
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 import httpx

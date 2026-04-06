@@ -4,7 +4,7 @@ PreemptionRules - Regras para preempção de tickets de baixa prioridade.
 Define quando um ticket de alta prioridade pode preemptar
 um ticket de baixa prioridade que está em execução.
 """
-from datetime import datetime, timezone
+from datetime import datetime
 from neural_hive_domain import UTC
 from neural_hive_domain import StrEnum
 from typing import Any

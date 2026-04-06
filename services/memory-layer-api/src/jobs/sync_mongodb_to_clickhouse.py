@@ -1,3 +1,4 @@
+from neural_hive_domain import UTC
 #!/usr/bin/env python3
 """
 Job de sincronização do MongoDB para o ClickHouse
@@ -9,7 +10,7 @@ Roda como CronJob diariamente às 2h UTC.
 import asyncio
 import os
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, 
 from typing import Dict, List
 
 import structlog

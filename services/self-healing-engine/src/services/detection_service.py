@@ -1,3 +1,4 @@
+from neural_hive_domain import UTC
 """
 Detection Service para Self-Healing Engine.
 
@@ -9,7 +10,7 @@ Detecta problemas que requerem remediação automática:
 
 import asyncio
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, 
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
@@ -17,8 +18,6 @@ import structlog
 
 logger = structlog.get_logger()
 
-# UTC timezone
-UTC = timezone.utc
 
 
 class IncidentType(Enum):

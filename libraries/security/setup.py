@@ -21,6 +21,9 @@ setup(
         "structlog>=23.1.0",
         "prometheus-client>=0.17.0",
         "cryptography>=41.0.0",
+        # SEC-008: JWT verification dependencies
+        "PyJWT>=2.8.0",
+        "python-jose>=3.3.0",
     ],
     extras_require={
         "dev": [

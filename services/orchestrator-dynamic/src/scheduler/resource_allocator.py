@@ -31,6 +31,7 @@ class ResourceAllocator:
         metrics: OrchestratorMetrics,
         scheduling_optimizer=None,
         affinity_tracker=None,
+        load_predictor=None,
     ):
         """
         Inicializa o alocador.
@@ -41,12 +42,14 @@ class ResourceAllocator:
             metrics: Instância de métricas
             scheduling_optimizer: SchedulingOptimizer para ML-enhanced selection (opcional)
             affinity_tracker: AffinityTracker para co-location de tickets (opcional)
+            load_predictor: LoadPredictor para predição de carga (opcional)
         """
         self.registry_client = registry_client
         self.config = config
         self.metrics = metrics
         self.scheduling_optimizer = scheduling_optimizer
         self.affinity_tracker = affinity_tracker
+        self.load_predictor = load_predictor
         self.logger = logger.bind(component="resource_allocator")
 
         # Obter namespace do ambiente (POD_NAMESPACE injetada pelo Kubernetes)
@@ -131,6 +134,88 @@ class ResourceAllocator:
             self.metrics.record_discovery_failure(type(e).__name__)
             return []
 
+    async def enrich_workers_with_load_predictions(
+        self, workers: list[dict], ticket: dict | None = None
+    ) -> list[dict]:
+        """
+        Enriquece workers com predições de carga e tempo de fila do LoadPredictor.
+
+        Para cada worker, adiciona:
+        - predicted_load_pct: Carga estimada (0.0-1.0)
+        - predicted_queue_ms: Tempo estimado de fila em ms
+        - ml_enriched: True se predições foram adicionadas
+
+        Args:
+            workers: Lista de workers disponíveis
+            ticket: Ticket para contexto (opcional)
+
+        Returns:
+            Lista de workers enriquecida com predições ML
+        """
+        # Se não há LoadPredictor, retornar workers inalterados
+        if not self.load_predictor:
+            self.logger.debug("load_predictor_not_available_skipping_enrichment")
+            return workers
+
+        enriched_workers = []
+        enrichment_errors = 0
+
+        for worker in workers:
+            worker_id = worker.get("agent_id", "unknown")
+
+            # Criar cópia do worker para não mutar o original
+            enriched_worker = {**worker}
+
+            try:
+                # Predizer carga do worker
+                predicted_load = await self.load_predictor.predict_worker_load(
+                    worker_id=worker_id
+                )
+                enriched_worker["predicted_load_pct"] = predicted_load
+
+                # Predizer tempo de fila
+                predicted_queue = await self.load_predictor.predict_queue_time(
+                    worker_id=worker_id, ticket=ticket
+                )
+                enriched_worker["predicted_queue_ms"] = predicted_queue
+
+                # Marcar como enriquecido
+                enriched_worker["ml_enriched"] = True
+
+                self.logger.debug(
+                    "worker_enriched_with_load_predictions",
+                    worker_id=worker_id,
+                    predicted_load_pct=predicted_load,
+                    predicted_queue_ms=predicted_queue,
+                )
+
+            except Exception as e:
+                enrichment_errors += 1
+                self.logger.warning(
+                    "load_prediction_enrichment_failed_for_worker",
+                    worker_id=worker_id,
+                    error=str(e),
+                )
+                # Continuar sem predições para este worker
+                enriched_worker["ml_enriched"] = False
+
+            enriched_workers.append(enriched_worker)
+
+        if enrichment_errors > 0:
+            self.logger.info(
+                "load_prediction_enrichment_completed_with_errors",
+                total_workers=len(workers),
+                enrichment_errors=enrichment_errors,
+                success_count=len(workers) - enrichment_errors,
+            )
+        else:
+            self.logger.debug(
+                "load_prediction_enrichment_completed",
+                workers_count=len(workers),
+            )
+
+        return enriched_workers
+
     async def select_best_worker(
         self,
         workers: list[dict],
@@ -155,6 +240,15 @@ class ResourceAllocator:
         """
         if not workers:
             return None
+
+        # Enriquecer workers com LoadPredictor (predições de carga e fila)
+        if self.load_predictor:
+            try:
+                workers = await self.enrich_workers_with_load_predictions(workers, ticket)
+            except Exception as e:
+                self.logger.warning(
+                    "load_predictor_enrichment_failed_continuing_without", error=str(e)
+                )
 
         # Se scheduling_optimizer disponível, enriquecer workers com ML predictions
         if self.scheduling_optimizer and ticket:

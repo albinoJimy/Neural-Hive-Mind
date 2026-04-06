@@ -4,7 +4,7 @@ Modelos de estado para coordenacao de Saga.
 Define os modelos Pydantic para representar o estado de uma transacao
 Saga distribuida com compensacao automatica.
 """
-from datetime import datetime, timezone
+from datetime import datetime
 from neural_hive_domain import UTC
 from neural_hive_domain import StrEnum
 from typing import Any

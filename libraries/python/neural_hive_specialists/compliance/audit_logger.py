@@ -1,9 +1,10 @@
+from neural_hive_domain import UTC
 """
 Audit logger para registrar eventos de compliance em MongoDB.
 """
 import structlog
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, 
 from typing import Dict, Any, Optional, List
 from pymongo import MongoClient, ASCENDING, DESCENDING
 from pymongo.errors import PyMongoError

@@ -1,3 +1,4 @@
+from neural_hive_domain import UTC
 """
 Modelos de Dados para Feature Store
 
@@ -5,14 +6,12 @@ Define os modelos Pydantic para armazenamento e computação de features.
 """
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
-# UTC timezone
-UTC = timezone.utc
 
 # Import circular resolvido com TYPE_CHECKING
 if TYPE_CHECKING:

@@ -409,3 +409,187 @@ class TestResourceAllocator:
         result = allocator._is_worker_available(agent)
 
         assert result is True
+
+
+class TestResourceAllocatorLoadPredictorIntegration:
+    """Testes de integração com LoadPredictor."""
+
+    @pytest.fixture
+    def mock_load_predictor(self):
+        """LoadPredictor mock."""
+        predictor = AsyncMock()
+        predictor.predict_worker_load = AsyncMock(return_value=0.3)
+        predictor.predict_queue_time = AsyncMock(return_value=500.0)
+        return predictor
+
+    @pytest.mark.asyncio
+    async def test_enrich_workers_with_load_predictions_success(
+        self, mock_registry_client, mock_config, mock_metrics, sample_workers, mock_load_predictor
+    ):
+        """Testa enriquecimento bem-sucedido de workers com predições de carga."""
+        allocator = ResourceAllocator(
+            registry_client=mock_registry_client,
+            config=mock_config,
+            metrics=mock_metrics,
+            load_predictor=mock_load_predictor
+        )
+
+        enriched = await allocator.enrich_workers_with_load_predictions(sample_workers)
+
+        # Verificar que todos os workers foram enriquecidos
+        assert len(enriched) == len(sample_workers)
+
+        for worker in enriched:
+            assert worker.get("ml_enriched") is True
+            assert "predicted_load_pct" in worker
+            assert "predicted_queue_ms" in worker
+            assert worker.get("predicted_load_pct") == 0.3
+            assert worker.get("predicted_queue_ms") == 500.0
+
+    @pytest.mark.asyncio
+    async def test_enrich_workers_without_load_predictor(
+        self, mock_registry_client, mock_config, mock_metrics, sample_workers
+    ):
+        """Testa que workers são retornados inalterados sem LoadPredictor."""
+        allocator = ResourceAllocator(
+            registry_client=mock_registry_client,
+            config=mock_config,
+            metrics=mock_metrics,
+            load_predictor=None
+        )
+
+        enriched = await allocator.enrich_workers_with_load_predictions(sample_workers)
+
+        # Workers devem ser inalterados
+        assert len(enriched) == len(sample_workers)
+        assert enriched[0].get("ml_enriched") is None
+
+    @pytest.mark.asyncio
+    async def test_enrich_workers_with_prediction_error(
+        self, mock_registry_client, mock_config, mock_metrics, sample_workers
+    ):
+        """Testa tratamento de erros durante enriquecimento."""
+        # Criar LoadPredictor que falha para alguns workers
+        async def failing_predict(worker_id):
+            if worker_id == "worker-002":
+                raise Exception("Prediction failed")
+            return 0.3
+
+        async def failing_queue(worker_id, ticket=None):
+            if worker_id == "worker-002":
+                raise Exception("Queue prediction failed")
+            return 500.0
+
+        mock_predictor = AsyncMock()
+        mock_predictor.predict_worker_load = AsyncMock(side_effect=failing_predict)
+        mock_predictor.predict_queue_time = AsyncMock(side_effect=failing_queue)
+
+        allocator = ResourceAllocator(
+            registry_client=mock_registry_client,
+            config=mock_config,
+            metrics=mock_metrics,
+            load_predictor=mock_predictor
+        )
+
+        enriched = await allocator.enrich_workers_with_load_predictions(sample_workers)
+
+        # Todos os workers devem ser retornados, mesmo com erros
+        assert len(enriched) == len(sample_workers)
+
+        # worker-002 deve estar marcado como não enriquecido
+        worker_002 = next(w for w in enriched if w.get("agent_id") == "worker-002")
+        assert worker_002.get("ml_enriched") is False
+
+        # Outros workers devem estar enriquecidos
+        for worker in enriched:
+            if worker.get("agent_id") != "worker-002":
+                assert worker.get("ml_enriched") is True
+
+    @pytest.mark.asyncio
+    async def test_select_best_worker_with_load_predictions(
+        self, mock_registry_client, mock_config, mock_metrics, sample_workers, mock_load_predictor
+    ):
+        """Testa seleção com enriquecimento de carga."""
+        # Configurar predições diferentes para cada worker
+        async def predict_load(worker_id):
+            if worker_id == "worker-001":
+                return 0.2  # Baixa carga - deve ser preferido
+            elif worker_id == "worker-002":
+                return 0.8  # Alta carga
+            return 0.5
+
+        async def predict_queue(worker_id, ticket=None):
+            if worker_id == "worker-001":
+                return 200.0  # Fila curta
+            elif worker_id == "worker-002":
+                return 5000.0  # Fila longa
+            return 1000.0
+
+        mock_load_predictor.predict_worker_load = AsyncMock(side_effect=predict_load)
+        mock_load_predictor.predict_queue_time = AsyncMock(side_effect=predict_queue)
+
+        allocator = ResourceAllocator(
+            registry_client=mock_registry_client,
+            config=mock_config,
+            metrics=mock_metrics,
+            load_predictor=mock_load_predictor
+        )
+
+        result = await allocator.select_best_worker(sample_workers, 0.7)
+
+        # worker-001 deve ser selecionado (menor carga e fila)
+        assert result is not None
+        assert result["agent_id"] == "worker-001"
+        assert result.get("ml_enriched") is True
+        assert result.get("predicted_load_pct") == 0.2
+        assert result.get("predicted_queue_ms") == 200.0
+
+    def test_calculate_agent_score_with_load_predictions(
+        self, mock_registry_client, mock_config, mock_metrics, sample_workers
+    ):
+        """Testa cálculo de score com predições de carga."""
+        allocator = ResourceAllocator(
+            registry_client=mock_registry_client,
+            config=mock_config,
+            metrics=mock_metrics,
+        )
+
+        # Worker com predições de carga favoráveis
+        worker_with_predictions = {
+            **sample_workers[0],
+            "ml_enriched": True,
+            "predicted_load_pct": 0.1,  # Baixa carga
+            "predicted_queue_ms": 500.0,  # Fila curta
+        }
+
+        score = allocator._calculate_agent_score(worker_with_predictions)
+
+        # Score deve ser alto devido a baixa carga
+        assert score > 0.7
+
+    def test_calculate_agent_score_with_high_load_predictions(
+        self, mock_registry_client, mock_config, mock_metrics, sample_workers
+    ):
+        """Testa que score é penalizado com predições de carga desfavoráveis."""
+        allocator = ResourceAllocator(
+            registry_client=mock_registry_client,
+            config=mock_config,
+            metrics=mock_metrics,
+        )
+
+        # Worker com predições de carga desfavoráveis
+        worker_with_high_load = {
+            **sample_workers[0],
+            "ml_enriched": True,
+            "predicted_load_pct": 0.9,  # Alta carga
+            "predicted_queue_ms": 9000.0,  # Fila longa
+        }
+
+        score_high_load = allocator._calculate_agent_score(worker_with_high_load)
+
+        # Worker sem predições (baseline)
+        worker_without_predictions = {**sample_workers[0], "ml_enriched": False}
+        score_baseline = allocator._calculate_agent_score(worker_without_predictions)
+
+        # Score com alta carga deve ser menor que baseline
+        assert score_high_load < score_baseline

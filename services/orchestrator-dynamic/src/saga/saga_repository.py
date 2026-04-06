@@ -5,7 +5,7 @@ Gerencia o estado de Sagas no MongoDB com operacoes CRUD
 e queries especializadas.
 """
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime
 from neural_hive_domain import UTC
 
 import structlog

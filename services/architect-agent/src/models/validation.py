@@ -1,13 +1,12 @@
+from neural_hive_domain import UTC
 """Modelos de dados para validação de código e arquitetura."""
 
-from datetime import datetime, timezone
+from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
-# UTC timezone
-UTC = timezone.utc
 
 
 class Severity(str, Enum):

@@ -1,7 +1,8 @@
+from neural_hive_domain import UTC
 """Pydantic models for Tool Selection Request and Response."""
 import hashlib
 import json
-from datetime import datetime, timezone
+from datetime import datetime
 from enum import Enum
 from typing import Dict, List, Optional
 from uuid import uuid4
@@ -10,8 +11,6 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from src.models.tool_descriptor import ToolCategory as ToolCategoryEnum
 
-# UTC timezone
-UTC = timezone.utc
 
 
 class ArtifactType(str, Enum):

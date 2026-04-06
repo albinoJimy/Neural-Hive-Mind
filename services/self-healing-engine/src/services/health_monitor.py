@@ -1,3 +1,4 @@
+from neural_hive_domain import UTC
 """
 Health Monitor Service para Self-Healing Engine.
 
@@ -6,7 +7,7 @@ Detecta problemas de saúde nos serviços e componentes do Neural Hive-Mind.
 
 import asyncio
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any, Dict, Optional
 
 import aiohttp
@@ -14,8 +15,6 @@ import structlog
 
 logger = structlog.get_logger()
 
-# UTC timezone
-UTC = timezone.utc
 
 
 @dataclass

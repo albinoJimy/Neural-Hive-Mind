@@ -1,6 +1,6 @@
 """Métricas para eventos de Saga."""
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import datetime
 from neural_hive_domain import UTC
 from time import perf_counter
 from typing import Any, Optional

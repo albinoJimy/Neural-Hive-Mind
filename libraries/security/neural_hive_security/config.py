@@ -3,8 +3,8 @@ Configuration models for Neural Hive Security Library
 """
 
 from enum import Enum
-from typing import Optional
-from pydantic import Field, field_validator, ConfigDict
+
+from pydantic import ConfigDict, Field, field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -60,7 +60,7 @@ class VaultConfig(BaseSettings):
         default=True,
         description="Enable TLS certificate verification"
     )
-    ca_cert_path: Optional[str] = Field(
+    ca_cert_path: str | None = Field(
         default=None,
         description="Path to CA certificate for TLS verification"
     )
@@ -140,6 +140,15 @@ class SPIFFEConfig(BaseSettings):
     environment: str = Field(
         default="development",
         description="Environment for SPIFFE fallback policy (development, staging, production)"
+    )
+    enable_jwt_verification: bool = Field(
+        default=False,
+        description="SEC-008: Enable JWT verification with JWKValidator for trust bundle validation"
+    )
+    jwt_cache_ttl_seconds: int = Field(
+        default=300,
+        ge=60,
+        description="SEC-008: TTL em segundos para cache de chaves JWK (padrão: 300s / 5 minutos)"
     )
 
 

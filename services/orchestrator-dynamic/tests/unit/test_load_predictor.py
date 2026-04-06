@@ -6,6 +6,7 @@ from unittest.mock import Mock, AsyncMock, patch
 from datetime import datetime, timedelta
 
 from src.ml.load_predictor import LoadPredictor
+from src.ml.load_predictor_factory import LoadPredictorFactory
 from src.config.settings import OrchestratorSettings
 from src.observability.metrics import OrchestratorMetrics
 
@@ -286,3 +287,117 @@ class TestLoadPredictorMetrics:
             predicted_pct=0.3,
             source='local'
         )
+
+
+class TestLoadPredictorFactory:
+    """Testes para LoadPredictorFactory."""
+
+    @pytest.fixture
+    def mock_config(self):
+        """Configuração mockada."""
+        config = Mock(spec=OrchestratorSettings)
+        config.ml_local_load_window_minutes = 60
+        config.ml_local_load_cache_ttl_seconds = 30
+        config.ml_local_load_prediction_enabled = True
+        config.mongodb_collection_tickets = 'execution_tickets'
+        return config
+
+    @pytest.fixture
+    def mock_mongodb(self):
+        """Cliente MongoDB mockado."""
+        mock = AsyncMock()
+        mock.db = {}
+        return mock
+
+    @pytest.fixture
+    def mock_redis(self):
+        """Cliente Redis mockado."""
+        mock = AsyncMock()
+        mock.get = AsyncMock(return_value=None)
+        mock.setex = AsyncMock()
+        return mock
+
+    @pytest.fixture
+    def mock_metrics(self):
+        """Métricas mockadas."""
+        return Mock(spec=OrchestratorMetrics)
+
+    def test_factory_create_returns_load_predictor(
+        self, mock_config, mock_mongodb, mock_redis, mock_metrics
+    ):
+        """Testa que factory cria instância de LoadPredictor."""
+        predictor = LoadPredictorFactory.create(
+            config=mock_config,
+            mongodb_client=mock_mongodb,
+            redis_client=mock_redis,
+            metrics=mock_metrics
+        )
+
+        assert isinstance(predictor, LoadPredictor)
+        assert predictor.config == mock_config
+        assert predictor.mongodb_client == mock_mongodb
+        assert predictor.redis_client == mock_redis
+        assert predictor.metrics == mock_metrics
+
+    @pytest.mark.asyncio
+    async def test_factory_create_and_initialize_calls_initialize(
+        self, mock_config, mock_mongodb, mock_redis, mock_metrics
+    ):
+        """Testa que create_and_initialize chama método initialize."""
+        predictor = await LoadPredictorFactory.create_and_initialize(
+            config=mock_config,
+            mongodb_client=mock_mongodb,
+            redis_client=mock_redis,
+            metrics=mock_metrics
+        )
+
+        assert isinstance(predictor, LoadPredictor)
+        assert predictor._initialized is True
+
+    def test_factory_create_or_none_with_enabled_config(
+        self, mock_config, mock_mongodb, mock_redis, mock_metrics
+    ):
+        """Testa create_or_none quando habilitado."""
+        mock_config.ml_local_load_prediction_enabled = True
+
+        predictor = LoadPredictorFactory.create_or_none(
+            config=mock_config,
+            mongodb_client=mock_mongodb,
+            redis_client=mock_redis,
+            metrics=mock_metrics
+        )
+
+        assert predictor is not None
+        assert isinstance(predictor, LoadPredictor)
+
+    def test_factory_create_or_none_with_disabled_config(
+        self, mock_config, mock_mongodb, mock_redis, mock_metrics
+    ):
+        """Testa create_or_none quando desabilitado."""
+        mock_config.ml_local_load_prediction_enabled = False
+
+        predictor = LoadPredictorFactory.create_or_none(
+            config=mock_config,
+            mongodb_client=mock_mongodb,
+            redis_client=mock_redis,
+            metrics=mock_metrics
+        )
+
+        assert predictor is None
+
+    @pytest.mark.asyncio
+    async def test_factory_create_with_invalid_config(
+        self, mock_config, mock_mongodb, mock_redis, mock_metrics
+    ):
+        """Testa que initialize valida configuração."""
+        mock_config.ml_local_load_window_minutes = -1  # Inválido
+
+        predictor = LoadPredictorFactory.create(
+            config=mock_config,
+            mongodb_client=mock_mongodb,
+            redis_client=mock_redis,
+            metrics=mock_metrics
+        )
+
+        with pytest.raises(ValueError, match="ml_local_load_window_minutes deve ser > 0"):
+            await predictor.initialize()

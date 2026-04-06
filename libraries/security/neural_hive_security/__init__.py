@@ -5,34 +5,49 @@ Provides centralized secrets management and workload identity integration
 for Neural Hive-Mind services using HashiCorp Vault and SPIFFE/SPIRE.
 """
 
-from .vault_client import (
-    VaultClient,
-    VaultConnectionError,
-    VaultAuthenticationError,
-    VaultPermissionError,
-)
-from .spiffe_manager import (
-    SPIFFEManager,
-    SPIFFEConnectionError,
-    SPIFFEFetchError,
-    JWTSVID,
-    X509SVID,
-)
-from .token_cache import (
-    TokenCache,
-    CachedToken,
-    RefreshStrategy,
-)
 from .config import (
-    VaultConfig,
-    SPIFFEConfig,
-    SecuritySettings,
     AuthMethod,
+    SecuritySettings,
+    SPIFFEConfig,
+    VaultConfig,
 )
 from .grpc_channel_factory import (
     create_secure_grpc_channel,
     create_secure_grpc_channel_sync,
     get_grpc_metadata_with_jwt,
+)
+
+# SEC-008: JWT verification components
+from .jwt import (
+    JWKValidationError,
+    JWKValidationMetrics,
+    JWKValidator,
+    JWTVerificationError,
+    JWTVerificationMetrics,
+    JWTVerifier,
+    KeyCache,
+    VerificationResult,
+    get_jwk_validation_metrics,
+    get_jwt_verification_metrics,
+)
+from .spiffe_manager import (
+    JWTSVID,
+    X509SVID,
+    SPIFFEConnectionError,
+    SPIFFEFetchError,
+    SPIFFEManager,
+    TrustBundleValidationError,
+)
+from .token_cache import (
+    CachedToken,
+    RefreshStrategy,
+    TokenCache,
+)
+from .vault_client import (
+    VaultAuthenticationError,
+    VaultClient,
+    VaultConnectionError,
+    VaultPermissionError,
 )
 
 __version__ = "1.0.0"
@@ -47,8 +62,20 @@ __all__ = [
     "SPIFFEManager",
     "SPIFFEConnectionError",
     "SPIFFEFetchError",
+    "TrustBundleValidationError",
     "JWTSVID",
     "X509SVID",
+    # SEC-008: JWT verification
+    "JWKValidator",
+    "JWKValidationError",
+    "JWTVerifier",
+    "JWTVerificationError",
+    "VerificationResult",
+    "KeyCache",
+    "JWKValidationMetrics",
+    "JWTVerificationMetrics",
+    "get_jwk_validation_metrics",
+    "get_jwt_verification_metrics",
     # Token cache
     "TokenCache",
     "CachedToken",

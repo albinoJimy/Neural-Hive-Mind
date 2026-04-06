@@ -3,7 +3,7 @@ Cliente de integração Vault para orchestrator-dynamic service
 """
 
 import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from neural_hive_domain import UTC
 
 import structlog

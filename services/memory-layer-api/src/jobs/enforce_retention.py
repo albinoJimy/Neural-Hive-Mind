@@ -1,3 +1,4 @@
+from neural_hive_domain import UTC
 #!/usr/bin/env python3
 """
 Job de aplicação de políticas de retenção
@@ -11,7 +12,7 @@ As políticas são carregadas do arquivo YAML montado em /etc/memory-layer/polic
 import asyncio
 import os
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, 
 from pathlib import Path
 from typing import Any, Dict, Optional
 

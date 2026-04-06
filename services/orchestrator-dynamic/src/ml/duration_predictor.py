@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from .model_promotion import ModelPromotionManager
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from neural_hive_domain import UTC
 
 import numpy as np

@@ -16,7 +16,7 @@ Características:
 import asyncio
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 from neural_hive_domain import UTC
 from typing import Any
 

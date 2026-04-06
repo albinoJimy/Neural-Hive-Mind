@@ -9,7 +9,7 @@ Implementa três tipos de drift:
 """
 
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from neural_hive_domain import UTC
 from typing import Any
 

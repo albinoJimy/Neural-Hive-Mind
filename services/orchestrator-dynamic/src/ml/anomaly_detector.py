@@ -5,7 +5,7 @@ Usa Isolation Forest para detectar tickets com características anômalas
 que podem indicar problemas de configuração ou comportamento inesperado.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from neural_hive_domain import UTC
 from typing import Any
 

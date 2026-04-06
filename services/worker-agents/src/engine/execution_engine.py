@@ -7,6 +7,7 @@ import structlog
 
 from compat import UTC
 from neural_hive_observability import get_tracer
+from neural_hive_domain import UTC
 
 logger = structlog.get_logger()
 

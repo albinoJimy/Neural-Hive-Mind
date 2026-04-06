@@ -7,6 +7,8 @@ resource prediction, and anomaly detection using machine learning models.
 Components:
 - DurationPredictor: RandomForest regression for ticket duration prediction
 - AnomalyDetector: Isolation Forest for runtime anomaly detection
+- LoadPredictor: Heuristic load and queue time predictor
+- LoadPredictorFactory: Factory for creating LoadPredictor instances
 - ModelRegistry: MLflow integration for model versioning and lifecycle management
 - MLPredictor: Facade for coordinating predictions
 - TrainingPipeline: Incremental learning and periodic retraining
@@ -18,6 +20,8 @@ __version__ = "1.0.0"
 
 from .anomaly_detector import AnomalyDetector
 from .duration_predictor import DurationPredictor
+from .load_predictor import LoadPredictor
+from .load_predictor_factory import LoadPredictorFactory
 from .feature_engineering import (
     compute_historical_stats,
     encode_qos,
@@ -37,6 +41,8 @@ __all__ = [
     "AuditEventContext",
     "ComparisonResult",
     "DurationPredictor",
+    "LoadPredictor",
+    "LoadPredictorFactory",
     "MLPredictor",
     "ModelAuditLogger",
     "ModelComparator",

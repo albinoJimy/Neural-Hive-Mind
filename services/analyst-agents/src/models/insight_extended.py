@@ -1,15 +1,14 @@
+from neural_hive_domain import UTC
 """
 Modelos estendidos para Insights Analyst Agents.
 """
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
-# UTC timezone
-UTC = timezone.utc
 
 
 class AnalysisType(str, Enum):

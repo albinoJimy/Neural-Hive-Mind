@@ -64,6 +64,41 @@ class LoadPredictor:
 
         # Smoothing parameters
         self.alpha = 0.3  # Exponential smoothing factor
+        self._initialized = False
+
+    async def initialize(self) -> None:
+        """
+        Inicializa o LoadPredictor.
+
+        Executa validações e setup inicial. Este método é chamado pelo
+        LoadPredictorFactory durante a criação da instância.
+
+        Raises:
+            Exception: Se a configuração for inválida
+        """
+        if self._initialized:
+            return
+
+        # Validar parâmetros de configuração
+        if self.window_minutes <= 0:
+            raise ValueError(f"ml_local_load_window_minutes deve ser > 0, got {self.window_minutes}")
+
+        if self.cache_ttl_seconds <= 0:
+            raise ValueError(f"ml_local_load_cache_ttl_seconds deve ser > 0, got {self.cache_ttl_seconds}")
+
+        # Validar dependências (permite None para fallback graceful)
+        if self.mongodb_client is None:
+            self.logger.warning("load_predictor_mongodb_not_available_predictions_will_use_defaults")
+
+        if self.redis_client is None:
+            self.logger.warning("load_predictor_redis_not_available_cache_disabled")
+
+        self._initialized = True
+        self.logger.info(
+            "load_predictor_initialized",
+            window_minutes=self.window_minutes,
+            cache_ttl_seconds=self.cache_ttl_seconds,
+        )
 
     async def train_model(self, *args, **kwargs) -> dict[str, Any]:
         """

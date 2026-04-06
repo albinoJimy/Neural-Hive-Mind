@@ -1,13 +1,12 @@
+from neural_hive_domain import UTC
 """Pydantic models for Tool Descriptor mirroring Avro schema."""
-from datetime import datetime, timezone
+from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-# UTC timezone
-UTC = timezone.utc
 
 
 class ToolCategory(str, Enum):

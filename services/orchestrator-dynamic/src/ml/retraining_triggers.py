@@ -10,7 +10,7 @@ Implementa múltiplos gatilhos:
 
 import asyncio
 from collections.abc import Callable
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from neural_hive_domain import UTC
 from enum import Enum
 from neural_hive_domain import StrEnum

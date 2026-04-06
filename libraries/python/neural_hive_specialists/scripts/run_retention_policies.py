@@ -1,3 +1,4 @@
+from neural_hive_domain import UTC
 #!/usr/bin/env python3
 """
 Script para executar políticas de retenção do Neural Hive.
@@ -14,9 +15,7 @@ import argparse
 import os
 import sys
 import time
-from datetime import datetime, timezone
-
-
+from datetime import datetime
 def load_config():
     """Carrega configuração de variáveis de ambiente."""
     # Usar configuração simplificada para script standalone

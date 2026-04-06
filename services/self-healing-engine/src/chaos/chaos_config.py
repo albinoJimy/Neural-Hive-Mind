@@ -1,3 +1,4 @@
+from neural_hive_domain import UTC
 """
 Configurações para o módulo de Chaos Engineering.
 
@@ -160,8 +161,7 @@ def is_critical_service(service_name: str) -> bool:
 
 def is_business_hours() -> bool:
     """Verifica se o momento atual está dentro do horário de negócio (UTC)."""
-    from datetime import datetime, timezone
-
+    from datetime import datetime
     now = datetime.now(timezone.utc)
     return BUSINESS_HOURS["start_hour"] <= now.hour < BUSINESS_HOURS["end_hour"]
 

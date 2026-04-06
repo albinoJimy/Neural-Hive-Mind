@@ -1,3 +1,4 @@
+from neural_hive_domain import UTC
 """
 Testes de Integração E2E para Sincronização MongoDB → ClickHouse
 
@@ -10,7 +11,7 @@ Testes que validam o fluxo completo de sincronização:
 import json
 import pytest
 import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, 
 from unittest.mock import AsyncMock, MagicMock, patch, PropertyMock
 import uuid
 

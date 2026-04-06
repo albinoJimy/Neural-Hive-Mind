@@ -1,3 +1,4 @@
+from neural_hive_domain import UTC
 """
 DisasterRecoveryManager: Orquestra backup e restore do estado completo dos especialistas.
 
@@ -16,7 +17,7 @@ import tempfile
 import uuid
 import json
 import subprocess
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, 
 from typing import Dict, Any, Optional, List
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import structlog

@@ -4,7 +4,7 @@ API Endpoints para A/B Testing.
 Fornece endpoints REST para criar, gerenciar e analisar testes A/B.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime
 from neural_hive_domain import UTC
 
 from fastapi import APIRouter, Depends, HTTPException, Query

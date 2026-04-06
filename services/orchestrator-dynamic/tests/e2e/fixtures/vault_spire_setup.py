@@ -8,6 +8,7 @@ import os
 from datetime import datetime, timezone, timedelta
 from unittest.mock import AsyncMock, MagicMock
 import pytest
+import asyncio
 
 from src.config.settings import OrchestratorSettings
 from src.clients.vault_integration import OrchestratorVaultClient
@@ -28,18 +29,63 @@ async def vault_client():
     Cliente Vault para testes E2E.
 
     Retorna um mock quando RUN_VAULT_SPIFFE_E2E não está ativo.
+    Em E2E real, conecta ao Vault em http://localhost:8200.
     """
-    # Mock para testes unitários (E2E real não implementado ainda)
-    client = MagicMock()
-    client.token = "mock_token"
-    client.token_expiry = datetime.now(timezone.utc) + timedelta(hours=1)
-    client.get_database_credentials = AsyncMock(return_value={
-        "username": "mock_user",
-        "password": "mock_pass",
-        "ttl": 3600
-    })
-    client.renew_token = AsyncMock(return_value=True)
-    yield client
+    # Se E2E real está ativo, tenta conectar ao Vault real
+    if REAL_E2E:
+        try:
+            from neural_hive_security import VaultClient, VaultConfig
+
+            vault_config = VaultConfig(
+                address=os.getenv("VAULT_ADDR", "http://localhost:8200"),
+                auth_method="kubernetes",
+                kubernetes_role="orchestrator",
+                fail_open=True,
+                timeout_seconds=10,
+            )
+
+            client = VaultClient(vault_config)
+
+            # Usar token root para testes E2E
+            client.token = os.getenv("VAULT_TOKEN", "e2e-test-root-token")
+            client.token_expiry = datetime.now(timezone.utc) + timedelta(hours=1)
+
+            yield client
+
+        except ImportError:
+            # Fallback para mock se biblioteca não disponível
+            client = MagicMock()
+            client.token = "mock_token"
+            client.token_expiry = datetime.now(timezone.utc) + timedelta(hours=1)
+            client.get_database_credentials = AsyncMock(return_value={
+                "username": "mock_user",
+                "password": "mock_pass",
+                "ttl": 3600
+            })
+            client.renew_token = AsyncMock(return_value=True)
+
+            # Mock para PKI operations
+            async def mock_issue_certificate(common_name: str, ttl: str = "24h"):
+                return {
+                    "certificate": f"-----BEGIN CERTIFICATE-----\nmock cert for {common_name}\n-----END CERTIFICATE-----",
+                    "private_key": "-----BEGIN PRIVATE KEY-----\nmock key\n-----END PRIVATE KEY-----",
+                    "ca_chain": "-----BEGIN CERTIFICATE-----\nmock CA\n-----END CERTIFICATE-----",
+                }
+
+            client.issue_certificate = mock_issue_certificate
+            yield client
+    else:
+        # Mock para testes unitários
+        client = MagicMock()
+        client.token = "mock_token"
+        client.token_expiry = datetime.now(timezone.utc) + timedelta(hours=1)
+        client.get_database_credentials = AsyncMock(return_value={
+            "username": "mock_user",
+            "password": "mock_pass",
+            "ttl": 3600
+        })
+        client.renew_token = AsyncMock(return_value=True)
+        yield client
 
 
 @pytest.fixture
@@ -54,8 +100,33 @@ async def spiffe_manager():
     manager.close = AsyncMock()
     manager.fetch_jwt_svid = AsyncMock(return_value=MagicMock(
         token="mock_jwt_token",
-        spiffe_id="spiffe://neural-hive.local/test"
+        spiffe_id="spiffe://neural-hive.local/test",
+        expiry=datetime.now(timezone.utc) + timedelta(hours=1),
     ))
+
+    # Mock para X.509-SVID operations
+    async def mock_fetch_x509_svid():
+        from dataclasses import dataclass
+
+        @dataclass
+        class MockX509SVID:
+            certificate: str
+            private_key: str
+            spiffe_id: str
+            ca_bundle: str
+            expires_at: datetime
+            is_placeholder: bool = True
+
+        return MockX509SVID(
+            certificate="-----BEGIN CERTIFICATE-----\nplaceholder\n-----END CERTIFICATE-----",
+            private_key="-----BEGIN PRIVATE KEY-----\nplaceholder\n-----END PRIVATE KEY-----",
+            spiffe_id="spiffe://neural-hive.local/test",
+            ca_bundle="-----BEGIN CERTIFICATE-----\nplaceholder CA\n-----END CERTIFICATE-----",
+            expires_at=datetime.now(timezone.utc) + timedelta(hours=24),
+            is_placeholder=True,
+        )
+
+    manager.fetch_x509_svid = mock_fetch_x509_svid
     yield manager
 
 

@@ -3,7 +3,7 @@ Activities Temporal para consolidação de resultados (Etapa C5).
 """
 import hashlib
 import json
-from datetime import datetime, timezone
+from datetime import datetime
 from neural_hive_domain import UTC
 from typing import Any
 from uuid import uuid4

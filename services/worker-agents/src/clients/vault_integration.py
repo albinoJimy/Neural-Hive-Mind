@@ -1,3 +1,4 @@
+from neural_hive_domain import UTC
 """
 Cliente de integração Vault para worker-agents service
 """

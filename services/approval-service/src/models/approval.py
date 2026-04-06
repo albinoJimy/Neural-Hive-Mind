@@ -1,3 +1,4 @@
+from neural_hive_domain import UTC
 """
 Modelos de Dados para Aprovacao de Planos Cognitivos
 
@@ -5,14 +6,12 @@ Define os modelos Pydantic para o fluxo de aprovacao de planos.
 """
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
-# UTC timezone
-UTC = timezone.utc
 
 
 class RiskBand(str, Enum):

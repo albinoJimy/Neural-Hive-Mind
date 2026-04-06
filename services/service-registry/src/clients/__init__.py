@@ -1,5 +1,5 @@
-# Usar RedisRegistryClient em vez de EtcdClient para evitar conflito de protobuf
+# Clientes do Service Registry
 from .pheromone_client import PheromoneClient
-from .redis_registry_client import RedisRegistryClient as EtcdClient
+from .redis_registry_client import RedisRegistryClient
 
-__all__ = ["EtcdClient", "PheromoneClient"]
+__all__ = ["PheromoneClient", "RedisRegistryClient"]

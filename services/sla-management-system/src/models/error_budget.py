@@ -1,16 +1,15 @@
+from neural_hive_domain import UTC
 """
 Modelos Pydantic para error budgets calculados.
 """
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 
 from pydantic import BaseModel, Field
 
-# UTC timezone
-UTC = timezone.utc
 
 
 class BudgetStatus(str, Enum):

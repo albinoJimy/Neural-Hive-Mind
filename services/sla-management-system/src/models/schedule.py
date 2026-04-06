@@ -1,18 +1,17 @@
+from neural_hive_domain import UTC
 """
 Modelos de dados para Schedule de Workflows.
 
 Define os modelos usados pelo scheduler de workflows do SLA Management System.
 Suporta schedules baseados em cron, eventos e triggers manuais.
 """
-from datetime import datetime, timezone
+from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, Optional
 from uuid import uuid4
 
 from pydantic import BaseModel, Field
 
-# UTC timezone
-UTC = timezone.utc
 
 
 class ScheduleType(str, Enum):
