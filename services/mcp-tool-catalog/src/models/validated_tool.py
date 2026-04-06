@@ -208,8 +208,7 @@ class ValidatedTool(BaseModel):
 
     model_config = ConfigDict(use_enum_values=False)
 
-    @field_serializer("created_at", "updated_at", "validation_timestamp", "last_check")
-    @classmethod
-    def serialize_datetime(cls, dt: datetime) -> str:
+    @field_serializer("created_at", "updated_at", "validation_timestamp", "last_check", when_used="json", check_fields=False)
+    def serialize_datetime(self, dt: datetime) -> str:
         """Serialize datetime to ISO format"""
         return dt.isoformat() if dt else None
