@@ -8,6 +8,8 @@ através de diferentes métodos de integração (CLI, REST, gRPC, Container, Lib
 from .base_adapter import AdapterError, BaseToolAdapter, ExecutionResult
 from .cli_adapter import CLIAdapter
 from .container_adapter import ContainerAdapter
+from .grpc_adapter import GRPCAdapter
+from .library_adapter import LIBRARYAdapter
 from .rest_adapter import RESTAdapter
 
 __all__ = [
@@ -17,4 +19,6 @@ __all__ = [
     "CLIAdapter",
     "RESTAdapter",
     "ContainerAdapter",
+    "GRPCAdapter",
+    "LIBRARYAdapter",
 ]
