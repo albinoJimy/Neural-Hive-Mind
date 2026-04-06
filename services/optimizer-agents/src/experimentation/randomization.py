@@ -10,7 +10,8 @@ Implementa tres estrategias de randomizacao:
 import hashlib
 import json
 from abc import ABC, abstractmethod
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+UTC = timezone.utc  # type: ignore
 from enum import StrEnum
 
 import structlog

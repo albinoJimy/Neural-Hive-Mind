@@ -1,6 +1,7 @@
 """Migration m002: Criar coleção ab_test_results para persistência de A/B Testing."""
 import logging
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+UTC = timezone.utc  # type: ignore
 from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorClient

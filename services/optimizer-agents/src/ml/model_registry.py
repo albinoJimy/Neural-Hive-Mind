@@ -7,7 +7,8 @@ Gerencia lifecycle de modelos Prophet/ARIMA (LoadPredictor) e políticas RL (Sch
 import logging
 import pickle
 import tempfile
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+UTC = timezone.utc  # type: ignore
 from typing import Any
 
 import mlflow

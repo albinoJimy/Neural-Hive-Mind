@@ -201,6 +201,26 @@ class OrchestratorMetrics:
             buckets=[0.01, 0.05, 0.1, 0.5, 1, 2, 5, 10],
         )
 
+        # Métricas de Notificações SLA (Slack + PagerDuty)
+        self.sla_notification_sent_total = Counter(
+            "orchestration_sla_notification_sent_total",
+            "Total de notificações SLA enviadas",
+            ["channel", "severity"],
+        )
+
+        self.sla_notification_failed_total = Counter(
+            "orchestration_sla_notification_failed_total",
+            "Total de falhas no envio de notificações SLA",
+            ["channel", "error_type"],
+        )
+
+        self.sla_notification_duration_seconds = Histogram(
+            "orchestration_sla_notification_duration_seconds",
+            "Duração do envio de notificações SLA",
+            ["channel"],
+            buckets=[0.1, 0.5, 1, 2, 5, 10],
+        )
+
         # Métricas de Retry e Compensação
         self.retries_total = Counter(
             "orchestration_retries_total", "Total de retries", ["task_type", "retry_attempt"]
@@ -1722,6 +1742,18 @@ class OrchestratorMetrics:
     def record_sla_check_duration(self, check_type: str, duration_seconds: float):
         """Registra duração de verificação SLA."""
         self.sla_check_duration_seconds.labels(check_type=check_type).observe(duration_seconds)
+
+    def record_sla_notification_sent(self, channel: str, severity: str):
+        """Registra notificação SLA enviada."""
+        self.sla_notification_sent_total.labels(channel=channel, severity=severity).inc()
+
+    def record_sla_notification_failed(self, channel: str, error_type: str):
+        """Registra falha no envio de notificação SLA."""
+        self.sla_notification_failed_total.labels(channel=channel, error_type=error_type).inc()
+
+    def record_sla_notification_duration(self, channel: str, duration_seconds: float):
+        """Registra duração do envio de notificação SLA."""
+        self.sla_notification_duration_seconds.labels(channel=channel).observe(duration_seconds)
 
     # ML Scheduling Optimization Helper Methods
 

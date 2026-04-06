@@ -6,7 +6,8 @@ para monitorar drift de modelos ML de forma periódica.
 """
 
 import sys
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+UTC = timezone.utc  # type: ignore
 from typing import Any
 
 import structlog

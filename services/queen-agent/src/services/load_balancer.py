@@ -10,7 +10,8 @@ Implementa distribuição de tarefas usando múltiplas estratégias:
 import asyncio
 import hashlib
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+UTC = timezone.utc  # type: ignore
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Optional
 
