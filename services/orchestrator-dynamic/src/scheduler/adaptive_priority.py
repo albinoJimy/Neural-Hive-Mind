@@ -7,7 +7,7 @@ Ajusta prioridade de tickets considerando histórico de execução:
 - Consumo de recursos
 """
 from collections import defaultdict
-from datetime import datetime, timedelta, 
+from datetime import datetime, timedelta 
 from neural_hive_domain import UTC
 from typing import Any
 

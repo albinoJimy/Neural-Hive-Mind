@@ -402,6 +402,35 @@ class OrchestratorSettings(BaseSettings):
         default=5, description="Timeout para chamadas ao SLA Management System"
     )
 
+    # SLA Alerts Integration (Slack + PagerDuty)
+    sla_alerts_enabled: bool = Field(
+        default=True, description="Habilitar consumer de alertas SLA"
+    )
+    sla_alerts_topics: list[str] = Field(
+        default=["sla.alerts", "sla.violations"],
+        description="Tópicos Kafka para alertas SLA",
+    )
+    sla_alerts_consumer_group: str = Field(
+        default="orchestrator-sla-alerts",
+        description="Group ID do consumer de alertas SLA",
+    )
+    slack_webhook_url: str | None = Field(
+        default=None, description="URL do webhook Slack para notificações"
+    )
+    slack_alerts_channel: str = Field(
+        default="#sla-alerts", description="Canal Slack padrão para alertas"
+    )
+    slack_critical_channel: str = Field(
+        default="#sla-alerts-critical", description="Canal Slack para alertas críticos"
+    )
+    pagerduty_routing_key: str | None = Field(
+        default=None, description="Routing Key PagerDuty para alertas"
+    )
+    pagerduty_api_url: str = Field(
+        default="https://events.pagerduty.com/v2/enqueue",
+        description="URL da API de Events do PagerDuty",
+    )
+
     # Vault Integration
     vault_enabled: bool = Field(default=False, description="Habilitar integração com Vault")
     vault_address: str = Field(
@@ -793,6 +822,28 @@ class OrchestratorSettings(BaseSettings):
     )
     opa_premium_tenants: list = Field(
         default_factory=list, description="Tenants premium com prioridade"
+    )
+
+    # OPA Authorization Middleware (HTTP API)
+    enable_opa_authorization: bool = Field(
+        default=True,
+        description="Habilitar middleware de autorização OPA para API HTTP"
+    )
+    opa_authorization_policy_path: str = Field(
+        default="neuralhive/orchestrator/authz",
+        description="Path da política de autorização HTTP"
+    )
+    opa_user_id_header: str = Field(
+        default="X-User-ID",
+        description="Header contendo o ID do usuário"
+    )
+    opa_tenant_id_header: str = Field(
+        default="X-Tenant-ID",
+        description="Header contendo o ID do tenant"
+    )
+    opa_role_header: str = Field(
+        default="X-User-Role",
+        description="Header contendo a role do usuário"
     )
 
     # Token Bucket Rate Limiting

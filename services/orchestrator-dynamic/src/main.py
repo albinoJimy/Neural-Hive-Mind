@@ -48,6 +48,7 @@ from src.clients.redis_client import (
     redis_setex_safe,
 )
 from src.clients.self_healing_client import SelfHealingClient
+from src.consumers.sla_alert_consumer import SLAAlertConsumer
 from src.integration.flow_c_consumer import FlowCApprovalResponseConsumer, FlowCConsumer
 from src.middleware.rate_limit_middleware import RateLimitMiddleware
 from src.ml.model_audit_logger import ModelAuditLogger
@@ -142,12 +143,14 @@ class AppState:
         self.execution_result_consumer: Any | None = None  # GAP-02
         self.flow_c_consumer: FlowCConsumer | None = None
         self.approval_response_consumer: FlowCApprovalResponseConsumer | None = None
+        self.sla_alert_consumer: SLAAlertConsumer | None = None
         self.temporal_worker: TemporalWorkerManager | None = None
         self.worker_task: asyncio.Task | None = None
         self.consumer_task: asyncio.Task | None = None
         self.execution_result_task: asyncio.Task | None = None  # GAP-02
         self.flow_c_task: asyncio.Task | None = None
         self.approval_response_task: asyncio.Task | None = None
+        self.sla_alert_task: asyncio.Task | None = None
         self.mongodb_client: MongoDBClient | None = None
         self.kafka_producer: KafkaProducerClient | None = None
         self.execution_ticket_client: ExecutionTicketClient | None = None
@@ -847,6 +850,18 @@ async def lifespan(app: FastAPI):
         )
         logger.info("Approval Response Consumer iniciado em background")
 
+        # Inicializar SLA Alerts Consumer se habilitado
+        if getattr(config, "sla_alerts_enabled", True):
+            logger.info("Inicializando SLA Alerts Consumer")
+            app_state.sla_alert_consumer = SLAAlertConsumer()
+            await app_state.sla_alert_consumer.start()
+
+            # Iniciar SLA Alerts Consumer em background
+            app_state.sla_alert_task = asyncio.create_task(
+                app_state.sla_alert_consumer.consume()
+            )
+            logger.info("SLA Alerts Consumer iniciado em background")
+
         # Inicializar Drift Detector se ML habilitado
         if getattr(config, "ml_predictions_enabled", False) and getattr(
             config, "ml_drift_detection_enabled", True
@@ -939,6 +954,15 @@ async def lifespan(app: FastAPI):
         if app_state.approval_response_consumer:
             logger.info("Parando Approval Response Consumer")
             await app_state.approval_response_consumer.stop()
+
+        # Parar SLA Alerts Consumer
+        if app_state.sla_alert_consumer:
+            logger.info("Parando SLA Alerts Consumer")
+            await app_state.sla_alert_consumer.stop()
+        if app_state.sla_alert_task:
+            app_state.sla_alert_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await app_state.sla_alert_task
 
         # Parar Kafka Consumer
         if app_state.kafka_consumer:
@@ -1059,6 +1083,48 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["*"],
 )
+
+# =============================================================================
+# OPA Authorization Middleware (INFRA-005)
+# =============================================================================
+# Middleware de autorização HTTP via OPA - valida todas as requisições API
+# contra políticas centralizadas antes de processar.
+# Ordem: CORS → OPA → RateLimit → Metrics
+if getattr(config, "enable_opa_authorization", True):
+    try:
+        from neural_hive_opa.middleware import OPAAuthorizationMiddleware, OPAMiddlewareConfig
+
+        app.add_middleware(
+            OPAAuthorizationMiddleware,
+            config=OPAMiddlewareConfig(
+                opa_url=f"http://{config.opa_host}:{config.opa_port}",
+                policy_path=config.opa_authorization_policy_path,
+                timeout_seconds=config.opa_timeout_seconds,
+                cache_ttl_seconds=config.opa_cache_ttl_seconds,
+                fail_open=config.opa_fail_open,
+                user_id_header=config.opa_user_id_header,
+                tenant_id_header=config.opa_tenant_id_header,
+                role_header=config.opa_role_header,
+                circuit_breaker_enabled=config.opa_circuit_breaker_enabled,
+                circuit_breaker_failure_threshold=config.opa_circuit_breaker_failure_threshold,
+                circuit_breaker_reset_timeout_seconds=config.opa_circuit_breaker_reset_timeout_seconds,
+            )
+        )
+
+        logger.info(
+            "opa_authorization_middleware_added",
+            enabled=config.enable_opa_authorization,
+            policy_path=config.opa_authorization_policy_path,
+            fail_open=config.opa_fail_open,
+        )
+    except Exception as opa_error:
+        logger.warning(
+            "opa_authorization_middleware_failed_to_initialize",
+            error=str(opa_error),
+            message="OPA authorization não estará disponível",
+        )
+else:
+    logger.info("opa_authorization_middleware_disabled", enable_opa_authorization=False)
 
 # Task 6.2-6.4: Adicionar Rate Limit Middleware
 # Middleware usa redis_client inicializado no lifespan e settings para configuração
