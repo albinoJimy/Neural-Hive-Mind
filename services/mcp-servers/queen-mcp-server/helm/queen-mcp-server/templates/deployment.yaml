@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: queen-mcp-server
+  labels:
+    app: queen-mcp-server
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: queen-mcp-server
+  template:
+    metadata:
+      labels:
+        app: queen-mcp-server
+    spec:
+      containers:
+      - name: queen-mcp-server
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - containerPort: {{ .Values.service.port }}
+          name: http
+        env:
+        - name: QUEEN_MCP_PORT
+          value: "{{ .Values.service.port }}"
+        - name: QUEEN_MCP_QUEEN_AGENT_HOST
+          value: {{ .Values.env.queenAgentHost | quote }}
+        - name: QUEEN_MCP_QUEEN_AGENT_PORT
+          value: {{ .Values.env.queenAgentPort | quote }}
+        - name: QUEEN_MCP_LOG_LEVEL
+          value: {{ .Values.env.logLevel | quote }}
+        resources:
+          {{- toYaml .Values.resources | nindent 10 }}

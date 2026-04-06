@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: worker-mcp-server
+  labels:
+    app: worker-mcp-server
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+  - port: {{ .Values.service.port }}
+    targetPort: http
+    protocol: TCP
+    name: http
+  selector:
+    app: worker-mcp-server

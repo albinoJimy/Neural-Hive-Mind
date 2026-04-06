@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker-mcp-server
+  labels:
+    app: worker-mcp-server
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: worker-mcp-server
+  template:
+    metadata:
+      labels:
+        app: worker-mcp-server
+    spec:
+      containers:
+      - name: worker-mcp-server
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - containerPort: {{ .Values.service.port }}
+          name: http
+        env:
+        - name: WORKER_MCP_PORT
+          value: "{{ .Values.service.port }}"
+        - name: WORKER_MCP_WORKER_AGENT_HOST
+          value: {{ .Values.env.workerAgentHost | quote }}
+        - name: WORKER_MCP_WORKER_AGENT_PORT
+          value: {{ .Values.env.workerAgentPort | quote }}
+        - name: WORKER_MCP_LOG_LEVEL
+          value: {{ .Values.env.logLevel | quote }}
+        resources:
+          {{- toYaml .Values.resources | nindent 10 }}

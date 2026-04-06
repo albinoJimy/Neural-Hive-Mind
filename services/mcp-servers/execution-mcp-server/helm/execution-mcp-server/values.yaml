@@ -1,0 +1,28 @@
+replicaCount: 1
+
+image:
+  repository: execution-mcp-server
+  tag: "1.0.0"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 3014
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 256Mi
+
+env:
+  executionTicketHost: execution-ticket-service
+  executionTicketPort: 8008
+  jwtSecret: change-me-in-production
+  logLevel: INFO
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

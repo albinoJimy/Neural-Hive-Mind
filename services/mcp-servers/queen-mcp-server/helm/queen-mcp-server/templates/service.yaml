@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: queen-mcp-server
+  labels:
+    app: queen-mcp-server
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+  - port: {{ .Values.service.port }}
+    targetPort: http
+    protocol: TCP
+    name: http
+  selector:
+    app: queen-mcp-server

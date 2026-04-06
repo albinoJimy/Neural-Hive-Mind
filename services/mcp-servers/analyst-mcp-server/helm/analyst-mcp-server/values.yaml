@@ -1,0 +1,28 @@
+replicaCount: 1
+
+image:
+  repository: analyst-mcp-server
+  tag: "1.0.0"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 3016
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 256Mi
+
+env:
+  analystAgentHost: analyst-agents
+  analystAgentPort: 8001
+  featureStoreUrl: http://feature-store:8006
+  logLevel: INFO
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

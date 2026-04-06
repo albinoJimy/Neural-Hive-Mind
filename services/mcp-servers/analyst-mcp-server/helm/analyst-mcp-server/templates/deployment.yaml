@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: analyst-mcp-server
+  labels:
+    app: analyst-mcp-server
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: analyst-mcp-server
+  template:
+    metadata:
+      labels:
+        app: analyst-mcp-server
+    spec:
+      containers:
+      - name: analyst-mcp-server
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - containerPort: {{ .Values.service.port }}
+          name: http
+        env:
+        - name: ANALYST_MCP_PORT
+          value: "{{ .Values.service.port }}"
+        - name: ANALYST_MCP_ANALYST_AGENT_HOST
+          value: {{ .Values.env.analystAgentHost | quote }}
+        - name: ANALYST_MCP_ANALYST_AGENT_PORT
+          value: {{ .Values.env.analystAgentPort | quote }}
+        - name: ANALYST_MCP_FEATURE_STORE_URL
+          value: {{ .Values.env.featureStoreUrl | quote }}
+        - name: ANALYST_MCP_LOG_LEVEL
+          value: {{ .Values.env.logLevel | quote }}
+        resources:
+          {{- toYaml .Values.resources | nindent 10 }}
