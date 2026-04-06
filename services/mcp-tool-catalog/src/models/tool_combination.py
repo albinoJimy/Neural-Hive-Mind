@@ -1,6 +1,6 @@
 """Pydantic model for Tool Combination used in genetic algorithm."""
 import random
-from typing import Dict, List
+from typing import Dict, List, Optional
 from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -19,6 +19,25 @@ class ToolCombination(BaseModel):
     parent_ids: List[str] = Field(default_factory=list)
     mutation_applied: bool = False
     crossover_applied: bool = False
+
+    # Campo para compatibilidade com DEAP (genetic algorithm library)
+    # DEAP espera um atributo 'fitness' em vez de 'fitness_score'
+    fitness: Optional[float] = None
+
+    def __init__(self, **data):
+        super().__init__(**data)
+        # Sincronizar fitness com fitness_score para compatibilidade DEAP
+        self.fitness = self.fitness_score
+
+    def __setattr__(self, name, value):
+        """Sobrescrever para manter fitness e fitness_score sincronizados."""
+        super().__setattr__(name, value)
+        if name == "fitness_score":
+            # Atualizar também o fitness para DEAP
+            object.__setattr__(self, "fitness", value)
+        elif name == "fitness" and hasattr(self, "fitness_score"):
+            # Atualizar também o fitness_score
+            super().__setattr__("fitness_score", value)
 
     def calculate_fitness(self, constraints: SelectionConstraints) -> float:
         """Calculate fitness score based on tools and constraints."""

@@ -204,7 +204,15 @@ class TestGeneticToolSelectorTimeout:
         from src.models.tool_selection import SelectionMethod
 
         # Configurar timeout muito curto
-        mock_settings.GA_TIMEOUT_SECONDS = 0.001  # 1ms - impossivel completar
+        mock_settings.GA_TIMEOUT_SECONDS = 0.0001  # 0.1ms - impossivel completar
+
+        # Patch para adicionar delay no GA e forçar timeout
+        original_run_ga = GeneticToolSelector._run_genetic_algorithm
+
+        async def slow_run_ga(self, available_tools, request):
+            # Pequeno delay para garantir que o timeout seja disparado
+            await asyncio.sleep(0.01)  # 10ms
+            return await original_run_ga(self, available_tools, request)
 
         selector = GeneticToolSelector(
             tool_registry=mock_tool_registry_with_multiple_tools,
@@ -212,7 +220,9 @@ class TestGeneticToolSelectorTimeout:
             metrics=mock_metrics
         )
 
-        response = await selector.select_tools(sample_tool_selection_request)
+        # Patch para usar a versão lenta
+        with patch.object(GeneticToolSelector, '_run_genetic_algorithm', slow_run_ga):
+            response = await selector.select_tools(sample_tool_selection_request)
 
         # Deve usar heuristica como fallback
         assert response.selection_method == SelectionMethod.HEURISTIC
@@ -318,7 +328,7 @@ class TestGeneticToolSelectorFallback:
         from src.models.tool_selection import SelectionMethod
 
         # Configurar registry sem ferramentas
-        mock_tool_registry_with_multiple_tools.list_tools_by_category.return_value = []
+        mock_tool_registry_with_multiple_tools.list_tools_by_category = AsyncMock(return_value=[])
 
         selector = GeneticToolSelector(
             tool_registry=mock_tool_registry_with_multiple_tools,
