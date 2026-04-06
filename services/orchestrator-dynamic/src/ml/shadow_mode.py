@@ -16,7 +16,8 @@ Características:
 import asyncio
 import time
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+UTC = timezone.utc  # type: ignore
 from typing import Any
 
 import pybreaker

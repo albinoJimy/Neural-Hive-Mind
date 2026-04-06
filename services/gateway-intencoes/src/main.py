@@ -7,7 +7,8 @@ Aplicação principal FastAPI para captura e processamento de intenções
 import asyncio
 import uuid
 from contextlib import asynccontextmanager
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+UTC = timezone.utc  # type: ignore
 from typing import Any
 
 import structlog

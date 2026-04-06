@@ -147,9 +147,3 @@ class ExecutionTicket(BaseModel):
         return self.model_dump()
 
     model_config = ConfigDict(use_enum_values=True)
-
-    @field_serializer("created_at", "updated_at", "expires_at", "deadline")
-    @classmethod
-    def serialize_datetime(cls, dt: datetime) -> str:
-        """Serialize datetime to ISO format"""
-        return dt.isoformat() if dt else None

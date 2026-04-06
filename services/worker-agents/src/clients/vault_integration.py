@@ -4,7 +4,8 @@ Cliente de integração Vault para worker-agents service
 
 import asyncio
 from collections.abc import Callable
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone
+UTC = timezone.utc  # type: ignore, timedelta
 from typing import Any, Optional
 
 import structlog
