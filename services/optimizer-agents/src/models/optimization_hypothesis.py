@@ -6,10 +6,13 @@ from pydantic import BaseModel, Field, field_validator
 from src.models.optimization_event import Adjustment, CausalAnalysis, OptimizationType
 from neural_hive_domain import UTC
 
+# Alias para compatibilidade com testes
+ProposedAdjustment = Adjustment
+
 # Callable para UTC now compatível com Pydantic V2
 def utcnow() -> datetime:
     """Retorna datetime UTC atual. Substituto para datetime.utcnow (deprecated)."""
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class OptimizationHypothesis(BaseModel):
