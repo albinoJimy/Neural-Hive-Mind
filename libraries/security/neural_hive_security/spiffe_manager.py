@@ -11,8 +11,13 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 import structlog
 from prometheus_client import Counter, Histogram, Gauge
+import os
 
 from .config import SPIFFEConfig
+
+# Feature flag para verificação JWT (SEC-008)
+# Pode ser controlada via environment variable: ENABLE_JWT_VERIFICATION=true
+ENABLE_JWT_VERIFICATION = os.getenv("ENABLE_JWT_VERIFICATION", "false").lower() == "true"
 
 # Try to import SPIRE Workload API stubs
 try:
@@ -39,11 +44,31 @@ spiffe_svid_ttl_seconds = Gauge(
     "TTL (seconds) do SVID retornado",
     ["svid_type"]
 )
-spiffe_trust_bundle_updates_total = Counter(
-    "spiffe_trust_bundle_updates_total",
-    "Total de atualizações de trust bundle",
-    ["status"]
-)
+
+# Import JWT verification module (SEC-008) - lazy import para evitar dependência circular
+# A métrica spiffe_trust_bundle_updates_total é definida em jwt/metrics.py
+# e importada aqui apenas quando necessária
+JWT_VERIFICATION_AVAILABLE = False
+JWKValidator = None
+KeyCache = None
+SPIFFETrustBundleMetrics = None
+spiffe_trust_bundle_updates_total = None
+
+try:
+    # Import dentro de try para evitar falha se módulo não disponível
+    from .jwt import JWKValidator, KeyCache
+    from .jwt.metrics import (
+        SPIFFETrustBundleMetrics,
+        spiffe_trust_bundle_updates_total
+    )
+    JWT_VERIFICATION_AVAILABLE = True
+except ImportError:
+    # Criar métrica fallback se módulo JWT não disponível
+    spiffe_trust_bundle_updates_total = Counter(
+        "spiffe_trust_bundle_updates_total",
+        "Total de atualizações de trust bundle",
+        ["status"]
+    )
 
 
 # Custom exceptions
@@ -101,6 +126,23 @@ class SPIFFEManager:
         self._x509_svid: Optional[X509SVID] = None
         self._trust_bundle: Optional[str] = None
         self._trust_bundle_keys: Dict[str, str] = {}  # kid -> public key mapping
+
+        # SEC-008: JWT verification components
+        self._jwk_validator: Optional[JWKValidator] = None
+        self._key_cache: Optional[KeyCache] = None
+        self._trust_bundle_metrics: Optional[SPIFFETrustBundleMetrics] = None
+
+        # Inicializar componentes de verificação JWT se habilitado
+        if JWT_VERIFICATION_AVAILABLE and ENABLE_JWT_VERIFICATION:
+            self._jwk_validator = JWKValidator(strict_mode=True)
+            self._key_cache = KeyCache(ttl_seconds=300)  # 5 minutos
+            self._trust_bundle_metrics = SPIFFETrustBundleMetrics()
+            self.logger.info(
+                "jwt_verification_enabled",
+                feature_flag="ENABLE_JWT_VERIFICATION",
+                ttl_seconds=300
+            )
+
         self._refresh_task: Optional[asyncio.Task] = None
 
     async def initialize(self):
@@ -417,6 +459,8 @@ class SPIFFEManager:
         """
         Retrieve trust bundle for JWT verification from SPIRE
 
+        SEC-008: Now validates JWKS structure and caches keys with TTL.
+
         Returns:
             Trust bundle (PEM-encoded certificates or JWKS)
         """
@@ -443,16 +487,52 @@ class SPIFFEManager:
                                 # Store both PEM and parsed keys
                                 self._trust_bundle = str(trust_domain_bundle)
 
-                                # Parse JWKS to extract public keys for JWT validation
+                                # SEC-008: Parse and validate JWKS
                                 try:
                                     import json
                                     jwks_data = json.loads(trust_domain_bundle)
+
+                                    # Validar JWKS com JWKValidator
+                                    if self._jwk_validator and self._trust_bundle_metrics:
+                                        with self._trust_bundle_metrics.time_validation():
+                                            validation_results = self._jwk_validator.validate_jwks(jwks_data)
+
+                                        self.logger.info(
+                                            "trust_bundle_jwks_validated",
+                                            trust_domain=self.config.trust_domain,
+                                            valid_count=validation_results.get("valid_count", 0),
+                                            invalid_count=validation_results.get("invalid_count", 0),
+                                            invalid_key_ids=validation_results.get("invalid_key_ids", [])
+                                        )
+
+                                        # Registrar métricas
+                                        if self._trust_bundle_metrics:
+                                            self._trust_bundle_metrics.record_update(
+                                                status="success",
+                                                keys_validated=validation_results.get("valid_count", 0),
+                                                keys_invalid=validation_results.get("invalid_count", 0)
+                                            )
+
+                                    # Extrair e cachear chaves válidas
                                     for key in jwks_data.get('keys', []):
                                         kid = key.get('kid')
                                         if kid:
                                             self._trust_bundle_keys[kid] = key
-                                except:
-                                    pass
+
+                                            # SEC-008: Adicionar ao KeyCache com TTL
+                                            if self._key_cache:
+                                                self._key_cache.put(kid, key)
+
+                                except json.JSONDecodeError as e:
+                                    self.logger.warning(
+                                        "trust_bundle_json_parse_failed",
+                                        error=str(e)
+                                    )
+                                except Exception as e:
+                                    self.logger.warning(
+                                        "trust_bundle_validation_failed",
+                                        error=str(e)
+                                    )
 
                                 self.logger.info(
                                     "trust_bundle_fetched_from_spire",
@@ -470,6 +550,8 @@ class SPIFFEManager:
                         error=str(e),
                         fallback="Using placeholder"
                     )
+                    if self._trust_bundle_metrics:
+                        self._trust_bundle_metrics.record_update(status="failed")
 
             # Fallback: use placeholder
             trust_bundle = "-----BEGIN CERTIFICATE-----\nplaceholder CA\n-----END CERTIFICATE-----"
@@ -489,10 +571,54 @@ class SPIFFEManager:
         """
         Get parsed public keys from trust bundle for JWT validation
 
+        SEC-008: Returns keys from KeyCache if enabled, otherwise from memory.
+
         Returns:
-            Dictionary mapping key ID to public key
+            Dictionary mapping key ID to public key (JWK dict)
         """
+        # Se KeyCache estiver disponível, retornar chaves do cache
+        if self._key_cache:
+            cached_keys = {}
+            for key_id in self._key_cache.keys():
+                cached_keys[key_id] = self._key_cache.get(key_id)
+
+            # Log stats do cache
+            cache_stats = self._key_cache.get_stats()
+            self.logger.debug(
+                "trust_bundle_keys_from_cache",
+                keys_count=len(cached_keys),
+                cache_hits=cache_stats.get("hits"),
+                cache_misses=cache_stats.get("misses"),
+                hit_rate=cache_stats.get("hit_rate")
+            )
+
+            return cached_keys
+
+        # Fallback para memória (sem cache)
         return self._trust_bundle_keys.copy()
+
+    def get_key_cache(self) -> Optional["KeyCache"]:
+        """
+        Retorna a instância de KeyCache para uso externo.
+
+        SEC-008: Permite que componentes externos (ex: AuthInterceptor)
+        acessem o cache de chaves.
+
+        Returns:
+            Instância de KeyCache ou None
+        """
+        return self._key_cache
+
+    def get_jwk_validator(self) -> Optional["JWKValidator"]:
+        """
+        Retorna a instância de JWKValidator para uso externo.
+
+        SEC-008: Permite que componentes externos validem JWKs.
+
+        Returns:
+            Instância de JWKValidator ou None
+        """
+        return self._jwk_validator
 
     async def _refresh_loop(self):
         """Background task for SVID refresh"""
