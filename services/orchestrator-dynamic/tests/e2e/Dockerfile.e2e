@@ -1,0 +1,33 @@
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Instalar dependências do sistema
+RUN apt-get update && apt-get install -y \
+    curl \
+    postgresql-client \
+    netcat-openbsd \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copiar requirements e instalar
+COPY libraries/security/neural_hive_security/ libraries/security/neural_hive_security/
+COPY libraries/domain/neural_hive_domain/ libraries/domain/neural_hive_domain/
+COPY services/orchestrator-dynamic/ services/orchestrator-dynamic/
+
+# Instalar dependências Python
+RUN pip install --no-cache-dir -e libraries/security/neural_hive_security/ && \
+    pip install --no-cache-dir -e libraries/domain/neural_hive_domain/ && \
+    pip install --no-cache-dir -e services/orchestrator-dynamic/[test]
+
+# Copiar scripts de setup
+COPY tests/e2e/scripts/ /scripts/
+RUN chmod +x /scripts/*.sh
+
+# Diretório para resultados de teste
+RUN mkdir -p /app/test-results
+
+# Set python path
+ENV PYTHONPATH=/app:/app/libraries/security:/app/libraries/domain:/app/services/orchestrator-dynamic
+
+# Default command
+CMD ["/bin/bash"]
