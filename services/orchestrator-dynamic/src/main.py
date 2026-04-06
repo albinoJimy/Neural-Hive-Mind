@@ -28,7 +28,8 @@ try:
 except ImportError:
     EXECUTION_RESULT_CONSUMER_AVAILABLE = False
     ExecutionResultConsumer = None
-from datetime import UTC, datetime
+from datetime import datetime
+from neural_hive_domain import UTC
 from uuid import uuid4
 
 from pydantic import BaseModel, Field, ValidationError
@@ -47,7 +48,9 @@ from src.clients.redis_client import (
     redis_setex_safe,
 )
 from src.clients.self_healing_client import SelfHealingClient
+from src.consumers.sla_alert_consumer import SLAAlertConsumer
 from src.integration.flow_c_consumer import FlowCApprovalResponseConsumer, FlowCConsumer
+from src.middleware.rate_limit_middleware import RateLimitMiddleware
 from src.ml.model_audit_logger import ModelAuditLogger
 from src.temporal_client import TemporalClientWrapper
 from src.workers.temporal_worker import TemporalWorkerManager, create_temporal_client
@@ -140,12 +143,14 @@ class AppState:
         self.execution_result_consumer: Any | None = None  # GAP-02
         self.flow_c_consumer: FlowCConsumer | None = None
         self.approval_response_consumer: FlowCApprovalResponseConsumer | None = None
+        self.sla_alert_consumer: SLAAlertConsumer | None = None
         self.temporal_worker: TemporalWorkerManager | None = None
         self.worker_task: asyncio.Task | None = None
         self.consumer_task: asyncio.Task | None = None
         self.execution_result_task: asyncio.Task | None = None  # GAP-02
         self.flow_c_task: asyncio.Task | None = None
         self.approval_response_task: asyncio.Task | None = None
+        self.sla_alert_task: asyncio.Task | None = None
         self.mongodb_client: MongoDBClient | None = None
         self.kafka_producer: KafkaProducerClient | None = None
         self.execution_ticket_client: ExecutionTicketClient | None = None
@@ -167,6 +172,8 @@ class AppState:
         self.opa_client: Any | None = None
         self.intelligent_scheduler: Any | None = None
         self.audit_logger: ModelAuditLogger | None = None
+        # Feature Flags Service
+        self.feature_flag_service: Any | None = None
 
 
 app_state = AppState()
@@ -438,6 +445,28 @@ async def lifespan(app: FastAPI):
                 "Falha ao inicializar Redis Client, continuando sem cache", error=str(redis_error)
             )
             app_state.redis_client = None
+
+        # Inicializar Feature Flags Service (fail-open)
+        if app_state.mongodb_client and app_state.redis_client:
+            try:
+                from src.services.feature_flag_service import FeatureFlagService
+
+                # Coleção de feature flags no MongoDB
+                flags_collection = app_state.mongodb_client.client[config.mongodb_db_name].get_collection(
+                    "feature_flags", create=True
+                )
+
+                app_state.feature_flag_service = FeatureFlagService(
+                    mongodb=flags_collection,
+                    redis=app_state.redis_client,
+                )
+                logger.info("Feature Flags Service inicializado com sucesso")
+            except Exception as ff_error:
+                logger.warning(
+                    "Falha ao inicializar Feature Flags Service, continuando sem feature flags",
+                    error=str(ff_error),
+                )
+                app_state.feature_flag_service = None
 
         # Inicializar modelos preditivos centralizados (se habilitado)
         if getattr(config, "ml_predictions_enabled", False):
@@ -821,6 +850,18 @@ async def lifespan(app: FastAPI):
         )
         logger.info("Approval Response Consumer iniciado em background")
 
+        # Inicializar SLA Alerts Consumer se habilitado
+        if getattr(config, "sla_alerts_enabled", True):
+            logger.info("Inicializando SLA Alerts Consumer")
+            app_state.sla_alert_consumer = SLAAlertConsumer()
+            await app_state.sla_alert_consumer.start()
+
+            # Iniciar SLA Alerts Consumer em background
+            app_state.sla_alert_task = asyncio.create_task(
+                app_state.sla_alert_consumer.consume()
+            )
+            logger.info("SLA Alerts Consumer iniciado em background")
+
         # Inicializar Drift Detector se ML habilitado
         if getattr(config, "ml_predictions_enabled", False) and getattr(
             config, "ml_drift_detection_enabled", True
@@ -889,6 +930,9 @@ async def lifespan(app: FastAPI):
         # Incluir Model Audit API Router
         include_audit_router()
 
+        # Incluir Feature Flags Dashboard UI Router
+        include_feature_flags_ui_router()
+
         logger.info("Orchestrator Dynamic inicializado com sucesso")
 
     except Exception as e:
@@ -910,6 +954,15 @@ async def lifespan(app: FastAPI):
         if app_state.approval_response_consumer:
             logger.info("Parando Approval Response Consumer")
             await app_state.approval_response_consumer.stop()
+
+        # Parar SLA Alerts Consumer
+        if app_state.sla_alert_consumer:
+            logger.info("Parando SLA Alerts Consumer")
+            await app_state.sla_alert_consumer.stop()
+        if app_state.sla_alert_task:
+            app_state.sla_alert_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await app_state.sla_alert_task
 
         # Parar Kafka Consumer
         if app_state.kafka_consumer:
@@ -1031,6 +1084,79 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# =============================================================================
+# OPA Authorization Middleware (INFRA-005)
+# =============================================================================
+# Middleware de autorização HTTP via OPA - valida todas as requisições API
+# contra políticas centralizadas antes de processar.
+# Ordem: CORS → OPA → RateLimit → Metrics
+if getattr(config, "enable_opa_authorization", True):
+    try:
+        from neural_hive_opa.middleware import OPAAuthorizationMiddleware, OPAMiddlewareConfig
+
+        app.add_middleware(
+            OPAAuthorizationMiddleware,
+            config=OPAMiddlewareConfig(
+                opa_url=f"http://{config.opa_host}:{config.opa_port}",
+                policy_path=config.opa_authorization_policy_path,
+                timeout_seconds=config.opa_timeout_seconds,
+                cache_ttl_seconds=config.opa_cache_ttl_seconds,
+                fail_open=config.opa_fail_open,
+                user_id_header=config.opa_user_id_header,
+                tenant_id_header=config.opa_tenant_id_header,
+                role_header=config.opa_role_header,
+                circuit_breaker_enabled=config.opa_circuit_breaker_enabled,
+                circuit_breaker_failure_threshold=config.opa_circuit_breaker_failure_threshold,
+                circuit_breaker_reset_timeout_seconds=config.opa_circuit_breaker_reset_timeout_seconds,
+            )
+        )
+
+        logger.info(
+            "opa_authorization_middleware_added",
+            enabled=config.enable_opa_authorization,
+            policy_path=config.opa_authorization_policy_path,
+            fail_open=config.opa_fail_open,
+        )
+    except Exception as opa_error:
+        logger.warning(
+            "opa_authorization_middleware_failed_to_initialize",
+            error=str(opa_error),
+            message="OPA authorization não estará disponível",
+        )
+else:
+    logger.info("opa_authorization_middleware_disabled", enable_opa_authorization=False)
+
+# Task 6.2-6.4: Adicionar Rate Limit Middleware
+# Middleware usa redis_client inicializado no lifespan e settings para configuração
+# Nota: redis_client ainda não está disponível aqui, será injetado via settings
+if getattr(config, "enable_rate_limiting", True):
+    try:
+        from src.clients.redis_client import get_redis_client
+
+        # Obter cliente Redis (será inicializado no lifespan)
+        redis_client = get_redis_client()
+
+        app.add_middleware(
+            RateLimitMiddleware,
+            redis_client=redis_client,
+            settings=config,
+        )
+
+        logger.info(
+            "rate_limit_middleware_added",
+            enabled=config.enable_rate_limiting,
+            default_capacity=getattr(config, "rate_limit_default_capacity", 100),
+            refill_rate=getattr(config, "rate_limit_default_refill_rate", 10.0),
+        )
+    except Exception as rl_error:
+        logger.warning(
+            "rate_limit_middleware_failed_to_initialize",
+            error=str(rl_error),
+            message="Rate limiting não estará disponível",
+        )
+else:
+    logger.info("rate_limit_middleware_disabled", enable_rate_limiting=False)
+
 # Montar métricas Prometheus
 metrics_app = make_asgi_app()
 app.mount("/metrics", metrics_app)
@@ -1047,6 +1173,19 @@ def include_audit_router():
         audit_router = create_model_audit_router(app_state.audit_logger)
         app.include_router(audit_router)
         logger.info("Model Audit API router incluído")
+
+
+def include_feature_flags_ui_router():
+    """Inclui o router da UI de Feature Flags se o serviço estiver inicializado."""
+    if app_state.feature_flag_service:
+        try:
+            from src.ui.feature_flags_dashboard import create_dashboard_router
+
+            dashboard_router = create_dashboard_router(app_state.feature_flag_service)
+            app.include_router(dashboard_router)
+            logger.info("Feature Flags Dashboard UI router incluído em /admin/feature-flags")
+        except Exception as e:
+            logger.warning("Falha ao incluir router da UI de Feature Flags", error=str(e))
 
 
 # =============================================================================
