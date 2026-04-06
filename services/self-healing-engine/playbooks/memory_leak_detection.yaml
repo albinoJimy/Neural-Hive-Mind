@@ -1,0 +1,47 @@
+playbook_id: "memory-leak-detection-v1"
+playbook_name: "memory_leak_detection"
+playbook_type: "PLATFORM"
+version: "1.0.0"
+description: "Detecta memory leaks em pods analisando métricas de uso de memória e tendências"
+trigger:
+  pattern: "memory_leak_detected"
+  severity: "warning"
+parameters_schema:
+  type: object
+  properties:
+    pod_name:
+      type: string
+    namespace:
+      type: string
+    memory_threshold_mb:
+      type: integer
+      default: 512
+    metrics_history:
+      type: array
+      items:
+        type: object
+  required: [pod_name, namespace]
+timeout_seconds: 600
+rollback_playbook: null
+validation_checks:
+  - "metrics_collected"
+  - "trend_analyzed"
+status: "AVAILABLE"
+actions:
+  - name: "get_pod_metrics"
+    type: "get_pod_metrics"
+    parameters:
+      pod_name: "{{ pod_name }}"
+      namespace: "{{ namespace }}"
+      memory_threshold_mb: "{{ memory_threshold_mb }}"
+  - name: "analyze_memory_usage"
+    type: "analyze_memory_usage"
+    parameters:
+      pod_name: "{{ pod_name }}"
+      metrics_history: "{{ metrics_history }}"
+  - name: "notify_team"
+    type: "notify_agent"
+    parameters:
+      agent_id: "ops-team"
+      notification_type: "WARNING"
+      message: "Memory leak detectado no pod {{ pod_name }}"

@@ -382,6 +382,9 @@ class PlaybookExecutor:
             "wait": self._wait,
             "delete_pod": self._delete_pod,
             "patch_deployment": self._patch_deployment,
+            "check_database_connection": self._check_database_connection,
+            "get_pod_metrics": self._get_pod_metrics,
+            "analyze_memory_usage": self._analyze_memory_usage,
         }
         return action_map.get(action_type)
 
@@ -560,6 +563,335 @@ class PlaybookExecutor:
         com playbooks que usam "apply_policy" como nome de ação.
         """
         return await self._update_policy(action, context)
+
+    async def _check_database_connection(self, action: dict, context: dict) -> dict:
+        """Verifica conectividade com banco de dados (MongoDB/PostgreSQL/Redis)."""
+        connection_string = action.get("connection_string") or context.get("connection_string")
+        database_type = action.get("database_type") or context.get("database_type", "mongodb")
+        timeout = action.get("timeout_seconds", 5)
+
+        logger.info(
+            "playbook_executor.check_database_connection",
+            database_type=database_type,
+            connection_string=connection_string[:50] + "..." if connection_string else None,
+        )
+
+        result = {
+            "action": "check_database_connection",
+            "database_type": database_type,
+        }
+
+        try:
+            if database_type == "mongodb":
+                from motor.motor_asyncio import AsyncIOMotorClient
+
+                client = AsyncIOMotorClient(connection_string, serverSelectionTimeoutMS=timeout * 1000)
+                await client.admin.command('ping')
+                client.close()
+
+                logger.info("playbook_executor.database_connection_success", database_type=database_type)
+                result.update({"success": True, "connected": True})
+                context["database_connection_checked"] = True
+                context["database_connection_type"] = database_type
+
+            elif database_type == "postgresql":
+                import asyncpg
+
+                conn = await asyncpg.connect(connection_string, timeout=timeout)
+                await conn.fetchval('SELECT 1')
+                await conn.close()
+
+                logger.info("playbook_executor.database_connection_success", database_type=database_type)
+                result.update({"success": True, "connected": True})
+                context["database_connection_checked"] = True
+                context["database_connection_type"] = database_type
+
+            elif database_type == "redis":
+                import redis.asyncio as redis
+
+                client = redis.from_url(connection_string, socket_timeout=timeout, socket_connect_timeout=timeout)
+                await client.ping()
+                await client.close()
+
+                logger.info("playbook_executor.database_connection_success", database_type=database_type)
+                result.update({"success": True, "connected": True})
+                context["database_connection_checked"] = True
+                context["database_connection_type"] = database_type
+
+            else:
+                error_msg = f"Unsupported database type: {database_type}"
+                result.update({"success": False, "error": error_msg})
+                return result
+
+        except Exception as e:
+            logger.error(
+                "playbook_executor.database_connection_failed",
+                database_type=database_type,
+                error=str(e),
+            )
+            result.update({"success": False, "connected": False, "error": str(e)})
+            return result
+
+        return result
+
+    async def _get_pod_metrics(self, action: dict, context: dict) -> dict:
+        """Obtém métricas de um pod Kubernetes (uso de memória, CPU)."""
+        pod_name = action.get("pod_name") or context.get("pod_name")
+        namespace = action.get("namespace") or context.get("namespace", "default")
+        memory_threshold_mb = action.get("memory_threshold_mb", 512)
+
+        logger.info(
+            "playbook_executor.get_pod_metrics",
+            pod_name=pod_name,
+            namespace=namespace,
+        )
+
+        result = {
+            "action": "get_pod_metrics",
+            "pod_name": pod_name,
+            "namespace": namespace,
+        }
+
+        try:
+            if not self.core_v1:
+                result.update({
+                    "success": False,
+                    "error": "Kubernetes core_v1 client not available"
+                })
+                return result
+
+            # Usar a API diretamente para obter métricas do pod
+            import json
+            from kubernetes import client
+
+            path = f"/api/v1/namespaces/{namespace}/pods/{pod_name}/metrics"
+            try:
+                response = self.core_v1.api_client.call_api(
+                    path,
+                    "GET",
+                    auth_settings=["BearerToken"],
+                    response_type="object",
+                )
+
+                # Handle response: pode ser tuple (real) ou MagicMock com .data (mock)
+                if isinstance(response, tuple) and len(response) > 0:
+                    metrics_data = response[0]
+                elif hasattr(response, 'data'):
+                    import json
+                    metrics_data = json.loads(response.data)
+                else:
+                    metrics_data = response if response else {}
+
+                # Processar dados dos containers
+                containers = []
+                total_memory_mb = 0
+
+                for container in metrics_data.get("containers", []):
+                    usage = container.get("usage", {})
+                    memory_str = usage.get("memory", "0")
+
+                    # Converter memory string (ex: "128Mi") para MB
+                    memory_mb = self._parse_memory_to_mb(memory_str)
+                    total_memory_mb += memory_mb
+
+                    containers.append({
+                        "name": container.get("name"),
+                        "usage": {
+                            "memory": memory_str,
+                            "cpu": usage.get("cpu", "0")
+                        }
+                    })
+
+                result.update({
+                    "success": True,
+                    "containers": containers,
+                    "memory_mb": total_memory_mb,
+                    "memory_threshold_exceeded": total_memory_mb > memory_threshold_mb,
+                })
+
+                logger.info(
+                    "playbook_executor.get_pod_metrics_success",
+                    pod_name=pod_name,
+                    memory_mb=total_memory_mb,
+                    threshold=memory_threshold_mb,
+                )
+
+            except client.rest.ApiException as e:
+                if e.status == 404:
+                    result.update({
+                        "success": False,
+                        "error": f"Pod {pod_name} not found in namespace {namespace} (404)"
+                    })
+                else:
+                    result.update({
+                        "success": False,
+                        "error": f"API error {e.status}: {e.reason}"
+                    })
+                logger.error(
+                    "playbook_executor.get_pod_metrics_api_error",
+                    pod_name=pod_name,
+                    error=str(e),
+                )
+
+        except Exception as e:
+            logger.error(
+                "playbook_executor.get_pod_metrics_failed",
+                pod_name=pod_name,
+                error=str(e),
+            )
+            result.update({
+                "success": False,
+                "error": str(e),
+            })
+
+        return result
+
+    def _parse_memory_to_mb(self, memory_str: str) -> int:
+        """Converte string de memória Kubernetes (ex: '128Mi', '1Gi') para MB."""
+        if not memory_str:
+            return 0
+
+        memory_str = memory_str.strip().upper()
+
+        # Extrair número e unidade
+        import re
+        match = re.match(r'(\d+(?:\.\d+)?)([A-Z]*)', memory_str)
+        if not match:
+            return 0
+
+        value = float(match.group(1))
+        unit = match.group(2)
+
+        # Converter para MB
+        if unit == "KI":  # Kilobyte
+            return int(value / 1024)
+        elif unit == "MI":  # Megabyte
+            return int(value)
+        elif unit == "GI":  # Gigabyte
+            return int(value * 1024)
+        elif unit == "TI":  # Terabyte
+            return int(value * 1024 * 1024)
+        elif unit == "K":  # Kilobyte (sem o i)
+            return int(value / 1024)
+        elif unit == "M":  # Megabyte (sem o i)
+            return int(value)
+        elif unit == "G":  # Gigabyte (sem o i)
+            return int(value * 1024)
+        elif unit == "T":  # Terabyte (sem o i)
+            return int(value * 1024 * 1024)
+        elif unit == "" or unit == "BYTES":  # Bytes
+            return int(value / (1024 * 1024))
+        else:
+            return 0
+
+    async def _analyze_memory_usage(self, action: dict, context: dict) -> dict:
+        """Analisa histórico de uso de memória para detectar tendências de memory leak."""
+        pod_name = action.get("pod_name") or context.get("pod_name", "unknown")
+        metrics_history = action.get("metrics_history") or context.get("metrics_history", [])
+
+        logger.info(
+            "playbook_executor.analyze_memory_usage",
+            pod_name=pod_name,
+            history_size=len(metrics_history),
+        )
+
+        result = {
+            "action": "analyze_memory_usage",
+            "pod_name": pod_name,
+        }
+
+        try:
+            if not metrics_history or len(metrics_history) < 3:
+                result.update({
+                    "success": True,
+                    "memory_leak_detected": False,
+                    "trend": "insufficient_data",
+                    "reason": f"Need at least 3 data points, got {len(metrics_history)}"
+                })
+                return result
+
+            # Extrair valores de memória em MB
+            memory_values = []
+            for entry in metrics_history:
+                mem_val = entry.get("memory_mb", 0)
+                memory_values.append(mem_val)
+
+            # Calcular tendência usando regressão linear simples
+            import statistics
+
+            n = len(memory_values)
+            x_values = list(range(n))
+
+            # Médias
+            x_mean = statistics.mean(x_values)
+            y_mean = statistics.mean(memory_values)
+
+            # Calcular slope (inclinação)
+            numerator = sum((x - x_mean) * (y - y_mean) for x, y in zip(x_values, memory_values))
+            denominator = sum((x - x_mean) ** 2 for x in x_values)
+
+            if denominator == 0:
+                slope = 0
+            else:
+                slope = numerator / denominator
+
+            # Calcular R² para determinar qualidade da regressão
+            if denominator == 0:
+                r_squared = 0
+            else:
+                y_predicted = [y_mean + slope * (x - x_mean) for x in x_values]
+                ss_res = sum((y - yp) ** 2 for y, yp in zip(memory_values, y_predicted))
+                ss_tot = sum((y - y_mean) ** 2 for y in memory_values)
+                r_squared = 1 - (ss_res / ss_tot) if ss_tot != 0 else 0
+
+            # Determinar tendência
+            if slope > 5:  # Aumento > 5MB por período
+                trend = "increasing"
+                memory_leak_detected = r_squared > 0.7  # Tendência forte
+            elif slope < -5:
+                trend = "decreasing"
+                memory_leak_detected = False
+            else:
+                # Verificar variância para detectar oscilações
+                variance = statistics.variance(memory_values) if len(memory_values) > 1 else 0
+                if variance < 100:  # Variância baixa = estável
+                    trend = "stable"
+                else:
+                    trend = "fluctuating"
+                memory_leak_detected = False
+
+            result.update({
+                "success": True,
+                "memory_leak_detected": memory_leak_detected,
+                "trend": trend,
+                "slope_mb_per_period": round(slope, 2),
+                "r_squared": round(r_squared, 4),
+                "current_memory_mb": memory_values[-1],
+                "min_memory_mb": min(memory_values),
+                "max_memory_mb": max(memory_values),
+                "avg_memory_mb": round(y_mean, 2),
+            })
+
+            logger.info(
+                "playbook_executor.analyze_memory_usage_complete",
+                pod_name=pod_name,
+                trend=trend,
+                leak_detected=memory_leak_detected,
+                slope=round(slope, 2),
+            )
+
+        except Exception as e:
+            logger.error(
+                "playbook_executor.analyze_memory_usage_failed",
+                pod_name=pod_name,
+                error=str(e),
+            )
+            result.update({
+                "success": False,
+                "error": str(e),
+            })
+
+        return result
 
     async def _reallocate_ticket(self, action: dict, context: dict) -> dict:
         """Reallocate ticket(s) for re-execution via Execution Ticket Service."""
