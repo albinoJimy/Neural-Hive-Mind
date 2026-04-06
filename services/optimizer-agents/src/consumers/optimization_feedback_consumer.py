@@ -13,7 +13,8 @@ Created: 2026-03-30 (Epic J)
 import asyncio
 import json
 from collections import defaultdict
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+UTC = timezone.utc  # type: ignore
 from enum import StrEnum
 from typing import Any
 
