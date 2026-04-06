@@ -274,8 +274,9 @@ class TestHypothesisValidation:
         from src.models.optimization_hypothesis import ProposedAdjustment
         large_adjustment = ProposedAdjustment(
             parameter_name="test_weight",
-            old_value=0.5,
-            new_value=1.5  # Delta of 1.0 exceeds max_weight_adjustment
+            old_value="0.5",
+            new_value="1.5",  # Delta of 1.0 exceeds max_weight_adjustment
+            previous_value=0.5
         )
         sample_optimization_hypothesis.proposed_adjustments = [large_adjustment]
 

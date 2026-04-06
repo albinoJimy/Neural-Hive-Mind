@@ -31,6 +31,18 @@ def mock_settings():
     settings.experiment_timeout_seconds = 300
     settings.degradation_threshold = 0.15
     settings.rollback_on_degradation = True
+    # AB test settings
+    settings.ab_test_default_alpha = 0.05
+    settings.ab_test_default_power = 0.80
+    settings.ab_test_min_sample_size = 100
+    settings.ab_test_max_sample_size = 10000
+    settings.ab_test_early_stopping_enabled = True
+    settings.ab_test_sequential_testing_enabled = True
+    settings.ab_test_bayesian_analysis_enabled = True
+    settings.ab_test_guardrail_check_interval_seconds = 60
+    settings.ab_test_default_traffic_split = 0.5
+    settings.ab_test_max_duration_days = 7
+    settings.ab_test_metrics_retention_days = 30
     return settings
 
 

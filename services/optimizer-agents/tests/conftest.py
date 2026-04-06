@@ -102,17 +102,21 @@ def sample_optimization_hypothesis():
         proposed_adjustments=[
             ProposedAdjustment(
                 parameter_name="business_weight",
-                old_value=0.25,
-                new_value=0.30
+                old_value="0.25",
+                new_value="0.30",
+                previous_value=0.25
             ),
             ProposedAdjustment(
                 parameter_name="technical_weight",
-                old_value=0.25,
-                new_value=0.20
+                old_value="0.25",
+                new_value="0.20",
+                previous_value=0.25
             )
         ],
+        expected_improvement=0.25,
         confidence_score=0.85,
         risk_score=0.3,
+        priority=3,
         metadata={
             "created_by": "optimizer-agents",
             "context_id": "test-context-001"
@@ -203,7 +207,7 @@ def sample_experiment_request():
         experiment_type=ExperimentType.A_B_TEST,
         target_component="consensus-engine",
         baseline_configuration={"latency_p95": "200.0"},
-        experimental_configuration={"business_weight": 0.30},
+        experimental_configuration={"business_weight": "0.30"},
         success_criteria=[
             {
                 "metric_name": "latency_p95",
