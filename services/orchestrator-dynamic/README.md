@@ -335,6 +335,78 @@ indexes_validated collection=execution_tickets count=6
   - Rejeições inesperadas → revisar `orchestration_opa_policy_rejections_total{policy_name,rule}` e testar entrada no OPA Playground.
   - Cache/latência → `orchestration_opa_cache_hits_total` e `orchestration_opa_validation_duration_seconds`.
 
+### OPA Authorization Middleware (INFRA-005)
+
+Além da validação OPA nas activities Temporal, o serviço também possui um **middleware de autorização HTTP** que protege todos os endpoints da API REST:
+
+- **Middleware:** `OPAAuthorizationMiddleware` da biblioteca `neural_hive_opa`
+- **Política:** `neuralhive/orchestrator/authz` (arquivo: `policies/rego/orchestrator/http_authz.rego`)
+- **Ordem:** CORS → OPA Authorization → RateLimit → Metrics
+- **Comportamento:** Fail-closed por padrão (retorna HTTP 503 se OPA indisponível)
+
+#### Headers de Autenticação
+
+O middleware extrai contexto de autenticação dos seguintes headers:
+
+| Header | Descrição | Exemplo |
+|--------|-----------|---------|
+| `X-User-ID` | ID do usuário | `user-123` |
+| `X-Tenant-ID` | ID do tenant | `tenant-abc` |
+| `X-User-Role` | Role do usuário | `admin`, `developer`, `worker`, `service-registry` |
+
+#### Paths Públicos
+
+Os seguintes paths **não requerem autenticação**:
+- `/health`, `/healthz`, `/ready` - Health checks
+- `/metrics` - Métricas Prometheus
+- `/docs`, `/redoc`, `/openapi.json` - Documentação API
+- `/static/*`, `/favicon.ico` - Assets estáticos
+
+#### Regras de Autorização
+
+- **`admin`** - Acesso total a todos os endpoints
+- **`developer`** - Acesso leitura (`GET`) em APIs
+- **`worker`** - Acesso a `/api/v1/workers/*` para registro/status
+- **`service-registry`** - Pode registrar/desregistrar workers
+- **Usuários autenticados** - Podem acessar recursos do próprio tenant (tenant isolation)
+
+#### Configuração
+
+```bash
+# Habilitar middleware (default: true)
+ENABLE_OPA_AUTHORIZATION=true
+
+# Política HTTP
+OPA_AUTHORIZATION_POLICY_PATH=neuralhive/orchestrator/authz
+
+# Comportamento fail-closed (default: false)
+OPA_FAIL_OPEN=false
+
+# Headers (configurável)
+OPA_USER_ID_HEADER=X-User-ID
+OPA_TENANT_ID_HEADER=X-Tenant-ID
+OPA_ROLE_HEADER=X-User-Role
+```
+
+#### Métricas
+
+- `opa_middleware_decisions_total{decision="allow|deny"}` - Decisões por resultado
+- `opa_middleware_latency_seconds` - Latência de consulta OPA
+- `opa_middleware_cache_hits_total` - Cache hits
+- `opa_middleware_circuit_breaker_open` - Estado do circuit breaker
+- `opa_middleware_opa_unavailable_total` - Falhas de conexão OPA
+
+#### Testes
+
+```bash
+# Testes de integração do middleware
+pytest services/orchestrator-dynamic/tests/integration/test_opa_middleware_integration.py -v
+
+# Testes OPA da política HTTP
+opa test policies/rego/orchestrator/http_authz.rego \
+  policies/rego/orchestrator/tests/http_authz_test.rego
+```
+
 ## Scheduler Inteligente
 
 O Orchestrator Dynamic inclui um scheduler inteligente que otimiza a alocação de recursos para execution tickets baseado em múltiplos fatores:
@@ -1821,6 +1893,139 @@ curl http://<pod-ip>:9090/metrics | grep sla_violations
 helm upgrade orchestrator-dynamic . \
   --set config.sla.defaultTimeoutMs=7200000  # 2 horas
 ```
+
+### SLA Alerts Integration (INFRA-006)
+
+O Orchestrator Dynamic possui integração com sistemas de notificação externa para alertas SLA críticos, permitindo resposta rápida a violações e situações de emergência.
+
+#### Componentes
+
+##### SLAAlertConsumer (`src/consumers/sla_alert_consumer.py`)
+
+Consumer Kafka que processa alertas SLA vindos do `sla-management-system` e despacha notificações:
+
+- **Tópicos Kafka:** `sla.alerts`, `sla.violations`
+- **Canais de Notificação:**
+  - **Slack**: Mensagens formatadas com blocos estruturados
+  - **PagerDuty**: Alertas via Events API v2 para CRITICAL/EMERGENCY
+- **Roteamento por Severidade:**
+  - `CRITICAL` → PagerDuty + Slack (`#sla-alerts-critical`)
+  - `EMERGENCY` → PagerDuty + Slack (`#sla-alerts`)
+  - `WARNING/INFO/DEBUG` → Slack apenas (`#sla-alerts`)
+
+##### SlackClient (`src/clients/slack_client.py`)
+
+Cliente para envio de mensagens via Incoming Webhooks:
+
+- **Retry automático:** 3 tentativas com exponential backoff
+- **Formatação:** Suporte a texto e blocos estruturados
+- **Configuração:** `SLACK_WEBHOOK_URL`
+
+##### PagerDutyClient (`src/clients/pagerduty_client.py`)
+
+Cliente para Events API v2 do PagerDuty:
+
+- **Operações:** trigger, acknowledge, resolve
+- **Deduplication:** via `dedup_key` (usa `alert_id`)
+- **Retry automático:** 3 tentativas com exponential backoff
+- **Configuração:** `PAGERDUTY_ROUTING_KEY`
+
+#### Configuração
+
+```yaml
+# Habilitar consumer de alertas SLA
+sla_alerts_enabled: true
+
+# Tópicos Kafka
+sla_alerts_topics:
+  - sla.alerts
+  - sla.violations
+sla_alerts_consumer_group: orchestrator-sla-alerts
+
+# Slack
+slack_webhook_url: "https://hooks.slack.com/services/XXX/YYY/ZZZ"
+slack_alerts_channel: "#sla-alerts"
+slack_critical_channel: "#sla-alerts-critical"
+
+# PagerDuty
+pagerduty_routing_key: "YOUR_INTEGRATION_KEY"
+pagerduty_api_url: "https://events.pagerduty.com/v2/enqueue"
+```
+
+#### Formato dos Alertas
+
+##### Estrutura da Mensagem Kafka
+
+```json
+{
+  "alert_id": "alert-123",
+  "title": "Workflow Timeout Exceeded",
+  "severity": "CRITICAL",
+  "alert_type": "workflow_timeout",
+  "workflow_id": "wf-456",
+  "service_name": "orchestrator-dynamic",
+  "timestamp": "2026-04-06T10:00:00Z",
+  "details": {
+    "timeout_ms": 3600000,
+    "elapsed_ms": 3800000
+  }
+}
+```
+
+##### Formatação Slack
+
+Alertas críticos incluem:
+- Header com ícone de alerta
+- Seções com título, severidade, workflow ID, serviço
+- Botão de ação para Grafana
+
+Alertas de warning incluem:
+- Header amarelo
+- Título e tipo do alerta
+
+#### Métricas Prometheus
+
+```promql
+# Taxa de notificações enviadas por canal
+rate(orchestration_sla_notification_sent_total{channel="slack"}[5m])
+rate(orchestration_sla_notification_sent_total{channel="pagerduty"}[5m])
+
+# Taxa de falhas por canal
+rate(orchestration_sla_notification_failed_total{channel="slack"}[5m])
+
+# Duração do envio (P95)
+histogram_quantile(0.95, rate(orchestration_sla_notification_duration_seconds_bucket[5m]))
+```
+
+#### Troubleshooting
+
+##### Alertas não chegam no Slack
+```bash
+# Verificar se consumer está rodando
+kubectl logs -n neural-hive-orchestration -l app.kubernetes.io/name=orchestrator-dynamic | grep "sla_alert_consumer"
+
+# Verificar configuração do webhook
+kubectl get secret orchestrator-dynamic-config -o jsonpath='{.data.SLACK_WEBHOOK_URL}' | base64 -d
+
+# Testar webhook manualmente
+curl -X POST $SLACK_WEBHOOK_URL \
+  -H 'Content-Type: application/json' \
+  -d '{"text": "Test message from orchestrator-dynamic"}'
+```
+
+##### Alertas não chegam no PagerDuty
+```bash
+# Verificar routing key
+kubectl get secret orchestrator-dynamic-config -o jsonpath='{.data.PAGERDUTY_ROUTING_KEY}' | base64 -d
+
+# Verificar métricas de envio
+curl http://<pod-ip>:9090/metrics | grep sla_notification
+```
+
+#### Testes
+
+- **Unitários:** `pytest tests/unit/test_sla_alert_consumer.py`
+- **Integração:** `pytest tests/integration/test_sla_alerts_integration.py`
 
 ## Roadmap
 
