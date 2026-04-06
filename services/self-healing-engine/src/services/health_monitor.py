@@ -154,7 +154,7 @@ class HealthMonitor:
                 url = f"{address}{health_endpoint}"
             else:
                 # Fallback para DNS Kubernetes padrão
-                url = f"http://{service_name}.{namespace.svc.cluster.local}:8080{health_endpoint}"
+                url = f"http://{service_name}.{namespace}.svc.cluster.local:8080{health_endpoint}"
 
             session = await self._get_http_session()
             async with session.get(url) as response:
