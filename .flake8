@@ -32,7 +32,9 @@ ignore =
     # E402: module level import not at top of file (common in examples with sys.path)
     E402,
     # W503: line break before binary operator (conflicts with black)
-    W503
+    W503,
+    # F811: redefinition of unused (common in test files with duplicated test classes)
+    F811
 
 # Per-file ignores for specific patterns
 per-file-ignores =

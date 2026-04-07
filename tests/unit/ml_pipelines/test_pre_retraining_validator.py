@@ -13,6 +13,7 @@ Testa validações de pré-requisitos antes do retraining:
 import os
 import sys
 import datetime
+from datetime import timezone
 from unittest.mock import MagicMock, patch, PropertyMock
 from typing import Dict, Any, List
 
