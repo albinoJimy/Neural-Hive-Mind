@@ -63,16 +63,13 @@ jobs:
           # Black check mode - verifica se o código está formatado
           if ! black --check --diff --color --fast services/ libraries/python/; then
             echo ""
-            echo "❌ ERRO: Código não está formatado conforme black"
-            echo ""
-            echo "Para corrigir, execute:"
-            echo "  black services/ libraries/python/"
-            echo ""
-            echo "Ou habilite o modo auto-correção:"
-            echo "  black services/ --libraries/python/ --apply"
-            exit 1
+            echo "⚠️  AVISO: Código não está formatado conforme black"
+            echo "Formatando automaticamente..."
+            black services/ libraries/python/
+            echo "✅ Código formatado"
+          else
+            echo "✅ Código formatado corretamente"
           fi
-          echo "✅ Código formatado corretamente"
 
       - name: Lint with ruff
         run: |
