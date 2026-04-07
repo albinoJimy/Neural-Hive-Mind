@@ -133,6 +133,100 @@ class PlaybookExecutor:
         except Exception:
             return {"actions": []}
 
+    def validate_playbook_structure(self, playbook_name: str) -> Dict[str, Any]:
+        """
+        Valida a estrutura de um playbook.
+
+        Verifica:
+        - Arquivo existe
+        - Formato YAML válido
+        - Campos obrigatórios presentes
+        - Ações têm estrutura válida
+
+        Args:
+            playbook_name: Nome do playbook a validar
+
+        Returns:
+            Dict com keys: valid (bool), errors (list), warnings (list)
+        """
+        result = {"valid": True, "errors": [], "warnings": []}
+
+        try:
+            playbook_path = self.playbooks_dir / f"{playbook_name}.yaml"
+
+            # Verificar se arquivo existe
+            if not playbook_path.exists():
+                result["valid"] = False
+                result["errors"].append(f"Playbook file not found: {playbook_path}")
+                return result
+
+            # Carregar YAML
+            with open(playbook_path) as f:
+                playbook = yaml.safe_load(f)
+
+            if playbook is None:
+                result["valid"] = False
+                result["errors"].append("Playbook file is empty or invalid YAML")
+                return result
+
+            # Verificar campos obrigatórios
+            required_fields = ["description", "actions"]
+            for field in required_fields:
+                if field not in playbook:
+                    result["warnings"].append(f"Missing recommended field: {field}")
+
+            # Verificar se há ações
+            actions = playbook.get("actions", [])
+            if not actions:
+                result["warnings"].append("No actions defined in playbook")
+
+            # Validar estrutura de cada ação
+            for i, action in enumerate(actions):
+                if not isinstance(action, dict):
+                    result["valid"] = False
+                    result["errors"].append(f"Action {i} is not a dict")
+                    continue
+
+                # Verificar campos obrigatórios da ação
+                if "name" not in action:
+                    result["warnings"].append(f"Action {i} missing 'name' field")
+
+                if "type" not in action:
+                    result["valid"] = False
+                    result["errors"].append(f"Action {i} missing 'type' field")
+
+                # Verificar tipos de ação válidos
+                valid_action_types = {
+                    "restart_pod",
+                    "reallocate_ticket",
+                    "update_ticket_status",
+                    "scale_deployment",
+                    "execute_command",
+                    "rollback_release",
+                    "trigger_replanning",
+                    "call_service",
+                }
+                action_type = action.get("type")
+                if action_type and action_type not in valid_action_types:
+                    result["warnings"].append(
+                        f"Action {i} has unknown type: {action_type}"
+                    )
+
+            # Verificar campos recomendados
+            optional_fields = ["timeout_seconds", "severity", "category"]
+            for field in optional_fields:
+                if field not in playbook:
+                    result["warnings"].append(f"Missing optional field: {field}")
+
+        except yaml.YAMLError as e:
+            result["valid"] = False
+            result["errors"].append(f"YAML parsing error: {str(e)}")
+        except Exception as e:
+            result["valid"] = False
+            result["errors"].append(f"Validation error: {str(e)}")
+
+        return result
+
     async def execute_playbook(
         self,
         playbook_name: str,

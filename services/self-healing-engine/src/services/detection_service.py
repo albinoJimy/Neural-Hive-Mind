@@ -1,5 +1,3 @@
-from neural_hive_domain import UTC
-
 """
 Detection Service para Self-Healing Engine.
 
@@ -108,6 +106,8 @@ class RemediationTrigger:
     topic: Optional[str] = None
     connection_string: Optional[str] = None
     playbook_name: Optional[str] = None
+    playbook_validated: bool = False
+    skip_validation: bool = False
     metadata: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
@@ -124,6 +124,8 @@ class RemediationTrigger:
             "topic": self.topic,
             "connection_string": self.connection_string,
             "playbook_name": self.playbook_name,
+            "playbook_validated": self.playbook_validated,
+            "skip_validation": self.skip_validation,
             "metadata": self.metadata,
         }
 
@@ -443,6 +445,33 @@ class DetectionService:
             if not playbook_executor:
                 logger.warning("detection_service.no_playbook_executor")
                 return {"success": False, "error": "Playbook executor not available"}
+
+            # Validar playbook antes da execução (se não foi validado ou skip_validation=False)
+            if not trigger.skip_validation and not trigger.playbook_validated:
+                logger.info(
+                    "detection_service.validating_playbook",
+                    playbook=playbook_name,
+                )
+                validation = playbook_executor.validate_playbook_structure(playbook_name)
+
+                if not validation["valid"]:
+                    logger.error(
+                        "detection_service.playbook_validation_failed",
+                        playbook=playbook_name,
+                        errors=validation["errors"],
+                    )
+                    return {
+                        "success": False,
+                        "error": "Playbook validation failed",
+                        "validation_errors": validation["errors"],
+                    }
+
+                if validation["warnings"]:
+                    logger.warning(
+                        "detection_service.playbook_validation_warnings",
+                        playbook=playbook_name,
+                        warnings=validation["warnings"],
+                    )
 
             # Preparar contexto
             context = {

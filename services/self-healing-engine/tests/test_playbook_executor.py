@@ -189,3 +189,121 @@ async def test_combined_actions(tmp_path, mock_tracer):
 
     assert result["success"] is True
     assert result["total_actions"] == 3
+
+
+# ===== Tests para validate_playbook_structure (FASE3-PREV-003) =====
+
+
+def test_validate_playbook_structure_valid(tmp_path):
+    """Testa validação de playbook com estrutura válida."""
+    playbook_path = tmp_path / "valid.yaml"
+    playbook_content = {
+        "description": "Valid playbook",
+        "timeout_seconds": 300,
+        "severity": "high",
+        "actions": [
+            {"name": "Restart pod", "type": "restart_pod", "parameters": {"pod_name": "test-pod"}},
+            {"name": "Scale deployment", "type": "scale_deployment", "parameters": {"replicas": 3}},
+        ],
+    }
+    playbook_path.write_text(yaml.safe_dump(playbook_content))
+
+    executor = PlaybookExecutor(playbooks_dir=str(tmp_path), k8s_in_cluster=False)
+    result = executor.validate_playbook_structure("valid")
+
+    assert result["valid"] is True
+    assert len(result["errors"]) == 0
+    assert "Missing recommended field: description" not in result["warnings"]
+
+
+def test_validate_playbook_structure_missing_file(tmp_path):
+    """Testa validação de playbook que não existe."""
+    executor = PlaybookExecutor(playbooks_dir=str(tmp_path), k8s_in_cluster=False)
+    result = executor.validate_playbook_structure("nonexistent")
+
+    assert result["valid"] is False
+    assert any("not found" in e for e in result["errors"])
+
+
+def test_validate_playbook_structure_empty_file(tmp_path):
+    """Testa validação de playbook vazio."""
+    playbook_path = tmp_path / "empty.yaml"
+    playbook_path.write_text("")
+
+    executor = PlaybookExecutor(playbooks_dir=str(tmp_path), k8s_in_cluster=False)
+    result = executor.validate_playbook_structure("empty")
+
+    assert result["valid"] is False
+    assert any("empty" in e for e in result["errors"])
+
+
+def test_validate_playbook_structure_invalid_yaml(tmp_path):
+    """Testa validação de playbook com YAML inválido."""
+    playbook_path = tmp_path / "invalid.yaml"
+    playbook_path.write_text("description: test\n  bad indentation:\n    invalid")
+
+    executor = PlaybookExecutor(playbooks_dir=str(tmp_path), k8s_in_cluster=False)
+    result = executor.validate_playbook_structure("invalid")
+
+    assert result["valid"] is False
+    assert any("YAML" in e for e in result["errors"])
+
+
+def test_validate_playbook_structure_missing_actions(tmp_path):
+    """Testa validação de playbook sem ações."""
+    playbook_path = tmp_path / "no_actions.yaml"
+    playbook_content = {"description": "No actions playbook"}
+    playbook_path.write_text(yaml.safe_dump(playbook_content))
+
+    executor = PlaybookExecutor(playbooks_dir=str(tmp_path), k8s_in_cluster=False)
+    result = executor.validate_playbook_structure("no_actions")
+
+    assert result["valid"] is True  # Apenas warning, não erro
+    assert any("No actions defined" in w for w in result["warnings"])
+
+
+def test_validate_playbook_structure_action_without_type(tmp_path):
+    """Testa validação de ação sem campo type."""
+    playbook_path = tmp_path / "no_type.yaml"
+    playbook_content = {
+        "description": "Action without type",
+        "actions": [{"name": "Invalid action"}],
+    }
+    playbook_path.write_text(yaml.safe_dump(playbook_content))
+
+    executor = PlaybookExecutor(playbooks_dir=str(tmp_path), k8s_in_cluster=False)
+    result = executor.validate_playbook_structure("no_type")
+
+    assert result["valid"] is False
+    assert any("missing 'type' field" in e for e in result["errors"])
+
+
+def test_validate_playbook_structure_unknown_action_type(tmp_path):
+    """Testa validação de ação com tipo desconhecido (warning)."""
+    playbook_path = tmp_path / "unknown_type.yaml"
+    playbook_content = {
+        "description": "Unknown action type",
+        "actions": [{"name": "Unknown", "type": "unknown_action_type"}],
+    }
+    playbook_path.write_text(yaml.safe_dump(playbook_content))
+
+    executor = PlaybookExecutor(playbooks_dir=str(tmp_path), k8s_in_cluster=False)
+    result = executor.validate_playbook_structure("unknown_type")
+
+    assert result["valid"] is True  # Tipo desconhecido gera warning, não erro
+    assert any("unknown type" in w for w in result["warnings"])
+
+
+def test_validate_playbook_structure_missing_optional_fields(tmp_path):
+    """Testa validação de playbook sem campos opcionais."""
+    playbook_path = tmp_path / "minimal.yaml"
+    playbook_content = {
+        "actions": [{"name": "Test", "type": "restart_pod"}],
+    }
+    playbook_path.write_text(yaml.safe_dump(playbook_content))
+
+    executor = PlaybookExecutor(playbooks_dir=str(tmp_path), k8s_in_cluster=False)
+    result = executor.validate_playbook_structure("minimal")
+
+    assert result["valid"] is True
+    assert len(result["warnings"]) > 0  # Deve ter warnings sobre campos em falta
