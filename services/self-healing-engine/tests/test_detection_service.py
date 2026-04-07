@@ -476,6 +476,335 @@ class TestRedisMemoryHistory:
 
 
 # ============================================================================
+# Tests de detecção expandida (FASE3-ANOMALY-005)
+# ============================================================================
+
+
+class TestKafkaLagDetection:
+    """Testes para detecção de Kafka lag."""
+
+    @pytest.fixture
+    def mock_health_monitor(self):
+        """Mock do HealthMonitor."""
+        monitor = AsyncMock()
+        monitor.check_kafka_consumer_lag = AsyncMock(
+            return_value=MagicMock(
+                within_threshold=True,
+                lag=100,
+                threshold=10000,
+                consumer_group="test-group",
+                topic="test-topic",
+                partitions={},
+            )
+        )
+        return monitor
+
+    @pytest.fixture
+    def detection_service_with_health(self, mock_health_monitor):
+        """DetectionService com HealthMonitor mockado."""
+        from src.services.detection_service import DetectionService
+
+        return DetectionService(health_monitor=mock_health_monitor)
+
+    @pytest.mark.asyncio
+    async def test_detect_kafka_lag_no_lag(self, detection_service_with_health):
+        """Testa detecção quando lag está dentro do threshold."""
+        result = await detection_service_with_health.detect_kafka_lag(
+            consumer_group="test-group",
+            topic="test-topic",
+        )
+
+        assert result["has_lag"] is False
+        assert result["lag"] == 100
+
+    @pytest.mark.asyncio
+    async def test_detect_kafka_lag_exceeded(self, detection_service_with_health):
+        """Testa detecção quando lag excede threshold."""
+        # Mock com lag acima do threshold
+        detection_service_with_health.health_monitor.check_kafka_consumer_lag = AsyncMock(
+            return_value=MagicMock(
+                within_threshold=False,
+                lag=15000,
+                threshold=10000,
+                consumer_group="test-group",
+                topic="test-topic",
+                partitions={},
+            )
+        )
+
+        result = await detection_service_with_health.detect_kafka_lag(
+            consumer_group="test-group",
+            topic="test-topic",
+        )
+
+        assert result["has_lag"] is True
+        assert result["lag"] == 15000
+
+
+class TestDatabaseConnectionDetection:
+    """Testes para detecção de problemas de conexão DB."""
+
+    @pytest.fixture
+    def mock_health_monitor(self):
+        """Mock do HealthMonitor."""
+        monitor = AsyncMock()
+        monitor.check_database_connection = AsyncMock(
+            return_value=MagicMock(
+                connected=True,
+                latency_ms=5,
+                service_name="test-db",
+                error=None,
+            )
+        )
+        return monitor
+
+    @pytest.fixture
+    def detection_service_with_health(self, mock_health_monitor):
+        """DetectionService com HealthMonitor mockado."""
+        from src.services.detection_service import DetectionService
+
+        return DetectionService(health_monitor=mock_health_monitor)
+
+    @pytest.mark.asyncio
+    async def test_detect_database_connection_ok(self, detection_service_with_health):
+        """Testa detecção quando conexão está OK."""
+        result = await detection_service_with_health.detect_database_connection(
+            service_name="postgres",
+            host="localhost",
+            port=5432,
+            database="neuralhive",
+        )
+
+        assert result["has_connection_issue"] is False
+        assert result["connected"] is True
+
+    @pytest.mark.asyncio
+    async def test_detect_database_connection_failed(self, detection_service_with_health):
+        """Testa detecção quando conexão falhou."""
+        detection_service_with_health.health_monitor.check_database_connection = AsyncMock(
+            return_value=MagicMock(
+                connected=False,
+                latency_ms=0,
+                service_name="postgres",
+                error="Connection refused",
+            )
+        )
+
+        result = await detection_service_with_health.detect_database_connection(
+            service_name="postgres",
+            host="localhost",
+            port=5432,
+            database="neuralhive",
+        )
+
+        assert result["has_connection_issue"] is True
+        assert result["connected"] is False
+
+
+class TestPodCrashLoopDetection:
+    """Testes para detecção de pod crash loop."""
+
+    @pytest.fixture
+    def mock_k8s_core_v1(self):
+        """Mock do Kubernetes CoreV1 API."""
+        api = MagicMock()
+        api.read_namespaced_pod = AsyncMock()
+
+        # Pod sem crash loop
+        pod_ok = MagicMock()
+        pod_ok.status.phase = "Running"
+        pod_ok.status.container_statuses = [MagicMock(restart_count=0)]
+
+        # Pod com crash loop
+        pod_crashing = MagicMock()
+        pod_crashing.status.phase = "Running"
+        pod_crashing.status.container_statuses = [MagicMock(restart_count=5)]
+
+        def side_effect(name, namespace):
+            if "crashing" in name:
+                return pod_crashing
+            return pod_ok
+
+        api.read_namespaced_pod.side_effect = side_effect
+        return api
+
+    @pytest.fixture
+    def detection_service_with_k8s(self, mock_k8s_core_v1):
+        """DetectionService com K8s API mockado."""
+        from src.services.detection_service import DetectionService
+
+        return DetectionService(k8s_core_v1=mock_k8s_core_v1)
+
+    @pytest.mark.asyncio
+    async def test_detect_pod_crash_loop_none(self, detection_service_with_k8s):
+        """Testa detecção quando pod não tem crash loop."""
+        result = await detection_service_with_k8s.detect_pod_crash_loop(
+            pod_name="worker-1",
+            namespace="default",
+        )
+
+        assert result["has_crash_loop"] is False
+        assert result["restart_count"] == 0
+
+    @pytest.mark.asyncio
+    async def test_detect_pod_crash_loop_detected(self, detection_service_with_k8s):
+        """Testa detecção quando pod está em crash loop."""
+        result = await detection_service_with_k8s.detect_pod_crash_loop(
+            pod_name="worker-crashing",
+            namespace="default",
+        )
+
+        assert result["has_crash_loop"] is True
+        assert result["restart_count"] == 5
+
+    @pytest.mark.asyncio
+    async def test_detect_pod_crash_loop_custom_threshold(self, detection_service_with_k8s):
+        """Testa detecção com threshold customizado."""
+        result = await detection_service_with_k8s.detect_pod_crash_loop(
+            pod_name="worker-crashing",
+            namespace="default",
+            restart_threshold=10,
+        )
+
+        assert result["has_crash_loop"] is False  # 5 < 10
+        assert result["restart_count"] == 5
+
+
+class TestExpandedDetectionLoop:
+    """Testes para o loop de detecção expandido."""
+
+    @pytest.fixture
+    def mock_all_services(self):
+        """Mock de todos os serviços necessários."""
+        from src.services.health_monitor import LagStatus
+
+        orchestrator = AsyncMock()
+        orchestrator.get_workflow_status = AsyncMock(
+            return_value={
+                "workflow_id": "wf-123",
+                "status": "RUNNING",
+                "tickets": [{"ticket_id": "t1", "status": "COMPLETED", "updated_at": datetime.now(timezone.utc).isoformat()}],
+                "last_progress_at": datetime.now(timezone.utc).isoformat(),
+            }
+        )
+
+        health_monitor = AsyncMock()
+        health_monitor.check_kafka_consumer_lag = AsyncMock(
+            return_value=MagicMock(
+                within_threshold=True,
+                lag=100,
+                threshold=10000,
+                partitions={},
+            )
+        )
+        health_monitor.check_database_connection = AsyncMock(
+            return_value=MagicMock(connected=True, latency_ms=5)
+        )
+
+        k8s_core = MagicMock()
+        k8s_core.read_namespaced_pod = AsyncMock()
+        pod_ok = MagicMock()
+        pod_ok.status.phase = "Running"
+        pod_ok.status.container_statuses = [MagicMock(restart_count=0)]
+        k8s_core.read_namespaced_pod.return_value = pod_ok
+
+        k8s_custom = MagicMock()
+        k8s_custom.get_namespaced_custom_object = AsyncMock(
+            return_value={"containers": [{"name": "app", "usage": {"memory": "500Mi"}}]}
+        )
+
+        return {
+            "orchestrator": orchestrator,
+            "health_monitor": health_monitor,
+            "k8s_core": k8s_core,
+            "k8s_custom": k8s_custom,
+        }
+
+    @pytest.fixture
+    def detection_service_expanded(self, mock_all_services):
+        """DetectionService com todos os serviços mockados."""
+        from src.services.detection_service import DetectionService
+
+        return DetectionService(
+            orchestrator_client=mock_all_services["orchestrator"],
+            health_monitor=mock_all_services["health_monitor"],
+            k8s_core_v1=mock_all_services["k8s_core"],
+            k8s_custom_api=mock_all_services["k8s_custom"],
+        )
+
+    @pytest.mark.asyncio
+    async def test_loop_with_kafka_lag_check(self, detection_service_expanded):
+        """Testa loop com verificação de Kafka lag."""
+        task = asyncio.create_task(
+            detection_service_expanded.run_detection_loop(
+                workflows=["wf-123"],
+                pods=[("worker-1", "default")],
+                kafka_consumer_groups=[("test-group", "test-topic")],
+                interval_seconds=1,
+            )
+        )
+        await asyncio.sleep(0.5)
+        task.cancel()
+
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
+    @pytest.mark.asyncio
+    async def test_loop_with_database_check(self, detection_service_expanded):
+        """Testa loop com verificação de conexão DB."""
+        db_config = {
+            "service_name": "postgres",
+            "host": "localhost",
+            "port": 5432,
+            "database": "neuralhive",
+        }
+
+        task = asyncio.create_task(
+            detection_service_expanded.run_detection_loop(
+                workflows=["wf-123"],
+                pods=[],
+                database_checks=[db_config],
+                interval_seconds=1,
+            )
+        )
+        await asyncio.sleep(0.5)
+        task.cancel()
+
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
+    @pytest.mark.asyncio
+    async def test_loop_with_all_checks(self, detection_service_expanded):
+        """Testa loop com todos os checks habilitados."""
+        task = asyncio.create_task(
+            detection_service_expanded.run_detection_loop(
+                workflows=["wf-123"],
+                pods=[("worker-1", "default")],
+                kafka_consumer_groups=[("test-group", "test-topic")],
+                database_checks=[{
+                    "service_name": "postgres",
+                    "host": "localhost",
+                    "port": 5432,
+                    "database": "neuralhive",
+                }],
+                check_crash_loops=True,
+                interval_seconds=1,
+            )
+        )
+        await asyncio.sleep(0.5)
+        task.cancel()
+
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
+
+# ============================================================================
 # Tests de run_detection_loop (FASE3-PREV-012)
 # ============================================================================
 

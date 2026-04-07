@@ -156,6 +156,7 @@ class DetectionService:
         k8s_core_v1=None,
         k8s_custom_api=None,
         redis_client=None,
+        health_monitor=None,
         memory_threshold_percent: float = 90.0,
         memory_duration_seconds: int = 300,
         workflow_timeout_seconds: int = 1800,
@@ -170,6 +171,7 @@ class DetectionService:
             k8s_core_v1: Cliente Kubernetes CoreV1Api
             k8s_custom_api: Cliente Kubernetes CustomObjectsApi (para metrics)
             redis_client: Cliente Redis para historico de memoria (opcional)
+            health_monitor: HealthMonitor para verificações de saúde
             memory_threshold_percent: Percentual de memória para alerta
             memory_duration_seconds: Tempo acima do threshold para considerar leak
             workflow_timeout_seconds: Tempo sem progresso para considerar deadlock
@@ -180,6 +182,7 @@ class DetectionService:
         self.k8s_core_v1 = k8s_core_v1
         self.k8s_custom_api = k8s_custom_api
         self.redis_client = redis_client
+        self.health_monitor = health_monitor
         self.memory_threshold_percent = memory_threshold_percent
         self.memory_duration_seconds = memory_duration_seconds
         self.workflow_timeout_seconds = workflow_timeout_seconds
@@ -760,11 +763,219 @@ class DetectionService:
         }
         return playbooks.get(incident_type, "generic_recovery")
 
+    async def detect_kafka_lag(
+        self,
+        consumer_group: str,
+        topic: str,
+        threshold: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """
+        Detecta lag excessivo em consumidor Kafka.
+
+        Args:
+            consumer_group: Grupo de consumidores
+            topic: Tópico Kafka
+            threshold: Limite de lag (usa default se não especificado)
+
+        Returns:
+            Dict com resultado da detecção
+        """
+        with _start_span("detection.kafka_lag_check") as span:
+            _set_span_attr(span, "neural.hive.consumer_group", consumer_group)
+            _set_span_attr(span, "neural.hive.detection_type", "kafka_lag")
+
+            if not self.health_monitor:
+                return {
+                    "has_lag": False,
+                    "lag": 0,
+                    "threshold": threshold or 10000,
+                    "consumer_group": consumer_group,
+                    "topic": topic,
+                    "error": "HealthMonitor not available",
+                }
+
+            try:
+                lag_status = await self.health_monitor.check_kafka_consumer_lag(
+                    consumer_group=consumer_group,
+                    topic=topic,
+                    threshold=threshold,
+                )
+
+                has_lag = not lag_status.within_threshold and lag_status.lag > 0
+
+                _set_span_attr(span, "neural.hive.has_lag", str(has_lag))
+                _set_span_attr(span, "neural.hive.lag", lag_status.lag)
+
+                return {
+                    "has_lag": has_lag,
+                    "lag": lag_status.lag,
+                    "threshold": lag_status.threshold,
+                    "consumer_group": consumer_group,
+                    "topic": topic,
+                    "partitions": lag_status.partitions,
+                }
+
+            except Exception as e:
+                logger.error(
+                    "detection_service.kafka_lag_check_failed",
+                    consumer_group=consumer_group,
+                    topic=topic,
+                    error=str(e),
+                )
+                return {
+                    "has_lag": False,
+                    "lag": 0,
+                    "threshold": threshold or 10000,
+                    "consumer_group": consumer_group,
+                    "topic": topic,
+                    "error": str(e),
+                }
+
+    async def detect_database_connection(
+        self,
+        service_name: str,
+        host: str,
+        port: int,
+        database: str,
+    ) -> Dict[str, Any]:
+        """
+        Detecta problemas de conexão com banco de dados.
+
+        Args:
+            service_name: Nome do serviço de banco
+            host: Host do banco
+            port: Porta do banco
+            database: Nome do banco
+
+        Returns:
+            Dict com resultado da detecção
+        """
+        with _start_span("detection.database_connection_check") as span:
+            _set_span_attr(span, "neural.hive.service_name", service_name)
+            _set_span_attr(span, "neural.hive.detection_type", "database_connection")
+
+            if not self.health_monitor:
+                return {
+                    "has_connection_issue": False,
+                    "service_name": service_name,
+                    "connected": True,
+                    "latency_ms": 0,
+                    "error": "HealthMonitor not available",
+                }
+
+            try:
+                conn_status = await self.health_monitor.check_database_connection(
+                    service_name=service_name,
+                    host=host,
+                    port=port,
+                    database=database,
+                )
+
+                has_issue = not conn_status.connected
+
+                _set_span_attr(span, "neural.hive.has_issue", str(has_issue))
+
+                return {
+                    "has_connection_issue": has_issue,
+                    "service_name": service_name,
+                    "connected": conn_status.connected,
+                    "latency_ms": conn_status.latency_ms,
+                    "error": conn_status.error,
+                }
+
+            except Exception as e:
+                logger.error(
+                    "detection_service.database_check_failed",
+                    service_name=service_name,
+                    error=str(e),
+                )
+                return {
+                    "has_connection_issue": False,
+                    "service_name": service_name,
+                    "connected": True,
+                    "latency_ms": 0,
+                    "error": str(e),
+                }
+
+    async def detect_pod_crash_loop(
+        self,
+        pod_name: str,
+        namespace: str,
+        restart_threshold: int = 3,
+        time_window_minutes: int = 10,
+    ) -> Dict[str, Any]:
+        """
+        Detecta pods em crash loop (múltiplos restarts em curto período).
+
+        Args:
+            pod_name: Nome do pod
+            namespace: Namespace Kubernetes
+            restart_threshold: Número de restarts para considerar crash loop
+            time_window_minutes: Janela de tempo para contar restarts
+
+        Returns:
+            Dict com resultado da detecção
+        """
+        with _start_span("detection.crash_loop_check") as span:
+            _set_span_attr(span, "neural.hive.pod_name", pod_name)
+            _set_span_attr(span, "neural.hive.namespace", namespace)
+            _set_span_attr(span, "neural.hive.detection_type", "pod_crash_loop")
+
+            if not self.k8s_core_v1:
+                return {
+                    "has_crash_loop": False,
+                    "pod_name": pod_name,
+                    "namespace": namespace,
+                    "restart_count": 0,
+                    "error": "Kubernetes API not available",
+                }
+
+            try:
+                # Obter status do pod
+                pod = await self.k8s_core_v1.read_namespaced_pod(
+                    name=pod_name,
+                    namespace=namespace,
+                )
+
+                restart_count = pod.status.container_statuses[0].restart_count if pod.status.container_statuses else 0
+
+                has_crash_loop = restart_count >= restart_threshold
+
+                _set_span_attr(span, "neural.hive.has_crash_loop", str(has_crash_loop))
+                _set_span_attr(span, "neural.hive.restart_count", restart_count)
+
+                return {
+                    "has_crash_loop": has_crash_loop,
+                    "pod_name": pod_name,
+                    "namespace": namespace,
+                    "restart_count": restart_count,
+                    "restart_threshold": restart_threshold,
+                    "phase": pod.status.phase,
+                }
+
+            except Exception as e:
+                logger.error(
+                    "detection_service.crash_loop_check_failed",
+                    pod_name=pod_name,
+                    namespace=namespace,
+                    error=str(e),
+                )
+                return {
+                    "has_crash_loop": False,
+                    "pod_name": pod_name,
+                    "namespace": namespace,
+                    "restart_count": 0,
+                    "error": str(e),
+                }
+
     async def run_detection_loop(
         self,
         workflows: List[str],
         pods: List[tuple[str, str]],  # (pod_name, namespace)
         interval_seconds: int = 60,
+        kafka_consumer_groups: Optional[List[tuple[str, str]]] = None,  # (group, topic)
+        database_checks: Optional[List[dict]] = None,  # [{"service_name", "host", "port", "database"}]
+        check_crash_loops: bool = True,
     ):
         """
         Executa loop de detecção contínua.
@@ -773,20 +984,30 @@ class DetectionService:
             workflows: Lista de workflow IDs para monitorar
             pods: Lista de tuplas (pod_name, namespace) para monitorar
             interval_seconds: Intervalo entre verificações
+            kafka_consumer_groups: Lista de tuplas (consumer_group, topic) para verificar lag
+            database_checks: Lista de configs para verificar conexões DB
+            check_crash_loops: Se deve verificar crash loops em pods
         """
+        kafka_consumer_groups = kafka_consumer_groups or []
+        database_checks = database_checks or []
+
         logger.info(
-            "detection_service.starting_loop", workflow_count=len(workflows), pod_count=len(pods)
+            "detection_service.starting_loop",
+            workflow_count=len(workflows),
+            pod_count=len(pods),
+            kafka_count=len(kafka_consumer_groups),
+            db_count=len(database_checks),
         )
 
         while True:
             with _start_span("detection.loop_iteration") as span:
-                _set_span_attr(span,"neural.hive.workflow_count", len(workflows))
-                _set_span_attr(span,"neural.hive.pod_count", len(pods))
+                _set_span_attr(span, "neural.hive.workflow_count", len(workflows))
+                _set_span_attr(span, "neural.hive.pod_count", len(pods))
                 detection_count = 0
                 remediation_count = 0
 
                 try:
-                    # Verificar workflows
+                    # Verificar workflows (deadlock)
                     for workflow_id in workflows:
                         status = await self.detect_deadlocks(workflow_id)
                         detection_count += 1
@@ -801,17 +1022,15 @@ class DetectionService:
                             await self.trigger_remediation(trigger)
                             remediation_count += 1
 
-                    # Verificar pods
+                    # Verificar pods (memory leak + crash loop)
                     for pod_name, namespace in pods:
-                        # Obter limit de memória do pod
-                        # (simplificado - na prática viria do pod spec)
+                        # Memory leak check
                         limit_bytes = 1073741824  # 1GB default
-
-                        status = await self.detect_memory_leak(
+                        mem_status = await self.detect_memory_leak(
                             pod_name=pod_name, namespace=namespace, memory_limit_bytes=limit_bytes
                         )
                         detection_count += 1
-                        if status.has_leak:
+                        if mem_status.has_leak:
                             trigger = RemediationTrigger(
                                 incident_type="memory_leak",
                                 severity="medium",
@@ -822,14 +1041,71 @@ class DetectionService:
                             await self.trigger_remediation(trigger)
                             remediation_count += 1
 
-                    _set_span_attr(span,"neural.hive.detection_count", detection_count)
-                    _set_span_attr(span,"neural.hive.remediation_count", remediation_count)
+                        # Crash loop check
+                        if check_crash_loops:
+                            crash_status = await self.detect_pod_crash_loop(
+                                pod_name=pod_name, namespace=namespace
+                            )
+                            detection_count += 1
+                            if crash_status["has_crash_loop"]:
+                                trigger = RemediationTrigger(
+                                    incident_type="pod_crash_loop",
+                                    severity="high",
+                                    detected_at=datetime.now(timezone.utc),
+                                    pod_name=pod_name,
+                                    namespace=namespace,
+                                    metadata={
+                                        "restart_count": crash_status["restart_count"],
+                                        "restart_threshold": crash_status["restart_threshold"],
+                                    },
+                                )
+                                await self.trigger_remediation(trigger)
+                                remediation_count += 1
+
+                    # Verificar Kafka lag
+                    for consumer_group, topic in kafka_consumer_groups:
+                        lag_status = await self.detect_kafka_lag(
+                            consumer_group=consumer_group, topic=topic
+                        )
+                        detection_count += 1
+                        if lag_status["has_lag"]:
+                            trigger = RemediationTrigger(
+                                incident_type="kafka_lag",
+                                severity="warning",
+                                detected_at=datetime.now(timezone.utc),
+                                consumer_group=consumer_group,
+                                metadata={
+                                    "lag": lag_status["lag"],
+                                    "topic": topic,
+                                    "threshold": lag_status["threshold"],
+                                },
+                            )
+                            await self.trigger_remediation(trigger)
+                            remediation_count += 1
+
+                    # Verificar conexões DB
+                    for db_config in database_checks:
+                        db_status = await self.detect_database_connection(**db_config)
+                        detection_count += 1
+                        if db_status["has_connection_issue"]:
+                            trigger = RemediationTrigger(
+                                incident_type="database_connection",
+                                severity="error",
+                                detected_at=datetime.now(timezone.utc),
+                                service_name=db_config["service_name"],
+                                metadata=db_config,
+                            )
+                            await self.trigger_remediation(trigger)
+                            remediation_count += 1
+
+                    _set_span_attr(span, "neural.hive.detection_count", detection_count)
+                    _set_span_attr(span, "neural.hive.remediation_count", remediation_count)
 
                 except asyncio.CancelledError:
                     logger.info("detection_service.loop_cancelled")
-                    _set_span_attr(span,"neural.hive.loop_cancelled", "true")
+                    _set_span_attr(span, "neural.hive.loop_cancelled", "true")
                     break
                 except Exception as e:
                     logger.error("detection_service.loop_error", error=str(e))
-                    _set_span_attr(span,"neural.hive.loop_error", str(e))
+                    _set_span_attr(span, "neural.hive.loop_error", str(e))
                     await asyncio.sleep(interval_seconds)
