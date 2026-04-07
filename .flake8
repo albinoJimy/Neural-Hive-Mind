@@ -36,8 +36,9 @@ ignore =
 
 # Per-file ignores for specific patterns
 per-file-ignores =
-    # Tests can have longer lines and unused imports
-    **/tests/*.py: E501, F401, E704, E301
-    **/test_*.py: E501, F401, E704, E301
-    # Workflow tests may have unused variables
+    # Tests can have longer lines, unused imports, compact format
+    **/tests/*.py: E501, F401, E704, E301, E702, E306, F841
+    **/test_*.py: E501, F401, E704, E301, E702, E306, F841
+    # Temporal/workflow tests may have unused variables
+    **/temporal/test_*.py: E306, F841
     **/workflows/test_*.py: E226, F841
