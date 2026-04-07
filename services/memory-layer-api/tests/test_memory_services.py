@@ -26,7 +26,7 @@ async def test_unified_memory_client_init():
         neo4j_client=mock_neo4j,
         clickhouse_client=mock_clickhouse,
         settings=mock_settings,
-        kafka_producer=mock_kafka
+        kafka_producer=mock_kafka,
     )
 
     assert client.redis_client == mock_redis
@@ -52,14 +52,10 @@ async def test_query_redis_layer():
         neo4j_client=mock_neo4j,
         clickhouse_client=mock_clickhouse,
         settings=mock_settings,
-        kafka_producer=mock_kafka
+        kafka_producer=mock_kafka,
     )
 
-    result = await client.query(
-        query_type="entity",
-        entity_id="entity-123",
-        use_cache=True
-    )
+    result = await client.query(query_type="entity", entity_id="entity-123", use_cache=True)
 
     assert result["data"]["key"] == "value"
 
@@ -84,14 +80,10 @@ async def test_query_mongodb_layer():
         neo4j_client=mock_neo4j,
         clickhouse_client=mock_clickhouse,
         settings=mock_settings,
-        kafka_producer=mock_kafka
+        kafka_producer=mock_kafka,
     )
 
-    result = await client.query(
-        query_type="entity",
-        entity_id="entity-123",
-        use_cache=True
-    )
+    result = await client.query(query_type="entity", entity_id="entity-123", use_cache=True)
 
     assert result["source"] == "mongodb"
 
@@ -117,14 +109,10 @@ async def test_store_memory():
         neo4j_client=mock_neo4j,
         clickhouse_client=mock_clickhouse,
         settings=mock_settings,
-        kafka_producer=mock_kafka
+        kafka_producer=mock_kafka,
     )
 
-    result = await client.store(
-        entity_id="entity-123",
-        data={"key": "value"},
-        ttl=3600
-    )
+    result = await client.store(entity_id="entity-123", data={"key": "value"}, ttl=3600)
 
     assert result["success"] is True
 
@@ -139,9 +127,7 @@ async def test_lineage_tracker_init():
     mock_settings = MagicMock()
 
     tracker = LineageTracker(
-        mongodb_client=mock_mongo,
-        neo4j_client=mock_neo4j,
-        settings=mock_settings
+        mongodb_client=mock_mongo, neo4j_client=mock_neo4j, settings=mock_settings
     )
 
     assert tracker.mongodb_client == mock_mongo
@@ -157,21 +143,18 @@ async def test_get_lineage_tree():
     mock_settings = MagicMock()
 
     # Mock Neo4j query para lineage
-    mock_neo4j.query = MagicMock(return_value=[
-        {"entity_id": "entity-122", "relationship": "parent_of"},
-        {"entity_id": "entity-121", "relationship": "parent_of"}
-    ])
+    mock_neo4j.query = MagicMock(
+        return_value=[
+            {"entity_id": "entity-122", "relationship": "parent_of"},
+            {"entity_id": "entity-121", "relationship": "parent_of"},
+        ]
+    )
 
     tracker = LineageTracker(
-        mongodb_client=mock_mongo,
-        neo4j_client=mock_neo4j,
-        settings=mock_settings
+        mongodb_client=mock_mongo, neo4j_client=mock_neo4j, settings=mock_settings
     )
 
-    result = await tracker.get_lineage_tree(
-        entity_id="entity-123",
-        depth=3
-    )
+    result = await tracker.get_lineage_tree(entity_id="entity-123", depth=3)
 
     assert result["entity_id"] == "entity-123"
     assert "ancestors" in result
@@ -189,15 +172,11 @@ async def test_track_lineage():
     mock_neo4j.create_relationship = MagicMock(return_value=True)
 
     tracker = LineageTracker(
-        mongodb_client=mock_mongo,
-        neo4j_client=mock_neo4j,
-        settings=mock_settings
+        mongodb_client=mock_mongo, neo4j_client=mock_neo4j, settings=mock_settings
     )
 
     result = await tracker.track_relationship(
-        parent_id="entity-123",
-        child_id="entity-124",
-        relationship_type="derived_from"
+        parent_id="entity-123", child_id="entity-124", relationship_type="derived_from"
     )
 
     assert result is not None
@@ -211,10 +190,7 @@ async def test_data_quality_monitor_init():
     mock_mongo = AsyncMock()
     mock_settings = MagicMock()
 
-    monitor = DataQualityMonitor(
-        mongodb_client=mock_mongo,
-        settings=mock_settings
-    )
+    monitor = DataQualityMonitor(mongodb_client=mock_mongo, settings=mock_settings)
 
     assert monitor.mongodb_client == mock_mongo
 
@@ -225,21 +201,17 @@ async def test_get_quality_trends():
     from src.services.data_quality_monitor import DataQualityMonitor
 
     mock_mongo = AsyncMock()
-    mock_mongo.aggregate = AsyncMock(return_value=[
-        {"date": "2026-03-29", "completeness": 0.95, "accuracy": 0.92},
-        {"date": "2026-03-30", "completeness": 0.96, "accuracy": 0.93}
-    ])
+    mock_mongo.aggregate = AsyncMock(
+        return_value=[
+            {"date": "2026-03-29", "completeness": 0.95, "accuracy": 0.92},
+            {"date": "2026-03-30", "completeness": 0.96, "accuracy": 0.93},
+        ]
+    )
     mock_settings = MagicMock()
 
-    monitor = DataQualityMonitor(
-        mongodb_client=mock_mongo,
-        settings=mock_settings
-    )
+    monitor = DataQualityMonitor(mongodb_client=mock_mongo, settings=mock_settings)
 
-    result = await monitor.get_quality_trends(
-        data_type="context",
-        days=7
-    )
+    result = await monitor.get_quality_trends(data_type="context", days=7)
 
     assert len(result) >= 0
     if len(result) > 0:
@@ -255,19 +227,12 @@ async def test_record_quality_metrics():
     mock_mongo.insert_one = AsyncMock(return_value=MagicMock(inserted_id="id-123"))
     mock_settings = MagicMock()
 
-    monitor = DataQualityMonitor(
-        mongodb_client=mock_mongo,
-        settings=mock_settings
-    )
+    monitor = DataQualityMonitor(mongodb_client=mock_mongo, settings=mock_settings)
 
     result = await monitor.record_quality_metrics(
         entity_id="entity-123",
         data_type="context",
-        metrics={
-            "completeness": 0.95,
-            "accuracy": 0.92,
-            "consistency": 0.88
-        }
+        metrics={"completeness": 0.95, "accuracy": 0.92, "consistency": 0.88},
     )
 
     assert result["success"] is True
@@ -293,13 +258,10 @@ async def test_invalidate_cache():
         neo4j_client=mock_neo4j,
         clickhouse_client=mock_clickhouse,
         settings=mock_settings,
-        kafka_producer=mock_kafka
+        kafka_producer=mock_kafka,
     )
 
-    result = await client.invalidate_cache(
-        pattern="entity:*",
-        cascade=False
-    )
+    result = await client.invalidate_cache(pattern="entity:*", cascade=False)
 
     assert result["success"] is True
 
@@ -323,12 +285,11 @@ async def test_sync_to_clickhouse():
         neo4j_client=mock_neo4j,
         clickhouse_client=mock_clickhouse,
         settings=mock_settings,
-        kafka_producer=mock_kafka
+        kafka_producer=mock_kafka,
     )
 
     result = await client.sync_to_clickhouse(
-        table="memory_events",
-        data=[{"entity_id": "entity-123", "timestamp": datetime.now()}]
+        table="memory_events", data=[{"entity_id": "entity-123", "timestamp": datetime.now()}]
     )
 
     assert result["success"] is True
@@ -349,9 +310,9 @@ async def test_retention_policy_manager():
         settings=mock_settings,
         mongodb_client=mock_mongo,
         clickhouse_client=mock_clickhouse,
-        neo4j_client=mock_neo4j
+        neo4j_client=mock_neo4j,
     )
 
-    result = await manager enforce_retention()
+    result = await manager.enforce_retention()
 
     assert result is not None
