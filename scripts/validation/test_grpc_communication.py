@@ -471,9 +471,9 @@ async def test_service_registry_grpc() -> GRPCTestResult:
                 response_details={
                     "address": address,
                     "agents_found": agent_count,
-                    "agent_ids": [a.agent_id for a in response.agents[:5]]
-                    if agent_count > 0
-                    else [],
+                    "agent_ids": (
+                        [a.agent_id for a in response.agents[:5]] if agent_count > 0 else []
+                    ),
                 },
             )
 

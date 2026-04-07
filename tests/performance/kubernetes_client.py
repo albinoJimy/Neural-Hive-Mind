@@ -198,9 +198,11 @@ class KubernetesClient:
                             "status": cond.status,
                             "reason": cond.reason,
                             "message": cond.message,
-                            "last_transition_time": cond.last_transition_time.isoformat()
-                            if cond.last_transition_time
-                            else None,
+                            "last_transition_time": (
+                                cond.last_transition_time.isoformat()
+                                if cond.last_transition_time
+                                else None
+                            ),
                         }
                     )
 

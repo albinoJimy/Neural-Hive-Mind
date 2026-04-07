@@ -4,6 +4,7 @@ Testes unitários para componentes de Workflow.
 GAP-04: Cobertura de Testes 16% → 70%
 Testa estados, transições e execução de workflows.
 """
+
 import pytest
 import asyncio
 from datetime import datetime, timedelta, timezone
@@ -509,7 +510,7 @@ class TestWorkflowValidation:
         step = {
             "name": "process",
             "required_inputs": ["user_id", "amount"],
-            "available_inputs": {"user_id": "user-123"}
+            "available_inputs": {"user_id": "user-123"},
             # amount faltando
         }
 

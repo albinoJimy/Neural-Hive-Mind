@@ -4,6 +4,7 @@ Testes unitários para neural_hive_risk_scoring.
 GAP-04: Cobertura de Testes 16% → 70%
 Testa avaliação de risco e scoring de decisões.
 """
+
 import pytest
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4

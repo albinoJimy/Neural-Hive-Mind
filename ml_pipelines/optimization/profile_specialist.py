@@ -50,9 +50,9 @@ def generate_test_plan(num_tasks: int = 10, plan_id: str = "test-profile") -> di
         "tasks": [
             {
                 "task_id": f"task-{i}",
-                "task_type": "analysis"
-                if i % 3 == 0
-                else ("transformation" if i % 3 == 1 else "validation"),
+                "task_type": (
+                    "analysis" if i % 3 == 0 else ("transformation" if i % 3 == 1 else "validation")
+                ),
                 "description": f"Executar tarefa de teste {i} com análise de dados e processamento",
                 "dependencies": [f"task-{i-1}"] if i > 0 else [],
                 "estimated_duration_ms": 5000 + (i * 100),

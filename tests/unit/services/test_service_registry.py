@@ -4,6 +4,7 @@ Testes unitários para Service Registry.
 GAP-04: Cobertura de Testes 16% → 70%
 Testa registro e descoberta de serviços.
 """
+
 import pytest
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4

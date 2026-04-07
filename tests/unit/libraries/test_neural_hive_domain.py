@@ -4,6 +4,7 @@ Testes unitários para neural_hive_domain.
 GAP-04: Cobertura de Testes 16% → 70%
 Testa modelos de domínio e entidades compartilhadas.
 """
+
 import pytest
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4

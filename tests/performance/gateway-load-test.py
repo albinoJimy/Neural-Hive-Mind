@@ -136,9 +136,11 @@ class GatewayLoadTester:
                     response_time_ms=response_time,
                     success=response.status == 200,
                     response_size_bytes=len(content.encode("utf-8")),
-                    error_message=None
-                    if response.status == 200
-                    else f"HTTP {response.status}: {content[:200]}",
+                    error_message=(
+                        None
+                        if response.status == 200
+                        else f"HTTP {response.status}: {content[:200]}"
+                    ),
                 )
 
         except asyncio.TimeoutError:
@@ -201,9 +203,11 @@ class GatewayLoadTester:
                     response_time_ms=response_time,
                     success=response.status == 200,
                     response_size_bytes=len(content.encode("utf-8")),
-                    error_message=None
-                    if response.status == 200
-                    else f"HTTP {response.status}: {content[:200]}",
+                    error_message=(
+                        None
+                        if response.status == 200
+                        else f"HTTP {response.status}: {content[:200]}"
+                    ),
                 )
 
         except asyncio.TimeoutError:
@@ -245,9 +249,11 @@ class GatewayLoadTester:
                     response_time_ms=response_time,
                     success=response.status == 200,
                     response_size_bytes=len(content.encode("utf-8")),
-                    error_message=None
-                    if response.status == 200
-                    else f"HTTP {response.status}: {content[:200]}",
+                    error_message=(
+                        None
+                        if response.status == 200
+                        else f"HTTP {response.status}: {content[:200]}"
+                    ),
                 )
 
         except Exception as e:

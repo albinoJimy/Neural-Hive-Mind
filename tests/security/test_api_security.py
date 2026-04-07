@@ -4,6 +4,7 @@ Testes de segurança para APIs REST.
 GAP-04: Cobertura de Testes 16% → 70%
 Testa segurança de endpoints FastAPI: rate limiting, input validation, etc.
 """
+
 import pytest
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch

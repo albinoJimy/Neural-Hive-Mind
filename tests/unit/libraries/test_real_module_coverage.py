@@ -3,6 +3,7 @@ Testes que importam módulos reais para cobertura.
 
 GAP-04: Cobertura de Testes 16% → 70%
 """
+
 import pytest
 from datetime import datetime, timedelta
 from uuid import uuid4

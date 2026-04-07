@@ -2,6 +2,7 @@
 Shared fixtures for Vault integration tests.
 This module is imported by all vault rotation test files to share the module cache.
 """
+
 import sys
 import os
 from unittest.mock import MagicMock

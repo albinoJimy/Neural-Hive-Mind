@@ -4,6 +4,7 @@ Testes de integração com Kafka.
 GAP-04: Cobertura de Testes 16% → 70%
 Testa integração entre serviços via Kafka.
 """
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, timedelta, timezone

@@ -1,6 +1,7 @@
 """
 Testes de integração gRPC entre serviços
 """
+
 import asyncio
 from typing import Dict
 

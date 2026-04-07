@@ -4,6 +4,7 @@ Testes unitários para validators e transformers.
 GAP-04: Cobertura de Testes 16% → 70%
 Testa validação de dados e transformação.
 """
+
 import pytest
 import asyncio
 from datetime import datetime, timedelta

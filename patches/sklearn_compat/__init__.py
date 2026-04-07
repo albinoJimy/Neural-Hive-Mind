@@ -69,9 +69,9 @@ def _monkey_patch_sklearn_trees():
 
         logger.info(
             "Sklearn compatibility patch applied",
-            sklearn_version=sys.modules.get("sklearn").__version__
-            if "sklearn" in sys.modules
-            else "unknown",
+            sklearn_version=(
+                sys.modules.get("sklearn").__version__ if "sklearn" in sys.modules else "unknown"
+            ),
         )
 
     except Exception as e:

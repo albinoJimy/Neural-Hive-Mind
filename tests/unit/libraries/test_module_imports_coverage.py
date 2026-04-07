@@ -4,6 +4,7 @@ Testes de cobertura para neural_hive_specialists.imports módulos reais.
 GAP-04: Cobertura de Testes 16% → 70%
 Importa módulos reais para aumentar cobertura.
 """
+
 import pytest
 from datetime import datetime, timedelta
 from unittest.mock import Mock, patch, MagicMock

@@ -4,6 +4,7 @@ Testes unitários para scripts do neural_hive_specialists.
 GAP-04: Cobertura de Testes 16% → 70%
 Testa scripts de utilidade e manutenção.
 """
+
 import pytest
 from datetime import datetime, timedelta, timezone
 from unittest.mock import Mock, patch, MagicMock

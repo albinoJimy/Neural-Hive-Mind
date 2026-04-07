@@ -6,6 +6,7 @@ Testa cliente do agente, configuração e telemetria.
 
 NOTA: Testes independentes do módulo real para evitar problemas de importação.
 """
+
 import pytest
 import asyncio
 from datetime import datetime, timedelta, timezone

@@ -8,6 +8,7 @@ Expõe ferramentas para:
 - Identificação de código duplicado
 - Recomendações de otimização
 """
+
 import ast
 import os
 from pathlib import Path
@@ -711,16 +712,16 @@ async def analyze_file_performance(file_path: str) -> dict[str, Any]:
             "issues": issues_dict,
             "issue_count": len(issues_dict),
             "summary": {
-                "complexity": "high"
-                if metrics.max_complexity > 20
-                else "medium"
-                if metrics.max_complexity > 10
-                else "low",
-                "maintainability": "good"
-                if len(issues_dict) < 5
-                else "needs_attention"
-                if len(issues_dict) < 10
-                else "poor",
+                "complexity": (
+                    "high"
+                    if metrics.max_complexity > 20
+                    else "medium" if metrics.max_complexity > 10 else "low"
+                ),
+                "maintainability": (
+                    "good"
+                    if len(issues_dict) < 5
+                    else "needs_attention" if len(issues_dict) < 10 else "poor"
+                ),
             },
         }
 

@@ -4,6 +4,7 @@ Testes unitários para neural_hive_specialists (deep dive).
 GAP-04: Cobertura de Testes 16% → 70%
 Testa o framework de especialistas em detalhes.
 """
+
 import pytest
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4

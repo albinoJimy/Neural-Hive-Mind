@@ -412,8 +412,9 @@ class TestMongoDBConnection:
         mock_client_instance.admin.command.side_effect = Exception("Connection refused")
 
         # Usar patch para substituir o MongoClient no módulo específico
-        with patch.object(pymongo, "MongoClient", return_value=mock_client_instance), patch(
-            "real_data_collector.get_feature_names", return_value=mock_feature_names
+        with (
+            patch.object(pymongo, "MongoClient", return_value=mock_client_instance),
+            patch("real_data_collector.get_feature_names", return_value=mock_feature_names),
         ):
             # Recarregar o módulo para usar o novo patch
             import importlib

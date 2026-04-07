@@ -4,6 +4,7 @@ Testes unitários para neural_hive_ml.
 GAP-04: Cobertura de Testes 16% → 70%
 Testa detecção de drift, retreinamento e modelos preditivos.
 """
+
 import pytest
 import asyncio
 from datetime import datetime, timedelta, timezone

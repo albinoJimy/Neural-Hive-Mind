@@ -221,9 +221,9 @@ class PayloadGenerator:
                     "task_id": f"edge-task-{i+1}",
                     "description": f"Edge case task {i+1}",
                     "estimated_duration_seconds": i * 10,
-                    "dependencies": [f"edge-task-{j}" for j in range(max(1, i - 5), i)]
-                    if i > 0
-                    else [],
+                    "dependencies": (
+                        [f"edge-task-{j}" for j in range(max(1, i - 5), i)] if i > 0 else []
+                    ),
                 }
             )
 

@@ -7,6 +7,7 @@ Valida que:
 3. Metricas sao registradas corretamente
 4. Compensacao e idempotente
 """
+
 import sys
 import os
 import asyncio

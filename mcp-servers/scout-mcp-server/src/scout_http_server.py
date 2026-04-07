@@ -10,6 +10,7 @@ Expõe endpoints REST para:
 Este servidor HTTP expõe as mesmas funcionalidades do Scout MCP Server
 mas usando endpoints REST simples em vez do protocolo MCP stdio.
 """
+
 import asyncio
 import json
 import os

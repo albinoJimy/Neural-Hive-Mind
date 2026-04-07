@@ -4,6 +4,7 @@ Testes unitários para Consensus Engine.
 GAP-04: Cobertura de Testes 16% → 70%
 Testa orquestração de consenso, timeouts, e fallback.
 """
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, timedelta, timezone

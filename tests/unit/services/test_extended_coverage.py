@@ -4,6 +4,7 @@ Testes estendidos de serviços para cobertura.
 GAP-04: Cobertura de Testes 16% → 70%
 Testa componentes adicionais de serviços.
 """
+
 import pytest
 from datetime import datetime, timedelta
 from uuid import uuid4

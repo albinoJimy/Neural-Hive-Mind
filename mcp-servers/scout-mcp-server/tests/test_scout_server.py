@@ -1,6 +1,7 @@
 """
 Testes para Scout MCP Server.
 """
+
 import sys
 import pytest
 import tempfile
