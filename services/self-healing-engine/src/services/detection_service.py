@@ -1,4 +1,4 @@
-from neural_hive_domain import UTC
+from datetime import timezone
 
 """
 Detection Service para Self-Healing Engine.
@@ -47,7 +47,7 @@ class DeadlockStatus:
     has_deadlock: bool
     stuck_duration_seconds: int = 0
     suspected_tickets: List[str] = field(default_factory=list)
-    detected_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    detected_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     metadata: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
@@ -73,7 +73,7 @@ class MemoryStatus:
     usage_percent: float
     limit_bytes: int
     duration_above_threshold_seconds: int = 0
-    detected_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    detected_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     container_name: Optional[str] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
 
