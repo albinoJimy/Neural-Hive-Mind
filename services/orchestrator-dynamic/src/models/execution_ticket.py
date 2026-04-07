@@ -10,7 +10,16 @@ NOTA: Este módulo usa Pydantic v2.
 import hashlib
 import json
 from datetime import datetime
-from enum import StrEnum
+from enum import Enum
+import sys
+
+# Python 3.10 compatibility: _StrEnum was added in Python 3.11
+if sys.version_info >= (3, 11):
+    from enum import _StrEnum as __StrEnum
+else:
+    class __StrEnum(str, Enum):
+        """Polyfill for _StrEnum on Python 3.10"""
+        pass
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -32,7 +41,7 @@ def _get_enum_value(val) -> str:
     return val.value if hasattr(val, "value") else str(val)
 
 
-class TaskType(StrEnum):
+class TaskType(_StrEnum):
     """Tipos de tarefa.
 
     Inclui tipos legados (lowercase) para compatibilidade com mensagens antigas.
@@ -58,7 +67,7 @@ class TaskType(StrEnum):
     review = "review"
 
 
-class TicketStatus(StrEnum):
+class TicketStatus(_StrEnum):
     """Status do ticket de execução."""
 
     PENDING = "PENDING"
@@ -69,7 +78,7 @@ class TicketStatus(StrEnum):
     COMPENSATED = "COMPENSATED"
 
 
-class Priority(StrEnum):
+class Priority(_StrEnum):
     """Prioridade de execução."""
 
     LOW = "LOW"
@@ -78,7 +87,7 @@ class Priority(StrEnum):
     CRITICAL = "CRITICAL"
 
 
-class RiskBand(StrEnum):
+class RiskBand(_StrEnum):
     """Banda de risco."""
 
     low = "low"
@@ -87,7 +96,7 @@ class RiskBand(StrEnum):
     critical = "critical"
 
 
-class SecurityLevel(StrEnum):
+class SecurityLevel(_StrEnum):
     """Nível de segurança."""
 
     PUBLIC = "PUBLIC"
@@ -96,7 +105,7 @@ class SecurityLevel(StrEnum):
     RESTRICTED = "RESTRICTED"
 
 
-class DeliveryMode(StrEnum):
+class DeliveryMode(_StrEnum):
     """Modo de entrega."""
 
     AT_MOST_ONCE = "AT_MOST_ONCE"
@@ -104,14 +113,14 @@ class DeliveryMode(StrEnum):
     EXACTLY_ONCE = "EXACTLY_ONCE"
 
 
-class Consistency(StrEnum):
+class Consistency(_StrEnum):
     """Nível de consistência."""
 
     EVENTUAL = "EVENTUAL"
     STRONG = "STRONG"
 
 
-class Durability(StrEnum):
+class Durability(_StrEnum):
     """Modo de durabilidade."""
 
     TRANSIENT = "TRANSIENT"
