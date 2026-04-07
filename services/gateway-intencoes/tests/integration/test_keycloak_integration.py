@@ -4,10 +4,8 @@ Test real Keycloak integration with testcontainers
 """
 
 import asyncio
-import json
 import pytest
 from datetime import datetime, timedelta
-from typing import Dict, Any
 import httpx
 
 # Skip tests if dependencies not available
@@ -26,7 +24,6 @@ except ImportError:
         TESTCONTAINERS_AVAILABLE = False
 
 from src.security.oauth2_validator import OAuth2Validator, TokenValidationError
-from src.config.settings import get_settings
 
 
 @pytest.mark.skipif(not TESTCONTAINERS_AVAILABLE, reason="testcontainers not available")
@@ -450,7 +447,7 @@ class TestKeycloakFailureScenarios:
     @pytest.mark.asyncio
     async def test_jwks_fallback_behavior(self):
         """Test JWKS cache fallback to expired cache on network errors"""
-        from unittest.mock import Mock, patch, AsyncMock
+        from unittest.mock import AsyncMock
         import httpx
 
         validator = OAuth2Validator()

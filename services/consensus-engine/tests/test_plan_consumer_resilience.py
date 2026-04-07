@@ -9,7 +9,6 @@ Cobre cenários de:
 - Shutdown gracioso
 """
 
-import asyncio
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from confluent_kafka import KafkaError

@@ -3,7 +3,7 @@
 import sys
 import os
 import pytest
-from unittest.mock import MagicMock, AsyncMock
+from unittest.mock import MagicMock
 
 # Adicionar paths para importação
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))

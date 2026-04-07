@@ -3,9 +3,7 @@ Conftest para testes do Analyst Agents.
 """
 
 import pytest
-import asyncio
 from datetime import datetime, timezone, timedelta
-from motor.motor_asyncio import AsyncIOMotorClient
 import sys
 import os
 from unittest.mock import MagicMock
@@ -260,16 +258,10 @@ async def test_database(mongodb_client):
 @pytest.fixture
 async def insight_repository(mongodb_client, test_database):
     """Repositório de insights para testes com mock."""
-    from unittest.mock import AsyncMock, MagicMock
+    from unittest.mock import MagicMock
     from datetime import datetime, timezone, timedelta
     from src.models.insight_extended import (
-        InsightResponse,
         InsightCreate,
-        InsightStatus,
-        InsightMetrics,
-        AnalysisType,
-        InsightSource,
-        InsightMetadata,
     )
     import uuid
 

@@ -6,7 +6,7 @@ falha na publicação, compensação e idempotência.
 """
 
 import pytest
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, AsyncMock, patch
 
 from tenacity import RetryError

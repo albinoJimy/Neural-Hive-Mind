@@ -77,7 +77,6 @@ def test_rollback_request():
 
 def test_pipeline_manifest_with_utcnow():
     from src.models.pipeline import PipelineManifest
-    from src.models.schemas import ProjectStack
 
     manifest = PipelineManifest(
         manifest_id="manifest-123",

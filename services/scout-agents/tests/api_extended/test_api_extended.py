@@ -4,10 +4,9 @@ Nova funcionalidade de exploração e detecção de sinais.
 """
 
 import pytest
-from unittest.mock import Mock, MagicMock, AsyncMock, patch
+from unittest.mock import MagicMock, AsyncMock
 from datetime import datetime, timezone
 import sys
-from pathlib import Path
 from fastapi.testclient import TestClient
 from enum import Enum
 
@@ -34,7 +33,7 @@ sys.modules["neural_hive_domain"] = mock_domain
 sys.modules["neural_hive_observability"] = mock_obs
 
 # Agora pode importar
-from src.api.http_server import app, _engine, init_app
+from src.api.http_server import app
 
 
 @pytest.fixture
@@ -187,7 +186,6 @@ class TestExplorationsEndpoints:
 
     def test_create_exploration(self, client):
         """Testa criar nova exploração."""
-        from src.api.http_server import _explorations
 
         response = client.post("/api/v1/explorations?target=/src&task_type=scan")
 

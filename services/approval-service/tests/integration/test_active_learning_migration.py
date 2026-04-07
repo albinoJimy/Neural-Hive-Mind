@@ -9,7 +9,7 @@ Execute com: docker-compose up -d mongodb
 
 import pytest
 from motor.motor_asyncio import AsyncIOMotorClient
-from unittest.mock import MagicMock, AsyncMock
+from unittest.mock import MagicMock
 from datetime import datetime, timezone
 import os
 

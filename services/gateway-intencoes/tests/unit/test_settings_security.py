@@ -3,7 +3,6 @@
 import pytest
 import os
 from unittest.mock import patch
-from pydantic import ValidationError
 from src.config.settings import Settings
 
 

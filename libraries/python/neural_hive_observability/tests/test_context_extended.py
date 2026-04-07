@@ -9,14 +9,11 @@ Este arquivo contém testes adicionais para aumentar a cobertura de:
 """
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
-from opentelemetry import context, baggage
-from opentelemetry.context import attach, detach
+from unittest.mock import patch
 
 from neural_hive_observability.config import ObservabilityConfig
 from neural_hive_observability.context import (
     ContextManager,
-    ChildContext,
     extract_context_from_headers,
     extract_context_from_metadata,
     set_baggage_value,

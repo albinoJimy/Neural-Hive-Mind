@@ -2,8 +2,7 @@
 
 import pytest
 from datetime import datetime, timedelta
-from unittest.mock import Mock, patch, AsyncMock
-from motor.motor_asyncio import AsyncIOMotorClientSession
+from unittest.mock import Mock, AsyncMock
 from neural_hive_ml.model_version_repository import ModelVersionRepository
 
 pytest_plugins = ("pytest_asyncio",)

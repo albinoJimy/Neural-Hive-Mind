@@ -7,7 +7,6 @@ o comportamento do RESTAdapter em cenarios proximos a producao.
 
 import asyncio
 import json
-from typing import Any, Dict
 
 import pytest
 from aiohttp import web

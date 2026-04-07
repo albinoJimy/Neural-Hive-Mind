@@ -57,7 +57,7 @@ class ExecutionTicketClient:
             self._connected = True
             logger.info("execution_ticket_service_connected", target=target)
 
-        except Exception as e:
+        except Exception:
             logger.exception("execution_ticket_service_connection_failed")
             raise
 

@@ -6,7 +6,6 @@ Testa cálculo de prioridade adaptativa baseado em histórico.
 
 import pytest
 from datetime import datetime, timezone, timedelta
-from collections import defaultdict
 
 from src.scheduler.adaptive_priority import AdaptivePriorityCalculator
 

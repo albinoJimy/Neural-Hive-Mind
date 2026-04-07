@@ -6,7 +6,7 @@ Usa FastAPI Depends() para injetar dependências de forma tipada e testável.
 
 from typing import Any
 
-from fastapi import Depends, HTTPException, Request
+from fastapi import HTTPException, Request
 
 from ..clients import MongoDBClient
 from ..services import ExceptionApprovalService, LeaderElection, LoadBalancer

@@ -2,7 +2,7 @@
 
 import asyncio
 import pytest
-from unittest.mock import MagicMock, AsyncMock
+from unittest.mock import AsyncMock
 from motor.motor_asyncio import AsyncIOMotorClient
 
 from src.config.settings import get_settings

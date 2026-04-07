@@ -7,7 +7,6 @@ Ferramentas:
 - analyze_structure: Analisa estrutura de diretórios
 """
 
-import os
 import re
 from pathlib import Path
 from typing import Any

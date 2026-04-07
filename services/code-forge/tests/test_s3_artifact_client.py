@@ -1,7 +1,7 @@
 """Testes unitários para S3ArtifactClient"""
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 import sys
 import os
 import tempfile

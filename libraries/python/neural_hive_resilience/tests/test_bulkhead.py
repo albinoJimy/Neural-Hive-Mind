@@ -8,7 +8,6 @@ from neural_hive_resilience.bulkhead import (
     ThreadPoolBulkhead,
     BulkheadFactory,
     BulkheadConfig,
-    BulkheadStrategy,
     bulkhead,
 )
 from neural_hive_resilience.exceptions import BulkheadRejectedError

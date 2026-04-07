@@ -34,11 +34,9 @@ from .schemas import (
     CognitivePlanSchema,
     PlanValidationError,
     PlanVersionIncompatibleError,
-    TaskDependencyError,
     is_version_compatible,
 )
 import asyncio
-from concurrent.futures import ThreadPoolExecutor
 from tenacity import (
     retry,
     stop_after_attempt,

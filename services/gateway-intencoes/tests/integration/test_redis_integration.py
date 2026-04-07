@@ -4,10 +4,7 @@ Test real Redis Cluster operations with testcontainers
 """
 
 import asyncio
-import json
 import pytest
-import time
-from typing import Dict, Any
 
 # Skip tests if dependencies not available
 pytest_plugins = []
@@ -19,8 +16,7 @@ try:
 except ImportError:
     TESTCONTAINERS_AVAILABLE = False
 
-from src.cache.redis_client import RedisClient, CircuitBreakerError
-from src.config.settings import get_settings
+from src.cache.redis_client import RedisClient
 
 
 @pytest.mark.skipif(not TESTCONTAINERS_AVAILABLE, reason="testcontainers not available")
@@ -43,7 +39,6 @@ class TestRedisClusterIntegration:
     async def redis_client_integration(self, redis_cluster_container):
         """Create Redis client connected to test cluster"""
         # Mock settings for integration test
-        import os
         from unittest.mock import patch, Mock
 
         test_settings = Mock()

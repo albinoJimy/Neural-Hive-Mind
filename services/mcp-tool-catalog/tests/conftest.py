@@ -12,7 +12,7 @@ Fixtures compartilhadas para:
 
 import asyncio
 from typing import Dict, Any, List
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 

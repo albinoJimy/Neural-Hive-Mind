@@ -14,7 +14,6 @@ from prometheus_client import (
     Info,
     start_http_server,
     CollectorRegistry,
-    REGISTRY,
 )
 
 from .config import ObservabilityConfig

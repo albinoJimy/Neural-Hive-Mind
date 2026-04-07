@@ -1,5 +1,4 @@
 import grpc
-import pytest
 from types import SimpleNamespace
 from typing import List, Tuple
 

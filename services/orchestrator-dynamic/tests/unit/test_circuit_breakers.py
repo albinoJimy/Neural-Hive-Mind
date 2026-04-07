@@ -3,7 +3,6 @@ Testes unitários para circuit breakers de Kafka, Temporal e Redis.
 """
 
 import pytest
-import asyncio
 import sys
 from unittest.mock import AsyncMock, Mock, patch, MagicMock
 from neural_hive_resilience.circuit_breaker import CircuitBreakerError
@@ -206,11 +205,6 @@ class TestRedisCircuitBreaker:
     async def test_redis_get_safe_with_circuit_breaker(self):
         """Testa redis_get_safe protegido por circuit breaker."""
         # Import direto do módulo
-        from src.clients.redis_client import (
-            redis_get_safe,
-            _redis_client_instance,
-            _circuit_breaker,
-        )
         import src.clients.redis_client as redis_client_module
 
         # Resetar estado global

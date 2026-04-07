@@ -5,7 +5,6 @@ Testes unitários para AlertManager.
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 from datetime import datetime
-import uuid
 
 from src.sla.alert_manager import AlertManager
 from src.config.settings import OrchestratorSettings

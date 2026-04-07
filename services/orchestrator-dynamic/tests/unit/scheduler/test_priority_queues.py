@@ -12,14 +12,12 @@ Cobertura:
 """
 
 import pytest
-import asyncio
 from unittest.mock import MagicMock
 from datetime import datetime, timedelta
 from typing import Dict, Any
 
 from src.scheduler.priority_queues import PriorityQueues, PriorityLevel
 from src.scheduler.queue_manager import QueueManager
-from src.scheduler.priority_calculator import PriorityCalculator
 from src.config.settings import OrchestratorSettings
 
 

@@ -6,7 +6,7 @@ sem depender de credenciais reais.
 """
 
 import pytest
-from unittest.mock import Mock, MagicMock, AsyncMock, patch
+from unittest.mock import MagicMock, AsyncMock, patch
 import base64
 
 
@@ -258,7 +258,6 @@ class TestSecurityE2E:
         logger.addHandler(handler)
 
         try:
-            from src.clients.ecr_client import ECRClient
 
             # Criar token (que normalmente seria logado)
             from src.clients.ecr_client import ECRToken

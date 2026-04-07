@@ -5,7 +5,6 @@ Inicializa o servidor HTTP com FastAPI + FastMCP,
 configurando observability e graceful shutdown.
 """
 
-import asyncio
 import sys
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator

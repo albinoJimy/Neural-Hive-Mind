@@ -12,13 +12,11 @@ Cobre:
 
 import pytest
 import json
-import asyncio
-from unittest.mock import AsyncMock, Mock, MagicMock, patch
-from datetime import datetime
+from unittest.mock import AsyncMock, Mock, patch
 
 from src.consumers.insights_consumer import InsightsConsumer
 from src.models.optimization_hypothesis import OptimizationHypothesis, OptimizationType
-from src.models.optimization_event import OptimizationType as EventOptimizationType, Adjustment
+from src.models.optimization_event import Adjustment
 
 
 @pytest.fixture

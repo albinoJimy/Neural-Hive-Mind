@@ -10,7 +10,7 @@ Cobertura:
 
 import asyncio
 import time
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -314,7 +314,6 @@ class TestLoad:
         self, tool_executor, benchmark_tools, fast_execution_result
     ):
         """Verifica que uso de memoria e estavel sob carga."""
-        import sys
 
         # Executar coleta de lixo antes do teste
         import gc

@@ -3,7 +3,7 @@
 import sys
 import os
 import pytest
-from typing import Dict, Any, List
+from typing import Dict, List
 
 # Configurar paths
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))

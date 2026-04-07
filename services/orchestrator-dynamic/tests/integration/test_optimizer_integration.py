@@ -6,9 +6,7 @@ e integração com intelligent scheduler.
 """
 
 import pytest
-import pytest_asyncio
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
-from datetime import datetime
+from unittest.mock import Mock, AsyncMock, patch
 import grpc
 
 from src.clients.optimizer_grpc_client import OptimizerGrpcClient

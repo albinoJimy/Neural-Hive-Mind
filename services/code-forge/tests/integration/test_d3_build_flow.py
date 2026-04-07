@@ -11,21 +11,18 @@ Artefatos (CONTAINER, MANIFEST, SBOM, SIGNATURE) → Kafka/MongoDB/PostgreSQL
 import asyncio
 import uuid
 from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 
-from src.types.artifact_types import ArtifactCategory, CodeLanguage
+from src.types.artifact_types import ArtifactCategory
 from src.models.artifact import (
-    CodeForgeArtifact,
-    PipelineResult,
     PipelineStatus,
     ValidationResult,
     ValidationType,
     ValidationStatus,
 )
 from src.models.execution_ticket import TaskType, TicketStatus
-from src.models.pipeline_context import PipelineContext
 
 
 # Import fixtures from conftest and d3_fixtures
@@ -534,8 +531,6 @@ class TestD3Performance:
         """
         from src.models.execution_ticket import (
             ExecutionTicket,
-            TaskType,
-            TicketStatus,
             Priority,
             RiskBand,
             SLA,

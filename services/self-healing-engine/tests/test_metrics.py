@@ -6,26 +6,16 @@ Verifica a exportação correta de métricas e o rastreamento de MTTR.
 
 import pytest
 import time
-from unittest.mock import patch
 
 from src.metrics import (
     detection_events_total,
     detection_duration_seconds,
     active_incidents,
     remediation_events_total,
-    remediation_duration_seconds,
-    mt_seconds,
-    mttr_by_type,
     circuit_breaker_state,
-    circuit_breaker_failures_total,
-    circuit_breaker_success_total,
-    circuit_breaker_rejected_total,
-    health_check_total,
-    health_check_duration_seconds,
     service_health_status,
     kafka_consumer_lag,
     kafka_consumer_lag_total,
-    playbook_execution_total,
     mttr_tracker,
     record_detection,
     record_remediation,

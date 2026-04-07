@@ -11,9 +11,7 @@ TDD: Testes escritos antes da implementação (GAPS-04 Task 7).
 """
 
 import pytest
-from unittest.mock import Mock, AsyncMock, MagicMock, patch
-import json
-import asyncio
+from unittest.mock import AsyncMock, MagicMock
 from pathlib import Path
 import sys
 

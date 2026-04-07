@@ -6,10 +6,8 @@ e persistência de Q-table.
 """
 
 import pytest
-import pytest_asyncio
 from unittest.mock import Mock, AsyncMock, patch
 from datetime import datetime, timezone
-import numpy as np
 
 from src.ml.scheduling_optimizer import SchedulingOptimizer, SchedulingAction
 

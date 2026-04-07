@@ -4,11 +4,11 @@ Testes unitarios para o ABTestingEngine.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from datetime import datetime, timezone
 
-from src.experimentation.ab_testing_engine import ABTestingEngine, ABTestConfig
-from src.experimentation.randomization import RandomizationStrategyType, Group
+from src.experimentation.ab_testing_engine import ABTestingEngine
+from src.experimentation.randomization import RandomizationStrategyType
 
 
 @pytest.fixture
@@ -506,7 +506,6 @@ class TestMongoDBClientABTestingPersistence:
     @pytest.mark.asyncio
     async def test_save_ab_test_results_integration(self, mock_mongodb_client):
         """Testar integracao de salvar resultados de A/B testing."""
-        from datetime import datetime, timezone
 
         results = {
             "experiment_id": "exp-123",

@@ -353,7 +353,7 @@ def main():
         if not args.dry_run:
             push_metrics_to_gateway(config, metrics_registry)
 
-        print(f"\n✅ Business metrics collection completed successfully!")
+        print("\n✅ Business metrics collection completed successfully!")
 
         return 0
 

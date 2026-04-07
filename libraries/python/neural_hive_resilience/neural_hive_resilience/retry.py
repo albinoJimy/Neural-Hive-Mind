@@ -288,7 +288,7 @@ def retry(
 
                 # Nunca deve chegar aqui, mas por segurança
                 raise MaxRetriesExceededError(
-                    f"Máximo de tentativas excedido",
+                    "Máximo de tentativas excedido",
                     operation=operation,
                 )
 
@@ -361,7 +361,7 @@ def retry(
 
                 # Nunca deve chegar aqui, mas por segurança
                 raise MaxRetriesExceededError(
-                    f"Máximo de tentativas excedido",
+                    "Máximo de tentativas excedido",
                     operation=operation,
                 )
 

@@ -5,10 +5,7 @@ Cobre health, ready, metrics e outros endpoints fundamentais.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime
-from fastapi import FastAPI, Request
-from starlette.responses import Response
+from unittest.mock import AsyncMock, MagicMock
 import os
 
 

@@ -4,7 +4,6 @@ import os
 import sys
 import pytest
 from unittest.mock import patch, Mock
-from pathlib import Path
 
 # Adicionar diretório de scripts ao path
 sys.path.insert(
@@ -38,7 +37,6 @@ class TestGenerateKey:
         """Testa erro quando cryptography não está instalado."""
         with patch.dict("sys.modules", {"cryptography": None}):
             # Recarregar módulo para testar import falhando
-            import importlib
             import sys
 
             if "generate_encryption_key" in sys.modules:

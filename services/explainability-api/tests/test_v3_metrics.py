@@ -4,9 +4,6 @@ Testes unitários para métricas Prometheus v3.
 TDD: Testes escritos antes da implementação (Explainability API v3 Task 7).
 """
 
-import pytest
-import time
-from typing import Dict, Any
 import sys
 from pathlib import Path
 

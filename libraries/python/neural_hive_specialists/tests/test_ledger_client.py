@@ -6,10 +6,9 @@ retrieval, verificação de integridade, circuit breaker transitions.
 """
 
 import pytest
-from unittest.mock import Mock, MagicMock, patch, call
-from pymongo.errors import PyMongoError, ConnectionFailure
+from unittest.mock import Mock, MagicMock, patch
+from pymongo.errors import PyMongoError
 from circuitbreaker import CircuitBreakerError
-from queue import Full
 
 from neural_hive_specialists.ledger_client import LedgerClient
 

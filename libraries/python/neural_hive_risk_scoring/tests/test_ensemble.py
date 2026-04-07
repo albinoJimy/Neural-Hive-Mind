@@ -3,13 +3,11 @@ Testes para RiskEnsemble
 """
 
 import pytest
-from unittest.mock import Mock
 
 from neural_hive_risk_scoring import (
     RiskEnsemble,
     RiskModel,
     EnsembleMethod,
-    EnsembleResult,
     RiskScoringConfig,
     RiskBand,
     RiskAssessment,

@@ -1,9 +1,7 @@
 """Testes para ModelRegistry - Gerenciador de modelos MLflow."""
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
-from datetime import datetime
-import mlflow
+from unittest.mock import Mock, patch
 from mlflow.tracking import MlflowClient
 
 from neural_hive_ml.predictive_models.model_registry import ModelRegistry

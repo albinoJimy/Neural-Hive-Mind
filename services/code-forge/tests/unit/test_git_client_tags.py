@@ -8,8 +8,7 @@ Cobertura:
 """
 
 import pytest
-from unittest.mock import Mock, MagicMock, AsyncMock, patch
-from datetime import datetime
+from unittest.mock import Mock
 
 
 class TestGitClientListTags:

@@ -2,8 +2,7 @@
 
 import pytest
 from datetime import datetime, timezone, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
-from fastapi.testclient import TestClient
+from unittest.mock import AsyncMock, MagicMock
 
 from src.models.error_budget import ErrorBudget, BudgetStatus, BurnRate, BurnRateLevel
 from src.clients.postgresql_client import PostgreSQLClient

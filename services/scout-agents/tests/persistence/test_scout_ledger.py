@@ -8,7 +8,6 @@ Espec: GAPS-05 Scout Agents
 import pytest
 from unittest.mock import Mock, MagicMock, AsyncMock
 from datetime import datetime, timezone, timedelta
-from typing import Dict, List
 
 # Import com skip automático se módulo não disponível
 ScoutLedger = pytest.importorskip("src.persistence.scout_ledger").ScoutLedger

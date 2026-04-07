@@ -410,8 +410,8 @@ class TestSchedulerCachePerformance:
         assert cache_hit_rate > 0.90, f"Cache hit rate > 90%, obtido: {cache_hit_rate*100:.1f}%"
         assert discovery_calls == 1, f"Apenas 1 discovery esperada, obtido: {discovery_calls}"
 
-        print(f"\n[Cache - Mesmas Capabilities]")
-        print(f"  Tickets: 100")
+        print("\n[Cache - Mesmas Capabilities]")
+        print("  Tickets: 100")
         print(f"  Discovery calls: {discovery_calls}")
         print(f"  Cache hit rate: {cache_hit_rate*100:.1f}%")
 
@@ -455,9 +455,9 @@ class TestSchedulerCachePerformance:
         assert discovery_calls <= 50, f"Máximo 50 discoveries, obtido: {discovery_calls}"
         assert cache_hit_rate > 0.80, f"Cache hit rate > 80%, obtido: {cache_hit_rate*100:.1f}%"
 
-        print(f"\n[Cache - Capabilities Variadas]")
-        print(f"  Tickets: 1000")
-        print(f"  Padrões: 10")
+        print("\n[Cache - Capabilities Variadas]")
+        print("  Tickets: 1000")
+        print("  Padrões: 10")
         print(f"  Discovery calls: {discovery_calls}")
         print(f"  Cache hit rate: {cache_hit_rate*100:.1f}%")
 
@@ -506,10 +506,10 @@ class TestSchedulerLatencyDistribution:
         # Validações
         assert p95 < 200, f"Latência P95 < 200ms, obtido: {p95:.2f}ms"
         assert p99 < 500, f"Latência P99 < 500ms, obtido: {p99:.2f}ms"
-        assert stdev < mean, f"Desvio padrão deve ser menor que média"
+        assert stdev < mean, "Desvio padrão deve ser menor que média"
 
-        print(f"\n[Distribuição de Latência]")
-        print(f"  Tickets: 500")
+        print("\n[Distribuição de Latência]")
+        print("  Tickets: 500")
         print(f"  Média: {mean:.2f}ms")
         print(f"  Desvio Padrão: {stdev:.2f}ms")
         print(f"  P50: {p50:.2f}ms")
@@ -573,7 +573,7 @@ class TestSchedulerRiskBandPrioritization:
             avg_scores["normal"] > avg_scores["low"]
         ), f"normal ({avg_scores['normal']:.3f}) deve ser > low ({avg_scores['low']:.3f})"
 
-        print(f"\n[Priorização por Risk Band]")
+        print("\n[Priorização por Risk Band]")
         for risk in ["critical", "high", "normal", "low"]:
             print(f"  {risk}: média={avg_scores[risk]:.3f}")
 
@@ -624,7 +624,7 @@ class TestSchedulerFallbackBehavior:
             metrics.fallback_count == 5
         ), f"Todos 5 tickets devem usar fallback, obtido: {metrics.fallback_count}"
 
-        print(f"\n[Fallback por Timeout]")
+        print("\n[Fallback por Timeout]")
         print(f"  Tickets: {metrics.total_count}")
         print(f"  Fallbacks: {metrics.fallback_count}")
 
@@ -657,9 +657,9 @@ class TestSchedulerFallbackBehavior:
             if result.get("allocation_metadata", {}).get("allocation_method") == "fallback_stub":
                 fallback_count += 1
 
-        assert fallback_count == 50, f"Todos 50 tickets devem usar fallback"
-        print(f"\n[Fallback sem Workers]")
-        print(f"  Tickets: 50")
+        assert fallback_count == 50, "Todos 50 tickets devem usar fallback"
+        print("\n[Fallback sem Workers]")
+        print("  Tickets: 50")
         print(f"  Fallbacks: {fallback_count}")
 
 
@@ -698,6 +698,6 @@ class TestSchedulerConcurrencySafety:
             success_count == 100
         ), f"Todos 100 tickets devem ter agent_id, obtido: {success_count}"
 
-        print(f"\n[Segurança de Concorrência]")
-        print(f"  Tickets concorrentes: 100")
+        print("\n[Segurança de Concorrência]")
+        print("  Tickets concorrentes: 100")
         print(f"  Processados com sucesso: {success_count}")

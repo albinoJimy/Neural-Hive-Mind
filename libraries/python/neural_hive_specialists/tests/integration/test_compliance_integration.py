@@ -16,8 +16,6 @@ from unittest.mock import Mock, patch
 import mongomock
 
 from neural_hive_specialists.compliance.compliance_layer import ComplianceLayer
-from neural_hive_specialists.compliance.pii_detector import PIIDetector
-from neural_hive_specialists.compliance.field_encryptor import FieldEncryptor
 from neural_hive_specialists.compliance.audit_logger import AuditLogger
 from neural_hive_specialists.ledger_client import LedgerClient
 from neural_hive_specialists.config import SpecialistConfig

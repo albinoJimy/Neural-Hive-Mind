@@ -5,12 +5,12 @@ Configuração dinâmica de thresholds com ajuste automático baseado em histór
 """
 
 import structlog
-from typing import Dict, List, Optional, Tuple
-from datetime import datetime, timedelta, timezone
+from typing import Dict, List, Optional
+from datetime import datetime, timezone
 from collections import deque
 from statistics import mean, stdev
 
-from .config import RiskBand, RiskScoringConfig
+from .config import RiskScoringConfig
 from neural_hive_domain import UnifiedDomain
 
 

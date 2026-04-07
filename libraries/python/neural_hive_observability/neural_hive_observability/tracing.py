@@ -9,7 +9,7 @@ por intent_id e plan_id conforme Fluxo D.
 import functools
 import logging
 from contextlib import contextmanager
-from typing import Optional, Dict, Any, Callable, Union
+from typing import Optional, Dict, Any, Callable
 import inspect
 
 from opentelemetry import trace, context
@@ -22,7 +22,6 @@ from opentelemetry.baggage import get_all as get_all_baggage, set_baggage
 from opentelemetry.context import attach, detach
 
 from .config import ObservabilityConfig
-from .context import ContextManager
 from .exporters import ResilientOTLPSpanExporter, _sanitize_header_value
 
 logger = logging.getLogger(__name__)
@@ -605,7 +604,6 @@ def inject_context_to_headers(headers: Dict[str, str]) -> Dict[str, str]:
     Returns:
         Headers com contexto injetado
     """
-    from opentelemetry.propagate import inject
 
     new_headers = headers.copy()
     inject(new_headers)
@@ -632,7 +630,6 @@ def extract_context_from_headers(headers: Dict[str, str]):
     Returns:
         Token de contexto para ser usado em detach() pelo chamador, ou None
     """
-    from opentelemetry.propagate import extract
 
     token = None
     try:

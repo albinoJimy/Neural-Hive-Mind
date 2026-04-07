@@ -9,7 +9,7 @@ Testa os seguintes métodos:
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 import grpc
 
 from src.grpc_server.queen_servicer import QueenAgentServicer

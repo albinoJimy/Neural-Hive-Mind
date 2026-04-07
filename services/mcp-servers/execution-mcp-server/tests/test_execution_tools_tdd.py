@@ -13,7 +13,6 @@ Ferramentas:
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime
-from typing import Any
 
 
 class TestCreateTicketTool:

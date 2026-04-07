@@ -70,7 +70,6 @@ def test_instrumented_kafka_producer_injects_headers():
     producer = InstrumentedKafkaProducer(DummyProducer(), config)
 
     # set_baggage returns a new context, we need to attach it
-    from opentelemetry import context
 
     ctx = set_baggage("neural.hive.intent.id", "intent-123")
     token = attach(ctx)

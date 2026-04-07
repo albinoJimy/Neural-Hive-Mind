@@ -4,7 +4,7 @@ Testes unitários para SLAMonitor.
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timedelta
+from datetime import datetime
 import httpx
 
 from src.sla.sla_monitor import SLAMonitor

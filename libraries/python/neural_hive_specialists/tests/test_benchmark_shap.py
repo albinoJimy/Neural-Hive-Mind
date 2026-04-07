@@ -7,7 +7,6 @@ Mede tempo de execução de explicações SHAP em diferentes cenários.
 import pytest
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
-from unittest.mock import Mock
 
 
 @pytest.fixture

@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 @pytest.fixture
 def mock_mongodb_client_with_data():
     """Mock do MongoDB client com dados de auditoria."""
-    from unittest.mock import AsyncMock, MagicMock
+    from unittest.mock import AsyncMock
 
     # Dados de teste
     audit_data = [

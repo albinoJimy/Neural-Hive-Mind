@@ -9,7 +9,7 @@ import json
 import tempfile
 import os
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch, mock_open
+from unittest.mock import AsyncMock, patch
 
 from src.clients.sigstore_client import SigstoreClient
 from src.clients.s3_artifact_client import S3ArtifactClient

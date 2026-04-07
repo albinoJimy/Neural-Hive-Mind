@@ -2,11 +2,9 @@
 
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, patch, MagicMock
 
-from src.api.health import router as health_router
 from src.main import app
 
 
@@ -229,7 +227,7 @@ class TestHealthAPI:
     async def test_deep_health_check(self):
         """Testa deep health diagnostics."""
         from src import main as app_main
-        from unittest.mock import AsyncMock, MagicMock
+        from unittest.mock import AsyncMock
         from fastapi.testclient import TestClient
 
         # Mock dependencies

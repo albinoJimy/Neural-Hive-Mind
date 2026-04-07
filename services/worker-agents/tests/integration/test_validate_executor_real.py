@@ -5,7 +5,6 @@ Tests the ValidateExecutor with mocked and real validation tool integrations,
 including OPA, Trivy, SonarQube, Snyk, and Checkov.
 """
 
-import asyncio
 import json
 import os
 import subprocess

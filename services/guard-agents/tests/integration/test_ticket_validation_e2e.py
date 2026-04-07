@@ -15,7 +15,7 @@ import pytest
 import asyncio
 import json
 from datetime import datetime, timezone
-from aiokafka import AIOKafkaProducer, AIOKafkaConsumer
+from aiokafka import AIOKafkaProducer
 from motor.motor_asyncio import AsyncIOMotorClient
 
 

@@ -8,12 +8,9 @@ Estes testes verificam o fluxo completo de:
 """
 
 import pytest
-import asyncio
-import json
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 from src.services.playbook_executor import PlaybookExecutor
-from src.consumers.remediation_consumer import RemediationConsumer
 from src.services.health_monitor import HealthMonitor
 from src.services.circuit_breaker import CircuitBreaker, CircuitBreakerState
 

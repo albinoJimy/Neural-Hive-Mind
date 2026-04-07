@@ -8,7 +8,6 @@ publicação de planos aprovados e métricas.
 import pytest
 from datetime import datetime, timezone, timedelta
 from unittest.mock import MagicMock, AsyncMock, patch
-from tenacity import RetryError
 
 
 class TestApprovalProcessorApproved:

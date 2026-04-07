@@ -10,8 +10,8 @@ Valida os fluxos de:
 
 import pytest
 import numpy as np
-from datetime import datetime, timezone, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
+from datetime import datetime, timezone
+from unittest.mock import AsyncMock, MagicMock
 
 from src.ml.duration_predictor import DurationPredictor
 from src.ml.anomaly_detector import AnomalyDetector

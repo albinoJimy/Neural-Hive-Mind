@@ -8,7 +8,7 @@ Espec: @.agent-os/specs/2026-03-18-gaps-06-mcp-integration/
 import importlib.util
 import sys
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 

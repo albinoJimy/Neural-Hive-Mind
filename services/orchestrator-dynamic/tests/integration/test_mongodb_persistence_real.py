@@ -12,7 +12,6 @@ from datetime import datetime
 from typing import Generator
 
 import pytest
-from pymongo.errors import PyMongoError
 
 # Verificar se testcontainers está disponível
 try:

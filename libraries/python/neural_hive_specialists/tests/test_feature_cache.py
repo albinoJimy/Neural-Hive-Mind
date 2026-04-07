@@ -2,7 +2,7 @@
 
 import json
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import patch, MagicMock
 from redis.exceptions import RedisError
 
 from neural_hive_specialists.feature_cache import FeatureCache

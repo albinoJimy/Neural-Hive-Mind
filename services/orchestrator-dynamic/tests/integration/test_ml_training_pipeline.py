@@ -13,11 +13,9 @@ Testa o pipeline end-to-end de treinamento de modelos ML incluindo:
 
 import pytest
 import pytest_asyncio
-from unittest.mock import Mock, AsyncMock, patch, MagicMock, call
+from unittest.mock import Mock, AsyncMock, patch, MagicMock
 from datetime import datetime, timezone, timedelta
-from uuid import uuid4
 import numpy as np
-import pandas as pd
 
 from src.ml.training_pipeline import TrainingPipeline
 from src.ml.model_registry import ModelRegistry

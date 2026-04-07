@@ -6,15 +6,14 @@ PreemptionManager e AdaptivePriorityCalculator.
 """
 
 import pytest
-from unittest.mock import Mock, AsyncMock
+from unittest.mock import Mock
 from datetime import datetime, timezone
 
 from src.scheduler.reprioritizer import RePrioritizer
 from src.scheduler.sla_reprioritizer import SLARePrioritizer
-from src.scheduler.preemption import PreemptionManager, PreemptionStatus
+from src.scheduler.preemption import PreemptionManager
 from src.scheduler.preemption_rules import PreemptionRules, PreemptionDecision
 from src.scheduler.adaptive_priority import AdaptivePriorityCalculator
-from src.scheduler.priority_queues import PriorityLevel
 
 
 class TestRePrioritizationIntegration:
@@ -81,7 +80,6 @@ class TestRePrioritizationIntegration:
     def test_reprioritizer_ticket_priority_change(self, reprioritizer, sample_ticket):
         """Testa mudança de prioridade de ticket."""
         # Simular ticket criado há algum tempo (consumiu parte do SLA)
-        from datetime import timedelta
 
         now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
         # Ticket criado há 2 minutos (120000ms), deadline em 5 minutos

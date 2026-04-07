@@ -3,15 +3,12 @@ Testes unitários para SecurityValidator.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock
 
 from src.services.security_validator import SecurityValidator
 from src.models.security_validation import (
-    SecurityValidation,
     GuardrailViolation,
     ValidationStatus,
-    ValidatorType,
     ViolationType,
     Severity,
 )

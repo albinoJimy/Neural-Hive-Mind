@@ -11,8 +11,6 @@ Estados:
 """
 
 import pytest
-import asyncio
-from datetime import datetime, timedelta
 
 from src.services.circuit_breaker import (
     CircuitBreaker,

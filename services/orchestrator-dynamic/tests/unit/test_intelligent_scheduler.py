@@ -18,7 +18,7 @@ Cobertura:
 import asyncio
 import pytest
 from datetime import datetime, timezone, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from typing import Dict, List, Any
 
 from src.scheduler.intelligent_scheduler import IntelligentScheduler

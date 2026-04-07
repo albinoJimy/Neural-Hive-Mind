@@ -5,16 +5,14 @@ Requer Docker instalado e acessível.
 """
 
 import pytest
-import asyncio
 import subprocess
 import time
-import aiohttp
 from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import AsyncMock
 
 from src.policies import OPAClient, PolicyValidator
-from src.policies.opa_client import OPAConnectionError, OPAPolicyNotFoundError
+from src.policies.opa_client import OPAConnectionError
 from src.config.settings import OrchestratorSettings
 from src.observability.metrics import get_metrics
 

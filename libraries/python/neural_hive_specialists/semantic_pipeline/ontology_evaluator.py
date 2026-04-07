@@ -5,7 +5,7 @@ Usa ontologias carregadas (intents_taxonomy.json, architecture_patterns.json)
 para classificação e raciocínio semântico sem string-match.
 """
 
-from typing import Dict, List, Any, Optional
+from typing import Dict, Any, Optional
 import structlog
 import json
 from pathlib import Path

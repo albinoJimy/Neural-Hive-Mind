@@ -5,9 +5,7 @@ TDD: Testes escritos antes da implementação (GAPS-04 Task 6).
 """
 
 import pytest
-from unittest.mock import Mock, AsyncMock, MagicMock, patch
-import json
-import asyncio
+from unittest.mock import AsyncMock, MagicMock, patch
 from pathlib import Path
 import sys
 
@@ -309,7 +307,6 @@ class TestKafkaIntegrationE2E:
     async def test_decision_to_explanation_flow(self, mock_services):
         """Testa fluxo completo: decisão → explicação → publicação."""
         from src.consumers.consensus_decision_consumer import ConsensusDecisionConsumer
-        from src.producers.explanation_producer import ExplanationProducer
 
         # Setup mocks
         mock_services["explainability_service"].get_explainability_by_decision_id = AsyncMock(

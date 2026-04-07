@@ -5,7 +5,7 @@ Valida que o Packager executa scan de vulnerabilidades nos artefatos.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 from datetime import datetime
 
 from src.services.packager import Packager

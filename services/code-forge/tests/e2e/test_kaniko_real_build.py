@@ -11,11 +11,9 @@ Requisitos:
 """
 
 import pytest
-import asyncio
 import tempfile
 import os
 import time
-from pathlib import Path
 
 from src.services.container_builder import ContainerBuilder, BuilderType, BuildResult
 
@@ -42,7 +40,6 @@ class TestKanikoRealBuild:
         """Verifica se o registry Docker está acessível."""
         try:
             import urllib.request
-            import json
 
             response = urllib.request.urlopen(f"http://{REGISTRY_URL}/v2/", timeout=5)
             # Registry API v2 retorna {} para /v2/
@@ -92,13 +89,13 @@ CMD ["/bin/sh"]
             # O build pode falhar por autenticação no registry
             # mas o pod deve ter sido criado e executado
             if result.success:
-                print(f"✅ Build sucesso!")
+                print("✅ Build sucesso!")
                 print(f"   Digest: {result.image_digest}")
                 print(f"   Imagem: {image_tag}")
                 # Quando no_push=True, digest pode ser None (Kaniko não imprime)
                 # mas o build ainda é considerado sucesso
                 if USE_NO_PUSH:
-                    print(f"   (no_push=True, digest pode ser None - OK)")
+                    print("   (no_push=True, digest pode ser None - OK)")
                 else:
                     assert result.image_digest is not None
                     assert result.image_digest.startswith("sha256:")
@@ -159,12 +156,12 @@ CMD ["python", "-c", "import uvicorn; uvicorn.run('main:app', host='0.0.0.0', po
             assert isinstance(result, BuildResult)
 
             if result.success:
-                print(f"✅ Python build sucesso!")
+                print("✅ Python build sucesso!")
                 print(f"   Digest: {result.image_digest}")
                 print(f"   Duração: {result.duration_seconds}s")
                 # Quando no_push=True, digest pode ser None
                 if USE_NO_PUSH:
-                    print(f"   (no_push=True, digest pode ser None - OK)")
+                    print("   (no_push=True, digest pode ser None - OK)")
                 else:
                     assert result.image_digest is not None
             else:
@@ -205,7 +202,7 @@ CMD cat /tmp/build-info.txt
             assert isinstance(result, BuildResult)
 
             if result.success:
-                print(f"✅ Build com args sucesso!")
+                print("✅ Build com args sucesso!")
                 print(f"   Digest: {result.image_digest}")
             else:
                 print(f"⚠️ Build com args falhou: {result.error_message}")
@@ -254,7 +251,7 @@ CMD ["/bin/sh", "-c", "python /app/code.py"]
             assert isinstance(result, BuildResult)
 
             if result.success:
-                print(f"✅ Multi-stage build sucesso!")
+                print("✅ Multi-stage build sucesso!")
                 print(f"   Digest: {result.image_digest}")
             else:
                 print(f"⚠️ Multi-stage build falhou: {result.error_message}")
@@ -303,7 +300,7 @@ CMD cat /tmp/stage.txt
             assert isinstance(result, BuildResult)
 
             if result.success:
-                print(f"✅ Target stage build sucesso!")
+                print("✅ Target stage build sucesso!")
                 print(f"   Digest: {result.image_digest}")
             else:
                 print(f"⚠️ Target stage build falhou: {result.error_message}")
@@ -345,7 +342,7 @@ CMD ["/bin/sh"]
 
             # Verificar se flags de cache foram usadas
             if result.success:
-                print(f"✅ Cache build sucesso!")
+                print("✅ Cache build sucesso!")
                 print(f"   Digest: {result.image_digest}")
                 print(f"   Cache repo: {cache_repo}")
             else:

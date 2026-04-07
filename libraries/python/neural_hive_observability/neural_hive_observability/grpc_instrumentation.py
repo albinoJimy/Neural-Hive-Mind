@@ -10,7 +10,7 @@ from concurrent import futures
 from typing import Any, Dict, List, Optional, Tuple
 
 import grpc
-from opentelemetry import baggage, context, trace
+from opentelemetry import trace
 from opentelemetry.baggage import set_baggage, get_all as get_all_baggage
 from opentelemetry.context import attach, detach
 from opentelemetry.instrumentation.grpc import GrpcInstrumentorClient, GrpcInstrumentorServer

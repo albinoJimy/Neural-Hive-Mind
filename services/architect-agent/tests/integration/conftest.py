@@ -7,7 +7,6 @@ Os testes de integração utilizam serviços reais (MongoDB, Kafka, OPA) via con
 import asyncio
 import os
 import pytest
-import pytest_asyncio
 from typing import AsyncGenerator, Generator
 import subprocess
 import time

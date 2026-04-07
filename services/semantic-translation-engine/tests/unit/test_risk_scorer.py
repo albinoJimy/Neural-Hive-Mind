@@ -6,7 +6,7 @@ destrutivas, e integração com DestructiveDetector.
 """
 
 import pytest
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, patch
 
 from src.models.cognitive_plan import RiskBand, TaskNode
 from src.services.risk_scorer import RiskScorer

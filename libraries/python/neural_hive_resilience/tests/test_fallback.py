@@ -6,7 +6,6 @@ import asyncio
 from neural_hive_resilience.fallback import (
     FallbackChain,
     FallbackConfig,
-    FallbackResult,
     FallbackStrategy,
     ConditionalFallback,
     with_fallback,

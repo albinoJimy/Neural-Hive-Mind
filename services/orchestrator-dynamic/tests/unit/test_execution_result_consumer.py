@@ -7,7 +7,6 @@ para workflows Temporal, fechando o feedback loop de execução.
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime
 
 from src.consumers.execution_result_consumer import ExecutionResultConsumer
 

@@ -9,7 +9,6 @@ Cobertura:
 - Metricas de violacoes
 """
 
-import asyncio
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
@@ -18,7 +17,7 @@ import httpx
 @pytest.fixture
 def mock_opa_client():
     """Mock OPAClient para testes."""
-    from clients.opa_client import PolicyEvaluationResponse, Violation, ViolationSeverity
+    from clients.opa_client import ViolationSeverity
 
     client = MagicMock()
     client.evaluate_policy = AsyncMock()

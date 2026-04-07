@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 import pytest
 from datetime import datetime, timedelta, timezone
 
@@ -6,7 +6,7 @@ from src.repositories.pipeline_repository import (
     PipelineRunRepository,
     AnomalyRepository,
 )
-from src.models.pipeline import PipelineRun, Anomaly
+from src.models.pipeline import PipelineRun
 from src.models.schemas import PipelineStatus, AnomalyType
 
 

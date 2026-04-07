@@ -3,8 +3,7 @@
 import pytest
 import numpy as np
 import pandas as pd
-from unittest.mock import Mock, patch, AsyncMock
-from datetime import datetime
+from unittest.mock import Mock, patch
 
 from neural_hive_ml.predictive_models.base_predictor import BasePredictor
 

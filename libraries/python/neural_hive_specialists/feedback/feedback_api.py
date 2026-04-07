@@ -6,13 +6,13 @@ sobre opiniões de especialistas.
 """
 
 from datetime import datetime, timezone
-from typing import Dict, Any, Optional, List, Callable, TYPE_CHECKING
+from typing import Dict, Any, Optional, List, TYPE_CHECKING
 import structlog
 
 if TYPE_CHECKING:
     from ..metrics import SpecialistMetrics
     from ..compliance.pii_detector import PIIDetector
-from fastapi import APIRouter, HTTPException, Depends, Header
+from fastapi import APIRouter, HTTPException, Header
 from pydantic import BaseModel, Field, field_validator
 import jwt
 import pybreaker

@@ -9,9 +9,7 @@ Valida:
 """
 
 import pytest
-import grpc
-from unittest.mock import Mock, MagicMock, patch
-from datetime import datetime, timezone
+from unittest.mock import Mock, patch
 from google.protobuf.timestamp_pb2 import Timestamp
 
 from neural_hive_specialists.grpc_server import SpecialistServicer

@@ -17,7 +17,6 @@ import structlog
 from .ontology_mapper import OntologyMapper
 from .graph_analyzer import GraphAnalyzer
 from .embeddings_generator import EmbeddingsGenerator
-from neural_hive_domain import UnifiedDomain
 
 if TYPE_CHECKING:
     from ..metrics import SpecialistMetrics

@@ -7,7 +7,7 @@ corretamente para proteger endpoints da API HTTP.
 
 import pytest
 from httpx import AsyncClient, ASGITransport
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 from fastapi import FastAPI
 
 from src.config.settings import get_settings
@@ -210,7 +210,6 @@ def test_app_with_opa_down():
     Fixture que cria uma app com OPA mockado para retornar erro.
     """
     from fastapi import FastAPI
-    from unittest.mock import patch
 
     # Criar app de teste
     app = FastAPI()

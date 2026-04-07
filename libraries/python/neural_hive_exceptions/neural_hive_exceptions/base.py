@@ -3,7 +3,7 @@ Base exception class for Neural Hive-Mind.
 """
 
 from typing import Dict, Any, Optional
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 class NeuralHiveError(Exception):

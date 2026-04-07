@@ -12,7 +12,7 @@ import time
 from collections import deque
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional, Callable, Awaitable, Any
+from typing import Optional
 from prometheus_client import Counter, Gauge, Histogram
 import structlog
 

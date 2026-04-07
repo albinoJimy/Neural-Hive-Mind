@@ -10,10 +10,9 @@ Valida:
 """
 
 import pytest
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
-from datetime import datetime, timedelta
+from unittest.mock import Mock, AsyncMock, patch
 
-from src.ml.load_predictor_factory import LoadPredictorFactory, LoadPredictorWrapper
+from src.ml.load_predictor_factory import LoadPredictorFactory
 from src.scheduler.intelligent_scheduler import IntelligentScheduler
 from src.scheduler.resource_allocator import ResourceAllocator
 from src.config.settings import OrchestratorSettings

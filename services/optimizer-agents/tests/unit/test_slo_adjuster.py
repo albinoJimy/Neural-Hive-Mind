@@ -14,7 +14,6 @@ Cobre:
 
 import pytest
 from unittest.mock import AsyncMock, Mock
-from datetime import datetime
 
 from src.services.slo_adjuster import SLOAdjuster
 from src.models.optimization_hypothesis import OptimizationHypothesis, OptimizationType

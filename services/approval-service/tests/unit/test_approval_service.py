@@ -5,8 +5,6 @@ Testa logica de negocio para aprovacao/rejeicao de planos cognitivos.
 """
 
 import pytest
-from datetime import datetime
-from unittest.mock import MagicMock, AsyncMock
 from pymongo.errors import DuplicateKeyError
 
 from src.models.approval import ApprovalRequest, ApprovalDecision, ApprovalStatus, RiskBand

@@ -6,12 +6,10 @@ Testa integração do DAGGenerator com PatternMatcher e TaskSplitter.
 
 import pytest
 from unittest.mock import MagicMock, patch
-from typing import Dict, List, Any
 
 from src.services.dag_generator import DAGGenerator
-from src.services.pattern_matcher import PatternMatcher, PatternMatch
+from src.services.pattern_matcher import PatternMatcher
 from src.services.task_splitter import TaskSplitter
-from src.models.cognitive_plan import TaskNode
 
 
 class TestPatternBasedDecomposition:
@@ -765,11 +763,6 @@ class TestEntityDependencyIntegration:
 
     def test_metrics_recorded_correctly(self):
         """Métricas Prometheus são registradas corretamente"""
-        from src.observability.metrics import (
-            dag_generation_entity_dependencies_added,
-            dag_generation_conflicts_detected_total,
-            dag_generation_conflicts_resolved_total,
-        )
 
         dag_generator = DAGGenerator(conflict_resolution_strategy="sequential")
 

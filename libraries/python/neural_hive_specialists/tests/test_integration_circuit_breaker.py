@@ -8,7 +8,7 @@ import time
 import uuid
 from datetime import datetime, timezone
 from unittest.mock import patch, MagicMock
-from pymongo.errors import ServerSelectionTimeoutError, ConnectionFailure
+from pymongo.errors import ConnectionFailure
 
 from neural_hive_specialists.config import SpecialistConfig
 from neural_hive_specialists.ledger_client import LedgerClient

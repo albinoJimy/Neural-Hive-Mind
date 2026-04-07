@@ -5,7 +5,6 @@ Usa testcontainers para criar cluster Redis real
 
 import pytest
 import asyncio
-import json
 from testcontainers.compose import DockerCompose
 from testcontainers.redis import RedisContainer
 

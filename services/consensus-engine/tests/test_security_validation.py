@@ -8,11 +8,8 @@ Estes testes garantem que:
 """
 
 import pytest
-import os
-from datetime import datetime, timezone
-from unittest.mock import patch, MagicMock
 
-from src.config.settings import Settings, get_settings
+from src.config.settings import Settings
 
 
 class TestProductionSecurityValidation:

@@ -18,25 +18,11 @@ import os
 import time
 import asyncio
 from datetime import datetime, timezone, timedelta
-from typing import Any
 import pytest
 import httpx
-from unittest.mock import AsyncMock, MagicMock, patch
 
 from tests.e2e.fixtures.vault_spire_setup import (
-    vault_client,
-    spiffe_manager,
-    orchestrator_vault_client,
     require_real_env,
-    build_test_settings,
-    settings_e2e,
-    vault_client_real,
-    spiffe_manager_real,
-    orchestrator_vault_client_real,
-    teardown_secrets,
-    expired_token_fixture,
-    vault_unavailable_config,
-    vault_unavailable_config_fail_open,
 )
 from tests.e2e.fixtures.vault_spire_setup import REAL_E2E
 
@@ -58,7 +44,6 @@ try:
 except ImportError:
     SECURITY_LIB_AVAILABLE = False
 
-from src.clients.vault_integration import OrchestratorVaultClient
 
 # Marcar todos os testes como skipif se não em modo E2E real
 # Para testes unitários com mocks, remova esta linha ou marque individualmente

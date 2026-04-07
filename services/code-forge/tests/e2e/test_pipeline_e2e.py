@@ -19,9 +19,7 @@ Cobertura:
 import pytest
 import uuid
 from datetime import datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
 
-from src.types.artifact_types import ArtifactCategory, CodeLanguage
 from src.models.execution_ticket import (
     ExecutionTicket,
     TaskType,
@@ -35,10 +33,7 @@ from src.models.execution_ticket import (
     Consistency,
     Durability,
 )
-from src.models.pipeline_context import PipelineContext
 from src.models.artifact import (
-    CodeForgeArtifact,
-    GenerationMethod,
     ValidationResult,
     ValidationType,
     ValidationStatus,
@@ -293,7 +288,6 @@ async def root():
         )
 
         # Criar um test_runner mock com score baixo para este teste
-        from src.services.test_runner import TestRunner
 
         test_runner_low = TestRunner(mongodb_client=mock_mongodb_client)
 
@@ -720,19 +714,6 @@ class TestPipelineE2EMultipleLanguages:
         - TypeScript
         - Go
         """
-        from src.models.execution_ticket import (
-            ExecutionTicket,
-            TaskType,
-            TicketStatus,
-            Priority,
-            RiskBand,
-            SLA,
-            QoS,
-            SecurityLevel,
-            DeliveryMode,
-            Consistency,
-            Durability,
-        )
 
         # Criar ticket para linguagem específica
         ticket = ExecutionTicket(

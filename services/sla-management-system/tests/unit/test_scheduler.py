@@ -5,16 +5,14 @@ Testa gerenciamento de schedules de workflows Temporal.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timezone, timedelta
+from unittest.mock import AsyncMock, MagicMock
+from datetime import datetime, timezone
 
 from src.models.schedule import (
-    Schedule,
     ScheduleType,
     ScheduleStatus,
     ScheduleTrigger,
     SchedulePriority,
-    ScheduleExecution,
 )
 from src.services.scheduler import ScheduleManager
 

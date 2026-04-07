@@ -7,7 +7,7 @@ Testa processamento em batch de múltiplos planos cognitivos.
 import pytest
 import asyncio
 import numpy as np
-from unittest.mock import Mock, AsyncMock, MagicMock, patch
+from unittest.mock import Mock, MagicMock
 
 
 class TestBatchEvaluator:

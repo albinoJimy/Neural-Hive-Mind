@@ -277,7 +277,6 @@ class TestActiveLearningAPIE2E:
     def fastapi_app(self):
         """Cria app FastAPI com mocks."""
         from fastapi import FastAPI
-        from src.api.routers import active_learning
 
         app = FastAPI()
         app.include_router(active_learning.router)

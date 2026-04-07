@@ -4,7 +4,7 @@ Testes unitarios para ContainerBuilder.
 
 import asyncio
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, patch
 
 from src.services.container_builder import (
     ContainerBuilder,

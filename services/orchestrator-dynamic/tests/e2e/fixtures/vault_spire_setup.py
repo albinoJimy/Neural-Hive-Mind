@@ -14,8 +14,8 @@ import os
 import asyncio
 import time
 from datetime import datetime, timezone, timedelta
-from typing import Optional, Generator, Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from typing import Generator, Any
+from unittest.mock import AsyncMock, MagicMock
 import pytest
 import httpx
 
@@ -327,7 +327,7 @@ async def orchestrator_vault_client_real(
 
     try:
         await client.initialize()
-    except Exception as e:
+    except Exception:
         # Em fail-open, continua mesmo com erro
         if not settings_e2e.vault_fail_open:
             raise

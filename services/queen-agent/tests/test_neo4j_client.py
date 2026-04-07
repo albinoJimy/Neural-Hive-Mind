@@ -4,7 +4,7 @@ Testes para Neo4jClient - foco em list_active_conflicts
 
 import pytest
 import pytest_asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 from src.clients.neo4j_client import Neo4jClient
 

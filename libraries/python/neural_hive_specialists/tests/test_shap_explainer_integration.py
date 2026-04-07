@@ -6,9 +6,8 @@ Testa TreeExplainer e KernelExplainer com modelos sklearn treinados.
 
 import time
 import pytest
-import numpy as np
 import pandas as pd
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.datasets import make_classification

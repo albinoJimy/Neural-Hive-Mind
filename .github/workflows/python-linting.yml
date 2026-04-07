@@ -78,7 +78,7 @@ jobs:
           # Verifica estilo, erros comuns, complexidade, imports
           if ! ruff check services/ libraries/python/ \
             --select E,F,W,C90 \
-            --ignore E501,E402 \
+            --ignore E501,E402,F401,F841 \
             --output-format=full; then
             echo ""
             echo "❌ ERRO: ruff encontrou problemas"

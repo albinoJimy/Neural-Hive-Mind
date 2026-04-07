@@ -5,7 +5,7 @@ TDD: Testes escritos antes da implementação.
 Espec: @.agent-os/specs/2026-03-18-gaps-06-mcp-integration/
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 

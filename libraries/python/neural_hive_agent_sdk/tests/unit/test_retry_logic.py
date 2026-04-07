@@ -7,12 +7,10 @@ e métricas de retry.
 """
 
 import pytest
-import asyncio
 import time
-from unittest.mock import Mock, MagicMock, AsyncMock, patch, PropertyMock
-from datetime import datetime, timezone
+from unittest.mock import MagicMock, AsyncMock, patch
 
-from neural_hive_agent_sdk import AgentClient, AgentType, AgentTelemetry, AgentConfig
+from neural_hive_agent_sdk import AgentClient, AgentType, AgentConfig
 
 
 # ============================================================================

@@ -5,7 +5,7 @@ TDD: Testes escritos antes da implementação (Explainability API v3 Task 6).
 """
 
 import pytest
-from unittest.mock import Mock, AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock
 from fastapi.testclient import TestClient
 import sys
 from pathlib import Path

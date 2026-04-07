@@ -231,7 +231,7 @@ class SonarQubeClient:
             # Verify project exists
             try:
                 response = await self._client.get(
-                    f"/api/projects/search", params={"projects": project_key}
+                    "/api/projects/search", params={"projects": project_key}
                 )
                 response.raise_for_status()
                 projects = response.json().get("components", [])
@@ -273,7 +273,7 @@ class SonarQubeClient:
             # Check for existing analyses
             try:
                 response = await self._client.get(
-                    f"/api/project_analyses/search",
+                    "/api/project_analyses/search",
                     params={"project": project_key, "ps": 10},
                 )
                 response.raise_for_status()
@@ -436,7 +436,7 @@ class SonarQubeClient:
         """Fetch project metrics."""
         try:
             response = await self._client.get(
-                f"/api/measures/component",
+                "/api/measures/component",
                 params={
                     "component": project_key,
                     "metricKeys": "ncloc,coverage,vulnerabilities,code_smells,duplicated_lines_density",

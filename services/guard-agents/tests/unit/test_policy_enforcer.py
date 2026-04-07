@@ -1,8 +1,8 @@
 """Unit tests for PolicyEnforcer"""
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from src.services.policy_enforcer import PolicyEnforcer, EnforcementAction
+from unittest.mock import AsyncMock, MagicMock
+from src.services.policy_enforcer import PolicyEnforcer
 
 
 @pytest.fixture

@@ -6,9 +6,7 @@ Cobertura de funcionalidades de análise estática de código.
 import ast
 import pytest
 from pathlib import Path
-from datetime import datetime
 import tempfile
-import os
 
 from src.exploration.codebase_explorer import CodebaseExplorer
 

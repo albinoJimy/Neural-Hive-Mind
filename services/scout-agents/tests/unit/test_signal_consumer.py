@@ -6,7 +6,6 @@ implementando feedback loop para ajuste de parâmetros de exploração.
 """
 
 import pytest
-import json
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, timezone

@@ -5,17 +5,14 @@ Tests the TestExecutor with mocked and real CI/CD integrations,
 including GitHub Actions, local command execution, and security validations.
 """
 
-import asyncio
 import os
-import subprocess
 import tempfile
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
 from tests.fixtures.executor_fixtures import create_mock_github_actions_client
-from tests.fixtures.client_fixtures import MockGitHubActionsServer
 from tests.helpers.integration_helpers import (
     ExecutorTestHelper,
     ResultValidator,

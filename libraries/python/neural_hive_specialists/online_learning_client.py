@@ -8,11 +8,10 @@ funcionalidades de online learning.
 import os
 import time
 from datetime import datetime, timedelta, timezone
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 import structlog
 import numpy as np
 import pybreaker
-from functools import lru_cache
 
 logger = structlog.get_logger(__name__)
 

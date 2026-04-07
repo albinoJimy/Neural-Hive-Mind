@@ -10,21 +10,17 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 from unittest.mock import MagicMock
 
-import pytest
 
 from src.models.artifact import (
     ArtifactCategory,
     CodeForgeArtifact,
     PipelineResult,
     PipelineStatus,
-    PipelineStage,
     StageStatus,
-    ValidationResult,
     ValidationType,
     ValidationStatus,
 )
-from src.types.artifact_types import ArtifactCategory, CodeLanguage
-from src.models.execution_ticket import TaskType, TicketStatus
+from src.types.artifact_types import ArtifactCategory
 from src.models.pipeline_context import PipelineContext
 
 

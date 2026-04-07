@@ -10,7 +10,6 @@ from src.policies import OPAClient, PolicyValidator
 from src.policies.opa_client import OPAConnectionError
 from src.observability.metrics import get_metrics
 
-from .test_opa_real_server import real_opa_config, real_opa_client
 
 
 @pytest.mark.asyncio

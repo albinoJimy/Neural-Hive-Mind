@@ -6,7 +6,7 @@ ao invés de heurísticas simples.
 """
 
 import pytest
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import patch, MagicMock
 from typing import Dict, Any
 
 

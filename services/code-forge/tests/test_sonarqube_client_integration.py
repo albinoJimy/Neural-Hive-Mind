@@ -5,7 +5,6 @@ import subprocess
 import sys
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import httpx
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))

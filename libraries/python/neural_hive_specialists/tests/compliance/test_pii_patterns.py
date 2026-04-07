@@ -1,9 +1,7 @@
 """Testes de PII patterns."""
 
-import pytest
 from neural_hive_specialists.compliance.pii_patterns import (
     PIIType,
-    PIICategory,
     get_pattern_registry,
 )
 

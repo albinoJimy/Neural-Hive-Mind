@@ -33,7 +33,7 @@ def validate_sla_config():
     min_timeout = settings.sla_ticket_min_timeout_ms
     multiplier = settings.sla_ticket_timeout_buffer_multiplier
 
-    print(f"\nValores Configurados:")
+    print("\nValores Configurados:")
     print(f"  sla_ticket_min_timeout_ms: {min_timeout}ms ({min_timeout/1000}s)")
     print(f"  sla_ticket_timeout_buffer_multiplier: {multiplier}x")
 
@@ -46,7 +46,7 @@ def validate_sla_config():
             "Isso pode causar falsos positivos de SLA violation."
         )
     else:
-        print(f"✓ min_timeout está dentro do recomendado (>= 60000ms)")
+        print("✓ min_timeout está dentro do recomendado (>= 60000ms)")
 
     if multiplier < 2.0:
         issues.append(
@@ -54,7 +54,7 @@ def validate_sla_config():
             "Isso pode causar timeouts prematuros."
         )
     else:
-        print(f"✓ multiplier está dentro do recomendado (>= 2.0x)")
+        print("✓ multiplier está dentro do recomendado (>= 2.0x)")
 
     # Testar fórmula com casos de teste
     print("\nTestes de Fórmula:")

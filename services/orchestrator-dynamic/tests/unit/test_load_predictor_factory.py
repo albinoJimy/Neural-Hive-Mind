@@ -5,8 +5,7 @@ Valida criação e inicialização do LoadPredictor centralizado.
 """
 
 import pytest
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
-from datetime import datetime, timedelta
+from unittest.mock import Mock, AsyncMock, patch
 
 from src.ml.load_predictor_factory import LoadPredictorFactory, LoadPredictorWrapper
 from src.config.settings import OrchestratorSettings

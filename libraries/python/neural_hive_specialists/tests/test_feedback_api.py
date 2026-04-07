@@ -4,7 +4,7 @@ Testes de integração para FeedbackAPI.
 
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import Mock
 from neural_hive_specialists.feedback import create_feedback_router
 from neural_hive_specialists.config import SpecialistConfig
 from neural_hive_specialists.compliance import AuditLogger
@@ -133,7 +133,6 @@ class TestFeedbackAPI:
     def test_get_feedback_by_opinion_success(self, test_client, mock_feedback_collector):
         """Teste de busca de feedbacks por opinião."""
         from neural_hive_specialists.feedback import FeedbackDocument
-        from datetime import datetime, timezone
 
         mock_feedbacks = [
             FeedbackDocument(

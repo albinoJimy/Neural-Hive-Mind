@@ -1,6 +1,5 @@
 """RetrainingJob - Auto-Retraining Pipeline para Approval Models."""
 
-import asyncio
 import json
 import logging
 import subprocess

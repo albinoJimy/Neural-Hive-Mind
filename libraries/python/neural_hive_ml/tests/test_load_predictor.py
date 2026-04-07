@@ -1,7 +1,6 @@
 """Testes unitários para LoadPredictor."""
 
 import pytest
-import pytest_asyncio
 import numpy as np
 import pandas as pd
 from unittest.mock import Mock, patch, AsyncMock

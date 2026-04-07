@@ -7,7 +7,6 @@ Valida timeout e retry logic.
 
 import pytest
 import asyncio
-from datetime import datetime
 from src.executors.query_executor import QueryExecutor
 from src.config.settings import get_settings
 

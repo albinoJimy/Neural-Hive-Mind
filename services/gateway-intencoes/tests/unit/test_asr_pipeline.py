@@ -2,7 +2,7 @@
 
 import pytest
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 import numpy as np
 
 from pipelines.asr_pipeline import ASRPipeline, ASRResult

@@ -1,4 +1,3 @@
-import numpy as np
 import pytest
 
 from neural_hive_specialists.observability.anomaly_detector import AnomalyDetector

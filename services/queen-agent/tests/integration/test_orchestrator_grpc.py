@@ -12,10 +12,9 @@ Valida comunicação entre Queen Agent e Orchestrator Dynamic via gRPC:
 
 import pytest
 import pytest_asyncio
-import asyncio
 import socket
 from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock
 
 import grpc
 from grpc import aio

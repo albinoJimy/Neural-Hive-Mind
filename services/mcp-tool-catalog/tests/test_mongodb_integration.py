@@ -6,7 +6,7 @@ armazenados e recuperados via Motor/BSON sem conversão para strings.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 from src.models.tool_descriptor import (
     AuthenticationMethod,

@@ -5,7 +5,6 @@ TDD: Testes escritos antes da implementação (GAPS-04 Task 3).
 """
 
 import pytest
-from typing import List, Dict, Any
 import sys
 from pathlib import Path
 

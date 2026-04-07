@@ -8,9 +8,7 @@ Epic: CR-02 Implementar Scout Consumer Completo
 import pytest
 import json
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
-from aiokafka import AIOKafkaConsumer
-from aiokafka.structs import ConsumerRecord, TopicPartition
+from unittest.mock import AsyncMock, Mock, patch
 
 from src.models.digital_event import DigitalEvent, DigitalEventType, DigitalChannel
 from src.consumers.digital_events_consumer import DigitalEventsConsumer
@@ -309,7 +307,6 @@ class TestDigitalEventsConsumerProcessing:
     @pytest.mark.asyncio
     async def test_process_message_records_metrics(self, consumer, mock_exploration_engine):
         """Testa que process_message registra métricas."""
-        from src.observability import metrics
 
         # Criar mock para o contador
         mock_counter = Mock()

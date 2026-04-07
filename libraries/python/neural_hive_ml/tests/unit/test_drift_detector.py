@@ -1,9 +1,8 @@
 """Testes unitários para DriftDetector - Detecção de Model Drift."""
 
 import pytest
-import numpy as np
 from datetime import datetime, timedelta, timezone
-from unittest.mock import Mock, AsyncMock, patch, MagicMock, call
+from unittest.mock import Mock, AsyncMock, MagicMock
 
 from neural_hive_ml.drift_detector import DriftDetector, CanaryDeployer
 

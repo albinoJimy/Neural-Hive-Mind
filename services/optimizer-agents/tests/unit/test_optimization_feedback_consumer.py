@@ -7,7 +7,6 @@ implementando feedback loop para ajuste de estratégias de otimização.
 
 import pytest
 import json
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, timezone
 from collections import defaultdict

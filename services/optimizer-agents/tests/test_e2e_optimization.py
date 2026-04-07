@@ -1,13 +1,12 @@
 """Testes E2E para fluxo completo de otimização."""
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from datetime import datetime, timezone
 
 from src.consumers.ticket_completed_consumer import TicketCompletedConsumer
 from src.analyzers.factory import AnalyzerFactory
 from src.services.auto_applier import OptimizationApplier
-from src.repositories.optimization_repository import OptimizationRepository
 
 
 @pytest.mark.asyncio

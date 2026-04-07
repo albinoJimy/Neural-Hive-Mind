@@ -1,7 +1,7 @@
 """Testes unitários para SigstoreClient"""
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 import sys
 import os
 

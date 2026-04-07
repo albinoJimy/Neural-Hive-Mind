@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from typing import Dict, List, Any, Optional
 import structlog
 from pymongo import MongoClient, ASCENDING, IndexModel
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, model_validator
 
 logger = structlog.get_logger(__name__)
 

@@ -11,7 +11,6 @@ import asyncio
 import sys
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime
 
 # Adicionar src ao path
 src_path = str(Path(__file__).parent.parent.parent / "src")

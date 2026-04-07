@@ -5,7 +5,6 @@ Valida que componentes individuais funcionam integrados.
 
 import pytest
 from unittest.mock import Mock, AsyncMock
-from datetime import datetime, timezone
 
 
 @pytest.mark.asyncio

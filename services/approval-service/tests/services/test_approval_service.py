@@ -6,7 +6,7 @@ from datetime import datetime
 from pymongo.errors import DuplicateKeyError
 
 from src.services.approval_service import ApprovalService
-from src.models.approval import ApprovalRequest, ApprovalDecision, ApprovalStatus, RevertResponse
+from src.models.approval import ApprovalRequest, ApprovalDecision
 from src.config.settings import Settings
 
 

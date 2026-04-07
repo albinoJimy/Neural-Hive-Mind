@@ -115,7 +115,6 @@ class TestAuthMiddleware:
     @pytest.mark.asyncio
     async def test_invalid_token_blocked(self, auth_middleware, mock_settings):
         """Testar que token inválido é bloqueado"""
-        from middleware.auth_middleware import AuthenticationError
 
         # Mock validator que lança exceção
         with patch("middleware.auth_middleware.get_oauth2_validator") as mock_validator:

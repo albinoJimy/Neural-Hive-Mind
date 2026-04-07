@@ -6,8 +6,6 @@ Espec: GAPS-05 Scout Agents
 """
 
 import pytest
-from unittest.mock import Mock, MagicMock
-from typing import Dict, List
 
 # Import com skip automático se módulo não disponível
 SolutionSynthesizer = pytest.importorskip("src.synthesis.solution_synthesizer").SolutionSynthesizer

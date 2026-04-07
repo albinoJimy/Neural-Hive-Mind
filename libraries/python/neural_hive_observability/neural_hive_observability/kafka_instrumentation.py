@@ -6,7 +6,7 @@ garantindo correlação distribuída via headers e spans OpenTelemetry.
 """
 
 import logging
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from opentelemetry import trace
 from opentelemetry.context import attach

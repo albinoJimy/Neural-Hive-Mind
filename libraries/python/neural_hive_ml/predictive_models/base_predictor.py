@@ -6,7 +6,6 @@ import logging
 import mlflow
 import numpy as np
 import pandas as pd
-from prometheus_client import Histogram, Counter, Gauge
 
 logger = logging.getLogger(__name__)
 

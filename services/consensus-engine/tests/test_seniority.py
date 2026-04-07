@@ -3,7 +3,6 @@ Testes unitários para o modelo de senioridade.
 """
 
 import pytest
-import sys
 from pathlib import Path
 
 # Importar módulo diretamente para evitar __init__.py issues

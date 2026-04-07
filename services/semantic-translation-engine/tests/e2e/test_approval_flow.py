@@ -15,13 +15,10 @@ Requisitos:
 - Semantic Translation Engine rodando
 """
 
-import asyncio
-import json
 import os
-import time
 import uuid
-from datetime import datetime, timezone, timedelta
-from typing import Any, Callable, Dict, List, Optional
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
 
 import httpx
 import pytest

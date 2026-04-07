@@ -7,7 +7,7 @@ será modificado para importar e usar settings.get_settings().
 
 import pytest
 from unittest.mock import patch, Mock, PropertyMock
-from src.security.auth import verify_token, get_current_user
+from src.security.auth import verify_token
 
 
 @pytest.mark.asyncio

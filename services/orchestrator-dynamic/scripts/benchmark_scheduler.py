@@ -406,7 +406,7 @@ def main():
 
     args = parser.parse_args()
 
-    print(f"Iniciando benchmark...")
+    print("Iniciando benchmark...")
     print(f"  Iterações: {args.iterations}")
     print(f"  Tickets/iteração: {args.tickets}")
     print(f"  Concorrência: {args.concurrency}")

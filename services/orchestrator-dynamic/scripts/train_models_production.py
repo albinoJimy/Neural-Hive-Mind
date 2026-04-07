@@ -14,9 +14,6 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 import pandas as pd
-from motor.motor_asyncio import (
-    AsyncIOMotorClient,
-)  # noqa: F401 - mantido para compatibilidade com planilha
 
 # Adicionar path das bibliotecas
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))

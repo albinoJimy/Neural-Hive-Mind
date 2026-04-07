@@ -5,7 +5,6 @@ Este modulo testa os atributos da classe CodeForgeMetrics que
 nao estao cobertos pelos testes existentes.
 """
 
-import pytest
 
 
 class TestCodeForgeMetricsAttributes:

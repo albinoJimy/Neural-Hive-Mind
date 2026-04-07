@@ -19,7 +19,7 @@ import pytest
 import uuid
 from dataclasses import dataclass
 from enum import Enum
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
 
 # ============================================

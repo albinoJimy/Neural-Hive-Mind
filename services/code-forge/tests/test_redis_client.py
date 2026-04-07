@@ -1,7 +1,7 @@
 """Testes unitários para RedisClient"""
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 import json
 import sys
 import os

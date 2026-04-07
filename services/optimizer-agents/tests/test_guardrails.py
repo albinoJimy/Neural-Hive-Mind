@@ -4,7 +4,7 @@ Testes unitarios para o sistema de guardrails.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 import numpy as np
 
 from src.experimentation.guardrails import (

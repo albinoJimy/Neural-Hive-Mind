@@ -6,8 +6,7 @@ Espec: GAPS-05 Scout Agents
 """
 
 import pytest
-from unittest.mock import Mock, MagicMock, AsyncMock
-from typing import Dict, Any
+from unittest.mock import MagicMock, AsyncMock
 
 # Import com skip automático se módulo não disponível
 QueenAgentIntegration = pytest.importorskip(

@@ -4,9 +4,7 @@ Testa roteamento de intenções para serviços downstream (STE, execução diret
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from fastapi import Request, HTTPException
-from starlette.responses import Response
+from unittest.mock import AsyncMock, MagicMock
 import sys
 import os
 

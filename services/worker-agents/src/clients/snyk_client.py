@@ -7,8 +7,6 @@ Supports:
 - Dependency scanning (pip, npm, maven, gradle, etc.)
 """
 
-import asyncio
-import json
 import os
 from dataclasses import dataclass
 from datetime import datetime, timezone

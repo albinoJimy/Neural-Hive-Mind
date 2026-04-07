@@ -5,8 +5,7 @@ Cobre health, readiness, metrics e chaos endpoints.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock
 import os
 
 
@@ -106,7 +105,7 @@ async def test_health_with_chaos_enabled():
 @pytest.mark.asyncio
 async def test_list_scenarios_success():
     """Listar cenarios deve retornar lista de cenarios disponiveis."""
-    from src.api.chaos import list_scenarios, get_chaos_engine
+    from src.api.chaos import list_scenarios
 
     mock_engine = MagicMock()
     mock_engine.list_scenarios = MagicMock(return_value=["pod_kill", "network_delay", "high_cpu"])

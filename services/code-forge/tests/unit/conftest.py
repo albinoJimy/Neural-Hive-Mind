@@ -11,8 +11,7 @@ Este modulo fornece:
 import asyncio
 import uuid
 from datetime import datetime
-from typing import Dict, List, Optional
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -388,12 +387,6 @@ def mock_pipeline_engine(
 ):
     """Mock para PipelineEngine sem métricas."""
     from src.services.pipeline_engine import PipelineEngine
-    from src.services.template_selector import TemplateSelector
-    from src.services.code_composer import CodeComposer
-    from src.services.validator import Validator
-    from src.services.test_runner import TestRunner
-    from src.services.packager import Packager
-    from src.services.approval_gate import ApprovalGate
 
     # Criar instâncias dos subpipelines (como MagicMock para teste)
     template_selector = MagicMock()

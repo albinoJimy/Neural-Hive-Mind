@@ -11,7 +11,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from dataclasses import dataclass
 
 import grpc
-from grpc import aio
 import structlog
 
 

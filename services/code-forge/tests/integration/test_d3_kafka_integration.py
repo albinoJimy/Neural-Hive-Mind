@@ -12,12 +12,11 @@ Tópicos Kafka:
 import json
 import uuid
 from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, patch
-from typing import Any, Dict
+from unittest.mock import AsyncMock
 
 import pytest
 
-from src.types.artifact_types import ArtifactCategory, CodeLanguage
+from src.types.artifact_types import ArtifactCategory
 from src.models.artifact import PipelineResult, PipelineStatus
 from src.models.execution_ticket import TaskType, TicketStatus
 

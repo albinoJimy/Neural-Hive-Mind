@@ -1,7 +1,7 @@
 # Optimizer MCP Server Configuration
 
 from typing import List
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings
 
 from neural_hive_security.cors import CORSConfig
 

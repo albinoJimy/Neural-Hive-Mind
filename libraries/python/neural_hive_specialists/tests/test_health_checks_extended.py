@@ -5,10 +5,8 @@ Cobertura para observability/health_checks.py
 """
 
 import pytest
-from unittest.mock import Mock, MagicMock, AsyncMock, patch
-from typing import Dict, Any
+from unittest.mock import patch
 from datetime import datetime
-import asyncio
 
 
 class TestComponentHealth:

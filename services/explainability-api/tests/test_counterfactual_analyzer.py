@@ -4,8 +4,7 @@ Testes unitários para CounterfactualAnalyzer.
 TDD: Testes escritos antes da implementação (Explainability API v3 Task 4).
 """
 
-import pytest
-from typing import List, Dict, Any
+from typing import Dict, Any
 import sys
 from pathlib import Path
 
@@ -15,7 +14,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 from services.counterfactual_analyzer import (
     CounterfactualAnalyzer,
     CounterfactualResult,
-    INVERTED_MULTIPLIERS,
 )
 
 

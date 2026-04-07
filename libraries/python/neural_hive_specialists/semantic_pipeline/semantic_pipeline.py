@@ -5,7 +5,7 @@ Orquestra SemanticAnalyzer, OntologyBasedEvaluator e FeatureExtractor
 para fornecer avaliação 100% semântica sem string-match.
 """
 
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any
 import structlog
 
 from .semantic_analyzer import SemanticAnalyzer
@@ -159,25 +159,25 @@ class SemanticPipeline:
                     "factor_name": "semantic_performance_analysis",
                     "weight": 0.2,
                     "score": performance_score,
-                    "description": f"Análise semântica de performance",
+                    "description": "Análise semântica de performance",
                 },
                 {
                     "factor_name": "semantic_quality_analysis",
                     "weight": 0.2,
                     "score": quality_score,
-                    "description": f"Análise semântica de qualidade",
+                    "description": "Análise semântica de qualidade",
                 },
                 {
                     "factor_name": "complexity_evaluation",
                     "weight": 0.15,
                     "score": complexity_score,
-                    "description": f"Complexidade baseada em ontologia",
+                    "description": "Complexidade baseada em ontologia",
                 },
                 {
                     "factor_name": "risk_patterns",
                     "weight": 0.15,
                     "score": risk_patterns_score,
-                    "description": f"Padrões de risco identificados",
+                    "description": "Padrões de risco identificados",
                 },
             ]
 

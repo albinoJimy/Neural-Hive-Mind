@@ -3,10 +3,9 @@ Fixtures compartilhadas para todos os testes da biblioteca neural_hive_specialis
 """
 
 import pytest
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import Mock, patch
 from typing import Dict, Any
 import uuid
-import sys
 
 # ============================================================================
 # Mock MongoDB ANTES de qualquer importação
@@ -113,7 +112,6 @@ os.environ["ENABLE_LEDGER"] = "false"
 os.environ["LEDGER_REQUIRED"] = "false"
 
 from neural_hive_specialists.config import SpecialistConfig
-from neural_hive_specialists.schemas import CognitivePlanSchema, TaskSchema
 
 
 # ============================================================================
@@ -441,7 +439,6 @@ def mock_specialist(mocker, mock_config):
 @pytest.fixture
 def grpc_server(mock_specialist, mock_config):
     """Servidor gRPC de teste."""
-    import grpc
     from neural_hive_specialists.grpc_server import (
         create_grpc_server_with_observability,
     )

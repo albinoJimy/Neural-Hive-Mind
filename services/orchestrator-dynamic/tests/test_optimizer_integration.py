@@ -15,7 +15,7 @@ Cobertura:
 
 import pytest
 import pytest_asyncio
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 import grpc
 from grpc.aio import AioRpcError

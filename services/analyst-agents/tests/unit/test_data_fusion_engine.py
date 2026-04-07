@@ -5,7 +5,7 @@ Testes simplificados que focam na lógica de fusão de dados.
 """
 
 import pytest
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import Mock
 from datetime import datetime, timezone
 
 from src.services.data_fusion_engine import DataFusionEngine, ConflictResolution, AggregatedResult

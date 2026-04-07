@@ -13,12 +13,11 @@ Este modulo contem testes de integracao que verificam:
 Todos os testes usam mocks dos clientes externos.
 """
 
-import asyncio
 import pytest
 import uuid
 import tempfile
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
 
 # ============================================

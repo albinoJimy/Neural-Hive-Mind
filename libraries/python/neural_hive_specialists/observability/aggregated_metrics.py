@@ -5,10 +5,10 @@ Calcula métricas como consensus_rate, avg_confidence_by_specialist,
 specialist_agreement_matrix para observabilidade holística do sistema.
 """
 
-from typing import Dict, List, Any, Optional
+from typing import Dict, Any, Optional
 from datetime import datetime, timedelta, timezone
 from pymongo import MongoClient
-from prometheus_client import Gauge, Histogram, Counter
+from prometheus_client import Gauge
 import structlog
 import asyncio
 from collections import defaultdict

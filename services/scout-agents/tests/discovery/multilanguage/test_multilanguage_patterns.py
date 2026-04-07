@@ -1,8 +1,7 @@
 """Testes para detecção de padrões multi-linguagem."""
 
 import pytest
-from enum import Enum
-from src.discovery.multilanguage import MultiLanguagePatternDiscovery, PatternLanguage, PatternMatch
+from src.discovery.multilanguage import MultiLanguagePatternDiscovery, PatternLanguage
 
 
 # ========================================================================

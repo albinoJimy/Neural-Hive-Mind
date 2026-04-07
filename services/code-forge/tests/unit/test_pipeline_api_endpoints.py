@@ -5,16 +5,14 @@ Cobre trigger_pipeline, get_pipeline e estados de pipeline.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from datetime import datetime
-import uuid
 
 
 @pytest.mark.asyncio
 async def test_trigger_pipeline_success():
     """Trigger de pipeline deve criar ticket e retornar pipeline_id."""
     from src.api.pipeline_api import set_pipeline_engine, trigger_pipeline
-    from src.models.execution_ticket import TaskType, TicketStatus
 
     # Configurar mock pipeline engine
     mock_engine = AsyncMock()

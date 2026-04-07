@@ -5,8 +5,7 @@ Cobertura extra para drift_detector.py, drift_alerts.py, evidently_monitor.py
 """
 
 import pytest
-from unittest.mock import Mock, MagicMock, AsyncMock
-from typing import Dict, Any
+from unittest.mock import Mock
 
 
 class TestDriftDetectorExtended:

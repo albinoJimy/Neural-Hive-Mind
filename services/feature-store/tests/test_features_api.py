@@ -5,7 +5,6 @@ Testa endpoints CRUD e validações de schema.
 """
 
 import pytest
-from datetime import datetime
 from fastapi.testclient import TestClient
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -14,7 +13,6 @@ from src.models.feature import (
     FeatureVector,
     MetadataFeatures,
     ComputationStatus,
-    FeatureComputationRequest,
 )
 
 

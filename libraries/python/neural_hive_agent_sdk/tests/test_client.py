@@ -4,7 +4,7 @@ Testes para neural_hive_agent_sdk - AgentClient e componentes relacionados.
 
 import pytest
 import asyncio
-from unittest.mock import Mock, MagicMock, AsyncMock, patch
+from unittest.mock import MagicMock, AsyncMock, patch
 from datetime import datetime, timezone
 
 from neural_hive_agent_sdk import AgentClient, AgentType, AgentTelemetry, AgentConfig

@@ -19,7 +19,7 @@ except ImportError:
     AIOKafkaConsumer = None
     AIOKAFKA_AVAILABLE = False
 
-from .models import FeedbackMessage, FeedbackData, FeedbackOutcome, FeedbackSource
+from .models import FeedbackMessage
 from .pattern_registry import PatternRegistry
 
 logger = structlog.get_logger()

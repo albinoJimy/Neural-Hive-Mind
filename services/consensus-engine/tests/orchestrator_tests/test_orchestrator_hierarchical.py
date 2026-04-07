@@ -7,7 +7,7 @@ TDD: Testes escritos antes da implementação (RED phase).
 import pytest
 import sys
 from pathlib import Path
-from unittest.mock import Mock, AsyncMock, MagicMock, patch
+from unittest.mock import Mock, MagicMock, patch
 from enum import Enum
 
 

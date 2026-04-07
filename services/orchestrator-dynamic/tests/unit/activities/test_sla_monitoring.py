@@ -11,14 +11,12 @@ Testes cobrem:
 """
 
 import pytest
-import time
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from src.activities.sla_monitoring import (
     check_workflow_sla_proactive,
     _default_response,
-    SLAMonitorUnavailable,
 )
 
 

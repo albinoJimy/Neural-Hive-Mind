@@ -1,8 +1,7 @@
 """Testes unitarios para sincronizacao de CRDs no SLOManager."""
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from kubernetes.client.rest import ApiException
+from unittest.mock import AsyncMock, MagicMock
 
 from src.services.slo_manager import SLOManager
 from src.models.slo_definition import SLODefinition, SLOType, SLIQuery

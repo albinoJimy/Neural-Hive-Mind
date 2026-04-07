@@ -15,8 +15,7 @@ import statistics
 import structlog
 from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional
-from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 logger = structlog.get_logger()
 

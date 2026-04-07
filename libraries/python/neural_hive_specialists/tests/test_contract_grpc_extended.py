@@ -9,7 +9,6 @@ import pytest
 import grpc
 import uuid
 import json
-from google.protobuf.timestamp_pb2 import Timestamp
 
 from neural_hive_specialists.proto_gen import specialist_pb2
 

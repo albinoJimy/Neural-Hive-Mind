@@ -5,7 +5,6 @@ Testes unitários para CLIAdapter.
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 from src.adapters.cli_adapter import CLIAdapter
-from src.adapters.base_adapter import ExecutionResult
 
 
 @pytest.fixture

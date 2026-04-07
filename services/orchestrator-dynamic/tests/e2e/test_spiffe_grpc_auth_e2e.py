@@ -4,7 +4,6 @@ import grpc
 import pytest
 
 from tests.e2e.fixtures.vault_spire_setup import (
-    spiffe_manager,
     require_real_env,
     build_test_settings,
 )

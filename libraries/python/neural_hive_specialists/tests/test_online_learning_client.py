@@ -1,10 +1,8 @@
 """Testes para OnlineLearningClient."""
 
-import os
-import time
 import pytest
 import numpy as np
-from unittest.mock import patch, Mock, MagicMock
+from unittest.mock import patch, Mock
 from datetime import datetime, timedelta, timezone
 
 from neural_hive_specialists.online_learning_client import (

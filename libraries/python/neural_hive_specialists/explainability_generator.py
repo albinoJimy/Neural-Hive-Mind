@@ -6,7 +6,6 @@ import uuid
 import time
 import hashlib
 from typing import Dict, Any, List, Tuple, Optional
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 import structlog
 from pymongo import MongoClient
 from tenacity import retry, stop_after_attempt, wait_exponential

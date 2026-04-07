@@ -12,8 +12,7 @@ Cobre:
 """
 
 import pytest
-from unittest.mock import AsyncMock, Mock, patch
-from datetime import datetime
+from unittest.mock import AsyncMock, Mock
 
 from src.services.weight_recalibrator import WeightRecalibrator
 from src.models.optimization_hypothesis import OptimizationHypothesis, OptimizationType

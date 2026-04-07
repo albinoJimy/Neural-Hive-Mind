@@ -8,8 +8,7 @@ Cobertura:
 - Propagacao de feedback para MongoDB e cache
 """
 
-import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 

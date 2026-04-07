@@ -7,7 +7,7 @@ meta-learning baseado em histórico.
 """
 
 from typing import List, Optional, Dict, Any
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 import structlog
 
 try:

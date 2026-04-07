@@ -1,6 +1,5 @@
 """Tests for neural_hive_exceptions library."""
 
-import pytest
 import grpc
 from neural_hive_exceptions import (
     NeuralHiveError,

@@ -5,9 +5,7 @@ Cobre ShapCalculator, QualityScorer e HierarchicalExplainer.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime
-import numpy as np
+from unittest.mock import AsyncMock, MagicMock
 
 
 @pytest.mark.asyncio

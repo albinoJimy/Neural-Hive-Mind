@@ -7,7 +7,7 @@ permitindo deployments híbridos.
 
 import numpy as np
 import structlog
-from typing import Any, Optional, Tuple
+from typing import Any
 
 logger = structlog.get_logger(__name__)
 

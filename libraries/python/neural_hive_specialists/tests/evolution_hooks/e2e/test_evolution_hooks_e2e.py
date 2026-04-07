@@ -10,11 +10,10 @@ Este módulo testa os fluxos completos do sistema de meta-learning:
 import pytest
 import asyncio
 from datetime import datetime, timezone, timedelta
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
+from unittest.mock import patch
 
 from neural_hive_specialists.evolution_hooks.models import (
     Fingerprint,
-    PatternRecord,
     EvolutionEvaluation,
     FeedbackData,
     FeedbackOutcome,

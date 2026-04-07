@@ -6,7 +6,7 @@ caminhos críticos, paralelização potencial, complexidade ciclomática.
 """
 
 import networkx as nx
-from typing import Dict, List, Any, Tuple, Optional
+from typing import Dict, List, Any, Optional
 import structlog
 
 logger = structlog.get_logger(__name__)

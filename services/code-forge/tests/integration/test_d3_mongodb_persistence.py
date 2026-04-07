@@ -13,20 +13,11 @@ Collections:
 import os
 import uuid
 from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, patch
-from typing import Any, Dict
+from unittest.mock import AsyncMock
 
 import pytest
 
-from src.types.artifact_types import ArtifactCategory, CodeLanguage
-from src.models.artifact import (
-    CodeForgeArtifact,
-    PipelineResult,
-    PipelineStatus,
-    ValidationResult,
-    ValidationType,
-    ValidationStatus,
-)
+from src.types.artifact_types import ArtifactCategory
 
 
 pytest_plugins = ["tests.unit.conftest", "tests.fixtures.d3_fixtures"]

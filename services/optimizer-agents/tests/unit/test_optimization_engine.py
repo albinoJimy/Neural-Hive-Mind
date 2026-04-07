@@ -12,14 +12,11 @@ Cobre:
 """
 
 import pytest
-import random
 from unittest.mock import Mock, AsyncMock, patch
-from datetime import datetime
 from collections import defaultdict
 
 from src.services.optimization_engine import OptimizationEngine
 from src.models.optimization_hypothesis import OptimizationHypothesis, OptimizationType
-from src.models.optimization_event import OptimizationType as EventOptimizationType
 
 
 @pytest.fixture

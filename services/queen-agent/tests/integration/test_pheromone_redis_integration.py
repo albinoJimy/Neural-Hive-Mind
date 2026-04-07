@@ -11,7 +11,6 @@ pheromone:{layer}:{domain}:{type}:{id?}
 import pytest
 import os
 import json
-import asyncio
 from unittest.mock import MagicMock
 
 from neural_hive_domain import UnifiedDomain

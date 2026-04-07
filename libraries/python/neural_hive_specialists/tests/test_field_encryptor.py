@@ -8,8 +8,8 @@ invalid ciphertext, file permissions 0600, auto key generation.
 import pytest
 import os
 import tempfile
-from unittest.mock import Mock, patch, MagicMock
-from cryptography.fernet import Fernet, InvalidToken
+from unittest.mock import Mock, patch
+from cryptography.fernet import Fernet
 
 from neural_hive_specialists.compliance.field_encryptor import FieldEncryptor
 

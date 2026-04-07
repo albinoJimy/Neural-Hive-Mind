@@ -7,8 +7,7 @@ fairness e geração de relatórios.
 
 import pytest
 import numpy as np
-from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 from ml.model_comparator import ModelComparator, ComparisonResult
 

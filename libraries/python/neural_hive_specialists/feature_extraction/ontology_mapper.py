@@ -74,13 +74,13 @@ class OntologyMapper:
         try:
             with open(filepath, "r", encoding="utf-8") as f:
                 taxonomy = json.load(f)
-            logger.debug(f"Loaded taxonomy", filename=filename, version=taxonomy.get("version"))
+            logger.debug("Loaded taxonomy", filename=filename, version=taxonomy.get("version"))
             return taxonomy
         except FileNotFoundError:
-            logger.warning(f"Taxonomy file not found", filepath=filepath)
+            logger.warning("Taxonomy file not found", filepath=filepath)
             return {}
         except json.JSONDecodeError as e:
-            logger.error(f"Invalid JSON in taxonomy", filepath=filepath, error=str(e))
+            logger.error("Invalid JSON in taxonomy", filepath=filepath, error=str(e))
             return {}
 
     def _precompute_indicator_embeddings(self):

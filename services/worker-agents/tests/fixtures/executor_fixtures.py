@@ -6,8 +6,8 @@ with different client configurations and modes.
 """
 
 import pytest
-from typing import Any, Dict, Optional
-from unittest.mock import AsyncMock, MagicMock
+from typing import Dict, Optional
+from unittest.mock import AsyncMock
 
 from neural_hive_integration.clients.code_forge_client import PipelineStatus
 

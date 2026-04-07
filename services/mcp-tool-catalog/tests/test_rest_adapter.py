@@ -11,13 +11,11 @@ Cobertura:
 """
 
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from aioresponses import aioresponses
 
 from src.adapters.rest_adapter import RESTAdapter
-from src.adapters.base_adapter import ExecutionResult
 
 
 # ============================================================================

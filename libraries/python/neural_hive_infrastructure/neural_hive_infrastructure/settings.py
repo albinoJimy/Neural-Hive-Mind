@@ -5,11 +5,9 @@ Este módulo fornece classes base para configurações de infraestrutura
 partilhadas por todos os serviços da plataforma.
 """
 
-from functools import lru_cache
-from typing import List, Optional, Union, Dict, Any
+from typing import Optional, Dict, Any
 from urllib.parse import urlparse
 
-import json
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 

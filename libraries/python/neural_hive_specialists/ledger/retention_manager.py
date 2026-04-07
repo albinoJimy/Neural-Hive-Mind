@@ -5,7 +5,7 @@ Implementa políticas de data retention, mascaramento de campos sensíveis,
 e conformidade com GDPR/LGPD para o ledger cognitivo.
 """
 
-from typing import Dict, List, Any, Optional, Set
+from typing import Dict, List, Any, Optional
 from datetime import datetime, timedelta, timezone
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError

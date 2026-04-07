@@ -5,9 +5,8 @@ Cobre validacao de codigo, seguranca e qualidade.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from datetime import datetime
-import uuid
 
 
 @pytest.mark.asyncio

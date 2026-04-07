@@ -7,13 +7,10 @@ PLANO_TESTE_MANUAL_CODEFORGE.md, fornecendo comandos prontos e
 um ambiente de teste organizado.
 """
 
-import os
 import sys
-import tempfile
 import subprocess
 import shutil
 from pathlib import Path
-from typing import Optional
 
 # Adicionar src ao path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
@@ -431,7 +428,7 @@ def run_tc004():
         print(f"  Duration: {result.duration_seconds:.2f}s")
 
         if result.build_logs:
-            print(f"\n--- Últimas 5 linhas do log ---")
+            print("\n--- Últimas 5 linhas do log ---")
             for log in result.build_logs[-5:]:
                 print(f"  {log}")
 
@@ -485,7 +482,7 @@ def run_tc009():
         print(f"Taxa de sucesso: {report['summary']['success_rate']:.1%}")
 
         if report["duration_by_language"]:
-            print(f"\n--- Duração por Linguagem ---")
+            print("\n--- Duração por Linguagem ---")
             for lang, stats in report["duration_by_language"].items():
                 print(f"  {lang}:")
                 print(f"    Média: {stats['mean']:.2f}s")
@@ -494,13 +491,13 @@ def run_tc009():
                 print(f"    Count: {stats['count']}")
 
         if report["cache_hit_rate_by_language"]:
-            print(f"\n--- Cache Hit Rate por Linguagem ---")
+            print("\n--- Cache Hit Rate por Linguagem ---")
             for lang, rate in report["cache_hit_rate_by_language"].items():
                 print(f"  {lang}: {rate:.1f}%")
 
         ma = report["multi_arch_impact"]
         if ma["single_arch_count"] > 0 or ma["multi_arch_count"] > 0:
-            print(f"\n--- Impacto Multi-arch ---")
+            print("\n--- Impacto Multi-arch ---")
             print(f"  Single-arch builds: {ma['single_arch_count']}")
             print(f"  Multi-arch builds: {ma['multi_arch_count']}")
             if ma["single_arch_avg_duration"] > 0:
@@ -516,7 +513,7 @@ def run_tc009():
             line_count = (
                 len(metrics_file.read_text().split("\n")) if metrics_file.read_text() else 0
             )
-            print(f"\n--- Métricas Persistidas ---")
+            print("\n--- Métricas Persistidas ---")
             print_success(f"Arquivo: {metrics_file}")
             print(f"Linhas: {line_count}")
 

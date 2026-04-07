@@ -10,8 +10,6 @@ Cobertura:
 """
 
 import asyncio
-import json
-import os
 import tempfile
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -24,9 +22,7 @@ from src.clients.checkov_client import (
     CheckovFinding,
     CheckovSummary,
     CheckovSeverity,
-    CheckovError,
     CheckovNotFoundError,
-    CheckovExecutionError,
 )
 
 

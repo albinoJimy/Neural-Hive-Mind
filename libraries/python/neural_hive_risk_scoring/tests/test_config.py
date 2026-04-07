@@ -2,8 +2,6 @@
 Testes para RiskScoringConfig e RiskBand
 """
 
-import pytest
-from pydantic import ValidationError
 
 from neural_hive_risk_scoring import RiskScoringConfig, RiskBand, UnifiedDomain
 

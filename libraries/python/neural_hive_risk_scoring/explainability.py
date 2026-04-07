@@ -5,10 +5,9 @@ Explicabilidade de decisões de risco com SHAP-like values e feature importance.
 """
 
 import structlog
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional, Tuple
 from datetime import datetime
 from dataclasses import dataclass, field
-from collections import OrderedDict
 
 from .config import RiskBand, RiskScoringConfig
 from .models import RiskAssessment
@@ -504,14 +503,14 @@ class RiskExplainability:
             String com relatório formatado
         """
         lines = [
-            f"=== RELATÓRIO DE AVALIAÇÃO DE RISCO ===",
-            f"",
+            "=== RELATÓRIO DE AVALIAÇÃO DE RISCO ===",
+            "",
             f"Entidade: {explanation.entity_id}",
             f"Domínio: {explanation.domain.value}",
             f"Score Final: {explanation.final_score:.2f} / 1.00",
             f"Classificação: {explanation.final_band.value.upper()}",
-            f"",
-            f"--- Fatores de Risco ---",
+            "",
+            "--- Fatores de Risco ---",
         ]
 
         for factor in explanation.factors:
@@ -536,7 +535,7 @@ class RiskExplainability:
             lines.append("  Nenhuma recomendação específica.")
 
         lines.append("")
-        lines.append(f"--- Justificativa ---")
+        lines.append("--- Justificativa ---")
         lines.append(explanation.reasoning)
 
         return "\n".join(lines)

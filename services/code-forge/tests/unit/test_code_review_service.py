@@ -5,9 +5,7 @@ Cobre integracao com analise de codigo, comentarios e feedback.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime
-import uuid
+from unittest.mock import AsyncMock
 
 
 @pytest.mark.asyncio

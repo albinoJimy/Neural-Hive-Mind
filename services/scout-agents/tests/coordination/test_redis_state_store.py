@@ -6,7 +6,7 @@ Compartilhamento de estado via Redis.
 import pytest
 import json
 from unittest.mock import AsyncMock, MagicMock
-from src.coordination.redis_state_store import RedisStateStore, REDIS_AVAILABLE
+from src.coordination.redis_state_store import RedisStateStore
 
 
 @pytest.fixture

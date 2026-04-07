@@ -6,7 +6,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock
 
 from src.services.guardrail_enforcer import GuardrailEnforcer
-from src.models.security_validation import ViolationType, Severity
+from src.models.security_validation import ViolationType
 
 
 @pytest.fixture

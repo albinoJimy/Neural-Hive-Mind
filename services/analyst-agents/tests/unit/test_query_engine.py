@@ -5,9 +5,7 @@ Testes simplificados que focam na lógica de consulta multi-source.
 """
 
 import pytest
-from unittest.mock import AsyncMock, Mock, MagicMock
-import hashlib
-import json
+from unittest.mock import AsyncMock
 
 from src.services.query_engine import QueryEngine
 

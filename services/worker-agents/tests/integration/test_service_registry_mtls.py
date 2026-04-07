@@ -5,12 +5,10 @@ Testa criacao de canal seguro com X.509-SVID, JWT-SVID em metadata e fallbacks.
 """
 
 import pytest
-import asyncio
 from datetime import datetime, timezone, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 from dataclasses import dataclass
 
-import grpc
 
 
 @dataclass
@@ -161,7 +159,6 @@ async def test_worker_agent_mtls_initialization(mock_spiffe_manager, mock_config
 async def test_worker_agent_registration_with_jwt_metadata(mock_spiffe_manager, mock_config):
     """Testa registro do Worker Agent com JWT-SVID em metadata"""
     from src.clients.service_registry_client import ServiceRegistryClient
-    from neural_hive_integration.proto_stubs import service_registry_pb2
 
     with (
         patch("src.clients.service_registry_client.SECURITY_LIB_AVAILABLE", True),
@@ -267,7 +264,6 @@ async def test_worker_agent_insecure_allowed_in_dev(mock_config):
 async def test_worker_agent_heartbeat_with_jwt_metadata(mock_spiffe_manager, mock_config):
     """Testa heartbeat do Worker Agent com JWT-SVID em metadata"""
     from src.clients.service_registry_client import ServiceRegistryClient
-    from neural_hive_integration.proto_stubs import service_registry_pb2
 
     with (
         patch("src.clients.service_registry_client.SECURITY_LIB_AVAILABLE", True),

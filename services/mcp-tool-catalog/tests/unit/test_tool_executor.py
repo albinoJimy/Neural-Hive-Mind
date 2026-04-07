@@ -11,8 +11,7 @@ Cobertura:
 - Build command por integration_type
 """
 
-import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -53,7 +52,6 @@ class TestToolExecutorRouting:
     ):
         """Deve rotear para MCP quando configurado."""
         from src.services.tool_executor import ToolExecutor
-        from src.adapters.base_adapter import ExecutionResult
         from src.models.mcp_messages import MCPToolCallResponse, MCPContentItem
 
         # Configurar tool_id no mcp_servers

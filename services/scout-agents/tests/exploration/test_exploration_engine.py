@@ -7,7 +7,7 @@ from collections import deque
 
 from src.engine.exploration_engine import ExplorationEngine
 from src.models.raw_event import RawEvent
-from src.models.scout_signal import ChannelType, SignalType
+from src.models.scout_signal import ChannelType
 from neural_hive_domain import UnifiedDomain
 
 

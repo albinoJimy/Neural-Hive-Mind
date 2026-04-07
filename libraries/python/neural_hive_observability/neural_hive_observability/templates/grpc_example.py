@@ -5,7 +5,6 @@ Mostra como criar servidor instrumentado, usar @trace_grpc_method e
 extrair contexto via extract_grpc_context.
 """
 
-from concurrent import futures
 from dataclasses import dataclass
 from typing import Optional
 

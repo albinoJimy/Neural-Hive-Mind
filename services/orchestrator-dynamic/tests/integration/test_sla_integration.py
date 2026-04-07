@@ -4,11 +4,9 @@ Testes de integração end-to-end para monitoramento de SLA.
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from src.activities.result_consolidation import consolidate_results, publish_telemetry
-from src.sla.sla_monitor import SLAMonitor
-from src.sla.alert_manager import AlertManager
 
 
 @pytest.fixture

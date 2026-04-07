@@ -7,7 +7,6 @@ Configura sys.path para permitir imports do src.
 import sys
 from pathlib import Path
 
-import pytest
 
 # Adicionar src ao path imediatamente
 src_path = str(Path(__file__).parent.parent / "src")

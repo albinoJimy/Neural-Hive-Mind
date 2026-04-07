@@ -1,7 +1,6 @@
 """Tests for neural_hive_infrastructure settings."""
 
 import pytest
-import os
 from pydantic import ValidationError
 
 from neural_hive_infrastructure import (

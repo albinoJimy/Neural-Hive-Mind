@@ -3,9 +3,7 @@ Detector e anonimizador de PII usando Presidio.
 """
 
 import structlog
-from typing import Dict, List, Any, Tuple, Optional
-from functools import lru_cache
-import hashlib
+from typing import Dict, List, Any, Tuple
 
 logger = structlog.get_logger(__name__)
 

@@ -14,8 +14,8 @@ import os
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Generator, Optional
-from unittest.mock import AsyncMock, MagicMock, patch
+from typing import Generator
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -165,7 +165,6 @@ def worker_config():
 def worker_config_minimal():
     """Minimal config with all integrations disabled."""
     from src.config.settings import WorkerAgentSettings
-    from pydantic_settings import SettingsConfigDict
 
     return WorkerAgentSettings(
         service_name="worker-agents-test-minimal",
@@ -630,7 +629,6 @@ def execute_ticket_lambda():
 @pytest.fixture
 def mock_argocd_client():
     """Mock ArgoCD client for integration tests."""
-    from dataclasses import dataclass
 
     @dataclass
     class MockHealthStatus:
@@ -666,7 +664,6 @@ def mock_argocd_client():
 @pytest.fixture
 def mock_flux_client():
     """Mock Flux client for integration tests."""
-    from dataclasses import dataclass
 
     @dataclass
     class MockKustomizationStatus:
@@ -683,7 +680,6 @@ def mock_flux_client():
 @pytest.fixture
 def mock_github_actions_client():
     """Mock GitHub Actions client for integration tests."""
-    from dataclasses import dataclass
 
     @dataclass
     class MockWorkflowRunStatus:
@@ -714,7 +710,6 @@ def mock_github_actions_client():
 @pytest.fixture
 def mock_gitlab_ci_client():
     """Mock GitLab CI client for integration tests."""
-    from dataclasses import dataclass
 
     @dataclass
     class MockPipelineStatus:
@@ -747,7 +742,6 @@ def mock_gitlab_ci_client():
 @pytest.fixture
 def mock_jenkins_client():
     """Mock Jenkins client for integration tests."""
-    from dataclasses import dataclass
 
     @dataclass
     class MockJenkinsBuildStatus:
@@ -777,7 +771,6 @@ def mock_jenkins_client():
 @pytest.fixture
 def mock_opa_client():
     """Mock OPA client for integration tests."""
-    from dataclasses import dataclass
     from enum import Enum
 
     class MockViolationSeverity(Enum):
@@ -822,7 +815,6 @@ def mock_opa_client():
 @pytest.fixture
 def mock_k8s_jobs_client():
     """Mock Kubernetes Jobs client for integration tests."""
-    from dataclasses import dataclass
     from enum import Enum
 
     class MockK8sJobStatus(Enum):
@@ -848,7 +840,6 @@ def mock_k8s_jobs_client():
 @pytest.fixture
 def mock_docker_runtime_client():
     """Mock Docker runtime client for integration tests."""
-    from dataclasses import dataclass
 
     @dataclass
     class MockDockerExecutionResult:
@@ -867,7 +858,6 @@ def mock_docker_runtime_client():
 @pytest.fixture
 def mock_lambda_runtime_client():
     """Mock Lambda runtime client for integration tests."""
-    from dataclasses import dataclass
 
     @dataclass
     class MockLambdaResponse:
@@ -897,7 +887,6 @@ def mock_lambda_runtime_client():
 @pytest.fixture
 def mock_local_runtime_client():
     """Mock Local runtime client for integration tests."""
-    from dataclasses import dataclass
 
     @dataclass
     class MockLocalExecutionResult:

@@ -1,5 +1,4 @@
-import pytest
-from src.generators.stack_detector import StackDetector, StackDetectionResult
+from src.generators.stack_detector import StackDetector
 
 
 def test_detect_python_project():

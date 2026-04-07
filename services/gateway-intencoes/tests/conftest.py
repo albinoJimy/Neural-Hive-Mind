@@ -72,7 +72,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 import asyncio
 import pytest
-import pytest_asyncio
 from unittest.mock import AsyncMock, MagicMock
 from typing import Dict, Any
 

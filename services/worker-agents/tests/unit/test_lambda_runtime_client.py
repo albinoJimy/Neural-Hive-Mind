@@ -42,7 +42,7 @@ class TestLambdaRuntimeClientInitialization:
     @pytest.mark.asyncio
     async def test_initialize_aioboto3_not_installed(self):
         """Deve levantar erro quando aioboto3 nao instalado."""
-        from src.clients.lambda_runtime_client import LambdaRuntimeClient, LambdaRuntimeError
+        from src.clients.lambda_runtime_client import LambdaRuntimeClient
 
         client = LambdaRuntimeClient(region="us-east-1")
 

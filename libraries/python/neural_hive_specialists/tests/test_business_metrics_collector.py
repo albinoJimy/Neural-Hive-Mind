@@ -9,9 +9,8 @@ Testa:
 """
 
 import pytest
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from unittest.mock import Mock, MagicMock, patch
-from collections import defaultdict
 
 from neural_hive_specialists.observability.business_metrics_collector import (
     BusinessMetricsCollector,

@@ -1,25 +1,20 @@
 """Testes unitários para clientes de integração externa."""
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 from src.clients.github_client import (
     GitHubClient,
     WorkflowDispatchRequest,
-    WorkflowDispatchResponse,
-    GitHubFile,
 )
 from src.clients.gitlab_client import (
     GitLabClient,
     PipelineTriggerRequest,
-    PipelineTriggerResponse,
 )
 from src.clients.argocd_client import (
     ArgoCDClient,
     ApplicationSyncRequest,
-    ApplicationSyncResponse,
     ApplicationRollbackRequest,
-    ApplicationRollbackResponse,
 )
 
 

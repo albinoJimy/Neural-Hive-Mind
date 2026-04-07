@@ -4,7 +4,7 @@ Audit logger para registrar eventos de compliance em MongoDB.
 
 import structlog
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Dict, Any, Optional, List
 from pymongo import MongoClient, ASCENDING, DESCENDING
 from pymongo.errors import PyMongoError
@@ -232,7 +232,7 @@ class AuditLogger:
         self._log_event(
             event_type="pii_detection",
             event_data=event_data,
-            actor=f"system:pii_detector",
+            actor="system:pii_detector",
             severity=severity,
         )
 
@@ -269,7 +269,7 @@ class AuditLogger:
         self._log_event(
             event_type="encryption_operation",
             event_data=event_data,
-            actor=f"system:field_encryptor",
+            actor="system:field_encryptor",
             severity=severity,
         )
 

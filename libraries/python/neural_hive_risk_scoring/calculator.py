@@ -7,7 +7,6 @@ Cálculo agregado de risco multi-domínio com combinação inteligente de scores
 import structlog
 from typing import Dict, List, Optional, Tuple
 from datetime import datetime, timezone
-from collections import defaultdict
 
 from .config import RiskBand, RiskScoringConfig
 from .models import RiskAssessment, RiskMatrix

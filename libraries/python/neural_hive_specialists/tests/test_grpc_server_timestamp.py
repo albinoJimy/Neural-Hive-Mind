@@ -6,7 +6,7 @@ que as validações implementadas na v1.0.7 permaneçam funcionais.
 """
 
 import pytest
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import MagicMock
 from datetime import datetime, timezone
 import json
 from google.protobuf.timestamp_pb2 import Timestamp

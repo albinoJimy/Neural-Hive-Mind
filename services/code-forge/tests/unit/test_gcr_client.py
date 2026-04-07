@@ -6,8 +6,7 @@ Testes para integração com Google Container Registry (GCR).
 
 import pytest
 import json
-import base64
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 

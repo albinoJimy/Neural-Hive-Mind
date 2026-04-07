@@ -8,12 +8,10 @@ Este módulo valida:
 """
 
 import pytest
-import asyncio
 from datetime import datetime, timedelta
 from typing import Dict, Any
 from unittest.mock import Mock
 
-from src.policies import OPAClient
 from src.config.settings import OrchestratorSettings
 
 

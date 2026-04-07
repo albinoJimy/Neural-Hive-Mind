@@ -167,7 +167,7 @@ class TestMCPClientConfig:
 
     def test_default_config_values(self):
         """Testa valores padrão de configuração."""
-        from src.mcp_client_sdk.config import MCPClientConfig, get_config
+        from src.mcp_client_sdk.config import get_config
 
         config = get_config()
 

@@ -10,19 +10,13 @@ Testa:
 
 import pytest
 import uuid
-import json
 from datetime import datetime, timezone
-from typing import Dict, Any
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import patch, MagicMock
 
 from neural_hive_specialists.config import SpecialistConfig
 from neural_hive_specialists.ledger import (
     DigitalSigner,
     SchemaVersionManager,
-    OpinionDocumentV2,
-    Opinion,
-    ReasoningFactor,
-    Mitigation,
 )
 from neural_hive_specialists.ledger_client import LedgerClient
 from neural_hive_specialists.ledger.query_api import LedgerQueryAPI

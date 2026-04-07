@@ -1,7 +1,6 @@
 """Testes para módulo registry."""
 
 import pytest
-import asyncio
 from datetime import datetime
 
 from neural_hive_resilience.registry import (

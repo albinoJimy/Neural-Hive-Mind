@@ -2,10 +2,9 @@
 
 import pytest
 from unittest.mock import MagicMock, patch, AsyncMock
-from typing import Dict, Any
 
 from pipelines.nlu_pipeline import NLUPipeline
-from models.intent_envelope import NLUResult, Entity
+from models.intent_envelope import NLUResult
 from neural_hive_domain import UnifiedDomain
 
 

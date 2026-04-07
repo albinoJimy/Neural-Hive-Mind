@@ -1,7 +1,6 @@
 """Unit tests for test report parsers."""
 
 import pytest
-from io import StringIO
 
 from src.utils.test_report_parser import (
     JUnitXMLParser,

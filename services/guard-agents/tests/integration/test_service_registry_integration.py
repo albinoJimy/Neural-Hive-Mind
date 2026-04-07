@@ -2,7 +2,6 @@
 
 import pytest
 import asyncio
-import grpc
 
 from src.clients.service_registry_client import ServiceRegistryClient
 

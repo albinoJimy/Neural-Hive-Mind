@@ -12,7 +12,7 @@ Testa detecção de drift em modelos ML incluindo:
 
 import pytest
 import pytest_asyncio
-from unittest.mock import Mock, AsyncMock, MagicMock
+from unittest.mock import Mock
 from datetime import datetime, timezone, timedelta
 import numpy as np
 

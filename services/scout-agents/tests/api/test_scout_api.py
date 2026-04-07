@@ -6,7 +6,7 @@ Espec: GAPS-05 Scout Agents
 """
 
 import pytest
-from unittest.mock import Mock, MagicMock, AsyncMock
+from unittest.mock import AsyncMock
 from fastapi.testclient import TestClient
 
 # Import com skip automático se módulo não disponível

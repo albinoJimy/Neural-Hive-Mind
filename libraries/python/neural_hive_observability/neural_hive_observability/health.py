@@ -11,7 +11,7 @@ import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Optional, Callable, Any
+from typing import Dict, Optional, Callable, Any
 import threading
 
 from .config import ObservabilityConfig

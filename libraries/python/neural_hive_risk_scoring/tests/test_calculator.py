@@ -4,7 +4,6 @@ Testes para RiskCalculator
 
 import pytest
 from datetime import datetime, timedelta, timezone
-from unittest.mock import Mock
 
 from neural_hive_risk_scoring import (
     RiskCalculator,

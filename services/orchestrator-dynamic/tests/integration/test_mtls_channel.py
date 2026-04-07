@@ -5,15 +5,12 @@ Testa criação de canal seguro com X.509-SVID, handshake, renovação e fallbac
 """
 
 import pytest
-import asyncio
 from datetime import datetime, timezone, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch, call
+from unittest.mock import AsyncMock, MagicMock, patch
 from dataclasses import dataclass
 from freezegun import freeze_time
 
 import grpc
-from grpc import aio
-import structlog
 
 
 # Mock das classes SPIFFE antes de importar o cliente

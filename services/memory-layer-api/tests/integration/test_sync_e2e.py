@@ -10,9 +10,8 @@ Testes que validam o fluxo completo de sincronização:
 
 import json
 import pytest
-import asyncio
 from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock, MagicMock, patch, PropertyMock
+from unittest.mock import AsyncMock, MagicMock
 import uuid
 
 from src.clients.unified_memory_client import UnifiedMemoryClient

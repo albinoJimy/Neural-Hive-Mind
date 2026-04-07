@@ -1,8 +1,7 @@
 """Testes para MLManagementRouter - API de Gestão ML."""
 
 import pytest
-from datetime import datetime
-from unittest.mock import Mock, patch, AsyncMock
+from unittest.mock import AsyncMock
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from src.api.routers.ml_management import MLManagementRouter

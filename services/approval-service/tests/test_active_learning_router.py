@@ -6,11 +6,9 @@ Espec: @.agent-os/specs/2026-03-17-active-learning-feedback/
 """
 
 import pytest
-from unittest.mock import Mock, MagicMock, AsyncMock
+from unittest.mock import MagicMock
 from datetime import datetime, timezone
 from fastapi import FastAPI, testclient
-from fastapi.responses import JSONResponse
-import asyncio
 
 # Import com skip automático se módulo não disponível
 router = pytest.importorskip("src.api.routers.active_learning").router
@@ -58,7 +56,6 @@ class TestMetricsEndpoint:
     @pytest.mark.asyncio
     async def test_get_metrics_returns_balance_metrics(self, mock_balance_analyzer):
         """Testa que retorna métricas de balanceamento."""
-        from fastapi import FastAPI
 
         app = FastAPI()
         app.include_router(router)
@@ -81,7 +78,6 @@ class TestMetricsEndpoint:
     @pytest.mark.asyncio
     async def test_get_metrics_includes_priority_recommendations(self, mock_balance_analyzer):
         """Testa que inclui recomendações de prioridade."""
-        from fastapi import FastAPI
 
         app = FastAPI()
         app.include_router(router)
@@ -128,7 +124,6 @@ class TestQueueEndpoint:
     @pytest.mark.asyncio
     async def test_get_queue_returns_pending_cases(self, mock_feedback_queue):
         """Testa que retorna casos pendentes da fila."""
-        from fastapi import FastAPI
 
         app = FastAPI()
         app.include_router(router)
@@ -148,7 +143,6 @@ class TestQueueEndpoint:
     @pytest.mark.asyncio
     async def test_get_queue_respects_limit_parameter(self, mock_feedback_queue):
         """Testa que respeita parâmetro limit."""
-        from fastapi import FastAPI
 
         app = FastAPI()
         app.include_router(router)
@@ -163,7 +157,6 @@ class TestQueueEndpoint:
     @pytest.mark.asyncio
     async def test_get_queue_filters_by_status(self, mock_feedback_queue):
         """Testa filtro por status."""
-        from fastapi import FastAPI
 
         app = FastAPI()
         app.include_router(router)
@@ -194,7 +187,6 @@ class TestClaimEndpoint:
     @pytest.mark.asyncio
     async def test_claim_case_success(self, mock_feedback_queue):
         """Testa claim bem-sucedido."""
-        from fastapi import FastAPI
 
         app = FastAPI()
         app.include_router(router)
@@ -216,7 +208,6 @@ class TestClaimEndpoint:
         """Testa claim de caso inexistente."""
         mock_feedback_queue.claim_case.return_value = None
 
-        from fastapi import FastAPI
 
         app = FastAPI()
         app.include_router(router)
@@ -251,7 +242,6 @@ class TestFeedbackEndpoint:
     @pytest.mark.asyncio
     async def test_submit_feedback_success(self, mock_feedback_queue):
         """Testa submissão de feedback bem-sucedida."""
-        from fastapi import FastAPI
 
         app = FastAPI()
         app.include_router(router)
@@ -281,7 +271,6 @@ class TestFeedbackEndpoint:
     @pytest.mark.asyncio
     async def test_submit_feedback_validates_rating_range(self, mock_feedback_queue):
         """Testa validação do rating (0-1)."""
-        from fastapi import FastAPI
 
         app = FastAPI()
         app.include_router(router)
@@ -309,7 +298,6 @@ class TestReleaseEndpoint:
         mock_queue = MagicMock()
         mock_queue.release_case.return_value = {"queue_id": "queue-1", "status": "pending"}
 
-        from fastapi import FastAPI
 
         app = FastAPI()
         app.include_router(router)

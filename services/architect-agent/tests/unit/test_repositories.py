@@ -4,7 +4,6 @@ import pytest
 from unittest.mock import Mock, AsyncMock, patch, MagicMock
 from datetime import datetime, timezone
 
-from src.repositories.base import BaseRepository, get_mongo_client
 from src.repositories.architecture_repository import ArchitectureRepository
 from src.repositories.validation_repository import ValidationRepository
 from src.repositories.evolution_repository import EvolutionRepository
@@ -16,9 +15,6 @@ from src.models.architecture import (
 )
 from src.models.validation import (
     ValidationReport,
-    Violation,
-    Severity,
-    ViolationType,
     Trend,
 )
 from src.models.evolution import EvolutionHistory

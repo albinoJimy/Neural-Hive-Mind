@@ -265,7 +265,7 @@ class TimeoutWithFallback:
                 service_name=self.service_name,
                 operation_name=self.operation_name,
             )
-        except ResilienceTimeoutError as e:
+        except ResilienceTimeoutError:
             self.logger.warning(
                 "timeout_fallback_triggered",
                 service=self.service_name,
@@ -333,6 +333,6 @@ def timeout_with_fallback(
 
             return async_wrapper  # type: ignore
         else:
-            raise TypeError(f"@timeout_with_fallback decorator só suporta funções assíncronas")
+            raise TypeError("@timeout_with_fallback decorator só suporta funções assíncronas")
 
     return decorator

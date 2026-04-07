@@ -6,7 +6,7 @@ focando em edge cases, error handling e cenarios alternativos.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 from datetime import datetime
 
 from src.services.approval_gate import ApprovalGate

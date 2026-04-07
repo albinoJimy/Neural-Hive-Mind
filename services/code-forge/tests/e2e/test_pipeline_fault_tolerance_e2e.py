@@ -14,11 +14,7 @@ import pytest
 import uuid
 import asyncio
 from datetime import datetime, timedelta
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
-from unittest import mock
 
-from src.types.artifact_types import ArtifactCategory, CodeLanguage
 from src.models.execution_ticket import (
     ExecutionTicket,
     TaskType,
@@ -32,10 +28,7 @@ from src.models.execution_ticket import (
     Consistency,
     Durability,
 )
-from src.models.pipeline_context import PipelineContext
 from src.models.artifact import (
-    CodeForgeArtifact,
-    GenerationMethod,
     ValidationResult,
     ValidationType,
     ValidationStatus,
@@ -45,7 +38,6 @@ from src.services.pipeline_engine import PipelineEngine
 from src.services.template_selector import TemplateSelector
 from src.services.code_composer import CodeComposer
 from src.services.validator import Validator
-from src.services.test_runner import TestRunner
 from src.services.packager import Packager
 from src.services.approval_gate import ApprovalGate
 

@@ -9,9 +9,8 @@ com pesos hierárquicos aplicados.
 import pytest
 import sys
 from pathlib import Path
-from unittest.mock import Mock, AsyncMock, MagicMock, patch
+from unittest.mock import Mock, AsyncMock, MagicMock
 from enum import Enum
-from datetime import datetime
 
 
 # Mock neural_hive_domain BEFORE imports
@@ -63,10 +62,7 @@ from src.services.consensus_orchestrator import ConsensusOrchestrator
 from src.models.consolidated_decision import (
     DecisionType,
     ConsensusMethod,
-    SpecialistVote,
-    ConsensusMetrics,
 )
-from src.models.seniority import SeniorityLevel
 
 
 @pytest.fixture

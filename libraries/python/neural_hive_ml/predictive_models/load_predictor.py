@@ -7,7 +7,6 @@ import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
 from prophet import Prophet
-from statsmodels.tsa.arima.model import ARIMA
 import pmdarima as pm
 
 from neural_hive_ml.predictive_models.base_predictor import BasePredictor
@@ -463,7 +462,7 @@ class LoadPredictor(BasePredictor):
 
             # Query dados - Suporta ClickHouse ou MongoDB
             if hasattr(self.data_source, "query"):  # ClickHouse client
-                query = f"""
+                query = """
                     SELECT
                         toStartOfInterval(timestamp, INTERVAL 5 MINUTE) as time_bucket,
                         COUNT(*) as ticket_count,

@@ -6,9 +6,8 @@ Testa decisão de aprovação, roteamento condicional e enriquecimento de metada
 
 import pytest
 from unittest.mock import MagicMock, AsyncMock, patch
-from datetime import datetime
 
-from src.models.cognitive_plan import RiskBand, ApprovalStatus, TaskNode
+from src.models.cognitive_plan import RiskBand, ApprovalStatus
 
 
 class TestOrchestratorApprovalDecision:

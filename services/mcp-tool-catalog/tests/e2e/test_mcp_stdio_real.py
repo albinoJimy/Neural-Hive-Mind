@@ -1,7 +1,5 @@
 """Teste E2E real para transporte stdio com servidor MCP mock."""
 
-import asyncio
-import json
 import sys
 import tempfile
 from pathlib import Path

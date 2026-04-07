@@ -2,11 +2,9 @@
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timezone
 import asyncio
-from collections import defaultdict
 
-from src.saga.saga_state import SagaState, SagaStatus, SagaStep, StepStatus
+from src.saga.saga_state import SagaState, SagaStatus, SagaStep
 from src.saga.saga_metrics import SagaMetrics, get_saga_metrics, timer
 
 

@@ -7,8 +7,7 @@ estratégias de anonimização (replace, mask, redact, hash), metadados de detec
 
 import pytest
 import sys
-from unittest.mock import Mock, MagicMock, patch, create_autospec, ANY
-from typing import List, Dict, Any
+from unittest.mock import Mock, MagicMock, patch, ANY
 
 # Mock Presidio modules antes de qualquer import
 presidio_analyzer_mock = MagicMock()

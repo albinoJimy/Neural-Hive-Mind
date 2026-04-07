@@ -5,7 +5,7 @@ Testa extração de keywords, objectives e entidades usando spaCy.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
 
 class TestNLPProcessorExtractKeywords:
