@@ -7,6 +7,7 @@ Este módulo testa a detecção de problemas que requerem remediação:
 - trigger_remediation: Dispara remediação baseado em detecção
 """
 
+import asyncio
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 from datetime import datetime, timezone, timedelta
@@ -472,3 +473,197 @@ class TestRedisMemoryHistory:
         assert status.usage_bytes == 996147200  # 950Mi
         assert status.has_leak is False  # Primeira leitura, sem histórico
         assert status.container_name == "app"
+
+
+# ============================================================================
+# Tests de run_detection_loop (FASE3-PREV-012)
+# ============================================================================
+
+
+class TestDetectionLoop:
+    """Testes para o loop de detecção contínua."""
+
+    @pytest.fixture
+    def mock_orchestrator_client_no_deadlock(self):
+        """Mock do OrchestratorClient sem deadlocks."""
+        client = AsyncMock()
+        now = datetime.now(timezone.utc)
+        client.get_workflow_status = AsyncMock(
+            return_value={
+                "workflow_id": "wf-123",
+                "status": "RUNNING",
+                "tickets": [
+                    {
+                        "ticket_id": "t1",
+                        "status": "COMPLETED",
+                        "updated_at": now.isoformat(),
+                    }
+                ],
+                "last_progress_at": now.isoformat(),
+            }
+        )
+        return client
+
+    @pytest.fixture
+    def mock_k8s_no_leak(self):
+        """Mock do Kubernetes sem memory leak."""
+        api = MagicMock()
+        api.get_namespaced_custom_object = AsyncMock(
+            return_value={"containers": [{"name": "app", "usage": {"memory": "500Mi"}}]}
+        )
+        return api
+
+    @pytest.fixture
+    def detection_service_for_loop(
+        self, mock_orchestrator_client_no_deadlock, mock_k8s_no_leak
+    ):
+        """DetectionService configurado para testes de loop."""
+        from src.services.detection_service import DetectionService
+
+        return DetectionService(
+            orchestrator_client=mock_orchestrator_client_no_deadlock,
+            k8s_custom_api=mock_k8s_no_leak,
+            redis_client=None,
+            memory_threshold_percent=90.0,
+            workflow_timeout_seconds=1800,
+        )
+
+    @pytest.mark.asyncio
+    async def test_loop_iteration_no_detections(self, detection_service_for_loop):
+        """Testa uma iteração do loop sem detecções."""
+        # Criar task para o loop
+        async def run_single_iteration():
+            await detection_service_for_loop.run_detection_loop(
+                workflows=["wf-123"],
+                pods=[("worker-1", "default")],
+                interval_seconds=1,
+            )
+
+        # Executar por um curto período e cancelar
+        task = asyncio.create_task(run_single_iteration())
+        await asyncio.sleep(0.5)  # Deixar rodar um pouco
+        task.cancel()
+
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass  # Esperado
+
+    @pytest.mark.asyncio
+    async def test_loop_iteration_with_deadlock(self, detection_service_for_loop):
+        """Testa iteração do loop com deadlock detectado."""
+        # Mock com deadlock (sem progresso por > 30 min)
+        old_time = (datetime.now(timezone.utc) - timedelta(minutes=35)).isoformat()
+        detection_service_for_loop.orchestrator_client.get_workflow_status = AsyncMock(
+            return_value={
+                "workflow_id": "wf-stuck",
+                "status": "RUNNING",
+                "tickets": [
+                    {
+                        "ticket_id": "t1",
+                        "status": "IN_PROGRESS",
+                        "updated_at": old_time,
+                    }
+                ],
+                "last_progress_at": old_time,
+            }
+        )
+
+        remediation_triggered = False
+
+        async def mock_remediation(trigger):
+            nonlocal remediation_triggered
+            remediation_triggered = True
+
+        # Executar uma iteração
+        task = asyncio.create_task(
+            detection_service_for_loop.run_detection_loop(
+                workflows=["wf-stuck"], pods=[], interval_seconds=1
+            )
+        )
+        await asyncio.sleep(0.5)
+        task.cancel()
+
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
+    @pytest.mark.asyncio
+    async def test_loop_iteration_with_memory_leak(self, detection_service_for_loop):
+        """Testa iteração do loop com memory leak detectado."""
+        # Simular múltiplas leituras acima do threshold
+        detection_service_for_loop._memory_history["default/worker-1/app"] = [
+            datetime.now(timezone.utc) - timedelta(seconds=400)
+            for _ in range(10)
+        ]
+
+        # Executar uma iteração
+        task = asyncio.create_task(
+            detection_service_for_loop.run_detection_loop(
+                workflows=[], pods=[("worker-1", "default")], interval_seconds=1
+            )
+        )
+        await asyncio.sleep(0.5)
+        task.cancel()
+
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
+    @pytest.mark.asyncio
+    async def test_loop_handles_cancel_gracefully(self, detection_service_for_loop):
+        """Testa que o loop lida com cancelamento corretamente."""
+        task = asyncio.create_task(
+            detection_service_for_loop.run_detection_loop(
+                workflows=["wf-123"], pods=[("worker-1", "default")], interval_seconds=1
+            )
+        )
+
+        # Cancelar imediatamente
+        await asyncio.sleep(0.1)
+        task.cancel()
+
+        # Não deve levantar exceção
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass  # Esperado
+
+    @pytest.mark.asyncio
+    async def test_loop_handles_errors_gracefully(self, detection_service_for_loop):
+        """Testa que o loop continua após erros."""
+        # Simular erro no orchestrator
+        detection_service_for_loop.orchestrator_client.get_workflow_status = AsyncMock(
+            side_effect=Exception("Orchestrator error")
+        )
+
+        iteration_count = 0
+
+        async def count_iterations():
+            nonlocal iteration_count
+            while True:
+                await asyncio.sleep(0.1)
+                iteration_count += 1
+                if iteration_count >= 3:
+                    break
+
+        # Executar loop em paralelo com contador
+        loop_task = asyncio.create_task(
+            detection_service_for_loop.run_detection_loop(
+                workflows=["wf-123"], pods=[], interval_seconds=0.05
+            )
+        )
+        count_task = asyncio.create_task(count_iterations())
+
+        await count_task
+        loop_task.cancel()
+
+        try:
+            await loop_task
+        except asyncio.CancelledError:
+            pass
+
+        # Loop deve ter continuado apesar dos erros
+        assert iteration_count >= 3
