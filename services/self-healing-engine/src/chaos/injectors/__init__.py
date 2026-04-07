@@ -14,6 +14,12 @@ from .network_injector import NetworkFaultInjector
 from .pod_injector import PodFaultInjector
 from .resource_injector import ResourceFaultInjector
 
+# Aliases para compatibilidade com testes
+ApplicationInjector = ApplicationFaultInjector
+NetworkInjector = NetworkFaultInjector
+PodInjector = PodFaultInjector
+ResourceInjector = ResourceFaultInjector
+
 __all__ = [
     "BaseFaultInjector",
     "InjectionResult",
@@ -21,4 +27,9 @@ __all__ = [
     "PodFaultInjector",
     "ResourceFaultInjector",
     "ApplicationFaultInjector",
+    # Aliases
+    "NetworkInjector",
+    "PodInjector",
+    "ResourceInjector",
+    "ApplicationInjector",
 ]

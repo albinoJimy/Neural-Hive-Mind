@@ -518,3 +518,7 @@ class PodFaultInjector(BaseFaultInjector):
 
         except Exception as e:
             return {"success": False, "error": str(e)}
+
+
+# Alias para compatibilidade com testes
+PodInjector = PodFaultInjector

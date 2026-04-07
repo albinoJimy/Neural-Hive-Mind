@@ -565,3 +565,7 @@ class ApplicationFaultInjector(BaseFaultInjector):
         if target.service_name:
             return 1
         return 0
+
+
+# Alias para compatibilidade com testes
+ApplicationInjector = ApplicationFaultInjector

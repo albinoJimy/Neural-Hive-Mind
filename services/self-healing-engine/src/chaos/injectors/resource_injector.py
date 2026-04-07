@@ -684,3 +684,7 @@ class ResourceFaultInjector(BaseFaultInjector):
                 pass
 
         return result
+
+
+# Alias para compatibilidade com testes
+ResourceInjector = ResourceFaultInjector
