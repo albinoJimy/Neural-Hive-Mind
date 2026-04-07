@@ -8,7 +8,16 @@ para dar lugar a tickets de alta prioridade.
 from datetime import timezone
 
 UTC = timezone.utc  # type: ignore
-from enum import StrEnum
+from enum import Enum
+import sys
+
+# Python 3.10 compatibility: StrEnum was added in Python 3.11
+if sys.version_info >= (3, 11):
+    from enum import StrEnum as _StrEnum
+else:
+    class _StrEnum(str, Enum):
+        """Polyfill for StrEnum on Python 3.10"""
+        pass
 from typing import Any
 
 import structlog
@@ -19,7 +28,7 @@ from src.scheduler.priority_queues import PriorityLevel
 logger = structlog.get_logger(__name__)
 
 
-class PreemptionStatus(StrEnum):
+class PreemptionStatus(_StrEnum):
     """Status de uma preempção."""
 
     SUCCESS = "SUCCESS"
