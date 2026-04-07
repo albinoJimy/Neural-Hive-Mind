@@ -16,7 +16,11 @@ import asyncio
 import json
 import sys
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .chaos_engine import ChaosEngine
+    from ..services.playbook_executor import PlaybookExecutor
 
 import structlog
 
@@ -53,6 +57,8 @@ class GameDayRunner:
         default_timeout: int = 600,
         require_opa: bool = True,
         blast_radius_limit: int = 5,
+        playbook_executor: Optional[Any] = None,
+        chaos_engine: Optional[Any] = None,
     ):
         """
         Inicializa o Game Day Runner.
@@ -64,6 +70,8 @@ class GameDayRunner:
             default_timeout: Timeout padrão em segundos
             require_opa: Se requer aprovação OPA
             blast_radius_limit: Limite de blast radius
+            playbook_executor: Executor de playbooks (opcional)
+            chaos_engine: Instância de ChaosEngine pré-configurada (opcional)
         """
         self.environment = environment
         self.k8s_in_cluster = k8s_in_cluster
@@ -71,8 +79,9 @@ class GameDayRunner:
         self.default_timeout = default_timeout
         self.require_opa = require_opa
         self.blast_radius_limit = blast_radius_limit
+        self.playbook_executor = playbook_executor
 
-        self.chaos_engine: Optional[ChaosEngine] = None
+        self.chaos_engine = chaos_engine
         self.scenario_library = ScenarioLibrary()
         self.reports: List[ExperimentReport] = []
 
@@ -80,17 +89,18 @@ class GameDayRunner:
         """Inicializa o ChaosEngine e dependências."""
         logger.info("game_day_runner.initializing")
 
-        self.chaos_engine = ChaosEngine(
-            k8s_in_cluster=self.k8s_in_cluster,
-            playbook_executor=None,
-            service_registry_client=None,
-            opa_client=None,
-            max_concurrent_experiments=self.max_concurrent,
-            default_timeout_seconds=self.default_timeout,
-            require_opa_approval=self.require_opa,
-            blast_radius_limit=self.blast_radius_limit,
-        )
-        await self.chaos_engine.initialize()
+        if not self.chaos_engine:
+            self.chaos_engine = ChaosEngine(
+                k8s_in_cluster=self.k8s_in_cluster,
+                playbook_executor=self.playbook_executor,
+                service_registry_client=None,
+                opa_client=None,
+                max_concurrent_experiments=self.max_concurrent,
+                default_timeout_seconds=self.default_timeout,
+                require_opa_approval=self.require_opa,
+                blast_radius_limit=self.blast_radius_limit,
+            )
+            await self.chaos_engine.initialize()
 
         logger.info("game_day_runner.initialized")
 

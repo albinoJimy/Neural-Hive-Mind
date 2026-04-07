@@ -173,7 +173,7 @@ async def test_chaos_game_day_runner():
 
     runner = GameDayRunner(playbook_executor=mock_executor, chaos_engine=mock_chaos)
 
-    result = await runner.run_game_day(name="test-gameday", scenarios=["pod_kill", "network_delay"])
+    result = await runner.run_game_day(scenarios=[{"scenario_name": "pod_kill", "target_service": "test-service"}, {"scenario_name": "network_delay", "target_service": "test-service"}])
 
     assert result is not None
 
