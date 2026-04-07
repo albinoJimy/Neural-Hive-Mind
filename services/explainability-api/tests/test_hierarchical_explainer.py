@@ -527,3 +527,417 @@ class TestCaching:
         stats = explainer.get_cache_stats()
         assert stats["misses"] == 1
         assert stats["hits"] == 1
+
+
+class TestEdgeCases:
+    """Testes de edge cases e cenários limite."""
+
+    def test_votes_with_missing_specialist_id(self):
+        """Testa votos sem specialist_id."""
+        explainer = HierarchicalExplainer()
+
+        votes = [
+            {"seniority_level": "senior", "vote": "approve", "confidence": 0.8},
+            {"seniority_level": "expert", "vote": "reject", "confidence": 0.7},
+        ]
+
+        result = explainer.explain(votes)
+
+        # Deve gerar specialist_ids baseados em specialist_type
+        assert "individual_contributions" in result
+        assert len(result["individual_contributions"]) == 2
+
+    def test_votes_with_abstain(self):
+        """Testa votos com opção 'abstain'."""
+        explainer = HierarchicalExplainer()
+
+        votes = [
+            create_vote("expert", "approve", 0.8, "business"),
+            create_vote("senior", "abstain", 0.5, "technical"),
+            create_vote("senior", "reject", 0.7, "architecture"),
+        ]
+
+        result = explainer.explain(votes)
+
+        # Votos abstain devem ser incluídos
+        assert len(result["individual_contributions"]) == 3
+
+    def test_all_votes_same_direction(self):
+        """Testa cenário onde todos os votos são iguais."""
+        explainer = HierarchicalExplainer()
+
+        votes = [
+            create_vote("expert", "approve", 0.9, f"business_{i}")
+            for i in range(5)
+        ]
+
+        result = explainer.explain(votes)
+
+        # Consenso forte esperado
+        assert result["hierarchical_breakdown"]["consensus_strength"] == 1.0
+
+    def test_split_votes(self):
+        """Testa cenário com votos divididos."""
+        explainer = HierarchicalExplainer()
+
+        votes = [
+            create_vote("expert", "approve", 0.9, "business"),
+            create_vote("expert", "reject", 0.9, "technical"),
+            create_vote("senior", "approve", 0.8, "architecture"),
+            create_vote("senior", "reject", 0.8, "security"),
+        ]
+
+        result = explainer.explain(votes)
+
+        # Com 2 approves e 2 rejects, pode não haver consenso
+        assert result["hierarchical_breakdown"]["consensus_strength"] <= 1.0
+
+    def test_votes_with_zero_confidence(self):
+        """Testa votos com confiança zero."""
+        explainer = HierarchicalExplainer()
+
+        votes = [
+            create_vote("expert", "approve", 0.0, "business"),
+            create_vote("senior", "reject", 0.0, "technical"),
+        ]
+
+        result = explainer.explain(votes)
+
+        # Deve processar mesmo com confiança zero
+        assert "individual_contributions" in result
+        assert len(result["individual_contributions"]) == 2
+
+    def test_single_vote(self):
+        """Testa cenário com apenas um voto."""
+        explainer = HierarchicalExplainer()
+
+        votes = [create_vote("expert", "approve", 0.8, "business")]
+
+        result = explainer.explain(votes)
+
+        # Deve processar voto único
+        assert len(result["individual_contributions"]) == 1
+        assert result["individual_contributions"][0]["rank"] == 1
+
+    def test_votes_with_extra_fields(self):
+        """Testa votos com campos adicionais não esperados."""
+        explainer = HierarchicalExplainer()
+
+        votes = [
+            {
+                "specialist_id": "expert_001",
+                "specialist_type": "technical",
+                "seniority_level": "expert",
+                "vote": "approve",
+                "confidence": 0.85,
+                "risk": 0.15,
+                "extra_field_1": "ignored",
+                "extra_field_2": 12345,
+                "nested": {"field": "value"},
+            }
+        ]
+
+        result = explainer.explain(votes)
+
+        # Campos extras devem ser ignorados
+        assert len(result["individual_contributions"]) == 1
+
+    def test_calculate_seniority_impact_with_empty_levels(self):
+        """Testa cálculo de impacto sem níveis."""
+        explainer = HierarchicalExplainer()
+
+        impact = explainer._calculate_seniority_impact({"by_level": {}})
+
+        assert impact == 0.0
+
+    def test_calculate_seniority_weights_with_empty_votes(self):
+        """Testa cálculo de pesos com votos vazios."""
+        explainer = HierarchicalExplainer()
+
+        weights = explainer.calculate_seniority_weights([])
+
+        assert weights == {}
+
+    def test_explain_decision_adds_decision_id(self):
+        """Testa que explain_decision adiciona decision_id."""
+        explainer = HierarchicalExplainer()
+
+        decision = {
+            "decision_id": "test_decision_123",
+            "specialist_votes": [
+                create_vote("expert", "approve", 0.8, "business")
+            ]
+        }
+
+        import asyncio
+        result = asyncio.run(explainer.explain_decision(decision))
+
+        assert result["decision_id"] == "test_decision_123"
+
+    def test_explain_decision_without_decision_id(self):
+        """Testa explain_decision sem decision_id."""
+        explainer = HierarchicalExplainer()
+
+        decision = {
+            "specialist_votes": [
+                create_vote("expert", "approve", 0.8, "business")
+            ]
+        }
+
+        import asyncio
+        result = asyncio.run(explainer.explain_decision(decision))
+
+        # Deve usar "unknown" como padrão
+        assert result["decision_id"] == "unknown"
+
+    def test_explain_decision_adds_hierarchical_weights(self):
+        """Testa que explain_decision adiciona pesos hierárquicos."""
+        explainer = HierarchicalExplainer()
+
+        decision = {
+            "decision_id": "test_decision",
+            "specialist_votes": [
+                create_vote("expert", "approve", 0.8, "business"),
+                create_vote("senior", "approve", 0.7, "technical"),
+            ]
+        }
+
+        import asyncio
+        result = asyncio.run(explainer.explain_decision(decision))
+
+        assert "hierarchical_weights" in result
+        assert len(result["hierarchical_weights"]) == 2  # expert e senior
+
+    def test_explain_decision_adds_seniority_impact(self):
+        """Testa que explain_decision adiciona impacto de senioridade."""
+        explainer = HierarchicalExplainer()
+
+        decision = {
+            "decision_id": "test_decision",
+            "specialist_votes": [
+                create_vote("expert", "approve", 0.8, "business"),
+            ]
+        }
+
+        import asyncio
+        result = asyncio.run(explainer.explain_decision(decision))
+
+        assert "seniority_impact" in result
+        assert result["seniority_impact"] > 0
+
+
+class TestCoverageGaps:
+    """Testes adicionais para aumentar cobertura."""
+
+    def test_normalize_votes_preserves_specialist_id(self):
+        """Testa que normalização preserva specialist_id quando presente."""
+        explainer = HierarchicalExplainer()
+
+        votes = [
+            {
+                "specialist_id": "preserved_id",
+                "seniority_level": "senior",
+                "vote": "approve",
+                "confidence": 0.8,
+            }
+        ]
+
+        normalized = explainer._normalize_votes(votes)
+
+        assert normalized[0]["specialist_id"] == "preserved_id"
+
+    def test_normalize_votes_adds_specialist_type(self):
+        """Testa que normalização adiciona specialist_type."""
+        explainer = HierarchicalExplainer()
+
+        votes = [
+            {
+                "specialist_id": "test_001",
+                "seniority_level": "senior",
+                "vote": "approve",
+                "confidence": 0.8,
+            }
+        ]
+
+        normalized = explainer._normalize_votes(votes)
+
+        assert "specialist_type" in normalized[0]
+        assert normalized[0]["specialist_type"] == "unknown"
+
+    def test_normalize_votes_with_recommendation_field(self):
+        """Testa normalização de votos com campo 'recommendation'."""
+        explainer = HierarchicalExplainer()
+
+        votes = [
+            {
+                "specialist_type": "business",
+                "recommendation": "approve",
+                "confidence_score": 0.85,
+            }
+        ]
+
+        normalized = explainer._normalize_votes(votes)
+
+        assert normalized[0]["vote"] == "approve"
+        assert normalized[0]["confidence"] == 0.85
+
+    def test_normalize_votes_with_weight_field(self):
+        """Testa normalização de votos com campo 'weight'."""
+        explainer = HierarchicalExplainer()
+
+        votes = [
+            {
+                "specialist_type": "business",
+                "seniority_level": "senior",
+                "vote": "approve",
+                "weight": 1.5,
+            }
+        ]
+
+        normalized = explainer._normalize_votes(votes)
+
+        assert normalized[0]["seniority_multiplier"] == 1.5
+
+    def test_calculate_by_level_breakdown_counts_specialists(self):
+        """Testa que breakdown conta especialistas corretamente."""
+        explainer = HierarchicalExplainer()
+
+        votes = [
+            create_vote("senior", "approve", 0.8, "spec_1"),
+            create_vote("senior", "reject", 0.7, "spec_2"),
+            create_vote("expert", "approve", 0.9, "spec_3"),
+        ]
+
+        by_level = explainer._calculate_by_level_breakdown(votes)
+
+        assert by_level["senior"]["count"] == 2
+        assert by_level["expert"]["count"] == 1
+
+    def test_calculate_by_level_breakdown_tracks_specialists(self):
+        """Testa que breakdown rastreia IDs de especialistas."""
+        explainer = HierarchicalExplainer()
+
+        votes = [
+            create_vote("senior", "approve", 0.8, "spec_1"),
+            create_vote("senior", "reject", 0.7, "spec_2"),
+        ]
+
+        by_level = explainer._calculate_by_level_breakdown(votes)
+
+        # Specialist_id é concatenado com seniority_level
+        assert "spec_1_senior" in by_level["senior"]["specialists"]
+        assert "spec_2_senior" in by_level["senior"]["specialists"]
+
+    def test_calculate_by_level_breakdown_with_approve_reject(self):
+        """Testa contagem de votos brutos."""
+        explainer = HierarchicalExplainer()
+
+        votes = [
+            create_vote("senior", "approve", 0.8, "spec_1"),
+            create_vote("senior", "approve", 0.7, "spec_2"),
+            create_vote("senior", "reject", 0.6, "spec_3"),
+        ]
+
+        by_level = explainer._calculate_by_level_breakdown(votes)
+
+        assert by_level["senior"]["raw_votes"]["approve"] == 2
+        assert by_level["senior"]["raw_votes"]["reject"] == 1
+
+    def test_consensus_strength_all_agree(self):
+        """Testa força de consenso quando todos concordam."""
+        explainer = HierarchicalExplainer()
+
+        by_level = {
+            "senior": {"influence_direction": "approve"},
+            "expert": {"influence_direction": "approve"},
+        }
+
+        strength = explainer._calculate_consensus_strength(by_level)
+
+        assert strength == 1.0
+
+    def test_consensus_strength_divided(self):
+        """Testa força de consenso quando divididos."""
+        explainer = HierarchicalExplainer()
+
+        by_level = {
+            "senior": {"influence_direction": "approve"},
+            "expert": {"influence_direction": "reject"},
+        }
+
+        strength = explainer._calculate_consensus_strength(by_level)
+
+        assert strength == 0.5
+
+    def test_consensus_strength_with_neutral(self):
+        """Testa força de consenso com votos neutros."""
+        explainer = HierarchicalExplainer()
+
+        by_level = {
+            "senior": {"influence_direction": "approve"},
+            "expert": {"influence_direction": "neutral"},
+        }
+
+        strength = explainer._calculate_consensus_strength(by_level)
+
+        # Apenas um não-neutro conta
+        assert strength == 0.5
+
+    def test_determine_dominant_level_by_weight(self):
+        """Testa determinação de nível dominante por peso."""
+        explainer = HierarchicalExplainer()
+
+        by_level = {
+            "senior": {"weighted_contribution": 2.5},
+            "expert": {"weighted_contribution": 1.0},
+            "mid_level": {"weighted_contribution": -0.5},
+        }
+
+        dominant = explainer._determine_dominant_level(by_level)
+
+        # Senior tem maior contribuição absoluta
+        assert dominant == "senior"
+
+    def test_determine_dominant_level_tie(self):
+        """Testa determinação de nível dominante em empate."""
+        explainer = HierarchicalExplainer()
+
+        by_level = {
+            "senior": {"weighted_contribution": 1.0},
+            "expert": {"weighted_contribution": 1.0},
+        }
+
+        dominant = explainer._determine_dominant_level(by_level)
+
+        # Primeiro nível em ordem é escolhido
+        assert dominant in ["senior", "expert"]
+
+    def test_calculate_individual_contributions_includes_risk(self):
+        """Testa que contribuições incluem campo de risco."""
+        explainer = HierarchicalExplainer()
+
+        votes = [
+            create_vote("expert", "approve", 0.8, "business"),
+        ]
+
+        contributions = explainer._calculate_individual_contributions(votes)
+
+        assert "risk" in contributions[0]
+        assert abs(contributions[0]["risk"] - 0.2) < 0.01
+
+    def test_calculate_individual_contributions_ranking(self):
+        """Testa ordenação por contribution_score absoluto."""
+        explainer = HierarchicalExplainer()
+
+        votes = [
+            create_vote("trainee", "approve", 0.5, "business"),
+            create_vote("expert", "reject", 0.9, "technical"),
+            create_vote("senior", "approve", 0.7, "architecture"),
+        ]
+
+        contributions = explainer._calculate_individual_contributions(votes)
+
+        # Expert com peso 2.0 e vote reject deve ter maior impacto
+        # contribution_score = -0.9 * 2.0 = -1.8
+        assert contributions[0]["rank"] == 1
+        assert contributions[0]["seniority_level"] == "expert"
