@@ -1,0 +1,671 @@
+openapi: 3.0.3
+info:
+  title: Neural Hive Mind - Explainability API
+  description: |
+    API para geração de explicações hierárquicas de decisões multi-agente.
+
+    ## Visão Geral
+
+    A Explainability API v3 fornece transparência sobre decisões tomadas pelo
+    sistema de consenso entre especialistas, incluindo:
+
+    - **Breakdown Hierárquico**: Análise por nível de senioridade
+    - **Contribuições Individuais**: Influência de cada especialista
+    - **Análise Contrafactual**: Cenários "e se" para entender sensibilidade
+    - **Análise Temporal**: Evolução de senioridade ao longo do tempo
+
+    ## Autenticação
+
+    A API não requer autenticação para operações de leitura. Operações de escrita
+    (quando implementadas) podem requerer token JWT.
+
+    ## Rate Limiting
+
+    - **Endpoints públicos**: 100 req/min por IP
+    - **Batch endpoints**: 10 req/min por IP
+
+    ## Versões
+
+    - **v1**: Endpoint básico por token (legado)
+    - **v2**: Geração de explicações por decision_id
+    - **v3**: Explicações hierárquicas completas (versão atual)
+  version: 3.0.0
+  contact:
+    name: Neural Hive Mind Team
+    url: https://github.com/albinoJimy/Neural-Hive-Mind
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8000
+    description: Ambiente de desenvolvimento
+  - url: http://explainability-api:8000
+    description: Ambiente Kubernetes (interno)
+  - url: https://api.neural-hive-mind.com
+    description: Ambiente de produção
+
+tags:
+  - name: v3
+    description: Endpoints da API v3 - Explicações Hierárquicas
+  - name: health
+    description: Endpoints de health check
+  - name: v1
+    description: Endpoints legados v1
+  - name: v2
+    description: Endpoints v2
+
+paths:
+  /health:
+    get:
+      tags: [health]
+      summary: Health check
+      description: Verifica se o serviço está rodando
+      operationId: health_check
+      responses:
+        '200':
+          description: Serviço saudável
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: healthy
+                  version:
+                    type: string
+                    example: 3.0.0
+
+  /ready:
+    get:
+      tags: [health]
+      summary: Readiness probe
+      description: Verifica se o serviço está pronto para receber tráfego
+      operationId: readiness_check
+      responses:
+        '200':
+          description: Serviço pronto
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ready:
+                    type: boolean
+                    example: true
+
+  /api/v3/explainability/{decision_id}:
+    get:
+      tags: [v3]
+      summary: Full explanation (v3)
+      description: |
+        Retorna explicação completa hierárquica para uma decisão.
+
+        Inclui breakdown por nível de senioridade, contribuições individuais
+        e opcionalmente análise contrafactual e temporal.
+      operationId: get_full_explanation_v3
+      parameters:
+        - name: decision_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID único da decisão
+          example: "dec_1234567890abcdef"
+        - name: include_counterfactuals
+          in: query
+          schema:
+            type: boolean
+            default: false
+          description: Incluir análise contrafactual
+        - name: include_temporal
+          in: query
+          schema:
+            type: boolean
+            default: false
+          description: Incluir análise temporal
+      responses:
+        '200':
+          description: Explicação completa retornada com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FullExplanationResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /api/v3/explainability/{decision_id}/hierarchical:
+    get:
+      tags: [v3]
+      summary: Hierarchical breakdown only (v3)
+      description: |
+        Retorna apenas o breakdown hierárquico da decisão.
+
+        Inclui estatísticas por nível de senioridade, nível dominante
+        e força de consenso.
+      operationId: get_hierarchical_breakdown_v3
+      parameters:
+        - name: decision_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID único da decisão
+          example: "dec_1234567890abcdef"
+      responses:
+        '200':
+          description: Breakdown hierárquico retornado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HierarchicalBreakdownResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /api/v3/explainability/{decision_id}/individual:
+    get:
+      tags: [v3]
+      summary: Individual contributions only (v3)
+      description: |
+        Retorna apenas as contribuições individuais dos especialistas.
+
+        Lista de especialistas ordenados por rank de influência na decisão.
+      operationId: get_individual_contributions_v3
+      parameters:
+        - name: decision_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID único da decisão
+          example: "dec_1234567890abcdef"
+      responses:
+        '200':
+          description: Contribuições individuais retornadas com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IndividualContributionsResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /api/v3/explainability/{decision_id}/counterfactuals:
+    get:
+      tags: [v3]
+      summary: Counterfactuals only (v3)
+      description: |
+        Retorna apenas a análise contrafactual da decisão.
+
+        Cenários "e se" mostrando como mudanças em opiniões
+        poderiam alterar a decisão final.
+      operationId: get_counterfactuals_v3
+      parameters:
+        - name: decision_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID único da decisão
+          example: "dec_1234567890abcdef"
+      responses:
+        '200':
+          description: Análise contrafactual retornada com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CounterfactualsResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /api/v3/explainability/{decision_id}/temporal:
+    get:
+      tags: [v3]
+      summary: Temporal analysis only (v3)
+      description: |
+        Retorna apenas a análise temporal da decisão.
+
+        Histórico de mudanças de senioridade dos especialistas
+        envolvidos na decisão.
+      operationId: get_temporal_analysis_v3
+      parameters:
+        - name: decision_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID único da decisão
+          example: "dec_1234567890abcdef"
+      responses:
+        '200':
+          description: Análise temporal retornada com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemporalAnalysisResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /api/v3/explainability/batch:
+    post:
+      tags: [v3]
+      summary: Batch comparison (v3)
+      description: |
+        Gera explicações para múltiplas decisões de uma vez.
+
+        Útil para comparar decisões ou gerar relatórios em lote.
+        Máximo de 10 decisões por request.
+      operationId: batch_explanation_v3
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchExplanationRequest'
+      responses:
+        '200':
+          description: Explicações em lote geradas com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchExplanationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /api/v1/explainability/{token}:
+    get:
+      tags: [v1]
+      summary: Get explanation by token (v1 - Legacy)
+      description: |
+        Endpoint legado para busca de explicação por token.
+
+        **Nota**: Este endpoint está obsoleto. Use v2 ou v3.
+      operationId: get_explanation_v1
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Token de acesso à explicação
+      responses:
+        '200':
+          description: Explicação retornada (formato legado)
+        '404':
+          description: Explicação não encontrada
+
+  /api/v2/explainability/{decision_id}:
+    get:
+      tags: [v2]
+      summary: Get explanation by decision_id (v2)
+      description: |
+        Retorna explicação para uma decisão específica.
+
+        **Nota**: Para funcionalidades completas, use v3.
+      operationId: get_explanation_v2
+      parameters:
+        - name: decision_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID da decisão
+      responses:
+        '200':
+          description: Explicação retornada (formato v2)
+        '404':
+          description: Decisão não encontrada
+
+  /api/v2/explainability/generate:
+    post:
+      tags: [v2]
+      summary: Generate explanation (v2)
+      description: Gera nova explicação para uma decisão
+      operationId: generate_explanation_v2
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                decision_id:
+                  type: string
+                explanation_type:
+                  type: string
+                  enum: [shap, lime, counterfactual]
+      responses:
+        '200':
+          description: Explicação gerada
+        '400':
+          description: Request inválido
+
+components:
+  schemas:
+    FullExplanationResponse:
+      type: object
+      required:
+        - decision_id
+        - hierarchical_breakdown
+        - individual_contributions
+      properties:
+        decision_id:
+          type: string
+          description: ID da decisão
+          example: "dec_1234567890abcdef"
+        hierarchical_breakdown:
+          $ref: '#/components/schemas/HierarchicalBreakdown'
+        individual_contributions:
+          type: array
+          items:
+            $ref: '#/components/schemas/IndividualContribution'
+        counterfactuals:
+          type: array
+          description: Análise contrafactual (se solicitada)
+          items:
+            $ref: '#/components/schemas/CounterfactualScenario'
+        temporal_analysis:
+          $ref: '#/components/schemas/TemporalAnalysis'
+          description: Análise temporal (se solicitada)
+        explanation_quality:
+          type: object
+          description: Métricas de qualidade da explicação
+          properties:
+            completeness:
+              type: number
+              format: float
+              minimum: 0
+              maximum: 1
+            confidence:
+              type: number
+              format: float
+              minimum: 0
+              maximum: 1
+
+    HierarchicalBreakdownResponse:
+      type: object
+      required:
+        - decision_id
+        - hierarchical_breakdown
+      properties:
+        decision_id:
+          type: string
+        hierarchical_breakdown:
+          $ref: '#/components/schemas/HierarchicalBreakdown'
+        explanation_quality:
+          type: object
+          properties:
+            completeness:
+              type: number
+              format: float
+            confidence:
+              type: number
+              format: float
+
+    IndividualContributionsResponse:
+      type: object
+      required:
+        - decision_id
+        - individual_contributions
+        - total_specialists
+      properties:
+        decision_id:
+          type: string
+        individual_contributions:
+          type: array
+          items:
+            $ref: '#/components/schemas/IndividualContribution'
+        total_specialists:
+          type: integer
+          minimum: 1
+
+    CounterfactualsResponse:
+      type: object
+      required:
+        - decision_id
+        - counterfactuals
+        - sensitivity_score
+      properties:
+        decision_id:
+          type: string
+        counterfactuals:
+          type: array
+          items:
+            $ref: '#/components/schemas/CounterfactualScenario'
+        sensitivity_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: Maior = mais sensível a mudanças
+
+    TemporalAnalysisResponse:
+      type: object
+      required:
+        - decision_id
+        - temporal_analysis
+      properties:
+        decision_id:
+          type: string
+        temporal_analysis:
+          $ref: '#/components/schemas/TemporalAnalysis'
+
+    BatchExplanationRequest:
+      type: object
+      required:
+        - decision_ids
+      properties:
+        decision_ids:
+          type: array
+          minItems: 1
+          maxItems: 10
+          items:
+            type: string
+          description: Lista de IDs de decisão (máximo 10)
+        include_counterfactuals:
+          type: boolean
+          default: false
+        include_temporal:
+          type: boolean
+          default: false
+
+    BatchExplanationResponse:
+      type: object
+      required:
+        - explanations
+        - failed_ids
+        - summary
+      properties:
+        explanations:
+          type: array
+          items:
+            type: object
+          description: Lista de explicações (mesma ordem da request)
+        failed_ids:
+          type: array
+          items:
+            type: string
+          description: IDs que falharam
+        summary:
+          type: object
+          properties:
+            total_requested:
+              type: integer
+            successful:
+              type: integer
+            failed:
+              type: integer
+
+    HierarchicalBreakdown:
+      type: object
+      description: Breakdown hierárquico da decisão
+      properties:
+        by_level:
+          type: object
+          description: Estatísticas por nível de senioridade
+          additionalProperties:
+            type: object
+            properties:
+              count:
+                type: integer
+              avg_weight:
+                type: number
+                format: float
+              total_weight:
+                type: number
+                format: float
+          example:
+            expert:
+              count: 3
+              avg_weight: 0.8
+              total_weight: 2.4
+            senior:
+              count: 2
+              avg_weight: 0.6
+              total_weight: 1.2
+        dominant_level:
+          type: string
+          description: Nível com maior peso
+          example: "expert"
+        consensus_strength:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: Força do consenso (1 = unânime)
+
+    IndividualContribution:
+      type: object
+      description: Contribuição individual de um especialista
+      properties:
+        specialist_id:
+          type: string
+          example: "specialist_001"
+        specialist_type:
+          type: string
+          example: "business"
+        seniority_level:
+          type: string
+          enum: [trainee, junior, mid_level, senior, expert]
+        rank:
+          type: integer
+          minimum: 1
+          description: Posição no ranking (1 = maior influência)
+        contribution_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: Score de influência na decisão final
+        vote:
+          type: string
+          enum: [approve, reject, abstain]
+          description: Voto do especialista
+
+    CounterfactualScenario:
+      type: object
+      description: Cenário contrafactual "e se"
+      properties:
+        scenario:
+          type: string
+          description: Descrição do cenário
+          example: "Se business_specialist_1 tivesse rejeitado"
+        flipped_decision:
+          type: boolean
+          description: A decisão final mudaria?
+          example: false
+        confidence_change:
+          type: number
+          format: float
+          description: Mudança na confiança da decisão
+          example: -0.15
+
+    TemporalAnalysis:
+      type: object
+      description: Análise temporal de senioridade
+      properties:
+        current_seniority:
+          type: string
+          enum: [trainee, junior, mid_level, senior, expert, unknown]
+          example: "senior"
+        history:
+          type: array
+          description: Histórico de mudanças
+          items:
+            type: object
+            properties:
+              timestamp:
+                type: string
+                format: date-time
+              from_level:
+                type: string
+              to_level:
+                type: string
+              reason:
+                type: string
+        trend:
+          type: string
+          enum: [stable, upward, downward]
+          description: Tendência de evolução
+          example: "upward"
+        volatility:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: Volatilidade das mudanças (0 = estável)
+
+  responses:
+    NotFound:
+      description: Recurso não encontrado
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              detail:
+                type: string
+                example: "Decision not found: dec_1234567890abcdef"
+
+    BadRequest:
+      description: Request inválido
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              detail:
+                type: string
+                example: "decision_ids must contain at least 1 item"
+
+    ServiceUnavailable:
+      description: Serviço indisponível ou não inicializado
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              detail:
+                type: string
+                example: "V3 service not initialized. Check ENABLE_V3_API flag."
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Autenticação JWT para endpoints protegidos (futuro)
+
+security: []
