@@ -61,7 +61,7 @@ jobs:
         run: |
           echo "=== Verificando formatação com black ==="
           # Black check mode - verifica se o código está formatado
-          if ! black --check --diff --color services/ libraries/python/; then
+          if ! black --check --diff --color --target-version py311 services/ libraries/python/; then
             echo ""
             echo "❌ ERRO: Código não está formatado conforme black"
             echo ""
