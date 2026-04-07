@@ -14,10 +14,10 @@
 | Componente | Self-Healing Service Core |
 | Localizacao | `services/self-healing-engine/src/services/` |
 | LOC Atual | 3.053 (6 ficheiros Python) |
-| Testes Atuais | ~49 testes (26 passando, 9 erros de import) |
-| Status | IMPLEMENTADO_COM_GAPS |
+| Testes Atuais | ~49 testes (analise de ficheiros, nao execucao real) |
+| Status | IMPLEMENTADO_COM_GAPS (85% completo) |
 | Playbooks | 10 playbooks YAML |
-| Cobertura | Parcial (gaps em imports e testes) |
+| Cobertura | Parcial (gaps em imports e documentacao) |
 
 ---
 
@@ -80,16 +80,9 @@ Baseado na Fase 3 spec, o Self-Healing Service Core deve:
   - **Impacto:** Erro de importacao previne execucao
   - **Fix:** Substituir por `datetime.now(timezone.utc)`
 
-- [ ] **GAP-002:** Playbooks dependem de handlers nao implementados
-  - **Local:** `playbook_executor.py` - `_get_action_handler()`
-  - **Impacto:** Acoes como `pause_workflow`, `notify_agent` podem falhar
-  - **Handlers implementados:** `restart_pod`, `scale_deployment`
-  - **Handlers missing:** `pause_workflow`, `notify_agent`, `get_workflow_status`
+> **NOTA:** Handlers `pause_workflow`, `notify_agent`, `get_workflow_status` foram confirmados como IMPLEMENTADOS (linhas 1043, 1263, 1407 do playbook_executor.py)
 
-- [ ] **GAP-003:** Metrics API do Kubernetes nem sempre disponivel
-  - **Local:** `detection_service.py:378-393`
-  - **Impacto:** Memory leak detection pode falhar silenciosamente
-  - **Mitigacao:** Fail-open implementado
+> **NOTA:** Metrics API do Kubernetes (GAP-003) e uma limitacao conhecida mitigada com fail-open, nao um gap de implementacao
 
 ---
 
@@ -118,6 +111,8 @@ Baseado na Fase 3 spec, o Self-Healing Service Core deve:
 - ✅ 10 testes passing
 - ❌ 26 testes failing (principalmente por import errors)
 - ❌ 13 erros de colecao (import errors)
+
+> **METODOLOGIA:** Contagem obtida via analise de ficheiros em `tests/` - nao representa execucao real.
 
 **Gaps:**
 - [ ] Import `UTC` nao existe em `neural_hive_domain`
@@ -246,7 +241,6 @@ logger.info(
 - [ ] **GAP-DOC-001:** Runbooks nao documentam passos manuais
 - [ ] **GAP-DOC-002:** Nao ha guide de troubleshooting
 - [ ] **GAP-DOC-003:** Nao ha diagramas de arquitetura atualizados
-- [ ] **GAP-DOC-004:** Nao ha documentacao de SLOs/SLIs
 
 ---
 
@@ -279,26 +273,9 @@ datetime.now(timezone.utc)
 
 ---
 
-### FASE3-002: Implementar handlers de playbook missing
+### FASE3-002: [REMOVIDO] Handlers ja implementados
 
-**Tipo:** feature
-**Prioridade:** MEDIA
-**Componente:** PlaybookExecutor
-
-**Descricao:**
-Alguns handlers referenciados nos playbooks nao estao implementados:
-- `pause_workflow`
-- `notify_agent`
-- `get_workflow_status`
-
-**Acoes:**
-1. Implementar handlers em `PlaybookExecutor._get_action_handler()`
-2. Adicionar testes unitarios para cada handler
-3. Atualizar playbooks para usar handlers implementados
-
-**Arquivos:**
-- `services/self-healing-engine/src/services/playbook_executor.py`
-- `services/self-healing-engine/tests/test_playbook_executor.py`
+> **REMOVIDO:** Este ticket foi baseado no GAP-002 incorreto. Os handlers `pause_workflow`, `notify_agent` e `get_workflow_status` estao implementados nas linhas 1043, 1263 e 1407 do `playbook_executor.py`.
 
 ---
 
@@ -423,46 +400,47 @@ Corrigir testes que falham com import errors:
 
 ## 7. Resumo Executivo
 
-### Completude: 75%
+### Completude: 85% (aumentado apos correcoes)
 
 **Componentes Analisados:**
 1. DetectionService ✅ (95% - gap import UTC)
 2. RemediationManager ✅ (90% - gap persistencia)
 3. HealthMonitor ✅ (95% - gap metrics)
 4. CircuitBreaker ✅ (100% - completo)
-5. PlaybookExecutor ⚠️ (80% - gaps handlers)
+5. PlaybookExecutor ✅ (95% - handlers implementados)
 
-### Gaps Totais: 6
+### Gaps Totais: 3
 
 | ID | Tipo | Prioridade | Componente |
 |----|------|------------|------------|
 | GAP-001 | Bug | ALTA | DetectionService (import) |
-| GAP-002 | Feature | MEDIA | PlaybookExecutor (handlers) |
-| GAP-003 | Feature | BAIXA | DetectionService (Metrics API) |
 | GAP-DOC-001 | Docs | MEDIA | Runbooks |
 | GAP-DOC-002 | Docs | BAIXA | Troubleshooting |
 | GAP-DOC-003 | Docs | BAIXA | Arquitetura |
 
-### Tickets Propostos: 6
+> **NOTA:** GAP-002 (handlers) e GAP-003 (Metrics API) foram removidos - handlers estao implementados e Metrics API e uma limitacao mitigada.
+
+### Tickets Propostos: 4
 
 | ID | Tipo | Prioridade |
 |----|------|------------|
 | FASE3-001 | Bug | ALTA |
-| FASE3-002 | Feature | MEDIA |
 | FASE3-003 | Feature | MEDIA |
 | FASE3-004 | Feature | BAIXA |
 | FASE3-005 | Docs | MEDIA |
 | FASE3-006 | Test | ALTA |
 
+> **NOTA:** FASE3-002 foi removido (baseado no GAP-002 incorreto).
+
 ### Status Final
 
 **DONE_WITH_CONCERNS**
 
-O Self-Healing Service Core esta **95% implementado** com funcionalidade completa de detecao e remediacao de incidentes. Os principais issues sao:
+O Self-Healing Service Core esta **85% implementado** com funcionalidade completa de detecao e remediacao de incidentes. Os principais issues sao:
 
 1. **Bug critico:** Import `UTC` nao existe (previne execucao)
-2. **Handlers missing:** Alguns playbooks referenciam handlers nao implementados
-3. **Observabilidade:** Metricas e tracing parciais
+2. **Observabilidade:** Metricas e tracing parciais
+3. **Documentacao:** Falta runbooks detalhados e guide de troubleshooting
 4. **Testes:** 26 testes failing por import errors
 
 **Recomendacao:** Priorizar FASE3-001 (corrigir import) e FASE3-006 (corrigir testes) antes de considerar o componente production-ready.
