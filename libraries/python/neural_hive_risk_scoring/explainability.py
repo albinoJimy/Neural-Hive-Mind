@@ -6,7 +6,7 @@ Explicabilidade de decisões de risco com SHAP-like values e feature importance.
 
 import structlog
 from typing import Dict, List, Optional, Tuple
-from datetime import datetime
+from datetime import datetime, timezone
 from dataclasses import dataclass, field
 
 from .config import RiskBand, RiskScoringConfig
@@ -54,7 +54,7 @@ class RiskExplanation:
     base_score: float  # Score base sem fatores
     total_adjustment: float  # Ajuste total dos fatores
     reasoning: str
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     metadata: Dict = field(default_factory=dict)
 
     def to_dict(self) -> Dict:
