@@ -23,9 +23,9 @@ def mock_crd_spec():
             "metricName": "http_request_duration_seconds",
             "query": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))",
             "aggregation": "avg",
-            "labels": {}
+            "labels": {},
         },
-        "enabled": True
+        "enabled": True,
     }
 
 
@@ -35,12 +35,8 @@ def mock_crd(mock_crd_spec):
     return {
         "apiVersion": "neural-hive.io/v1",
         "kind": "SLODefinition",
-        "metadata": {
-            "name": "gateway-latency-p99",
-            "namespace": "neural-hive",
-            "uid": "12345"
-        },
-        "spec": mock_crd_spec
+        "metadata": {"name": "gateway-latency-p99", "namespace": "neural-hive", "uid": "12345"},
+        "spec": mock_crd_spec,
     }
 
 
@@ -79,11 +75,7 @@ class TestSyncFromCrdsCreateNewSlos:
 
     @pytest.mark.asyncio
     async def test_sync_from_crds_creates_new_slos(
-        self,
-        mock_postgresql_client,
-        mock_prometheus_client,
-        mock_kubernetes_client,
-        mock_crd
+        self, mock_postgresql_client, mock_prometheus_client, mock_kubernetes_client, mock_crd
     ):
         """Verifica que sync_from_crds cria novos SLOs quando nao existem."""
         # Configurar mock para retornar 2 CRDs
@@ -102,7 +94,7 @@ class TestSyncFromCrdsCreateNewSlos:
         manager = SLOManager(
             postgresql_client=mock_postgresql_client,
             prometheus_client=mock_prometheus_client,
-            kubernetes_client=mock_kubernetes_client
+            kubernetes_client=mock_kubernetes_client,
         )
 
         # Executar sincronizacao
@@ -121,11 +113,7 @@ class TestSyncFromCrdsUpdateExisting:
 
     @pytest.mark.asyncio
     async def test_sync_from_crds_updates_existing_slos(
-        self,
-        mock_postgresql_client,
-        mock_prometheus_client,
-        mock_kubernetes_client,
-        mock_crd
+        self, mock_postgresql_client, mock_prometheus_client, mock_kubernetes_client, mock_crd
     ):
         """Verifica que sync_from_crds atualiza SLOs com valores diferentes."""
         # CRD com target=0.999
@@ -143,19 +131,16 @@ class TestSyncFromCrdsUpdateExisting:
             sli_query=SLIQuery(
                 metric_name="http_request_duration_seconds",
                 query="histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))",
-                aggregation="avg"
+                aggregation="avg",
             ),
-            metadata={
-                "crd_name": "gateway-latency-p99",
-                "crd_namespace": "neural-hive"
-            }
+            metadata={"crd_name": "gateway-latency-p99", "crd_namespace": "neural-hive"},
         )
         mock_postgresql_client.list_slos.return_value = [existing_slo]
 
         manager = SLOManager(
             postgresql_client=mock_postgresql_client,
             prometheus_client=mock_prometheus_client,
-            kubernetes_client=mock_kubernetes_client
+            kubernetes_client=mock_kubernetes_client,
         )
 
         synced_ids = await manager.sync_from_crds()
@@ -171,11 +156,7 @@ class TestSyncFromCrdsSkipUnchanged:
 
     @pytest.mark.asyncio
     async def test_sync_from_crds_skips_unchanged_slos(
-        self,
-        mock_postgresql_client,
-        mock_prometheus_client,
-        mock_kubernetes_client,
-        mock_crd
+        self, mock_postgresql_client, mock_prometheus_client, mock_kubernetes_client, mock_crd
     ):
         """Verifica que sync_from_crds nao atualiza SLOs identicos."""
         mock_kubernetes_client.list_slo_definitions.return_value = [mock_crd]
@@ -193,20 +174,17 @@ class TestSyncFromCrdsSkipUnchanged:
             sli_query=SLIQuery(
                 metric_name="http_request_duration_seconds",
                 query="histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))",
-                aggregation="avg"
+                aggregation="avg",
             ),
             enabled=True,
-            metadata={
-                "crd_name": "gateway-latency-p99",
-                "crd_namespace": "neural-hive"
-            }
+            metadata={"crd_name": "gateway-latency-p99", "crd_namespace": "neural-hive"},
         )
         mock_postgresql_client.list_slos.return_value = [existing_slo]
 
         manager = SLOManager(
             postgresql_client=mock_postgresql_client,
             prometheus_client=mock_prometheus_client,
-            kubernetes_client=mock_kubernetes_client
+            kubernetes_client=mock_kubernetes_client,
         )
 
         synced_ids = await manager.sync_from_crds()
@@ -222,10 +200,7 @@ class TestSyncFromCrdsErrorHandling:
 
     @pytest.mark.asyncio
     async def test_sync_from_crds_handles_kubernetes_errors(
-        self,
-        mock_postgresql_client,
-        mock_prometheus_client,
-        mock_kubernetes_client
+        self, mock_postgresql_client, mock_prometheus_client, mock_kubernetes_client
     ):
         """Verifica que sync_from_crds trata erros do Kubernetes."""
         # Simular erro na listagem
@@ -234,7 +209,7 @@ class TestSyncFromCrdsErrorHandling:
         manager = SLOManager(
             postgresql_client=mock_postgresql_client,
             prometheus_client=mock_prometheus_client,
-            kubernetes_client=mock_kubernetes_client
+            kubernetes_client=mock_kubernetes_client,
         )
 
         synced_ids = await manager.sync_from_crds()
@@ -244,15 +219,13 @@ class TestSyncFromCrdsErrorHandling:
 
     @pytest.mark.asyncio
     async def test_sync_from_crds_without_kubernetes_client(
-        self,
-        mock_postgresql_client,
-        mock_prometheus_client
+        self, mock_postgresql_client, mock_prometheus_client
     ):
         """Verifica que sync_from_crds retorna vazio sem kubernetes_client."""
         manager = SLOManager(
             postgresql_client=mock_postgresql_client,
             prometheus_client=mock_prometheus_client,
-            kubernetes_client=None
+            kubernetes_client=None,
         )
 
         synced_ids = await manager.sync_from_crds()
@@ -262,10 +235,7 @@ class TestSyncFromCrdsErrorHandling:
 
     @pytest.mark.asyncio
     async def test_sync_from_crds_with_unhealthy_client(
-        self,
-        mock_postgresql_client,
-        mock_prometheus_client,
-        mock_kubernetes_client
+        self, mock_postgresql_client, mock_prometheus_client, mock_kubernetes_client
     ):
         """Verifica que sync_from_crds retorna vazio com cliente nao saudavel."""
         mock_kubernetes_client.is_healthy.return_value = False
@@ -273,7 +243,7 @@ class TestSyncFromCrdsErrorHandling:
         manager = SLOManager(
             postgresql_client=mock_postgresql_client,
             prometheus_client=mock_prometheus_client,
-            kubernetes_client=mock_kubernetes_client
+            kubernetes_client=mock_kubernetes_client,
         )
 
         synced_ids = await manager.sync_from_crds()
@@ -287,14 +257,11 @@ class TestSloNeedsUpdate:
     """Testes para _slo_needs_update."""
 
     def test_slo_needs_update_different_target(
-        self,
-        mock_postgresql_client,
-        mock_prometheus_client
+        self, mock_postgresql_client, mock_prometheus_client
     ):
         """Verifica deteccao de mudanca no target."""
         manager = SLOManager(
-            postgresql_client=mock_postgresql_client,
-            prometheus_client=mock_prometheus_client
+            postgresql_client=mock_postgresql_client, prometheus_client=mock_prometheus_client
         )
 
         existing = SLODefinition(
@@ -303,7 +270,7 @@ class TestSloNeedsUpdate:
             service_name="svc",
             layer="layer",
             target=0.99,
-            sli_query=SLIQuery(metric_name="m", query="q", aggregation="avg")
+            sli_query=SLIQuery(metric_name="m", query="q", aggregation="avg"),
         )
 
         new_data = SLODefinition(
@@ -312,20 +279,15 @@ class TestSloNeedsUpdate:
             service_name="svc",
             layer="layer",
             target=0.999,  # Diferente
-            sli_query=SLIQuery(metric_name="m", query="q", aggregation="avg")
+            sli_query=SLIQuery(metric_name="m", query="q", aggregation="avg"),
         )
 
         assert manager._slo_needs_update(existing, new_data) is True
 
-    def test_slo_needs_update_same_values(
-        self,
-        mock_postgresql_client,
-        mock_prometheus_client
-    ):
+    def test_slo_needs_update_same_values(self, mock_postgresql_client, mock_prometheus_client):
         """Verifica que valores identicos nao precisam de update."""
         manager = SLOManager(
-            postgresql_client=mock_postgresql_client,
-            prometheus_client=mock_prometheus_client
+            postgresql_client=mock_postgresql_client, prometheus_client=mock_prometheus_client
         )
 
         existing = SLODefinition(
@@ -334,7 +296,7 @@ class TestSloNeedsUpdate:
             service_name="svc",
             layer="layer",
             target=0.999,
-            sli_query=SLIQuery(metric_name="m", query="q", aggregation="avg")
+            sli_query=SLIQuery(metric_name="m", query="q", aggregation="avg"),
         )
 
         new_data = SLODefinition(
@@ -343,7 +305,7 @@ class TestSloNeedsUpdate:
             service_name="svc",
             layer="layer",
             target=0.999,
-            sli_query=SLIQuery(metric_name="m", query="q", aggregation="avg")
+            sli_query=SLIQuery(metric_name="m", query="q", aggregation="avg"),
         )
 
         assert manager._slo_needs_update(existing, new_data) is False

@@ -57,9 +57,7 @@ class TestMigration001:
         mock_db = MagicMock()
 
         # Mock list_collection_names para retornar coleção existente
-        mock_db.list_collection_names = AsyncMock(
-            return_value=["optimization_recommendations"]
-        )
+        mock_db.list_collection_names = AsyncMock(return_value=["optimization_recommendations"])
         mock_db.optimization_recommendations = MagicMock()
         mock_db.optimization_recommendations.drop = AsyncMock()
 
@@ -92,9 +90,7 @@ class TestMigration001:
         mock_db = MagicMock()
 
         # Mock list_collection_names
-        mock_db.list_collection_names = AsyncMock(
-            return_value=["optimization_recommendations"]
-        )
+        mock_db.list_collection_names = AsyncMock(return_value=["optimization_recommendations"])
 
         # Mock index_information para retornar índices esperados
         mock_db.optimization_recommendations = MagicMock()
@@ -136,9 +132,7 @@ class TestMigration001:
         mock_client = AsyncMock()
         mock_db = MagicMock()
 
-        mock_db.list_collection_names = AsyncMock(
-            return_value=["optimization_recommendations"]
-        )
+        mock_db.list_collection_names = AsyncMock(return_value=["optimization_recommendations"])
 
         # Retornar apenas alguns índices
         mock_db.optimization_recommendations = MagicMock()
@@ -177,9 +171,7 @@ class TestMigration001:
         mock_client = AsyncMock()
         mock_db = MagicMock()
 
-        mock_db.list_collection_names = AsyncMock(
-            return_value=["optimization_recommendations"]
-        )
+        mock_db.list_collection_names = AsyncMock(return_value=["optimization_recommendations"])
         mock_db.optimization_recommendations = MagicMock()
         mock_db.optimization_recommendations.drop = AsyncMock()
 
@@ -194,9 +186,7 @@ class TestMigration001:
         mock_client = AsyncMock()
         mock_db = MagicMock()
 
-        mock_db.list_collection_names = AsyncMock(
-            return_value=["optimization_recommendations"]
-        )
+        mock_db.list_collection_names = AsyncMock(return_value=["optimization_recommendations"])
 
         mock_db.optimization_recommendations = MagicMock()
         mock_db.optimization_recommendations.index_information = AsyncMock(

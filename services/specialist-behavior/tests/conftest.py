@@ -6,8 +6,8 @@ import pytest
 from unittest.mock import MagicMock
 
 # Adicionar paths para importação
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
-sys.path.insert(0, '/app/libraries/python')
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+sys.path.insert(0, "/app/libraries/python")
 
 
 @pytest.fixture
@@ -30,28 +30,27 @@ def mock_specialist_config():
 def sample_cognitive_plan():
     """Plano cognitivo de exemplo."""
     return {
-        'plan_id': 'behavior-plan-123',
-        'original_domain': 'ui-design',
-        'original_priority': 'high',
-        'tasks': [
+        "plan_id": "behavior-plan-123",
+        "original_domain": "ui-design",
+        "original_priority": "high",
+        "tasks": [
             {
-                'task_id': 'task-1',
-                'description': 'Design intuitive user interface',
-                'dependencies': [],
-                'estimated_duration_ms': 200
+                "task_id": "task-1",
+                "description": "Design intuitive user interface",
+                "dependencies": [],
+                "estimated_duration_ms": 200,
             },
             {
-                'task_id': 'task-2',
-                'description': 'Ensure WCAG AA accessibility compliance',
-                'dependencies': ['task-1'],
-                'estimated_duration_ms': 300
+                "task_id": "task-2",
+                "description": "Ensure WCAG AA accessibility compliance",
+                "dependencies": ["task-1"],
+                "estimated_duration_ms": 300,
             },
             {
-                'task_id': 'task-3',
-                'description': 'Optimize response time for user actions',
-                'dependencies': [],
-                'estimated_duration_ms': 150
-            }
-        ]
+                "task_id": "task-3",
+                "description": "Optimize response time for user actions",
+                "dependencies": [],
+                "estimated_duration_ms": 150,
+            },
+        ],
     }
-

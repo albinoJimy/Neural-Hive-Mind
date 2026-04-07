@@ -21,16 +21,11 @@ def mock_mlflow_client():
 def mock_model_repo():
     """Mock ModelVersionRepository."""
     repo = AsyncMock()
-    repo.get_active_model = AsyncMock(return_value={
-        "version": "v8",
-        "f1_score": 0.73,
-        "accuracy": 0.80
-    })
+    repo.get_active_model = AsyncMock(
+        return_value={"version": "v8", "f1_score": 0.73, "accuracy": 0.80}
+    )
     repo.list_models = AsyncMock(return_value=[])
-    repo.get_model_version = AsyncMock(return_value={
-        "version": "v8",
-        "stage": "production"
-    })
+    repo.get_model_version = AsyncMock(return_value={"version": "v8", "stage": "production"})
     repo.promote_model = AsyncMock(return_value=True)
     repo.update_drift_metrics = AsyncMock(return_value=True)
     return repo
@@ -40,15 +35,10 @@ def mock_model_repo():
 def mock_retraining_job():
     """Mock RetrainingJob."""
     job = AsyncMock()
-    job.run_retraining = AsyncMock(return_value={
-        "success": True,
-        "job_id": "retrain-123",
-        "new_version": "v9"
-    })
-    job.get_job_status = AsyncMock(return_value={
-        "job_id": "retrain-123",
-        "status": "completed"
-    })
+    job.run_retraining = AsyncMock(
+        return_value={"success": True, "job_id": "retrain-123", "new_version": "v9"}
+    )
+    job.get_job_status = AsyncMock(return_value={"job_id": "retrain-123", "status": "completed"})
     return job
 
 
@@ -56,10 +46,9 @@ def mock_retraining_job():
 def mock_drift_detector():
     """Mock DriftDetector."""
     detector = AsyncMock()
-    detector.detect_drift = AsyncMock(return_value={
-        "drift_detected": True,
-        "confidence_drop": 0.05
-    })
+    detector.detect_drift = AsyncMock(
+        return_value={"drift_detected": True, "confidence_drop": 0.05}
+    )
     return detector
 
 
@@ -71,7 +60,7 @@ def app(mock_mlflow_client, mock_model_repo, mock_retraining_job, mock_drift_det
         mlflow_client=mock_mlflow_client,
         model_repo=mock_model_repo,
         retraining_job=mock_retraining_job,
-        drift_detector=mock_drift_detector
+        drift_detector=mock_drift_detector,
     )
     app.include_router(router.router, prefix="/api/v1/ml")
     return app
@@ -97,15 +86,11 @@ class TestPostRetrain:
 
     def test_post_retrain_with_samples(self, client, mock_retraining_job):
         """Testa POST /retrain com samples_override."""
-        mock_retraining_job.run_retraining = AsyncMock(return_value={
-            "success": True,
-            "job_id": "retrain-456"
-        })
+        mock_retraining_job.run_retraining = AsyncMock(
+            return_value={"success": True, "job_id": "retrain-456"}
+        )
 
-        response = client.post("/api/v1/ml/retrain", json={
-            "force": True,
-            "samples_override": 500
-        })
+        response = client.post("/api/v1/ml/retrain", json={"force": True, "samples_override": 500})
 
         assert response.status_code == 202
 
@@ -136,10 +121,12 @@ class TestGetModels:
 
     def test_get_models_all(self, client, mock_model_repo):
         """Testa GET /models sem filtros."""
-        mock_model_repo.list_models = AsyncMock(return_value=[
-            {"version": "v8", "stage": "production", "is_active": True},
-            {"version": "v9", "stage": "staging", "is_active": False}
-        ])
+        mock_model_repo.list_models = AsyncMock(
+            return_value=[
+                {"version": "v8", "stage": "production", "is_active": True},
+                {"version": "v9", "stage": "staging", "is_active": False},
+            ]
+        )
 
         response = client.get("/api/v1/ml/models")
 
@@ -150,9 +137,9 @@ class TestGetModels:
 
     def test_get_models_with_stage_filter(self, client, mock_model_repo):
         """Testa GET /models com filtro stage."""
-        mock_model_repo.list_models = AsyncMock(return_value=[
-            {"version": "v9", "stage": "staging"}
-        ])
+        mock_model_repo.list_models = AsyncMock(
+            return_value=[{"version": "v9", "stage": "staging"}]
+        )
 
         response = client.get("/api/v1/ml/models?stage=staging")
 
@@ -170,11 +157,9 @@ class TestGetModelVersion:
 
     def test_get_model_version_success(self, client, mock_model_repo):
         """Testa GET /models/{version} com sucesso."""
-        mock_model_repo.get_model_version = AsyncMock(return_value={
-            "version": "v8",
-            "stage": "production",
-            "f1_score": 0.73
-        })
+        mock_model_repo.get_model_version = AsyncMock(
+            return_value={"version": "v8", "stage": "production", "f1_score": 0.73}
+        )
 
         response = client.get("/api/v1/ml/models/v8")
 
@@ -197,46 +182,37 @@ class TestPromoteModel:
 
     def test_promote_model_immediate(self, client, mock_model_repo):
         """Testa promoção imediata."""
-        mock_model_repo.get_model_version = AsyncMock(return_value={
-            "version": "v9",
-            "stage": "staging"
-        })
+        mock_model_repo.get_model_version = AsyncMock(
+            return_value={"version": "v9", "stage": "staging"}
+        )
 
-        response = client.post("/api/v1/ml/models/v9/promote", json={
-            "strategy": "immediate"
-        })
+        response = client.post("/api/v1/ml/models/v9/promote", json={"strategy": "immediate"})
 
         assert response.status_code == 200
         mock_model_repo.promote_model.assert_called_once()
 
     def test_promote_model_canary(self, client, mock_model_repo):
         """Testa promoção canary."""
-        mock_model_repo.get_model_version = AsyncMock(return_value={
-            "version": "v9",
-            "stage": "staging"
-        })
+        mock_model_repo.get_model_version = AsyncMock(
+            return_value={"version": "v9", "stage": "staging"}
+        )
         # Mock para retornar modelo atual de produção
-        mock_model_repo.list_models = AsyncMock(return_value=[
-            {"version": "v8", "stage": "production", "is_active": True}
-        ])
+        mock_model_repo.list_models = AsyncMock(
+            return_value=[{"version": "v8", "stage": "production", "is_active": True}]
+        )
         mock_model_repo.promote_model = AsyncMock(return_value=True)
 
-        response = client.post("/api/v1/ml/models/v9/promote", json={
-            "strategy": "canary"
-        })
+        response = client.post("/api/v1/ml/models/v9/promote", json={"strategy": "canary"})
 
         assert response.status_code == 200
 
     def test_promote_model_not_in_staging(self, client, mock_model_repo):
         """Testa promoção de modelo não em staging."""
-        mock_model_repo.get_model_version = AsyncMock(return_value={
-            "version": "v9",
-            "stage": "archived"
-        })
+        mock_model_repo.get_model_version = AsyncMock(
+            return_value={"version": "v9", "stage": "archived"}
+        )
 
-        response = client.post("/api/v1/ml/models/v9/promote", json={
-            "strategy": "immediate"
-        })
+        response = client.post("/api/v1/ml/models/v9/promote", json={"strategy": "immediate"})
 
         assert response.status_code == 400
 
@@ -246,11 +222,9 @@ class TestGetDrift:
 
     def test_get_drift_metrics(self, client, mock_drift_detector):
         """Testa GET /drift."""
-        mock_drift_detector.detect_drift = AsyncMock(return_value={
-            "model_version": "v8",
-            "drift_detected": False,
-            "alerts": []
-        })
+        mock_drift_detector.detect_drift = AsyncMock(
+            return_value={"model_version": "v8", "drift_detected": False, "alerts": []}
+        )
 
         response = client.get("/api/v1/ml/drift")
 
@@ -283,10 +257,9 @@ class TestDeleteModel:
 
     def test_delete_model_success(self, client, mock_model_repo):
         """Testa DELETE /models/{version} com sucesso."""
-        mock_model_repo.get_model_version = AsyncMock(return_value={
-            "version": "v7",
-            "stage": "archived"
-        })
+        mock_model_repo.get_model_version = AsyncMock(
+            return_value={"version": "v7", "stage": "archived"}
+        )
         mock_model_repo.delete_model = AsyncMock(return_value=True)
 
         response = client.delete("/api/v1/ml/models/v7")
@@ -295,11 +268,9 @@ class TestDeleteModel:
 
     def test_delete_model_in_production(self, client, mock_model_repo):
         """Testa DELETE /models/{version} em production (deve falhar)."""
-        mock_model_repo.get_model_version = AsyncMock(return_value={
-            "version": "v8",
-            "stage": "production",
-            "is_active": True
-        })
+        mock_model_repo.get_model_version = AsyncMock(
+            return_value={"version": "v8", "stage": "production", "is_active": True}
+        )
 
         response = client.delete("/api/v1/ml/models/v8")
 
@@ -311,13 +282,12 @@ class TestRollbackModel:
 
     def test_rollback_to_previous_version(self, client, mock_model_repo):
         """Testa rollback para versão anterior."""
-        mock_model_repo.get_model_version = AsyncMock(return_value={
-            "version": "v7",
-            "stage": "production"
-        })
-        mock_model_repo.list_models = AsyncMock(return_value=[
-            {"version": "v8", "stage": "production", "is_active": True}
-        ])
+        mock_model_repo.get_model_version = AsyncMock(
+            return_value={"version": "v7", "stage": "production"}
+        )
+        mock_model_repo.list_models = AsyncMock(
+            return_value=[{"version": "v8", "stage": "production", "is_active": True}]
+        )
         mock_model_repo.promote_model = AsyncMock(return_value=True)
 
         response = client.post("/api/v1/ml/models/v7/rollback")
@@ -338,15 +308,17 @@ class TestGetModelStats:
 
     def test_get_model_stats_success(self, client, mock_model_repo):
         """Testa GET /models/{version}/stats com sucesso."""
-        mock_model_repo.get_model_stats = AsyncMock(return_value={
-            "version": "v8",
-            "total_predictions": 10000,
-            "correct_predictions": 8000,
-            "accuracy": 0.80,
-            "f1_score": 0.73,
-            "precision": 0.75,
-            "recall": 0.71
-        })
+        mock_model_repo.get_model_stats = AsyncMock(
+            return_value={
+                "version": "v8",
+                "total_predictions": 10000,
+                "correct_predictions": 8000,
+                "accuracy": 0.80,
+                "f1_score": 0.73,
+                "precision": 0.75,
+                "recall": 0.71,
+            }
+        )
 
         response = client.get("/api/v1/ml/models/v8/stats")
 
@@ -369,11 +341,13 @@ class TestModelComparison:
 
     def test_compare_two_models(self, client, mock_model_repo):
         """Testa comparação entre dois modelos."""
-        mock_model_repo.compare_models = AsyncMock(return_value={
-            "v8": {"f1_score": 0.73, "accuracy": 0.80},
-            "v9": {"f1_score": 0.75, "accuracy": 0.82},
-            "improvement": {"f1_score": 0.02, "accuracy": 0.02}
-        })
+        mock_model_repo.compare_models = AsyncMock(
+            return_value={
+                "v8": {"f1_score": 0.73, "accuracy": 0.80},
+                "v9": {"f1_score": 0.75, "accuracy": 0.82},
+                "improvement": {"f1_score": 0.02, "accuracy": 0.02},
+            }
+        )
 
         response = client.get("/api/v1/ml/models/compare?v1=v8&v2=v9")
 

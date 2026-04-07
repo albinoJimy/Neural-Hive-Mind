@@ -23,25 +23,27 @@ class RiskScoringMetrics:
     def __init__(self):
         try:
             self.risk_scores = Histogram(
-                'neural_hive_risk_score',
-                'Risk scores distribuídos',
-                ['domain']
+                "neural_hive_risk_score", "Risk scores distribuídos", ["domain"]
             )
         except ValueError:
             # Metrics já registradas (múltiplos workers ou reload)
             from prometheus_client import REGISTRY
-            self.risk_scores = REGISTRY._names_to_collectors.get('neural_hive_risk_score')
+
+            self.risk_scores = REGISTRY._names_to_collectors.get("neural_hive_risk_score")
 
         try:
             self.assessments_total = Counter(
-                'neural_hive_risk_assessments_total',
-                'Total de avaliações de risco',
-                ['domain', 'risk_band']
+                "neural_hive_risk_assessments_total",
+                "Total de avaliações de risco",
+                ["domain", "risk_band"],
             )
         except ValueError:
             # Metrics já registradas
             from prometheus_client import REGISTRY
-            self.assessments_total = REGISTRY._names_to_collectors.get('neural_hive_risk_assessments_total')
+
+            self.assessments_total = REGISTRY._names_to_collectors.get(
+                "neural_hive_risk_assessments_total"
+            )
 
     def observe_risk_score(self, score: float, domain: str):
         """Registra score de risco."""
@@ -101,7 +103,7 @@ class RiskScoringEngine:
             domain=domain.value,
             risk_score=risk_score,
             risk_band=risk_band.value,
-            entity_id=entity.get('id', 'unknown')
+            entity_id=entity.get("id", "unknown"),
         )
 
         return RiskAssessment(
@@ -110,7 +112,7 @@ class RiskScoringEngine:
             factors=factors,
             reasoning=reasoning,
             domain=domain,
-            assessed_at=datetime.now(timezone.utc)
+            assessed_at=datetime.now(timezone.utc),
         )
 
     def _calculate_factors(self, entity: Dict, domain: UnifiedDomain) -> Dict[str, float]:
@@ -131,46 +133,48 @@ class RiskScoringEngine:
     def _calculate_business_factors(self, entity: Dict) -> Dict[str, float]:
         """Fatores de risco de negócio."""
         return {
-            'priority': self._map_priority_to_risk(entity.get('priority', 'normal')),
-            'cost': self._calculate_cost_risk(entity),
-            'kpi_alignment': self._calculate_kpi_risk(entity),
-            'complexity': self._calculate_complexity_risk(entity)
+            "priority": self._map_priority_to_risk(entity.get("priority", "normal")),
+            "cost": self._calculate_cost_risk(entity),
+            "kpi_alignment": self._calculate_kpi_risk(entity),
+            "complexity": self._calculate_complexity_risk(entity),
         }
 
     def _calculate_technical_factors(self, entity: Dict) -> Dict[str, float]:
         """Fatores de risco técnico."""
         return {
-            'code_quality': self._calculate_code_quality_risk(entity),
-            'performance': self._calculate_performance_risk(entity),
-            'scalability': self._calculate_scalability_risk(entity),
-            'dependencies': self._calculate_dependency_risk(entity)
+            "code_quality": self._calculate_code_quality_risk(entity),
+            "performance": self._calculate_performance_risk(entity),
+            "scalability": self._calculate_scalability_risk(entity),
+            "dependencies": self._calculate_dependency_risk(entity),
         }
 
     def _calculate_security_factors(self, entity: Dict) -> Dict[str, float]:
         """Fatores de risco de segurança."""
         return {
-            'security_level': self._map_security_level_to_risk(entity.get('security_level', 'internal')),
-            'pii_exposure': self._calculate_pii_risk(entity),
-            'authentication': self._calculate_auth_risk(entity),
-            'encryption': self._calculate_encryption_risk(entity)
+            "security_level": self._map_security_level_to_risk(
+                entity.get("security_level", "internal")
+            ),
+            "pii_exposure": self._calculate_pii_risk(entity),
+            "authentication": self._calculate_auth_risk(entity),
+            "encryption": self._calculate_encryption_risk(entity),
         }
 
     def _calculate_operational_factors(self, entity: Dict) -> Dict[str, float]:
         """Fatores de risco operacional."""
         return {
-            'availability': self._calculate_availability_risk(entity),
-            'reliability': self._calculate_reliability_risk(entity),
-            'maintainability': self._calculate_maintainability_risk(entity),
-            'observability': self._calculate_observability_risk(entity)
+            "availability": self._calculate_availability_risk(entity),
+            "reliability": self._calculate_reliability_risk(entity),
+            "maintainability": self._calculate_maintainability_risk(entity),
+            "observability": self._calculate_observability_risk(entity),
         }
 
     def _calculate_compliance_factors(self, entity: Dict) -> Dict[str, float]:
         """Fatores de risco de compliance."""
         return {
-            'regulatory': self._calculate_regulatory_risk(entity),
-            'audit_trail': self._calculate_audit_risk(entity),
-            'data_retention': self._calculate_retention_risk(entity),
-            'policy_adherence': self._calculate_policy_risk(entity)
+            "regulatory": self._calculate_regulatory_risk(entity),
+            "audit_trail": self._calculate_audit_risk(entity),
+            "data_retention": self._calculate_retention_risk(entity),
+            "policy_adherence": self._calculate_policy_risk(entity),
         }
 
     def _calculate_weighted_score(self, factors: Dict[str, float], domain: UnifiedDomain) -> float:
@@ -193,16 +197,18 @@ class RiskScoringEngine:
         """Classifica score em risk band."""
         thresholds = self.config.get_thresholds(domain)
 
-        if risk_score >= thresholds['critical']:
+        if risk_score >= thresholds["critical"]:
             return RiskBand.CRITICAL
-        elif risk_score >= thresholds['high']:
+        elif risk_score >= thresholds["high"]:
             return RiskBand.HIGH
-        elif risk_score >= thresholds['medium']:
+        elif risk_score >= thresholds["medium"]:
             return RiskBand.MEDIUM
         else:
             return RiskBand.LOW
 
-    def _generate_reasoning(self, factors: Dict[str, float], risk_score: float, risk_band: RiskBand) -> str:
+    def _generate_reasoning(
+        self, factors: Dict[str, float], risk_score: float, risk_band: RiskBand
+    ) -> str:
         """Gera justificativa da avaliação."""
         top_factors = sorted(factors.items(), key=lambda x: x[1], reverse=True)[:3]
         factor_desc = ", ".join([f"{name} ({score:.2f})" for name, score in top_factors])
@@ -211,15 +217,15 @@ class RiskScoringEngine:
     # Heurísticas específicas (simplificadas - expandir conforme necessário)
 
     def _map_priority_to_risk(self, priority: str) -> float:
-        mapping = {'low': 0.2, 'normal': 0.4, 'high': 0.7, 'critical': 0.9}
+        mapping = {"low": 0.2, "normal": 0.4, "high": 0.7, "critical": 0.9}
         return mapping.get(priority, 0.5)
 
     def _map_security_level_to_risk(self, level: str) -> float:
-        mapping = {'public': 0.9, 'internal': 0.5, 'confidential': 0.3, 'restricted': 0.1}
+        mapping = {"public": 0.9, "internal": 0.5, "confidential": 0.3, "restricted": 0.1}
         return mapping.get(level, 0.5)
 
     def _calculate_cost_risk(self, entity: Dict) -> float:
-        cost = entity.get('estimated_cost', 0)
+        cost = entity.get("estimated_cost", 0)
         if cost > 100000:
             return 0.9
         elif cost > 50000:
@@ -234,8 +240,8 @@ class RiskScoringEngine:
         return 0.3
 
     def _calculate_complexity_risk(self, entity: Dict) -> float:
-        complexity = entity.get('complexity', 'medium')
-        mapping = {'low': 0.2, 'medium': 0.5, 'high': 0.8, 'very_high': 0.95}
+        complexity = entity.get("complexity", "medium")
+        mapping = {"low": 0.2, "medium": 0.5, "high": 0.8, "very_high": 0.95}
         return mapping.get(complexity, 0.5)
 
     def _calculate_code_quality_risk(self, entity: Dict) -> float:
@@ -255,7 +261,7 @@ class RiskScoringEngine:
         return 0.3
 
     def _calculate_pii_risk(self, entity: Dict) -> float:
-        has_pii = entity.get('handles_pii', False)
+        has_pii = entity.get("handles_pii", False)
         return 0.8 if has_pii else 0.2
 
     def _calculate_auth_risk(self, entity: Dict) -> float:

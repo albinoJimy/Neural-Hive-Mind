@@ -1,6 +1,7 @@
 """Producer Kafka para publicar eventos de Saga."""
 import json
 from datetime import datetime, timezone
+
 UTC = timezone.utc  # type: ignore
 from typing import Any, Optional
 

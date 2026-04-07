@@ -24,13 +24,13 @@ async def test_ready_endpoint_all_connected():
     from src.main import readiness_check, app_state
 
     # Configurar app state
-    app_state['redis_client'] = AsyncMock()
-    app_state['mongodb_client'] = AsyncMock()
-    app_state['neo4j_client'] = AsyncMock()
-    app_state['clickhouse_client'] = AsyncMock()
-    app_state['kafka_producer'] = None
-    app_state['sync_consumer'] = None
-    app_state['settings'] = MagicMock(enable_realtime_sync=False)
+    app_state["redis_client"] = AsyncMock()
+    app_state["mongodb_client"] = AsyncMock()
+    app_state["neo4j_client"] = AsyncMock()
+    app_state["clickhouse_client"] = AsyncMock()
+    app_state["kafka_producer"] = None
+    app_state["sync_consumer"] = None
+    app_state["settings"] = MagicMock(enable_realtime_sync=False)
 
     response = await readiness_check()
 
@@ -44,13 +44,13 @@ async def test_ready_endpoint_missing_core_layer():
     """Readiness check deve retornar not_ready quando camada core falta."""
     from src.main import readiness_check, app_state
 
-    app_state['redis_client'] = AsyncMock()
-    app_state['mongodb_client'] = None  # Faltando
-    app_state['neo4j_client'] = None
-    app_state['clickhouse_client'] = None
-    app_state['kafka_producer'] = None
-    app_state['sync_consumer'] = None
-    app_state['settings'] = MagicMock(enable_realtime_sync=False)
+    app_state["redis_client"] = AsyncMock()
+    app_state["mongodb_client"] = None  # Faltando
+    app_state["neo4j_client"] = None
+    app_state["clickhouse_client"] = None
+    app_state["kafka_producer"] = None
+    app_state["sync_consumer"] = None
+    app_state["settings"] = MagicMock(enable_realtime_sync=False)
 
     response = await readiness_check()
 
@@ -63,13 +63,13 @@ async def test_ready_endpoint_optional_layers():
     """Readiness check deve aceitar camadas opcionais como not_configured."""
     from src.main import readiness_check, app_state
 
-    app_state['redis_client'] = AsyncMock()
-    app_state['mongodb_client'] = AsyncMock()
-    app_state['neo4j_client'] = None
-    app_state['clickhouse_client'] = None
-    app_state['kafka_producer'] = None
-    app_state['sync_consumer'] = None
-    app_state['settings'] = MagicMock(enable_realtime_sync=False)
+    app_state["redis_client"] = AsyncMock()
+    app_state["mongodb_client"] = AsyncMock()
+    app_state["neo4j_client"] = None
+    app_state["clickhouse_client"] = None
+    app_state["kafka_producer"] = None
+    app_state["sync_consumer"] = None
+    app_state["settings"] = MagicMock(enable_realtime_sync=False)
 
     response = await readiness_check()
 
@@ -88,13 +88,13 @@ async def test_ready_endpoint_with_kafka_sync():
     mock_consumer = MagicMock()
     mock_consumer.is_running = True
 
-    app_state['redis_client'] = AsyncMock()
-    app_state['mongodb_client'] = AsyncMock()
-    app_state['neo4j_client'] = None
-    app_state['clickhouse_client'] = None
-    app_state['kafka_producer'] = mock_producer
-    app_state['sync_consumer'] = mock_consumer
-    app_state['settings'] = MagicMock(enable_realtime_sync=True)
+    app_state["redis_client"] = AsyncMock()
+    app_state["mongodb_client"] = AsyncMock()
+    app_state["neo4j_client"] = None
+    app_state["clickhouse_client"] = None
+    app_state["kafka_producer"] = mock_producer
+    app_state["sync_consumer"] = mock_consumer
+    app_state["settings"] = MagicMock(enable_realtime_sync=True)
 
     response = await readiness_check()
 
@@ -120,18 +120,13 @@ async def test_query_memory_success():
     from src.models.memory_query import MemoryQueryRequest, QueryType
 
     mock_client = AsyncMock()
-    mock_client.query = AsyncMock(return_value={
-        "entity_id": "entity-123",
-        "data": {"key": "value"},
-        "source": "redis"
-    })
-
-    app_state['unified_client'] = mock_client
-
-    request = MemoryQueryRequest(
-        query_type=QueryType.ENTITY,
-        entity_id="entity-123"
+    mock_client.query = AsyncMock(
+        return_value={"entity_id": "entity-123", "data": {"key": "value"}, "source": "redis"}
     )
+
+    app_state["unified_client"] = mock_client
+
+    request = MemoryQueryRequest(query_type=QueryType.ENTITY, entity_id="entity-123")
 
     response = await query_memory(request)
 
@@ -146,17 +141,12 @@ async def test_query_memory_with_cache():
     from src.models.memory_query import MemoryQueryRequest, QueryType
 
     mock_client = AsyncMock()
-    mock_client.query = AsyncMock(return_value={
-        "entity_id": "entity-123",
-        "cached": True
-    })
+    mock_client.query = AsyncMock(return_value={"entity_id": "entity-123", "cached": True})
 
-    app_state['unified_client'] = mock_client
+    app_state["unified_client"] = mock_client
 
     request = MemoryQueryRequest(
-        query_type=QueryType.ENTITY,
-        entity_id="entity-123",
-        use_cache=True
+        query_type=QueryType.ENTITY, entity_id="entity-123", use_cache=True
     )
 
     response = await query_memory(request)
@@ -174,12 +164,9 @@ async def test_query_memory_error_handling():
     mock_client = AsyncMock()
     mock_client.query = AsyncMock(side_effect=Exception("Database error"))
 
-    app_state['unified_client'] = mock_client
+    app_state["unified_client"] = mock_client
 
-    request = MemoryQueryRequest(
-        query_type=QueryType.ENTITY,
-        entity_id="entity-123"
-    )
+    request = MemoryQueryRequest(query_type=QueryType.ENTITY, entity_id="entity-123")
 
     with pytest.raises(HTTPException) as exc_info:
         await query_memory(request)
@@ -193,14 +180,16 @@ async def test_get_lineage():
     from src.main import get_lineage, app_state
 
     mock_tracker = AsyncMock()
-    mock_tracker.get_lineage_tree = AsyncMock(return_value={
-        "entity_id": "entity-123",
-        "depth": 3,
-        "ancestors": ["entity-122", "entity-121"],
-        "descendants": ["entity-124", "entity-125"]
-    })
+    mock_tracker.get_lineage_tree = AsyncMock(
+        return_value={
+            "entity_id": "entity-123",
+            "depth": 3,
+            "ancestors": ["entity-122", "entity-121"],
+            "descendants": ["entity-124", "entity-125"],
+        }
+    )
 
-    app_state['lineage_tracker'] = mock_tracker
+    app_state["lineage_tracker"] = mock_tracker
 
     response = await get_lineage("entity-123", depth=3)
 
@@ -214,14 +203,16 @@ async def test_get_quality_stats():
     from src.main import get_quality_stats, app_state
 
     mock_monitor = AsyncMock()
-    mock_monitor.get_quality_trends = AsyncMock(return_value={
-        "completeness": 0.95,
-        "accuracy": 0.92,
-        "consistency": 0.88,
-        "timeliness": 0.90
-    })
+    mock_monitor.get_quality_trends = AsyncMock(
+        return_value={
+            "completeness": 0.95,
+            "accuracy": 0.92,
+            "consistency": 0.88,
+            "timeliness": 0.90,
+        }
+    )
 
-    app_state['quality_monitor'] = mock_monitor
+    app_state["quality_monitor"] = mock_monitor
 
     response = await get_quality_stats(data_type="context")
 
@@ -238,7 +229,7 @@ async def test_invalidate_cache():
     mock_client = AsyncMock()
     mock_client.invalidate_cache = AsyncMock(return_value=True)
 
-    app_state['unified_client'] = mock_client
+    app_state["unified_client"] = mock_client
 
     response = await invalidate_cache(pattern="entity:*", cascade=False)
 
@@ -253,12 +244,14 @@ async def test_list_data_assets():
     from src.main import list_data_assets, app_state
 
     mock_mongo = AsyncMock()
-    mock_mongo.find = AsyncMock(return_value=[
-        {"name": "asset-1", "type": "collection"},
-        {"name": "asset-2", "type": "view"}
-    ])
+    mock_mongo.find = AsyncMock(
+        return_value=[
+            {"name": "asset-1", "type": "collection"},
+            {"name": "asset-2", "type": "view"},
+        ]
+    )
 
-    app_state['mongodb_client'] = mock_mongo
+    app_state["mongodb_client"] = mock_mongo
 
     response = await list_data_assets(limit=100, offset=0)
 
@@ -274,12 +267,11 @@ async def test_query_by_time_range():
     from datetime import timedelta
 
     mock_client = AsyncMock()
-    mock_client.query = AsyncMock(return_value={
-        "entity_id": "entity-123",
-        "data": {"key": "value"}
-    })
+    mock_client.query = AsyncMock(
+        return_value={"entity_id": "entity-123", "data": {"key": "value"}}
+    )
 
-    app_state['unified_client'] = mock_client
+    app_state["unified_client"] = mock_client
 
     end = datetime.now()
     start = end - timedelta(hours=24)
@@ -287,10 +279,7 @@ async def test_query_by_time_range():
     request = MemoryQueryRequest(
         query_type=QueryType.TIME_SERIES,
         entity_id="entity-123",
-        time_range=TimeRange(
-            start=start.isoformat(),
-            end=end.isoformat()
-        )
+        time_range=TimeRange(start=start.isoformat(), end=end.isoformat()),
     )
 
     response = await query_memory(request)

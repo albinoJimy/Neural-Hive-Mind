@@ -18,7 +18,14 @@ from src.clients.redis_client import RedisClient
 from src.clients.neo4j_client import Neo4jClient
 from src.services.insight_generator import InsightGenerator
 from src.proto import analyst_agent_pb2, analyst_agent_pb2_grpc
-from src.models.insight import AnalystInsight, InsightType, Priority, Recommendation, RelatedEntity, TimeWindow
+from src.models.insight import (
+    AnalystInsight,
+    InsightType,
+    Priority,
+    Recommendation,
+    RelatedEntity,
+    TimeWindow,
+)
 
 
 def _is_service_available(host: str = "localhost", port: int = 27017, timeout: float = 1.0) -> bool:
@@ -76,7 +83,7 @@ class MockAnalyticsEngine:
         return []
 
     def calculate_trend(self, metric_name: str, values: list):
-        return {'slope': 0.5, 'direction': 'up', 'confidence': 0.85}
+        return {"slope": 0.5, "direction": "up", "confidence": 0.85}
 
     def calculate_correlation(self, values1: list, values2: list):
         return 0.75
@@ -85,13 +92,12 @@ class MockAnalyticsEngine:
 # Remove module-scoped event_loop to avoid pytest-asyncio scope mismatch
 # pytest-asyncio with asyncio_default_fixture_loop_scope = function handles this
 
+
 @pytest.fixture
 async def mongodb_client():
     """Inicializar cliente MongoDB real para testes."""
     client = MongoDBClient(
-        uri=TEST_MONGODB_URI,
-        database=TEST_MONGODB_DATABASE,
-        collection=TEST_MONGODB_COLLECTION
+        uri=TEST_MONGODB_URI, database=TEST_MONGODB_DATABASE, collection=TEST_MONGODB_COLLECTION
     )
     try:
         await client.initialize()
@@ -113,7 +119,7 @@ async def redis_client():
         port=TEST_REDIS_PORT,
         password=TEST_REDIS_PASSWORD,
         db=TEST_REDIS_DB,
-        ttl=TEST_REDIS_TTL
+        ttl=TEST_REDIS_TTL,
     )
     try:
         await client.initialize()
@@ -136,7 +142,7 @@ async def neo4j_client():
         uri=TEST_NEO4J_URI,
         user=TEST_NEO4J_USER,
         password=TEST_NEO4J_PASSWORD,
-        database=TEST_NEO4J_DATABASE
+        database=TEST_NEO4J_DATABASE,
     )
     try:
         await client.initialize()
@@ -147,7 +153,9 @@ async def neo4j_client():
         if client.driver:
             # Limpar dados de teste
             try:
-                await client.query_patterns("MATCH (n) WHERE n.insight_id STARTS WITH 'test-' DETACH DELETE n", {})
+                await client.query_patterns(
+                    "MATCH (n) WHERE n.insight_id STARTS WITH 'test-' DETACH DELETE n", {}
+                )
             except Exception:
                 pass
             await client.close()
@@ -169,7 +177,7 @@ async def grpc_server(mongodb_client, redis_client, neo4j_client):
         analytics_engine=analytics_engine,
         insight_generator=insight_generator,
         neo4j_client=neo4j_client,
-        max_workers=4
+        max_workers=4,
     )
 
     await server.start()
@@ -213,11 +221,13 @@ async def seeded_insight(mongodb_client, redis_client):
             Recommendation(action="Acao de teste", priority="HIGH", estimated_impact=0.8)
         ],
         related_entities=[
-            RelatedEntity(entity_type="test", entity_id="test-entity-1", relationship="test_relation")
+            RelatedEntity(
+                entity_type="test", entity_id="test-entity-1", relationship="test_relation"
+            )
         ],
         time_window=TimeWindow(start_timestamp=1704067200000, end_timestamp=1704153600000),
         tags=["test", "e2e"],
-        metadata={"test_key": "test_value"}
+        metadata={"test_key": "test_value"},
     )
 
     await mongodb_client.save_insight(insight)
@@ -290,10 +300,7 @@ class TestQueryInsightsE2E:
     @pytest.mark.skipif(not SERVICES_AVAILABLE, reason="MongoDB/Redis not available")
     async def test_query_insights_empty(self, grpc_stub):
         """Consulta sem filtros em colecao vazia."""
-        request = analyst_agent_pb2.QueryInsightsRequest(
-            insight_type="NON_EXISTENT_TYPE",
-            limit=10
-        )
+        request = analyst_agent_pb2.QueryInsightsRequest(insight_type="NON_EXISTENT_TYPE", limit=10)
         response = await grpc_stub.QueryInsights(request)
 
         assert response.total_count == 0
@@ -303,10 +310,7 @@ class TestQueryInsightsE2E:
     @pytest.mark.skipif(not SERVICES_AVAILABLE, reason="MongoDB/Redis not available")
     async def test_query_insights_by_type(self, grpc_stub, seeded_insight):
         """Consultar insights por tipo."""
-        request = analyst_agent_pb2.QueryInsightsRequest(
-            insight_type="ANOMALY",
-            limit=10
-        )
+        request = analyst_agent_pb2.QueryInsightsRequest(insight_type="ANOMALY", limit=10)
         response = await grpc_stub.QueryInsights(request)
 
         assert response.total_count >= 1
@@ -317,10 +321,7 @@ class TestQueryInsightsE2E:
     @pytest.mark.skipif(not SERVICES_AVAILABLE, reason="MongoDB/Redis not available")
     async def test_query_insights_by_priority(self, grpc_stub, seeded_insight):
         """Consultar insights por prioridade."""
-        request = analyst_agent_pb2.QueryInsightsRequest(
-            priority="HIGH",
-            limit=10
-        )
+        request = analyst_agent_pb2.QueryInsightsRequest(priority="HIGH", limit=10)
         response = await grpc_stub.QueryInsights(request)
 
         assert response.total_count >= 1
@@ -332,7 +333,7 @@ class TestQueryInsightsE2E:
         request = analyst_agent_pb2.QueryInsightsRequest(
             start_timestamp=1704067200000,
             end_timestamp=int(datetime.now(timezone.utc).timestamp() * 1000) + 86400000,
-            limit=10
+            limit=10,
         )
         response = await grpc_stub.QueryInsights(request)
 
@@ -348,7 +349,7 @@ class TestExecuteAnalysisE2E:
         """Executar deteccao de anomalias."""
         request = analyst_agent_pb2.ExecuteAnalysisRequest(
             analysis_type="anomaly_detection",
-            parameters={"metric_name": "cpu_usage", "threshold": "3.0"}
+            parameters={"metric_name": "cpu_usage", "threshold": "3.0"},
         )
         response = await grpc_stub.ExecuteAnalysis(request)
 
@@ -361,8 +362,7 @@ class TestExecuteAnalysisE2E:
     async def test_execute_trend_analysis(self, grpc_stub):
         """Executar analise de tendencia."""
         request = analyst_agent_pb2.ExecuteAnalysisRequest(
-            analysis_type="trend_analysis",
-            parameters={"metric_name": "memory_usage"}
+            analysis_type="trend_analysis", parameters={"metric_name": "memory_usage"}
         )
         response = await grpc_stub.ExecuteAnalysis(request)
 
@@ -375,7 +375,7 @@ class TestExecuteAnalysisE2E:
         """Executar analise de correlacao."""
         request = analyst_agent_pb2.ExecuteAnalysisRequest(
             analysis_type="correlation",
-            parameters={"metric1": "cpu_usage", "metric2": "memory_usage"}
+            parameters={"metric1": "cpu_usage", "metric2": "memory_usage"},
         )
         response = await grpc_stub.ExecuteAnalysis(request)
 
@@ -387,8 +387,7 @@ class TestExecuteAnalysisE2E:
     async def test_execute_invalid_analysis_type(self, grpc_stub):
         """Tipo de analise invalido retorna erro."""
         request = analyst_agent_pb2.ExecuteAnalysisRequest(
-            analysis_type="invalid_type",
-            parameters={}
+            analysis_type="invalid_type", parameters={}
         )
 
         with pytest.raises(grpc.aio.AioRpcError) as exc_info:
@@ -427,7 +426,7 @@ class TestGenerateInsightE2E:
             metrics={"test_metric": 42.0},
             correlation_id=str(uuid.uuid4()),
             tags=["e2e", "generated"],
-            persist_to_neo4j=False
+            persist_to_neo4j=False,
         )
         response = await grpc_stub.GenerateInsight(request)
 
@@ -449,9 +448,7 @@ class TestGenerateInsightE2E:
     async def test_generate_insight_invalid_type(self, grpc_stub):
         """Tipo de insight invalido retorna erro."""
         request = analyst_agent_pb2.GenerateInsightRequest(
-            insight_type="INVALID_TYPE",
-            title="Teste Invalido",
-            summary="Teste"
+            insight_type="INVALID_TYPE", title="Teste Invalido", summary="Teste"
         )
         response = await grpc_stub.GenerateInsight(request)
 
@@ -463,9 +460,7 @@ class TestGenerateInsightE2E:
     async def test_generate_insight_with_related_entities(self, grpc_stub, mongodb_client):
         """Gerar insight com entidades relacionadas."""
         related_entity = analyst_agent_pb2.RelatedEntity(
-            entity_type="test",
-            entity_id="test-entity-123",
-            relationship="caused_by"
+            entity_type="test", entity_id="test-entity-123", relationship="caused_by"
         )
         request = analyst_agent_pb2.GenerateInsightRequest(
             insight_type="CAUSAL",
@@ -473,7 +468,7 @@ class TestGenerateInsightE2E:
             summary="Teste de relacionamentos",
             detailed_analysis="Analise causal",
             related_entities=[related_entity],
-            persist_to_neo4j=False
+            persist_to_neo4j=False,
         )
         response = await grpc_stub.GenerateInsight(request)
 
@@ -492,9 +487,7 @@ class TestQueryInsightsWithNeo4jE2E:
     async def test_query_with_graph_enrichment_no_neo4j(self, grpc_stub):
         """Consulta com graph_enrichment sem Neo4j disponivel funciona."""
         request = analyst_agent_pb2.QueryInsightsRequest(
-            use_graph_enrichment=True,
-            related_entity_id="some-entity",
-            limit=10
+            use_graph_enrichment=True, related_entity_id="some-entity", limit=10
         )
         response = await grpc_stub.QueryInsights(request)
 

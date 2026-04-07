@@ -45,10 +45,7 @@ class AICodeGenMCPServer(BaseMCPServer):
         if self._copilot_client.is_available():
             providers.append("copilot")
 
-        logger.info(
-            "ai_codegen_mcp_server_resources_initialized",
-            available_providers=providers
-        )
+        logger.info("ai_codegen_mcp_server_resources_initialized", available_providers=providers)
 
     async def cleanup(self) -> None:
         """Libera recursos do servidor."""
@@ -63,7 +60,7 @@ class AICodeGenMCPServer(BaseMCPServer):
 server = AICodeGenMCPServer(
     name=settings.service_name,
     version=settings.service_version,
-    allowed_origins=settings.CORS_ORIGINS
+    allowed_origins=settings.CORS_ORIGINS,
 )
 
 
@@ -73,11 +70,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Startup
     await server.initialize()
     server.set_ready(True)
-    logger.info(
-        "ai_codegen_mcp_server_started",
-        host=settings.http_host,
-        port=settings.http_port
-    )
+    logger.info("ai_codegen_mcp_server_started", host=settings.http_host, port=settings.http_port)
 
     yield
 
@@ -92,7 +85,7 @@ app = FastAPI(
     title="AI Code Generation MCP Server",
     version=settings.service_version,
     description="Servidor MCP para geração de código com GitHub Copilot e OpenAI",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # Configurar CORS e health checks
@@ -117,7 +110,7 @@ def main() -> None:
             structlog.stdlib.add_logger_name,
             structlog.stdlib.add_log_level,
             structlog.processors.TimeStamper(fmt="iso"),
-            structlog.processors.JSONRenderer()
+            structlog.processors.JSONRenderer(),
         ],
         wrapper_class=structlog.stdlib.BoundLogger,
         context_class=dict,
@@ -130,7 +123,7 @@ def main() -> None:
         host=settings.http_host,
         port=settings.http_port,
         log_level=settings.log_level.lower(),
-        access_log=True
+        access_log=True,
     )
 
 

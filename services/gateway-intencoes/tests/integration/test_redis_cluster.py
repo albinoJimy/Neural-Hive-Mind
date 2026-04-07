@@ -27,19 +27,14 @@ def redis_cluster():
             compose.start()
             # Aguardar cluster estar pronto
             import time
+
             time.sleep(10)
 
-            yield {
-                "nodes": "localhost:6379,localhost:6380,localhost:6381",
-                "password": None
-            }
+            yield {"nodes": "localhost:6379,localhost:6380,localhost:6381", "password": None}
     except:
         # Fallback para Redis único se cluster não disponível
         with RedisContainer("redis:7-alpine") as redis:
-            yield {
-                "nodes": f"localhost:{redis.get_exposed_port(6379)}",
-                "password": None
-            }
+            yield {"nodes": f"localhost:{redis.get_exposed_port(6379)}", "password": None}
 
 
 @pytest.fixture
@@ -63,7 +58,7 @@ async def redis_client(redis_client_config):
     """Cliente Redis configurado para cluster de teste"""
     from unittest.mock import patch
 
-    with patch('src.cache.redis_client.get_settings', return_value=redis_client_config):
+    with patch("src.cache.redis_client.get_settings", return_value=redis_client_config):
         client = RedisClient()
         await client.initialize()
 
@@ -105,10 +100,7 @@ class TestRedisClusterIntegration:
         test_data = {
             "user_id": "123",
             "username": "test_user",
-            "metadata": {
-                "last_login": "2023-01-01T00:00:00Z",
-                "roles": ["user", "admin"]
-            }
+            "metadata": {"last_login": "2023-01-01T00:00:00Z", "roles": ["user", "admin"]},
         }
 
         # Armazenar dados complexos
@@ -144,6 +136,7 @@ class TestRedisClusterIntegration:
 
         # Mock redis que falha
         from unittest.mock import AsyncMock
+
         failing_redis = AsyncMock()
         failing_redis.get.side_effect = Exception("Connection failed")
 
@@ -173,7 +166,7 @@ class TestRedisClusterIntegration:
             {"method": "set", "args": ["pipe_key1", "value1"]},
             {"method": "set", "args": ["pipe_key2", "value2"]},
             {"method": "get", "args": ["pipe_key1"]},
-            {"method": "get", "args": ["pipe_key2"]}
+            {"method": "get", "args": ["pipe_key2"]},
         ]
 
         try:
@@ -230,6 +223,7 @@ class TestRedisClusterIntegration:
     @pytest.mark.asyncio
     async def test_concurrent_access(self, redis_client):
         """Testa acesso concorrente"""
+
         async def worker(worker_id):
             """Worker que escreve dados concorrentemente"""
             for i in range(10):
@@ -261,13 +255,7 @@ class TestRedisClusterIntegration:
             "id": "large_object",
             "data": "x" * 10000,  # 10KB string
             "array": list(range(1000)),
-            "nested": {
-                "level1": {
-                    "level2": {
-                        "level3": "deep_value"
-                    }
-                }
-            }
+            "nested": {"level1": {"level2": {"level3": "deep_value"}}},
         }
 
         # Armazenar dados grandes

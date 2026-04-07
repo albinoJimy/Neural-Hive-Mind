@@ -5,7 +5,9 @@ import socket
 from src.clients.service_registry_client import ServiceRegistryClient
 
 
-def _is_service_registry_available(host: str = "localhost", port: int = 50051, timeout: float = 1.0) -> bool:
+def _is_service_registry_available(
+    host: str = "localhost", port: int = 50051, timeout: float = 1.0
+) -> bool:
     """Check if Service Registry is available at the given host:port."""
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -25,6 +27,7 @@ SERVICE_REGISTRY_AVAILABLE = _is_service_registry_available()
 def service_registry_host():
     """Service Registry host for integration tests."""
     import os
+
     return os.environ.get("SERVICE_REGISTRY_HOST", "localhost")
 
 
@@ -32,6 +35,7 @@ def service_registry_host():
 def service_registry_port():
     """Service Registry port for integration tests."""
     import os
+
     return int(os.environ.get("SERVICE_REGISTRY_PORT", "50051"))
 
 
@@ -49,11 +53,7 @@ async def analyst_client(service_registry_host, service_registry_port):
 @pytest.mark.skipif(not SERVICE_REGISTRY_AVAILABLE, reason="Service Registry not available")
 async def test_register_analyst_agent(analyst_client):
     """Test Analyst Agent registration."""
-    agent_info = {
-        'version': '1.2.0',
-        'host': 'localhost',
-        'port': 8000
-    }
+    agent_info = {"version": "1.2.0", "host": "localhost", "port": 8000}
 
     agent_id = await analyst_client.register_agent(agent_info)
 
@@ -66,7 +66,7 @@ async def test_register_analyst_agent(analyst_client):
 @pytest.mark.skipif(not SERVICE_REGISTRY_AVAILABLE, reason="Service Registry not available")
 async def test_heartbeat_updates_health(analyst_client):
     """Test that heartbeat updates health status."""
-    agent_info = {'version': '1.0.0'}
+    agent_info = {"version": "1.0.0"}
 
     agent_id = await analyst_client.register_agent(agent_info)
     assert agent_id is not None
@@ -81,12 +81,12 @@ async def test_heartbeat_updates_health(analyst_client):
 @pytest.mark.skipif(not SERVICE_REGISTRY_AVAILABLE, reason="Service Registry not available")
 async def test_update_health_status(analyst_client):
     """Test health status update."""
-    agent_info = {'version': '1.0.0'}
+    agent_info = {"version": "1.0.0"}
 
     await analyst_client.register_agent(agent_info)
 
     # Update health status
-    success = await analyst_client.update_health_status('healthy')
+    success = await analyst_client.update_health_status("healthy")
     assert success is True
 
 
@@ -95,7 +95,7 @@ async def test_update_health_status(analyst_client):
 @pytest.mark.skipif(not SERVICE_REGISTRY_AVAILABLE, reason="Service Registry not available")
 async def test_deregister_agent(analyst_client):
     """Test agent deregistration."""
-    agent_info = {'version': '1.0.0'}
+    agent_info = {"version": "1.0.0"}
 
     await analyst_client.register_agent(agent_info)
 
@@ -110,7 +110,7 @@ async def test_deregister_agent(analyst_client):
 @pytest.mark.skipif(not SERVICE_REGISTRY_AVAILABLE, reason="Service Registry not available")
 async def test_discover_agents(analyst_client):
     """Test agent discovery by capabilities."""
-    agent_info = {'version': '1.0.0'}
+    agent_info = {"version": "1.0.0"}
 
     # Register agent first
     await analyst_client.register_agent(agent_info)
@@ -129,7 +129,7 @@ async def test_register_without_initialization():
     client = ServiceRegistryClient(host="localhost", port=50051)
     # Don't call initialize()
 
-    agent_info = {'version': '1.0.0'}
+    agent_info = {"version": "1.0.0"}
     result = await client.register_agent(agent_info)
 
     # Should return None since client is not initialized
@@ -165,11 +165,11 @@ async def test_get_available_agents_without_registration(analyst_client):
 async def test_full_lifecycle(analyst_client):
     """Test complete agent lifecycle."""
     agent_info = {
-        'version': '1.0.0',
-        'host': 'localhost',
-        'port': 8000,
-        'namespace': 'test',
-        'cluster': 'neural-hive'
+        "version": "1.0.0",
+        "host": "localhost",
+        "port": 8000,
+        "namespace": "test",
+        "cluster": "neural-hive",
     }
 
     # Register
@@ -181,7 +181,7 @@ async def test_full_lifecycle(analyst_client):
     assert success is True
 
     # Update health
-    success = await analyst_client.update_health_status('healthy')
+    success = await analyst_client.update_health_status("healthy")
     assert success is True
 
     # Discover

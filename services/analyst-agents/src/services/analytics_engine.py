@@ -41,25 +41,19 @@ class AnalyticsEngine:
             latency_anomalies = self._detect_metric_anomalies(
                 "latency_ms", metrics.get("latency_values", [])
             )
-            all_anomalies.extend([
-                {**a, "metric": "latency_ms"} for a in latency_anomalies
-            ])
+            all_anomalies.extend([{**a, "metric": "latency_ms"} for a in latency_anomalies])
 
             # Error Rate
             error_rate_anomalies = self._detect_metric_anomalies(
                 "error_rate", metrics.get("error_rate_values", [])
             )
-            all_anomalies.extend([
-                {**a, "metric": "error_rate"} for a in error_rate_anomalies
-            ])
+            all_anomalies.extend([{**a, "metric": "error_rate"} for a in error_rate_anomalies])
 
             # Throughput
             throughput_anomalies = self._detect_metric_anomalies(
                 "throughput", metrics.get("throughput_values", [])
             )
-            all_anomalies.extend([
-                {**a, "metric": "throughput"} for a in throughput_anomalies
-            ])
+            all_anomalies.extend([{**a, "metric": "throughput"} for a in throughput_anomalies])
 
             # Se não há anomalias, retornar None
             if not all_anomalies:
@@ -102,7 +96,9 @@ class AnalyticsEngine:
                 data_sources=["telemetry", "kafka"],
                 metrics={
                     "anomaly_count": len(all_anomalies),
-                    "max_latency": critical_anomaly["value"] if critical_anomaly.get("metric") == "latency_ms" else 0,
+                    "max_latency": critical_anomaly["value"]
+                    if critical_anomaly.get("metric") == "latency_ms"
+                    else 0,
                     "max_value": critical_anomaly["value"],
                     "max_zscore": critical_anomaly.get("zscore", 0),
                 },
@@ -119,9 +115,7 @@ class AnalyticsEngine:
             logger.error("analyze_telemetry_window_failed", error=str(e))
             return None
 
-    def _detect_metric_anomalies(
-        self, metric_name: str, values: List[float]
-    ) -> List[dict]:
+    def _detect_metric_anomalies(self, metric_name: str, values: List[float]) -> List[dict]:
         """Detectar anomalias em uma métrica específica."""
         anomalies = []
 
@@ -134,40 +128,54 @@ class AnalyticsEngine:
             # Se um valor é > 3x o outro, é anomalia
             if val1 > val2 * 3 or val2 > val1 * 3:
                 larger_idx = 0 if val1 > val2 else 1
-                is_critical = values[larger_idx] > 5000 if metric_name == "latency_ms" else values[larger_idx] > 1.0
-                anomalies.append({
-                    "index": larger_idx,
-                    "value": float(values[larger_idx]),
-                    "zscore": 5.0 if is_critical else 3.0,
-                    "method": "simple_ratio"
-                })
+                is_critical = (
+                    values[larger_idx] > 5000
+                    if metric_name == "latency_ms"
+                    else values[larger_idx] > 1.0
+                )
+                anomalies.append(
+                    {
+                        "index": larger_idx,
+                        "value": float(values[larger_idx]),
+                        "zscore": 5.0 if is_critical else 3.0,
+                        "method": "simple_ratio",
+                    }
+                )
                 return anomalies
 
         # Detecção de valores absolutos extremos (para qualquer número de valores)
-        critical_threshold = 5000 if metric_name == "latency_ms" else 1.0 if metric_name == "error_rate" else 0
-        absolute_threshold = 1000 if metric_name == "latency_ms" else 0.1 if metric_name == "error_rate" else 0
+        critical_threshold = (
+            5000 if metric_name == "latency_ms" else 1.0 if metric_name == "error_rate" else 0
+        )
+        absolute_threshold = (
+            1000 if metric_name == "latency_ms" else 0.1 if metric_name == "error_rate" else 0
+        )
 
         for i, val in enumerate(values):
             if val > critical_threshold:
                 if not any(a["index"] == i for a in anomalies):
-                    anomalies.append({
-                        "index": i,
-                        "value": float(val),
-                        "zscore": 5.0,
-                        "method": "absolute_critical"
-                    })
+                    anomalies.append(
+                        {
+                            "index": i,
+                            "value": float(val),
+                            "zscore": 5.0,
+                            "method": "absolute_critical",
+                        }
+                    )
             elif val > absolute_threshold:
                 # Verificar se é significativamente maior que os outros valores
                 if len(values) >= 3:
                     avg_val = np.mean(values)
                     if val > avg_val * 3:
                         if not any(a["index"] == i for a in anomalies):
-                            anomalies.append({
-                                "index": i,
-                                "value": float(val),
-                                "zscore": 3.0,
-                                "method": "relative_ratio"
-                            })
+                            anomalies.append(
+                                {
+                                    "index": i,
+                                    "value": float(val),
+                                    "zscore": 3.0,
+                                    "method": "relative_ratio",
+                                }
+                            )
 
         # Método Z-Score (para 3+ valores)
         if len(values) >= 3:
@@ -179,12 +187,14 @@ class AnalyticsEngine:
                 anomaly_indices = np.where(z_scores > threshold)[0]
                 for i in anomaly_indices:
                     if not any(a["index"] == i for a in anomalies):
-                        anomalies.append({
-                            "index": i,
-                            "value": float(arr[i]),
-                            "zscore": float(z_scores[i]),
-                            "method": "zscore"
-                        })
+                        anomalies.append(
+                            {
+                                "index": i,
+                                "value": float(arr[i]),
+                                "zscore": float(z_scores[i]),
+                                "method": "zscore",
+                            }
+                        )
             except Exception:
                 pass
 
@@ -200,12 +210,14 @@ class AnalyticsEngine:
                     if val > upper_bound and val > absolute_threshold:
                         if not any(a["index"] == i for a in anomalies):
                             is_critical = val > critical_threshold
-                            anomalies.append({
-                                "index": i,
-                                "value": float(val),
-                                "zscore": 5.0 if is_critical else 3.0,
-                                "method": "extreme_value"
-                            })
+                            anomalies.append(
+                                {
+                                    "index": i,
+                                    "value": float(val),
+                                    "zscore": 5.0 if is_critical else 3.0,
+                                    "method": "extreme_value",
+                                }
+                            )
         except Exception:
             pass
 

@@ -11,6 +11,7 @@ Suporta:
 import json
 import logging
 from datetime import datetime, timezone, timedelta
+
 UTC = timezone.utc  # type: ignore
 
 logger = logging.getLogger(__name__)
@@ -23,11 +24,7 @@ class GCRToken:
     """Representa um token GCR cacheado."""
 
     def __init__(
-        self,
-        access_token: str,
-        token_type: str,
-        expires_at: datetime,
-        obtained_at: datetime
+        self, access_token: str, token_type: str, expires_at: datetime, obtained_at: datetime
     ):
         self.access_token = access_token
         self.token_type = token_type
@@ -69,7 +66,7 @@ class GCRClient:
         use_workload_identity: bool = True,
         service_account_key_path: str | None = None,
         service_account_email: str | None = None,
-        token_ttl: int = GCR_TOKEN_DEFAULT_TTL
+        token_ttl: int = GCR_TOKEN_DEFAULT_TTL,
     ):
         """
         Inicializa o GCRClient.
@@ -208,15 +205,13 @@ class GCRClient:
             access_token=access_token,
             token_type="oauth2_access_token",
             expires_at=expires_at,
-            obtained_at=obtained_at
+            obtained_at=obtained_at,
         )
 
         # Atualizar cache
         self._cached_token = token
 
-        logger.info(
-            f"gcr_token_obtained: expires_at={expires_at.isoformat()}"
-        )
+        logger.info(f"gcr_token_obtained: expires_at={expires_at.isoformat()}")
 
         return token
 
@@ -244,11 +239,11 @@ class GCRClient:
             True se for GCR, False caso contrário
         """
         return (
-            image_uri.startswith("gcr.io/") or
-            image_uri.startswith("us.") or  # US regions (ex: us.gcr.io)
-            image_uri.startswith("eu.") or  # EU regions (ex: eu.gcr.io)
-            image_uri.startswith("asia.") or  # Asia regions
-            image_uri.startswith("st.")  # Stealth registry
+            image_uri.startswith("gcr.io/")
+            or image_uri.startswith("us.")
+            or image_uri.startswith("eu.")  # US regions (ex: us.gcr.io)
+            or image_uri.startswith("asia.")  # EU regions (ex: eu.gcr.io)
+            or image_uri.startswith("st.")  # Asia regions  # Stealth registry
         )
 
     def get_registry_endpoint(self, region: str = "us") -> str:
@@ -300,10 +295,7 @@ class GCRClient:
         return f"{self.registry}/{project_id}/{image_name}:{tag}"
 
 
-def get_gcr_credentials(
-    image_uri: str,
-    service_account_key_path: str | None = None
-) -> str:
+def get_gcr_credentials(image_uri: str, service_account_key_path: str | None = None) -> str:
     """
     Função de conveniência para obter credenciais GCR.
 
@@ -345,7 +337,7 @@ def extract_gcr_project(image_uri: str) -> str | None:
     """
     # gcr.io/project-id/image:tag
     if image_uri.startswith("gcr.io/"):
-        parts = image_uri[len("gcr.io/"):].split("/")
+        parts = image_uri[len("gcr.io/") :].split("/")
         if len(parts) >= 2:
             return parts[0]
 

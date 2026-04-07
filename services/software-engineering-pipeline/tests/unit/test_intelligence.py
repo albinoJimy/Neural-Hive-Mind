@@ -25,9 +25,7 @@ async def test_detect_performance_degradation():
         {"run_id": "hist-3", "duration_seconds": 190},
     ]
 
-    anomalies = await detector._detect_performance_degradation(
-        current_run, historical_runs
-    )
+    anomalies = await detector._detect_performance_degradation(current_run, historical_runs)
 
     assert len(anomalies) == 1
     assert anomalies[0].type == "performance_degradation"

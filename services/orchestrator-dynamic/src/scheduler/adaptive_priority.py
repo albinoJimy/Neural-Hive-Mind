@@ -8,6 +8,7 @@ Ajusta prioridade de tickets considerando histórico de execução:
 """
 from collections import defaultdict
 from datetime import datetime, timezone
+
 UTC = timezone.utc  # type: ignore, timedelta
 from typing import Any
 

@@ -92,7 +92,7 @@ def temp_codebase_dir():
     with tempfile.TemporaryDirectory() as tmpdir:
         # Criar estrutura de arquivos
         test_files = {
-            'module1.py': '''
+            "module1.py": """
 from typing import List
 from .module2 import Helper
 
@@ -103,27 +103,27 @@ class DataProcessor:
 class Validator:
     def validate(self, value: int) -> bool:
         return value > 0
-''',
-            'module2.py': '''
+""",
+            "module2.py": """
 class Helper:
     @staticmethod
     def assist() -> str:
         return "help"
-''',
-            'sub/__init__.py': '''
+""",
+            "sub/__init__.py": """
 from .base import BaseClass
-''',
-            'sub/base.py': '''
+""",
+            "sub/base.py": """
 class BaseClass:
     def __init__(self):
         self.value = 42
-'''
+""",
         }
 
         for filename, content in test_files.items():
             filepath = Path(tmpdir) / filename
             filepath.parent.mkdir(parents=True, exist_ok=True)
-            filepath.write_text(content, encoding='utf-8')
+            filepath.write_text(content, encoding="utf-8")
 
         yield tmpdir
 
@@ -131,7 +131,7 @@ class BaseClass:
 @pytest.fixture
 def explorer(temp_codebase_dir):
     """Explorador para testes."""
-    return CodebaseExplorer(temp_codebase_dir, file_extensions=['.py'])
+    return CodebaseExplorer(temp_codebase_dir, file_extensions=[".py"])
 
 
 class TestCodebaseExplorerAST:
@@ -163,18 +163,18 @@ class TestCodebaseExplorerAST:
         assert len(functions) == 10
 
         # Verificar funções específicas por nome
-        function_names = [f['name'] for f in functions]
-        assert 'find_by_id' in function_names
-        assert 'save' in function_names
-        assert 'delete' in function_names
-        assert 'create_user' in function_names
-        assert 'get_user_async' in function_names
-        assert 'calculate_complexity' in function_names
+        function_names = [f["name"] for f in functions]
+        assert "find_by_id" in function_names
+        assert "save" in function_names
+        assert "delete" in function_names
+        assert "create_user" in function_names
+        assert "get_user_async" in function_names
+        assert "calculate_complexity" in function_names
 
         # Verificar função async
-        async_funcs = [f for f in functions if f['is_async']]
+        async_funcs = [f for f in functions if f["is_async"]]
         assert len(async_funcs) == 1
-        assert async_funcs[0]['name'] == 'get_user_async'
+        assert async_funcs[0]["name"] == "get_user_async"
 
     def test_extract_classes(self, explorer, sample_python_code):
         """Testa extração de classes."""
@@ -184,31 +184,31 @@ class TestCodebaseExplorerAST:
         assert len(classes) == 3
 
         # Verificar UserRepository
-        repo = next(c for c in classes if c['name'] == 'UserRepository')
-        assert repo['methods_count'] == 4
+        repo = next(c for c in classes if c["name"] == "UserRepository")
+        assert repo["methods_count"] == 4
 
         # Verificar SingletonFactory
-        singleton = next(c for c in classes if c['name'] == 'SingletonFactory')
-        assert singleton['methods_count'] == 2  # __new__ e create
+        singleton = next(c for c in classes if c["name"] == "SingletonFactory")
+        assert singleton["methods_count"] == 2  # __new__ e create
 
     def test_extract_imports(self, explorer, sample_python_code):
         """Testa extração e categorização de imports."""
         tree = explorer.parse_python_ast(sample_python_code, "test.py")
         imports = explorer.extract_imports(tree, "test.py")
 
-        assert 'stdlib' in imports
-        assert 'external' in imports
-        assert 'local' in imports
-        assert 'local_relative' in imports
+        assert "stdlib" in imports
+        assert "external" in imports
+        assert "local" in imports
+        assert "local_relative" in imports
 
         # Verificar stdlib
-        stdlib = set(imports['stdlib'])
-        assert 'os' in stdlib
-        assert 'sys' in stdlib
-        assert 'asyncio' in stdlib
+        stdlib = set(imports["stdlib"])
+        assert "os" in stdlib
+        assert "sys" in stdlib
+        assert "asyncio" in stdlib
 
         # Verificar external (vazio pois typing/collections são stdlib)
-        external = set(imports['external'])
+        external = set(imports["external"])
         # typing e collections são categorizados como stdlib pelo explorer
 
     def test_calculate_complexity(self, explorer, sample_python_code):
@@ -230,12 +230,12 @@ class TestCodebaseExplorerDependencyGraph:
         # Primeiro explorar diretório
         results = explorer.explore_directory(max_files=10)
 
-        graph = explorer.build_dependency_graph(results['parsed_data'])
+        graph = explorer.build_dependency_graph(results["parsed_data"])
 
-        assert 'nodes' in graph
-        assert 'edges' in graph
-        assert 'circular' in graph
-        assert len(graph['nodes']) > 0
+        assert "nodes" in graph
+        assert "edges" in graph
+        assert "circular" in graph
+        assert len(graph["nodes"]) > 0
 
     def test_detect_circular_dependencies(self, explorer, temp_codebase_dir):
         """Testa detecção de dependências circulares."""
@@ -244,30 +244,34 @@ class TestCodebaseExplorerDependencyGraph:
         circular_dir = Path(temp_codebase_dir) / "circular"
         circular_dir.mkdir()
 
-        (circular_dir / "module_a.py").write_text('''
+        (circular_dir / "module_a.py").write_text(
+            """
 # Importa b para criar dependência circular
 from circular import module_b
 class ClassA:
     pass
-''')
+"""
+        )
 
-        (circular_dir / "module_b.py").write_text('''
+        (circular_dir / "module_b.py").write_text(
+            """
 # Importa a para criar dependência circular
 from circular import module_a
 class ClassB:
     pass
-''')
+"""
+        )
 
-        explorer_circular = CodebaseExplorer(temp_codebase_dir, file_extensions=['.py'])
+        explorer_circular = CodebaseExplorer(temp_codebase_dir, file_extensions=[".py"])
         results = explorer_circular.explore_directory()
-        graph = explorer_circular.build_dependency_graph(results['parsed_data'])
+        graph = explorer_circular.build_dependency_graph(results["parsed_data"])
 
         # Verificar estrutura do grafo
-        assert 'nodes' in graph
-        assert 'edges' in graph
-        assert 'circular' in graph
+        assert "nodes" in graph
+        assert "edges" in graph
+        assert "circular" in graph
         # Devem ter 2 novos arquivos no grafo
-        assert len(graph['nodes']) >= 2
+        assert len(graph["nodes"]) >= 2
 
 
 class TestCodebaseExplorerExploration:
@@ -277,33 +281,33 @@ class TestCodebaseExplorerExploration:
         """Testa exploração completa de diretório."""
         results = explorer.explore_directory(max_files=100)
 
-        assert 'files_found' in results
-        assert 'parsed_data' in results
-        assert 'summary' in results
+        assert "files_found" in results
+        assert "parsed_data" in results
+        assert "summary" in results
 
         # temp_codebase_dir cria 4 arquivos: module1.py, module2.py, sub/__init__.py, sub/base.py
-        assert results['summary']['total_files'] == 4
-        assert results['summary']['parsed_success'] == 4  # Todos .py devem parsear
-        assert results['summary']['parsed_errors'] == 0
+        assert results["summary"]["total_files"] == 4
+        assert results["summary"]["parsed_success"] == 4  # Todos .py devem parsear
+        assert results["summary"]["parsed_errors"] == 0
 
     def test_explorer_with_max_files_limit(self, temp_codebase_dir):
         """Testa limite máximo de arquivos."""
-        explorer = CodebaseExplorer(temp_codebase_dir, file_extensions=['.py'])
+        explorer = CodebaseExplorer(temp_codebase_dir, file_extensions=[".py"])
         results = explorer.explore_directory(max_files=2)
 
-        assert results['summary']['total_files'] <= 2
+        assert results["summary"]["total_files"] <= 2
 
     def test_get_stats(self, explorer, temp_codebase_dir):
         """Testa obtenção de estatísticas."""
         explorer.explore_directory(max_files=10)
         stats = explorer.get_stats()
 
-        assert 'files_analyzed' in stats
-        assert 'total_functions' in stats
-        assert 'total_classes' in stats
-        assert 'total_imports' in stats
-        assert 'parsed_files' in stats
-        assert 'files_with_errors' in stats
+        assert "files_analyzed" in stats
+        assert "total_functions" in stats
+        assert "total_classes" in stats
+        assert "total_imports" in stats
+        assert "parsed_files" in stats
+        assert "files_with_errors" in stats
 
 
 class TestCodebaseExplorerMultiLanguage:
@@ -313,7 +317,8 @@ class TestCodebaseExplorerMultiLanguage:
         """Testa exploração com arquivos TypeScript."""
         # Criar arquivo TypeScript
         ts_file = Path(temp_codebase_dir) / "service.ts"
-        ts_file.write_text('''
+        ts_file.write_text(
+            """
 interface User {
     id: string;
     name: string;
@@ -326,24 +331,27 @@ class UserService {
         return Array.from(this.users.values());
     }
 }
-''')
+"""
+        )
 
-        explorer = CodebaseExplorer(temp_codebase_dir, file_extensions=['.ts', '.py'])
+        explorer = CodebaseExplorer(temp_codebase_dir, file_extensions=[".ts", ".py"])
         results = explorer.explore_directory()
 
-        assert results['summary']['total_files'] >= 1
+        assert results["summary"]["total_files"] >= 1
 
     def test_explore_with_yaml(self, temp_codebase_dir):
         """Testa exploração com arquivos YAML."""
         yaml_file = Path(temp_codebase_dir) / "config.yaml"
-        yaml_file.write_text('''
+        yaml_file.write_text(
+            """
 version: "1.0"
 services:
   scout:
     image: scout:latest
-''')
+"""
+        )
 
-        explorer = CodebaseExplorer(temp_codebase_dir, file_extensions=['.yaml'])
+        explorer = CodebaseExplorer(temp_codebase_dir, file_extensions=[".yaml"])
         results = explorer.explore_directory()
 
-        assert results['summary']['total_files'] >= 1
+        assert results["summary"]["total_files"] >= 1

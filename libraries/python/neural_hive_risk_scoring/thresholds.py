@@ -20,10 +20,10 @@ logger = structlog.get_logger(__name__)
 class ThresholdAdjustmentStrategy:
     """Estratégias de ajuste de threshold."""
 
-    PERCENTILE = 'percentile'  # Baseado em percentis do histórico
-    STANDARD_DEVIATION = 'std_dev'  # Baseado em desvio padrão
-    EXPONENTIAL_MOVING_AVG = 'ema'  # Média móvel exponencial
-    MANUAL = 'manual'  # Ajuste manual
+    PERCENTILE = "percentile"  # Baseado em percentis do histórico
+    STANDARD_DEVIATION = "std_dev"  # Baseado em desvio padrão
+    EXPONENTIAL_MOVING_AVG = "ema"  # Média móvel exponencial
+    MANUAL = "manual"  # Ajuste manual
 
 
 class DynamicThresholds:
@@ -35,7 +35,7 @@ class DynamicThresholds:
         adjustment_strategy: str = ThresholdAdjustmentStrategy.PERCENTILE,
         window_size: int = 100,
         min_samples_for_adjustment: int = 20,
-        adjustment_factor: float = 0.1
+        adjustment_factor: float = 0.1,
     ):
         """Inicializa gerenciador de thresholds dinâmicos.
 
@@ -54,8 +54,7 @@ class DynamicThresholds:
 
         # Histórico de scores por domínio
         self._history: Dict[str, deque] = {
-            domain.value: deque(maxlen=window_size)
-            for domain in UnifiedDomain
+            domain.value: deque(maxlen=window_size) for domain in UnifiedDomain
         }
 
         # Thresholds atuais (inicializa com base_config)
@@ -77,7 +76,9 @@ class DynamicThresholds:
         """
         return self._current_thresholds.get(domain.value, self.base_config.get_thresholds(domain))
 
-    def record_score(self, domain: UnifiedDomain, score: float, timestamp: Optional[datetime] = None):
+    def record_score(
+        self, domain: UnifiedDomain, score: float, timestamp: Optional[datetime] = None
+    ):
         """Registra score para análise de threshold.
 
         Args:
@@ -89,9 +90,7 @@ class DynamicThresholds:
         self._history[domain.value].append((ts, score))
 
     def adjust_thresholds(
-        self,
-        domain: Optional[UnifiedDomain] = None,
-        force: bool = False
+        self, domain: Optional[UnifiedDomain] = None, force: bool = False
     ) -> Dict[str, Dict[str, float]]:
         """Ajusta thresholds baseado em histórico.
 
@@ -115,7 +114,7 @@ class DynamicThresholds:
                     "insufficient_samples_for_adjustment",
                     domain=domain_value,
                     samples=len(history),
-                    required=self.min_samples_for_adjustment
+                    required=self.min_samples_for_adjustment,
                 )
                 adjusted[domain_value] = self._current_thresholds[domain_value]
                 continue
@@ -148,15 +147,13 @@ class DynamicThresholds:
                 strategy=self.adjustment_strategy,
                 old_thresholds=old_thresholds,
                 new_thresholds=blended_thresholds,
-                samples=len(scores)
+                samples=len(scores),
             )
 
         return adjusted
 
     def _calculate_percentile_thresholds(
-        self,
-        scores: List[float],
-        domain: str
+        self, scores: List[float], domain: str
     ) -> Dict[str, float]:
         """Calcula thresholds baseado em percentis.
 
@@ -175,17 +172,9 @@ class DynamicThresholds:
             idx = min(int(n * p), n - 1)
             return sorted_scores[idx]
 
-        return {
-            'medium': percentile(0.60),
-            'high': percentile(0.80),
-            'critical': percentile(0.95)
-        }
+        return {"medium": percentile(0.60), "high": percentile(0.80), "critical": percentile(0.95)}
 
-    def _calculate_std_dev_thresholds(
-        self,
-        scores: List[float],
-        domain: str
-    ) -> Dict[str, float]:
+    def _calculate_std_dev_thresholds(self, scores: List[float], domain: str) -> Dict[str, float]:
         """Calcula thresholds baseado em desvio padrão.
 
         Strategy:
@@ -200,16 +189,12 @@ class DynamicThresholds:
         std = stdev(scores)
 
         return {
-            'medium': min(1.0, avg + 0.5 * std),
-            'high': min(1.0, avg + 1.0 * std),
-            'critical': min(1.0, avg + 1.5 * std)
+            "medium": min(1.0, avg + 0.5 * std),
+            "high": min(1.0, avg + 1.0 * std),
+            "critical": min(1.0, avg + 1.5 * std),
         }
 
-    def _calculate_ema_thresholds(
-        self,
-        scores: List[float],
-        domain: str
-    ) -> Dict[str, float]:
+    def _calculate_ema_thresholds(self, scores: List[float], domain: str) -> Dict[str, float]:
         """Calcula thresholds usando média móvel exponencial.
 
         Strategy: EMA com alpha=0.2, adiciona múltiplos de desvio.
@@ -228,16 +213,12 @@ class DynamicThresholds:
         avg_deviation = mean(deviations)
 
         return {
-            'medium': min(1.0, ema + 0.5 * avg_deviation),
-            'high': min(1.0, ema + 1.0 * avg_deviation),
-            'critical': min(1.0, ema + 1.5 * avg_deviation)
+            "medium": min(1.0, ema + 0.5 * avg_deviation),
+            "high": min(1.0, ema + 1.0 * avg_deviation),
+            "critical": min(1.0, ema + 1.5 * avg_deviation),
         }
 
-    def _blend_thresholds(
-        self,
-        old: Dict[str, float],
-        new: Dict[str, float]
-    ) -> Dict[str, float]:
+    def _blend_thresholds(self, old: Dict[str, float], new: Dict[str, float]) -> Dict[str, float]:
         """Combina thresholds antigos e novos.
 
         Args:
@@ -248,7 +229,7 @@ class DynamicThresholds:
             Thresholds ajustados parcialmente
         """
         blended = {}
-        for key in ['medium', 'high', 'critical']:
+        for key in ["medium", "high", "critical"]:
             old_val = old.get(key, 0.5)
             new_val = new.get(key, 0.5)
             # Ajuste parcial: move X% em direção ao novo valor
@@ -271,19 +252,16 @@ class DynamicThresholds:
             Dict com current, base, last_adjustment, sample_count
         """
         return {
-            'domain': domain.value,
-            'current_thresholds': self._current_thresholds.get(domain.value, {}),
-            'base_thresholds': self.base_config.get_thresholds(domain),
-            'last_adjustment': self._last_adjustment.get(domain.value),
-            'sample_count': len(self._history[domain.value]),
-            'adjustment_strategy': self.adjustment_strategy
+            "domain": domain.value,
+            "current_thresholds": self._current_thresholds.get(domain.value, {}),
+            "base_thresholds": self.base_config.get_thresholds(domain),
+            "last_adjustment": self._last_adjustment.get(domain.value),
+            "sample_count": len(self._history[domain.value]),
+            "adjustment_strategy": self.adjustment_strategy,
         }
 
     def set_manual_threshold(
-        self,
-        domain: UnifiedDomain,
-        level: str,  # 'medium', 'high', 'critical'
-        value: float
+        self, domain: UnifiedDomain, level: str, value: float  # 'medium', 'high', 'critical'
     ):
         """Define manualmente um threshold específico.
 
@@ -297,12 +275,7 @@ class DynamicThresholds:
 
         self._current_thresholds[domain.value][level] = value
 
-        logger.info(
-            "manual_threshold_set",
-            domain=domain.value,
-            level=level,
-            value=value
-        )
+        logger.info("manual_threshold_set", domain=domain.value, level=level, value=value)
 
 
 class ThresholdViolation:
@@ -315,7 +288,7 @@ class ThresholdViolation:
         threshold_level: str,
         threshold_value: float,
         severity: str,
-        timestamp: Optional[datetime] = None
+        timestamp: Optional[datetime] = None,
     ):
         self.domain = domain
         self.score = score
@@ -328,13 +301,13 @@ class ThresholdViolation:
     def to_dict(self) -> Dict:
         """Converte para dicionário."""
         return {
-            'domain': self.domain.value,
-            'score': self.score,
-            'threshold_level': self.threshold_level,
-            'threshold_value': self.threshold_value,
-            'severity': self.severity,
-            'timestamp': self.timestamp.isoformat(),
-            'delta': self.delta
+            "domain": self.domain.value,
+            "score": self.score,
+            "threshold_level": self.threshold_level,
+            "threshold_value": self.threshold_value,
+            "severity": self.severity,
+            "timestamp": self.timestamp.isoformat(),
+            "delta": self.delta,
         }
 
 
@@ -351,11 +324,7 @@ class ThresholdMonitor:
         self._violations: List[ThresholdViolation] = []
         self._violation_counts: Dict[str, int] = {}
 
-    def check_violation(
-        self,
-        domain: UnifiedDomain,
-        score: float
-    ) -> Optional[ThresholdViolation]:
+    def check_violation(self, domain: UnifiedDomain, score: float) -> Optional[ThresholdViolation]:
         """Verifica se score viola thresholds.
 
         Args:
@@ -368,29 +337,29 @@ class ThresholdMonitor:
         thresholds = self.thresholds.get_thresholds(domain)
 
         # Verificar do mais grave para o menos grave
-        if score >= thresholds['critical']:
+        if score >= thresholds["critical"]:
             violation = ThresholdViolation(
                 domain=domain,
                 score=score,
-                threshold_level='critical',
-                threshold_value=thresholds['critical'],
-                severity='critical'
+                threshold_level="critical",
+                threshold_value=thresholds["critical"],
+                severity="critical",
             )
-        elif score >= thresholds['high']:
+        elif score >= thresholds["high"]:
             violation = ThresholdViolation(
                 domain=domain,
                 score=score,
-                threshold_level='high',
-                threshold_value=thresholds['high'],
-                severity='major'
+                threshold_level="high",
+                threshold_value=thresholds["high"],
+                severity="major",
             )
-        elif score >= thresholds['medium']:
+        elif score >= thresholds["medium"]:
             violation = ThresholdViolation(
                 domain=domain,
                 score=score,
-                threshold_level='medium',
-                threshold_value=thresholds['medium'],
-                severity='minor'
+                threshold_level="medium",
+                threshold_value=thresholds["medium"],
+                severity="minor",
             )
         else:
             return None
@@ -405,7 +374,7 @@ class ThresholdMonitor:
             score=score,
             threshold_level=violation.threshold_level,
             threshold_value=violation.threshold_value,
-            delta=violation.delta
+            delta=violation.delta,
         )
 
         return violation
@@ -414,7 +383,7 @@ class ThresholdMonitor:
         self,
         domain: Optional[UnifiedDomain] = None,
         since: Optional[datetime] = None,
-        severity: Optional[str] = None
+        severity: Optional[str] = None,
     ) -> List[ThresholdViolation]:
         """Retorna violações filtradas.
 
@@ -442,9 +411,9 @@ class ThresholdMonitor:
     def get_violation_stats(self) -> Dict:
         """Retorna estatísticas de violações."""
         return {
-            'total_violations': len(self._violations),
-            'counts_by_type': self._violation_counts.copy(),
-            'last_violation': self._violations[-1].to_dict() if self._violations else None
+            "total_violations": len(self._violations),
+            "counts_by_type": self._violation_counts.copy(),
+            "last_violation": self._violations[-1].to_dict() if self._violations else None,
         }
 
     def clear_violations(self, before: Optional[datetime] = None):

@@ -44,17 +44,11 @@ def load_config() -> Dict[str, Any]:
                 "FEEDBACK_MONGODB_COLLECTION", "specialist_feedback"
             ),
             # Feedback & Retraining
-            "enable_feedback_collection": os.getenv(
-                "ENABLE_FEEDBACK_COLLECTION", "true"
-            ).lower()
+            "enable_feedback_collection": os.getenv("ENABLE_FEEDBACK_COLLECTION", "true").lower()
             == "true",
-            "enable_retraining_trigger": os.getenv(
-                "ENABLE_RETRAINING_TRIGGER", "true"
-            ).lower()
+            "enable_retraining_trigger": os.getenv("ENABLE_RETRAINING_TRIGGER", "true").lower()
             == "true",
-            "retraining_feedback_threshold": int(
-                os.getenv("RETRAINING_FEEDBACK_THRESHOLD", "100")
-            ),
+            "retraining_feedback_threshold": int(os.getenv("RETRAINING_FEEDBACK_THRESHOLD", "100")),
             "retraining_feedback_window_days": int(
                 os.getenv("RETRAINING_FEEDBACK_WINDOW_DAYS", "7")
             ),
@@ -65,9 +59,7 @@ def load_config() -> Dict[str, Any]:
                 os.getenv("RETRAINING_MIN_FEEDBACK_QUALITY", "0.5")
             ),
             # MLflow
-            "mlflow_tracking_uri": os.getenv(
-                "MLFLOW_TRACKING_URI", "http://mlflow:5000"
-            ),
+            "mlflow_tracking_uri": os.getenv("MLFLOW_TRACKING_URI", "http://mlflow:5000"),
             # Prometheus Pushgateway (opcional)
             "pushgateway_url": os.getenv("PUSHGATEWAY_URL"),
         }
@@ -131,9 +123,7 @@ def initialize_components(config: Dict[str, Any], specialist_type: str):
     # Inicializar componentes
     feedback_collector = FeedbackCollector(temp_config, audit_logger=None)
     mlflow_client = MLflowClient(temp_config)
-    retraining_trigger = RetrainingTrigger(
-        temp_config, feedback_collector, mlflow_client
-    )
+    retraining_trigger = RetrainingTrigger(temp_config, feedback_collector, mlflow_client)
 
     logger.info(
         "Components initialized",
@@ -164,16 +154,12 @@ def check_and_trigger_retraining(
     """
     try:
         # Inicializar componentes
-        feedback_collector, retraining_trigger = initialize_components(
-            config, specialist_type
-        )
+        feedback_collector, retraining_trigger = initialize_components(config, specialist_type)
 
         # Verificar e disparar
         if dry_run:
             # Apenas verificar sem disparar
-            should_trigger, feedback_count = retraining_trigger._should_trigger(
-                specialist_type
-            )
+            should_trigger, feedback_count = retraining_trigger._should_trigger(specialist_type)
 
             logger.info(
                 "Dry-run mode",
@@ -309,9 +295,7 @@ def main():
 
     # Configurar logging
     if args.verbose:
-        structlog.configure(
-            wrapper_class=structlog.make_filtering_bound_logger(logging.DEBUG)
-        )
+        structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(logging.DEBUG))
 
     print("🔄 Neural Hive - Retraining Trigger Checker")
     print(f"⏰ Execution time: {datetime.now(timezone.utc).isoformat()}")

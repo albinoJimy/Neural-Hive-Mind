@@ -16,7 +16,11 @@ from datetime import datetime
 
 from src.services.weight_recalibrator import WeightRecalibrator
 from src.models.optimization_hypothesis import OptimizationHypothesis, OptimizationType
-from src.models.optimization_event import OptimizationEvent, OptimizationType as EventOptimizationType, Adjustment
+from src.models.optimization_event import (
+    OptimizationEvent,
+    OptimizationType as EventOptimizationType,
+    Adjustment,
+)
 
 
 @pytest.fixture
@@ -32,12 +36,9 @@ def mock_settings():
 def mock_consensus_client():
     """Mock do ConsensusEngineGrpcClient."""
     client = AsyncMock()
-    client.get_current_weights = AsyncMock(return_value={
-        "business": 0.25,
-        "technical": 0.25,
-        "architecture": 0.25,
-        "behavior": 0.25
-    })
+    client.get_current_weights = AsyncMock(
+        return_value={"business": 0.25, "technical": 0.25, "architecture": 0.25, "behavior": 0.25}
+    )
     client.validate_weight_adjustment = AsyncMock(return_value=True)
     client.update_weights = AsyncMock(return_value=True)
     client.rollback_weights = AsyncMock(return_value=True)
@@ -78,7 +79,14 @@ def mock_metrics():
 
 
 @pytest.fixture
-def weight_recalibrator(mock_settings, mock_consensus_client, mock_mongodb_client, mock_redis_client, mock_optimization_producer, mock_metrics):
+def weight_recalibrator(
+    mock_settings,
+    mock_consensus_client,
+    mock_mongodb_client,
+    mock_redis_client,
+    mock_optimization_producer,
+    mock_metrics,
+):
     """Fixture do WeightRecalibrator."""
     return WeightRecalibrator(
         settings=mock_settings,
@@ -86,7 +94,7 @@ def weight_recalibrator(mock_settings, mock_consensus_client, mock_mongodb_clien
         mongodb_client=mock_mongodb_client,
         redis_client=mock_redis_client,
         optimization_producer=mock_optimization_producer,
-        metrics=mock_metrics
+        metrics=mock_metrics,
     )
 
 
@@ -105,27 +113,29 @@ def sample_weight_hypothesis():
                 parameter="technical",
                 previous_value=0.25,
                 new_value="0.30",
-                justification="Technical specialist showing improved accuracy"
+                justification="Technical specialist showing improved accuracy",
             )
         ],
         expected_improvement=0.15,
         confidence_score=0.85,
         risk_score=0.2,
         priority=4,
-        metadata={"state_hash": "abc123"}
+        metadata={"state_hash": "abc123"},
     )
 
 
 class TestWeightRecalibratorInitialization:
     """Testes de inicialização do WeightRecalibrator."""
 
-    def test_initialization_with_all_dependencies(self, mock_settings, mock_consensus_client, mock_mongodb_client, mock_redis_client):
+    def test_initialization_with_all_dependencies(
+        self, mock_settings, mock_consensus_client, mock_mongodb_client, mock_redis_client
+    ):
         """Testa inicialização com todas as dependências."""
         recalibrator = WeightRecalibrator(
             settings=mock_settings,
             consensus_client=mock_consensus_client,
             mongodb_client=mock_mongodb_client,
-            redis_client=mock_redis_client
+            redis_client=mock_redis_client,
         )
 
         assert recalibrator.settings == mock_settings
@@ -141,7 +151,7 @@ class TestWeightRecalibratorInitialization:
             mongodb_client=None,
             redis_client=None,
             optimization_producer=None,
-            metrics=None
+            metrics=None,
         )
 
         assert recalibrator.settings == mock_settings
@@ -156,7 +166,15 @@ class TestApplyWeightRecalibration:
     """Testes de aplicação de recalibração de pesos."""
 
     @pytest.mark.asyncio
-    async def test_apply_weight_recalibration_success(self, weight_recalibrator, sample_weight_hypothesis, mock_consensus_client, mock_mongodb_client, mock_redis_client, mock_optimization_producer):
+    async def test_apply_weight_recalibration_success(
+        self,
+        weight_recalibrator,
+        sample_weight_hypothesis,
+        mock_consensus_client,
+        mock_mongodb_client,
+        mock_redis_client,
+        mock_optimization_producer,
+    ):
         """Testa aplicação bem-sucedida de recalibração."""
         result = await weight_recalibrator.apply_weight_recalibration(sample_weight_hypothesis)
 
@@ -174,7 +192,9 @@ class TestApplyWeightRecalibration:
         mock_optimization_producer.publish_optimization.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_apply_weight_recalibration_invalid_type(self, weight_recalibrator, sample_weight_hypothesis):
+    async def test_apply_weight_recalibration_invalid_type(
+        self, weight_recalibrator, sample_weight_hypothesis
+    ):
         """Testa rejeição de tipo de otimização inválido."""
         sample_weight_hypothesis.optimization_type = OptimizationType.SLO_ADJUSTMENT
 
@@ -183,7 +203,9 @@ class TestApplyWeightRecalibration:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_apply_weight_recalibration_failed_to_get_weights(self, weight_recalibrator, sample_weight_hypothesis, mock_consensus_client):
+    async def test_apply_weight_recalibration_failed_to_get_weights(
+        self, weight_recalibrator, sample_weight_hypothesis, mock_consensus_client
+    ):
         """Testa falha ao obter pesos atuais."""
         mock_consensus_client.get_current_weights = AsyncMock(return_value=None)
 
@@ -192,7 +214,9 @@ class TestApplyWeightRecalibration:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_apply_weight_recalibration_validation_failed(self, weight_recalibrator, sample_weight_hypothesis, mock_consensus_client):
+    async def test_apply_weight_recalibration_validation_failed(
+        self, weight_recalibrator, sample_weight_hypothesis, mock_consensus_client
+    ):
         """Testa falha na validação de ajuste."""
         mock_consensus_client.validate_weight_adjustment = AsyncMock(return_value=False)
 
@@ -201,7 +225,9 @@ class TestApplyWeightRecalibration:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_apply_weight_recalibration_lock_failed(self, weight_recalibrator, sample_weight_hypothesis, mock_redis_client):
+    async def test_apply_weight_recalibration_lock_failed(
+        self, weight_recalibrator, sample_weight_hypothesis, mock_redis_client
+    ):
         """Testa falha ao adquirir lock."""
         mock_redis_client.lock_component = AsyncMock(return_value=False)
 
@@ -210,7 +236,9 @@ class TestApplyWeightRecalibration:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_apply_weight_recalibration_update_failed(self, weight_recalibrator, sample_weight_hypothesis, mock_consensus_client):
+    async def test_apply_weight_recalibration_update_failed(
+        self, weight_recalibrator, sample_weight_hypothesis, mock_consensus_client
+    ):
         """Testa falha ao atualizar pesos."""
         mock_consensus_client.update_weights = AsyncMock(return_value=False)
 
@@ -219,7 +247,13 @@ class TestApplyWeightRecalibration:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_apply_weight_recalibration_unlocks_on_error(self, weight_recalibrator, sample_weight_hypothesis, mock_consensus_client, mock_redis_client):
+    async def test_apply_weight_recalibration_unlocks_on_error(
+        self,
+        weight_recalibrator,
+        sample_weight_hypothesis,
+        mock_consensus_client,
+        mock_redis_client,
+    ):
         """Testa que lock é liberado mesmo em caso de erro."""
         mock_consensus_client.update_weights = AsyncMock(side_effect=Exception("Update failed"))
 
@@ -229,11 +263,15 @@ class TestApplyWeightRecalibration:
         mock_redis_client.unlock_component.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_apply_weight_recalibration_records_metrics(self, weight_recalibrator, sample_weight_hypothesis, mock_metrics):
+    async def test_apply_weight_recalibration_records_metrics(
+        self, weight_recalibrator, sample_weight_hypothesis, mock_metrics
+    ):
         """Testa registro de métricas."""
         await weight_recalibrator.apply_weight_recalibration(sample_weight_hypothesis)
 
-        mock_metrics.increment_counter.assert_called_once_with("weight_recalibrations_applied_total")
+        mock_metrics.increment_counter.assert_called_once_with(
+            "weight_recalibrations_applied_total"
+        )
 
 
 class TestCalculateProposedWeights:
@@ -245,11 +283,9 @@ class TestCalculateProposedWeights:
             "business": 0.25,
             "technical": 0.25,
             "architecture": 0.25,
-            "behavior": 0.25
+            "behavior": 0.25,
         }
-        adjustments = [
-            {"parameter": "technical", "new_value": 0.05}  # Aumentar em 0.05
-        ]
+        adjustments = [{"parameter": "technical", "new_value": 0.05}]  # Aumentar em 0.05
 
         proposed = weight_recalibrator._calculate_proposed_weights(current_weights, adjustments)
 
@@ -259,9 +295,7 @@ class TestCalculateProposedWeights:
     def test_calculate_proposed_weights_clamps_delta(self, weight_recalibrator):
         """Testa que delta é limitado pelo max_weight_adjustment."""
         current_weights = {"business": 0.5, "technical": 0.5}
-        adjustments = [
-            {"parameter": "technical", "new_value": 1.0}  # Tentar aumentar muito
-        ]
+        adjustments = [{"parameter": "technical", "new_value": 1.0}]  # Tentar aumentar muito
 
         proposed = weight_recalibrator._calculate_proposed_weights(current_weights, adjustments)
 
@@ -271,9 +305,7 @@ class TestCalculateProposedWeights:
     def test_calculate_proposed_weights_bounds(self, weight_recalibrator):
         """Testa limites de peso (0.0 a 1.0)."""
         current_weights = {"business": 1.0}
-        adjustments = [
-            {"parameter": "business", "new_value": -2.0}  # Tentar diminuir muito
-        ]
+        adjustments = [{"parameter": "business", "new_value": -2.0}]  # Tentar diminuir muito
 
         proposed = weight_recalibrator._calculate_proposed_weights(current_weights, adjustments)
 
@@ -286,11 +318,9 @@ class TestCalculateProposedWeights:
             "business": 0.25,
             "technical": 0.25,
             "architecture": 0.25,
-            "behavior": 0.25
+            "behavior": 0.25,
         }
-        adjustments = [
-            {"parameter": "technical", "new_value": 0.5}
-        ]
+        adjustments = [{"parameter": "technical", "new_value": 0.5}]
 
         proposed = weight_recalibrator._calculate_proposed_weights(current_weights, adjustments)
 
@@ -300,9 +330,7 @@ class TestCalculateProposedWeights:
     def test_calculate_proposed_weights_unknown_parameter(self, weight_recalibrator):
         """Testa parâmetro desconhecido."""
         current_weights = {"business": 0.5, "technical": 0.5}
-        adjustments = [
-            {"parameter": "unknown", "new_value": 0.1}
-        ]
+        adjustments = [{"parameter": "unknown", "new_value": 0.1}]
 
         proposed = weight_recalibrator._calculate_proposed_weights(current_weights, adjustments)
 
@@ -316,13 +344,23 @@ class TestCreateOptimizationEvent:
 
     def test_create_optimization_event_basic(self, weight_recalibrator, sample_weight_hypothesis):
         """Testa criação básica de evento."""
-        baseline_weights = {"business": 0.25, "technical": 0.25, "architecture": 0.25, "behavior": 0.25}
-        optimized_weights = {"business": 0.20, "technical": 0.35, "architecture": 0.25, "behavior": 0.20}
+        baseline_weights = {
+            "business": 0.25,
+            "technical": 0.25,
+            "architecture": 0.25,
+            "behavior": 0.25,
+        }
+        optimized_weights = {
+            "business": 0.20,
+            "technical": 0.35,
+            "architecture": 0.25,
+            "behavior": 0.20,
+        }
 
         event = weight_recalibrator._create_optimization_event(
             hypothesis=sample_weight_hypothesis,
             baseline_weights=baseline_weights,
-            optimized_weights=optimized_weights
+            optimized_weights=optimized_weights,
         )
 
         assert event.optimization_id == sample_weight_hypothesis.hypothesis_id
@@ -331,7 +369,9 @@ class TestCreateOptimizationEvent:
         assert event.improvement_percentage == sample_weight_hypothesis.expected_improvement
         assert len(event.adjustments) > 0
 
-    def test_create_optimization_event_includes_adjustments(self, weight_recalibrator, sample_weight_hypothesis):
+    def test_create_optimization_event_includes_adjustments(
+        self, weight_recalibrator, sample_weight_hypothesis
+    ):
         """Testa que evento inclui ajustes."""
         baseline_weights = {"business": 0.25, "technical": 0.25}
         optimized_weights = {"business": 0.20, "technical": 0.30}
@@ -339,18 +379,20 @@ class TestCreateOptimizationEvent:
         event = weight_recalibrator._create_optimization_event(
             hypothesis=sample_weight_hypothesis,
             baseline_weights=baseline_weights,
-            optimized_weights=optimized_weights
+            optimized_weights=optimized_weights,
         )
 
         # Deve ter ajustes para pesos que mudaram
         assert len(event.adjustments) > 0
         # Verificar que ajuste tem estrutura correta
         adjustment = event.adjustments[0]
-        assert hasattr(adjustment, 'parameter')
-        assert hasattr(adjustment, 'previous_value')
-        assert hasattr(adjustment, 'new_value')
+        assert hasattr(adjustment, "parameter")
+        assert hasattr(adjustment, "previous_value")
+        assert hasattr(adjustment, "new_value")
 
-    def test_create_optimization_event_includes_causal_analysis(self, weight_recalibrator, sample_weight_hypothesis):
+    def test_create_optimization_event_includes_causal_analysis(
+        self, weight_recalibrator, sample_weight_hypothesis
+    ):
         """Testa que evento inclui análise causal."""
         baseline_weights = {"business": 0.25, "technical": 0.25}
         optimized_weights = {"business": 0.20, "technical": 0.30}
@@ -358,14 +400,16 @@ class TestCreateOptimizationEvent:
         event = weight_recalibrator._create_optimization_event(
             hypothesis=sample_weight_hypothesis,
             baseline_weights=baseline_weights,
-            optimized_weights=optimized_weights
+            optimized_weights=optimized_weights,
         )
 
         assert event.causal_analysis is not None
         assert event.causal_analysis.root_cause is not None
         assert len(event.causal_analysis.contributing_factors) > 0
 
-    def test_create_optimization_event_includes_rollback_plan(self, weight_recalibrator, sample_weight_hypothesis):
+    def test_create_optimization_event_includes_rollback_plan(
+        self, weight_recalibrator, sample_weight_hypothesis
+    ):
         """Testa que evento inclui plano de rollback."""
         baseline_weights = {"business": 0.25, "technical": 0.25}
         optimized_weights = {"business": 0.20, "technical": 0.30}
@@ -373,7 +417,7 @@ class TestCreateOptimizationEvent:
         event = weight_recalibrator._create_optimization_event(
             hypothesis=sample_weight_hypothesis,
             baseline_weights=baseline_weights,
-            optimized_weights=optimized_weights
+            optimized_weights=optimized_weights,
         )
 
         assert event.rollback_plan is not None
@@ -386,7 +430,9 @@ class TestRollbackWeightRecalibration:
     """Testes de rollback de recalibração."""
 
     @pytest.mark.asyncio
-    async def test_rollback_weight_recalibration_success(self, weight_recalibrator, mock_consensus_client, mock_metrics):
+    async def test_rollback_weight_recalibration_success(
+        self, weight_recalibrator, mock_consensus_client, mock_metrics
+    ):
         """Testa rollback bem-sucedido."""
         optimization_id = "opt-001"
 
@@ -394,10 +440,14 @@ class TestRollbackWeightRecalibration:
 
         assert result is True
         mock_consensus_client.rollback_weights.assert_called_once_with(optimization_id)
-        mock_metrics.increment_counter.assert_called_once_with("weight_recalibrations_rolled_back_total")
+        mock_metrics.increment_counter.assert_called_once_with(
+            "weight_recalibrations_rolled_back_total"
+        )
 
     @pytest.mark.asyncio
-    async def test_rollback_weight_recalibration_failure(self, weight_recalibrator, mock_consensus_client):
+    async def test_rollback_weight_recalibration_failure(
+        self, weight_recalibrator, mock_consensus_client
+    ):
         """Testa rollback com falha."""
         mock_consensus_client.rollback_weights = AsyncMock(return_value=False)
         optimization_id = "opt-002"
@@ -407,7 +457,9 @@ class TestRollbackWeightRecalibration:
         assert result is False
 
     @pytest.mark.asyncio
-    async def test_rollback_weight_recalibration_exception(self, weight_recalibrator, mock_consensus_client):
+    async def test_rollback_weight_recalibration_exception(
+        self, weight_recalibrator, mock_consensus_client
+    ):
         """Testa rollback com exceção."""
         mock_consensus_client.rollback_weights = AsyncMock(side_effect=Exception("Rollback failed"))
         optimization_id = "opt-003"

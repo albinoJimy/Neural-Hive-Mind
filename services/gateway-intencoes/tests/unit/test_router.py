@@ -10,7 +10,7 @@ import sys
 import os
 
 # Add src to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 
 class TestIntentRouter:
@@ -36,7 +36,7 @@ class TestIntentRouter:
             processed_text="implementar endpoint",
             entities=[],
             keywords=["implementar", "endpoint"],
-            confidence_status="high"
+            confidence_status="high",
         )
         return nlu
 
@@ -46,10 +46,7 @@ class TestIntentRouter:
         asr = AsyncMock()
         asr.is_ready = True
         asr.process.return_value = MagicMock(
-            text="criar endpoint para usuários",
-            confidence=0.92,
-            language="pt-BR",
-            duration=3.5
+            text="criar endpoint para usuários", confidence=0.92, language="pt-BR", duration=3.5
         )
         return asr
 
@@ -74,7 +71,7 @@ class TestIntentRouter:
         nlu_result = await mock_nlu_pipeline.process(
             text=intent_request.text,
             language=intent_request.language,
-            context=intent_request.context
+            context=intent_request.context,
         )
 
         # Verificar que foi processado
@@ -101,13 +98,13 @@ class TestIntentRouter:
             processed_text="status do sistema",
             entities=[],
             keywords=["status", "sistema"],
-            confidence_status="high"
+            confidence_status="high",
         )
 
         nlu_result = await mock_nlu_pipeline.process(
             text=intent_request.text,
             language=intent_request.language,
-            context=intent_request.context
+            context=intent_request.context,
         )
 
         # Consultas simples podem ter rota direta
@@ -123,13 +120,11 @@ class TestIntentRouter:
             "confidence": 0.85,
             "entities": [],
             "keywords": ["implementar", "autenticação"],
-            "confidence_status": "high"
+            "confidence_status": "high",
         }
 
         # Mock Redis retorna resultado em cache
-        mock_redis_client.get = AsyncMock(
-            return_value=cached_result
-        )
+        mock_redis_client.get = AsyncMock(return_value=cached_result)
 
         # Verificar cache
         cache_key = "nlu:test-hash"
@@ -162,16 +157,12 @@ class TestIntentRouter:
             "status do sistema",
             "criar endpoint usuários",
             "deploy em produção",
-            "análise de performance"
+            "análise de performance",
         ]
 
         tasks = []
         for req_text in requests:
-            task = mock_nlu_pipeline.process(
-                text=req_text,
-                language="pt-BR",
-                context={}
-            )
+            task = mock_nlu_pipeline.process(text=req_text, language="pt-BR", context={})
             tasks.append(task)
 
         # Executar concorrentemente
@@ -195,7 +186,7 @@ class TestIntentRouter:
             entities=[],
             keywords=[],
             confidence_status="low",
-            requires_manual_validation=True
+            requires_manual_validation=True,
         )
 
         intent_request = MagicMock()
@@ -203,9 +194,7 @@ class TestIntentRouter:
         intent_request.language = "pt-BR"
 
         result = await mock_nlu_pipeline.process(
-            text=intent_request.text,
-            language=intent_request.language,
-            context={}
+            text=intent_request.text, language=intent_request.language, context={}
         )
 
         # Domínio desconhecido deve ser marcado
@@ -226,9 +215,7 @@ class TestIntentRouter:
         # Deve lançar exceção ou usar fallback
         with pytest.raises(Exception):
             await mock_nlu_pipeline.process(
-                text=intent_request.text,
-                language=intent_request.language,
-                context={}
+                text=intent_request.text, language=intent_request.language, context={}
             )
 
 
@@ -244,7 +231,7 @@ class TestVoiceIntentRouter:
             text="criar um endpoint para listar usuários",
             confidence=0.92,
             language="pt-BR",
-            duration=4.2
+            duration=4.2,
         )
         return asr
 
@@ -260,7 +247,7 @@ class TestVoiceIntentRouter:
             processed_text="criar endpoint listar usuários",
             entities=[],
             keywords=["criar", "endpoint", "listar", "usuários"],
-            confidence_status="high"
+            confidence_status="high",
         )
         return nlu
 
@@ -271,19 +258,14 @@ class TestVoiceIntentRouter:
         audio_data = b"fake-audio-data" * 100
 
         # 1. Processar áudio com ASR
-        asr_result = await mock_asr_pipeline.process(
-            audio_data=audio_data,
-            language="pt-BR"
-        )
+        asr_result = await mock_asr_pipeline.process(audio_data=audio_data, language="pt-BR")
 
         assert asr_result.text is not None
         assert asr_result.confidence > 0.8
 
         # 2. Processar texto transcrito com NLU
         nlu_result = await mock_nlu_pipeline.process(
-            text=asr_result.text,
-            language=asr_result.language,
-            context={"source": "voice"}
+            text=asr_result.text, language=asr_result.language, context={"source": "voice"}
         )
 
         assert nlu_result.domain == "technical"
@@ -294,17 +276,11 @@ class TestVoiceIntentRouter:
         """Testar intenção de voz com baixa confiança ASR"""
         # Configurar ASR com baixa confiança
         mock_asr_pipeline.process.return_value = MagicMock(
-            text="texto incerto",
-            confidence=0.45,
-            language="pt-BR",
-            duration=2.0
+            text="texto incerto", confidence=0.45, language="pt-BR", duration=2.0
         )
 
         audio_data = b"fake-audio-data" * 100
-        asr_result = await mock_asr_pipeline.process(
-            audio_data=audio_data,
-            language="pt-BR"
-        )
+        asr_result = await mock_asr_pipeline.process(audio_data=audio_data, language="pt-BR")
 
         # Baixa confiança deve ser marcada
         assert asr_result.confidence < 0.5
@@ -315,16 +291,12 @@ class TestVoiceIntentRouter:
         """Testar detecção de idioma em intenção de voz"""
         # Configurar ASR para detectar inglês
         mock_asr_pipeline.process.return_value = MagicMock(
-            text="create a new endpoint",
-            confidence=0.90,
-            language="en",
-            duration=3.0
+            text="create a new endpoint", confidence=0.90, language="en", duration=3.0
         )
 
         audio_data = b"fake-audio-data" * 100
         asr_result = await mock_asr_pipeline.process(
-            audio_data=audio_data,
-            language=None  # Auto-detect
+            audio_data=audio_data, language=None  # Auto-detect
         )
 
         # Deve detectar idioma corretamente
@@ -379,11 +351,7 @@ class TestLoadBalancing:
     async def test_round_robin_load_balancing(self):
         """Testar balanceamento round-robin"""
         # Lista de endpoints downstream
-        endpoints = [
-            "http://ste-1:8001",
-            "http://ste-2:8001",
-            "http://ste-3:8001"
-        ]
+        endpoints = ["http://ste-1:8001", "http://ste-2:8001", "http://ste-3:8001"]
 
         # Simular round-robin
         current_index = 0
@@ -405,7 +373,7 @@ class TestLoadBalancing:
         endpoint_connections = {
             "http://ste-1:8001": 5,
             "http://ste-2:8001": 2,
-            "http://ste-3:8001": 8
+            "http://ste-3:8001": 8,
         }
 
         # Selecionar endpoint com menos conexões
@@ -420,7 +388,7 @@ class TestLoadBalancing:
         endpoints = [
             {"url": "http://ste-1:8001", "weight": 3},
             {"url": "http://ste-2:8001", "weight": 1},
-            {"url": "http://ste-3:8001", "weight": 2}
+            {"url": "http://ste-3:8001", "weight": 2},
         ]
 
         # Simular seleção baseada em peso
@@ -497,7 +465,7 @@ class TestRetryLogic:
 
         for attempt in range(3):
             delays.append(time.time() - start_time)
-            await asyncio.sleep(2 ** attempt * 0.01)  # 10ms, 20ms, 40ms
+            await asyncio.sleep(2**attempt * 0.01)  # 10ms, 20ms, 40ms
 
         # Verificar que delays aumentam
         assert delays[1] > delays[0]
@@ -565,8 +533,8 @@ class TestRouterHealth:
                 "nlu_pipeline": "ready",
                 "asr_pipeline": "ready",
                 "kafka_producer": "ready",
-                "redis_cache": "ready"
-            }
+                "redis_cache": "ready",
+            },
         }
 
         assert health_status["status"] == "healthy"
@@ -582,8 +550,8 @@ class TestRouterHealth:
                 "nlu_pipeline": "ready",
                 "asr_pipeline": "slow",  # Degradada
                 "kafka_producer": "ready",
-                "redis_cache": "ready"
-            }
+                "redis_cache": "ready",
+            },
         }
 
         assert health_status["status"] == "degraded"
@@ -598,8 +566,8 @@ class TestRouterHealth:
                 "nlu_pipeline": "ready",
                 "asr_pipeline": "ready",
                 "kafka_producer": "disconnected",  # Crítico
-                "redis_cache": "ready"
-            }
+                "redis_cache": "ready",
+            },
         }
 
         assert health_status["status"] == "unhealthy"

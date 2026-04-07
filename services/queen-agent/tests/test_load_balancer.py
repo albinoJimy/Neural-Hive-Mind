@@ -146,9 +146,7 @@ class TestUpdateWorkerMetrics:
         """Testa atualização parcial de métricas"""
         await load_balancer.register_worker(worker_id="worker-1")
 
-        success = await load_balancer.update_worker_metrics(
-            worker_id="worker-1", active_tasks=10
-        )
+        success = await load_balancer.update_worker_metrics(worker_id="worker-1", active_tasks=10)
 
         assert success is True
         assert load_balancer._local_cache["worker-1"].active_tasks == 10
@@ -159,9 +157,7 @@ class TestUpdateWorkerMetrics:
         # Registrar worker primeiro (evitar deadlock com lock não reentrante)
         await load_balancer.register_worker("new-worker")
 
-        success = await load_balancer.update_worker_metrics(
-            worker_id="new-worker", active_tasks=3
-        )
+        success = await load_balancer.update_worker_metrics(worker_id="new-worker", active_tasks=3)
 
         assert success is True
         assert "new-worker" in load_balancer._local_cache
@@ -339,9 +335,7 @@ class TestAssignTask:
         await load_balancer.register_worker("worker-1")
         await load_balancer.register_worker("worker-2")
 
-        assignment = await load_balancer.assign_task(
-            task_id="task-1", task_data={"type": "query"}
-        )
+        assignment = await load_balancer.assign_task(task_id="task-1", task_data={"type": "query"})
 
         assert assignment is not None
         assert assignment.worker_id in ["worker-1", "worker-2"]
@@ -426,7 +420,9 @@ class TestCompleteTask:
 
         # Novo avg = (100 * 10 + 200) / 11 = 109.09
         expected_avg = (100.0 * 10 + 200.0) / 11
-        assert abs(load_balancer._local_cache["worker-1"].avg_processing_time_ms - expected_avg) < 0.01
+        assert (
+            abs(load_balancer._local_cache["worker-1"].avg_processing_time_ms - expected_avg) < 0.01
+        )
 
 
 class TestGetWorkersStatus:

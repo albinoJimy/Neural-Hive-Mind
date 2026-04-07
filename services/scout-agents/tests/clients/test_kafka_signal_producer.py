@@ -9,15 +9,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, timezone
 
 from src.clients.kafka_signal_producer import KafkaSignalProducer
-from src.models.scout_signal import (
-    ScoutSignal, SignalType, SignalSource, ChannelType, Geolocation
-)
+from src.models.scout_signal import ScoutSignal, SignalType, SignalSource, ChannelType, Geolocation
 from neural_hive_domain import UnifiedDomain
 
 
 # ============================================================================
 # Fixtures
 # ============================================================================
+
 
 @pytest.fixture
 def sample_signal():
@@ -36,7 +35,7 @@ def sample_signal():
         risk_score=0.3,
         description="Test signal",
         raw_data={"key": "value"},
-        features=[0.1, 0.2, 0.3]
+        features=[0.1, 0.2, 0.3],
     )
 
 
@@ -57,7 +56,7 @@ def opportunity_signal():
         risk_score=0.2,
         description="Opportunity signal",
         raw_data={},
-        features=[0.5, 0.6]
+        features=[0.5, 0.6],
     )
 
 
@@ -73,7 +72,7 @@ def signal_with_geolocation():
         exploration_domain=UnifiedDomain.SECURITY,
         source=SignalSource(
             channel=ChannelType.MOBILE,
-            geolocation=Geolocation(latitude=37.7749, longitude=-122.4194)
+            geolocation=Geolocation(latitude=37.7749, longitude=-122.4194),
         ),
         curiosity_score=0.95,
         confidence=0.9,
@@ -81,13 +80,14 @@ def signal_with_geolocation():
         risk_score=0.95,
         description="Threat with location",
         raw_data={},
-        features=[0.8, 0.9]
+        features=[0.8, 0.9],
     )
 
 
 # ============================================================================
 # Testes de Inicialização
 # ============================================================================
+
 
 class TestKafkaSignalProducerInitialization:
     """Testes de inicialização do KafkaSignalProducer."""
@@ -104,6 +104,7 @@ class TestKafkaSignalProducerInitialization:
 # Testes de Start/Stop
 # ============================================================================
 
+
 class TestKafkaProducerLifecycle:
     """Testes de ciclo de vida do produtor."""
 
@@ -112,7 +113,7 @@ class TestKafkaProducerLifecycle:
         """Testa que start inicializa o produtor Kafka."""
         producer = KafkaSignalProducer()
 
-        with patch('src.clients.kafka_signal_producer.AIOKafkaProducer') as MockProducer:
+        with patch("src.clients.kafka_signal_producer.AIOKafkaProducer") as MockProducer:
             mock_instance = AsyncMock()
             MockProducer.return_value = mock_instance
             mock_instance.start = AsyncMock()
@@ -128,7 +129,7 @@ class TestKafkaProducerLifecycle:
         """Testa tratamento de erro no start."""
         producer = KafkaSignalProducer()
 
-        with patch('src.clients.kafka_signal_producer.AIOKafkaProducer') as MockProducer:
+        with patch("src.clients.kafka_signal_producer.AIOKafkaProducer") as MockProducer:
             MockProducer.side_effect = Exception("Connection error")
 
             with pytest.raises(Exception):
@@ -175,6 +176,7 @@ class TestKafkaProducerLifecycle:
 # ============================================================================
 # Testes de Publicação de Sinais
 # ============================================================================
+
 
 class TestSignalPublishing:
     """Testes de publicação de sinais."""
@@ -230,9 +232,9 @@ class TestSignalPublishing:
         assert call_args is not None
 
         # Verificar partition key
-        sent_data = call_args[1]['value']
-        assert sent_data['exploration_domain'] == 'BUSINESS'
-        assert sent_data['signal_type'] == 'ANOMALY_POSITIVE'
+        sent_data = call_args[1]["value"]
+        assert sent_data["exploration_domain"] == "BUSINESS"
+        assert sent_data["signal_type"] == "ANOMALY_POSITIVE"
 
     @pytest.mark.asyncio
     async def test_publish_signal_with_geolocation(self, signal_with_geolocation):
@@ -267,13 +269,14 @@ class TestSignalPublishing:
         await producer.publish_signal(sample_signal)
 
         call_args = mock_producer.send.call_args
-        partition_key = call_args[1]['key']
-        assert partition_key == b'BUSINESS'
+        partition_key = call_args[1]["key"]
+        assert partition_key == b"BUSINESS"
 
 
 # ============================================================================
 # Testes de Tratamento de Erros na Publicação
 # ============================================================================
+
 
 class TestPublishErrorHandling:
     """Testes de tratamento de erros na publicação."""
@@ -328,6 +331,7 @@ class TestPublishErrorHandling:
 # ============================================================================
 # Testes de Publicação de Oportunidades
 # ============================================================================
+
 
 class TestOpportunityPublishing:
     """Testes de publicação de oportunidades."""
@@ -385,6 +389,7 @@ class TestOpportunityPublishing:
 # Testes de Publicação em Batch
 # ============================================================================
 
+
 class TestBatchPublishing:
     """Testes de publicação em lote."""
 
@@ -425,7 +430,7 @@ class TestBatchPublishing:
                 risk_score=0.3,
                 description=f"Signal {i}",
                 raw_data={},
-                features=[0.1]
+                features=[0.1],
             )
             for i in range(5)
         ]
@@ -452,7 +457,7 @@ class TestBatchPublishing:
                 return True
             return False
 
-        with patch.object(producer, 'publish_signal', side_effect=side_effect):
+        with patch.object(producer, "publish_signal", side_effect=side_effect):
             signals = [sample_signal] * 5
             result = await producer.publish_batch(signals)
 
@@ -472,7 +477,7 @@ class TestBatchPublishing:
                 raise Exception("Test error")
             return call_count[0] <= 3
 
-        with patch.object(producer, 'publish_signal', side_effect=side_effect):
+        with patch.object(producer, "publish_signal", side_effect=side_effect):
             signals = [sample_signal] * 5
             result = await producer.publish_batch(signals)
 
@@ -484,6 +489,7 @@ class TestBatchPublishing:
 # Testes de Configuração
 # ============================================================================
 
+
 class TestKafkaConfiguration:
     """Testes de configuração do Kafka."""
 
@@ -492,7 +498,7 @@ class TestKafkaConfiguration:
         """Testa que bootstrap servers corretos são usados."""
         producer = KafkaSignalProducer()
 
-        with patch('src.clients.kafka_signal_producer.AIOKafkaProducer') as MockProducer:
+        with patch("src.clients.kafka_signal_producer.AIOKafkaProducer") as MockProducer:
             mock_instance = AsyncMock()
             MockProducer.return_value = mock_instance
 
@@ -500,14 +506,14 @@ class TestKafkaConfiguration:
 
             call_args = MockProducer.call_args
             config = call_args[1] if call_args else {}
-            assert 'bootstrap_servers' in config
+            assert "bootstrap_servers" in config
 
     @pytest.mark.asyncio
     async def test_uses_compression_type(self):
         """Testa que compressão gzip é configurada."""
         producer = KafkaSignalProducer()
 
-        with patch('src.clients.kafka_signal_producer.AIOKafkaProducer') as MockProducer:
+        with patch("src.clients.kafka_signal_producer.AIOKafkaProducer") as MockProducer:
             mock_instance = AsyncMock()
             MockProducer.return_value = mock_instance
 
@@ -515,14 +521,14 @@ class TestKafkaConfiguration:
 
             call_args = MockProducer.call_args
             config = call_args[1] if call_args else {}
-            assert config.get('compression_type') == 'gzip'
+            assert config.get("compression_type") == "gzip"
 
     @pytest.mark.asyncio
     async def test_enables_idempotence(self):
         """Testa que idempotência está habilitada."""
         producer = KafkaSignalProducer()
 
-        with patch('src.clients.kafka_signal_producer.AIOKafkaProducer') as MockProducer:
+        with patch("src.clients.kafka_signal_producer.AIOKafkaProducer") as MockProducer:
             mock_instance = AsyncMock()
             MockProducer.return_value = mock_instance
 
@@ -530,14 +536,14 @@ class TestKafkaConfiguration:
 
             call_args = MockProducer.call_args
             config = call_args[1] if call_args else {}
-            assert config.get('enable_idempotence') is True
+            assert config.get("enable_idempotence") is True
 
     @pytest.mark.asyncio
     async def test_acks_all(self):
         """Testa que acks='all' é configurado."""
         producer = KafkaSignalProducer()
 
-        with patch('src.clients.kafka_signal_producer.AIOKafkaProducer') as MockProducer:
+        with patch("src.clients.kafka_signal_producer.AIOKafkaProducer") as MockProducer:
             mock_instance = AsyncMock()
             MockProducer.return_value = mock_instance
 
@@ -545,12 +551,13 @@ class TestKafkaConfiguration:
 
             call_args = MockProducer.call_args
             config = call_args[1] if call_args else {}
-            assert config.get('acks') == 'all'
+            assert config.get("acks") == "all"
 
 
 # ============================================================================
 # Testes de Conversão Avro
 # ============================================================================
+
 
 class TestAvroConversion:
     """Testes de conversão para formato Avro."""
@@ -560,17 +567,17 @@ class TestAvroConversion:
         avro_dict = sample_signal.to_avro_dict()
 
         assert isinstance(avro_dict, dict)
-        assert avro_dict['signal_type'] == 'ANOMALY_POSITIVE'
-        assert avro_dict['exploration_domain'] == 'BUSINESS'
-        assert avro_dict['source']['channel'] == 'CORE'
+        assert avro_dict["signal_type"] == "ANOMALY_POSITIVE"
+        assert avro_dict["exploration_domain"] == "BUSINESS"
+        assert avro_dict["source"]["channel"] == "CORE"
 
     def test_signal_with_geolocation_to_avro(self, signal_with_geolocation):
         """Testa conversão de sinal com geolocalização."""
         avro_dict = signal_with_geolocation.to_avro_dict()
 
-        assert 'geolocation' in avro_dict['source']
-        assert avro_dict['source']['geolocation']['latitude'] == 37.7749
-        assert avro_dict['source']['geolocation']['longitude'] == -122.4194
+        assert "geolocation" in avro_dict["source"]
+        assert avro_dict["source"]["geolocation"]["latitude"] == 37.7749
+        assert avro_dict["source"]["geolocation"]["longitude"] == -122.4194
 
     def test_all_signal_types_to_avro(self):
         """Testa conversão de todos os tipos de sinal."""
@@ -589,10 +596,10 @@ class TestAvroConversion:
                 risk_score=0.5,
                 description="Test",
                 raw_data={},
-                features=[]
+                features=[],
             )
             avro_dict = signal.to_avro_dict()
-            assert avro_dict['signal_type'] == signal_type.value
+            assert avro_dict["signal_type"] == signal_type.value
 
     def test_all_channel_types_to_avro(self):
         """Testa conversão de todos os tipos de canal."""
@@ -611,15 +618,16 @@ class TestAvroConversion:
                 risk_score=0.5,
                 description="Test",
                 raw_data={},
-                features=[]
+                features=[],
             )
             avro_dict = signal.to_avro_dict()
-            assert avro_dict['source']['channel'] == channel_type.value
+            assert avro_dict["source"]["channel"] == channel_type.value
 
 
 # ============================================================================
 # Testes de Integração
 # ============================================================================
+
 
 class TestKafkaProducerIntegration:
     """Testes de integração."""

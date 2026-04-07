@@ -18,16 +18,14 @@ def test_evaluate_plan_request_response_contract(grpc_stub, sample_cognitive_pla
     # cognitive_plan é um campo bytes contendo JSON serializado
     # Não usar mensagens protobuf Task/CognitivePlan (não existem mais)
     cognitive_plan_json = json.dumps(sample_cognitive_plan)
-    cognitive_plan_bytes = cognitive_plan_json.encode('utf-8')
+    cognitive_plan_bytes = cognitive_plan_json.encode("utf-8")
 
     request = specialist_pb2.EvaluatePlanRequest(
         plan_id=sample_cognitive_plan["plan_id"],
         intent_id=sample_cognitive_plan["intent_id"],
         trace_id=sample_cognitive_plan.get("trace_id", f"trace-{uuid.uuid4()}"),
         span_id=sample_cognitive_plan.get("span_id", f"span-{uuid.uuid4()}"),
-        correlation_id=sample_cognitive_plan.get(
-            "correlation_id", f"corr-{uuid.uuid4()}"
-        ),
+        correlation_id=sample_cognitive_plan.get("correlation_id", f"corr-{uuid.uuid4()}"),
         cognitive_plan=cognitive_plan_bytes,
     )
 
@@ -68,7 +66,7 @@ def test_evaluate_plan_metadata_propagation(grpc_stub, sample_cognitive_plan):
 
     # cognitive_plan é bytes JSON, não mensagem protobuf
     cognitive_plan_json = json.dumps(sample_cognitive_plan)
-    cognitive_plan_bytes = cognitive_plan_json.encode('utf-8')
+    cognitive_plan_bytes = cognitive_plan_json.encode("utf-8")
 
     request = specialist_pb2.EvaluatePlanRequest(
         plan_id=sample_cognitive_plan["plan_id"],
@@ -135,6 +133,7 @@ def test_evaluate_plan_invalid_plan_id_error_mapping(grpc_stub):
     # Criar request com plan_id vazio (inválido)
     # cognitive_plan é bytes JSON, não mensagem protobuf
     import json
+
     plan_data = {
         "plan_id": "",  # Inválido
         "version": "1.0.0",
@@ -142,11 +141,13 @@ def test_evaluate_plan_invalid_plan_id_error_mapping(grpc_stub):
         "tasks": [],
         "execution_order": [],
     }
-    cognitive_plan_bytes = json.dumps(plan_data).encode('utf-8')
+    cognitive_plan_bytes = json.dumps(plan_data).encode("utf-8")
 
     request = specialist_pb2.EvaluatePlanRequest(
-        plan_id="", intent_id="intent-123", trace_id="trace-123",
-        cognitive_plan=cognitive_plan_bytes
+        plan_id="",
+        intent_id="intent-123",
+        trace_id="trace-123",
+        cognitive_plan=cognitive_plan_bytes,
     )
 
     # Executar chamada gRPC - deve falhar ou retornar erro
@@ -170,7 +171,7 @@ def test_evaluate_plan_reasoning_factors_structure(grpc_stub, sample_cognitive_p
 
     # cognitive_plan é bytes JSON, não mensagem protobuf
     cognitive_plan_json = json.dumps(sample_cognitive_plan)
-    cognitive_plan_bytes = cognitive_plan_json.encode('utf-8')
+    cognitive_plan_bytes = cognitive_plan_json.encode("utf-8")
 
     request = specialist_pb2.EvaluatePlanRequest(
         plan_id=sample_cognitive_plan["plan_id"],
@@ -199,7 +200,7 @@ def test_evaluate_plan_mitigations_structure(grpc_stub, sample_cognitive_plan):
 
     # cognitive_plan é bytes JSON, não mensagem protobuf
     cognitive_plan_json = json.dumps(sample_cognitive_plan)
-    cognitive_plan_bytes = cognitive_plan_json.encode('utf-8')
+    cognitive_plan_bytes = cognitive_plan_json.encode("utf-8")
 
     request = specialist_pb2.EvaluatePlanRequest(
         plan_id=sample_cognitive_plan["plan_id"],

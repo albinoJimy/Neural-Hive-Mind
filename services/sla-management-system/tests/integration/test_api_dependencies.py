@@ -24,9 +24,9 @@ class TestSLOsAPIDependencies:
         app.dependency_overrides[slos.get_slo_manager] = lambda: mock_manager
 
         client = TestClient(app)
-        response = client.get('/api/v1/slos')
+        response = client.get("/api/v1/slos")
         assert response.status_code == 200
-        assert response.json()['total'] == 0
+        assert response.json()["total"] == 0
 
     def test_slos_api_get_with_dependencies(self):
         """Validar que endpoint de busca funciona com dependências."""
@@ -37,20 +37,18 @@ class TestSLOsAPIDependencies:
         app.include_router(slos.router)
 
         mock_slo = SLODefinition(
-            slo_id='slo-123',
-            name='Test SLO',
-            description='Test',
+            slo_id="slo-123",
+            name="Test SLO",
+            description="Test",
             slo_type=SLOType.AVAILABILITY,
-            service_name='test-service',
-            layer='application',
+            service_name="test-service",
+            layer="application",
             target=0.999,
             window_days=30,
             sli_query=SLIQuery(
-                metric_name='test_metric',
-                query='up{job="test"}',
-                aggregation='avg'
+                metric_name="test_metric", query='up{job="test"}', aggregation="avg"
             ),
-            enabled=True
+            enabled=True,
         )
         mock_manager = MagicMock()
         mock_manager.get_slo = AsyncMock(return_value=mock_slo)
@@ -58,9 +56,9 @@ class TestSLOsAPIDependencies:
         app.dependency_overrides[slos.get_slo_manager] = lambda: mock_manager
 
         client = TestClient(app)
-        response = client.get('/api/v1/slos/slo-123')
+        response = client.get("/api/v1/slos/slo-123")
         assert response.status_code == 200
-        assert response.json()['slo_id'] == 'slo-123'
+        assert response.json()["slo_id"] == "slo-123"
 
     def test_slos_api_without_dependencies_raises_error(self):
         """Validar que sem dependency overrides retorna erro 503 (serviço não inicializado)."""
@@ -70,7 +68,7 @@ class TestSLOsAPIDependencies:
         app.include_router(slos.router)
 
         client = TestClient(app, raise_server_exceptions=False)
-        response = client.get('/api/v1/slos')
+        response = client.get("/api/v1/slos")
         assert response.status_code == 503
         assert "não inicializado" in response.json()["detail"]
 
@@ -88,8 +86,8 @@ class TestBudgetsAPIDependencies:
         app.include_router(budgets.router)
 
         mock_budget = ErrorBudget(
-            slo_id='slo-123',
-            service_name='test-service',
+            slo_id="slo-123",
+            service_name="test-service",
             calculated_at=datetime.now(timezone.utc),
             window_start=datetime.now(timezone.utc),
             window_end=datetime.now(timezone.utc),
@@ -99,7 +97,7 @@ class TestBudgetsAPIDependencies:
             error_budget_consumed=0.05,
             error_budget_remaining=50.0,
             status=BudgetStatus.HEALTHY,
-            burn_rates=[]
+            burn_rates=[],
         )
         mock_calculator = MagicMock()
         mock_calculator.get_budget = AsyncMock(return_value=mock_budget)
@@ -107,9 +105,9 @@ class TestBudgetsAPIDependencies:
         app.dependency_overrides[budgets.get_budget_calculator] = lambda: mock_calculator
 
         client = TestClient(app)
-        response = client.get('/api/v1/budgets/slo-123')
+        response = client.get("/api/v1/budgets/slo-123")
         assert response.status_code == 200
-        assert response.json()['slo_id'] == 'slo-123'
+        assert response.json()["slo_id"] == "slo-123"
 
     def test_budgets_api_list_with_dependencies(self):
         """Validar que endpoint de listagem funciona com dependências."""
@@ -124,9 +122,9 @@ class TestBudgetsAPIDependencies:
         app.dependency_overrides[budgets.get_postgresql_client] = lambda: mock_pg_client
 
         client = TestClient(app)
-        response = client.get('/api/v1/budgets')
+        response = client.get("/api/v1/budgets")
         assert response.status_code == 200
-        assert response.json()['total'] == 0
+        assert response.json()["total"] == 0
 
     def test_budgets_api_without_dependencies_raises_error(self):
         """Validar que sem dependency overrides retorna erro 503 (serviço não inicializado)."""
@@ -136,7 +134,7 @@ class TestBudgetsAPIDependencies:
         app.include_router(budgets.router)
 
         client = TestClient(app, raise_server_exceptions=False)
-        response = client.get('/api/v1/budgets/slo-123')
+        response = client.get("/api/v1/budgets/slo-123")
         assert response.status_code == 503
         assert "não inicializado" in response.json()["detail"]
 
@@ -165,19 +163,22 @@ class TestWebhooksAPIDependencies:
         app.dependency_overrides[webhooks.get_postgresql_client] = lambda: mock_pg_client
 
         client = TestClient(app)
-        response = client.post('/webhooks/alertmanager', json={
-            'version': '4',
-            'groupKey': 'test',
-            'status': 'firing',
-            'receiver': 'test',
-            'groupLabels': {},
-            'commonLabels': {},
-            'commonAnnotations': {},
-            'externalURL': 'http://test',
-            'alerts': []
-        })
+        response = client.post(
+            "/webhooks/alertmanager",
+            json={
+                "version": "4",
+                "groupKey": "test",
+                "status": "firing",
+                "receiver": "test",
+                "groupLabels": {},
+                "commonLabels": {},
+                "commonAnnotations": {},
+                "externalURL": "http://test",
+                "alerts": [],
+            },
+        )
         assert response.status_code == 200
-        assert response.json()['alerts_processed'] == 0
+        assert response.json()["alerts_processed"] == 0
 
     def test_webhooks_api_without_dependencies_raises_error(self):
         """Validar que sem dependency overrides retorna erro 503 (serviço não inicializado)."""
@@ -187,17 +188,20 @@ class TestWebhooksAPIDependencies:
         app.include_router(webhooks.router)
 
         client = TestClient(app, raise_server_exceptions=False)
-        response = client.post('/webhooks/alertmanager', json={
-            'version': '4',
-            'groupKey': 'test',
-            'status': 'firing',
-            'receiver': 'test',
-            'groupLabels': {},
-            'commonLabels': {},
-            'commonAnnotations': {},
-            'externalURL': 'http://test',
-            'alerts': []
-        })
+        response = client.post(
+            "/webhooks/alertmanager",
+            json={
+                "version": "4",
+                "groupKey": "test",
+                "status": "firing",
+                "receiver": "test",
+                "groupLabels": {},
+                "commonLabels": {},
+                "commonAnnotations": {},
+                "externalURL": "http://test",
+                "alerts": [],
+            },
+        )
         assert response.status_code == 503
         assert "não inicializado" in response.json()["detail"]
 
@@ -222,10 +226,10 @@ class TestPoliciesAPIDependencies:
         app.dependency_overrides[policies.get_postgresql_client] = lambda: mock_pg_client
 
         client = TestClient(app)
-        response = client.get('/api/v1/policies')
+        response = client.get("/api/v1/policies")
         # Com dependências configuradas, deve retornar 200
         assert response.status_code == 200
-        assert response.json()['total'] == 0
+        assert response.json()["total"] == 0
 
     def test_policies_api_get_freezes_active_with_dependencies(self):
         """Validar que endpoint de freezes ativos funciona com dependências."""
@@ -243,7 +247,7 @@ class TestPoliciesAPIDependencies:
         app.dependency_overrides[policies.get_policy_enforcer] = lambda: mock_enforcer
 
         client = TestClient(app)
-        response = client.get('/api/v1/policies/freezes/active')
+        response = client.get("/api/v1/policies/freezes/active")
         assert response.status_code == 200
 
     def test_policies_api_without_dependencies_raises_error(self):
@@ -255,7 +259,7 @@ class TestPoliciesAPIDependencies:
         app.include_router(policies.router)
 
         client = TestClient(app, raise_server_exceptions=False)
-        response = client.get('/api/v1/policies')
+        response = client.get("/api/v1/policies")
         # Sem overrides, a função get_postgresql_client() lançará HTTPException 503
         assert response.status_code == 503
         assert "não inicializado" in response.json()["detail"]

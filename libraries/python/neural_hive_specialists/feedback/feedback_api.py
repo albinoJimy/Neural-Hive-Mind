@@ -32,9 +32,7 @@ class SubmitFeedbackRequest(BaseModel):
     """Request body para submissão de feedback."""
 
     opinion_id: str = Field(..., description="ID da opinião sendo avaliada")
-    human_rating: float = Field(
-        ..., ge=0.0, le=1.0, description="Rating de concordância (0.0-1.0)"
-    )
+    human_rating: float = Field(..., ge=0.0, le=1.0, description="Rating de concordância (0.0-1.0)")
     human_recommendation: str = Field(
         ..., description="Recomendação: approve, reject, review_required"
     )
@@ -68,9 +66,7 @@ class GetFeedbackResponse(BaseModel):
 
     feedbacks: List[FeedbackDocument] = Field(..., description="Lista de feedbacks")
     count: int = Field(..., description="Quantidade de feedbacks")
-    statistics: Optional[Dict[str, Any]] = Field(
-        None, description="Estatísticas agregadas"
-    )
+    statistics: Optional[Dict[str, Any]] = Field(None, description="Estatísticas agregadas")
 
 
 def verify_jwt_token(
@@ -121,9 +117,7 @@ def verify_jwt_token(
 
         # Normalizar e verificar role
         user_role = payload.get("role", "").lower().strip()
-        normalized_allowed_roles = [
-            role.lower().strip() for role in config.feedback_allowed_roles
-        ]
+        normalized_allowed_roles = [role.lower().strip() for role in config.feedback_allowed_roles]
 
         if user_role not in normalized_allowed_roles:
             # Auditar tentativa de acesso não autorizado
@@ -233,15 +227,11 @@ def create_feedback_router(
         """
         try:
             # Verificar autenticação
-            payload = verify_jwt_token(
-                authorization, config, audit_logger, "/api/v1/feedback"
-            )
+            payload = verify_jwt_token(authorization, config, audit_logger, "/api/v1/feedback")
 
             # Buscar metadados da opinião usando método público
             try:
-                opinion_metadata = feedback_collector.get_opinion_metadata(
-                    request.opinion_id
-                )
+                opinion_metadata = feedback_collector.get_opinion_metadata(request.opinion_id)
             except ValueError as e:
                 if "não encontrada" in str(e) or "not found" in str(e).lower():
                     raise HTTPException(status_code=404, detail=str(e))
@@ -262,9 +252,7 @@ def create_feedback_router(
                         pii_metadata = {
                             "pii_detected": True,
                             "pii_entities_count": len(pii_entities),
-                            "pii_entity_types": list(
-                                set(e["entity_type"] for e in pii_entities)
-                            ),
+                            "pii_entity_types": list(set(e["entity_type"] for e in pii_entities)),
                         }
 
                         logger.info(
@@ -277,12 +265,8 @@ def create_feedback_router(
                         # Emitir métricas de compliance
                         if metrics:
                             for entity in pii_entities:
-                                metrics.increment_pii_entities_detected(
-                                    entity["entity_type"]
-                                )
-                            metrics.increment_pii_anonymization(
-                                config.pii_anonymization_strategy
-                            )
+                                metrics.increment_pii_entities_detected(entity["entity_type"])
+                            metrics.increment_pii_anonymization(config.pii_anonymization_strategy)
                     else:
                         pii_metadata = {"pii_detected": False}
 
@@ -359,14 +343,10 @@ def create_feedback_router(
                 detail="Serviço de feedback temporariamente indisponível. Tente novamente mais tarde.",
             )
         except Exception as e:
-            logger.error(
-                "Error submitting feedback", error=str(e), opinion_id=request.opinion_id
-            )
+            logger.error("Error submitting feedback", error=str(e), opinion_id=request.opinion_id)
             if metrics:
                 metrics.increment_feedback_api_error("internal_error")
-            raise HTTPException(
-                status_code=503, detail=f"Erro ao submeter feedback: {str(e)}"
-            )
+            raise HTTPException(status_code=503, detail=f"Erro ao submeter feedback: {str(e)}")
 
     @router.get(
         "/feedback/opinion/{opinion_id}",
@@ -374,9 +354,7 @@ def create_feedback_router(
         summary="Buscar feedbacks de uma opinião",
         description="Retorna todos os feedbacks submetidos para uma opinião específica",
     )
-    async def get_feedback_by_opinion(
-        opinion_id: str, authorization: Optional[str] = Header(None)
-    ):
+    async def get_feedback_by_opinion(opinion_id: str, authorization: Optional[str] = Header(None)):
         """
         Busca feedbacks de uma opinião.
 
@@ -399,9 +377,7 @@ def create_feedback_router(
             # Buscar feedbacks
             feedbacks = feedback_collector.get_feedback_by_opinion(opinion_id)
 
-            return GetFeedbackResponse(
-                feedbacks=feedbacks, count=len(feedbacks), statistics=None
-            )
+            return GetFeedbackResponse(feedbacks=feedbacks, count=len(feedbacks), statistics=None)
 
         except HTTPException:
             raise
@@ -425,9 +401,7 @@ def create_feedback_router(
             )
             if metrics:
                 metrics.increment_feedback_api_error("internal_error")
-            raise HTTPException(
-                status_code=503, detail=f"Erro ao buscar feedbacks: {str(e)}"
-            )
+            raise HTTPException(status_code=503, detail=f"Erro ao buscar feedbacks: {str(e)}")
 
     @router.get(
         "/feedback/stats",
@@ -452,9 +426,7 @@ def create_feedback_router(
         """
         try:
             # Verificar autenticação
-            verify_jwt_token(
-                authorization, config, audit_logger, "/api/v1/feedback/stats"
-            )
+            verify_jwt_token(authorization, config, audit_logger, "/api/v1/feedback/stats")
 
             # Calcular estatísticas
             stats = feedback_collector.get_feedback_statistics(
@@ -490,9 +462,7 @@ def create_feedback_router(
             )
             if metrics:
                 metrics.increment_feedback_api_error("internal_error")
-            raise HTTPException(
-                status_code=503, detail=f"Erro ao calcular estatísticas: {str(e)}"
-            )
+            raise HTTPException(status_code=503, detail=f"Erro ao calcular estatísticas: {str(e)}")
 
     @router.post(
         "/feedback/trigger-online-update",
@@ -567,9 +537,7 @@ def create_feedback_router(
                     specialist_type=specialist_type,
                     batch_model=batch_model,
                     feedback_collector=feedback_collector,
-                    feature_extractor=_get_feature_extractor_for_update(
-                        specialist_type
-                    ),
+                    feature_extractor=_get_feature_extractor_for_update(specialist_type),
                 )
 
                 # Executar ciclo de deployment de forma assíncrona
@@ -583,9 +551,7 @@ def create_feedback_router(
 
                     # Executar deployment cycle
                     result = loop.run_until_complete(
-                        orchestrator.run_deployment_cycle(
-                            force=force, validation_data=None
-                        )
+                        orchestrator.run_deployment_cycle(force=force, validation_data=None)
                     )
 
                     orchestrator.close()

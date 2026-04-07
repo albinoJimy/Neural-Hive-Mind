@@ -17,8 +17,10 @@ async def mongo_client():
 
     Cria um mock que simula o comportamento do motor AsyncIOMotorClient.
     """
+
     class AsyncMockCursor:
         """Cursor mock que suporta chaining."""
+
         def __init__(self, collection, query):
             self.collection = collection
             self._query = query
@@ -285,7 +287,7 @@ def sample_fingerprint():
     from neural_hive_specialists.evolution_hooks.models import (
         Fingerprint,
         TaskCountRange,
-        DurationRange
+        DurationRange,
     )
 
     return Fingerprint(
@@ -296,7 +298,7 @@ def sample_fingerprint():
         avg_dependency_count=1.5,
         has_conditional_deps=True,
         estimated_duration_range=DurationRange.MEDIUM,
-        complexity_signature="T-H-B-T-D-M"
+        complexity_signature="T-H-B-T-D-M",
     )
 
 
@@ -305,10 +307,7 @@ def sample_evaluation():
     """
     Avaliação de exemplo para testes.
     """
-    from neural_hive_specialists.evolution_hooks.models import (
-        EvolutionEvaluation,
-        DEFAULT_WEIGHTS
-    )
+    from neural_hive_specialists.evolution_hooks.models import EvolutionEvaluation, DEFAULT_WEIGHTS
 
     return EvolutionEvaluation(
         confidence_score=0.75,
@@ -320,9 +319,9 @@ def sample_evaluation():
                 "factor_name": "maintainability",
                 "weight": 0.25,
                 "score": 0.8,
-                "description": "Good maintainability"
+                "description": "Good maintainability",
             }
-        ]
+        ],
     )
 
 
@@ -334,14 +333,14 @@ def sample_feedback():
     from neural_hive_specialists.evolution_hooks.models import (
         FeedbackData,
         FeedbackOutcome,
-        FeedbackSource
+        FeedbackSource,
     )
 
     return FeedbackData(
         outcome=FeedbackOutcome.APPROVE,
         source=FeedbackSource.HUMAN,
         reasoning="Approved after review",
-        timestamp=datetime.now(timezone.utc)
+        timestamp=datetime.now(timezone.utc),
     )
 
 
@@ -366,7 +365,7 @@ def sample_plan_dict():
                 "estimated_duration_ms": 5000,
                 "required_capabilities": ["build"],
                 "parameters": {},
-                "metadata": {}
+                "metadata": {},
             },
             {
                 "task_id": "task-2",
@@ -377,7 +376,7 @@ def sample_plan_dict():
                 "estimated_duration_ms": 3000,
                 "required_capabilities": ["test"],
                 "parameters": {},
-                "metadata": {}
+                "metadata": {},
             },
             {
                 "task_id": "task-3",
@@ -388,8 +387,8 @@ def sample_plan_dict():
                 "estimated_duration_ms": 2000,
                 "required_capabilities": ["deploy"],
                 "parameters": {},
-                "metadata": {}
-            }
+                "metadata": {},
+            },
         ],
         "execution_order": ["task-1", "task-2", "task-3"],
         "original_domain": "technical",
@@ -405,7 +404,7 @@ def sample_plan_dict():
         "approved_at": None,
         "is_destructive": False,
         "destructive_tasks": [],
-        "risk_matrix": None
+        "risk_matrix": None,
     }
 
 
@@ -413,6 +412,7 @@ def sample_plan_dict():
 @pytest.fixture
 def mock_kafka_consumer():
     """Mock Kafka consumer para testes de integração."""
+
     class MockKafkaConsumer:
         def __init__(self, topic, group_id):
             self.topic = topic
@@ -422,6 +422,7 @@ def mock_kafka_consumer():
         async def getone(self):
             """Simula consumo com timeout."""
             import asyncio
+
             await asyncio.sleep(0.01)
             if self.messages:
                 return self.messages.pop(0)
@@ -437,6 +438,7 @@ def mock_kafka_consumer():
 @pytest.fixture
 def mock_aiokafka_consumer():
     """Mock específico para aiokafka.AIOKafkaConsumer."""
+
     class MockAIOKafkaConsumer:
         async def start(self):
             pass
@@ -446,6 +448,7 @@ def mock_aiokafka_consumer():
 
         async def getone(self):
             import asyncio
+
             await asyncio.sleep(0.01)
             return None
 

@@ -12,6 +12,7 @@ Coordena toda a logica de testes A/B, incluindo:
 import uuid
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
+
 UTC = timezone.utc  # type: ignore
 from typing import Any
 

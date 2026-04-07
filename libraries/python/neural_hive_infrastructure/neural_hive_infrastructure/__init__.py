@@ -15,20 +15,20 @@ from .settings import (
     SPIFFESettings,
     VaultSettings,
     ObservabilitySettings,
-    get_settings
+    get_settings,
 )
 
 __all__ = [
-    'BaseInfrastructureSettings',
-    'KafkaSettings',
-    'MongoDBSettings',
-    'RedisSettings',
-    'OpenTelemetrySettings',
-    'GRPCSettings',
-    'SPIFFESettings',
-    'VaultSettings',
-    'ObservabilitySettings',
-    'get_settings',
+    "BaseInfrastructureSettings",
+    "KafkaSettings",
+    "MongoDBSettings",
+    "RedisSettings",
+    "OpenTelemetrySettings",
+    "GRPCSettings",
+    "SPIFFESettings",
+    "VaultSettings",
+    "ObservabilitySettings",
+    "get_settings",
 ]
 
-__version__ = '1.0.0'
+__version__ = "1.0.0"

@@ -24,19 +24,19 @@ class TestKafkaProducerInitializationResilience:
     def valid_config(self):
         """Config válida para testes."""
         return types.SimpleNamespace(
-            service_name='test-orchestrator',
-            kafka_bootstrap_servers='localhost:9092',
-            kafka_tickets_topic='test.tickets',
-            kafka_schema_registry_url='http://localhost:8081',
-            kafka_security_protocol='PLAINTEXT',
+            service_name="test-orchestrator",
+            kafka_bootstrap_servers="localhost:9092",
+            kafka_tickets_topic="test.tickets",
+            kafka_schema_registry_url="http://localhost:8081",
+            kafka_security_protocol="PLAINTEXT",
             kafka_sasl_mechanism=None,
             kafka_sasl_username=None,
             kafka_sasl_password=None,
-            schemas_base_path='/tmp/schemas',
+            schemas_base_path="/tmp/schemas",
             KAFKA_CIRCUIT_BREAKER_ENABLED=True,
             KAFKA_CIRCUIT_BREAKER_FAIL_MAX=5,
             KAFKA_CIRCUIT_BREAKER_TIMEOUT=60,
-            KAFKA_CIRCUIT_BREAKER_RECOVERY_TIMEOUT=30
+            KAFKA_CIRCUIT_BREAKER_RECOVERY_TIMEOUT=30,
         )
 
     @pytest.mark.asyncio
@@ -49,9 +49,14 @@ class TestKafkaProducerInitializationResilience:
         - Circuit breaker deve ser inicializado
         - Métricas de inicialização devem ser registradas
         """
-        with patch('src.clients.kafka_producer.Producer') as mock_producer:
-            with patch('src.clients.kafka_producer.instrument_kafka_producer', side_effect=lambda x: x):
-                with patch('src.clients.kafka_producer.SchemaRegistryClient', side_effect=Exception('Connection refused')):
+        with patch("src.clients.kafka_producer.Producer") as mock_producer:
+            with patch(
+                "src.clients.kafka_producer.instrument_kafka_producer", side_effect=lambda x: x
+            ):
+                with patch(
+                    "src.clients.kafka_producer.SchemaRegistryClient",
+                    side_effect=Exception("Connection refused"),
+                ):
                     client = KafkaProducerClient(valid_config)
 
                     start = perf_counter()
@@ -78,9 +83,14 @@ class TestKafkaProducerInitializationResilience:
         - Producer funcional
         - Circuit breaker habilitado
         """
-        with patch('src.clients.kafka_producer.Producer'):
-            with patch('src.clients.kafka_producer.instrument_kafka_producer', side_effect=lambda x: x):
-                with patch('src.clients.kafka_producer.SchemaRegistryClient', side_effect=ConnectionError('Schema Registry offline')):
+        with patch("src.clients.kafka_producer.Producer"):
+            with patch(
+                "src.clients.kafka_producer.instrument_kafka_producer", side_effect=lambda x: x
+            ):
+                with patch(
+                    "src.clients.kafka_producer.SchemaRegistryClient",
+                    side_effect=ConnectionError("Schema Registry offline"),
+                ):
                     client = KafkaProducerClient(valid_config)
                     await client.initialize()
 
@@ -98,16 +108,21 @@ class TestKafkaProducerInitializationResilience:
         - Producer criado (validação de credenciais ocorre no primeiro produce)
         - Circuit breaker habilitado
         """
-        valid_config.kafka_security_protocol = 'SASL_PLAINTEXT'
-        valid_config.kafka_sasl_mechanism = 'PLAIN'
+        valid_config.kafka_security_protocol = "SASL_PLAINTEXT"
+        valid_config.kafka_sasl_mechanism = "PLAIN"
 
-        with patch('src.clients.kafka_producer.Producer'):
-            with patch('src.clients.kafka_producer.instrument_kafka_producer', side_effect=lambda x: x):
-                with patch('src.clients.kafka_producer.SchemaRegistryClient', side_effect=Exception('Schema unavailable')):
+        with patch("src.clients.kafka_producer.Producer"):
+            with patch(
+                "src.clients.kafka_producer.instrument_kafka_producer", side_effect=lambda x: x
+            ):
+                with patch(
+                    "src.clients.kafka_producer.SchemaRegistryClient",
+                    side_effect=Exception("Schema unavailable"),
+                ):
                     client = KafkaProducerClient(
                         valid_config,
-                        sasl_username_override='invalid_user',
-                        sasl_password_override='invalid_pass'
+                        sasl_username_override="invalid_user",
+                        sasl_password_override="invalid_pass",
                     )
 
                     await client.initialize()
@@ -115,8 +130,8 @@ class TestKafkaProducerInitializationResilience:
                     # Producer deve estar inicializado
                     assert client.producer is not None
                     # Credenciais devem estar configuradas
-                    assert client.sasl_username == 'invalid_user'
-                    assert client.sasl_password == 'invalid_pass'
+                    assert client.sasl_username == "invalid_user"
+                    assert client.sasl_password == "invalid_pass"
 
     @pytest.mark.asyncio
     async def test_initialization_circuit_breaker_fallback(self, valid_config):
@@ -130,7 +145,7 @@ class TestKafkaProducerInitializationResilience:
         # Simular service_name None para forçar erro no circuit breaker
         valid_config.service_name = None
 
-        with pytest.raises(ValueError, match='service_name'):
+        with pytest.raises(ValueError, match="service_name"):
             KafkaProducerClient(valid_config)
 
     @pytest.mark.asyncio
@@ -142,10 +157,17 @@ class TestKafkaProducerInitializationResilience:
         - Métrica de sucesso registrada
         - Duração registrada
         """
-        with patch('src.clients.kafka_producer.Producer'):
-            with patch('src.clients.kafka_producer.instrument_kafka_producer', side_effect=lambda x: x):
-                with patch('src.clients.kafka_producer.SchemaRegistryClient', side_effect=Exception('Schema unavailable')):
-                    with patch('src.clients.kafka_producer.KafkaProducerClient._get_metrics') as mock_get_metrics:
+        with patch("src.clients.kafka_producer.Producer"):
+            with patch(
+                "src.clients.kafka_producer.instrument_kafka_producer", side_effect=lambda x: x
+            ):
+                with patch(
+                    "src.clients.kafka_producer.SchemaRegistryClient",
+                    side_effect=Exception("Schema unavailable"),
+                ):
+                    with patch(
+                        "src.clients.kafka_producer.KafkaProducerClient._get_metrics"
+                    ) as mock_get_metrics:
                         mock_metrics = MagicMock()
                         mock_get_metrics.return_value = mock_metrics
 
@@ -155,9 +177,9 @@ class TestKafkaProducerInitializationResilience:
                         # Verificar que métrica de inicialização foi chamada
                         mock_metrics.record_component_initialization.assert_called_once()
                         call_args = mock_metrics.record_component_initialization.call_args
-                        assert call_args[1]['component_name'] == 'kafka_producer'
-                        assert call_args[1]['status'] == 'success'
-                        assert call_args[1]['duration_seconds'] > 0
+                        assert call_args[1]["component_name"] == "kafka_producer"
+                        assert call_args[1]["status"] == "success"
+                        assert call_args[1]["duration_seconds"] > 0
 
     @pytest.mark.asyncio
     async def test_initialization_config_corruption_after_construction(self, valid_config):
@@ -173,7 +195,7 @@ class TestKafkaProducerInitializationResilience:
         # Corromper config após construção
         client.config = None
 
-        with pytest.raises(RuntimeError, match='self.config é None'):
+        with pytest.raises(RuntimeError, match="self.config é None"):
             await client.initialize()
 
     @pytest.mark.asyncio
@@ -191,30 +213,43 @@ class TestKafkaProducerInitializationResilience:
         call_order = []
 
         def track_producer(*args, **kwargs):
-            call_order.append('producer')
+            call_order.append("producer")
             return MagicMock()
 
         def track_instrument(producer):
-            call_order.append('instrument')
+            call_order.append("instrument")
             return producer
 
         def track_schema_registry(*args, **kwargs):
-            call_order.append('schema_registry')
-            raise Exception('Schema unavailable')
+            call_order.append("schema_registry")
+            raise Exception("Schema unavailable")
 
         def track_circuit_breaker(*args, **kwargs):
-            call_order.append('circuit_breaker')
+            call_order.append("circuit_breaker")
             return MagicMock()
 
-        with patch('src.clients.kafka_producer.Producer', side_effect=track_producer):
-            with patch('src.clients.kafka_producer.instrument_kafka_producer', side_effect=track_instrument):
-                with patch('src.clients.kafka_producer.SchemaRegistryClient', side_effect=track_schema_registry):
-                    with patch('src.clients.kafka_producer.MonitoredCircuitBreaker', side_effect=track_circuit_breaker):
+        with patch("src.clients.kafka_producer.Producer", side_effect=track_producer):
+            with patch(
+                "src.clients.kafka_producer.instrument_kafka_producer", side_effect=track_instrument
+            ):
+                with patch(
+                    "src.clients.kafka_producer.SchemaRegistryClient",
+                    side_effect=track_schema_registry,
+                ):
+                    with patch(
+                        "src.clients.kafka_producer.MonitoredCircuitBreaker",
+                        side_effect=track_circuit_breaker,
+                    ):
                         client = KafkaProducerClient(valid_config)
                         await client.initialize()
 
                         # Verificar ordem correta
-                        assert call_order == ['producer', 'instrument', 'schema_registry', 'circuit_breaker']
+                        assert call_order == [
+                            "producer",
+                            "instrument",
+                            "schema_registry",
+                            "circuit_breaker",
+                        ]
 
 
 @pytest.mark.integration
@@ -229,23 +264,28 @@ class TestKafkaProducerInitializationPerformance:
         SLA: < 5 segundos para inicialização completa
         """
         config = types.SimpleNamespace(
-            service_name='test-orchestrator',
-            kafka_bootstrap_servers='localhost:9092',
-            kafka_tickets_topic='test.tickets',
-            kafka_schema_registry_url='http://localhost:8081',
-            kafka_security_protocol='PLAINTEXT',
+            service_name="test-orchestrator",
+            kafka_bootstrap_servers="localhost:9092",
+            kafka_tickets_topic="test.tickets",
+            kafka_schema_registry_url="http://localhost:8081",
+            kafka_security_protocol="PLAINTEXT",
             kafka_sasl_username=None,
             kafka_sasl_password=None,
-            schemas_base_path='/tmp/schemas',
+            schemas_base_path="/tmp/schemas",
             KAFKA_CIRCUIT_BREAKER_ENABLED=True,
             KAFKA_CIRCUIT_BREAKER_FAIL_MAX=5,
             KAFKA_CIRCUIT_BREAKER_TIMEOUT=60,
-            KAFKA_CIRCUIT_BREAKER_RECOVERY_TIMEOUT=30
+            KAFKA_CIRCUIT_BREAKER_RECOVERY_TIMEOUT=30,
         )
 
-        with patch('src.clients.kafka_producer.Producer'):
-            with patch('src.clients.kafka_producer.instrument_kafka_producer', side_effect=lambda x: x):
-                with patch('src.clients.kafka_producer.SchemaRegistryClient', side_effect=Exception('Schema unavailable')):
+        with patch("src.clients.kafka_producer.Producer"):
+            with patch(
+                "src.clients.kafka_producer.instrument_kafka_producer", side_effect=lambda x: x
+            ):
+                with patch(
+                    "src.clients.kafka_producer.SchemaRegistryClient",
+                    side_effect=Exception("Schema unavailable"),
+                ):
                     client = KafkaProducerClient(config)
 
                     start = perf_counter()

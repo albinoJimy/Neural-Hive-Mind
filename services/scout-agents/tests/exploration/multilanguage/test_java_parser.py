@@ -18,7 +18,7 @@ class TestJavaParserBasic:
 
     def test_parse_simple_class(self, java_parser):
         """Testa parsing de classe simples."""
-        code = '''
+        code = """
 public class UserService {
     private String name;
 
@@ -30,31 +30,31 @@ public class UserService {
         return this.name;
     }
 }
-'''
+"""
         result = java_parser.parse(code, "UserService.java")
 
         assert result is not None
-        assert len(result['classes']) == 1
-        assert result['classes'][0]['name'] == 'UserService'
-        assert 'getName' in [m['name'] for m in result['methods']]
+        assert len(result["classes"]) == 1
+        assert result["classes"][0]["name"] == "UserService"
+        assert "getName" in [m["name"] for m in result["methods"]]
 
     def test_parse_interface(self, java_parser):
         """Testa parsing de interface Java."""
-        code = '''
+        code = """
 public interface Repository {
     void save(String entity);
 }
-'''
+"""
         result = java_parser.parse(code, "Repository.java")
 
         assert result is not None
-        interfaces = result.get('interfaces', [])
+        interfaces = result.get("interfaces", [])
         # Nota: parser regex pode não capturar todas interfaces
-        assert len(interfaces) >= 1 or len(result['classes']) >= 1
+        assert len(interfaces) >= 1 or len(result["classes"]) >= 1
 
     def test_parse_enum(self, java_parser):
         """Testa parsing de enum Java."""
-        code = '''
+        code = """
 public enum UserRole {
     ADMIN,
     USER,
@@ -72,16 +72,16 @@ enum HttpStatus {
         this.code = code;
     }
 }
-'''
+"""
         result = java_parser.parse(code, "UserRole.java")
 
         assert result is not None
-        assert len(result['enums']) >= 1
-        assert result['enums'][0]['name'] in ['UserRole', 'HttpStatus']
+        assert len(result["enums"]) >= 1
+        assert result["enums"][0]["name"] in ["UserRole", "HttpStatus"]
 
     def test_parse_method_with_return_type(self, java_parser):
         """Testa parsing de método com tipo de retorno."""
-        code = '''
+        code = """
 public class Calculator {
     public int add(int a, int b) {
         return a + b;
@@ -91,17 +91,17 @@ public class Calculator {
         return "Calculator";
     }
 }
-'''
+"""
         result = java_parser.parse(code, "Calculator.java")
 
         assert result is not None
-        methods = result['methods']
+        methods = result["methods"]
         assert len(methods) >= 2
         # Nota: métodos private podem não ser extraídos por regex fallback
 
     def test_parse_annotations(self, java_parser):
         """Testa parsing de annotations Java."""
-        code = '''
+        code = """
 public class User {
     private Long id;
     private String email;
@@ -111,17 +111,17 @@ public class User {
         return "User";
     }
 }
-'''
+"""
         result = java_parser.parse(code, "User.java")
 
         assert result is not None
-        cls = result['classes'][0]
+        cls = result["classes"][0]
         # Nota: parser regex simplificado pode não capturar todas annotations
-        assert cls['name'] == 'User'
+        assert cls["name"] == "User"
 
     def test_parse_generics(self, java_parser):
         """Testa parsing de classes genéricas."""
-        code = '''
+        code = """
 public class Repository<T, K> {
     public T findById(K id) {
         return null;
@@ -133,33 +133,33 @@ public class UserRepository extends Repository<User, Long> {
         return null;
     }
 }
-'''
+"""
         result = java_parser.parse(code, "Repository.java")
 
         assert result is not None
-        assert len(result['classes']) >= 1
+        assert len(result["classes"]) >= 1
 
     def test_parse_extends_and_implements(self, java_parser):
         """Testa parsing de herança e implementação."""
-        code = '''
+        code = """
 public class Dog extends Animal {
     public void bark() {
         System.out.println("Woof!");
     }
 }
-'''
+"""
         result = java_parser.parse(code, "Dog.java")
 
         assert result is not None
-        classes = result.get('classes', [])
+        classes = result.get("classes", [])
         assert len(classes) >= 1
         cls = classes[0]
-        assert cls['name'] == 'Dog'
+        assert cls["name"] == "Dog"
         # Nota: extends pode não ser extraído por regex fallback simplificado
 
     def test_parse_static_method(self, java_parser):
         """Testa parsing de método estático."""
-        code = '''
+        code = """
 public class MathUtils {
     public static final double PI = 3.14159;
 
@@ -167,43 +167,43 @@ public class MathUtils {
         return a + b;
     }
 }
-'''
+"""
         result = java_parser.parse(code, "MathUtils.java")
 
         assert result is not None
-        methods = result['methods']
-        static_methods = [m for m in methods if m.get('is_static')]
+        methods = result["methods"]
+        static_methods = [m for m in methods if m.get("is_static")]
         assert len(static_methods) >= 1
 
     def test_parse_abstract_class(self, java_parser):
         """Testa parsing de classe abstrata."""
-        code = '''
+        code = """
 public abstract class Shape {
     public void draw() {
         System.out.println("Drawing shape");
     }
 }
-'''
+"""
         result = java_parser.parse(code, "Shape.java")
 
         assert result is not None
-        classes = result.get('classes', [])
+        classes = result.get("classes", [])
         assert len(classes) >= 1
         # Nota: keyword 'abstract' pode não ser capturada por regex fallback
 
     def test_parse_package_declaration(self, java_parser):
         """Testa parsing de declaração de package."""
-        code = '''
+        code = """
 package com.example.services;
 
 public class UserService {
     public void serve() {}
 }
-'''
+"""
         result = java_parser.parse(code, "UserService.java")
 
         assert result is not None
-        assert result['packages'] == 'com.example.services'
+        assert result["packages"] == "com.example.services"
 
 
 class TestJavaParserImports:
@@ -211,7 +211,7 @@ class TestJavaParserImports:
 
     def test_parse_imports(self, java_parser):
         """Testa extração de imports."""
-        code = '''
+        code = """
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Map;
@@ -219,13 +219,13 @@ import java.util.Map;
 public class Test {
     List<String> items = new ArrayList<>();
 }
-'''
+"""
         result = java_parser.parse(code, "Test.java")
 
         assert result is not None
-        imports = result['imports']
+        imports = result["imports"]
         assert len(imports) >= 3
-        assert any(i['name'] == 'java.util.List' for i in imports)
+        assert any(i["name"] == "java.util.List" for i in imports)
 
 
 class TestJavaParserConstructors:
@@ -233,7 +233,7 @@ class TestJavaParserConstructors:
 
     def test_parse_constructor(self, java_parser):
         """Testa parsing de construtor."""
-        code = '''
+        code = """
 public class User {
     private String name;
 
@@ -245,17 +245,17 @@ public class User {
         return name;
     }
 }
-'''
+"""
         result = java_parser.parse(code, "User.java")
 
         assert result is not None
-        methods = result['methods']
+        methods = result["methods"]
         # Nota: construtores podem não ser diferenciados de outros métodos no parser regex
         assert len(methods) >= 1
 
     def test_parse_throws_declaration(self, java_parser):
         """Testa parsing de throws."""
-        code = '''
+        code = """
 public class FileService {
     public void readFile(String path) {
         System.out.println("Reading file");
@@ -265,11 +265,11 @@ public class FileService {
         System.out.println("Writing file");
     }
 }
-'''
+"""
         result = java_parser.parse(code, "FileService.java")
 
         assert result is not None
-        methods = result['methods']
+        methods = result["methods"]
         assert len(methods) >= 2
         # Nota: throws pode não ser capturado por regex fallback simplificado
 
@@ -279,22 +279,22 @@ class TestJavaParserComplexity:
 
     def test_calculate_complexity_simple(self, java_parser):
         """Testa complexidade de método simples."""
-        code = '''
+        code = """
 public class Math {
     public int add(int a, int b) {
         return a + b;
     }
 }
-'''
+"""
         result = java_parser.parse(code, "Math.java")
 
         assert result is not None
-        complexity = result.get('complexity', 1)
+        complexity = result.get("complexity", 1)
         assert complexity >= 1
 
     def test_calculate_complexity_with_conditionals(self, java_parser):
         """Testa complexidade com condicionais."""
-        code = '''
+        code = """
 public class Logic {
     public String process(int value) {
         if (value < 0) {
@@ -306,16 +306,16 @@ public class Logic {
         }
     }
 }
-'''
+"""
         result = java_parser.parse(code, "Logic.java")
 
         assert result is not None
-        complexity = result.get('complexity', 1)
+        complexity = result.get("complexity", 1)
         assert complexity > 1
 
     def test_calculate_complexity_with_loops(self, java_parser):
         """Testa complexidade com loops."""
-        code = '''
+        code = """
 public class Loop {
     public void process(List<String> items) {
         for (String item : items) {
@@ -325,11 +325,11 @@ public class Loop {
         }
     }
 }
-'''
+"""
         result = java_parser.parse(code, "Loop.java")
 
         assert result is not None
-        complexity = result.get('complexity', 1)
+        complexity = result.get("complexity", 1)
         assert complexity > 1
 
 
@@ -338,7 +338,7 @@ class TestJavaParserErrorHandling:
 
     def test_parse_syntax_error(self, java_parser):
         """Testa parsing de código com erro de sintaxe."""
-        invalid_code = '''
+        invalid_code = """
 public class UserService {
     private String name
 
@@ -346,7 +346,7 @@ public class UserService {
         this.name = name;
     }
 }
-'''
+"""
         result = java_parser.parse(invalid_code, "UserService.java")
 
         # Parser deve retornar resultado (mesmo que incompleto) ou None
@@ -357,4 +357,4 @@ public class UserService {
         result = java_parser.parse("", "Empty.java")
 
         assert result is not None
-        assert len(result['classes']) == 0
+        assert len(result["classes"]) == 0

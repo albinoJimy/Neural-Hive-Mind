@@ -24,23 +24,27 @@ class TestExperimentManagerInitialization:
         assert manager.guardrail_monitor is not None
         assert manager.sample_calculator is not None
 
-    def test_initialization_with_clients(self, mock_settings, mock_mongodb_client, mock_redis_client):
+    def test_initialization_with_clients(
+        self, mock_settings, mock_mongodb_client, mock_redis_client
+    ):
         """Test initialization with clients."""
         manager = ExperimentManager(
             settings=mock_settings,
             mongodb_client=mock_mongodb_client,
-            redis_client=mock_redis_client
+            redis_client=mock_redis_client,
         )
 
         assert manager.mongodb_client == mock_mongodb_client
         assert manager.redis_client == mock_redis_client
 
-    def test_initialization_with_grpc_clients(self, mock_settings, mock_consensus_engine_client, mock_orchestrator_client):
+    def test_initialization_with_grpc_clients(
+        self, mock_settings, mock_consensus_engine_client, mock_orchestrator_client
+    ):
         """Test initialization with gRPC clients."""
         manager = ExperimentManager(
             settings=mock_settings,
             consensus_engine_client=mock_consensus_engine_client,
-            orchestrator_client=mock_orchestrator_client
+            orchestrator_client=mock_orchestrator_client,
         )
 
         assert manager.consensus_engine_client == mock_consensus_engine_client
@@ -51,54 +55,67 @@ class TestExperimentSubmission:
     """Test experiment submission."""
 
     @pytest.mark.asyncio
-    async def test_submit_experiment_infeasible(self, mock_settings, sample_optimization_hypothesis):
+    async def test_submit_experiment_infeasible(
+        self, mock_settings, sample_optimization_hypothesis
+    ):
         """Test submission fails for infeasible hypothesis."""
         manager = ExperimentManager(settings=mock_settings)
 
         # Mock hypothesis as infeasible
-        with patch.object(sample_optimization_hypothesis, 'validate_feasibility', return_value=False):
+        with patch.object(
+            sample_optimization_hypothesis, "validate_feasibility", return_value=False
+        ):
             result = await manager.submit_experiment(sample_optimization_hypothesis)
 
             assert result is None
 
     @pytest.mark.asyncio
-    async def test_submit_experiment_component_locked(self, mock_settings, mock_redis_client, sample_optimization_hypothesis):
+    async def test_submit_experiment_component_locked(
+        self, mock_settings, mock_redis_client, sample_optimization_hypothesis
+    ):
         """Test submission fails when component is locked."""
         mock_redis_client.lock_component = AsyncMock(return_value=False)
-        manager = ExperimentManager(
-            settings=mock_settings,
-            redis_client=mock_redis_client
-        )
+        manager = ExperimentManager(settings=mock_settings, redis_client=mock_redis_client)
 
-        with patch.object(sample_optimization_hypothesis, 'validate_feasibility', return_value=True):
+        with patch.object(
+            sample_optimization_hypothesis, "validate_feasibility", return_value=True
+        ):
             result = await manager.submit_experiment(sample_optimization_hypothesis)
 
             assert result is None
 
     @pytest.mark.asyncio
-    async def test_submit_experiment_success(self, mock_settings, mock_redis_client, mock_mongodb_client, sample_optimization_hypothesis):
+    async def test_submit_experiment_success(
+        self, mock_settings, mock_redis_client, mock_mongodb_client, sample_optimization_hypothesis
+    ):
         """Test successful experiment submission."""
         manager = ExperimentManager(
             settings=mock_settings,
             redis_client=mock_redis_client,
-            mongodb_client=mock_mongodb_client
+            mongodb_client=mock_mongodb_client,
         )
 
-        with patch.object(sample_optimization_hypothesis, 'validate_feasibility', return_value=True):
+        with patch.object(
+            sample_optimization_hypothesis, "validate_feasibility", return_value=True
+        ):
             result = await manager.submit_experiment(sample_optimization_hypothesis)
 
             assert result is not None  # Should return experiment_id
 
     @pytest.mark.asyncio
-    async def test_submit_experiment_creates_ab_test(self, mock_settings, mock_redis_client, mock_mongodb_client, sample_optimization_hypothesis):
+    async def test_submit_experiment_creates_ab_test(
+        self, mock_settings, mock_redis_client, mock_mongodb_client, sample_optimization_hypothesis
+    ):
         """Test submission creates A/B test for A/B experiment type."""
         manager = ExperimentManager(
             settings=mock_settings,
             redis_client=mock_redis_client,
-            mongodb_client=mock_mongodb_client
+            mongodb_client=mock_mongodb_client,
         )
 
-        with patch.object(sample_optimization_hypothesis, 'validate_feasibility', return_value=True):
+        with patch.object(
+            sample_optimization_hypothesis, "validate_feasibility", return_value=True
+        ):
             result = await manager.submit_experiment(sample_optimization_hypothesis)
 
             # Should not raise errors
@@ -121,24 +138,23 @@ class TestExperimentMonitoring:
     async def test_monitor_experiment_not_found(self, mock_settings, mock_mongodb_client):
         """Test monitoring fails when experiment not found."""
         mock_mongodb_client.get_experiment = AsyncMock(return_value=None)
-        manager = ExperimentManager(
-            settings=mock_settings,
-            mongodb_client=mock_mongodb_client
-        )
+        manager = ExperimentManager(settings=mock_settings, mongodb_client=mock_mongodb_client)
 
         result = await manager.monitor_experiment("experiment-999")
 
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_monitor_experiment_success(self, mock_settings, mock_mongodb_client, mock_redis_client, sample_experiment_request):
+    async def test_monitor_experiment_success(
+        self, mock_settings, mock_mongodb_client, mock_redis_client, sample_experiment_request
+    ):
         """Test successful experiment monitoring."""
         # Mock experiment document
         experiment_doc = {
             "experiment_id": sample_experiment_request.experiment_id,
             "status": "RUNNING",
             "created_at": int(datetime.now(timezone.utc).timestamp() * 1000),
-            "target_component": "consensus-engine"
+            "target_component": "consensus-engine",
         }
 
         mock_mongodb_client.get_experiment = AsyncMock(return_value=experiment_doc)
@@ -148,7 +164,7 @@ class TestExperimentMonitoring:
         manager = ExperimentManager(
             settings=mock_settings,
             mongodb_client=mock_mongodb_client,
-            redis_client=mock_redis_client
+            redis_client=mock_redis_client,
         )
 
         result = await manager.monitor_experiment(sample_experiment_request.experiment_id)
@@ -158,13 +174,15 @@ class TestExperimentMonitoring:
         assert "status" in result
 
     @pytest.mark.asyncio
-    async def test_monitor_experiment_guardrail_violation(self, mock_settings, mock_mongodb_client, mock_redis_client):
+    async def test_monitor_experiment_guardrail_violation(
+        self, mock_settings, mock_mongodb_client, mock_redis_client
+    ):
         """Test monitoring detects guardrail violations."""
         experiment_doc = {
             "experiment_id": "test-001",
             "status": "RUNNING",
             "created_at": int(datetime.now(timezone.utc).timestamp() * 1000),
-            "target_component": "test-component"
+            "target_component": "test-component",
         }
 
         mock_mongodb_client.get_experiment = AsyncMock(return_value=experiment_doc)
@@ -173,14 +191,15 @@ class TestExperimentMonitoring:
         manager = ExperimentManager(
             settings=mock_settings,
             mongodb_client=mock_mongodb_client,
-            redis_client=mock_redis_client
+            redis_client=mock_redis_client,
         )
 
         # Mock guardrail monitor to return violation
-        with patch.object(manager.guardrail_monitor, 'should_abort', return_value={
-            "should_abort": True,
-            "reason": "Error rate exceeded threshold"
-        }):
+        with patch.object(
+            manager.guardrail_monitor,
+            "should_abort",
+            return_value={"should_abort": True, "reason": "Error rate exceeded threshold"},
+        ):
             result = await manager.monitor_experiment("test-001")
 
             assert result is not None
@@ -202,10 +221,7 @@ class TestExperimentAnalysis:
     async def test_analyze_results_not_found(self, mock_settings, mock_mongodb_client):
         """Test analysis fails when experiment not found."""
         mock_mongodb_client.get_experiment = AsyncMock(return_value=None)
-        manager = ExperimentManager(
-            settings=mock_settings,
-            mongodb_client=mock_mongodb_client
-        )
+        manager = ExperimentManager(settings=mock_settings, mongodb_client=mock_mongodb_client)
 
         result = await manager.analyze_experiment_results("experiment-999")
 
@@ -219,7 +235,7 @@ class TestExperimentAnalysis:
         experiment_doc = {
             "experiment_id": "ab-test-001",
             "experiment_type": "A_B_TEST",
-            "status": "COMPLETED"
+            "status": "COMPLETED",
         }
 
         mock_mongodb_client.get_experiment = AsyncMock(return_value=experiment_doc)
@@ -235,15 +251,14 @@ class TestExperimentAnalysis:
             secondary_metrics_analysis=[],
             bayesian_analysis={},
             guardrails_status={"all_passed": True},
-            early_stopped=False
+            early_stopped=False,
         )
 
-        manager = ExperimentManager(
-            settings=mock_settings,
-            mongodb_client=mock_mongodb_client
-        )
+        manager = ExperimentManager(settings=mock_settings, mongodb_client=mock_mongodb_client)
 
-        with patch.object(manager.ab_testing_engine, 'analyze_results', return_value=mock_ab_results):
+        with patch.object(
+            manager.ab_testing_engine, "analyze_results", return_value=mock_ab_results
+        ):
             result = await manager.analyze_experiment_results("ab-test-001")
 
             assert result is not None
@@ -254,7 +269,9 @@ class TestHypothesisValidation:
     """Test hypothesis validation."""
 
     @pytest.mark.asyncio
-    async def test_validate_hypothesis_no_baseline(self, mock_settings, sample_optimization_hypothesis):
+    async def test_validate_hypothesis_no_baseline(
+        self, mock_settings, sample_optimization_hypothesis
+    ):
         """Test validation fails without baseline metrics."""
         manager = ExperimentManager(settings=mock_settings)
 
@@ -266,17 +283,20 @@ class TestHypothesisValidation:
         assert result is False
 
     @pytest.mark.asyncio
-    async def test_validate_hypothesis_adjustment_exceeds_max(self, mock_settings, sample_optimization_hypothesis):
+    async def test_validate_hypothesis_adjustment_exceeds_max(
+        self, mock_settings, sample_optimization_hypothesis
+    ):
         """Test validation fails when adjustment exceeds max."""
         manager = ExperimentManager(settings=mock_settings)
 
         # Create adjustment that exceeds max
         from src.models.optimization_hypothesis import ProposedAdjustment
+
         large_adjustment = ProposedAdjustment(
             parameter_name="test_weight",
             old_value="0.5",
             new_value="1.5",  # Delta of 1.0 exceeds max_weight_adjustment
-            previous_value=0.5
+            previous_value=0.5,
         )
         sample_optimization_hypothesis.proposed_adjustments = [large_adjustment]
 
@@ -285,12 +305,11 @@ class TestHypothesisValidation:
         assert result is False
 
     @pytest.mark.asyncio
-    async def test_validate_hypothesis_success(self, mock_settings, mock_redis_client, sample_optimization_hypothesis):
+    async def test_validate_hypothesis_success(
+        self, mock_settings, mock_redis_client, sample_optimization_hypothesis
+    ):
         """Test successful hypothesis validation."""
-        manager = ExperimentManager(
-            settings=mock_settings,
-            redis_client=mock_redis_client
-        )
+        manager = ExperimentManager(settings=mock_settings, redis_client=mock_redis_client)
 
         result = await manager.validate_hypothesis(sample_optimization_hypothesis)
 
@@ -309,12 +328,11 @@ class TestExperimentAbort:
         await manager.abort_experiment("experiment-001", "Test abort")
 
     @pytest.mark.asyncio
-    async def test_abort_experiment_with_argo(self, mock_settings, mock_mongodb_client, mock_redis_client, mock_argo_client):
+    async def test_abort_experiment_with_argo(
+        self, mock_settings, mock_mongodb_client, mock_redis_client, mock_argo_client
+    ):
         """Test abort with Argo workflow deletion."""
-        experiment_doc = {
-            "experiment_id": "test-001",
-            "target_component": "test-component"
-        }
+        experiment_doc = {"experiment_id": "test-001", "target_component": "test-component"}
 
         mock_mongodb_client.get_experiment = AsyncMock(return_value=experiment_doc)
         mock_mongodb_client.update_experiment_status = AsyncMock()
@@ -323,7 +341,7 @@ class TestExperimentAbort:
             settings=mock_settings,
             mongodb_client=mock_mongodb_client,
             redis_client=mock_redis_client,
-            argo_client=mock_argo_client
+            argo_client=mock_argo_client,
         )
 
         await manager.abort_experiment("test-001", "Test abort")
@@ -332,12 +350,11 @@ class TestExperimentAbort:
         mock_argo_client.delete_workflow.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_abort_experiment_unlocks_component(self, mock_settings, mock_mongodb_client, mock_redis_client):
+    async def test_abort_experiment_unlocks_component(
+        self, mock_settings, mock_mongodb_client, mock_redis_client
+    ):
         """Test abort unlocks component."""
-        experiment_doc = {
-            "experiment_id": "test-001",
-            "target_component": "test-component"
-        }
+        experiment_doc = {"experiment_id": "test-001", "target_component": "test-component"}
 
         mock_mongodb_client.get_experiment = AsyncMock(return_value=experiment_doc)
         mock_mongodb_client.update_experiment_status = AsyncMock()
@@ -345,7 +362,7 @@ class TestExperimentAbort:
         manager = ExperimentManager(
             settings=mock_settings,
             mongodb_client=mock_mongodb_client,
-            redis_client=mock_redis_client
+            redis_client=mock_redis_client,
         )
 
         await manager.abort_experiment("test-001", "Test abort")
@@ -360,10 +377,7 @@ class TestExperimentStatus:
     @pytest.mark.asyncio
     async def test_get_status_from_argo(self, mock_settings, mock_argo_client):
         """Test getting status from Argo."""
-        manager = ExperimentManager(
-            settings=mock_settings,
-            argo_client=mock_argo_client
-        )
+        manager = ExperimentManager(settings=mock_settings, argo_client=mock_argo_client)
 
         mock_argo_client.get_workflow_status = AsyncMock(return_value="Running")
 
@@ -377,10 +391,7 @@ class TestExperimentStatus:
         experiment_doc = {"status": "COMPLETED"}
         mock_mongodb_client.get_experiment = AsyncMock(return_value=experiment_doc)
 
-        manager = ExperimentManager(
-            settings=mock_settings,
-            mongodb_client=mock_mongodb_client
-        )
+        manager = ExperimentManager(settings=mock_settings, mongodb_client=mock_mongodb_client)
 
         status = await manager.get_experiment_status("experiment-001")
 
@@ -395,14 +406,11 @@ class TestActiveExperiments:
         """Test listing active experiments."""
         active_experiments = [
             {"experiment_id": "exp-001", "status": "RUNNING"},
-            {"experiment_id": "exp-002", "status": "RUNNING"}
+            {"experiment_id": "exp-002", "status": "RUNNING"},
         ]
         mock_mongodb_client.list_experiments = AsyncMock(return_value=active_experiments)
 
-        manager = ExperimentManager(
-            settings=mock_settings,
-            mongodb_client=mock_mongodb_client
-        )
+        manager = ExperimentManager(settings=mock_settings, mongodb_client=mock_mongodb_client)
 
         result = await manager.list_active_experiments()
 
@@ -437,22 +445,21 @@ class TestExperimentRollback:
         """Test rollback fails when experiment not found."""
         mock_mongodb_client.get_experiment = AsyncMock(return_value=None)
 
-        manager = ExperimentManager(
-            settings=mock_settings,
-            mongodb_client=mock_mongodb_client
-        )
+        manager = ExperimentManager(settings=mock_settings, mongodb_client=mock_mongodb_client)
 
         result = await manager.rollback_experiment("experiment-999")
 
         assert result["success"] is False
 
     @pytest.mark.asyncio
-    async def test_rollback_experiment_success(self, mock_settings, mock_mongodb_client, mock_redis_client, mock_argo_client):
+    async def test_rollback_experiment_success(
+        self, mock_settings, mock_mongodb_client, mock_redis_client, mock_argo_client
+    ):
         """Test successful experiment rollback."""
         experiment_doc = {
             "experiment_id": "test-001",
             "target_component": "test-component",
-            "baseline_configuration": {"weight": 0.5}
+            "baseline_configuration": {"weight": 0.5},
         }
 
         mock_mongodb_client.get_experiment = AsyncMock(return_value=experiment_doc)
@@ -462,7 +469,7 @@ class TestExperimentRollback:
             settings=mock_settings,
             mongodb_client=mock_mongodb_client,
             redis_client=mock_redis_client,
-            argo_client=mock_argo_client
+            argo_client=mock_argo_client,
         )
 
         result = await manager.rollback_experiment("test-001")
@@ -474,7 +481,9 @@ class TestExperimentRollback:
 class TestSampleSizeCalculation:
     """Test sample size calculation."""
 
-    def test_calculate_required_sample_size_binary_metric(self, mock_settings, sample_optimization_hypothesis):
+    def test_calculate_required_sample_size_binary_metric(
+        self, mock_settings, sample_optimization_hypothesis
+    ):
         """Test sample size for binary metric."""
         manager = ExperimentManager(settings=mock_settings)
 
@@ -486,7 +495,9 @@ class TestSampleSizeCalculation:
 
         assert sample_size >= 100  # Should be at least min
 
-    def test_calculate_required_sample_size_continuous_metric(self, mock_settings, sample_optimization_hypothesis):
+    def test_calculate_required_sample_size_continuous_metric(
+        self, mock_settings, sample_optimization_hypothesis
+    ):
         """Test sample size for continuous metric."""
         manager = ExperimentManager(settings=mock_settings)
 
@@ -544,7 +555,9 @@ class TestHypothesisConversion:
         assert request.hypothesis == sample_optimization_hypothesis.hypothesis_text
         assert request.sample_size >= 100
 
-    def test_experiment_request_success_criteria(self, mock_settings, sample_optimization_hypothesis):
+    def test_experiment_request_success_criteria(
+        self, mock_settings, sample_optimization_hypothesis
+    ):
         """Test success criteria generation."""
         manager = ExperimentManager(settings=mock_settings)
 
@@ -585,10 +598,7 @@ class TestExperimentMetrics:
         """Test getting group size."""
         mock_redis_client.get = AsyncMock(return_value="100")
 
-        manager = ExperimentManager(
-            settings=mock_settings,
-            redis_client=mock_redis_client
-        )
+        manager = ExperimentManager(settings=mock_settings, redis_client=mock_redis_client)
 
         size = await manager._get_group_size("test-001", "control")
 
@@ -611,11 +621,9 @@ class TestSuccessCriteriaChecking:
         """Test GTE operator."""
         manager = ExperimentManager(settings=mock_settings)
 
-        criterion = type('obj', (object,), {
-            'metric_name': 'latency_p95',
-            'operator': 'GTE',
-            'threshold': 100.0
-        })()
+        criterion = type(
+            "obj", (object,), {"metric_name": "latency_p95", "operator": "GTE", "threshold": 100.0}
+        )()
 
         # Mock criteria
         sample_experiment_request.success_criteria = [criterion]
@@ -636,11 +644,9 @@ class TestSuccessCriteriaChecking:
         """Test LTE operator."""
         manager = ExperimentManager(settings=mock_settings)
 
-        criterion = type('obj', (object,), {
-            'metric_name': 'error_rate',
-            'operator': 'LTE',
-            'threshold': 0.05
-        })()
+        criterion = type(
+            "obj", (object,), {"metric_name": "error_rate", "operator": "LTE", "threshold": 0.05}
+        )()
 
         sample_experiment_request.success_criteria = [criterion]
 
@@ -696,13 +702,15 @@ class TestRollbackExecution:
         assert result["success"] is False
 
     @pytest.mark.asyncio
-    async def test_execute_rollback_weights(self, mock_settings, mock_mongodb_client, mock_consensus_engine_client):
+    async def test_execute_rollback_weights(
+        self, mock_settings, mock_mongodb_client, mock_consensus_engine_client
+    ):
         """Test rollback for weight recalibration."""
         experiment_doc = {
             "experiment_id": "test-001",
             "objective": "Validate weight recalibration",
             "target_component": "consensus-engine",
-            "baseline_configuration": {"business_weight": "0.25"}
+            "baseline_configuration": {"business_weight": "0.25"},
         }
 
         mock_mongodb_client.get_experiment = AsyncMock(return_value=experiment_doc)
@@ -711,7 +719,7 @@ class TestRollbackExecution:
         manager = ExperimentManager(
             settings=mock_settings,
             mongodb_client=mock_mongodb_client,
-            consensus_engine_client=mock_consensus_engine_client
+            consensus_engine_client=mock_consensus_engine_client,
         )
 
         result = await manager._execute_rollback("test-001")
@@ -719,13 +727,15 @@ class TestRollbackExecution:
         assert result["weights_rolled_back"] is True
 
     @pytest.mark.asyncio
-    async def test_execute_rollback_slos(self, mock_settings, mock_mongodb_client, mock_orchestrator_client):
+    async def test_execute_rollback_slos(
+        self, mock_settings, mock_mongodb_client, mock_orchestrator_client
+    ):
         """Test rollback for SLO adjustment."""
         experiment_doc = {
             "experiment_id": "test-001",
             "objective": "Validate SLO adjustment",
             "target_component": "orchestrator",
-            "baseline_configuration": {"latency_slo": "200"}
+            "baseline_configuration": {"latency_slo": "200"},
         }
 
         mock_mongodb_client.get_experiment = AsyncMock(return_value=experiment_doc)
@@ -734,7 +744,7 @@ class TestRollbackExecution:
         manager = ExperimentManager(
             settings=mock_settings,
             mongodb_client=mock_mongodb_client,
-            orchestrator_client=mock_orchestrator_client
+            orchestrator_client=mock_orchestrator_client,
         )
 
         result = await manager._execute_rollback("test-001")
@@ -746,20 +756,20 @@ class TestABTestCreation:
     """Test A/B test creation from experiment request."""
 
     @pytest.mark.asyncio
-    async def test_create_ab_test_from_request(self, mock_settings, sample_experiment_request, sample_optimization_hypothesis):
+    async def test_create_ab_test_from_request(
+        self, mock_settings, sample_experiment_request, sample_optimization_hypothesis
+    ):
         """Test creating A/B test from experiment request."""
         manager = ExperimentManager(settings=mock_settings)
 
         # Mock AB testing engine
-        mock_config = type('obj', (object,), {
-            'experiment_id': 'ab-test-001',
-            'minimum_sample_size': 500
-        })()
+        mock_config = type(
+            "obj", (object,), {"experiment_id": "ab-test-001", "minimum_sample_size": 500}
+        )()
 
-        with patch.object(manager.ab_testing_engine, 'create_ab_test', return_value=mock_config):
+        with patch.object(manager.ab_testing_engine, "create_ab_test", return_value=mock_config):
             result = await manager._create_ab_test_from_request(
-                sample_experiment_request,
-                sample_optimization_hypothesis
+                sample_experiment_request, sample_optimization_hypothesis
             )
 
             assert result is not None

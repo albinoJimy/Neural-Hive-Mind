@@ -46,13 +46,10 @@ def mongodb_client(
     mock_db,
     mock_incidents_collection,
     mock_remediation_collection,
-    mock_postmortems_collection
+    mock_postmortems_collection,
 ):
     """Fixture do MongoDBClient com mocks"""
-    client = MongoDBClient(
-        uri="mongodb://test:test@localhost:27017/test",
-        database="test_db"
-    )
+    client = MongoDBClient(uri="mongodb://test:test@localhost:27017/test", database="test_db")
     client.client = mock_motor_client
     client.db = mock_db
     client.incidents_collection = mock_incidents_collection
@@ -71,18 +68,10 @@ def sample_postmortem():
         "runbook_id": "RB-SEC-001-HIGH",
         "summary": "Incidente INC-TEST-001 detectado: unauthorized_access com severidade high.",
         "root_cause": "Threat type: unauthorized_access",
-        "actions_taken": [
-            "Enforcement: revoke_access",
-            "Remediation: restart_pod"
-        ],
-        "sla_performance": {
-            "met": True,
-            "recovery_time_s": 45.5
-        },
-        "recommendations": [
-            "Melhorar regras de deteccao"
-        ],
-        "documented_at": datetime.now(timezone.utc).isoformat()
+        "actions_taken": ["Enforcement: revoke_access", "Remediation: restart_pod"],
+        "sla_performance": {"met": True, "recovery_time_s": 45.5},
+        "recommendations": ["Melhorar regras de deteccao"],
+        "documented_at": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -92,7 +81,7 @@ class TestMongoDBClientConnection:
     @pytest.mark.asyncio
     async def test_connect_success(self, mock_motor_client, mock_db):
         """Testa conexao bem-sucedida com MongoDB"""
-        with patch('motor.motor_asyncio.AsyncIOMotorClient') as MockClient:
+        with patch("motor.motor_asyncio.AsyncIOMotorClient") as MockClient:
             mock_client_instance = AsyncMock()
             mock_client_instance.admin.command = AsyncMock(return_value={"ok": 1})
             mock_client_instance.__getitem__ = MagicMock(return_value=mock_db)
@@ -101,8 +90,7 @@ class TestMongoDBClientConnection:
             mock_db.__getitem__ = MagicMock(return_value=AsyncMock())
 
             client = MongoDBClient(
-                uri="mongodb://test:test@localhost:27017/test",
-                database="test_db"
+                uri="mongodb://test:test@localhost:27017/test", database="test_db"
             )
 
             await client.connect()
@@ -117,10 +105,7 @@ class TestMongoDBClientConnection:
 
     def test_is_healthy_false_no_client(self):
         """Testa que cliente nao esta saudavel sem conexao"""
-        client = MongoDBClient(
-            uri="mongodb://test:test@localhost:27017/test",
-            database="test_db"
-        )
+        client = MongoDBClient(uri="mongodb://test:test@localhost:27017/test", database="test_db")
         client.client = None
         client.db = MagicMock()
 
@@ -158,10 +143,7 @@ class TestPostmortemInsertion:
     @pytest.mark.asyncio
     async def test_insert_postmortem_no_collection(self, sample_postmortem):
         """Testa insercao quando colecao nao esta inicializada"""
-        client = MongoDBClient(
-            uri="mongodb://test:test@localhost:27017/test",
-            database="test_db"
-        )
+        client = MongoDBClient(uri="mongodb://test:test@localhost:27017/test", database="test_db")
         client.postmortems_collection = None
 
         result = await client.insert_postmortem(sample_postmortem)
@@ -184,27 +166,24 @@ class TestPostmortemInsertion:
                 "Enforcement: block_ip",
                 "Enforcement: rate_limit",
                 "Remediation: scale_deployment",
-                "Remediation: apply_network_policy"
+                "Remediation: apply_network_policy",
             ],
-            "sla_performance": {
-                "met": True,
-                "recovery_time_s": 78.2
-            },
+            "sla_performance": {"met": True, "recovery_time_s": 78.2},
             "recommendations": [
                 "Aumentar capacidade de auto-scaling",
                 "Implementar WAF",
-                "Revisar thresholds de deteccao"
+                "Revisar thresholds de deteccao",
             ],
             "affected_resources": [
                 "neural-hive/deployment/gateway-intencoes",
-                "neural-hive/pod/gateway-intencoes-abc123"
+                "neural-hive/pod/gateway-intencoes-abc123",
             ],
             "documented_at": datetime.now(timezone.utc).isoformat(),
             "metadata": {
                 "detection_time_s": 12.5,
                 "total_blocked_ips": 15,
-                "peak_requests_per_minute": 50000
-            }
+                "peak_requests_per_minute": 50000,
+            },
         }
 
         mock_postmortems_collection.insert_one = AsyncMock(return_value=MagicMock())
@@ -235,9 +214,7 @@ class TestPostmortemQuery:
         )
 
     @pytest.mark.asyncio
-    async def test_get_postmortem_not_found(
-        self, mongodb_client, mock_postmortems_collection
-    ):
+    async def test_get_postmortem_not_found(self, mongodb_client, mock_postmortems_collection):
         """Testa consulta de post-mortem nao existente"""
         mock_postmortems_collection.find_one = AsyncMock(return_value=None)
 
@@ -246,13 +223,9 @@ class TestPostmortemQuery:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_get_postmortem_error(
-        self, mongodb_client, mock_postmortems_collection
-    ):
+    async def test_get_postmortem_error(self, mongodb_client, mock_postmortems_collection):
         """Testa falha na consulta de post-mortem"""
-        mock_postmortems_collection.find_one = AsyncMock(
-            side_effect=Exception("Query error")
-        )
+        mock_postmortems_collection.find_one = AsyncMock(side_effect=Exception("Query error"))
 
         result = await mongodb_client.get_postmortem("INC-TEST-001")
 
@@ -261,10 +234,7 @@ class TestPostmortemQuery:
     @pytest.mark.asyncio
     async def test_get_postmortem_no_collection(self):
         """Testa consulta quando colecao nao esta inicializada"""
-        client = MongoDBClient(
-            uri="mongodb://test:test@localhost:27017/test",
-            database="test_db"
-        )
+        client = MongoDBClient(uri="mongodb://test:test@localhost:27017/test", database="test_db")
         client.postmortems_collection = None
 
         result = await client.get_postmortem("INC-TEST-001")
@@ -276,9 +246,7 @@ class TestIndexCreation:
     """Testes de criacao de indices"""
 
     @pytest.mark.asyncio
-    async def test_create_indexes_postmortems(
-        self, mongodb_client, mock_postmortems_collection
-    ):
+    async def test_create_indexes_postmortems(self, mongodb_client, mock_postmortems_collection):
         """Testa criacao de indices para postmortems"""
         mock_postmortems_collection.create_index = AsyncMock()
 
@@ -313,15 +281,13 @@ class TestPostmortemSchema:
     """Testes de validacao de schema de post-mortems"""
 
     @pytest.mark.asyncio
-    async def test_postmortem_required_fields(
-        self, mongodb_client, mock_postmortems_collection
-    ):
+    async def test_postmortem_required_fields(self, mongodb_client, mock_postmortems_collection):
         """Testa insercao com campos obrigatorios"""
         minimal_postmortem = {
             "incident_id": "INC-MIN-001",
             "threat_type": "unknown",
             "severity": "low",
-            "documented_at": datetime.now(timezone.utc).isoformat()
+            "documented_at": datetime.now(timezone.utc).isoformat(),
         }
 
         mock_postmortems_collection.insert_one = AsyncMock(return_value=MagicMock())
@@ -331,9 +297,7 @@ class TestPostmortemSchema:
         assert result is True
 
     @pytest.mark.asyncio
-    async def test_postmortem_with_nested_data(
-        self, mongodb_client, mock_postmortems_collection
-    ):
+    async def test_postmortem_with_nested_data(self, mongodb_client, mock_postmortems_collection):
         """Testa insercao de post-mortem com dados aninhados"""
         nested_postmortem = {
             "incident_id": "INC-NESTED-001",
@@ -342,23 +306,15 @@ class TestPostmortemSchema:
             "anomaly_details": {
                 "data_transferred_mb": 500,
                 "destination_ips": ["1.2.3.4", "5.6.7.8"],
-                "protocols": ["HTTPS", "DNS"]
+                "protocols": ["HTTPS", "DNS"],
             },
             "enforcement_details": {
                 "actions": [
-                    {
-                        "type": "block_ip",
-                        "target": "1.2.3.4",
-                        "success": True
-                    },
-                    {
-                        "type": "quarantine",
-                        "target": "compromised-pod",
-                        "success": True
-                    }
+                    {"type": "block_ip", "target": "1.2.3.4", "success": True},
+                    {"type": "quarantine", "target": "compromised-pod", "success": True},
                 ]
             },
-            "documented_at": datetime.now(timezone.utc).isoformat()
+            "documented_at": datetime.now(timezone.utc).isoformat(),
         }
 
         mock_postmortems_collection.insert_one = AsyncMock(return_value=MagicMock())

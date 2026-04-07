@@ -42,7 +42,7 @@ class TestSemanticAnalyzer:
             },
         ]
 
-    @patch('neural_hive_specialists.semantic_pipeline.semantic_analyzer._get_sentence_transformer')
+    @patch("neural_hive_specialists.semantic_pipeline.semantic_analyzer._get_sentence_transformer")
     def test_init_default_config(self, mock_get_model, config):
         """Testa inicialização com config padrão."""
         mock_get_model.return_value = None  # Lazy load
@@ -57,7 +57,7 @@ class TestSemanticAnalyzer:
         assert analyzer._model is None
         assert analyzer._concept_embeddings_cache == {}
 
-    @patch('neural_hive_specialists.semantic_pipeline.semantic_analyzer._get_sentence_transformer')
+    @patch("neural_hive_specialists.semantic_pipeline.semantic_analyzer._get_sentence_transformer")
     def test_init_custom_threshold(self, mock_get_model):
         """Testa inicialização com threshold customizado."""
         mock_get_model.return_value = None
@@ -74,7 +74,7 @@ class TestSemanticAnalyzer:
         assert analyzer.similarity_threshold == 0.6
         assert analyzer.embeddings_model_name == "paraphrase-multilingual-MiniLM-L12-v2"
 
-    @patch('neural_hive_specialists.semantic_pipeline.semantic_analyzer._get_sentence_transformer')
+    @patch("neural_hive_specialists.semantic_pipeline.semantic_analyzer._get_sentence_transformer")
     def test_model_lazy_load(self, mock_get_model, config):
         """Testa carregamento lazy do modelo."""
         mock_model = MagicMock()
@@ -95,7 +95,7 @@ class TestSemanticAnalyzer:
         assert analyzer._model == mock_model
         mock_get_model.assert_called_once_with("all-MiniLM-L6-v2")
 
-    @patch('neural_hive_specialists.semantic_pipeline.semantic_analyzer._get_sentence_transformer')
+    @patch("neural_hive_specialists.semantic_pipeline.semantic_analyzer._get_sentence_transformer")
     def test_model_import_error_raises(self, mock_get_model, config):
         """Testa que ImportError é levantado quando modelo não está disponível."""
         mock_get_model.return_value = None
@@ -107,8 +107,8 @@ class TestSemanticAnalyzer:
         with pytest.raises(ImportError, match="sentence-transformers não está instalado"):
             _ = analyzer.model
 
-    @patch('neural_hive_specialists.semantic_pipeline.semantic_analyzer.cosine_similarity')
-    @patch('neural_hive_specialists.semantic_pipeline.semantic_analyzer._get_sentence_transformer')
+    @patch("neural_hive_specialists.semantic_pipeline.semantic_analyzer.cosine_similarity")
+    @patch("neural_hive_specialists.semantic_pipeline.semantic_analyzer._get_sentence_transformer")
     def test_analyze_security_with_empty_tasks(self, mock_get_model, mock_cosine_sim, config):
         """Testa análise de segurança com lista vazia."""
         mock_model = MagicMock()
@@ -122,11 +122,9 @@ class TestSemanticAnalyzer:
 
         assert score == 0.5
 
-    @patch('neural_hive_specialists.semantic_pipeline.semantic_analyzer.cosine_similarity')
-    @patch('neural_hive_specialists.semantic_pipeline.semantic_analyzer._get_sentence_transformer')
-    def test_analyze_security_with_no_descriptions(
-        self, mock_get_model, mock_cosine_sim, config
-    ):
+    @patch("neural_hive_specialists.semantic_pipeline.semantic_analyzer.cosine_similarity")
+    @patch("neural_hive_specialists.semantic_pipeline.semantic_analyzer._get_sentence_transformer")
+    def test_analyze_security_with_no_descriptions(self, mock_get_model, mock_cosine_sim, config):
         """Testa análise de segurança com tarefas sem descrição."""
         mock_model = MagicMock()
         mock_model.encode.return_value = np.array([[0.1, 0.2]])
@@ -140,11 +138,9 @@ class TestSemanticAnalyzer:
 
         assert score == 0.5
 
-    @patch('neural_hive_specialists.semantic_pipeline.semantic_analyzer.cosine_similarity')
-    @patch('neural_hive_specialists.semantic_pipeline.semantic_analyzer._get_sentence_transformer')
-    def test_analyze_security_success(
-        self, mock_get_model, mock_cosine_sim, config, sample_tasks
-    ):
+    @patch("neural_hive_specialists.semantic_pipeline.semantic_analyzer.cosine_similarity")
+    @patch("neural_hive_specialists.semantic_pipeline.semantic_analyzer._get_sentence_transformer")
+    def test_analyze_security_success(self, mock_get_model, mock_cosine_sim, config, sample_tasks):
         """Testa análise de segurança bem-sucedida."""
         # Mock do modelo
         mock_model = MagicMock()
@@ -153,11 +149,13 @@ class TestSemanticAnalyzer:
 
         # Mock cosine_similarity - 3 tarefas, 7 conceitos de segurança
         # Retornar similaridades acima do threshold
-        mock_cosine_sim.return_value = np.array([
-            [0.5, 0.6, 0.4, 0.7, 0.5, 0.4, 0.6],  # task-1
-            [0.3, 0.4, 0.5, 0.3, 0.4, 0.5, 0.3],  # task-2
-            [0.6, 0.5, 0.4, 0.6, 0.5, 0.4, 0.5],  # task-3
-        ])
+        mock_cosine_sim.return_value = np.array(
+            [
+                [0.5, 0.6, 0.4, 0.7, 0.5, 0.4, 0.6],  # task-1
+                [0.3, 0.4, 0.5, 0.3, 0.4, 0.5, 0.3],  # task-2
+                [0.6, 0.5, 0.4, 0.6, 0.5, 0.4, 0.5],  # task-3
+            ]
+        )
 
         from neural_hive_specialists.semantic_pipeline.semantic_analyzer import SemanticAnalyzer
 
@@ -168,8 +166,8 @@ class TestSemanticAnalyzer:
         assert 0.0 <= score <= 1.0
         assert isinstance(score, float)
 
-    @patch('neural_hive_specialists.semantic_pipeline.semantic_analyzer.cosine_similarity')
-    @patch('neural_hive_specialists.semantic_pipeline.semantic_analyzer._get_sentence_transformer')
+    @patch("neural_hive_specialists.semantic_pipeline.semantic_analyzer.cosine_similarity")
+    @patch("neural_hive_specialists.semantic_pipeline.semantic_analyzer._get_sentence_transformer")
     def test_analyze_security_exception_handling(
         self, mock_get_model, mock_cosine_sim, config, sample_tasks
     ):
@@ -186,8 +184,8 @@ class TestSemanticAnalyzer:
         # Deve retornar valor neutro em caso de erro
         assert score == 0.5
 
-    @patch('neural_hive_specialists.semantic_pipeline.semantic_analyzer.cosine_similarity')
-    @patch('neural_hive_specialists.semantic_pipeline.semantic_analyzer._get_sentence_transformer')
+    @patch("neural_hive_specialists.semantic_pipeline.semantic_analyzer.cosine_similarity")
+    @patch("neural_hive_specialists.semantic_pipeline.semantic_analyzer._get_sentence_transformer")
     def test_analyze_architecture_success(
         self, mock_get_model, mock_cosine_sim, config, sample_tasks
     ):
@@ -196,11 +194,13 @@ class TestSemanticAnalyzer:
         mock_model.encode.return_value = np.array([[0.1, 0.2, 0.3]])
         mock_get_model.return_value = mock_model
 
-        mock_cosine_sim.return_value = np.array([
-            [0.5, 0.6, 0.4, 0.7, 0.5, 0.4, 0.6],
-            [0.3, 0.4, 0.5, 0.3, 0.4, 0.5, 0.3],
-            [0.6, 0.5, 0.4, 0.6, 0.5, 0.4, 0.5],
-        ])
+        mock_cosine_sim.return_value = np.array(
+            [
+                [0.5, 0.6, 0.4, 0.7, 0.5, 0.4, 0.6],
+                [0.3, 0.4, 0.5, 0.3, 0.4, 0.5, 0.3],
+                [0.6, 0.5, 0.4, 0.6, 0.5, 0.4, 0.5],
+            ]
+        )
 
         from neural_hive_specialists.semantic_pipeline.semantic_analyzer import SemanticAnalyzer
 
@@ -210,8 +210,8 @@ class TestSemanticAnalyzer:
         assert 0.0 <= score <= 1.0
         assert isinstance(score, float)
 
-    @patch('neural_hive_specialists.semantic_pipeline.semantic_analyzer.cosine_similarity')
-    @patch('neural_hive_specialists.semantic_pipeline.semantic_analyzer._get_sentence_transformer')
+    @patch("neural_hive_specialists.semantic_pipeline.semantic_analyzer.cosine_similarity")
+    @patch("neural_hive_specialists.semantic_pipeline.semantic_analyzer._get_sentence_transformer")
     def test_analyze_architecture_with_empty_tasks(self, mock_get_model, mock_cosine_sim, config):
         """Testa análise de arquitetura com lista vazia."""
         mock_model = MagicMock()
@@ -225,8 +225,8 @@ class TestSemanticAnalyzer:
 
         assert score == 0.5
 
-    @patch('neural_hive_specialists.semantic_pipeline.semantic_analyzer.cosine_similarity')
-    @patch('neural_hive_specialists.semantic_pipeline.semantic_analyzer._get_sentence_transformer')
+    @patch("neural_hive_specialists.semantic_pipeline.semantic_analyzer.cosine_similarity")
+    @patch("neural_hive_specialists.semantic_pipeline.semantic_analyzer._get_sentence_transformer")
     def test_analyze_performance_success(
         self, mock_get_model, mock_cosine_sim, config, sample_tasks
     ):
@@ -235,11 +235,13 @@ class TestSemanticAnalyzer:
         mock_model.encode.return_value = np.array([[0.1, 0.2, 0.3]])
         mock_get_model.return_value = mock_model
 
-        mock_cosine_sim.return_value = np.array([
-            [0.5, 0.6, 0.4, 0.7, 0.5, 0.4, 0.6],
-            [0.3, 0.4, 0.5, 0.3, 0.4, 0.5, 0.3],
-            [0.6, 0.5, 0.4, 0.6, 0.5, 0.4, 0.5],
-        ])
+        mock_cosine_sim.return_value = np.array(
+            [
+                [0.5, 0.6, 0.4, 0.7, 0.5, 0.4, 0.6],
+                [0.3, 0.4, 0.5, 0.3, 0.4, 0.5, 0.3],
+                [0.6, 0.5, 0.4, 0.6, 0.5, 0.4, 0.5],
+            ]
+        )
 
         from neural_hive_specialists.semantic_pipeline.semantic_analyzer import SemanticAnalyzer
 
@@ -249,8 +251,8 @@ class TestSemanticAnalyzer:
         assert 0.0 <= score <= 1.0
         assert isinstance(score, float)
 
-    @patch('neural_hive_specialists.semantic_pipeline.semantic_analyzer.cosine_similarity')
-    @patch('neural_hive_specialists.semantic_pipeline.semantic_analyzer._get_sentence_transformer')
+    @patch("neural_hive_specialists.semantic_pipeline.semantic_analyzer.cosine_similarity")
+    @patch("neural_hive_specialists.semantic_pipeline.semantic_analyzer._get_sentence_transformer")
     def test_analyze_performance_exception_handling(
         self, mock_get_model, mock_cosine_sim, config, sample_tasks
     ):
@@ -266,8 +268,8 @@ class TestSemanticAnalyzer:
 
         assert score == 0.5
 
-    @patch('neural_hive_specialists.semantic_pipeline.semantic_analyzer.cosine_similarity')
-    @patch('neural_hive_specialists.semantic_pipeline.semantic_analyzer._get_sentence_transformer')
+    @patch("neural_hive_specialists.semantic_pipeline.semantic_analyzer.cosine_similarity")
+    @patch("neural_hive_specialists.semantic_pipeline.semantic_analyzer._get_sentence_transformer")
     def test_analyze_code_quality_success(
         self, mock_get_model, mock_cosine_sim, config, sample_tasks
     ):
@@ -276,11 +278,13 @@ class TestSemanticAnalyzer:
         mock_model.encode.return_value = np.array([[0.1, 0.2, 0.3]])
         mock_get_model.return_value = mock_model
 
-        mock_cosine_sim.return_value = np.array([
-            [0.5, 0.6, 0.4, 0.7],
-            [0.3, 0.4, 0.5, 0.3],
-            [0.6, 0.5, 0.4, 0.6],
-        ])
+        mock_cosine_sim.return_value = np.array(
+            [
+                [0.5, 0.6, 0.4, 0.7],
+                [0.3, 0.4, 0.5, 0.3],
+                [0.6, 0.5, 0.4, 0.6],
+            ]
+        )
 
         from neural_hive_specialists.semantic_pipeline.semantic_analyzer import SemanticAnalyzer
 
@@ -290,8 +294,8 @@ class TestSemanticAnalyzer:
         assert 0.0 <= score <= 1.0
         assert isinstance(score, float)
 
-    @patch('neural_hive_specialists.semantic_pipeline.semantic_analyzer.cosine_similarity')
-    @patch('neural_hive_specialists.semantic_pipeline.semantic_analyzer._get_sentence_transformer')
+    @patch("neural_hive_specialists.semantic_pipeline.semantic_analyzer.cosine_similarity")
+    @patch("neural_hive_specialists.semantic_pipeline.semantic_analyzer._get_sentence_transformer")
     def test_analyze_code_quality_with_empty_tasks(self, mock_get_model, mock_cosine_sim, config):
         """Testa análise de qualidade com lista vazia."""
         mock_model = MagicMock()
@@ -305,11 +309,9 @@ class TestSemanticAnalyzer:
 
         assert score == 0.5
 
-    @patch('neural_hive_specialists.semantic_pipeline.semantic_analyzer.cosine_similarity')
-    @patch('neural_hive_specialists.semantic_pipeline.semantic_analyzer._get_sentence_transformer')
-    def test_get_concept_embeddings_caches_results(
-        self, mock_get_model, mock_cosine_sim, config
-    ):
+    @patch("neural_hive_specialists.semantic_pipeline.semantic_analyzer.cosine_similarity")
+    @patch("neural_hive_specialists.semantic_pipeline.semantic_analyzer._get_sentence_transformer")
+    def test_get_concept_embeddings_caches_results(self, mock_get_model, mock_cosine_sim, config):
         """Testa que embeddings de conceitos são cacheados."""
         mock_model = MagicMock()
         mock_model.encode.return_value = np.array([[0.1, 0.2]])
@@ -332,11 +334,9 @@ class TestSemanticAnalyzer:
         assert mock_model.encode.call_count == 1
         np.array_equal(embeddings1, embeddings2)
 
-    @patch('neural_hive_specialists.semantic_pipeline.semantic_analyzer.cosine_similarity')
-    @patch('neural_hive_specialists.semantic_pipeline.semantic_analyzer._get_sentence_transformer')
-    def test_compute_task_similarity_success(
-        self, mock_get_model, mock_cosine_sim, config
-    ):
+    @patch("neural_hive_specialists.semantic_pipeline.semantic_analyzer.cosine_similarity")
+    @patch("neural_hive_specialists.semantic_pipeline.semantic_analyzer._get_sentence_transformer")
+    def test_compute_task_similarity_success(self, mock_get_model, mock_cosine_sim, config):
         """Testa cálculo de similaridade de tarefa."""
         mock_model = MagicMock()
         mock_model.encode.return_value = np.array([[0.1, 0.2, 0.3]])
@@ -355,8 +355,8 @@ class TestSemanticAnalyzer:
 
         assert similarity == 0.6  # Max dos retornos
 
-    @patch('neural_hive_specialists.semantic_pipeline.semantic_analyzer.cosine_similarity')
-    @patch('neural_hive_specialists.semantic_pipeline.semantic_analyzer._get_sentence_transformer')
+    @patch("neural_hive_specialists.semantic_pipeline.semantic_analyzer.cosine_similarity")
+    @patch("neural_hive_specialists.semantic_pipeline.semantic_analyzer._get_sentence_transformer")
     def test_compute_task_similarity_exception_handling(
         self, mock_get_model, mock_cosine_sim, config
     ):
@@ -402,10 +402,8 @@ class TestSemanticAnalyzer:
         assert len(SemanticAnalyzer.CODE_QUALITY_CONCEPTS) > 0
         assert all(isinstance(c, str) for c in SemanticAnalyzer.CODE_QUALITY_CONCEPTS)
 
-    @patch('neural_hive_specialists.semantic_pipeline.semantic_analyzer._get_sentence_transformer')
-    def test_custom_threshold_used_in_analysis(
-        self, mock_get_model
-    ):
+    @patch("neural_hive_specialists.semantic_pipeline.semantic_analyzer._get_sentence_transformer")
+    def test_custom_threshold_used_in_analysis(self, mock_get_model):
         """Testa que threshold customizado é usado."""
         mock_model = MagicMock()
         mock_model.encode.return_value = np.array([[0.1, 0.2, 0.3]])
@@ -425,7 +423,9 @@ class TestSemanticAnalyzer:
 class TestCosineSimilarityLazyLoad:
     """Testes para função cosine_similarity lazy load."""
 
-    @patch('neural_hive_specialists.semantic_pipeline.semantic_analyzer._cosine_similarity_func', None)
+    @patch(
+        "neural_hive_specialists.semantic_pipeline.semantic_analyzer._cosine_similarity_func", None
+    )
     def test_cosine_similarity_lazy_loads_sklearn(self):
         """Testa que cosine_similarity carrega sklearn sob demanda."""
         # Esta função é tricky de testar porque modifica variável global
@@ -441,7 +441,9 @@ class TestGetSentenceTransformer:
 
     def test_function_is_callable(self):
         """Testa que função _get_sentence_transformer pode ser chamada."""
-        from neural_hive_specialists.semantic_pipeline.semantic_analyzer import _get_sentence_transformer
+        from neural_hive_specialists.semantic_pipeline.semantic_analyzer import (
+            _get_sentence_transformer,
+        )
 
         # A função deve estar acessível
         assert callable(_get_sentence_transformer)

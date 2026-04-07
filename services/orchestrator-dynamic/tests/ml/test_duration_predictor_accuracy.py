@@ -66,15 +66,15 @@ class TestDurationPredictorAccuracy:
         np.random.seed(42)
         n_tickets = 500
 
-        task_types = ['INFERENCE', 'PREPROCESSING', 'ANALYSIS', 'AGGREGATION']
-        risk_bands = ['low', 'medium', 'high']
+        task_types = ["INFERENCE", "PREPROCESSING", "ANALYSIS", "AGGREGATION"]
+        risk_bands = ["low", "medium", "high"]
 
         # Parâmetros base por task_type (simula padrões reais)
         task_params = {
-            'INFERENCE': {'mean': 30000, 'std': 5000},
-            'PREPROCESSING': {'mean': 15000, 'std': 3000},
-            'ANALYSIS': {'mean': 60000, 'std': 10000},
-            'AGGREGATION': {'mean': 45000, 'std': 8000}
+            "INFERENCE": {"mean": 30000, "std": 5000},
+            "PREPROCESSING": {"mean": 15000, "std": 3000},
+            "ANALYSIS": {"mean": 60000, "std": 10000},
+            "AGGREGATION": {"mean": 45000, "std": 8000},
         }
 
         tickets = []
@@ -83,47 +83,42 @@ class TestDurationPredictorAccuracy:
             risk_band = np.random.choice(risk_bands)
 
             params = task_params[task_type]
-            base_duration = params['mean']
-            std_duration = params['std']
+            base_duration = params["mean"]
+            std_duration = params["std"]
 
             # Ajuste por risk_band
-            risk_factor = {'low': 0.8, 'medium': 1.0, 'high': 1.3}[risk_band]
+            risk_factor = {"low": 0.8, "medium": 1.0, "high": 1.3}[risk_band]
 
-            actual_duration = max(
-                1000,
-                np.random.normal(base_duration * risk_factor, std_duration)
-            )
+            actual_duration = max(1000, np.random.normal(base_duration * risk_factor, std_duration))
 
             # Estimativa com algum erro
             estimated_duration = actual_duration * np.random.uniform(0.7, 1.3)
 
-            tickets.append({
-                'ticket_id': f'ticket-{i}',
-                'task_type': task_type,
-                'risk_band': risk_band,
-                'actual_duration_ms': actual_duration,
-                'estimated_duration_ms': estimated_duration,
-                'status': 'COMPLETED',
-                'created_at': datetime.now(timezone.utc) - timedelta(days=np.random.randint(1, 30)),
-                'completed_at': datetime.now(timezone.utc),
-                'required_capabilities': ['cpu', 'memory'][:np.random.randint(1, 3)],
-                'parameters': {'key': 'value'},
-                'sla_timeout_ms': 300000,
-                'retry_count': 0,
-                'resource_cpu': 0.5,
-                'resource_memory': 512
-            })
+            tickets.append(
+                {
+                    "ticket_id": f"ticket-{i}",
+                    "task_type": task_type,
+                    "risk_band": risk_band,
+                    "actual_duration_ms": actual_duration,
+                    "estimated_duration_ms": estimated_duration,
+                    "status": "COMPLETED",
+                    "created_at": datetime.now(timezone.utc)
+                    - timedelta(days=np.random.randint(1, 30)),
+                    "completed_at": datetime.now(timezone.utc),
+                    "required_capabilities": ["cpu", "memory"][: np.random.randint(1, 3)],
+                    "parameters": {"key": "value"},
+                    "sla_timeout_ms": 300000,
+                    "retry_count": 0,
+                    "resource_cpu": 0.5,
+                    "resource_memory": 512,
+                }
+            )
 
         return tickets
 
     @pytest.mark.asyncio
     async def test_mae_threshold(
-        self,
-        mock_config,
-        mock_mongodb,
-        mock_model_registry,
-        mock_metrics,
-        sample_tickets
+        self, mock_config, mock_mongodb, mock_model_registry, mock_metrics, sample_tickets
     ):
         """
         Testa se MAE está abaixo do threshold de 15%.
@@ -134,8 +129,8 @@ class TestDurationPredictorAccuracy:
         # Preparar dados
         df = pd.DataFrame(sample_tickets)
 
-        actual_durations = df['actual_duration_ms'].values
-        estimated_durations = df['estimated_duration_ms'].values
+        actual_durations = df["actual_duration_ms"].values
+        estimated_durations = df["estimated_duration_ms"].values
 
         # Simular predições com modelo treinado (melhor que estimativas)
         # Adicionar ruído menor que nas estimativas originais
@@ -147,9 +142,9 @@ class TestDurationPredictorAccuracy:
         mae_percentage = mae / mean_duration
 
         # Validar
-        assert mae_percentage < 0.15, (
-            f"MAE percentual ({mae_percentage:.2%}) excede threshold de 15%"
-        )
+        assert (
+            mae_percentage < 0.15
+        ), f"MAE percentual ({mae_percentage:.2%}) excede threshold de 15%"
 
         # Log resultado
         print(f"\n=== Teste MAE ===")
@@ -160,10 +155,7 @@ class TestDurationPredictorAccuracy:
         print(f"Status: PASS ✓")
 
     @pytest.mark.asyncio
-    async def test_rmse_threshold(
-        self,
-        sample_tickets
-    ):
+    async def test_rmse_threshold(self, sample_tickets):
         """
         Testa se RMSE está dentro de limites aceitáveis.
 
@@ -172,7 +164,7 @@ class TestDurationPredictorAccuracy:
         """
         df = pd.DataFrame(sample_tickets)
 
-        actual_durations = df['actual_duration_ms'].values
+        actual_durations = df["actual_duration_ms"].values
 
         # Simular predições
         predictions = actual_durations * np.random.uniform(0.85, 1.15, len(actual_durations))
@@ -184,9 +176,9 @@ class TestDurationPredictorAccuracy:
         # RMSE não deve ser muito maior que MAE (indica outliers)
         rmse_mae_ratio = rmse / mae
 
-        assert rmse_mae_ratio < 1.5, (
-            f"Ratio RMSE/MAE ({rmse_mae_ratio:.2f}) excede 1.5, indicando outliers"
-        )
+        assert (
+            rmse_mae_ratio < 1.5
+        ), f"Ratio RMSE/MAE ({rmse_mae_ratio:.2f}) excede 1.5, indicando outliers"
 
         print(f"\n=== Teste RMSE ===")
         print(f"RMSE: {rmse:.2f}ms")
@@ -196,10 +188,7 @@ class TestDurationPredictorAccuracy:
         print(f"Status: PASS ✓")
 
     @pytest.mark.asyncio
-    async def test_r2_score_threshold(
-        self,
-        sample_tickets
-    ):
+    async def test_r2_score_threshold(self, sample_tickets):
         """
         Testa se R² está acima de 0.7.
 
@@ -208,7 +197,7 @@ class TestDurationPredictorAccuracy:
         """
         df = pd.DataFrame(sample_tickets)
 
-        actual_durations = df['actual_duration_ms'].values
+        actual_durations = df["actual_duration_ms"].values
 
         # Simular predições com correlação alta
         noise = np.random.normal(0, np.std(actual_durations) * 0.3, len(actual_durations))
@@ -217,9 +206,7 @@ class TestDurationPredictorAccuracy:
         # Calcular R²
         r2 = r2_score(actual_durations, predictions)
 
-        assert r2 > 0.7, (
-            f"R² ({r2:.3f}) está abaixo do threshold de 0.7"
-        )
+        assert r2 > 0.7, f"R² ({r2:.3f}) está abaixo do threshold de 0.7"
 
         print(f"\n=== Teste R² ===")
         print(f"R²: {r2:.3f}")
@@ -227,10 +214,7 @@ class TestDurationPredictorAccuracy:
         print(f"Status: PASS ✓")
 
     @pytest.mark.asyncio
-    async def test_confidence_calibration(
-        self,
-        sample_tickets
-    ):
+    async def test_confidence_calibration(self, sample_tickets):
         """
         Testa se confidence scores estão calibrados.
 
@@ -238,7 +222,7 @@ class TestDurationPredictorAccuracy:
         """
         df = pd.DataFrame(sample_tickets)
 
-        actual_durations = df['actual_duration_ms'].values
+        actual_durations = df["actual_duration_ms"].values
         n = len(actual_durations)
 
         # Simular predições e confidences
@@ -256,12 +240,10 @@ class TestDurationPredictorAccuracy:
 
         if high_conf_mask.sum() > 10 and low_conf_mask.sum() > 10:
             high_conf_mae = mean_absolute_error(
-                actual_durations[high_conf_mask],
-                predictions[high_conf_mask]
+                actual_durations[high_conf_mask], predictions[high_conf_mask]
             )
             low_conf_mae = mean_absolute_error(
-                actual_durations[low_conf_mask],
-                predictions[low_conf_mask]
+                actual_durations[low_conf_mask], predictions[low_conf_mask]
             )
 
             # Alta confiança deve ter MAE menor
@@ -276,10 +258,7 @@ class TestDurationPredictorAccuracy:
             print(f"Status: PASS ✓ (High < Low)")
 
     @pytest.mark.asyncio
-    async def test_edge_cases(
-        self,
-        sample_tickets
-    ):
+    async def test_edge_cases(self, sample_tickets):
         """
         Testa comportamento com valores extremos.
 
@@ -290,22 +269,22 @@ class TestDurationPredictorAccuracy:
         edge_tickets = [
             # Muito curto
             {
-                'task_type': 'INFERENCE',
-                'risk_band': 'low',
-                'actual_duration_ms': 500,
-                'estimated_duration_ms': 1000,
-                'required_capabilities': ['cpu'],
-                'parameters': {}
+                "task_type": "INFERENCE",
+                "risk_band": "low",
+                "actual_duration_ms": 500,
+                "estimated_duration_ms": 1000,
+                "required_capabilities": ["cpu"],
+                "parameters": {},
             },
             # Muito longo
             {
-                'task_type': 'ANALYSIS',
-                'risk_band': 'high',
-                'actual_duration_ms': 600000,  # 10 min
-                'estimated_duration_ms': 300000,
-                'required_capabilities': ['cpu', 'memory', 'gpu'],
-                'parameters': {'large': True}
-            }
+                "task_type": "ANALYSIS",
+                "risk_band": "high",
+                "actual_duration_ms": 600000,  # 10 min
+                "estimated_duration_ms": 300000,
+                "required_capabilities": ["cpu", "memory", "gpu"],
+                "parameters": {"large": True},
+            },
         ]
 
         # Verificar que features podem ser extraídas
@@ -314,7 +293,7 @@ class TestDurationPredictorAccuracy:
             assert features is not None, "Features devem ser extraídas mesmo para edge cases"
 
             # Verificar bounds razoáveis
-            duration = ticket['actual_duration_ms']
+            duration = ticket["actual_duration_ms"]
             assert duration > 0, "Duração deve ser positiva"
             assert duration < 3600000, "Duração deve ser menor que 1 hora"
 
@@ -324,10 +303,7 @@ class TestDurationPredictorAccuracy:
         print(f"Status: PASS ✓")
 
     @pytest.mark.asyncio
-    async def test_prediction_bounds(
-        self,
-        sample_tickets
-    ):
+    async def test_prediction_bounds(self, sample_tickets):
         """
         Testa se predições estão dentro de limites razoáveis.
 
@@ -335,7 +311,7 @@ class TestDurationPredictorAccuracy:
         """
         df = pd.DataFrame(sample_tickets)
 
-        actual_durations = df['actual_duration_ms'].values
+        actual_durations = df["actual_duration_ms"].values
 
         # Simular predições
         predictions = actual_durations * np.random.uniform(0.85, 1.15, len(actual_durations))
@@ -354,10 +330,7 @@ class TestDurationPredictorAccuracy:
         print(f"Status: PASS ✓")
 
     @pytest.mark.asyncio
-    async def test_task_type_consistency(
-        self,
-        sample_tickets
-    ):
+    async def test_task_type_consistency(self, sample_tickets):
         """
         Testa se modelo mantém consistência por task_type.
 
@@ -366,13 +339,13 @@ class TestDurationPredictorAccuracy:
         df = pd.DataFrame(sample_tickets)
 
         # Agrupar por task_type
-        grouped = df.groupby('task_type')
+        grouped = df.groupby("task_type")
 
         for task_type, group in grouped:
             if len(group) < 10:
                 continue
 
-            actual = group['actual_duration_ms'].values
+            actual = group["actual_duration_ms"].values
 
             # Simular predições
             predictions = actual * np.random.uniform(0.9, 1.1, len(actual))
@@ -382,12 +355,10 @@ class TestDurationPredictorAccuracy:
             group_mean = np.mean(actual)
             group_mae_pct = group_mae / group_mean
 
-            assert group_mae_pct < 0.20, (
-                f"MAE para {task_type} ({group_mae_pct:.2%}) excede 20%"
-            )
+            assert group_mae_pct < 0.20, f"MAE para {task_type} ({group_mae_pct:.2%}) excede 20%"
 
         print(f"\n=== Teste Consistência por Task Type ===")
-        for task_type in df['task_type'].unique():
+        for task_type in df["task_type"].unique():
             print(f"  {task_type}: OK")
         print(f"Status: PASS ✓")
 
@@ -405,16 +376,12 @@ class TestDurationPredictorValidation:
         predicted = actual * np.random.uniform(0.8, 1.2, n)
         confidence = np.random.uniform(0.5, 0.99, n)
 
-        return {
-            'actual': actual,
-            'predicted': predicted,
-            'confidence': confidence
-        }
+        return {"actual": actual, "predicted": predicted, "confidence": confidence}
 
     def test_statistical_validation(self, validation_data):
         """Testa validação estatística dos resultados."""
-        actual = validation_data['actual']
-        predicted = validation_data['predicted']
+        actual = validation_data["actual"]
+        predicted = validation_data["predicted"]
 
         # Métricas
         mae = mean_absolute_error(actual, predicted)
@@ -442,8 +409,8 @@ class TestDurationPredictorValidation:
 
     def test_error_distribution(self, validation_data):
         """Testa distribuição de erros."""
-        actual = validation_data['actual']
-        predicted = validation_data['predicted']
+        actual = validation_data["actual"]
+        predicted = validation_data["predicted"]
 
         # Erros relativos
         relative_errors = (predicted - actual) / actual
@@ -494,7 +461,7 @@ class TestDurationPredictorTrainingValidation:
         registry.load_model = AsyncMock(return_value=None)
         registry.save_model = AsyncMock(return_value="run-123")
         registry.promote_model = AsyncMock()
-        registry.get_model_metadata = AsyncMock(return_value={'version': '1'})
+        registry.get_model_metadata = AsyncMock(return_value={"version": "1"})
         return registry
 
     @pytest.fixture
@@ -510,11 +477,7 @@ class TestDurationPredictorTrainingValidation:
 
     @pytest.mark.asyncio
     async def test_load_model_validates_estimators(
-        self,
-        mock_config,
-        mock_mongodb,
-        mock_model_registry,
-        mock_metrics
+        self, mock_config, mock_mongodb, mock_model_registry, mock_metrics
     ):
         """
         Testa que _load_model() retorna None se modelo não tem estimators_.
@@ -531,7 +494,7 @@ class TestDurationPredictorTrainingValidation:
             config=mock_config,
             mongodb_client=mock_mongodb,
             model_registry=mock_model_registry,
-            metrics=mock_metrics
+            metrics=mock_metrics,
         )
 
         # _load_model deve retornar None para modelo não treinado
@@ -544,11 +507,7 @@ class TestDurationPredictorTrainingValidation:
 
     @pytest.mark.asyncio
     async def test_load_model_accepts_trained_model(
-        self,
-        mock_config,
-        mock_mongodb,
-        mock_model_registry,
-        mock_metrics
+        self, mock_config, mock_mongodb, mock_model_registry, mock_metrics
     ):
         """
         Testa que _load_model() aceita modelo treinado com estimators_.
@@ -568,24 +527,20 @@ class TestDurationPredictorTrainingValidation:
             config=mock_config,
             mongodb_client=mock_mongodb,
             model_registry=mock_model_registry,
-            metrics=mock_metrics
+            metrics=mock_metrics,
         )
 
         result = await predictor._load_model()
 
         assert result is not None, "Modelo treinado deve ser aceito"
-        assert hasattr(result, 'estimators_'), "Modelo deve ter estimators_"
+        assert hasattr(result, "estimators_"), "Modelo deve ter estimators_"
         print("\n=== Teste Modelo Treinado ===")
         print(f"Modelo aceito com {len(result.estimators_)} estimators")
         print("Status: PASS ✓")
 
     @pytest.mark.asyncio
     async def test_create_default_model_not_trained(
-        self,
-        mock_config,
-        mock_mongodb,
-        mock_model_registry,
-        mock_metrics
+        self, mock_config, mock_mongodb, mock_model_registry, mock_metrics
     ):
         """
         Testa que _create_default_model() retorna modelo sem estimators_.
@@ -594,56 +549,54 @@ class TestDurationPredictorTrainingValidation:
             config=mock_config,
             mongodb_client=mock_mongodb,
             model_registry=mock_model_registry,
-            metrics=mock_metrics
+            metrics=mock_metrics,
         )
 
         model = predictor._create_default_model()
 
         assert model is not None, "Modelo default deve ser criado"
-        assert not hasattr(model, 'estimators_'), "Modelo default não deve ter estimators_"
+        assert not hasattr(model, "estimators_"), "Modelo default não deve ter estimators_"
         print("\n=== Teste Modelo Default ===")
         print("Modelo default criado corretamente (não treinado)")
         print("Status: PASS ✓")
 
     @pytest.mark.asyncio
     async def test_ensure_model_trained_with_sufficient_data(
-        self,
-        mock_config,
-        mock_mongodb,
-        mock_model_registry,
-        mock_metrics
+        self, mock_config, mock_mongodb, mock_model_registry, mock_metrics
     ):
         """
         Testa que _ensure_model_trained() treina quando há dados suficientes.
         """
         # Mock MongoDB para retornar dados suficientes
-        mock_mongodb.db['execution_tickets'].count_documents = AsyncMock(return_value=150)
+        mock_mongodb.db["execution_tickets"].count_documents = AsyncMock(return_value=150)
 
         # Mock para simular treinamento bem-sucedido
         trained_tickets = []
         for i in range(150):
-            trained_tickets.append({
-                'ticket_id': f'ticket-{i}',
-                'task_type': 'INFERENCE',
-                'risk_band': 'medium',
-                'actual_duration_ms': 30000 + np.random.normal(0, 5000),
-                'estimated_duration_ms': 30000,
-                'completed_at': datetime.now(timezone.utc),
-                'required_capabilities': ['cpu'],
-                'parameters': {},
-                'sla_timeout_ms': 300000,
-                'retry_count': 0
-            })
+            trained_tickets.append(
+                {
+                    "ticket_id": f"ticket-{i}",
+                    "task_type": "INFERENCE",
+                    "risk_band": "medium",
+                    "actual_duration_ms": 30000 + np.random.normal(0, 5000),
+                    "estimated_duration_ms": 30000,
+                    "completed_at": datetime.now(timezone.utc),
+                    "required_capabilities": ["cpu"],
+                    "parameters": {},
+                    "sla_timeout_ms": 300000,
+                    "retry_count": 0,
+                }
+            )
 
         mock_cursor = AsyncMock()
         mock_cursor.to_list = AsyncMock(return_value=trained_tickets)
-        mock_mongodb.db['execution_tickets'].find = MagicMock(return_value=mock_cursor)
+        mock_mongodb.db["execution_tickets"].find = MagicMock(return_value=mock_cursor)
 
         predictor = DurationPredictor(
             config=mock_config,
             mongodb_client=mock_mongodb,
             model_registry=mock_model_registry,
-            metrics=mock_metrics
+            metrics=mock_metrics,
         )
 
         # Inicializar stats para evitar erros
@@ -659,23 +612,19 @@ class TestDurationPredictorTrainingValidation:
 
     @pytest.mark.asyncio
     async def test_ensure_model_trained_insufficient_data(
-        self,
-        mock_config,
-        mock_mongodb,
-        mock_model_registry,
-        mock_metrics
+        self, mock_config, mock_mongodb, mock_model_registry, mock_metrics
     ):
         """
         Testa que _ensure_model_trained() retorna False com dados insuficientes.
         """
         # Mock MongoDB para retornar poucos dados
-        mock_mongodb.db['execution_tickets'].count_documents = AsyncMock(return_value=50)
+        mock_mongodb.db["execution_tickets"].count_documents = AsyncMock(return_value=50)
 
         predictor = DurationPredictor(
             config=mock_config,
             mongodb_client=mock_mongodb,
             model_registry=mock_model_registry,
-            metrics=mock_metrics
+            metrics=mock_metrics,
         )
 
         result = await predictor._ensure_model_trained()
@@ -688,11 +637,7 @@ class TestDurationPredictorTrainingValidation:
 
     @pytest.mark.asyncio
     async def test_ensure_model_trained_already_trained(
-        self,
-        mock_config,
-        mock_mongodb,
-        mock_model_registry,
-        mock_metrics
+        self, mock_config, mock_mongodb, mock_model_registry, mock_metrics
     ):
         """
         Testa que _ensure_model_trained() não retreina se modelo já treinado.
@@ -709,7 +654,7 @@ class TestDurationPredictorTrainingValidation:
             config=mock_config,
             mongodb_client=mock_mongodb,
             model_registry=mock_model_registry,
-            metrics=mock_metrics
+            metrics=mock_metrics,
         )
         predictor.model = trained_model
 
@@ -723,11 +668,7 @@ class TestDurationPredictorTrainingValidation:
 
     @pytest.mark.asyncio
     async def test_predict_duration_untrained_model_uses_heuristic(
-        self,
-        mock_config,
-        mock_mongodb,
-        mock_model_registry,
-        mock_metrics
+        self, mock_config, mock_mongodb, mock_model_registry, mock_metrics
     ):
         """
         Testa que predict_duration() usa heurística quando modelo não treinado.
@@ -736,27 +677,25 @@ class TestDurationPredictorTrainingValidation:
             config=mock_config,
             mongodb_client=mock_mongodb,
             model_registry=mock_model_registry,
-            metrics=mock_metrics
+            metrics=mock_metrics,
         )
         predictor.model = None  # Sem modelo
-        predictor.historical_stats = {
-            'INFERENCE': {'avg_duration': 30000, 'std_duration': 5000}
-        }
+        predictor.historical_stats = {"INFERENCE": {"avg_duration": 30000, "std_duration": 5000}}
 
         ticket = {
-            'ticket_id': 'test-1',
-            'task_type': 'INFERENCE',
-            'risk_band': 'medium',
-            'estimated_duration_ms': 30000,
-            'required_capabilities': ['cpu'],
-            'parameters': {}
+            "ticket_id": "test-1",
+            "task_type": "INFERENCE",
+            "risk_band": "medium",
+            "estimated_duration_ms": 30000,
+            "required_capabilities": ["cpu"],
+            "parameters": {},
         }
 
         result = await predictor.predict_duration(ticket)
 
-        assert 'duration_ms' in result, "Resultado deve ter duration_ms"
-        assert 'confidence' in result, "Resultado deve ter confidence"
-        assert result['confidence'] == 0.3, "Confidence deve ser 0.3 para heurística"
+        assert "duration_ms" in result, "Resultado deve ter duration_ms"
+        assert "confidence" in result, "Resultado deve ter confidence"
+        assert result["confidence"] == 0.3, "Confidence deve ser 0.3 para heurística"
         print("\n=== Teste Heurística sem Modelo ===")
         print(f"Duration: {result['duration_ms']:.0f}ms")
         print(f"Confidence: {result['confidence']}")
@@ -764,11 +703,7 @@ class TestDurationPredictorTrainingValidation:
 
     @pytest.mark.asyncio
     async def test_predict_duration_trained_model_uses_ml(
-        self,
-        mock_config,
-        mock_mongodb,
-        mock_model_registry,
-        mock_metrics
+        self, mock_config, mock_mongodb, mock_model_registry, mock_metrics
     ):
         """
         Testa que predict_duration() usa ML quando modelo treinado.
@@ -788,37 +723,33 @@ class TestDurationPredictorTrainingValidation:
             config=mock_config,
             mongodb_client=mock_mongodb,
             model_registry=mock_model_registry,
-            metrics=mock_metrics
+            metrics=mock_metrics,
         )
         predictor.model = trained_model
         # Stats com valores realistas para calcular confidence adequado
         predictor.historical_stats = {
-            'INFERENCE': {
-                'avg_duration': 30000,
-                'std_duration': 5000,
-                'success_rate': 0.95
-            }
+            "INFERENCE": {"avg_duration": 30000, "std_duration": 5000, "success_rate": 0.95}
         }
 
         ticket = {
-            'ticket_id': 'test-1',
-            'task_type': 'INFERENCE',
-            'risk_band': 'medium',
-            'estimated_duration_ms': 30000,
-            'required_capabilities': ['cpu'],
-            'parameters': {},
-            'sla_timeout_ms': 300000
+            "ticket_id": "test-1",
+            "task_type": "INFERENCE",
+            "risk_band": "medium",
+            "estimated_duration_ms": 30000,
+            "required_capabilities": ["cpu"],
+            "parameters": {},
+            "sla_timeout_ms": 300000,
         }
 
         result = await predictor.predict_duration(ticket)
 
-        assert 'duration_ms' in result, "Resultado deve ter duration_ms"
-        assert 'confidence' in result, "Resultado deve ter confidence"
+        assert "duration_ms" in result, "Resultado deve ter duration_ms"
+        assert "confidence" in result, "Resultado deve ter confidence"
         # Validar que usou ML verificando que modelo.predict foi chamado
         # O confidence pode variar dependendo do histórico, mas deve ser >= 0.1
-        assert result['confidence'] >= 0.1, "Confidence deve ser pelo menos 0.1"
+        assert result["confidence"] >= 0.1, "Confidence deve ser pelo menos 0.1"
         # Verificar que modelo tem estimators_ (indica que ML foi usado)
-        assert hasattr(predictor.model, 'estimators_'), "Modelo deve ter estimators_"
+        assert hasattr(predictor.model, "estimators_"), "Modelo deve ter estimators_"
         print("\n=== Teste ML com Modelo Treinado ===")
         print(f"Duration: {result['duration_ms']:.0f}ms")
         print(f"Confidence: {result['confidence']:.2f}")
@@ -826,31 +757,25 @@ class TestDurationPredictorTrainingValidation:
 
     @pytest.mark.asyncio
     async def test_training_status_metrics_recorded(
-        self,
-        mock_config,
-        mock_mongodb,
-        mock_model_registry,
-        mock_metrics
+        self, mock_config, mock_mongodb, mock_model_registry, mock_metrics
     ):
         """
         Testa que métricas de status de treinamento são registradas.
         """
-        mock_mongodb.db['execution_tickets'].count_documents = AsyncMock(return_value=50)
+        mock_mongodb.db["execution_tickets"].count_documents = AsyncMock(return_value=50)
 
         predictor = DurationPredictor(
             config=mock_config,
             mongodb_client=mock_mongodb,
             model_registry=mock_model_registry,
-            metrics=mock_metrics
+            metrics=mock_metrics,
         )
 
         await predictor._ensure_model_trained()
 
         # Verificar que métrica foi registrada
         mock_metrics.record_ml_model_training_status.assert_called_with(
-            model_name='ticket-duration-predictor',
-            is_trained=False,
-            has_estimators=False
+            model_name="ticket-duration-predictor", is_trained=False, has_estimators=False
         )
         print("\n=== Teste Métricas de Status ===")
         print("Métricas de status registradas corretamente")

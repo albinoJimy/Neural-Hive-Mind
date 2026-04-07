@@ -16,9 +16,7 @@ class TestPolicyLifecycleIntegration:
 
     @pytest.mark.asyncio
     async def test_create_update_delete_policy(
-        self,
-        async_client: AsyncClient,
-        test_postgresql_client
+        self, async_client: AsyncClient, test_postgresql_client
     ):
         """Testa ciclo completo: criar, atualizar, deletar política."""
         # 1. Criar SLO base para a política
@@ -31,11 +29,9 @@ class TestPolicyLifecycleIntegration:
             target=0.999,
             window_days=30,
             sli_query=SLIQuery(
-                metric_name="up",
-                query="up{job='test-service-policy'}",
-                aggregation="avg"
+                metric_name="up", query="up{job='test-service-policy'}", aggregation="avg"
             ),
-            enabled=True
+            enabled=True,
         )
         await test_postgresql_client.create_slo(slo)
 
@@ -49,7 +45,7 @@ class TestPolicyLifecycleIntegration:
             trigger_threshold_percent=10.0,
             auto_unfreeze=True,
             unfreeze_threshold_percent=50.0,
-            enabled=True
+            enabled=True,
         )
         policy_id = await test_postgresql_client.create_policy(policy)
 
@@ -64,7 +60,7 @@ class TestPolicyLifecycleIntegration:
         # 4. Atualizar política (PUT)
         response = await async_client.put(
             f"/api/v1/policies/{policy_id}",
-            json={"enabled": False, "trigger_threshold_percent": 5.0}
+            json={"enabled": False, "trigger_threshold_percent": 5.0},
         )
         assert response.status_code == 200
         data = response.json()
@@ -87,9 +83,7 @@ class TestFreezeHistoryIntegration:
 
     @pytest.mark.asyncio
     async def test_freeze_history_with_resolved_events(
-        self,
-        async_client: AsyncClient,
-        test_postgresql_client
+        self, async_client: AsyncClient, test_postgresql_client
     ):
         """Testa histórico retornando freezes ativos e resolvidos."""
         # Criar SLO
@@ -102,11 +96,9 @@ class TestFreezeHistoryIntegration:
             target=0.999,
             window_days=30,
             sli_query=SLIQuery(
-                metric_name="up",
-                query="up{job='test-service-history'}",
-                aggregation="avg"
+                metric_name="up", query="up{job='test-service-history'}", aggregation="avg"
             ),
-            enabled=True
+            enabled=True,
         )
         slo_id = await test_postgresql_client.create_slo(slo)
 
@@ -120,7 +112,7 @@ class TestFreezeHistoryIntegration:
             trigger_threshold_percent=10.0,
             auto_unfreeze=True,
             unfreeze_threshold_percent=50.0,
-            enabled=True
+            enabled=True,
         )
         policy_id = await test_postgresql_client.create_policy(policy)
 
@@ -139,7 +131,7 @@ class TestFreezeHistoryIntegration:
             budget_remaining_percent=5.0,
             burn_rate=2.0,
             active=True,
-            metadata={}
+            metadata={},
         )
         await test_postgresql_client.create_freeze_event(active_event)
 
@@ -156,7 +148,7 @@ class TestFreezeHistoryIntegration:
             burn_rate=1.5,
             active=False,
             resolved_at=now - timedelta(hours=23),
-            metadata={}
+            metadata={},
         )
         await test_postgresql_client.create_freeze_event(resolved_event)
 
@@ -180,9 +172,7 @@ class TestViolationsCountUpdateIntegration:
 
     @pytest.mark.asyncio
     async def test_update_violations_count_flow(
-        self,
-        async_client: AsyncClient,
-        test_postgresql_client
+        self, async_client: AsyncClient, test_postgresql_client
     ):
         """Testa fluxo de atualização de contador de violações."""
         # Criar SLO
@@ -195,16 +185,15 @@ class TestViolationsCountUpdateIntegration:
             target=0.999,
             window_days=30,
             sli_query=SLIQuery(
-                metric_name="errors",
-                query="rate(errors_total[5m])",
-                aggregation="avg"
+                metric_name="errors", query="rate(errors_total[5m])", aggregation="avg"
             ),
-            enabled=True
+            enabled=True,
         )
         slo_id = await test_postgresql_client.create_slo(slo)
 
         # Criar budget inicial
         from src.models.error_budget import ErrorBudget, BudgetStatus, BurnRate, BurnRateLevel
+
         budget = ErrorBudget(
             slo_id=slo_id,
             service_name="test-service-violations",
@@ -217,11 +206,9 @@ class TestViolationsCountUpdateIntegration:
             error_budget_consumed=20.0,
             error_budget_remaining=80.0,
             status=BudgetStatus.HEALTHY,
-            burn_rates=[
-                BurnRate(window_hours=1, rate=0.5, level=BurnRateLevel.NORMAL)
-            ],
+            burn_rates=[BurnRate(window_hours=1, rate=0.5, level=BurnRateLevel.NORMAL)],
             violations_count=0,
-            metadata={}
+            metadata={},
         )
         await test_postgresql_client.save_budget(budget)
 
@@ -240,6 +227,7 @@ async def async_client(test_postgresql_client):
     """Fixture para cliente HTTP assíncrono."""
     # Sobrescrever clientes no main
     from src import main
+
     main.postgresql_client = test_postgresql_client
 
     async with AsyncClient(app=app, base_url="http://test") as client:
@@ -260,7 +248,7 @@ async def test_postgresql_client(postgresql_url):
         password="test",
         pool_min_size=1,
         pool_max_size=5,
-        connection_timeout=30
+        connection_timeout=30,
     )
 
     client = PostgreSQLClient(settings)

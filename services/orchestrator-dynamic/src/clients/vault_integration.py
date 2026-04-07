@@ -4,6 +4,7 @@ Cliente de integração Vault para orchestrator-dynamic service
 
 import asyncio
 from datetime import datetime, timezone
+
 UTC = timezone.utc  # type: ignore, timedelta
 
 import structlog

@@ -31,14 +31,14 @@ def validate_executor_with_opa(worker_config, mock_metrics, mock_opa_client):
     from executors.validate_executor import ValidateExecutor
 
     worker_config.opa_enabled = True
-    worker_config.opa_url = 'http://opa.test:8181'
+    worker_config.opa_url = "http://opa.test:8181"
 
     return ValidateExecutor(
         config=worker_config,
         vault_client=None,
         code_forge_client=None,
         metrics=mock_metrics,
-        opa_client=mock_opa_client
+        opa_client=mock_opa_client,
     )
 
 
@@ -56,7 +56,7 @@ def validate_executor_with_trivy(worker_config, mock_metrics):
         vault_client=None,
         code_forge_client=None,
         metrics=mock_metrics,
-        opa_client=None
+        opa_client=None,
     )
 
 
@@ -73,7 +73,7 @@ def validate_executor_simulation_only(worker_config, mock_metrics):
         vault_client=None,
         code_forge_client=None,
         metrics=mock_metrics,
-        opa_client=None
+        opa_client=None,
     )
 
 
@@ -82,18 +82,14 @@ def validate_ticket_policy():
     """Ticket de validacao de politica OPA."""
     ticket_id = str(uuid.uuid4())
     return {
-        'ticket_id': ticket_id,
-        'task_id': f'task-{ticket_id[:8]}',
-        'task_type': 'VALIDATE',
-        'parameters': {
-            'validation_type': 'policy',
-            'policy_path': 'policy/allow',
-            'input_data': {
-                'resource': 'deployment',
-                'action': 'create',
-                'user': 'admin'
-            }
-        }
+        "ticket_id": ticket_id,
+        "task_id": f"task-{ticket_id[:8]}",
+        "task_type": "VALIDATE",
+        "parameters": {
+            "validation_type": "policy",
+            "policy_path": "policy/allow",
+            "input_data": {"resource": "deployment", "action": "create", "user": "admin"},
+        },
     }
 
 
@@ -102,13 +98,10 @@ def validate_ticket_sast():
     """Ticket de validacao SAST (Trivy)."""
     ticket_id = str(uuid.uuid4())
     return {
-        'ticket_id': ticket_id,
-        'task_id': f'task-{ticket_id[:8]}',
-        'task_type': 'VALIDATE',
-        'parameters': {
-            'validation_type': 'sast',
-            'working_dir': '/tmp/code'
-        }
+        "ticket_id": ticket_id,
+        "task_id": f"task-{ticket_id[:8]}",
+        "task_type": "VALIDATE",
+        "parameters": {"validation_type": "sast", "working_dir": "/tmp/code"},
     }
 
 
@@ -118,16 +111,16 @@ def validate_ticket_sast():
 
 
 class MockViolationSeverity(Enum):
-    CRITICAL = 'CRITICAL'
-    HIGH = 'HIGH'
-    MEDIUM = 'MEDIUM'
-    LOW = 'LOW'
+    CRITICAL = "CRITICAL"
+    HIGH = "HIGH"
+    MEDIUM = "MEDIUM"
+    LOW = "LOW"
 
 
 @dataclass
 class MockViolation:
-    rule_id: str = 'rule-001'
-    message: str = 'Test violation'
+    rule_id: str = "rule-001"
+    message: str = "Test violation"
     severity: MockViolationSeverity = MockViolationSeverity.MEDIUM
     resource: str = None
     location: str = None
@@ -158,44 +151,37 @@ class TestValidateExecutorOPAAllow:
     @pytest.mark.integration
     @pytest.mark.executor_integration
     async def test_validate_executor_opa_allow(
-        self,
-        validate_executor_with_opa,
-        validate_ticket_policy,
-        mock_opa_client
+        self, validate_executor_with_opa, validate_ticket_policy, mock_opa_client
     ):
         """Deve retornar sucesso quando politica OPA permite acao."""
         mock_opa_client.evaluate_policy.return_value = MockPolicyEvaluationResponse(
-            allow=True,
-            violations=[]
+            allow=True, violations=[]
         )
 
         result = await validate_executor_with_opa.execute(validate_ticket_policy)
 
-        assert result['success'] is True
-        assert result['output']['validation_passed'] is True
-        assert result['output']['violations'] == []
-        assert result['metadata']['simulated'] is False
+        assert result["success"] is True
+        assert result["output"]["validation_passed"] is True
+        assert result["output"]["violations"] == []
+        assert result["metadata"]["simulated"] is False
 
     @pytest.mark.asyncio
     @pytest.mark.integration
     @pytest.mark.executor_integration
     async def test_validate_executor_opa_allow_with_metadata(
-        self,
-        validate_executor_with_opa,
-        validate_ticket_policy,
-        mock_opa_client
+        self, validate_executor_with_opa, validate_ticket_policy, mock_opa_client
     ):
         """Deve incluir metadata da avaliacao OPA."""
         mock_opa_client.evaluate_policy.return_value = MockPolicyEvaluationResponse(
             allow=True,
             violations=[],
-            metadata={'decision_id': 'dec-123', 'timestamp': '2024-01-01T00:00:00Z'}
+            metadata={"decision_id": "dec-123", "timestamp": "2024-01-01T00:00:00Z"},
         )
 
         result = await validate_executor_with_opa.execute(validate_ticket_policy)
 
-        assert result['success'] is True
-        assert 'opa_metadata' in result['metadata']
+        assert result["success"] is True
+        assert "opa_metadata" in result["metadata"]
 
 
 # ============================================
@@ -210,23 +196,17 @@ class TestValidateExecutorOPADeny:
     @pytest.mark.integration
     @pytest.mark.executor_integration
     async def test_validate_executor_opa_deny_with_violations(
-        self,
-        validate_executor_with_opa,
-        validate_ticket_policy,
-        mock_opa_client
+        self, validate_executor_with_opa, validate_ticket_policy, mock_opa_client
     ):
         """Deve retornar falha quando politica OPA nega com violacoes."""
         violations = [
             MockViolation(
-                rule_id='rule-001',
-                message='Unauthorized user',
-                severity=MockViolationSeverity.HIGH
+                rule_id="rule-001", message="Unauthorized user", severity=MockViolationSeverity.HIGH
             )
         ]
 
         mock_opa_client.evaluate_policy.return_value = MockPolicyEvaluationResponse(
-            allow=False,
-            violations=violations
+            allow=False, violations=violations
         )
 
         mock_opa_client.count_violations_by_severity.return_value = {
@@ -238,30 +218,32 @@ class TestValidateExecutorOPADeny:
 
         result = await validate_executor_with_opa.execute(validate_ticket_policy)
 
-        assert result['success'] is False
-        assert result['output']['validation_passed'] is False
-        assert len(result['output']['violations']) == 1
-        assert result['output']['violations'][0]['severity'] == 'HIGH'
+        assert result["success"] is False
+        assert result["output"]["validation_passed"] is False
+        assert len(result["output"]["violations"]) == 1
+        assert result["output"]["violations"][0]["severity"] == "HIGH"
 
     @pytest.mark.asyncio
     @pytest.mark.integration
     @pytest.mark.executor_integration
     async def test_validate_executor_opa_deny_multiple_violations(
-        self,
-        validate_executor_with_opa,
-        validate_ticket_policy,
-        mock_opa_client
+        self, validate_executor_with_opa, validate_ticket_policy, mock_opa_client
     ):
         """Deve listar todas as violacoes quando OPA nega."""
         violations = [
-            MockViolation(rule_id='rule-001', message='Violation 1', severity=MockViolationSeverity.HIGH),
-            MockViolation(rule_id='rule-002', message='Violation 2', severity=MockViolationSeverity.MEDIUM),
-            MockViolation(rule_id='rule-003', message='Violation 3', severity=MockViolationSeverity.LOW),
+            MockViolation(
+                rule_id="rule-001", message="Violation 1", severity=MockViolationSeverity.HIGH
+            ),
+            MockViolation(
+                rule_id="rule-002", message="Violation 2", severity=MockViolationSeverity.MEDIUM
+            ),
+            MockViolation(
+                rule_id="rule-003", message="Violation 3", severity=MockViolationSeverity.LOW
+            ),
         ]
 
         mock_opa_client.evaluate_policy.return_value = MockPolicyEvaluationResponse(
-            allow=False,
-            violations=violations
+            allow=False, violations=violations
         )
 
         mock_opa_client.count_violations_by_severity.return_value = {
@@ -273,8 +255,8 @@ class TestValidateExecutorOPADeny:
 
         result = await validate_executor_with_opa.execute(validate_ticket_policy)
 
-        assert result['success'] is False
-        assert len(result['output']['violations']) == 3
+        assert result["success"] is False
+        assert len(result["output"]["violations"]) == 3
 
 
 # ============================================
@@ -289,42 +271,31 @@ class TestValidateExecutorOPATimeout:
     @pytest.mark.integration
     @pytest.mark.executor_integration
     async def test_validate_executor_opa_timeout(
-        self,
-        validate_executor_with_opa,
-        validate_ticket_policy,
-        mock_opa_client
+        self, validate_executor_with_opa, validate_ticket_policy, mock_opa_client
     ):
         """Deve retornar falha conservadora quando OPA timeout."""
         from clients.opa_client import OPATimeoutError
 
-        mock_opa_client.evaluate_policy.side_effect = OPATimeoutError(
-            'OPA evaluation timed out'
-        )
+        mock_opa_client.evaluate_policy.side_effect = OPATimeoutError("OPA evaluation timed out")
 
         result = await validate_executor_with_opa.execute(validate_ticket_policy)
 
         # Fallback conservador: falha quando OPA indisponivel
-        assert result['success'] is False
-        assert result['output']['validation_passed'] is False
-        assert result['output']['fallback_reason'] == 'timeout'
-        assert result['metadata']['conservative_failure'] is True
+        assert result["success"] is False
+        assert result["output"]["validation_passed"] is False
+        assert result["output"]["fallback_reason"] == "timeout"
+        assert result["metadata"]["conservative_failure"] is True
 
     @pytest.mark.asyncio
     @pytest.mark.integration
     @pytest.mark.executor_integration
     async def test_validate_executor_opa_timeout_metrics(
-        self,
-        validate_executor_with_opa,
-        validate_ticket_policy,
-        mock_opa_client,
-        mock_metrics
+        self, validate_executor_with_opa, validate_ticket_policy, mock_opa_client, mock_metrics
     ):
         """Deve registrar metrica de timeout."""
         from clients.opa_client import OPATimeoutError
 
-        mock_opa_client.evaluate_policy.side_effect = OPATimeoutError(
-            'OPA evaluation timed out'
-        )
+        mock_opa_client.evaluate_policy.side_effect = OPATimeoutError("OPA evaluation timed out")
 
         await validate_executor_with_opa.execute(validate_ticket_policy)
 
@@ -343,46 +314,38 @@ class TestValidateExecutorOPAAPIError:
     @pytest.mark.integration
     @pytest.mark.executor_integration
     async def test_validate_executor_opa_api_error_503(
-        self,
-        validate_executor_with_opa,
-        validate_ticket_policy,
-        mock_opa_client
+        self, validate_executor_with_opa, validate_ticket_policy, mock_opa_client
     ):
         """Deve retornar falha conservadora quando OPA API erro 503."""
         from clients.opa_client import OPAAPIError
 
         mock_opa_client.evaluate_policy.side_effect = OPAAPIError(
-            message='Service Unavailable',
-            status_code=503
+            message="Service Unavailable", status_code=503
         )
 
         result = await validate_executor_with_opa.execute(validate_ticket_policy)
 
-        assert result['success'] is False
-        assert result['output']['validation_passed'] is False
-        assert result['output']['fallback_reason'] == 'api_error'
+        assert result["success"] is False
+        assert result["output"]["validation_passed"] is False
+        assert result["output"]["fallback_reason"] == "api_error"
 
     @pytest.mark.asyncio
     @pytest.mark.integration
     @pytest.mark.executor_integration
     async def test_validate_executor_opa_api_error_500(
-        self,
-        validate_executor_with_opa,
-        validate_ticket_policy,
-        mock_opa_client
+        self, validate_executor_with_opa, validate_ticket_policy, mock_opa_client
     ):
         """Deve retornar falha conservadora quando OPA API erro 500."""
         from clients.opa_client import OPAAPIError
 
         mock_opa_client.evaluate_policy.side_effect = OPAAPIError(
-            message='Internal Server Error',
-            status_code=500
+            message="Internal Server Error", status_code=500
         )
 
         result = await validate_executor_with_opa.execute(validate_ticket_policy)
 
-        assert result['success'] is False
-        assert result['metadata']['conservative_failure'] is True
+        assert result["success"] is False
+        assert result["metadata"]["conservative_failure"] is True
 
 
 # ============================================
@@ -397,80 +360,73 @@ class TestValidateExecutorSAST:
     @pytest.mark.integration
     @pytest.mark.executor_integration
     async def test_validate_executor_trivy_success(
-        self,
-        validate_executor_with_trivy,
-        validate_ticket_sast
+        self, validate_executor_with_trivy, validate_ticket_sast
     ):
         """Deve executar validacao SAST com sucesso (sem vulnerabilidades)."""
-        with patch('subprocess.run') as mock_run:
-            mock_run.return_value = MagicMock(
-                returncode=0,
-                stdout='{"Results": []}',
-                stderr=''
-            )
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0, stdout='{"Results": []}', stderr="")
 
             result = await validate_executor_with_trivy.execute(validate_ticket_sast)
 
-            assert result['success'] is True
-            assert result['output']['validation_passed'] is True
-            assert result['output']['violations'] == []
-            assert result['metadata']['simulated'] is False
+            assert result["success"] is True
+            assert result["output"]["validation_passed"] is True
+            assert result["output"]["violations"] == []
+            assert result["metadata"]["simulated"] is False
 
     @pytest.mark.asyncio
     @pytest.mark.integration
     @pytest.mark.executor_integration
     async def test_validate_executor_trivy_critical_vulnerabilities(
-        self,
-        validate_executor_with_trivy,
-        validate_ticket_sast
+        self, validate_executor_with_trivy, validate_ticket_sast
     ):
         """Deve falhar quando Trivy encontra vulnerabilidades CRITICAL."""
         trivy_output = {
-            'Results': [
+            "Results": [
                 {
-                    'Vulnerabilities': [
-                        {'VulnerabilityID': 'CVE-2024-0001', 'Severity': 'CRITICAL', 'Title': 'Critical vuln'},
-                        {'VulnerabilityID': 'CVE-2024-0002', 'Severity': 'CRITICAL', 'Title': 'Another critical'},
+                    "Vulnerabilities": [
+                        {
+                            "VulnerabilityID": "CVE-2024-0001",
+                            "Severity": "CRITICAL",
+                            "Title": "Critical vuln",
+                        },
+                        {
+                            "VulnerabilityID": "CVE-2024-0002",
+                            "Severity": "CRITICAL",
+                            "Title": "Another critical",
+                        },
                     ]
                 }
             ]
         }
 
-        with patch('subprocess.run') as mock_run:
+        with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(
-                returncode=0,
-                stdout=str(trivy_output).replace("'", '"'),
-                stderr=''
+                returncode=0, stdout=str(trivy_output).replace("'", '"'), stderr=""
             )
 
             result = await validate_executor_with_trivy.execute(validate_ticket_sast)
 
-            assert result['success'] is False
-            assert result['output']['validation_passed'] is False
-            assert len(result['output']['violations']) == 2
+            assert result["success"] is False
+            assert result["output"]["validation_passed"] is False
+            assert len(result["output"]["violations"]) == 2
 
     @pytest.mark.asyncio
     @pytest.mark.integration
     @pytest.mark.executor_integration
     async def test_validate_executor_trivy_timeout(
-        self,
-        validate_executor_with_trivy,
-        validate_ticket_sast
+        self, validate_executor_with_trivy, validate_ticket_sast
     ):
         """Deve usar fallback simulado quando Trivy timeout."""
         import subprocess
 
-        with patch('subprocess.run') as mock_run:
-            mock_run.side_effect = subprocess.TimeoutExpired(
-                cmd='trivy',
-                timeout=60
-            )
+        with patch("subprocess.run") as mock_run:
+            mock_run.side_effect = subprocess.TimeoutExpired(cmd="trivy", timeout=60)
 
             result = await validate_executor_with_trivy.execute(validate_ticket_sast)
 
             # Fallback para simulacao quando Trivy timeout
-            assert result['success'] is True
-            assert result['metadata']['simulated'] is True
+            assert result["success"] is True
+            assert result["metadata"]["simulated"] is True
 
 
 # ============================================
@@ -485,25 +441,20 @@ class TestValidateExecutorViolationMetrics:
     @pytest.mark.integration
     @pytest.mark.executor_integration
     async def test_validate_executor_violation_metrics_by_severity(
-        self,
-        validate_executor_with_opa,
-        validate_ticket_policy,
-        mock_opa_client,
-        mock_metrics
+        self, validate_executor_with_opa, validate_ticket_policy, mock_opa_client, mock_metrics
     ):
         """Deve registrar metricas de violacoes por severidade."""
         violations = [
-            MockViolation(rule_id='r1', severity=MockViolationSeverity.HIGH),
-            MockViolation(rule_id='r2', severity=MockViolationSeverity.HIGH),
-            MockViolation(rule_id='r3', severity=MockViolationSeverity.MEDIUM),
-            MockViolation(rule_id='r4', severity=MockViolationSeverity.MEDIUM),
-            MockViolation(rule_id='r5', severity=MockViolationSeverity.MEDIUM),
-            MockViolation(rule_id='r6', severity=MockViolationSeverity.LOW),
+            MockViolation(rule_id="r1", severity=MockViolationSeverity.HIGH),
+            MockViolation(rule_id="r2", severity=MockViolationSeverity.HIGH),
+            MockViolation(rule_id="r3", severity=MockViolationSeverity.MEDIUM),
+            MockViolation(rule_id="r4", severity=MockViolationSeverity.MEDIUM),
+            MockViolation(rule_id="r5", severity=MockViolationSeverity.MEDIUM),
+            MockViolation(rule_id="r6", severity=MockViolationSeverity.LOW),
         ]
 
         mock_opa_client.evaluate_policy.return_value = MockPolicyEvaluationResponse(
-            allow=False,
-            violations=violations
+            allow=False, violations=violations
         )
 
         mock_opa_client.count_violations_by_severity.return_value = {
@@ -531,31 +482,27 @@ class TestValidateExecutorSimulation:
     @pytest.mark.integration
     @pytest.mark.executor_integration
     async def test_validate_executor_simulation_fallback(
-        self,
-        validate_executor_simulation_only,
-        validate_ticket_policy
+        self, validate_executor_simulation_only, validate_ticket_policy
     ):
         """Deve usar simulacao quando nenhum provider disponivel."""
         result = await validate_executor_simulation_only.execute(validate_ticket_policy)
 
-        assert result['success'] is True
-        assert result['metadata']['simulated'] is True
-        assert result['output']['validation_passed'] is True
-        assert result['output']['violations'] == []
+        assert result["success"] is True
+        assert result["metadata"]["simulated"] is True
+        assert result["output"]["validation_passed"] is True
+        assert result["output"]["violations"] == []
 
     @pytest.mark.asyncio
     @pytest.mark.integration
     @pytest.mark.executor_integration
     async def test_validate_executor_simulation_logs(
-        self,
-        validate_executor_simulation_only,
-        validate_ticket_policy
+        self, validate_executor_simulation_only, validate_ticket_policy
     ):
         """Deve incluir logs informativos na simulacao."""
         result = await validate_executor_simulation_only.execute(validate_ticket_policy)
 
-        assert 'logs' in result
-        assert len(result['logs']) > 0
+        assert "logs" in result
+        assert len(result["logs"]) > 0
 
 
 # ============================================
@@ -569,15 +516,9 @@ class TestValidateExecutorTicketValidation:
     @pytest.mark.asyncio
     @pytest.mark.integration
     @pytest.mark.executor_integration
-    async def test_validate_executor_missing_ticket_id(
-        self,
-        validate_executor_with_opa
-    ):
+    async def test_validate_executor_missing_ticket_id(self, validate_executor_with_opa):
         """Deve falhar com ticket sem ID."""
-        invalid_ticket = {
-            'task_type': 'VALIDATE',
-            'parameters': {}
-        }
+        invalid_ticket = {"task_type": "VALIDATE", "parameters": {}}
 
         with pytest.raises(ValueError):
             await validate_executor_with_opa.execute(invalid_ticket)
@@ -585,16 +526,9 @@ class TestValidateExecutorTicketValidation:
     @pytest.mark.asyncio
     @pytest.mark.integration
     @pytest.mark.executor_integration
-    async def test_validate_executor_wrong_task_type(
-        self,
-        validate_executor_with_opa
-    ):
+    async def test_validate_executor_wrong_task_type(self, validate_executor_with_opa):
         """Deve falhar com task_type incorreto."""
-        invalid_ticket = {
-            'ticket_id': str(uuid.uuid4()),
-            'task_type': 'BUILD',
-            'parameters': {}
-        }
+        invalid_ticket = {"ticket_id": str(uuid.uuid4()), "task_type": "BUILD", "parameters": {}}
 
         with pytest.raises(ValueError):
             await validate_executor_with_opa.execute(invalid_ticket)
@@ -612,17 +546,12 @@ class TestValidateExecutorUnexpectedErrors:
     @pytest.mark.integration
     @pytest.mark.executor_integration
     async def test_validate_executor_unexpected_exception(
-        self,
-        validate_executor_with_opa,
-        validate_ticket_policy,
-        mock_opa_client
+        self, validate_executor_with_opa, validate_ticket_policy, mock_opa_client
     ):
         """Deve tratar excecoes inesperadas graciosamente."""
-        mock_opa_client.evaluate_policy.side_effect = RuntimeError(
-            'Unexpected error'
-        )
+        mock_opa_client.evaluate_policy.side_effect = RuntimeError("Unexpected error")
 
         result = await validate_executor_with_opa.execute(validate_ticket_policy)
 
         # Fallback conservador
-        assert result['success'] is False
+        assert result["success"] is False

@@ -28,19 +28,28 @@ async def test_shap_calculate_explanation():
 
     # Mock decision data com specialist_votes
     decision_data = {
-        'specialist_votes': [
-            {'specialist_id': 's1', 'confidence': 0.9, 'features': {'f1': 0.5, 'f2': 0.3, 'f3': 0.2}},
-            {'specialist_id': 's2', 'confidence': 0.8, 'features': {'f1': 0.4, 'f2': 0.4, 'f3': 0.2}},
-            {'specialist_id': 's3', 'confidence': 0.7, 'features': {'f1': 0.6, 'f2': 0.3, 'f3': 0.1}},
+        "specialist_votes": [
+            {
+                "specialist_id": "s1",
+                "confidence": 0.9,
+                "features": {"f1": 0.5, "f2": 0.3, "f3": 0.2},
+            },
+            {
+                "specialist_id": "s2",
+                "confidence": 0.8,
+                "features": {"f1": 0.4, "f2": 0.4, "f3": 0.2},
+            },
+            {
+                "specialist_id": "s3",
+                "confidence": 0.7,
+                "features": {"f1": 0.6, "f2": 0.3, "f3": 0.1},
+            },
         ],
-        'final_decision': 'approve',
-        'confidence': 0.85
+        "final_decision": "approve",
+        "confidence": 0.85,
     }
 
-    result = calculator.calculate_shap(
-        decision_data=decision_data,
-        features=['f1', 'f2', 'f3']
-    )
+    result = calculator.calculate_shap(decision_data=decision_data, features=["f1", "f2", "f3"])
 
     assert "feature_attribution" in result
     assert "method" in result
@@ -57,17 +66,20 @@ async def test_shap_calculate_with_background():
 
     # Mock decision data para batch
     decision_data = {
-        'decision_id': 'test-123',
-        'specialist_votes': [
-            {'specialist_id': 's1', 'confidence': 0.5, 'features': {'f1': 0.3, 'f2': 0.4, 'f3': 0.3}},
+        "decision_id": "test-123",
+        "specialist_votes": [
+            {
+                "specialist_id": "s1",
+                "confidence": 0.5,
+                "features": {"f1": 0.3, "f2": 0.4, "f3": 0.3},
+            },
         ],
-        'final_decision': 'approve',
-        'confidence': 0.5
+        "final_decision": "approve",
+        "confidence": 0.5,
     }
 
     result = calculator.batch_calculate_shap(
-        decisions=[decision_data] * 5,
-        features=['f1', 'f2', 'f3']
+        decisions=[decision_data] * 5, features=["f1", "f2", "f3"]
     )
 
     assert isinstance(result, list)
@@ -99,7 +111,7 @@ async def test_quality_score_completeness():
         "decision_id": "decision-123",
         "method": "shap",
         "shap_values": [0.1, 0.2, 0.3],
-        "feature_names": ["f1", "f2", "f3"]
+        "feature_names": ["f1", "f2", "f3"],
     }
 
     scores = scorer.score_explanation(explanation)
@@ -120,7 +132,7 @@ async def test_quality_score_clarity():
     explanation = {
         "decision_id": "decision-123",
         "explanation_text": "A decisão foi baseada nos fatores X e Y",
-        "reasoning": "Fator X contribuiu com 60%"
+        "reasoning": "Fator X contribuiu com 60%",
     }
 
     scores = scorer.score_explanation(explanation)
@@ -140,10 +152,7 @@ async def test_quality_score_specificity():
 
     explanation = {
         "decision_id": "decision-123",
-        "feature_contributions": {
-            "feature_x": 0.6,
-            "feature_y": 0.4
-        }
+        "feature_contributions": {"feature_x": 0.6, "feature_y": 0.4},
     }
 
     scores = scorer.score_explanation(explanation)
@@ -164,7 +173,7 @@ async def test_quality_overall_score():
         "decision_id": "decision-123",
         "method": "hierarchical",
         "hierarchical_weights": [0.3, 0.5, 0.2],
-        "reasoning": "Detailed reasoning text"
+        "reasoning": "Detailed reasoning text",
     }
 
     overall_score = await scorer.get_overall_score(explanation)
@@ -194,9 +203,9 @@ async def test_hierarchical_explain_decision():
         "specialist_votes": [
             {"specialist": "business", "vote": "approve", "seniority": "senior"},
             {"specialist": "technical", "vote": "approve", "seniority": "expert"},
-            {"specialist": "architecture", "vote": "reject", "seniority": "mid_level"}
+            {"specialist": "architecture", "vote": "reject", "seniority": "mid_level"},
         ],
-        "final_decision": "approve"
+        "final_decision": "approve",
     }
 
     explanation = await explainer.explain_decision(decision)
@@ -213,12 +222,14 @@ async def test_hierarchical_seniority_weights():
 
     explainer = HierarchicalExplainer()
 
-    weights = explainer.calculate_seniority_weights([
-        {"seniority": "expert"},
-        {"seniority": "senior"},
-        {"seniority": "mid_level"},
-        {"seniority": "trainee"}
-    ])
+    weights = explainer.calculate_seniority_weights(
+        [
+            {"seniority": "expert"},
+            {"seniority": "senior"},
+            {"seniority": "mid_level"},
+            {"seniority": "trainee"},
+        ]
+    )
 
     assert weights["expert"] > weights["senior"]
     assert weights["senior"] > weights["mid_level"]
@@ -247,8 +258,8 @@ async def test_reasoning_extract_from_decision():
         "reasoning_factors": [
             {"factor": "low_risk", "impact": 0.3},
             {"factor": "high_confidence", "impact": 0.5},
-            {"factor": "business_alignment", "impact": 0.2}
-        ]
+            {"factor": "business_alignment", "impact": 0.2},
+        ],
     }
 
     reasoning = extractor.extract(decision)
@@ -267,7 +278,7 @@ async def test_reasoning_format_as_text():
     reasoning_data = {
         "factors": [
             {"factor": "low_risk", "impact": 0.3},
-            {"factor": "high_confidence", "impact": 0.5}
+            {"factor": "high_confidence", "impact": 0.5},
         ]
     }
 
@@ -284,14 +295,10 @@ async def test_counterfactual_analyzer():
 
     analyzer = CounterfactualAnalyzer()
 
-    explanation = {
-        "feature_values": {"f1": 1.0, "f2": 2.0},
-        "prediction": "approve"
-    }
+    explanation = {"feature_values": {"f1": 1.0, "f2": 2.0}, "prediction": "approve"}
 
     counterfactual = analyzer.generate_counterfactual(
-        explanation=explanation,
-        target_outcome="reject"
+        explanation=explanation, target_outcome="reject"
     )
 
     assert "original_outcome" in counterfactual
@@ -312,7 +319,7 @@ async def test_api_extensions_init():
         mongodb_client=mock_db,
         shap_calculator=mock_shap,
         quality_scorer=mock_quality,
-        reasoning_extractor=mock_reasoning
+        reasoning_extractor=mock_reasoning,
     )
 
     assert extensions.mongodb_client == mock_db
@@ -328,10 +335,9 @@ async def test_api_extensions_get_explainability():
     # Mock do banco de dados com estrutura correta
     mock_db = AsyncMock()
     mock_ledger = AsyncMock()
-    mock_ledger.find_one = AsyncMock(return_value={
-        "decision_id": "decision-123",
-        "method": "hierarchical"
-    })
+    mock_ledger.find_one = AsyncMock(
+        return_value={"decision_id": "decision-123", "method": "hierarchical"}
+    )
     mock_db.explainability_ledger = mock_ledger
 
     mock_shap = MagicMock()
@@ -342,7 +348,7 @@ async def test_api_extensions_get_explainability():
         mongodb_client=mock_db,
         shap_calculator=mock_shap,
         quality_scorer=mock_quality,
-        reasoning_extractor=mock_reasoning
+        reasoning_extractor=mock_reasoning,
     )
 
     result = await extensions.get_explainability_by_decision_id("decision-123")
@@ -357,9 +363,9 @@ async def test_api_extensions_generate_explanation():
 
     mock_db = AsyncMock()
     mock_shap = MagicMock()
-    mock_shap.calculate_shap = MagicMock(return_value={
-        "feature_attribution": {"confidence": 0.5, "risk": 0.3}
-    })
+    mock_shap.calculate_shap = MagicMock(
+        return_value={"feature_attribution": {"confidence": 0.5, "risk": 0.3}}
+    )
     mock_quality = MagicMock()
     mock_quality.score_explanation = MagicMock(return_value={"overall": 0.85})
     mock_reasoning = MagicMock()
@@ -368,16 +374,14 @@ async def test_api_extensions_generate_explanation():
         mongodb_client=mock_db,
         shap_calculator=mock_shap,
         quality_scorer=mock_quality,
-        reasoning_extractor=mock_reasoning
+        reasoning_extractor=mock_reasoning,
     )
 
     request = {
         "decision_id": "decision-123",
         "format": "json",
         "include_shap": True,
-        "specialist_votes": [
-            {"specialist_id": "s1", "confidence": 0.8}
-        ]
+        "specialist_votes": [{"specialist_id": "s1", "confidence": 0.8}],
     }
 
     result = await extensions.generate_explanation(request)

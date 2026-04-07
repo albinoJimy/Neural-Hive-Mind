@@ -23,14 +23,14 @@ if str(ROOT / "src") not in sys.path:
 def backpressure_config():
     """Configuração específica para testes de backpressure."""
     return SimpleNamespace(
-        kafka_bootstrap_servers='localhost:9092',
-        kafka_tickets_topic='execution.tickets',
-        kafka_consumer_group_id='worker-agents-test',
-        kafka_auto_offset_reset='earliest',
-        kafka_schema_registry_url='http://localhost:8081',
-        supported_task_types=['BUILD', 'DEPLOY', 'TEST'],
-        kafka_security_protocol='PLAINTEXT',
-        schemas_base_path=str(ROOT.parent / 'schemas'),
+        kafka_bootstrap_servers="localhost:9092",
+        kafka_tickets_topic="execution.tickets",
+        kafka_consumer_group_id="worker-agents-test",
+        kafka_auto_offset_reset="earliest",
+        kafka_schema_registry_url="http://localhost:8081",
+        supported_task_types=["BUILD", "DEPLOY", "TEST"],
+        kafka_security_protocol="PLAINTEXT",
+        schemas_base_path=str(ROOT.parent / "schemas"),
         max_concurrent_tickets=3,  # Limite baixo para testes
         consumer_pause_threshold=0.8,
         consumer_resume_threshold=0.5,
@@ -42,9 +42,11 @@ def backpressure_config():
 def mock_backpressure_engine():
     """Mock do execution engine para testes de backpressure."""
     engine = AsyncMock()
+
     # Simular processamento lento (500ms)
     async def slow_process(ticket):
         await asyncio.sleep(0.5)
+
     engine.process_ticket = slow_process
     return engine
 
@@ -72,7 +74,7 @@ async def test_backpressure_semaphore_initialized(backpressure_config, mock_back
 
     consumer = KafkaTicketConsumer(backpressure_config, mock_backpressure_engine)
 
-    with patch.object(consumer, 'consumer', MagicMock()):
+    with patch.object(consumer, "consumer", MagicMock()):
         await consumer.initialize()
 
     assert consumer.tickets_semaphore is not None
@@ -80,13 +82,17 @@ async def test_backpressure_semaphore_initialized(backpressure_config, mock_back
 
 
 @pytest.mark.asyncio
-async def test_backpressure_limits_concurrent_tickets(backpressure_config, mock_backpressure_engine, mock_backpressure_metrics):
+async def test_backpressure_limits_concurrent_tickets(
+    backpressure_config, mock_backpressure_engine, mock_backpressure_metrics
+):
     """Verificar que backpressure limita tickets concorrentes."""
     from clients.kafka_ticket_consumer import KafkaTicketConsumer
 
-    consumer = KafkaTicketConsumer(backpressure_config, mock_backpressure_engine, mock_backpressure_metrics)
+    consumer = KafkaTicketConsumer(
+        backpressure_config, mock_backpressure_engine, mock_backpressure_metrics
+    )
 
-    with patch.object(consumer, 'consumer', MagicMock()):
+    with patch.object(consumer, "consumer", MagicMock()):
         await consumer.initialize()
 
     # Verificar que semaphore inicia com o valor correto
@@ -100,7 +106,7 @@ async def test_backpressure_limits_concurrent_tickets(backpressure_config, mock_
         try:
             await asyncio.wait_for(consumer.tickets_semaphore.acquire(), timeout=timeout)
             acquired_permits.append(permit_id)
-            consumer.in_flight_tickets.add(f'ticket-{permit_id}')
+            consumer.in_flight_tickets.add(f"ticket-{permit_id}")
             return True
         except asyncio.TimeoutError:
             return False
@@ -122,7 +128,7 @@ async def test_backpressure_limits_concurrent_tickets(backpressure_config, mock_
     # Cleanup - liberar apenas os permits adquiridos
     for permit_id in acquired_permits:
         consumer.tickets_semaphore.release()
-        consumer.in_flight_tickets.discard(f'ticket-{permit_id}')
+        consumer.in_flight_tickets.discard(f"ticket-{permit_id}")
 
     # Verificar estado final
     assert consumer.tickets_semaphore._value == 3
@@ -130,15 +136,19 @@ async def test_backpressure_limits_concurrent_tickets(backpressure_config, mock_
 
 
 @pytest.mark.asyncio
-async def test_consumer_pauses_at_threshold(backpressure_config, mock_backpressure_engine, mock_backpressure_metrics):
+async def test_consumer_pauses_at_threshold(
+    backpressure_config, mock_backpressure_engine, mock_backpressure_metrics
+):
     """Verificar que consumer pausa quando threshold atingido."""
     from clients.kafka_ticket_consumer import KafkaTicketConsumer
 
     mock_kafka_consumer = MagicMock()
     mock_kafka_consumer.assignment.return_value = [MagicMock()]
 
-    with patch('clients.kafka_ticket_consumer.Consumer', return_value=mock_kafka_consumer):
-        consumer = KafkaTicketConsumer(backpressure_config, mock_backpressure_engine, mock_backpressure_metrics)
+    with patch("clients.kafka_ticket_consumer.Consumer", return_value=mock_kafka_consumer):
+        consumer = KafkaTicketConsumer(
+            backpressure_config, mock_backpressure_engine, mock_backpressure_metrics
+        )
         await consumer.initialize()
 
         # Simular 3 tickets in-flight COM aquisição do semaphore
@@ -147,7 +157,7 @@ async def test_consumer_pauses_at_threshold(backpressure_config, mock_backpressu
         # 3 >= 2 = True -> deve pausar
         for i in range(3):
             await consumer.tickets_semaphore.acquire()
-            consumer.in_flight_tickets.add(f'ticket-{i}')
+            consumer.in_flight_tickets.add(f"ticket-{i}")
 
         # Verificar estado antes de pausar
         assert consumer.tickets_semaphore._value == 0
@@ -165,15 +175,19 @@ async def test_consumer_pauses_at_threshold(backpressure_config, mock_backpressu
 
 
 @pytest.mark.asyncio
-async def test_consumer_resumes_at_threshold(backpressure_config, mock_backpressure_engine, mock_backpressure_metrics):
+async def test_consumer_resumes_at_threshold(
+    backpressure_config, mock_backpressure_engine, mock_backpressure_metrics
+):
     """Verificar que consumer resume quando threshold atingido."""
     from clients.kafka_ticket_consumer import KafkaTicketConsumer
 
     mock_kafka_consumer = MagicMock()
     mock_kafka_consumer.assignment.return_value = [MagicMock()]
 
-    with patch('clients.kafka_ticket_consumer.Consumer', return_value=mock_kafka_consumer):
-        consumer = KafkaTicketConsumer(backpressure_config, mock_backpressure_engine, mock_backpressure_metrics)
+    with patch("clients.kafka_ticket_consumer.Consumer", return_value=mock_kafka_consumer):
+        consumer = KafkaTicketConsumer(
+            backpressure_config, mock_backpressure_engine, mock_backpressure_metrics
+        )
         await consumer.initialize()
 
         # Simular estado de pausa (consumer foi pausado anteriormente)
@@ -185,7 +199,7 @@ async def test_consumer_resumes_at_threshold(backpressure_config, mock_backpress
         # resume_limit = int(3 * 0.5) = 1
         # 1 <= 1 = True -> deve resumir
         await consumer.tickets_semaphore.acquire()
-        consumer.in_flight_tickets.add('ticket-1')
+        consumer.in_flight_tickets.add("ticket-1")
 
         await consumer._resume_consumer_if_needed()
 
@@ -199,81 +213,97 @@ async def test_consumer_resumes_at_threshold(backpressure_config, mock_backpress
 
 
 @pytest.mark.asyncio
-async def test_in_flight_tickets_cleaned_up_on_success(backpressure_config, mock_backpressure_engine, mock_backpressure_metrics):
+async def test_in_flight_tickets_cleaned_up_on_success(
+    backpressure_config, mock_backpressure_engine, mock_backpressure_metrics
+):
     """Verificar que tickets são removidos de in_flight após sucesso."""
     from clients.kafka_ticket_consumer import KafkaTicketConsumer
 
     mock_kafka_consumer = MagicMock()
 
-    with patch('clients.kafka_ticket_consumer.Consumer', return_value=mock_kafka_consumer):
-        consumer = KafkaTicketConsumer(backpressure_config, mock_backpressure_engine, mock_backpressure_metrics)
+    with patch("clients.kafka_ticket_consumer.Consumer", return_value=mock_kafka_consumer):
+        consumer = KafkaTicketConsumer(
+            backpressure_config, mock_backpressure_engine, mock_backpressure_metrics
+        )
         await consumer.initialize()
 
         ticket = {
-            'ticket_id': 'ticket-1',
-            'task_id': 'task-1',
-            'task_type': 'BUILD',
-            'status': 'PENDING',
-            'dependencies': []
+            "ticket_id": "ticket-1",
+            "task_id": "task-1",
+            "task_type": "BUILD",
+            "status": "PENDING",
+            "dependencies": [],
         }
 
         mock_message = MagicMock()
 
         # Adicionar ticket a in_flight
-        consumer.in_flight_tickets.add('ticket-1')
+        consumer.in_flight_tickets.add("ticket-1")
         initial_semaphore_value = consumer.tickets_semaphore._value
 
         # Processar ticket
         await consumer._process_ticket_with_cleanup(ticket, mock_message)
 
         # Verificar cleanup
-        assert 'ticket-1' not in consumer.in_flight_tickets
-        assert consumer.tickets_semaphore._value == initial_semaphore_value + 1  # Semaphore liberado
+        assert "ticket-1" not in consumer.in_flight_tickets
+        assert (
+            consumer.tickets_semaphore._value == initial_semaphore_value + 1
+        )  # Semaphore liberado
 
 
 @pytest.mark.asyncio
-async def test_in_flight_tickets_cleaned_up_on_failure(backpressure_config, mock_backpressure_metrics):
+async def test_in_flight_tickets_cleaned_up_on_failure(
+    backpressure_config, mock_backpressure_metrics
+):
     """Verificar que tickets são removidos de in_flight mesmo em caso de falha."""
     from clients.kafka_ticket_consumer import KafkaTicketConsumer
 
     # Execution engine que sempre falha
     failing_engine = AsyncMock()
-    failing_engine.process_ticket.side_effect = Exception('Simulated failure')
+    failing_engine.process_ticket.side_effect = Exception("Simulated failure")
 
     mock_kafka_consumer = MagicMock()
 
-    with patch('clients.kafka_ticket_consumer.Consumer', return_value=mock_kafka_consumer):
-        consumer = KafkaTicketConsumer(backpressure_config, failing_engine, mock_backpressure_metrics)
+    with patch("clients.kafka_ticket_consumer.Consumer", return_value=mock_kafka_consumer):
+        consumer = KafkaTicketConsumer(
+            backpressure_config, failing_engine, mock_backpressure_metrics
+        )
         await consumer.initialize()
 
         ticket = {
-            'ticket_id': 'ticket-1',
-            'task_id': 'task-1',
-            'task_type': 'BUILD',
-            'status': 'PENDING',
-            'dependencies': []
+            "ticket_id": "ticket-1",
+            "task_id": "task-1",
+            "task_type": "BUILD",
+            "status": "PENDING",
+            "dependencies": [],
         }
 
         mock_message = MagicMock()
 
         # Adicionar ticket a in_flight
-        consumer.in_flight_tickets.add('ticket-1')
+        consumer.in_flight_tickets.add("ticket-1")
         initial_semaphore_value = consumer.tickets_semaphore._value
 
         # Processar ticket (deve falhar mas fazer cleanup)
         await consumer._process_ticket_with_cleanup(ticket, mock_message)
 
         # Verificar cleanup mesmo com falha
-        assert 'ticket-1' not in consumer.in_flight_tickets
-        assert consumer.tickets_semaphore._value == initial_semaphore_value + 1  # Semaphore liberado
+        assert "ticket-1" not in consumer.in_flight_tickets
+        assert (
+            consumer.tickets_semaphore._value == initial_semaphore_value + 1
+        )  # Semaphore liberado
 
 
 @pytest.mark.asyncio
-async def test_metrics_updated_correctly(backpressure_config, mock_backpressure_engine, mock_backpressure_metrics):
+async def test_metrics_updated_correctly(
+    backpressure_config, mock_backpressure_engine, mock_backpressure_metrics
+):
     """Verificar que métricas são atualizadas corretamente."""
     from clients.kafka_ticket_consumer import KafkaTicketConsumer
 
-    consumer = KafkaTicketConsumer(backpressure_config, mock_backpressure_engine, mock_backpressure_metrics)
+    consumer = KafkaTicketConsumer(
+        backpressure_config, mock_backpressure_engine, mock_backpressure_metrics
+    )
 
     mock_consumer = MagicMock()
     consumer.consumer = mock_consumer
@@ -281,8 +311,8 @@ async def test_metrics_updated_correctly(backpressure_config, mock_backpressure_
     await consumer.initialize()
 
     # Simular adição de tickets
-    consumer.in_flight_tickets.add('ticket-1')
-    consumer.in_flight_tickets.add('ticket-2')
+    consumer.in_flight_tickets.add("ticket-1")
+    consumer.in_flight_tickets.add("ticket-2")
 
     # Atualizar métrica manualmente (como faria o código real)
     mock_backpressure_metrics.tickets_in_flight.set(len(consumer.in_flight_tickets))
@@ -292,22 +322,31 @@ async def test_metrics_updated_correctly(backpressure_config, mock_backpressure_
 
 
 @pytest.mark.asyncio
-async def test_backpressure_with_high_load(backpressure_config, mock_backpressure_engine, mock_backpressure_metrics):
+async def test_backpressure_with_high_load(
+    backpressure_config, mock_backpressure_engine, mock_backpressure_metrics
+):
     """Teste de carga: verificar comportamento com muitos tickets sem bloqueio."""
     from clients.kafka_ticket_consumer import KafkaTicketConsumer
 
     mock_kafka_consumer = MagicMock()
     mock_kafka_consumer.assignment.return_value = [MagicMock()]
 
-    with patch('clients.kafka_ticket_consumer.Consumer', return_value=mock_kafka_consumer):
-        consumer = KafkaTicketConsumer(backpressure_config, mock_backpressure_engine, mock_backpressure_metrics)
+    with patch("clients.kafka_ticket_consumer.Consumer", return_value=mock_kafka_consumer):
+        consumer = KafkaTicketConsumer(
+            backpressure_config, mock_backpressure_engine, mock_backpressure_metrics
+        )
         await consumer.initialize()
 
         # Simular tickets (limitado ao max_concurrent para evitar bloqueio)
         num_tickets = 3  # Igual ao max_concurrent_tickets
         tickets = [
-            {'ticket_id': f'ticket-{i}', 'task_id': f'task-{i}', 'task_type': 'BUILD',
-             'status': 'PENDING', 'dependencies': []}
+            {
+                "ticket_id": f"ticket-{i}",
+                "task_id": f"task-{i}",
+                "task_type": "BUILD",
+                "status": "PENDING",
+                "dependencies": [],
+            }
             for i in range(num_tickets)
         ]
 
@@ -318,17 +357,14 @@ async def test_backpressure_with_high_load(backpressure_config, mock_backpressur
             # Adquirir semaphore antes de processar (simula loop principal)
             await consumer.tickets_semaphore.acquire()
             # Adicionar ticket a in_flight
-            consumer.in_flight_tickets.add(ticket['ticket_id'])
+            consumer.in_flight_tickets.add(ticket["ticket_id"])
             # Criar task para processamento
             task = asyncio.create_task(consumer._process_ticket_with_cleanup(ticket, mock_message))
             tasks.append(task)
 
         # Aguardar conclusão com timeout para evitar deadlock
         try:
-            await asyncio.wait_for(
-                asyncio.gather(*tasks, return_exceptions=True),
-                timeout=10.0
-            )
+            await asyncio.wait_for(asyncio.gather(*tasks, return_exceptions=True), timeout=10.0)
         except asyncio.TimeoutError:
             # Cancelar tasks pendentes
             for task in tasks:

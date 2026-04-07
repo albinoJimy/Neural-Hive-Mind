@@ -15,16 +15,16 @@ import os
 def mock_env_vars():
     """Mock variaveis de ambiente para os testes."""
     env_vars = {
-        'KAFKA_BOOTSTRAP_SERVERS': 'localhost:9092',
-        'POSTGRES_HOST': 'localhost',
-        'POSTGRES_DB': 'test_db',
-        'POSTGRES_USER': 'test_user',
-        'POSTGRES_PASSWORD': 'test_pass',
-        'MONGODB_HOST': 'localhost',
-        'REDIS_HOST': 'localhost',
-        'SERVICE_REGISTRY_HOST': 'localhost',
-        'EXECUTION_TICKET_SERVICE_URL': 'http://localhost:8000',
-        'TEMPLATES_GIT_REPO': 'https://github.com/test/repo.git'
+        "KAFKA_BOOTSTRAP_SERVERS": "localhost:9092",
+        "POSTGRES_HOST": "localhost",
+        "POSTGRES_DB": "test_db",
+        "POSTGRES_USER": "test_user",
+        "POSTGRES_PASSWORD": "test_pass",
+        "MONGODB_HOST": "localhost",
+        "REDIS_HOST": "localhost",
+        "SERVICE_REGISTRY_HOST": "localhost",
+        "EXECUTION_TICKET_SERVICE_URL": "http://localhost:8000",
+        "TEMPLATES_GIT_REPO": "https://github.com/test/repo.git",
     }
 
     # Salvar valores originais

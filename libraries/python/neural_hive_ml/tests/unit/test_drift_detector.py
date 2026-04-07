@@ -40,19 +40,14 @@ def drift_detector(mock_mongo_client, mock_kafka_producer):
         kafka_producer=mock_kafka_producer,
         confidence_threshold=0.10,
         approve_rate_threshold=0.15,
-        baseline_window_hours=168
+        baseline_window_hours=168,
     )
 
 
 @pytest.fixture
 def mock_aggregation_results():
     """Mock de resultados de agregação MongoDB."""
-    return {
-        "_id": None,
-        "approve_rate": 0.70,
-        "avg_confidence": 0.75,
-        "count": 100
-    }
+    return {"_id": None, "approve_rate": 0.70, "avg_confidence": 0.75, "count": 100}
 
 
 # =============================================================================
@@ -65,10 +60,7 @@ class TestDriftDetectorInitialization:
 
     def test_drift_detector_initialization_with_defaults(self, mock_mongo_client):
         """Testa inicialização com valores padrão."""
-        detector = DriftDetector(
-            mongo_client=mock_mongo_client,
-            kafka_producer=None
-        )
+        detector = DriftDetector(mongo_client=mock_mongo_client, kafka_producer=None)
 
         assert detector.mongo_client == mock_mongo_client
         assert detector.kafka_producer is None
@@ -76,14 +68,16 @@ class TestDriftDetectorInitialization:
         assert detector.approve_rate_threshold == 0.15
         assert detector.baseline_window_hours == 168
 
-    def test_drift_detector_initialization_with_custom_thresholds(self, mock_mongo_client, mock_kafka_producer):
+    def test_drift_detector_initialization_with_custom_thresholds(
+        self, mock_mongo_client, mock_kafka_producer
+    ):
         """Testa inicialização com thresholds personalizados."""
         detector = DriftDetector(
             mongo_client=mock_mongo_client,
             kafka_producer=mock_kafka_producer,
             confidence_threshold=0.15,
             approve_rate_threshold=0.20,
-            baseline_window_hours=72
+            baseline_window_hours=72,
         )
 
         assert detector.confidence_threshold == 0.15
@@ -247,7 +241,7 @@ class TestGetActiveModelVersion:
             "version": "v1.2.3",
             "stage": "production",
             "is_active": True,
-            "created_at": datetime.now(timezone.utc)
+            "created_at": datetime.now(timezone.utc),
         }
         drift_detector.db.model_versions.find_one = AsyncMock(return_value=mock_doc)
 
@@ -293,19 +287,22 @@ class TestDetectDriftNoDrift:
             mock_cursor = AsyncMock()
             # First call is baseline (168h), second is current (24h)
             if call_count[0] == 1:  # baseline
-                mock_cursor.to_list = AsyncMock(return_value=[{
-                    "_id": None,
-                    "approve_rate": 0.70,
-                    "avg_confidence": 0.75,
-                    "count": 100
-                }])
+                mock_cursor.to_list = AsyncMock(
+                    return_value=[
+                        {"_id": None, "approve_rate": 0.70, "avg_confidence": 0.75, "count": 100}
+                    ]
+                )
             else:  # current
-                mock_cursor.to_list = AsyncMock(return_value=[{
-                    "_id": None,
-                    "approve_rate": 0.72,  # Diferença de 0.02 (< 0.15 threshold)
-                    "avg_confidence": 0.76,  # Diferença de 0.01 (< 0.10 threshold)
-                    "count": 50
-                }])
+                mock_cursor.to_list = AsyncMock(
+                    return_value=[
+                        {
+                            "_id": None,
+                            "approve_rate": 0.72,  # Diferença de 0.02 (< 0.15 threshold)
+                            "avg_confidence": 0.76,  # Diferença de 0.01 (< 0.10 threshold)
+                            "count": 50,
+                        }
+                    ]
+                )
             return mock_cursor
 
         drift_detector.db.plan_approvals.aggregate = mock_aggregate
@@ -327,19 +324,22 @@ class TestDetectDriftNoDrift:
             call_count[0] += 1
             mock_cursor = AsyncMock()
             if call_count[0] == 1:  # baseline
-                mock_cursor.to_list = AsyncMock(return_value=[{
-                    "_id": None,
-                    "approve_rate": 0.70,
-                    "avg_confidence": 0.70,
-                    "count": 100
-                }])
+                mock_cursor.to_list = AsyncMock(
+                    return_value=[
+                        {"_id": None, "approve_rate": 0.70, "avg_confidence": 0.70, "count": 100}
+                    ]
+                )
             else:  # current
-                mock_cursor.to_list = AsyncMock(return_value=[{
-                    "_id": None,
-                    "approve_rate": 0.70,  # Diferença de 0.00
-                    "avg_confidence": 0.80,  # Diferença de 0.10 (exatamente threshold)
-                    "count": 50
-                }])
+                mock_cursor.to_list = AsyncMock(
+                    return_value=[
+                        {
+                            "_id": None,
+                            "approve_rate": 0.70,  # Diferença de 0.00
+                            "avg_confidence": 0.80,  # Diferença de 0.10 (exatamente threshold)
+                            "count": 50,
+                        }
+                    ]
+                )
             return mock_cursor
 
         drift_detector.db.plan_approvals.aggregate = mock_aggregate
@@ -370,19 +370,22 @@ class TestDetectDriftMeanShift:
             call_count[0] += 1
             mock_cursor = AsyncMock()
             if call_count[0] == 1:  # baseline
-                mock_cursor.to_list = AsyncMock(return_value=[{
-                    "_id": None,
-                    "approve_rate": 0.70,
-                    "avg_confidence": 0.80,
-                    "count": 100
-                }])
+                mock_cursor.to_list = AsyncMock(
+                    return_value=[
+                        {"_id": None, "approve_rate": 0.70, "avg_confidence": 0.80, "count": 100}
+                    ]
+                )
             else:  # current
-                mock_cursor.to_list = AsyncMock(return_value=[{
-                    "_id": None,
-                    "approve_rate": 0.70,
-                    "avg_confidence": 0.68,  # Queda de 0.12 (> 0.10 threshold, < 0.15 critical)
-                    "count": 50
-                }])
+                mock_cursor.to_list = AsyncMock(
+                    return_value=[
+                        {
+                            "_id": None,
+                            "approve_rate": 0.70,
+                            "avg_confidence": 0.68,  # Queda de 0.12 (> 0.10 threshold, < 0.15 critical)
+                            "count": 50,
+                        }
+                    ]
+                )
             return mock_cursor
 
         drift_detector.db.plan_approvals.aggregate = mock_aggregate
@@ -406,19 +409,22 @@ class TestDetectDriftMeanShift:
             call_count[0] += 1
             mock_cursor = AsyncMock()
             if call_count[0] == 1:  # baseline
-                mock_cursor.to_list = AsyncMock(return_value=[{
-                    "_id": None,
-                    "approve_rate": 0.70,
-                    "avg_confidence": 0.60,
-                    "count": 100
-                }])
+                mock_cursor.to_list = AsyncMock(
+                    return_value=[
+                        {"_id": None, "approve_rate": 0.70, "avg_confidence": 0.60, "count": 100}
+                    ]
+                )
             else:  # current
-                mock_cursor.to_list = AsyncMock(return_value=[{
-                    "_id": None,
-                    "approve_rate": 0.70,
-                    "avg_confidence": 0.75,  # Aumento de 0.15 (> 0.10 threshold)
-                    "count": 50
-                }])
+                mock_cursor.to_list = AsyncMock(
+                    return_value=[
+                        {
+                            "_id": None,
+                            "approve_rate": 0.70,
+                            "avg_confidence": 0.75,  # Aumento de 0.15 (> 0.10 threshold)
+                            "count": 50,
+                        }
+                    ]
+                )
             return mock_cursor
 
         drift_detector.db.plan_approvals.aggregate = mock_aggregate
@@ -439,19 +445,22 @@ class TestDetectDriftMeanShift:
             call_count[0] += 1
             mock_cursor = AsyncMock()
             if call_count[0] == 1:  # baseline
-                mock_cursor.to_list = AsyncMock(return_value=[{
-                    "_id": None,
-                    "approve_rate": 0.70,
-                    "avg_confidence": 0.75,
-                    "count": 100
-                }])
+                mock_cursor.to_list = AsyncMock(
+                    return_value=[
+                        {"_id": None, "approve_rate": 0.70, "avg_confidence": 0.75, "count": 100}
+                    ]
+                )
             else:  # current
-                mock_cursor.to_list = AsyncMock(return_value=[{
-                    "_id": None,
-                    "approve_rate": 0.50,  # Queda de 0.20 (> 0.15 threshold)
-                    "avg_confidence": 0.75,
-                    "count": 50
-                }])
+                mock_cursor.to_list = AsyncMock(
+                    return_value=[
+                        {
+                            "_id": None,
+                            "approve_rate": 0.50,  # Queda de 0.20 (> 0.15 threshold)
+                            "avg_confidence": 0.75,
+                            "count": 50,
+                        }
+                    ]
+                )
             return mock_cursor
 
         drift_detector.db.plan_approvals.aggregate = mock_aggregate
@@ -472,19 +481,22 @@ class TestDetectDriftMeanShift:
             call_count[0] += 1
             mock_cursor = AsyncMock()
             if call_count[0] == 1:  # baseline
-                mock_cursor.to_list = AsyncMock(return_value=[{
-                    "_id": None,
-                    "approve_rate": 0.70,
-                    "avg_confidence": 0.80,
-                    "count": 100
-                }])
+                mock_cursor.to_list = AsyncMock(
+                    return_value=[
+                        {"_id": None, "approve_rate": 0.70, "avg_confidence": 0.80, "count": 100}
+                    ]
+                )
             else:  # current
-                mock_cursor.to_list = AsyncMock(return_value=[{
-                    "_id": None,
-                    "approve_rate": 0.70,
-                    "avg_confidence": 0.50,  # Queda de 0.30 (> 1.5 * 0.10)
-                    "count": 50
-                }])
+                mock_cursor.to_list = AsyncMock(
+                    return_value=[
+                        {
+                            "_id": None,
+                            "approve_rate": 0.70,
+                            "avg_confidence": 0.50,  # Queda de 0.30 (> 1.5 * 0.10)
+                            "count": 50,
+                        }
+                    ]
+                )
             return mock_cursor
 
         drift_detector.db.plan_approvals.aggregate = mock_aggregate
@@ -504,19 +516,22 @@ class TestDetectDriftMeanShift:
             call_count[0] += 1
             mock_cursor = AsyncMock()
             if call_count[0] == 1:  # baseline
-                mock_cursor.to_list = AsyncMock(return_value=[{
-                    "_id": None,
-                    "approve_rate": 0.70,
-                    "avg_confidence": 0.80,
-                    "count": 100
-                }])
+                mock_cursor.to_list = AsyncMock(
+                    return_value=[
+                        {"_id": None, "approve_rate": 0.70, "avg_confidence": 0.80, "count": 100}
+                    ]
+                )
             else:  # current
-                mock_cursor.to_list = AsyncMock(return_value=[{
-                    "_id": None,
-                    "approve_rate": 0.50,  # Queda de 0.20
-                    "avg_confidence": 0.60,  # Queda de 0.20
-                    "count": 50
-                }])
+                mock_cursor.to_list = AsyncMock(
+                    return_value=[
+                        {
+                            "_id": None,
+                            "approve_rate": 0.50,  # Queda de 0.20
+                            "avg_confidence": 0.60,  # Queda de 0.20
+                            "count": 50,
+                        }
+                    ]
+                )
             return mock_cursor
 
         drift_detector.db.plan_approvals.aggregate = mock_aggregate
@@ -542,14 +557,14 @@ class TestDetectDriftWithTimestamps:
     @pytest.mark.asyncio
     async def test_detect_drift_includes_timestamp(self, drift_detector):
         """Testa que resultado inclui timestamp de última atualização."""
+
         def mock_aggregate(window_hours):
             mock_cursor = AsyncMock()
-            mock_cursor.to_list = AsyncMock(return_value=[{
-                "_id": None,
-                "approve_rate": 0.70,
-                "avg_confidence": 0.75,
-                "count": 100
-            }])
+            mock_cursor.to_list = AsyncMock(
+                return_value=[
+                    {"_id": None, "approve_rate": 0.70, "avg_confidence": 0.75, "count": 100}
+                ]
+            )
             return mock_cursor
 
         drift_detector.db.plan_approvals.aggregate = mock_aggregate
@@ -564,14 +579,14 @@ class TestDetectDriftWithTimestamps:
     @pytest.mark.asyncio
     async def test_detect_drift_window_hours_in_result(self, drift_detector):
         """Testa que window_hours está incluído no resultado."""
+
         def mock_aggregate(window_hours):
             mock_cursor = AsyncMock()
-            mock_cursor.to_list = AsyncMock(return_value=[{
-                "_id": None,
-                "approve_rate": 0.70,
-                "avg_confidence": 0.75,
-                "count": 100
-            }])
+            mock_cursor.to_list = AsyncMock(
+                return_value=[
+                    {"_id": None, "approve_rate": 0.70, "avg_confidence": 0.75, "count": 100}
+                ]
+            )
             return mock_cursor
 
         drift_detector.db.plan_approvals.aggregate = mock_aggregate
@@ -585,7 +600,9 @@ class TestDetectDriftWithTimestamps:
     @pytest.mark.asyncio
     async def test_detect_drift_on_error_returns_error_dict(self, drift_detector):
         """Testa tratamento de erro em detect_drift."""
-        drift_detector.db.plan_approvals.aggregate = Mock(side_effect=Exception("DB Connection failed"))
+        drift_detector.db.plan_approvals.aggregate = Mock(
+            side_effect=Exception("DB Connection failed")
+        )
 
         result = await drift_detector.detect_drift()
 
@@ -609,11 +626,9 @@ class TestPublishDriftAlert:
         drift_data = {
             "model_version": "v1.0.0",
             "drift_detected": True,
-            "alerts": [
-                {"metric": "avg_confidence", "change": -0.15, "threshold": 0.10}
-            ],
+            "alerts": [{"metric": "avg_confidence", "change": -0.15, "threshold": 0.10}],
             "current": {"avg_confidence": 0.65},
-            "baseline": {"avg_confidence": 0.80}
+            "baseline": {"avg_confidence": 0.80},
         }
 
         result = await drift_detector.publish_drift_alert(drift_data)
@@ -631,10 +646,7 @@ class TestPublishDriftAlert:
         """Testa publicação sem Kafka configurado."""
         drift_detector.kafka_producer = None
 
-        drift_data = {
-            "model_version": "v1.0.0",
-            "drift_detected": True
-        }
+        drift_data = {"model_version": "v1.0.0", "drift_detected": True}
 
         result = await drift_detector.publish_drift_alert(drift_data)
 
@@ -647,10 +659,7 @@ class TestPublishDriftAlert:
         mock_kafka.produce_and_wait = AsyncMock(side_effect=Exception("Kafka connection error"))
         drift_detector.kafka_producer = mock_kafka
 
-        drift_data = {
-            "model_version": "v1.0.0",
-            "drift_detected": True
-        }
+        drift_data = {"model_version": "v1.0.0", "drift_detected": True}
 
         result = await drift_detector.publish_drift_alert(drift_data)
 
@@ -674,19 +683,22 @@ class TestGetDriftMetrics:
             call_count[0] += 1
             mock_cursor = AsyncMock()
             if call_count[0] == 1:  # baseline
-                mock_cursor.to_list = AsyncMock(return_value=[{
-                    "_id": None,
-                    "approve_rate": 0.70,
-                    "avg_confidence": 0.80,
-                    "count": 100
-                }])
+                mock_cursor.to_list = AsyncMock(
+                    return_value=[
+                        {"_id": None, "approve_rate": 0.70, "avg_confidence": 0.80, "count": 100}
+                    ]
+                )
             else:  # current
-                mock_cursor.to_list = AsyncMock(return_value=[{
-                    "_id": None,
-                    "approve_rate": 0.70,
-                    "avg_confidence": 0.60,  # Drift detectado
-                    "count": 50
-                }])
+                mock_cursor.to_list = AsyncMock(
+                    return_value=[
+                        {
+                            "_id": None,
+                            "approve_rate": 0.70,
+                            "avg_confidence": 0.60,  # Drift detectado
+                            "count": 50,
+                        }
+                    ]
+                )
             return mock_cursor
 
         drift_detector.db.plan_approvals.aggregate = mock_aggregate
@@ -701,14 +713,14 @@ class TestGetDriftMetrics:
     @pytest.mark.asyncio
     async def test_get_drift_metrics_without_drift(self, drift_detector):
         """Testa que métricas sem drift não têm recomendação."""
+
         def mock_aggregate(window_hours):
             mock_cursor = AsyncMock()
-            mock_cursor.to_list = AsyncMock(return_value=[{
-                "_id": None,
-                "approve_rate": 0.70,
-                "avg_confidence": 0.75,
-                "count": 100
-            }])
+            mock_cursor.to_list = AsyncMock(
+                return_value=[
+                    {"_id": None, "approve_rate": 0.70, "avg_confidence": 0.75, "count": 100}
+                ]
+            )
             return mock_cursor
 
         drift_detector.db.plan_approvals.aggregate = mock_aggregate
@@ -733,10 +745,7 @@ class TestCanaryDeployerInitialization:
         mock_repo = Mock()
         mock_kafka = Mock()
 
-        deployer = CanaryDeployer(
-            model_repo=mock_repo,
-            kafka_producer=mock_kafka
-        )
+        deployer = CanaryDeployer(model_repo=mock_repo, kafka_producer=mock_kafka)
 
         assert deployer.model_repo == mock_repo
         assert deployer.kafka_producer == mock_kafka
@@ -752,7 +761,7 @@ class TestCanaryDeployerInitialization:
             model_repo=mock_repo,
             kafka_producer=mock_kafka,
             canary_duration_minutes=120,
-            canary_traffic_percentage=20
+            canary_traffic_percentage=20,
         )
 
         assert deployer.canary_duration_minutes == 120
@@ -760,7 +769,7 @@ class TestCanaryDeployerInitialization:
 
     def test_canary_deployer_class_has_active_canaries_dict(self):
         """Testa que a classe mantém dicionário de canaries ativos."""
-        assert hasattr(CanaryDeployer, '_active_canaries')
+        assert hasattr(CanaryDeployer, "_active_canaries")
         assert isinstance(CanaryDeployer._active_canaries, dict)
 
 
@@ -780,10 +789,7 @@ class TestCanaryDeployerStartCanary:
         mock_kafka = AsyncMock()
         mock_kafka.produce_and_wait = AsyncMock()
 
-        deployer = CanaryDeployer(
-            model_repo=mock_repo,
-            kafka_producer=mock_kafka
-        )
+        deployer = CanaryDeployer(model_repo=mock_repo, kafka_producer=mock_kafka)
 
         result = await deployer.start_canary("v2.0.0", "v1.0.0")
 
@@ -799,10 +805,7 @@ class TestCanaryDeployerStartCanary:
         mock_repo.get_model_version = AsyncMock(return_value=None)
         mock_kafka = AsyncMock()
 
-        deployer = CanaryDeployer(
-            model_repo=mock_repo,
-            kafka_producer=mock_kafka
-        )
+        deployer = CanaryDeployer(model_repo=mock_repo, kafka_producer=mock_kafka)
 
         result = await deployer.start_canary("v2.0.0", "v1.0.0")
 
@@ -818,10 +821,7 @@ class TestCanaryDeployerStartCanary:
         mock_kafka = AsyncMock()
         mock_kafka.produce_and_wait = AsyncMock()
 
-        deployer = CanaryDeployer(
-            model_repo=mock_repo,
-            kafka_producer=mock_kafka
-        )
+        deployer = CanaryDeployer(model_repo=mock_repo, kafka_producer=mock_kafka)
 
         result = await deployer.start_canary("v2.0.0", "v1.0.0")
         canary_id = result["canary_id"]
@@ -847,10 +847,7 @@ class TestCanaryDeployerCollectMetrics:
         mock_kafka = AsyncMock()
         mock_kafka.produce_and_wait = AsyncMock()
 
-        deployer = CanaryDeployer(
-            model_repo=mock_repo,
-            kafka_producer=mock_kafka
-        )
+        deployer = CanaryDeployer(model_repo=mock_repo, kafka_producer=mock_kafka)
 
         # Primeiro cria um canary
         start_result = await deployer.start_canary("v2.0.0", "v1.0.0")
@@ -875,10 +872,7 @@ class TestCanaryDeployerCollectMetrics:
         mock_repo = MagicMock()
         mock_kafka = AsyncMock()
 
-        deployer = CanaryDeployer(
-            model_repo=mock_repo,
-            kafka_producer=mock_kafka
-        )
+        deployer = CanaryDeployer(model_repo=mock_repo, kafka_producer=mock_kafka)
 
         result = await deployer.collect_canary_metrics("nonexistent-canary")
 
@@ -903,10 +897,7 @@ class TestCanaryDeployerValidateCanary:
         mock_kafka = AsyncMock()
         mock_kafka.produce_and_wait = AsyncMock()
 
-        deployer = CanaryDeployer(
-            model_repo=mock_repo,
-            kafka_producer=mock_kafka
-        )
+        deployer = CanaryDeployer(model_repo=mock_repo, kafka_producer=mock_kafka)
 
         # Cria canary com métricas boas
         await deployer.start_canary("v2.0.0", "v1.0.0")
@@ -920,8 +911,8 @@ class TestCanaryDeployerValidateCanary:
                 "metrics": {
                     "baseline": {"f1_score": 0.73, "sample_count": 1000},
                     "canary": {"f1_score": 0.78, "sample_count": 100},  # Melhorou
-                    "comparison": {"f1_delta": 0.05}
-                }
+                    "comparison": {"f1_delta": 0.05},
+                },
             }
 
         deployer.collect_canary_metrics = mock_collect
@@ -939,10 +930,7 @@ class TestCanaryDeployerValidateCanary:
         mock_kafka = AsyncMock()
         mock_kafka.produce_and_wait = AsyncMock()
 
-        deployer = CanaryDeployer(
-            model_repo=mock_repo,
-            kafka_producer=mock_kafka
-        )
+        deployer = CanaryDeployer(model_repo=mock_repo, kafka_producer=mock_kafka)
 
         # Cria canary
         await deployer.start_canary("v2.0.0", "v1.0.0")
@@ -956,8 +944,8 @@ class TestCanaryDeployerValidateCanary:
                 "metrics": {
                     "baseline": {"f1_score": 0.73, "sample_count": 1000},
                     "canary": {"f1_score": 0.78, "sample_count": 20},  # Apenas 20 samples
-                    "comparison": {"f1_delta": 0.05}
-                }
+                    "comparison": {"f1_delta": 0.05},
+                },
             }
 
         deployer.collect_canary_metrics = mock_collect
@@ -975,10 +963,7 @@ class TestCanaryDeployerValidateCanary:
         mock_kafka = AsyncMock()
         mock_kafka.produce_and_wait = AsyncMock()
 
-        deployer = CanaryDeployer(
-            model_repo=mock_repo,
-            kafka_producer=mock_kafka
-        )
+        deployer = CanaryDeployer(model_repo=mock_repo, kafka_producer=mock_kafka)
 
         await deployer.start_canary("v2.0.0", "v1.0.0")
         canary_id = list(CanaryDeployer._active_canaries.keys())[-1]
@@ -991,8 +976,8 @@ class TestCanaryDeployerValidateCanary:
                 "metrics": {
                     "baseline": {"f1_score": 0.73, "sample_count": 1000},
                     "canary": {"f1_score": 0.68, "sample_count": 100},
-                    "comparison": {"f1_delta": -0.05}
-                }
+                    "comparison": {"f1_delta": -0.05},
+                },
             }
 
         deployer.collect_canary_metrics = mock_collect
@@ -1008,10 +993,7 @@ class TestCanaryDeployerValidateCanary:
         mock_repo = MagicMock()
         mock_kafka = AsyncMock()
 
-        deployer = CanaryDeployer(
-            model_repo=mock_repo,
-            kafka_producer=mock_kafka
-        )
+        deployer = CanaryDeployer(model_repo=mock_repo, kafka_producer=mock_kafka)
 
         result = await deployer.validate_canary("nonexistent")
 
@@ -1036,10 +1018,7 @@ class TestCanaryDeployerPromoteOrRollback:
         mock_kafka = AsyncMock()
         mock_kafka.produce_and_wait = AsyncMock()
 
-        deployer = CanaryDeployer(
-            model_repo=mock_repo,
-            kafka_producer=mock_kafka
-        )
+        deployer = CanaryDeployer(model_repo=mock_repo, kafka_producer=mock_kafka)
 
         await deployer.start_canary("v2.0.0", "v1.0.0")
         canary_id = list(CanaryDeployer._active_canaries.keys())[-1]
@@ -1057,10 +1036,7 @@ class TestCanaryDeployerPromoteOrRollback:
         mock_kafka = AsyncMock()
         mock_kafka.produce_and_wait = AsyncMock()
 
-        deployer = CanaryDeployer(
-            model_repo=mock_repo,
-            kafka_producer=mock_kafka
-        )
+        deployer = CanaryDeployer(model_repo=mock_repo, kafka_producer=mock_kafka)
 
         await deployer.start_canary("v2.0.0", "v1.0.0")
         canary_id = list(CanaryDeployer._active_canaries.keys())[-1]
@@ -1085,10 +1061,7 @@ class TestCanaryDeployerCalculateTrafficSplit:
         mock_repo = Mock()
         mock_kafka = AsyncMock()
 
-        deployer = CanaryDeployer(
-            model_repo=mock_repo,
-            kafka_producer=mock_kafka
-        )
+        deployer = CanaryDeployer(model_repo=mock_repo, kafka_producer=mock_kafka)
 
         result = await deployer._calculate_traffic_split("v2.0.0", "v1.0.0")
 
@@ -1104,9 +1077,7 @@ class TestCanaryDeployerCalculateTrafficSplit:
         mock_kafka = AsyncMock()
 
         deployer = CanaryDeployer(
-            model_repo=mock_repo,
-            kafka_producer=mock_kafka,
-            canary_traffic_percentage=25
+            model_repo=mock_repo, kafka_producer=mock_kafka, canary_traffic_percentage=25
         )
 
         result = await deployer._calculate_traffic_split("v2.0.0", "v1.0.0")
@@ -1174,19 +1145,22 @@ class TestDriftDetectorRealLogic:
             # Retorna cursor mockado
             mock_cursor = AsyncMock()
             if call_count[0] == 1:  # baseline
-                mock_cursor.to_list = AsyncMock(return_value=[{
-                    "_id": None,
-                    "approve_rate": 0.80,
-                    "avg_confidence": 0.85,
-                    "count": 500
-                }])
+                mock_cursor.to_list = AsyncMock(
+                    return_value=[
+                        {"_id": None, "approve_rate": 0.80, "avg_confidence": 0.85, "count": 500}
+                    ]
+                )
             else:  # current
-                mock_cursor.to_list = AsyncMock(return_value=[{
-                    "_id": None,
-                    "approve_rate": 0.60,  # Queda de 0.20
-                    "avg_confidence": 0.70,  # Queda de 0.15
-                    "count": 100
-                }])
+                mock_cursor.to_list = AsyncMock(
+                    return_value=[
+                        {
+                            "_id": None,
+                            "approve_rate": 0.60,  # Queda de 0.20
+                            "avg_confidence": 0.70,  # Queda de 0.15
+                            "count": 100,
+                        }
+                    ]
+                )
             return mock_cursor
 
         drift_detector.db.plan_approvals.aggregate = mock_aggregate
@@ -1227,12 +1201,11 @@ class TestDriftDetectorRealLogic:
             if call_count[0] == 1:  # baseline vazio
                 mock_cursor.to_list = AsyncMock(return_value=[])
             else:  # current com dados
-                mock_cursor.to_list = AsyncMock(return_value=[{
-                    "_id": None,
-                    "approve_rate": 0.70,
-                    "avg_confidence": 0.75,
-                    "count": 50
-                }])
+                mock_cursor.to_list = AsyncMock(
+                    return_value=[
+                        {"_id": None, "approve_rate": 0.70, "avg_confidence": 0.75, "count": 50}
+                    ]
+                )
             return mock_cursor
 
         drift_detector.db.plan_approvals.aggregate = mock_aggregate
@@ -1256,10 +1229,7 @@ class TestCanaryDeployerRealLogic:
     @pytest.mark.asyncio
     async def test_publish_canary_event_without_kafka(self):
         """Testa _publish_canary_event sem Kafka (caminho silencioso)."""
-        deployer = CanaryDeployer(
-            model_repo=Mock(),
-            kafka_producer=None  # Sem Kafka
-        )
+        deployer = CanaryDeployer(model_repo=Mock(), kafka_producer=None)  # Sem Kafka
 
         # Não deve lançar erro
         await deployer._publish_canary_event("canary_started", "cid", "v2", "v1")
@@ -1270,10 +1240,7 @@ class TestCanaryDeployerRealLogic:
         mock_kafka = AsyncMock()
         mock_kafka.produce_and_wait = AsyncMock(side_effect=Exception("Kafka down"))
 
-        deployer = CanaryDeployer(
-            model_repo=Mock(),
-            kafka_producer=mock_kafka
-        )
+        deployer = CanaryDeployer(model_repo=Mock(), kafka_producer=mock_kafka)
 
         # Não deve lançar erro - trata exceção internamente
         await deployer._publish_canary_event("canary_started", "cid", "v2", "v1")
@@ -1282,10 +1249,7 @@ class TestCanaryDeployerRealLogic:
     async def test_promote_nonexistent_canary(self):
         """Testa promoção de canary inexistente."""
         mock_repo = Mock()
-        deployer = CanaryDeployer(
-            model_repo=mock_repo,
-            kafka_producer=AsyncMock()
-        )
+        deployer = CanaryDeployer(model_repo=mock_repo, kafka_producer=AsyncMock())
 
         result = await deployer._promote("nonexistent-canary")
 
@@ -1295,10 +1259,7 @@ class TestCanaryDeployerRealLogic:
     @pytest.mark.asyncio
     async def test_rollback_nonexistent_canary(self):
         """Testa rollback de canary inexistente."""
-        deployer = CanaryDeployer(
-            model_repo=Mock(),
-            kafka_producer=AsyncMock()
-        )
+        deployer = CanaryDeployer(model_repo=Mock(), kafka_producer=AsyncMock())
 
         result = await deployer._rollback("nonexistent-canary")
 
@@ -1314,10 +1275,7 @@ class TestCanaryDeployerRealLogic:
         mock_kafka = AsyncMock()
         mock_kafka.produce_and_wait = AsyncMock()
 
-        deployer = CanaryDeployer(
-            model_repo=mock_repo,
-            kafka_producer=mock_kafka
-        )
+        deployer = CanaryDeployer(model_repo=mock_repo, kafka_producer=mock_kafka)
 
         # Cria canary
         await deployer.start_canary("v2.0", "v1.0")
@@ -1337,10 +1295,7 @@ class TestCanaryDeployerRealLogic:
         mock_kafka = AsyncMock()
         mock_kafka.produce_and_wait = AsyncMock()
 
-        deployer = CanaryDeployer(
-            model_repo=mock_repo,
-            kafka_producer=mock_kafka
-        )
+        deployer = CanaryDeployer(model_repo=mock_repo, kafka_producer=mock_kafka)
 
         # Cria canary
         await deployer.start_canary("v2.0", "v1.0")
@@ -1366,10 +1321,7 @@ class TestCanaryDeployerRealLogic:
         mock_kafka = AsyncMock()
         mock_kafka.produce_and_wait = AsyncMock()
 
-        deployer = CanaryDeployer(
-            model_repo=mock_repo,
-            kafka_producer=mock_kafka
-        )
+        deployer = CanaryDeployer(model_repo=mock_repo, kafka_producer=mock_kafka)
 
         # Cria canary
         await deployer.start_canary("v2.0", "v1.0")
@@ -1394,10 +1346,7 @@ class TestCanaryDeployerRealLogic:
         mock_kafka = AsyncMock()
         mock_kafka.produce_and_wait = AsyncMock()
 
-        deployer = CanaryDeployer(
-            model_repo=mock_repo,
-            kafka_producer=mock_kafka
-        )
+        deployer = CanaryDeployer(model_repo=mock_repo, kafka_producer=mock_kafka)
 
         # Cria canary
         await deployer.start_canary("v2.0", "v1.0")
@@ -1421,10 +1370,7 @@ class TestCanaryDeployerRealLogic:
         mock_kafka = AsyncMock()
         mock_kafka.produce_and_wait = AsyncMock()
 
-        deployer = CanaryDeployer(
-            model_repo=mock_repo,
-            kafka_producer=mock_kafka
-        )
+        deployer = CanaryDeployer(model_repo=mock_repo, kafka_producer=mock_kafka)
 
         await deployer.start_canary("v2.0", "v1.0")
         canary_id = list(CanaryDeployer._active_canaries.keys())[-1]
@@ -1437,8 +1383,8 @@ class TestCanaryDeployerRealLogic:
                 "metrics": {
                     "baseline": {"f1_score": 0.73, "sample_count": 1000},
                     "canary": {"f1_score": 0.735, "sample_count": 100},  # delta = 0.005
-                    "comparison": {"f1_delta": 0.005}
-                }
+                    "comparison": {"f1_delta": 0.005},
+                },
             }
 
         deployer.collect_canary_metrics = mock_collect
@@ -1457,10 +1403,7 @@ class TestCanaryDeployerRealLogic:
         mock_kafka = AsyncMock()
         mock_kafka.produce_and_wait = AsyncMock()
 
-        deployer = CanaryDeployer(
-            model_repo=mock_repo,
-            kafka_producer=mock_kafka
-        )
+        deployer = CanaryDeployer(model_repo=mock_repo, kafka_producer=mock_kafka)
 
         await deployer.start_canary("v2.0", "v1.0")
         canary_id = list(CanaryDeployer._active_canaries.keys())[-1]
@@ -1473,8 +1416,8 @@ class TestCanaryDeployerRealLogic:
                 "metrics": {
                     "baseline": {"f1_score": 0.73, "sample_count": 1000},
                     "canary": {"f1_score": 0.75, "sample_count": 50},  # Exatamente min_samples
-                    "comparison": {"f1_delta": 0.02}
-                }
+                    "comparison": {"f1_delta": 0.02},
+                },
             }
 
         deployer.collect_canary_metrics = mock_collect
@@ -1493,10 +1436,7 @@ class TestCanaryDeployerRealLogic:
         mock_kafka = AsyncMock()
         mock_kafka.produce_and_wait = AsyncMock()
 
-        deployer = CanaryDeployer(
-            model_repo=mock_repo,
-            kafka_producer=mock_kafka
-        )
+        deployer = CanaryDeployer(model_repo=mock_repo, kafka_producer=mock_kafka)
 
         # Testa promoção
         await deployer.start_canary("v2.0", "v1.0")
@@ -1559,11 +1499,9 @@ class TestDriftDetectorErrorHandling:
         mock_kafka.produce_and_wait = AsyncMock(side_effect=TypeError("Cannot serialize"))
         drift_detector.kafka_producer = mock_kafka
 
-        result = await drift_detector.publish_drift_alert({
-            "model_version": "v1.0",
-            "drift_detected": True,
-            "alerts": [{"metric": "test"}]
-        })
+        result = await drift_detector.publish_drift_alert(
+            {"model_version": "v1.0", "drift_detected": True, "alerts": [{"metric": "test"}]}
+        )
 
         assert result is False
 
@@ -1577,12 +1515,11 @@ class TestDriftDetectorErrorHandling:
             call_count[0] += 1
             mock_cursor = AsyncMock()
             if call_count[0] == 1:  # baseline ok
-                mock_cursor.to_list = AsyncMock(return_value=[{
-                    "_id": None,
-                    "approve_rate": 0.70,
-                    "avg_confidence": 0.75,
-                    "count": 100
-                }])
+                mock_cursor.to_list = AsyncMock(
+                    return_value=[
+                        {"_id": None, "approve_rate": 0.70, "avg_confidence": 0.75, "count": 100}
+                    ]
+                )
             else:  # current falha
                 raise Exception("Current calculation failed")
             return mock_cursor
@@ -1612,10 +1549,7 @@ class TestCanaryDeployerEdgeCases:
         mock_repo.get_model_version = AsyncMock(return_value={"version": "v1.0"})
         mock_kafka = AsyncMock()
 
-        deployer = CanaryDeployer(
-            model_repo=mock_repo,
-            kafka_producer=mock_kafka
-        )
+        deployer = CanaryDeployer(model_repo=mock_repo, kafka_producer=mock_kafka)
 
         # Versões iguais não deve causar erro
         result = await deployer.start_canary("v1.0", "v1.0")
@@ -1632,10 +1566,7 @@ class TestCanaryDeployerEdgeCases:
         mock_kafka = AsyncMock()
         mock_kafka.produce_and_wait = AsyncMock()
 
-        deployer = CanaryDeployer(
-            model_repo=mock_repo,
-            kafka_producer=mock_kafka
-        )
+        deployer = CanaryDeployer(model_repo=mock_repo, kafka_producer=mock_kafka)
 
         await deployer.start_canary("v2.0", "v1.0")
         canary_id = list(CanaryDeployer._active_canaries.keys())[-1]
@@ -1668,10 +1599,7 @@ class TestCanaryDeployerEdgeCases:
         mock_kafka = AsyncMock()
         mock_kafka.produce_and_wait = AsyncMock()
 
-        deployer = CanaryDeployer(
-            model_repo=mock_repo,
-            kafka_producer=mock_kafka
-        )
+        deployer = CanaryDeployer(model_repo=mock_repo, kafka_producer=mock_kafka)
 
         await deployer.start_canary("v2.0", "v1.0")
         canary_id = list(CanaryDeployer._active_canaries.keys())[-1]
@@ -1683,8 +1611,8 @@ class TestCanaryDeployerEdgeCases:
                 "metrics": {
                     "baseline": {"f1_score": 0.73, "sample_count": 1000},
                     "canary": {"f1_score": 0.75, "sample_count": 100},
-                    "comparison": {}  # Vazio
-                }
+                    "comparison": {},  # Vazio
+                },
             }
 
         deployer.collect_canary_metrics = mock_collect
@@ -1724,7 +1652,7 @@ class TestDriftDetectorAdditionalCoverage:
             kafka_producer=mock_kafka,
             confidence_threshold=0.20,
             approve_rate_threshold=0.25,
-            baseline_window_hours=48
+            baseline_window_hours=48,
         )
 
         assert detector.confidence_threshold == 0.20
@@ -1735,12 +1663,9 @@ class TestDriftDetectorAdditionalCoverage:
     async def test_calculate_baseline_with_valid_results(self, drift_detector):
         """Testa calculate_baseline retornando resultados válidos."""
         mock_cursor = AsyncMock()
-        mock_cursor.to_list = AsyncMock(return_value=[{
-            "_id": None,
-            "approve_rate": 0.75,
-            "avg_confidence": 0.80,
-            "count": 200
-        }])
+        mock_cursor.to_list = AsyncMock(
+            return_value=[{"_id": None, "approve_rate": 0.75, "avg_confidence": 0.80, "count": 200}]
+        )
         drift_detector.db.plan_approvals.aggregate = Mock(return_value=mock_cursor)
 
         result = await drift_detector.calculate_baseline(168)
@@ -1753,11 +1678,15 @@ class TestDriftDetectorAdditionalCoverage:
     async def test_calculate_baseline_with_missing_fields(self, drift_detector):
         """Testa calculate_baseline com campos faltando."""
         mock_cursor = AsyncMock()
-        mock_cursor.to_list = AsyncMock(return_value=[{
-            "_id": None,
-            "count": 50
-            # approve_rate e avg_confidence faltando
-        }])
+        mock_cursor.to_list = AsyncMock(
+            return_value=[
+                {
+                    "_id": None,
+                    "count": 50
+                    # approve_rate e avg_confidence faltando
+                }
+            ]
+        )
         drift_detector.db.plan_approvals.aggregate = Mock(return_value=mock_cursor)
 
         result = await drift_detector.calculate_baseline(168)
@@ -1771,12 +1700,9 @@ class TestDriftDetectorAdditionalCoverage:
     async def test_calculate_current_with_valid_data(self, drift_detector):
         """Testa calculate_current com dados válidos."""
         mock_cursor = AsyncMock()
-        mock_cursor.to_list = AsyncMock(return_value=[{
-            "_id": None,
-            "approve_rate": 0.65,
-            "avg_confidence": 0.70,
-            "count": 75
-        }])
+        mock_cursor.to_list = AsyncMock(
+            return_value=[{"_id": None, "approve_rate": 0.65, "avg_confidence": 0.70, "count": 75}]
+        )
         drift_detector.db.plan_approvals.aggregate = Mock(return_value=mock_cursor)
 
         result = await drift_detector.calculate_current(24)
@@ -1794,19 +1720,22 @@ class TestDriftDetectorAdditionalCoverage:
             call_count[0] += 1
             mock_cursor = AsyncMock()
             if call_count[0] == 1:  # baseline
-                mock_cursor.to_list = AsyncMock(return_value=[{
-                    "_id": None,
-                    "approve_rate": 0.70,
-                    "avg_confidence": 0.80,
-                    "count": 100
-                }])
+                mock_cursor.to_list = AsyncMock(
+                    return_value=[
+                        {"_id": None, "approve_rate": 0.70, "avg_confidence": 0.80, "count": 100}
+                    ]
+                )
             else:  # current - mudança de 0.15 (exatamente 1.5x threshold)
-                mock_cursor.to_list = AsyncMock(return_value=[{
-                    "_id": None,
-                    "approve_rate": 0.70,
-                    "avg_confidence": 0.65,  # Queda de 0.15 = 1.5 * 0.10
-                    "count": 50
-                }])
+                mock_cursor.to_list = AsyncMock(
+                    return_value=[
+                        {
+                            "_id": None,
+                            "approve_rate": 0.70,
+                            "avg_confidence": 0.65,  # Queda de 0.15 = 1.5 * 0.10
+                            "count": 50,
+                        }
+                    ]
+                )
             return mock_cursor
 
         drift_detector.db.plan_approvals.aggregate = mock_aggregate
@@ -1830,19 +1759,22 @@ class TestDriftDetectorAdditionalCoverage:
             call_count[0] += 1
             mock_cursor = AsyncMock()
             if call_count[0] == 1:  # baseline
-                mock_cursor.to_list = AsyncMock(return_value=[{
-                    "_id": None,
-                    "approve_rate": 0.70,
-                    "avg_confidence": 0.80,
-                    "count": 100
-                }])
+                mock_cursor.to_list = AsyncMock(
+                    return_value=[
+                        {"_id": None, "approve_rate": 0.70, "avg_confidence": 0.80, "count": 100}
+                    ]
+                )
             else:  # current - mudança de 0.16 (acima de 1.5x threshold)
-                mock_cursor.to_list = AsyncMock(return_value=[{
-                    "_id": None,
-                    "approve_rate": 0.70,
-                    "avg_confidence": 0.64,  # Queda de 0.16 > 1.5 * 0.10
-                    "count": 50
-                }])
+                mock_cursor.to_list = AsyncMock(
+                    return_value=[
+                        {
+                            "_id": None,
+                            "approve_rate": 0.70,
+                            "avg_confidence": 0.64,  # Queda de 0.16 > 1.5 * 0.10
+                            "count": 50,
+                        }
+                    ]
+                )
             return mock_cursor
 
         drift_detector.db.plan_approvals.aggregate = mock_aggregate
@@ -1858,14 +1790,14 @@ class TestDriftDetectorAdditionalCoverage:
     @pytest.mark.asyncio
     async def test_detect_drift_does_not_alert_when_below_threshold(self, drift_detector):
         """Testa que não há alerta quando mudança é abaixo do threshold."""
+
         def mock_aggregate(pipeline):
             mock_cursor = AsyncMock()
-            mock_cursor.to_list = AsyncMock(return_value=[{
-                "_id": None,
-                "approve_rate": 0.70,
-                "avg_confidence": 0.75,
-                "count": 100
-            }])
+            mock_cursor.to_list = AsyncMock(
+                return_value=[
+                    {"_id": None, "approve_rate": 0.70, "avg_confidence": 0.75, "count": 100}
+                ]
+            )
             return mock_cursor
 
         drift_detector.db.plan_approvals.aggregate = mock_aggregate
@@ -1881,14 +1813,14 @@ class TestDriftDetectorAdditionalCoverage:
     @pytest.mark.asyncio
     async def test_detect_drift_includes_model_version(self, drift_detector):
         """Testa que detect_drift inclui versão do modelo."""
+
         def mock_aggregate(pipeline):
             mock_cursor = AsyncMock()
-            mock_cursor.to_list = AsyncMock(return_value=[{
-                "_id": None,
-                "approve_rate": 0.70,
-                "avg_confidence": 0.75,
-                "count": 100
-            }])
+            mock_cursor.to_list = AsyncMock(
+                return_value=[
+                    {"_id": None, "approve_rate": 0.70, "avg_confidence": 0.75, "count": 100}
+                ]
+            )
             return mock_cursor
 
         drift_detector.db.plan_approvals.aggregate = mock_aggregate
@@ -1925,12 +1857,14 @@ class TestDriftDetectorAdditionalCoverage:
         """Testa publish_drift_alert sem producer Kafka."""
         drift_detector.kafka_producer = None
 
-        result = await drift_detector.publish_drift_alert({
-            "model_version": "v1.0",
-            "drift_detected": True,
-            "current": {"avg_confidence": 0.65},
-            "baseline": {"avg_confidence": 0.80}
-        })
+        result = await drift_detector.publish_drift_alert(
+            {
+                "model_version": "v1.0",
+                "drift_detected": True,
+                "current": {"avg_confidence": 0.65},
+                "baseline": {"avg_confidence": 0.80},
+            }
+        )
 
         assert result is False
 
@@ -1942,7 +1876,7 @@ class TestDriftDetectorAdditionalCoverage:
             "drift_detected": True,
             "alerts": [{"metric": "avg_confidence", "change": -0.15}],
             "current": {"avg_confidence": 0.65},
-            "baseline": {"avg_confidence": 0.80}
+            "baseline": {"avg_confidence": 0.80},
         }
 
         result = await drift_detector.publish_drift_alert(drift_data)
@@ -1953,20 +1887,18 @@ class TestDriftDetectorAdditionalCoverage:
     @pytest.mark.asyncio
     async def test_get_drift_metrics_no_drift(self, drift_detector):
         """Testa get_drift_metrics quando não há drift."""
+
         def mock_aggregate(pipeline):
             mock_cursor = AsyncMock()
-            mock_cursor.to_list = AsyncMock(return_value=[{
-                "_id": None,
-                "approve_rate": 0.70,
-                "avg_confidence": 0.75,
-                "count": 100
-            }])
+            mock_cursor.to_list = AsyncMock(
+                return_value=[
+                    {"_id": None, "approve_rate": 0.70, "avg_confidence": 0.75, "count": 100}
+                ]
+            )
             return mock_cursor
 
         drift_detector.db.plan_approvals.aggregate = mock_aggregate
-        drift_detector.db.model_versions.find_one = AsyncMock(
-            return_value={"version": "v1.0"}
-        )
+        drift_detector.db.model_versions.find_one = AsyncMock(return_value={"version": "v1.0"})
 
         result = await drift_detector.get_drift_metrics()
 
@@ -1991,7 +1923,7 @@ class TestCanaryDeployerAdditionalCoverage:
             model_repo=mock_repo,
             kafka_producer=mock_kafka,
             canary_duration_minutes=90,
-            canary_traffic_percentage=15
+            canary_traffic_percentage=15,
         )
 
         assert deployer.model_repo == mock_repo
@@ -2003,9 +1935,7 @@ class TestCanaryDeployerAdditionalCoverage:
     async def test_calculate_traffic_split_returns_percentages(self):
         """Testa _calculate_traffic_split retorna percentuais corretos."""
         deployer = CanaryDeployer(
-            model_repo=Mock(),
-            kafka_producer=AsyncMock(),
-            canary_traffic_percentage=20
+            model_repo=Mock(), kafka_producer=AsyncMock(), canary_traffic_percentage=20
         )
 
         result = await deployer._calculate_traffic_split("v3.0", "v2.0")
@@ -2027,7 +1957,7 @@ class TestCanaryDeployerAdditionalCoverage:
             model_repo=mock_repo,
             kafka_producer=mock_kafka,
             canary_duration_minutes=120,
-            canary_traffic_percentage=25
+            canary_traffic_percentage=25,
         )
 
         result = await deployer.start_canary("v2.0", "v1.0")
@@ -2046,10 +1976,7 @@ class TestCanaryDeployerAdditionalCoverage:
         mock_kafka = AsyncMock()
         mock_kafka.produce_and_wait = AsyncMock()
 
-        deployer = CanaryDeployer(
-            model_repo=mock_repo,
-            kafka_producer=mock_kafka
-        )
+        deployer = CanaryDeployer(model_repo=mock_repo, kafka_producer=mock_kafka)
 
         await deployer.start_canary("v2.0", "v1.0")
         canary_id = list(CanaryDeployer._active_canaries.keys())[-1]
@@ -2071,10 +1998,7 @@ class TestCanaryDeployerAdditionalCoverage:
         mock_kafka = AsyncMock()
         mock_kafka.produce_and_wait = AsyncMock()
 
-        deployer = CanaryDeployer(
-            model_repo=mock_repo,
-            kafka_producer=mock_kafka
-        )
+        deployer = CanaryDeployer(model_repo=mock_repo, kafka_producer=mock_kafka)
 
         await deployer.start_canary("v2.0", "v1.0")
         canary_id = list(CanaryDeployer._active_canaries.keys())[-1]
@@ -2096,10 +2020,7 @@ class TestCanaryDeployerAdditionalCoverage:
         mock_kafka = AsyncMock()
         mock_kafka.produce_and_wait = AsyncMock()
 
-        deployer = CanaryDeployer(
-            model_repo=mock_repo,
-            kafka_producer=mock_kafka
-        )
+        deployer = CanaryDeployer(model_repo=mock_repo, kafka_producer=mock_kafka)
 
         await deployer.start_canary("v2.0", "v1.0")
         canary_id = list(CanaryDeployer._active_canaries.keys())[-1]
@@ -2167,12 +2088,9 @@ class TestDriftDetectorInternalMethods:
     async def test_calculate_baseline_calls_aggregate(self, drift_detector):
         """Testa que calculate_baseline chama aggregate com pipeline correto."""
         mock_cursor = AsyncMock()
-        mock_cursor.to_list = AsyncMock(return_value=[{
-            "_id": None,
-            "approve_rate": 0.70,
-            "avg_confidence": 0.75,
-            "count": 100
-        }])
+        mock_cursor.to_list = AsyncMock(
+            return_value=[{"_id": None, "approve_rate": 0.70, "avg_confidence": 0.75, "count": 100}]
+        )
         drift_detector.db.plan_approvals.aggregate = Mock(return_value=mock_cursor)
 
         await drift_detector.calculate_baseline(48)
@@ -2189,12 +2107,9 @@ class TestDriftDetectorInternalMethods:
     async def test_calculate_current_calls_aggregate(self, drift_detector):
         """Testa que calculate_current chama aggregate."""
         mock_cursor = AsyncMock()
-        mock_cursor.to_list = AsyncMock(return_value=[{
-            "_id": None,
-            "approve_rate": 0.65,
-            "avg_confidence": 0.70,
-            "count": 50
-        }])
+        mock_cursor.to_list = AsyncMock(
+            return_value=[{"_id": None, "approve_rate": 0.65, "avg_confidence": 0.70, "count": 50}]
+        )
         drift_detector.db.plan_approvals.aggregate = Mock(return_value=mock_cursor)
 
         await drift_detector.calculate_current(12)
@@ -2205,16 +2120,11 @@ class TestDriftDetectorInternalMethods:
     async def test_detect_drift_calls_calculate_methods(self, drift_detector):
         """Testa que detect_drift chama calculate_baseline e calculate_current."""
         mock_cursor = AsyncMock()
-        mock_cursor.to_list = AsyncMock(return_value=[{
-            "_id": None,
-            "approve_rate": 0.70,
-            "avg_confidence": 0.75,
-            "count": 100
-        }])
-        drift_detector.db.plan_approvals.aggregate = Mock(return_value=mock_cursor)
-        drift_detector.db.model_versions.find_one = AsyncMock(
-            return_value={"version": "v1.0"}
+        mock_cursor.to_list = AsyncMock(
+            return_value=[{"_id": None, "approve_rate": 0.70, "avg_confidence": 0.75, "count": 100}]
         )
+        drift_detector.db.plan_approvals.aggregate = Mock(return_value=mock_cursor)
+        drift_detector.db.model_versions.find_one = AsyncMock(return_value={"version": "v1.0"})
 
         # Spy nos métodos
         with pytest.MonkeyPatch.context() as m:
@@ -2244,12 +2154,9 @@ class TestDriftDetectorInternalMethods:
     async def test_detect_drift_calls_get_active_model_version(self, drift_detector):
         """Testa que detect_drift chama _get_active_model_version."""
         mock_cursor = AsyncMock()
-        mock_cursor.to_list = AsyncMock(return_value=[{
-            "_id": None,
-            "approve_rate": 0.70,
-            "avg_confidence": 0.75,
-            "count": 100
-        }])
+        mock_cursor.to_list = AsyncMock(
+            return_value=[{"_id": None, "approve_rate": 0.70, "avg_confidence": 0.75, "count": 100}]
+        )
         drift_detector.db.plan_approvals.aggregate = Mock(return_value=mock_cursor)
         drift_detector.db.model_versions.find_one = AsyncMock(
             return_value={"version": "v2.5.0", "stage": "production", "is_active": True}
@@ -2268,25 +2175,26 @@ class TestDriftDetectorInternalMethods:
             call_count[0] += 1
             mock_cursor = AsyncMock()
             if call_count[0] == 1:  # baseline
-                mock_cursor.to_list = AsyncMock(return_value=[{
-                    "_id": None,
-                    "approve_rate": 0.70,
-                    "avg_confidence": 0.80,
-                    "count": 100
-                }])
+                mock_cursor.to_list = AsyncMock(
+                    return_value=[
+                        {"_id": None, "approve_rate": 0.70, "avg_confidence": 0.80, "count": 100}
+                    ]
+                )
             else:  # current
-                mock_cursor.to_list = AsyncMock(return_value=[{
-                    "_id": None,
-                    "approve_rate": 0.70,
-                    "avg_confidence": 0.70,  # Queda de 0.10 (threshold)
-                    "count": 50
-                }])
+                mock_cursor.to_list = AsyncMock(
+                    return_value=[
+                        {
+                            "_id": None,
+                            "approve_rate": 0.70,
+                            "avg_confidence": 0.70,  # Queda de 0.10 (threshold)
+                            "count": 50,
+                        }
+                    ]
+                )
             return mock_cursor
 
         drift_detector.db.plan_approvals.aggregate = mock_aggregate
-        drift_detector.db.model_versions.find_one = AsyncMock(
-            return_value={"version": "v1.0"}
-        )
+        drift_detector.db.model_versions.find_one = AsyncMock(return_value={"version": "v1.0"})
 
         result = await drift_detector.detect_drift()
 
@@ -2304,25 +2212,26 @@ class TestDriftDetectorInternalMethods:
             call_count[0] += 1
             mock_cursor = AsyncMock()
             if call_count[0] == 1:  # baseline
-                mock_cursor.to_list = AsyncMock(return_value=[{
-                    "_id": None,
-                    "approve_rate": 0.80,
-                    "avg_confidence": 0.75,
-                    "count": 100
-                }])
+                mock_cursor.to_list = AsyncMock(
+                    return_value=[
+                        {"_id": None, "approve_rate": 0.80, "avg_confidence": 0.75, "count": 100}
+                    ]
+                )
             else:  # current - approve_rate diferente
-                mock_cursor.to_list = AsyncMock(return_value=[{
-                    "_id": None,
-                    "approve_rate": 0.64,  # Queda de 0.16 (> 0.15 threshold)
-                    "avg_confidence": 0.75,  # Igual ao baseline para não causar drift
-                    "count": 50
-                }])
+                mock_cursor.to_list = AsyncMock(
+                    return_value=[
+                        {
+                            "_id": None,
+                            "approve_rate": 0.64,  # Queda de 0.16 (> 0.15 threshold)
+                            "avg_confidence": 0.75,  # Igual ao baseline para não causar drift
+                            "count": 50,
+                        }
+                    ]
+                )
             return mock_cursor
 
         drift_detector.db.plan_approvals.aggregate = mock_aggregate
-        drift_detector.db.model_versions.find_one = AsyncMock(
-            return_value={"version": "v1.0"}
-        )
+        drift_detector.db.model_versions.find_one = AsyncMock(return_value={"version": "v1.0"})
 
         result = await drift_detector.detect_drift()
 
@@ -2338,7 +2247,7 @@ class TestDriftDetectorInternalMethods:
             "drift_detected": True,
             "alerts": [{"metric": "avg_confidence", "change": -0.12}],
             "current": {"avg_confidence": 0.68},
-            "baseline": {"avg_confidence": 0.80}
+            "baseline": {"avg_confidence": 0.80},
         }
 
         await drift_detector.publish_drift_alert(drift_data)
@@ -2358,25 +2267,26 @@ class TestDriftDetectorInternalMethods:
             call_count[0] += 1
             mock_cursor = AsyncMock()
             if call_count[0] == 1:  # baseline
-                mock_cursor.to_list = AsyncMock(return_value=[{
-                    "_id": None,
-                    "approve_rate": 0.70,
-                    "avg_confidence": 0.80,
-                    "count": 100
-                }])
+                mock_cursor.to_list = AsyncMock(
+                    return_value=[
+                        {"_id": None, "approve_rate": 0.70, "avg_confidence": 0.80, "count": 100}
+                    ]
+                )
             else:  # current com drift
-                mock_cursor.to_list = AsyncMock(return_value=[{
-                    "_id": None,
-                    "approve_rate": 0.70,
-                    "avg_confidence": 0.65,  # Drift de 0.15
-                    "count": 50
-                }])
+                mock_cursor.to_list = AsyncMock(
+                    return_value=[
+                        {
+                            "_id": None,
+                            "approve_rate": 0.70,
+                            "avg_confidence": 0.65,  # Drift de 0.15
+                            "count": 50,
+                        }
+                    ]
+                )
             return mock_cursor
 
         drift_detector.db.plan_approvals.aggregate = mock_aggregate
-        drift_detector.db.model_versions.find_one = AsyncMock(
-            return_value={"version": "v1.0"}
-        )
+        drift_detector.db.model_versions.find_one = AsyncMock(return_value={"version": "v1.0"})
 
         result = await drift_detector.get_drift_metrics()
 
@@ -2387,20 +2297,18 @@ class TestDriftDetectorInternalMethods:
     @pytest.mark.asyncio
     async def test_get_drift_metrics_no_recommendation_without_drift(self, drift_detector):
         """Testa que get_drift_metrics não adiciona recomendação sem drift."""
+
         def mock_aggregate(pipeline):
             mock_cursor = AsyncMock()
-            mock_cursor.to_list = AsyncMock(return_value=[{
-                "_id": None,
-                "approve_rate": 0.70,
-                "avg_confidence": 0.75,
-                "count": 100
-            }])
+            mock_cursor.to_list = AsyncMock(
+                return_value=[
+                    {"_id": None, "approve_rate": 0.70, "avg_confidence": 0.75, "count": 100}
+                ]
+            )
             return mock_cursor
 
         drift_detector.db.plan_approvals.aggregate = mock_aggregate
-        drift_detector.db.model_versions.find_one = AsyncMock(
-            return_value={"version": "v1.0"}
-        )
+        drift_detector.db.model_versions.find_one = AsyncMock(return_value={"version": "v1.0"})
 
         result = await drift_detector.get_drift_metrics()
 
@@ -2428,7 +2336,7 @@ class TestCanaryDeployerInternalLogic:
             model_repo=mock_repo,
             kafka_producer=mock_kafka,
             canary_duration_minutes=90,
-            canary_traffic_percentage=20
+            canary_traffic_percentage=20,
         )
 
         await deployer.start_canary("v2.0", "v1.0")
@@ -2451,10 +2359,7 @@ class TestCanaryDeployerInternalLogic:
         mock_kafka = AsyncMock()
         mock_kafka.produce_and_wait = AsyncMock()
 
-        deployer = CanaryDeployer(
-            model_repo=mock_repo,
-            kafka_producer=mock_kafka
-        )
+        deployer = CanaryDeployer(model_repo=mock_repo, kafka_producer=mock_kafka)
 
         await deployer.start_canary("v2.0", "v1.0")
         canary_id = list(CanaryDeployer._active_canaries.keys())[-1]
@@ -2475,10 +2380,7 @@ class TestCanaryDeployerInternalLogic:
         mock_kafka = AsyncMock()
         mock_kafka.produce_and_wait = AsyncMock()
 
-        deployer = CanaryDeployer(
-            model_repo=mock_repo,
-            kafka_producer=mock_kafka
-        )
+        deployer = CanaryDeployer(model_repo=mock_repo, kafka_producer=mock_kafka)
 
         await deployer.start_canary("v2.0", "v1.0")
         canary_id = list(CanaryDeployer._active_canaries.keys())[-1]
@@ -2491,8 +2393,8 @@ class TestCanaryDeployerInternalLogic:
                 "metrics": {
                     "baseline": {"f1_score": 0.73, "sample_count": 1000},
                     "canary": {"f1_score": 0.75, "sample_count": 49},  # 49 < 50
-                    "comparison": {"f1_delta": 0.02}
-                }
+                    "comparison": {"f1_delta": 0.02},
+                },
             }
 
         deployer.collect_canary_metrics = mock_collect
@@ -2511,10 +2413,7 @@ class TestCanaryDeployerInternalLogic:
         mock_kafka = AsyncMock()
         mock_kafka.produce_and_wait = AsyncMock()
 
-        deployer = CanaryDeployer(
-            model_repo=mock_repo,
-            kafka_producer=mock_kafka
-        )
+        deployer = CanaryDeployer(model_repo=mock_repo, kafka_producer=mock_kafka)
 
         await deployer.start_canary("v2.0", "v1.0")
         canary_id = list(CanaryDeployer._active_canaries.keys())[-1]
@@ -2538,10 +2437,7 @@ class TestCanaryDeployerInternalLogic:
         mock_kafka = AsyncMock()
         mock_kafka.produce_and_wait = AsyncMock()
 
-        deployer = CanaryDeployer(
-            model_repo=mock_repo,
-            kafka_producer=mock_kafka
-        )
+        deployer = CanaryDeployer(model_repo=mock_repo, kafka_producer=mock_kafka)
 
         await deployer.start_canary("v2.0", "v1.0")
         canary_id = list(CanaryDeployer._active_canaries.keys())[-1]

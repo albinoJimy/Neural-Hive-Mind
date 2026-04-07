@@ -31,8 +31,8 @@ def mock_test_runner():
         # Adicionar resultado de teste bem-sucedido
         test_result = ValidationResult(
             validation_type=ValidationType.UNIT_TEST,
-            tool_name='pytest',
-            tool_version='7.4.0',
+            tool_name="pytest",
+            tool_version="7.4.0",
             status=ValidationStatus.PASSED,
             score=0.90,
             issues_count=0,
@@ -41,7 +41,7 @@ def mock_test_runner():
             medium_issues=0,
             low_issues=0,
             executed_at=datetime.now(),
-            duration_ms=100
+            duration_ms=100,
         )
         context.add_validation(test_result)
 
@@ -51,4 +51,4 @@ def mock_test_runner():
 
 
 # Re-exportar mock_test_runner
-__all__ = ['mock_test_runner']
+__all__ = ["mock_test_runner"]

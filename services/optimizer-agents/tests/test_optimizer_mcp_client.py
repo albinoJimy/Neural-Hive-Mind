@@ -58,7 +58,9 @@ class TestOptimizerMCPClientInit:
     def test_init_with_defaults(self):
         """Testa inicialização com valores padrão."""
         client = OptimizerMCPClient()
-        assert client.base_url == "http://optimizer-mcp-server.neural-hive-mind.svc.cluster.local:8080"
+        assert (
+            client.base_url == "http://optimizer-mcp-server.neural-hive-mind.svc.cluster.local:8080"
+        )
         assert client.timeout == 30.0
         assert client._client is None
 
@@ -153,9 +155,7 @@ class TestAnalyzeDirectory:
             },
             "severity_breakdown": {"low": 3, "medium": 2},
             "category_breakdown": {"complexity": 2, "style": 3},
-            "top_files": [
-                {"path": "src/complex.py", "issue_count": 3}
-            ],
+            "top_files": [{"path": "src/complex.py", "issue_count": 3}],
             "issues": [
                 {
                     "file": "src/test.py",

@@ -29,18 +29,18 @@ class TestCodeComposerLLMGeneration:
         mock_mongodb_client,
         mock_llm_client,
         mock_analyst_client,
-        sample_pipeline_context_with_mcp
+        sample_pipeline_context_with_mcp,
     ):
         """Deve gerar codigo via LLM com sucesso."""
         from src.services.code_composer import CodeComposer
 
-        sample_pipeline_context_with_mcp.generation_method = 'LLM'
+        sample_pipeline_context_with_mcp.generation_method = "LLM"
 
         composer = CodeComposer(
             mongodb_client=mock_mongodb_client,
             llm_client=mock_llm_client,
             analyst_client=mock_analyst_client,
-            mcp_client=None
+            mcp_client=None,
         )
 
         await composer.compose(sample_pipeline_context_with_mcp)
@@ -56,18 +56,18 @@ class TestCodeComposerLLMGeneration:
         mock_mongodb_client,
         mock_llm_client,
         mock_analyst_client,
-        sample_pipeline_context_with_mcp
+        sample_pipeline_context_with_mcp,
     ):
         """Deve usar RAG context na geracao LLM."""
         from src.services.code_composer import CodeComposer
 
-        sample_pipeline_context_with_mcp.generation_method = 'LLM'
+        sample_pipeline_context_with_mcp.generation_method = "LLM"
 
         composer = CodeComposer(
             mongodb_client=mock_mongodb_client,
             llm_client=mock_llm_client,
             analyst_client=mock_analyst_client,
-            mcp_client=None
+            mcp_client=None,
         )
 
         await composer.compose(sample_pipeline_context_with_mcp)
@@ -78,22 +78,19 @@ class TestCodeComposerLLMGeneration:
 
     @pytest.mark.asyncio
     async def test_compose_llm_fallback_on_failure(
-        self,
-        mock_mongodb_client,
-        mock_llm_client,
-        sample_pipeline_context_with_mcp
+        self, mock_mongodb_client, mock_llm_client, sample_pipeline_context_with_mcp
     ):
         """Deve usar fallback heuristica quando LLM falha."""
         from src.services.code_composer import CodeComposer
 
-        sample_pipeline_context_with_mcp.generation_method = 'LLM'
+        sample_pipeline_context_with_mcp.generation_method = "LLM"
         mock_llm_client.generate_code.return_value = None  # LLM falhou
 
         composer = CodeComposer(
             mongodb_client=mock_mongodb_client,
             llm_client=mock_llm_client,
             analyst_client=None,
-            mcp_client=None
+            mcp_client=None,
         )
 
         await composer.compose(sample_pipeline_context_with_mcp)
@@ -109,21 +106,18 @@ class TestCodeComposerHybridGeneration:
 
     @pytest.mark.asyncio
     async def test_compose_hybrid_success(
-        self,
-        mock_mongodb_client,
-        mock_llm_client,
-        sample_pipeline_context_with_mcp
+        self, mock_mongodb_client, mock_llm_client, sample_pipeline_context_with_mcp
     ):
         """Deve gerar codigo via HYBRID com sucesso."""
         from src.services.code_composer import CodeComposer
 
-        sample_pipeline_context_with_mcp.generation_method = 'HYBRID'
+        sample_pipeline_context_with_mcp.generation_method = "HYBRID"
 
         composer = CodeComposer(
             mongodb_client=mock_mongodb_client,
             llm_client=mock_llm_client,
             analyst_client=None,
-            mcp_client=None
+            mcp_client=None,
         )
 
         await composer.compose(sample_pipeline_context_with_mcp)
@@ -133,22 +127,19 @@ class TestCodeComposerHybridGeneration:
 
     @pytest.mark.asyncio
     async def test_compose_hybrid_fallback_to_template(
-        self,
-        mock_mongodb_client,
-        mock_llm_client,
-        sample_pipeline_context_with_mcp
+        self, mock_mongodb_client, mock_llm_client, sample_pipeline_context_with_mcp
     ):
         """Deve usar template base quando LLM enhancement falha."""
         from src.services.code_composer import CodeComposer
 
-        sample_pipeline_context_with_mcp.generation_method = 'HYBRID'
+        sample_pipeline_context_with_mcp.generation_method = "HYBRID"
         mock_llm_client.generate_code.return_value = None  # Enhancement falhou
 
         composer = CodeComposer(
             mongodb_client=mock_mongodb_client,
             llm_client=mock_llm_client,
             analyst_client=None,
-            mcp_client=None
+            mcp_client=None,
         )
 
         await composer.compose(sample_pipeline_context_with_mcp)
@@ -160,25 +151,22 @@ class TestCodeComposerHybridGeneration:
 
     @pytest.mark.asyncio
     async def test_compose_hybrid_confidence_calculation(
-        self,
-        mock_mongodb_client,
-        mock_llm_client,
-        sample_pipeline_context_with_mcp
+        self, mock_mongodb_client, mock_llm_client, sample_pipeline_context_with_mcp
     ):
         """Deve calcular confidence hibrido corretamente."""
         from src.services.code_composer import CodeComposer
 
-        sample_pipeline_context_with_mcp.generation_method = 'HYBRID'
+        sample_pipeline_context_with_mcp.generation_method = "HYBRID"
         mock_llm_client.generate_code.return_value = {
-            'code': '# Enhanced code',
-            'confidence_score': 0.9
+            "code": "# Enhanced code",
+            "confidence_score": 0.9,
         }
 
         composer = CodeComposer(
             mongodb_client=mock_mongodb_client,
             llm_client=mock_llm_client,
             analyst_client=None,
-            mcp_client=None
+            mcp_client=None,
         )
 
         await composer.compose(sample_pipeline_context_with_mcp)
@@ -193,21 +181,19 @@ class TestCodeComposerHeuristicGeneration:
 
     @pytest.mark.asyncio
     async def test_compose_heuristic_microservice(
-        self,
-        mock_mongodb_client,
-        sample_pipeline_context
+        self, mock_mongodb_client, sample_pipeline_context
     ):
         """Deve gerar microservico via heuristica."""
         from src.services.code_composer import CodeComposer
 
-        sample_pipeline_context.generation_method = 'HEURISTIC'
-        sample_pipeline_context.ticket.parameters['artifact_type'] = 'MICROSERVICE'
+        sample_pipeline_context.generation_method = "HEURISTIC"
+        sample_pipeline_context.ticket.parameters["artifact_type"] = "MICROSERVICE"
 
         composer = CodeComposer(
             mongodb_client=mock_mongodb_client,
             llm_client=None,
             analyst_client=None,
-            mcp_client=None
+            mcp_client=None,
         )
 
         await composer.compose(sample_pipeline_context)
@@ -217,47 +203,41 @@ class TestCodeComposerHeuristicGeneration:
         assert artifact.confidence_score == 0.78
 
     @pytest.mark.asyncio
-    async def test_compose_heuristic_library(
-        self,
-        mock_mongodb_client,
-        sample_ticket_library
-    ):
+    async def test_compose_heuristic_library(self, mock_mongodb_client, sample_ticket_library):
         """Deve gerar biblioteca via heuristica."""
         from src.services.code_composer import CodeComposer
         from src.models.pipeline_context import PipelineContext
-        from src.models.template import (
-            Template, TemplateMetadata, TemplateType
-        )
+        from src.models.template import Template, TemplateMetadata, TemplateType
         from src.types.artifact_types import CodeLanguage
 
         context = PipelineContext(
             pipeline_id=str(uuid.uuid4()),
             ticket=sample_ticket_library,
             trace_id=str(uuid.uuid4()),
-            span_id=str(uuid.uuid4())
+            span_id=str(uuid.uuid4()),
         )
-        context.generation_method = 'HEURISTIC'
+        context.generation_method = "HEURISTIC"
         context.selected_template = Template(
-            template_id='lib-python-v1',
+            template_id="lib-python-v1",
             metadata=TemplateMetadata(
-                name='Python Library',
-                version='1.0.0',
-                description='Template para biblioteca Python',
-                author='Neural Hive Team',
-                tags=['library', 'python'],
+                name="Python Library",
+                version="1.0.0",
+                description="Template para biblioteca Python",
+                author="Neural Hive Team",
+                tags=["library", "python"],
                 language=CodeLanguage.PYTHON,
-                type=TemplateType.MICROSERVICE
+                type=TemplateType.MICROSERVICE,
             ),
             parameters=[],
-            content_path='/app/templates/lib-python',
-            examples={}
+            content_path="/app/templates/lib-python",
+            examples={},
         )
 
         composer = CodeComposer(
             mongodb_client=mock_mongodb_client,
             llm_client=None,
             analyst_client=None,
-            mcp_client=None
+            mcp_client=None,
         )
 
         await composer.compose(context)
@@ -265,47 +245,41 @@ class TestCodeComposerHeuristicGeneration:
         assert len(context.generated_artifacts) == 1
 
     @pytest.mark.asyncio
-    async def test_compose_heuristic_script(
-        self,
-        mock_mongodb_client,
-        sample_ticket_script
-    ):
+    async def test_compose_heuristic_script(self, mock_mongodb_client, sample_ticket_script):
         """Deve gerar script via heuristica."""
         from src.services.code_composer import CodeComposer
         from src.models.pipeline_context import PipelineContext
-        from src.models.template import (
-            Template, TemplateMetadata, TemplateType
-        )
+        from src.models.template import Template, TemplateMetadata, TemplateType
         from src.types.artifact_types import CodeLanguage
 
         context = PipelineContext(
             pipeline_id=str(uuid.uuid4()),
             ticket=sample_ticket_script,
             trace_id=str(uuid.uuid4()),
-            span_id=str(uuid.uuid4())
+            span_id=str(uuid.uuid4()),
         )
-        context.generation_method = 'HEURISTIC'
+        context.generation_method = "HEURISTIC"
         context.selected_template = Template(
-            template_id='script-python-v1',
+            template_id="script-python-v1",
             metadata=TemplateMetadata(
-                name='Python Script',
-                version='1.0.0',
-                description='Template para script Python',
-                author='Neural Hive Team',
-                tags=['script', 'python'],
+                name="Python Script",
+                version="1.0.0",
+                description="Template para script Python",
+                author="Neural Hive Team",
+                tags=["script", "python"],
                 language=CodeLanguage.PYTHON,
-                type=TemplateType.FUNCTION
+                type=TemplateType.FUNCTION,
             ),
             parameters=[],
-            content_path='/app/templates/script-python',
-            examples={}
+            content_path="/app/templates/script-python",
+            examples={},
         )
 
         composer = CodeComposer(
             mongodb_client=mock_mongodb_client,
             llm_client=None,
             analyst_client=None,
-            mcp_client=None
+            mcp_client=None,
         )
 
         await composer.compose(context)
@@ -317,21 +291,17 @@ class TestCodeComposerTemplateGeneration:
     """Testes de geracao TEMPLATE."""
 
     @pytest.mark.asyncio
-    async def test_compose_template_success(
-        self,
-        mock_mongodb_client,
-        sample_pipeline_context
-    ):
+    async def test_compose_template_success(self, mock_mongodb_client, sample_pipeline_context):
         """Deve gerar codigo via template com sucesso."""
         from src.services.code_composer import CodeComposer
 
-        sample_pipeline_context.generation_method = 'TEMPLATE'
+        sample_pipeline_context.generation_method = "TEMPLATE"
 
         composer = CodeComposer(
             mongodb_client=mock_mongodb_client,
             llm_client=None,
             analyst_client=None,
-            mcp_client=None
+            mcp_client=None,
         )
 
         await composer.compose(sample_pipeline_context)
@@ -341,11 +311,7 @@ class TestCodeComposerTemplateGeneration:
         assert artifact.confidence_score == 0.85
 
     @pytest.mark.asyncio
-    async def test_compose_default_to_template(
-        self,
-        mock_mongodb_client,
-        sample_pipeline_context
-    ):
+    async def test_compose_default_to_template(self, mock_mongodb_client, sample_pipeline_context):
         """Deve usar template como default quando generation_method nao definido."""
         from src.services.code_composer import CodeComposer
 
@@ -356,7 +322,7 @@ class TestCodeComposerTemplateGeneration:
             mongodb_client=mock_mongodb_client,
             llm_client=None,
             analyst_client=None,
-            mcp_client=None
+            mcp_client=None,
         )
 
         await composer.compose(sample_pipeline_context)
@@ -371,10 +337,7 @@ class TestCodeComposerRAGContext:
 
     @pytest.mark.asyncio
     async def test_build_rag_context_success(
-        self,
-        mock_mongodb_client,
-        mock_analyst_client,
-        sample_ticket
+        self, mock_mongodb_client, mock_analyst_client, sample_ticket
     ):
         """Deve construir RAG context com sucesso."""
         from src.services.code_composer import CodeComposer
@@ -383,22 +346,18 @@ class TestCodeComposerRAGContext:
             mongodb_client=mock_mongodb_client,
             llm_client=None,
             analyst_client=mock_analyst_client,
-            mcp_client=None
+            mcp_client=None,
         )
 
         rag_context = await composer._build_rag_context(sample_ticket)
 
-        assert 'similar_templates' in rag_context
-        assert 'architectural_patterns' in rag_context
-        assert len(rag_context['similar_templates']) == 2
-        assert len(rag_context['architectural_patterns']) == 3
+        assert "similar_templates" in rag_context
+        assert "architectural_patterns" in rag_context
+        assert len(rag_context["similar_templates"]) == 2
+        assert len(rag_context["architectural_patterns"]) == 3
 
     @pytest.mark.asyncio
-    async def test_build_rag_context_without_analyst(
-        self,
-        mock_mongodb_client,
-        sample_ticket
-    ):
+    async def test_build_rag_context_without_analyst(self, mock_mongodb_client, sample_ticket):
         """Deve retornar contexto vazio sem analyst client."""
         from src.services.code_composer import CodeComposer
 
@@ -406,20 +365,17 @@ class TestCodeComposerRAGContext:
             mongodb_client=mock_mongodb_client,
             llm_client=None,
             analyst_client=None,
-            mcp_client=None
+            mcp_client=None,
         )
 
         rag_context = await composer._build_rag_context(sample_ticket)
 
-        assert rag_context['similar_templates'] == []
-        assert rag_context['architectural_patterns'] == []
+        assert rag_context["similar_templates"] == []
+        assert rag_context["architectural_patterns"] == []
 
     @pytest.mark.asyncio
     async def test_build_rag_context_embedding_failure(
-        self,
-        mock_mongodb_client,
-        mock_analyst_client,
-        sample_ticket
+        self, mock_mongodb_client, mock_analyst_client, sample_ticket
     ):
         """Deve continuar quando embedding falha."""
         from src.services.code_composer import CodeComposer
@@ -430,48 +386,41 @@ class TestCodeComposerRAGContext:
             mongodb_client=mock_mongodb_client,
             llm_client=None,
             analyst_client=mock_analyst_client,
-            mcp_client=None
+            mcp_client=None,
         )
 
         rag_context = await composer._build_rag_context(sample_ticket)
 
-        assert rag_context['similar_templates'] == []
+        assert rag_context["similar_templates"] == []
         mock_analyst_client.find_similar_templates.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_build_rag_context_exception_handling(
-        self,
-        mock_mongodb_client,
-        mock_analyst_client,
-        sample_ticket
+        self, mock_mongodb_client, mock_analyst_client, sample_ticket
     ):
         """Deve tratar excecoes e retornar contexto vazio."""
         from src.services.code_composer import CodeComposer
 
-        mock_analyst_client.get_embedding.side_effect = Exception('Connection error')
+        mock_analyst_client.get_embedding.side_effect = Exception("Connection error")
 
         composer = CodeComposer(
             mongodb_client=mock_mongodb_client,
             llm_client=None,
             analyst_client=mock_analyst_client,
-            mcp_client=None
+            mcp_client=None,
         )
 
         rag_context = await composer._build_rag_context(sample_ticket)
 
-        assert rag_context['similar_templates'] == []
-        assert rag_context['architectural_patterns'] == []
+        assert rag_context["similar_templates"] == []
+        assert rag_context["architectural_patterns"] == []
 
 
 class TestCodeComposerLLMPrompt:
     """Testes de construcao de prompt LLM."""
 
     @pytest.mark.asyncio
-    async def test_build_llm_prompt_with_rag(
-        self,
-        mock_mongodb_client,
-        sample_ticket
-    ):
+    async def test_build_llm_prompt_with_rag(self, mock_mongodb_client, sample_ticket):
         """Deve construir prompt com RAG context."""
         from src.services.code_composer import CodeComposer
 
@@ -479,29 +428,23 @@ class TestCodeComposerLLMPrompt:
             mongodb_client=mock_mongodb_client,
             llm_client=None,
             analyst_client=None,
-            mcp_client=None
+            mcp_client=None,
         )
 
         rag_context = {
-            'similar_templates': [
-                {'text': 'Template example', 'similarity': 0.9}
-            ],
-            'architectural_patterns': ['Repository Pattern']
+            "similar_templates": [{"text": "Template example", "similarity": 0.9}],
+            "architectural_patterns": ["Repository Pattern"],
         }
 
         prompt = composer._build_llm_prompt(sample_ticket, rag_context)
 
-        assert 'MICROSERVICE' in prompt
-        assert 'python' in prompt.lower()
-        assert 'Similar Templates' in prompt
-        assert 'Architectural Patterns' in prompt
+        assert "MICROSERVICE" in prompt
+        assert "python" in prompt.lower()
+        assert "Similar Templates" in prompt
+        assert "Architectural Patterns" in prompt
 
     @pytest.mark.asyncio
-    async def test_build_llm_prompt_without_rag(
-        self,
-        mock_mongodb_client,
-        sample_ticket
-    ):
+    async def test_build_llm_prompt_without_rag(self, mock_mongodb_client, sample_ticket):
         """Deve construir prompt sem RAG context."""
         from src.services.code_composer import CodeComposer
 
@@ -509,18 +452,15 @@ class TestCodeComposerLLMPrompt:
             mongodb_client=mock_mongodb_client,
             llm_client=None,
             analyst_client=None,
-            mcp_client=None
+            mcp_client=None,
         )
 
-        rag_context = {
-            'similar_templates': [],
-            'architectural_patterns': []
-        }
+        rag_context = {"similar_templates": [], "architectural_patterns": []}
 
         prompt = composer._build_llm_prompt(sample_ticket, rag_context)
 
-        assert 'MICROSERVICE' in prompt
-        assert 'Similar Templates' not in prompt
+        assert "MICROSERVICE" in prompt
+        assert "Similar Templates" not in prompt
 
 
 class TestCodeComposerArtifactCreation:
@@ -528,21 +468,19 @@ class TestCodeComposerArtifactCreation:
 
     @pytest.mark.asyncio
     async def test_artifact_has_correct_metadata(
-        self,
-        mock_mongodb_client,
-        sample_pipeline_context_with_mcp
+        self, mock_mongodb_client, sample_pipeline_context_with_mcp
     ):
         """Deve criar artefato com metadata correta."""
         from src.services.code_composer import CodeComposer
         from src.types.artifact_types import ArtifactCategory
 
-        sample_pipeline_context_with_mcp.generation_method = 'TEMPLATE'
+        sample_pipeline_context_with_mcp.generation_method = "TEMPLATE"
 
         composer = CodeComposer(
             mongodb_client=mock_mongodb_client,
             llm_client=None,
             analyst_client=None,
-            mcp_client=None
+            mcp_client=None,
         )
 
         await composer.compose(sample_pipeline_context_with_mcp)
@@ -551,51 +489,45 @@ class TestCodeComposerArtifactCreation:
 
         assert artifact.ticket_id == sample_pipeline_context_with_mcp.ticket.ticket_id
         assert artifact.artifact_type == ArtifactCategory.CODE
-        assert artifact.language == 'python'
-        assert artifact.template_id == 'microservice-python-v1'
+        assert artifact.language == "python"
+        assert artifact.template_id == "microservice-python-v1"
         assert artifact.content_hash is not None
 
     @pytest.mark.asyncio
     async def test_artifact_has_mcp_metadata(
-        self,
-        mock_mongodb_client,
-        sample_pipeline_context_with_mcp
+        self, mock_mongodb_client, sample_pipeline_context_with_mcp
     ):
         """Deve incluir metadata MCP no artefato."""
         from src.services.code_composer import CodeComposer
 
-        sample_pipeline_context_with_mcp.generation_method = 'TEMPLATE'
+        sample_pipeline_context_with_mcp.generation_method = "TEMPLATE"
 
         composer = CodeComposer(
             mongodb_client=mock_mongodb_client,
             llm_client=None,
             analyst_client=None,
-            mcp_client=None
+            mcp_client=None,
         )
 
         await composer.compose(sample_pipeline_context_with_mcp)
 
         artifact = sample_pipeline_context_with_mcp.generated_artifacts[0]
 
-        assert 'mcp_selection_id' in artifact.metadata
-        assert 'mcp_tools_used' in artifact.metadata
+        assert "mcp_selection_id" in artifact.metadata
+        assert "mcp_tools_used" in artifact.metadata
 
     @pytest.mark.asyncio
-    async def test_artifact_saved_to_mongodb(
-        self,
-        mock_mongodb_client,
-        sample_pipeline_context
-    ):
+    async def test_artifact_saved_to_mongodb(self, mock_mongodb_client, sample_pipeline_context):
         """Deve salvar artefato no MongoDB."""
         from src.services.code_composer import CodeComposer
 
-        sample_pipeline_context.generation_method = 'TEMPLATE'
+        sample_pipeline_context.generation_method = "TEMPLATE"
 
         composer = CodeComposer(
             mongodb_client=mock_mongodb_client,
             llm_client=None,
             analyst_client=None,
-            mcp_client=None
+            mcp_client=None,
         )
 
         await composer.compose(sample_pipeline_context)
@@ -608,21 +540,19 @@ class TestCodeComposerGenerationMethodValidation:
 
     @pytest.mark.asyncio
     async def test_invalid_generation_method_fallback(
-        self,
-        mock_mongodb_client,
-        sample_pipeline_context
+        self, mock_mongodb_client, sample_pipeline_context
     ):
         """Deve usar TEMPLATE para generation_method invalido."""
         from src.services.code_composer import CodeComposer
         from src.models.artifact import GenerationMethod
 
-        sample_pipeline_context.generation_method = 'INVALID_METHOD'
+        sample_pipeline_context.generation_method = "INVALID_METHOD"
 
         composer = CodeComposer(
             mongodb_client=mock_mongodb_client,
             llm_client=None,
             analyst_client=None,
-            mcp_client=None
+            mcp_client=None,
         )
 
         await composer.compose(sample_pipeline_context)
@@ -632,20 +562,18 @@ class TestCodeComposerGenerationMethodValidation:
 
     @pytest.mark.asyncio
     async def test_llm_without_client_uses_template(
-        self,
-        mock_mongodb_client,
-        sample_pipeline_context
+        self, mock_mongodb_client, sample_pipeline_context
     ):
         """Deve usar TEMPLATE quando LLM solicitado mas sem client."""
         from src.services.code_composer import CodeComposer
 
-        sample_pipeline_context.generation_method = 'LLM'
+        sample_pipeline_context.generation_method = "LLM"
 
         composer = CodeComposer(
             mongodb_client=mock_mongodb_client,
             llm_client=None,  # Sem LLM client
             analyst_client=None,
-            mcp_client=None
+            mcp_client=None,
         )
 
         await composer.compose(sample_pipeline_context)

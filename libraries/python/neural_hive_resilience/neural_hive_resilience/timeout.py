@@ -247,9 +247,7 @@ class TimeoutWithFallback:
         self.operation_name = operation_name
         self.logger = structlog.get_logger()
 
-    async def execute(
-        self, coro: Awaitable[T], *args: Any, **kwargs: Any
-    ) -> Any:
+    async def execute(self, coro: Awaitable[T], *args: Any, **kwargs: Any) -> Any:
         """Executa coroutine com fallback em timeout.
 
         Args:
@@ -335,8 +333,6 @@ def timeout_with_fallback(
 
             return async_wrapper  # type: ignore
         else:
-            raise TypeError(
-                f"@timeout_with_fallback decorator só suporta funções assíncronas"
-            )
+            raise TypeError(f"@timeout_with_fallback decorator só suporta funções assíncronas")
 
     return decorator

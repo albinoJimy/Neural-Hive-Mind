@@ -77,9 +77,7 @@ class RiskAlert:
             "timestamp": self.timestamp.isoformat(),
             "acknowledged": self.acknowledged,
             "acknowledged_by": self.acknowledged_by,
-            "acknowledged_at": self.acknowledged_at.isoformat()
-            if self.acknowledged_at
-            else None,
+            "acknowledged_at": self.acknowledged_at.isoformat() if self.acknowledged_at else None,
             "resolved": self.resolved,
             "resolved_at": self.resolved_at.isoformat() if self.resolved_at else None,
         }
@@ -132,9 +130,7 @@ class AlertRule:
             # Aumento rápido de score
             score_delta = context.get("score_delta", 0)
             time_delta_hours = context.get("time_delta_hours", 1)
-            escalation_rate = (
-                score_delta / time_delta_hours if time_delta_hours > 0 else 0
-            )
+            escalation_rate = score_delta / time_delta_hours if time_delta_hours > 0 else 0
             return escalation_rate > self.conditions.get("max_escalation_rate", 0.5)
 
         elif self.alert_type == AlertType.CONSECUTIVE_HIGH_RISK:
@@ -312,9 +308,7 @@ class RiskAlertManager:
         self._handlers.append(handler)
         logger.info("alert_handler_added", handler_name=handler.name)
 
-    def process_assessment(
-        self, assessment: RiskAssessment, entity_id: str
-    ) -> List[RiskAlert]:
+    def process_assessment(self, assessment: RiskAssessment, entity_id: str) -> List[RiskAlert]:
         """Processa avaliação e gera alertas se necessário.
 
         Args:
@@ -338,9 +332,7 @@ class RiskAlertManager:
                 if alert:
                     generated_alerts.append(alert)
                     self._store_alert(alert)
-                    self._last_alert_time[
-                        (entity_id, rule.alert_type)
-                    ] = alert.timestamp
+                    self._last_alert_time[(entity_id, rule.alert_type)] = alert.timestamp
 
         # Notificar handlers
         for alert in generated_alerts:
@@ -360,9 +352,7 @@ class RiskAlertManager:
 
         return generated_alerts
 
-    def _build_context(
-        self, assessment: RiskAssessment, entity_id: str
-    ) -> Dict[str, Any]:
+    def _build_context(self, assessment: RiskAssessment, entity_id: str) -> Dict[str, Any]:
         """Constrói contexto para avaliação de regras."""
         context = {
             "assessment": assessment,
@@ -373,9 +363,7 @@ class RiskAlertManager:
         }
 
         # Verificar violação de threshold
-        violation = self.threshold_monitor.check_violation(
-            assessment.domain, assessment.score
-        )
+        violation = self.threshold_monitor.check_violation(assessment.domain, assessment.score)
         context["threshold_violation"] = violation is not None
         context["violation"] = violation
 
@@ -403,9 +391,7 @@ class RiskAlertManager:
         else:
             self._consecutive_high_risk[entity_id] = 0
 
-        context["consecutive_high_risk_count"] = self._consecutive_high_risk.get(
-            entity_id, 0
-        )
+        context["consecutive_high_risk_count"] = self._consecutive_high_risk.get(entity_id, 0)
 
         return context
 
@@ -490,9 +476,7 @@ class RiskAlertManager:
                 "{band} threshold"
             ),
             AlertType.ANOMALY_DETECTED: (
-                "Anomaly detected for {entity_id} "
-                "in {domain} domain: "
-                "score {score:.2f}"
+                "Anomaly detected for {entity_id} " "in {domain} domain: " "score {score:.2f}"
             ),
             AlertType.TREND_WORSENING: (
                 "Worsening trend detected for {entity_id}: "
@@ -510,8 +494,7 @@ class RiskAlertManager:
                 "in {domain} domain"
             ),
             AlertType.CROSS_DOMAIN_SPIKE: (
-                "Cross-domain spike detected for {entity_id}: "
-                "risk elevated in multiple domains"
+                "Cross-domain spike detected for {entity_id}: " "risk elevated in multiple domains"
             ),
         }
 
@@ -583,9 +566,7 @@ class RiskAlertManager:
                 alert.resolved = True
                 alert.resolved_at = datetime.now(timezone.utc)
 
-                logger.info(
-                    "alert_resolved", alert_id=alert_id, resolved_by=resolved_by
-                )
+                logger.info("alert_resolved", alert_id=alert_id, resolved_by=resolved_by)
 
                 return True
 

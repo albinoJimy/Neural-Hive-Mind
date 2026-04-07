@@ -31,9 +31,7 @@ async def test_orchestrator_execute_staging_success():
     result = await orchestrator.execute(run, context)
 
     assert result.status == PipelineStatus.SUCCESS
-    assert (
-        len(result.stages_completed) == 5
-    )  # pre_flight, build, test, security, staging
+    assert len(result.stages_completed) == 5  # pre_flight, build, test, security, staging
     assert result.finished_at is not None
 
 

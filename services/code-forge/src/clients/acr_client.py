@@ -10,6 +10,7 @@ Suporta:
 
 import logging
 from datetime import datetime, timezone
+
 UTC = timezone.utc  # type: ignore, timedelta
 
 logger = logging.getLogger(__name__)
@@ -30,7 +31,7 @@ class ACRToken:
         token_type: str,
         registry: str,
         expires_at: datetime,
-        obtained_at: datetime
+        obtained_at: datetime,
     ):
         self.access_token = access_token
         self.token_type = token_type
@@ -74,7 +75,7 @@ class ACRClient:
         client_id: str | None = None,
         client_secret: str | None = None,
         tenant_id: str | None = None,
-        token_ttl: int = ACR_TOKEN_DEFAULT_TTL
+        token_ttl: int = ACR_TOKEN_DEFAULT_TTL,
     ):
         """
         Inicializa o ACRClient.
@@ -136,7 +137,7 @@ class ACRClient:
                         AZURE_IMDS_ENDPOINT,
                         params=params,
                         headers=headers,
-                        timeout=aiohttp.ClientTimeout(total=1)
+                        timeout=aiohttp.ClientTimeout(total=1),
                     ) as response:
                         if response.status == 200:
                             data = await response.json()
@@ -251,7 +252,7 @@ class ACRClient:
             token_type="Bearer",
             registry=self.registry,
             expires_at=expires_at,
-            obtained_at=obtained_at
+            obtained_at=obtained_at,
         )
 
         # Atualizar cache
@@ -322,7 +323,7 @@ def get_acr_credentials(
     registry_uri: str,
     client_id: str | None = None,
     client_secret: str | None = None,
-    tenant_id: str | None = None
+    tenant_id: str | None = None,
 ) -> tuple[str, str]:
     """
     Função de conveniência para obter credenciais ACR.
@@ -337,10 +338,7 @@ def get_acr_credentials(
         Tuple (username, password)
     """
     client = ACRClient(
-        registry=registry_uri,
-        client_id=client_id,
-        client_secret=client_secret,
-        tenant_id=tenant_id
+        registry=registry_uri, client_id=client_id, client_secret=client_secret, tenant_id=tenant_id
     )
 
     return client.get_acr_credentials()

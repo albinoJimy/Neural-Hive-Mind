@@ -183,9 +183,7 @@ class MLflowClient:
             versions = self.client.get_latest_versions(model_name, stages=[stage])
 
             if not versions:
-                logger.warning(
-                    f"Nenhuma versão encontrada para {model_name} em {stage}"
-                )
+                logger.warning(f"Nenhuma versão encontrada para {model_name} em {stage}")
                 return None
 
             version = versions[0]
@@ -242,9 +240,7 @@ class MLflowClient:
                 )
                 for current_version in current_versions:
                     if current_version.version != version:
-                        logger.info(
-                            f"Arquivando versão atual {current_version.version}"
-                        )
+                        logger.info(f"Arquivando versão atual {current_version.version}")
                         self.client.transition_model_version_stage(
                             name=model_name,
                             version=current_version.version,
@@ -297,9 +293,7 @@ class MLflowClient:
             logger.error(f"Erro ao listar modelos: {e}")
             return []
 
-    def get_latest_run_id(
-        self, model_name: str, stage: str = "Staging"
-    ) -> Optional[str]:
+    def get_latest_run_id(self, model_name: str, stage: str = "Staging") -> Optional[str]:
         """
         Obtém run_id da versão mais recente.
 

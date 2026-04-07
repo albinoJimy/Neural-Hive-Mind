@@ -47,7 +47,8 @@ def mock_channel():
 async def test_connect_initializes_stub(settings, mock_channel):
     mock_stub = MagicMock()
     with patch("grpc.aio.insecure_channel", return_value=mock_channel), patch(
-        "src.clients.queen_agent_grpc_client.queen_agent_pb2_grpc.QueenAgentStub", return_value=mock_stub
+        "src.clients.queen_agent_grpc_client.queen_agent_pb2_grpc.QueenAgentStub",
+        return_value=mock_stub,
     ), patch("src.clients.queen_agent_grpc_client.get_settings", return_value=settings):
         client = QueenAgentGrpcClient()
         await client.connect()
@@ -81,7 +82,12 @@ async def test_request_approval_maps_response(settings):
 @pytest.mark.asyncio
 async def test_get_strategic_priorities_returns_status(settings):
     response = queen_agent_pb2.SystemStatusResponse(
-        system_score=0.9, sla_compliance=0.99, error_rate=0.01, resource_saturation=0.5, active_incidents=0, timestamp=123
+        system_score=0.9,
+        sla_compliance=0.99,
+        error_rate=0.01,
+        resource_saturation=0.5,
+        active_incidents=0,
+        timestamp=123,
     )
     mock_stub = MagicMock(spec_set=["GetSystemStatus"])
     mock_stub.GetSystemStatus = AsyncMock(return_value=response)

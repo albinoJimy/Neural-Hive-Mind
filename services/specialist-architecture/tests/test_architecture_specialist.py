@@ -6,7 +6,7 @@ import pytest
 from typing import Dict, Any, List
 
 # Configurar paths
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 
 class ArchitectureAnalysisTestHelper:
@@ -19,21 +19,37 @@ class ArchitectureAnalysisTestHelper:
             return 0.5
 
         positive_keywords = [
-            'factory', 'builder', 'singleton', 'observer', 'strategy',
-            'adapter', 'decorator', 'facade', 'proxy', 'composite',
-            'interface', 'abstraction', 'dependency injection', 'repository'
+            "factory",
+            "builder",
+            "singleton",
+            "observer",
+            "strategy",
+            "adapter",
+            "decorator",
+            "facade",
+            "proxy",
+            "composite",
+            "interface",
+            "abstraction",
+            "dependency injection",
+            "repository",
         ]
 
         negative_keywords = [
-            'god object', 'spaghetti', 'tight coupling', 'hardcoded',
-            'global state', 'magic numbers', 'copy-paste'
+            "god object",
+            "spaghetti",
+            "tight coupling",
+            "hardcoded",
+            "global state",
+            "magic numbers",
+            "copy-paste",
         ]
 
         positive_count = 0
         negative_count = 0
 
         for task in tasks:
-            task_description = task.get('description', '').lower()
+            task_description = task.get("description", "").lower()
 
             for keyword in positive_keywords:
                 if keyword in task_description:
@@ -58,24 +74,38 @@ class ArchitectureAnalysisTestHelper:
             return 0.5
 
         solid_keywords = [
-            'single responsibility', 'srp',
-            'open closed', 'ocp', 'extensible',
-            'liskov', 'lsp', 'substitution',
-            'interface segregation', 'isp',
-            'dependency inversion', 'dip', 'dependency injection',
-            'abstraction', 'interface', 'separation'
+            "single responsibility",
+            "srp",
+            "open closed",
+            "ocp",
+            "extensible",
+            "liskov",
+            "lsp",
+            "substitution",
+            "interface segregation",
+            "isp",
+            "dependency inversion",
+            "dip",
+            "dependency injection",
+            "abstraction",
+            "interface",
+            "separation",
         ]
 
         violation_keywords = [
-            'multiple responsibilities', 'god class', 'tight coupling',
-            'concrete dependency', 'fat interface', 'violates'
+            "multiple responsibilities",
+            "god class",
+            "tight coupling",
+            "concrete dependency",
+            "fat interface",
+            "violates",
         ]
 
         solid_score = 0.0
         violation_count = 0
 
         for task in tasks:
-            task_desc = task.get('description', '').lower()
+            task_desc = task.get("description", "").lower()
 
             for keyword in solid_keywords:
                 if keyword in task_desc:
@@ -102,7 +132,7 @@ class ArchitectureAnalysisTestHelper:
         num_tasks = len(tasks)
 
         # Analisar dependências (acoplamento)
-        total_dependencies = sum(len(task.get('dependencies', [])) for task in tasks)
+        total_dependencies = sum(len(task.get("dependencies", [])) for task in tasks)
         avg_dependencies = total_dependencies / num_tasks if num_tasks > 0 else 0
 
         # Menos dependências = melhor (baixo acoplamento)
@@ -112,10 +142,12 @@ class ArchitectureAnalysisTestHelper:
         # Tarefas com descrições focadas indicam alta coesão
         focused_tasks = 0
         for task in tasks:
-            desc = task.get('description', '')
+            desc = task.get("description", "")
             # Descrição com palavras relevantes indica foco
-            if len(desc.split()) >= 5 and any(word in desc.lower() for word in
-                ['service', 'controller', 'repository', 'model', 'component', 'module']):
+            if len(desc.split()) >= 5 and any(
+                word in desc.lower()
+                for word in ["service", "controller", "repository", "model", "component", "module"]
+            ):
                 focused_tasks += 1
 
         cohesion_score = focused_tasks / num_tasks if num_tasks > 0 else 0.5
@@ -129,13 +161,20 @@ class ArchitectureAnalysisTestHelper:
             return 0.5
 
         separation_keywords = [
-            'layer', 'tier', 'separate', 'isolate', 'boundary',
-            'component', 'module', 'service', 'domain'
+            "layer",
+            "tier",
+            "separate",
+            "isolate",
+            "boundary",
+            "component",
+            "module",
+            "service",
+            "domain",
         ]
 
         separation_count = 0
         for task in tasks:
-            desc = task.get('description', '').lower()
+            desc = task.get("description", "").lower()
             if any(keyword in desc for keyword in separation_keywords):
                 separation_count += 1
 
@@ -149,11 +188,11 @@ class ArchitectureAnalysisTestHelper:
             return 0.5
 
         # Verificar presença de módulos distintos
-        module_keywords = ['module', 'component', 'package', 'service', 'layer']
+        module_keywords = ["module", "component", "package", "service", "layer"]
         module_count = 0
 
         for task in tasks:
-            desc = task.get('description', '').lower()
+            desc = task.get("description", "").lower()
             if any(keyword in desc for keyword in module_keywords):
                 module_count += 1
 
@@ -161,8 +200,10 @@ class ArchitectureAnalysisTestHelper:
         base_score = min(1.0, module_count / max(1, len(tasks) * 0.3))
 
         # Verificar tamanho das tarefas (modularidade adequada)
-        avg_task_length = sum(len(t.get('description', '').split()) for t in tasks) / len(tasks)
-        size_score = 1.0 if 5 <= avg_task_length <= 20 else max(0.0, 1.0 - abs(avg_task_length - 12) / 12)
+        avg_task_length = sum(len(t.get("description", "").split()) for t in tasks) / len(tasks)
+        size_score = (
+            1.0 if 5 <= avg_task_length <= 20 else max(0.0, 1.0 - abs(avg_task_length - 12) / 12)
+        )
 
         return (base_score + size_score) / 2.0
 
@@ -173,15 +214,15 @@ class ArchitectureAnalysisTestHelper:
         solid_score: float,
         coupling_cohesion_score: float,
         separation_score: float,
-        modularity_score: float
+        modularity_score: float,
     ) -> float:
         """Implementação do cálculo de risco arquitetural."""
         weighted_avg = (
-            design_pattern_score * 0.25 +
-            solid_score * 0.25 +
-            coupling_cohesion_score * 0.20 +
-            separation_score * 0.15 +
-            modularity_score * 0.15
+            design_pattern_score * 0.25
+            + solid_score * 0.25
+            + coupling_cohesion_score * 0.20
+            + separation_score * 0.15
+            + modularity_score * 0.15
         )
         risk_score = 1.0 - weighted_avg
         return max(0.0, min(1.0, risk_score))
@@ -190,13 +231,13 @@ class ArchitectureAnalysisTestHelper:
     def determine_recommendation(confidence_score: float, risk_score: float) -> str:
         """Determina recomendação baseada em scores."""
         if confidence_score >= 0.8 and risk_score < 0.3:
-            return 'approve'
+            return "approve"
         elif confidence_score < 0.5 or risk_score > 0.7:
-            return 'reject'
+            return "reject"
         elif risk_score > 0.5:
-            return 'review_required'
+            return "review_required"
         else:
-            return 'conditional'
+            return "conditional"
 
     @staticmethod
     def generate_reasoning(
@@ -205,7 +246,7 @@ class ArchitectureAnalysisTestHelper:
         coupling_cohesion_score: float,
         separation_score: float,
         modularity_score: float,
-        recommendation: str
+        recommendation: str,
     ) -> str:
         """Gera narrativa de justificativa."""
         return (
@@ -224,50 +265,60 @@ class ArchitectureAnalysisTestHelper:
         solid_score: float,
         coupling_cohesion_score: float,
         separation_score: float,
-        modularity_score: float
+        modularity_score: float,
     ) -> List[Dict]:
         """Gera sugestões de mitigação de riscos arquiteturais."""
         mitigations = []
 
         if design_pattern_score < 0.6:
-            mitigations.append({
-                'mitigation_type': 'improve_design_patterns',
-                'description': 'Refatorar para usar design patterns apropriados',
-                'priority': 'high',
-                'estimated_effort': 'medium'
-            })
+            mitigations.append(
+                {
+                    "mitigation_type": "improve_design_patterns",
+                    "description": "Refatorar para usar design patterns apropriados",
+                    "priority": "high",
+                    "estimated_effort": "medium",
+                }
+            )
 
         if solid_score < 0.6:
-            mitigations.append({
-                'mitigation_type': 'improve_solid_adherence',
-                'description': 'Refatorar para aderir aos princípios SOLID',
-                'priority': 'high',
-                'estimated_effort': 'high'
-            })
+            mitigations.append(
+                {
+                    "mitigation_type": "improve_solid_adherence",
+                    "description": "Refatorar para aderir aos princípios SOLID",
+                    "priority": "high",
+                    "estimated_effort": "high",
+                }
+            )
 
         if coupling_cohesion_score < 0.6:
-            mitigations.append({
-                'mitigation_type': 'reduce_coupling',
-                'description': 'Reduzir acoplamento entre módulos e aumentar coesão',
-                'priority': 'critical',
-                'estimated_effort': 'high'
-            })
+            mitigations.append(
+                {
+                    "mitigation_type": "reduce_coupling",
+                    "description": "Reduzir acoplamento entre módulos e aumentar coesão",
+                    "priority": "critical",
+                    "estimated_effort": "high",
+                }
+            )
 
         if separation_score < 0.6:
-            mitigations.append({
-                'mitigation_type': 'improve_separation',
-                'description': 'Melhorar separação de concerns',
-                'priority': 'medium',
-                'estimated_effort': 'medium'
-            })
+            mitigations.append(
+                {
+                    "mitigation_type": "improve_separation",
+                    "description": "Melhorar separação de concerns",
+                    "priority": "medium",
+                    "estimated_effort": "medium",
+                }
+            )
 
         if modularity_score < 0.6:
-            mitigations.append({
-                'mitigation_type': 'improve_modularity',
-                'description': 'Aumentar modularidade do código',
-                'priority': 'medium',
-                'estimated_effort': 'medium'
-            })
+            mitigations.append(
+                {
+                    "mitigation_type": "improve_modularity",
+                    "description": "Aumentar modularidade do código",
+                    "priority": "medium",
+                    "estimated_effort": "medium",
+                }
+            )
 
         return mitigations
 
@@ -276,35 +327,35 @@ class ArchitectureAnalysisTestHelper:
 def sample_cognitive_plan():
     """Plano cognitivo de exemplo."""
     return {
-        'plan_id': 'plan-456',
-        'original_domain': 'microservices-architecture',
-        'original_priority': 'high',
-        'tasks': [
+        "plan_id": "plan-456",
+        "original_domain": "microservices-architecture",
+        "original_priority": "high",
+        "tasks": [
             {
-                'task_id': 'task-1',
-                'description': 'Create factory pattern for object creation',
-                'dependencies': [],
-                'estimated_duration_ms': 30000
+                "task_id": "task-1",
+                "description": "Create factory pattern for object creation",
+                "dependencies": [],
+                "estimated_duration_ms": 30000,
             },
             {
-                'task_id': 'task-2',
-                'description': 'Implement repository pattern for data access',
-                'dependencies': ['task-1'],
-                'estimated_duration_ms': 45000
+                "task_id": "task-2",
+                "description": "Implement repository pattern for data access",
+                "dependencies": ["task-1"],
+                "estimated_duration_ms": 45000,
             },
             {
-                'task_id': 'task-3',
-                'description': 'Add service layer following single responsibility principle',
-                'dependencies': ['task-2'],
-                'estimated_duration_ms': 60000
+                "task_id": "task-3",
+                "description": "Add service layer following single responsibility principle",
+                "dependencies": ["task-2"],
+                "estimated_duration_ms": 60000,
             },
             {
-                'task_id': 'task-4',
-                'description': 'Create separate module for user interface',
-                'dependencies': [],
-                'estimated_duration_ms': 20000
-            }
-        ]
+                "task_id": "task-4",
+                "description": "Create separate module for user interface",
+                "dependencies": [],
+                "estimated_duration_ms": 20000,
+            },
+        ],
     }
 
 
@@ -314,9 +365,9 @@ class TestDesignPatternsAnalysis:
     def test_design_patterns_with_positive_keywords(self):
         """Testa análise com palavras-chave positivas."""
         tasks = [
-            {'description': 'Implement factory pattern for object creation', 'dependencies': []},
-            {'description': 'Add repository for database operations', 'dependencies': []},
-            {'description': 'Use dependency injection for dependencies', 'dependencies': []}
+            {"description": "Implement factory pattern for object creation", "dependencies": []},
+            {"description": "Add repository for database operations", "dependencies": []},
+            {"description": "Use dependency injection for dependencies", "dependencies": []},
         ]
 
         score = ArchitectureAnalysisTestHelper.analyze_design_patterns(tasks)
@@ -325,9 +376,9 @@ class TestDesignPatternsAnalysis:
     def test_design_patterns_with_negative_keywords(self):
         """Testa análise com anti-patterns."""
         tasks = [
-            {'description': 'Avoid god object pattern', 'dependencies': []},
-            {'description': 'Remove spaghetti code', 'dependencies': []},
-            {'description': 'Eliminate tight coupling', 'dependencies': []}
+            {"description": "Avoid god object pattern", "dependencies": []},
+            {"description": "Remove spaghetti code", "dependencies": []},
+            {"description": "Eliminate tight coupling", "dependencies": []},
         ]
 
         score = ArchitectureAnalysisTestHelper.analyze_design_patterns(tasks)
@@ -336,8 +387,8 @@ class TestDesignPatternsAnalysis:
     def test_design_patterns_mixed(self):
         """Testa análise com misto de patterns e anti-patterns."""
         tasks = [
-            {'description': 'Use factory pattern', 'dependencies': []},
-            {'description': 'Avoid god object', 'dependencies': []}
+            {"description": "Use factory pattern", "dependencies": []},
+            {"description": "Avoid god object", "dependencies": []},
         ]
 
         score = ArchitectureAnalysisTestHelper.analyze_design_patterns(tasks)
@@ -351,8 +402,8 @@ class TestDesignPatternsAnalysis:
     def test_design_patterns_no_keywords(self):
         """Testa análise sem palavras-chave específicas."""
         tasks = [
-            {'description': 'Create basic functionality', 'dependencies': []},
-            {'description': 'Add feature', 'dependencies': []}
+            {"description": "Create basic functionality", "dependencies": []},
+            {"description": "Add feature", "dependencies": []},
         ]
 
         score = ArchitectureAnalysisTestHelper.analyze_design_patterns(tasks)
@@ -366,9 +417,9 @@ class TestSolidPrinciplesAnalysis:
     def test_solid_with_good_practices(self):
         """Testa análise com boas práticas SOLID."""
         tasks = [
-            {'description': 'Apply single responsibility principle', 'dependencies': []},
-            {'description': 'Use dependency injection', 'dependencies': []},
-            {'description': 'Follow interface segregation', 'dependencies': []}
+            {"description": "Apply single responsibility principle", "dependencies": []},
+            {"description": "Use dependency injection", "dependencies": []},
+            {"description": "Follow interface segregation", "dependencies": []},
         ]
 
         score = ArchitectureAnalysisTestHelper.analyze_solid_principles(tasks, {})
@@ -377,8 +428,8 @@ class TestSolidPrinciplesAnalysis:
     def test_solid_with_violations(self):
         """Testa análise com violações SOLID."""
         tasks = [
-            {'description': 'Class with multiple responsibilities', 'dependencies': []},
-            {'description': 'Tight coupling with concrete dependencies', 'dependencies': []}
+            {"description": "Class with multiple responsibilities", "dependencies": []},
+            {"description": "Tight coupling with concrete dependencies", "dependencies": []},
         ]
 
         score = ArchitectureAnalysisTestHelper.analyze_solid_principles(tasks, {})
@@ -396,8 +447,8 @@ class TestCouplingCohesionAnalysis:
     def test_coupling_cohesion_low_coupling(self):
         """Testa análise com baixo acoplamento."""
         tasks = [
-            {'description': 'Create independent service component', 'dependencies': []},
-            {'description': 'Add another independent module component', 'dependencies': []}
+            {"description": "Create independent service component", "dependencies": []},
+            {"description": "Add another independent module component", "dependencies": []},
         ]
 
         score = ArchitectureAnalysisTestHelper.analyze_coupling_cohesion(tasks)
@@ -406,8 +457,11 @@ class TestCouplingCohesionAnalysis:
     def test_coupling_cohesion_high_coupling(self):
         """Testa análise com alto acoplamento."""
         tasks = [
-            {'description': 'Task 1', 'dependencies': ['task-2', 'task-3', 'task-4', 'task-5', 'task-6']},
-            {'description': 'Task 2', 'dependencies': []}
+            {
+                "description": "Task 1",
+                "dependencies": ["task-2", "task-3", "task-4", "task-5", "task-6"],
+            },
+            {"description": "Task 2", "dependencies": []},
         ]
 
         score = ArchitectureAnalysisTestHelper.analyze_coupling_cohesion(tasks)
@@ -425,9 +479,9 @@ class TestSeparationOfConcernsAnalysis:
     def test_separation_with_good_separation(self):
         """Testa análise com boa separação de concerns."""
         tasks = [
-            {'description': 'Create separate service layer', 'dependencies': []},
-            {'description': 'Isolate domain logic in module', 'dependencies': []},
-            {'description': 'Define clear component boundaries', 'dependencies': []}
+            {"description": "Create separate service layer", "dependencies": []},
+            {"description": "Isolate domain logic in module", "dependencies": []},
+            {"description": "Define clear component boundaries", "dependencies": []},
         ]
 
         score = ArchitectureAnalysisTestHelper.analyze_separation_of_concerns(tasks)
@@ -436,8 +490,8 @@ class TestSeparationOfConcernsAnalysis:
     def test_separation_poor_separation(self):
         """Testa análise com má separação de concerns."""
         tasks = [
-            {'description': 'Mix everything in one file', 'dependencies': []},
-            {'description': 'Combine concerns', 'dependencies': []}
+            {"description": "Mix everything in one file", "dependencies": []},
+            {"description": "Combine concerns", "dependencies": []},
         ]
 
         score = ArchitectureAnalysisTestHelper.analyze_separation_of_concerns(tasks)
@@ -455,9 +509,12 @@ class TestModularityAnalysis:
     def test_modularity_good_modularity(self):
         """Testa análise com boa modularidade."""
         tasks = [
-            {'description': 'Create user service module with clear responsibility', 'dependencies': []},
-            {'description': 'Add order processing component', 'dependencies': []},
-            {'description': 'Implement payment service layer', 'dependencies': []}
+            {
+                "description": "Create user service module with clear responsibility",
+                "dependencies": [],
+            },
+            {"description": "Add order processing component", "dependencies": []},
+            {"description": "Implement payment service layer", "dependencies": []},
         ]
 
         score = ArchitectureAnalysisTestHelper.analyze_modularity(tasks)
@@ -466,8 +523,8 @@ class TestModularityAnalysis:
     def test_modularity_poor_modularity(self):
         """Testa análise com má modularidade."""
         tasks = [
-            {'description': 'Do', 'dependencies': []},
-            {'description': 'All', 'dependencies': []}
+            {"description": "Do", "dependencies": []},
+            {"description": "All", "dependencies": []},
         ]
 
         score = ArchitectureAnalysisTestHelper.analyze_modularity(tasks)
@@ -490,7 +547,7 @@ class TestArchitectureRiskCalculation:
             solid_score=0.85,
             coupling_cohesion_score=0.8,
             separation_score=0.75,
-            modularity_score=0.8
+            modularity_score=0.8,
         )
         assert risk < 0.3
 
@@ -502,7 +559,7 @@ class TestArchitectureRiskCalculation:
             solid_score=0.4,
             coupling_cohesion_score=0.35,
             separation_score=0.3,
-            modularity_score=0.4
+            modularity_score=0.4,
         )
         assert risk > 0.6
 
@@ -515,7 +572,7 @@ class TestArchitectureRiskCalculation:
             solid_score=0.8,
             coupling_cohesion_score=0.8,
             separation_score=0.8,
-            modularity_score=0.8
+            modularity_score=0.8,
         )
 
         risk2 = ArchitectureAnalysisTestHelper.calculate_architecture_risk(
@@ -524,7 +581,7 @@ class TestArchitectureRiskCalculation:
             solid_score=0.8,
             coupling_cohesion_score=0.2,
             separation_score=0.8,
-            modularity_score=0.8
+            modularity_score=0.8,
         )
 
         # Baixo design patterns deve ter maior impacto que baixa separação
@@ -537,42 +594,37 @@ class TestRecommendationDetermination:
     def test_recommendation_approve(self):
         """Testa recomendação de aprovação."""
         recommendation = ArchitectureAnalysisTestHelper.determine_recommendation(
-            confidence_score=0.85,
-            risk_score=0.2
+            confidence_score=0.85, risk_score=0.2
         )
-        assert recommendation == 'approve'
+        assert recommendation == "approve"
 
     def test_recommendation_reject_low_confidence(self):
         """Testa rejeição por baixa confiança."""
         recommendation = ArchitectureAnalysisTestHelper.determine_recommendation(
-            confidence_score=0.4,
-            risk_score=0.5
+            confidence_score=0.4, risk_score=0.5
         )
-        assert recommendation == 'reject'
+        assert recommendation == "reject"
 
     def test_recommendation_reject_high_risk(self):
         """Testa rejeição por alto risco."""
         recommendation = ArchitectureAnalysisTestHelper.determine_recommendation(
-            confidence_score=0.6,
-            risk_score=0.8
+            confidence_score=0.6, risk_score=0.8
         )
-        assert recommendation == 'reject'
+        assert recommendation == "reject"
 
     def test_recommendation_review_required(self):
         """Testa recomendação de revisão necessária."""
         recommendation = ArchitectureAnalysisTestHelper.determine_recommendation(
-            confidence_score=0.6,
-            risk_score=0.6
+            confidence_score=0.6, risk_score=0.6
         )
-        assert recommendation == 'review_required'
+        assert recommendation == "review_required"
 
     def test_recommendation_conditional(self):
         """Testa recomendação condicional."""
         recommendation = ArchitectureAnalysisTestHelper.determine_recommendation(
-            confidence_score=0.7,
-            risk_score=0.4
+            confidence_score=0.7, risk_score=0.4
         )
-        assert recommendation == 'conditional'
+        assert recommendation == "conditional"
 
 
 class TestReasoningGeneration:
@@ -586,15 +638,15 @@ class TestReasoningGeneration:
             coupling_cohesion_score=0.7,
             separation_score=0.65,
             modularity_score=0.8,
-            recommendation='approve'
+            recommendation="approve",
         )
 
-        assert 'design_patterns=0.80' in reasoning
-        assert 'solid=0.75' in reasoning
-        assert 'coupling_cohesion=0.70' in reasoning
-        assert 'separation=0.65' in reasoning
-        assert 'modularity=0.80' in reasoning
-        assert 'approve' in reasoning
+        assert "design_patterns=0.80" in reasoning
+        assert "solid=0.75" in reasoning
+        assert "coupling_cohesion=0.70" in reasoning
+        assert "separation=0.65" in reasoning
+        assert "modularity=0.80" in reasoning
+        assert "approve" in reasoning
 
 
 class TestMitigationGeneration:
@@ -607,10 +659,10 @@ class TestMitigationGeneration:
             solid_score=0.8,
             coupling_cohesion_score=0.8,
             separation_score=0.8,
-            modularity_score=0.8
+            modularity_score=0.8,
         )
 
-        assert any(m['mitigation_type'] == 'improve_design_patterns' for m in mitigations)
+        assert any(m["mitigation_type"] == "improve_design_patterns" for m in mitigations)
 
     def test_mitigations_solid_low(self):
         """Testa mitigação para SOLID baixo."""
@@ -619,10 +671,10 @@ class TestMitigationGeneration:
             solid_score=0.4,
             coupling_cohesion_score=0.8,
             separation_score=0.8,
-            modularity_score=0.8
+            modularity_score=0.8,
         )
 
-        assert any(m['mitigation_type'] == 'improve_solid_adherence' for m in mitigations)
+        assert any(m["mitigation_type"] == "improve_solid_adherence" for m in mitigations)
 
     def test_mitigations_coupling_low(self):
         """Testa mitigação para acoplamento baixo."""
@@ -631,11 +683,11 @@ class TestMitigationGeneration:
             solid_score=0.8,
             coupling_cohesion_score=0.4,
             separation_score=0.8,
-            modularity_score=0.8
+            modularity_score=0.8,
         )
 
-        assert any(m['mitigation_type'] == 'reduce_coupling' for m in mitigations)
-        assert any(m['priority'] == 'critical' for m in mitigations)
+        assert any(m["mitigation_type"] == "reduce_coupling" for m in mitigations)
+        assert any(m["priority"] == "critical" for m in mitigations)
 
     def test_mitigations_multiple_issues(self):
         """Testa múltiplas mitigações para múltiplos problemas."""
@@ -644,7 +696,7 @@ class TestMitigationGeneration:
             solid_score=0.5,
             coupling_cohesion_score=0.4,
             separation_score=0.8,
-            modularity_score=0.8
+            modularity_score=0.8,
         )
 
         assert len(mitigations) >= 3
@@ -656,7 +708,7 @@ class TestMitigationGeneration:
             solid_score=0.8,
             coupling_cohesion_score=0.8,
             separation_score=0.8,
-            modularity_score=0.8
+            modularity_score=0.8,
         )
 
         assert len(mitigations) == 0
@@ -667,20 +719,18 @@ class TestCompleteEvaluationFlow:
 
     def test_complete_evaluation_with_good_architecture(self, sample_cognitive_plan):
         """Testa avaliação completa de uma arquitetura boa."""
-        tasks = sample_cognitive_plan['tasks']
+        tasks = sample_cognitive_plan["tasks"]
 
         design = ArchitectureAnalysisTestHelper.analyze_design_patterns(tasks)
-        solid = ArchitectureAnalysisTestHelper.analyze_solid_principles(tasks, sample_cognitive_plan)
+        solid = ArchitectureAnalysisTestHelper.analyze_solid_principles(
+            tasks, sample_cognitive_plan
+        )
         coupling = ArchitectureAnalysisTestHelper.analyze_coupling_cohesion(tasks)
         separation = ArchitectureAnalysisTestHelper.analyze_separation_of_concerns(tasks)
         modularity = ArchitectureAnalysisTestHelper.analyze_modularity(tasks)
 
         confidence = (
-            design * 0.25 +
-            solid * 0.25 +
-            coupling * 0.20 +
-            separation * 0.15 +
-            modularity * 0.15
+            design * 0.25 + solid * 0.25 + coupling * 0.20 + separation * 0.15 + modularity * 0.15
         )
 
         risk = ArchitectureAnalysisTestHelper.calculate_architecture_risk(
@@ -694,21 +744,24 @@ class TestCompleteEvaluationFlow:
 
         assert 0.0 <= confidence <= 1.0
         assert 0.0 <= risk <= 1.0
-        assert recommendation in ['approve', 'reject', 'review_required', 'conditional']
+        assert recommendation in ["approve", "reject", "review_required", "conditional"]
         assert isinstance(mitigations, list)
 
     def test_complete_evaluation_with_poor_architecture(self):
         """Testa avaliação completa de uma arquitetura ruim."""
         plan = {
-            'plan_id': 'poor-arch',
-            'original_domain': 'monolithic',
-            'tasks': [
-                {'description': 'Create god object with multiple responsibilities', 'dependencies': ['task-2', 'task-3', 'task-4', 'task-5']},
-                {'description': 'Add tight coupling and concrete dependencies', 'dependencies': []},
-            ]
+            "plan_id": "poor-arch",
+            "original_domain": "monolithic",
+            "tasks": [
+                {
+                    "description": "Create god object with multiple responsibilities",
+                    "dependencies": ["task-2", "task-3", "task-4", "task-5"],
+                },
+                {"description": "Add tight coupling and concrete dependencies", "dependencies": []},
+            ],
         }
 
-        tasks = plan['tasks']
+        tasks = plan["tasks"]
         design = ArchitectureAnalysisTestHelper.analyze_design_patterns(tasks)
         solid = ArchitectureAnalysisTestHelper.analyze_solid_principles(tasks, plan)
         coupling = ArchitectureAnalysisTestHelper.analyze_coupling_cohesion(tasks)
@@ -734,7 +787,7 @@ class TestMLModelIntegration:
             "coupling_score",
             "cohesion_score",
             "separation_of_concerns",
-            "modularity_score"
+            "modularity_score",
         ]
 
         features = {
@@ -743,7 +796,7 @@ class TestMLModelIntegration:
             "coupling_score": 0.7,  # Alto = baixo acoplamento = bom
             "cohesion_score": 0.75,
             "separation_of_concerns": 0.8,
-            "modularity_score": 0.7
+            "modularity_score": 0.7,
         }
 
         for feature in expected_features:
@@ -759,10 +812,12 @@ class TestMLModelIntegration:
 
         model = GradientBoostingClassifier(n_estimators=10, max_depth=3, random_state=42)
 
-        X_train = np.array([
-            [0.9, 0.85, 0.7, 0.8, 0.75, 0.7],  # Boa arquitetura
-            [0.3, 0.4, 0.3, 0.4, 0.3, 0.4],   # Má arquitetura
-        ])
+        X_train = np.array(
+            [
+                [0.9, 0.85, 0.7, 0.8, 0.75, 0.7],  # Boa arquitetura
+                [0.3, 0.4, 0.3, 0.4, 0.3, 0.4],  # Má arquitetura
+            ]
+        )
         y_train = np.array([1, 0])
 
         model.fit(X_train, y_train)
@@ -781,9 +836,9 @@ class TestMLModelIntegration:
         cohesion_score = 0.6
 
         should_approve = (
-            (solid_compliance + design_pattern_score) > 1.4 and
-            coupling_score > 0.5 and
-            cohesion_score > 0.4
+            (solid_compliance + design_pattern_score) > 1.4
+            and coupling_score > 0.5
+            and cohesion_score > 0.4
         )
 
         assert should_approve is True
@@ -796,9 +851,9 @@ class TestMLModelIntegration:
         cohesion_score = 0.3
 
         should_approve = (
-            (solid_compliance + design_pattern_score) > 1.4 and
-            coupling_score > 0.5 and
-            cohesion_score > 0.4
+            (solid_compliance + design_pattern_score) > 1.4
+            and coupling_score > 0.5
+            and cohesion_score > 0.4
         )
 
         assert should_approve is False

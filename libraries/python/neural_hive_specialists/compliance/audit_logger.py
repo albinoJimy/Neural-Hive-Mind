@@ -79,25 +79,17 @@ class AuditLogger:
 
         # Criar índices otimizados
         self._collection.create_index([("timestamp", DESCENDING)])
-        self._collection.create_index(
-            [("event_type", ASCENDING), ("timestamp", DESCENDING)]
-        )
-        self._collection.create_index(
-            [("specialist_type", ASCENDING), ("timestamp", DESCENDING)]
-        )
+        self._collection.create_index([("event_type", ASCENDING), ("timestamp", DESCENDING)])
+        self._collection.create_index([("specialist_type", ASCENDING), ("timestamp", DESCENDING)])
         self._collection.create_index([("correlation_id", ASCENDING)])
 
         # TTL index para retenção automática
         ttl_seconds = self.config.audit_log_retention_days * 24 * 3600
-        self._collection.create_index(
-            [("timestamp", ASCENDING)], expireAfterSeconds=ttl_seconds
-        )
+        self._collection.create_index([("timestamp", ASCENDING)], expireAfterSeconds=ttl_seconds)
 
         logger.info("Índices de audit log criados/verificados")
 
-    def log_config_change(
-        self, changed_by: str, old_config: Dict, new_config: Dict, reason: str
-    ):
+    def log_config_change(self, changed_by: str, old_config: Dict, new_config: Dict, reason: str):
         """
         Registra mudança de configuração.
 
@@ -280,9 +272,7 @@ class AuditLogger:
             severity=severity,
         )
 
-    def query_audit_logs(
-        self, filters: Optional[Dict] = None, limit: int = 100
-    ) -> List[Dict]:
+    def query_audit_logs(self, filters: Optional[Dict] = None, limit: int = 100) -> List[Dict]:
         """
         Consulta audit logs com filtros.
 
@@ -316,9 +306,7 @@ class AuditLogger:
                 if "actor" in filters:
                     query["actor"] = filters["actor"]
 
-            results = list(
-                self._collection.find(query).sort("timestamp", DESCENDING).limit(limit)
-            )
+            results = list(self._collection.find(query).sort("timestamp", DESCENDING).limit(limit))
 
             return results
 
@@ -326,9 +314,7 @@ class AuditLogger:
             logger.error("Erro ao consultar audit logs", error=str(e))
             return []
 
-    def get_audit_summary(
-        self, start_date: datetime, end_date: datetime
-    ) -> Dict[str, Any]:
+    def get_audit_summary(self, start_date: datetime, end_date: datetime) -> Dict[str, Any]:
         """
         Retorna resumo de auditoria para período.
 
@@ -436,11 +422,7 @@ class AuditLogger:
 
             if old_value != new_value:
                 # Sanitizar valores sensíveis
-                if (
-                    "secret" in key.lower()
-                    or "password" in key.lower()
-                    or "key" in key.lower()
-                ):
+                if "secret" in key.lower() or "password" in key.lower() or "key" in key.lower():
                     old_value = "***"
                     new_value = "***"
 

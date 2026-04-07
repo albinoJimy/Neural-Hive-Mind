@@ -8,6 +8,7 @@ from unittest.mock import Mock, MagicMock, patch
 try:
     import mlflow
     from mlflow.pyfunc import PythonModelContext
+
     MLFLOW_AVAILABLE = True
 except ImportError:
     MLFLOW_AVAILABLE = False
@@ -32,6 +33,7 @@ class TestProbabilisticModelWrapper:
         """Testa que load_context carrega o modelo."""
         with patch("joblib.load", return_value=mock_sklearn_model) as mock_load:
             from mlflow.pyfunc import PythonModelContext
+
             model_config = Mock()
             artifacts = {"sklearn_model": "/path/to/model.pkl"}
             context = PythonModelContext(model_config=model_config, artifacts=artifacts)
@@ -46,6 +48,7 @@ class TestProbabilisticModelWrapper:
         """Testa que predict retorna probabilidades."""
         with patch("joblib.load", return_value=mock_sklearn_model):
             from mlflow.pyfunc import PythonModelContext
+
             model_config = Mock()
             artifacts = {"sklearn_model": "/path/to/model.pkl"}
             context = PythonModelContext(model_config=model_config, artifacts=artifacts)
@@ -62,6 +65,7 @@ class TestProbabilisticModelWrapper:
         """Testa predict com parâmetros."""
         with patch("joblib.load", return_value=mock_sklearn_model):
             from mlflow.pyfunc import PythonModelContext
+
             model_config = Mock()
             artifacts = {"sklearn_model": "/path/to/model.pkl"}
             context = PythonModelContext(model_config=model_config, artifacts=artifacts)
@@ -80,6 +84,7 @@ class TestProbabilisticModelWrapper:
         """Testa predict_discrete retorna labels discretos."""
         with patch("joblib.load", return_value=mock_sklearn_model):
             from mlflow.pyfunc import PythonModelContext
+
             model_config = Mock()
             artifacts = {"sklearn_model": "/path/to/model.pkl"}
             context = PythonModelContext(model_config=model_config, artifacts=artifacts)
@@ -96,6 +101,7 @@ class TestProbabilisticModelWrapper:
         """Testa acesso ao modelo sklearn subjacente."""
         with patch("joblib.load", return_value=mock_sklearn_model):
             from mlflow.pyfunc import PythonModelContext
+
             model_config = Mock()
             artifacts = {"sklearn_model": "/path/to/model.pkl"}
             context = PythonModelContext(model_config=model_config, artifacts=artifacts)
@@ -113,13 +119,16 @@ class TestProbabilisticModelWrapperNoMlflow:
     def test_class_exists(self):
         """Testa que a classe pode ser importada."""
         from neural_hive_specialists.probabilistic_wrapper import ProbabilisticModelWrapper
+
         assert ProbabilisticModelWrapper is not None
 
     def test_class_is_pyfunc_model(self):
         """Testa que ProbabilisticModelWrapper herda de PythonModel."""
         from neural_hive_specialists.probabilistic_wrapper import ProbabilisticModelWrapper
+
         try:
             import mlflow.pyfunc
+
             assert issubclass(ProbabilisticModelWrapper, mlflow.pyfunc.PythonModel)
         except ImportError:
             pass  # mlflow não instalado

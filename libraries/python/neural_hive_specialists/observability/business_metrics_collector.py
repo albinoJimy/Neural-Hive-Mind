@@ -43,22 +43,16 @@ class BusinessMetricsCollector:
         )
 
         self.consensus_uri = config.get("consensus_mongodb_uri", self.ledger_uri)
-        self.consensus_database = config.get(
-            "consensus_mongodb_database", "neural_hive"
-        )
+        self.consensus_database = config.get("consensus_mongodb_database", "neural_hive")
         self.consensus_collection_name = config.get(
             "consensus_collection_name", "consensus_decisions"
         )
-        self.consensus_timestamp_field = config.get(
-            "consensus_timestamp_field", "timestamp"
-        )
+        self.consensus_timestamp_field = config.get("consensus_timestamp_field", "timestamp")
 
         # Configurações de business metrics
         self.enable_business_metrics = config.get("enable_business_metrics", True)
         self.window_hours = config.get("business_metrics_window_hours", 24)
-        self.enable_business_value_tracking = config.get(
-            "enable_business_value_tracking", False
-        )
+        self.enable_business_value_tracking = config.get("enable_business_value_tracking", False)
         self.execution_ticket_api_url = config.get("execution_ticket_api_url")
 
         # Clients MongoDB (lazy initialization)
@@ -80,18 +74,14 @@ class BusinessMetricsCollector:
     def ledger_client(self) -> MongoClient:
         """Lazy initialization do cliente MongoDB do ledger."""
         if self._ledger_client is None:
-            self._ledger_client = MongoClient(
-                self.ledger_uri, serverSelectionTimeoutMS=5000
-            )
+            self._ledger_client = MongoClient(self.ledger_uri, serverSelectionTimeoutMS=5000)
         return self._ledger_client
 
     @property
     def consensus_client(self) -> MongoClient:
         """Lazy initialization do cliente MongoDB do consensus."""
         if self._consensus_client is None:
-            self._consensus_client = MongoClient(
-                self.consensus_uri, serverSelectionTimeoutMS=5000
-            )
+            self._consensus_client = MongoClient(self.consensus_uri, serverSelectionTimeoutMS=5000)
         return self._consensus_client
 
     @property
@@ -106,9 +96,7 @@ class BusinessMetricsCollector:
         db = self.consensus_client[self.consensus_database]
         return db[self.consensus_collection_name]
 
-    def collect_business_metrics(
-        self, window_hours: Optional[int] = None
-    ) -> Dict[str, Any]:
+    def collect_business_metrics(self, window_hours: Optional[int] = None) -> Dict[str, Any]:
         """
         Coleta métricas de negócio para janela de tempo especificada.
 
@@ -135,9 +123,7 @@ class BusinessMetricsCollector:
         window_hours = window_hours or self.window_hours
 
         try:
-            logger.info(
-                "Starting business metrics collection", window_hours=window_hours
-            )
+            logger.info("Starting business metrics collection", window_hours=window_hours)
 
             # 1. Buscar opiniões e decisões
             opinions = self._fetch_opinions(window_hours)
@@ -191,9 +177,7 @@ class BusinessMetricsCollector:
             # 4. Calcular métricas derivadas e atualizar Prometheus
             for specialist_type, confusion_matrix in metrics_by_specialist.items():
                 derived_metrics = self._calculate_derived_metrics(confusion_matrix)
-                self._update_prometheus_metrics(
-                    specialist_type, confusion_matrix, derived_metrics
-                )
+                self._update_prometheus_metrics(specialist_type, confusion_matrix, derived_metrics)
 
             # 4.5. Calcular métricas de A/B test por variante (se aplicável)
             ab_test_metrics = self._calculate_ab_test_metrics(correlations)
@@ -235,9 +219,7 @@ class BusinessMetricsCollector:
 
                     for specialist_type, value in business_value.items():
                         if specialist_type in self.metrics_registry:
-                            self.metrics_registry[
-                                specialist_type
-                            ].increment_business_value(value)
+                            self.metrics_registry[specialist_type].increment_business_value(value)
 
             duration = time.time() - start_time
 
@@ -260,9 +242,7 @@ class BusinessMetricsCollector:
             return result
 
         except Exception as e:
-            logger.error(
-                "Error collecting business metrics", error=str(e), exc_info=True
-            )
+            logger.error("Error collecting business metrics", error=str(e), exc_info=True)
             return {"status": "error", "error": str(e)}
 
     # ============================================================================
@@ -316,9 +296,7 @@ class BusinessMetricsCollector:
             # Calcular rates e atualizar Prometheus
             for specialist_type, metrics in metrics_by_specialist.items():
                 if metrics["total_opinions"] > 0:
-                    auto_approval_rate = (
-                        metrics["auto_approved"] / metrics["total_opinions"]
-                    )
+                    auto_approval_rate = metrics["auto_approved"] / metrics["total_opinions"]
                     metrics["auto_approval_rate"] = auto_approval_rate
 
                     # Atualizar Prometheus
@@ -329,14 +307,10 @@ class BusinessMetricsCollector:
 
                         # Incrementar contadores de auto-approvals e manual reviews
                         for _ in range(metrics["auto_approved"]):
-                            self.metrics_registry[
-                                specialist_type
-                            ].increment_auto_approvals()
+                            self.metrics_registry[specialist_type].increment_auto_approvals()
 
                         for _ in range(metrics["manual_review"]):
-                            self.metrics_registry[
-                                specialist_type
-                            ].increment_manual_reviews()
+                            self.metrics_registry[specialist_type].increment_manual_reviews()
 
             logger.info(
                 "Auto-approval metrics calculated",
@@ -351,9 +325,7 @@ class BusinessMetricsCollector:
             }
 
         except Exception as e:
-            logger.error(
-                "Error calculating auto-approval metrics", error=str(e), exc_info=True
-            )
+            logger.error("Error calculating auto-approval metrics", error=str(e), exc_info=True)
             return {"status": "error", "error": str(e)}
 
     def _fetch_opinions_with_confidence(self, window_hours: int) -> List[Dict]:
@@ -384,9 +356,7 @@ class BusinessMetricsCollector:
     # Approval Time Metrics
     # ============================================================================
 
-    def calculate_approval_time_metrics(
-        self, window_hours: Optional[int] = None
-    ) -> Dict[str, Any]:
+    def calculate_approval_time_metrics(self, window_hours: Optional[int] = None) -> Dict[str, Any]:
         """
         Calcula métricas de tempo de aprovação humana.
 
@@ -411,9 +381,7 @@ class BusinessMetricsCollector:
                 return {"status": "no_data"}
 
             # Criar índice de opiniões por opinion_id
-            opinions_by_id = {
-                op.get("opinion_id"): op for op in opinions if op.get("opinion_id")
-            }
+            opinions_by_id = {op.get("opinion_id"): op for op in opinions if op.get("opinion_id")}
 
             # Calcular tempos de aprovação
             metrics_by_specialist = defaultdict(
@@ -434,9 +402,7 @@ class BusinessMetricsCollector:
 
                 # Calcular tempo de aprovação
                 opinion_time = opinion.get("evaluated_at")
-                approval_time = approval.get("approved_at") or approval.get(
-                    "rejected_at"
-                )
+                approval_time = approval.get("approved_at") or approval.get("rejected_at")
 
                 if opinion_time and approval_time:
                     time_diff_seconds = (approval_time - opinion_time).total_seconds()
@@ -450,22 +416,18 @@ class BusinessMetricsCollector:
             # Calcular médias e atualizar Prometheus
             for specialist_type, metrics in metrics_by_specialist.items():
                 if metrics["approval_times"]:
-                    avg_time = sum(metrics["approval_times"]) / len(
-                        metrics["approval_times"]
-                    )
+                    avg_time = sum(metrics["approval_times"]) / len(metrics["approval_times"])
                     metrics["avg_approval_time_seconds"] = avg_time
 
                     # Atualizar Prometheus
                     if specialist_type in self.metrics_registry:
-                        self.metrics_registry[specialist_type].set_avg_approval_time(
-                            avg_time
-                        )
+                        self.metrics_registry[specialist_type].set_avg_approval_time(avg_time)
 
                         # Observar tempos individuais no histogram
                         for time_seconds in metrics["approval_times"]:
-                            self.metrics_registry[
-                                specialist_type
-                            ].observe_approval_time(time_seconds)
+                            self.metrics_registry[specialist_type].observe_approval_time(
+                                time_seconds
+                            )
 
             logger.info(
                 "Approval time metrics calculated",
@@ -484,9 +446,7 @@ class BusinessMetricsCollector:
             }
 
         except Exception as e:
-            logger.error(
-                "Error calculating approval time metrics", error=str(e), exc_info=True
-            )
+            logger.error("Error calculating approval time metrics", error=str(e), exc_info=True)
             return {"status": "error", "error": str(e)}
 
     def _fetch_approval_decisions(self, window_hours: int) -> List[Dict]:
@@ -570,9 +530,9 @@ class BusinessMetricsCollector:
                     self.metrics_registry[specialist_type].set_human_review_time_saved(
                         time_saved_hours
                     )
-                    self.metrics_registry[
-                        specialist_type
-                    ].set_estimated_review_time_per_plan(estimated_review_time_seconds)
+                    self.metrics_registry[specialist_type].set_estimated_review_time_per_plan(
+                        estimated_review_time_seconds
+                    )
 
             logger.info(
                 "Time saved metrics calculated",
@@ -587,18 +547,14 @@ class BusinessMetricsCollector:
             }
 
         except Exception as e:
-            logger.error(
-                "Error calculating time saved metrics", error=str(e), exc_info=True
-            )
+            logger.error("Error calculating time saved metrics", error=str(e), exc_info=True)
             return {"status": "error", "error": str(e)}
 
     # ============================================================================
     # Model Uptime Metrics
     # ============================================================================
 
-    def calculate_model_uptime_metrics(
-        self, window_hours: Optional[int] = None
-    ) -> Dict[str, Any]:
+    def calculate_model_uptime_metrics(self, window_hours: Optional[int] = None) -> Dict[str, Any]:
         """
         Calcula métricas de uptime dos modelos.
 
@@ -659,33 +615,25 @@ class BusinessMetricsCollector:
 
             for specialist_type, metrics in metrics_by_specialist.items():
                 if metrics["total_checks"] > 0:
-                    uptime_percentage = (
-                        metrics["successful_checks"] / metrics["total_checks"]
-                    )
+                    uptime_percentage = metrics["successful_checks"] / metrics["total_checks"]
                     metrics["uptime_percentage"] = uptime_percentage
 
                     # Estimar downtime e availability
                     metrics["availability_seconds"] = window_seconds * uptime_percentage
-                    metrics["downtime_seconds"] = window_seconds * (
-                        1 - uptime_percentage
-                    )
+                    metrics["downtime_seconds"] = window_seconds * (1 - uptime_percentage)
 
                     # Atualizar Prometheus
                     if specialist_type in self.metrics_registry:
-                        self.metrics_registry[specialist_type].set_model_uptime(
-                            uptime_percentage
+                        self.metrics_registry[specialist_type].set_model_uptime(uptime_percentage)
+                        self.metrics_registry[specialist_type].increment_model_availability(
+                            metrics["availability_seconds"]
                         )
-                        self.metrics_registry[
-                            specialist_type
-                        ].increment_model_availability(metrics["availability_seconds"])
                         self.metrics_registry[specialist_type].increment_model_downtime(
                             metrics["downtime_seconds"]
                         )
 
                         # Incrementar contador de falhas de health check
-                        failure_count = health_check_failures_by_specialist.get(
-                            specialist_type, 0
-                        )
+                        failure_count = health_check_failures_by_specialist.get(specialist_type, 0)
                         for _ in range(failure_count):
                             self.metrics_registry[
                                 specialist_type
@@ -702,9 +650,7 @@ class BusinessMetricsCollector:
             }
 
         except Exception as e:
-            logger.error(
-                "Error calculating model uptime metrics", error=str(e), exc_info=True
-            )
+            logger.error("Error calculating model uptime metrics", error=str(e), exc_info=True)
             return {"status": "error", "error": str(e)}
 
     def _fetch_model_health_checks(self, window_hours: int) -> List[Dict]:
@@ -783,9 +729,7 @@ class BusinessMetricsCollector:
 
             opinions = list(self.ledger_collection.find(query))
 
-            logger.debug(
-                "Opinions fetched", count=len(opinions), window_hours=window_hours
-            )
+            logger.debug("Opinions fetched", count=len(opinions), window_hours=window_hours)
 
             return opinions
 
@@ -839,9 +783,7 @@ class BusinessMetricsCollector:
             Lista de correlações com categoria (tp, tn, fp, fn)
         """
         # Criar índice de opiniões por opinion_id
-        opinions_by_id = {
-            op.get("opinion_id"): op for op in opinions if op.get("opinion_id")
-        }
+        opinions_by_id = {op.get("opinion_id"): op for op in opinions if op.get("opinion_id")}
 
         correlations = []
 
@@ -859,15 +801,11 @@ class BusinessMetricsCollector:
                 specialist_type = vote.get("specialist_type")
 
                 # Classificar como TP/TN/FP/FN
-                category = self._classify_prediction(
-                    specialist_recommendation, final_decision
-                )
+                category = self._classify_prediction(specialist_recommendation, final_decision)
 
                 # Extrair variante A/B da opinião, se disponível
                 ab_test_variant = (
-                    opinion.get("opinion", {})
-                    .get("metadata", {})
-                    .get("ab_test_variant")
+                    opinion.get("opinion", {}).get("metadata", {}).get("ab_test_variant")
                 )
 
                 correlation_data = {
@@ -886,15 +824,11 @@ class BusinessMetricsCollector:
 
                 correlations.append(correlation_data)
 
-        logger.debug(
-            "Opinions correlated with decisions", total_correlations=len(correlations)
-        )
+        logger.debug("Opinions correlated with decisions", total_correlations=len(correlations))
 
         return correlations
 
-    def _classify_prediction(
-        self, specialist_recommendation: str, final_decision: str
-    ) -> str:
+    def _classify_prediction(self, specialist_recommendation: str, final_decision: str) -> str:
         """
         Classifica predição como TP, TN, FP ou FN.
 
@@ -979,9 +913,7 @@ class BusinessMetricsCollector:
 
         # F1 Score
         f1_score = (
-            2 * (precision * recall) / (precision + recall)
-            if (precision + recall) > 0
-            else 0.0
+            2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0.0
         )
 
         return {
@@ -1005,26 +937,16 @@ class BusinessMetricsCollector:
             derived_metrics: Métricas derivadas
         """
         if specialist_type not in self.metrics_registry:
-            logger.warning(
-                "Specialist not in metrics registry", specialist_type=specialist_type
-            )
+            logger.warning("Specialist not in metrics registry", specialist_type=specialist_type)
             return
 
         metrics = self.metrics_registry[specialist_type]
 
         # Atualizar confusion matrix counters
-        metrics.business_true_positives_total.labels(specialist_type).inc(
-            confusion_matrix["tp"]
-        )
-        metrics.business_true_negatives_total.labels(specialist_type).inc(
-            confusion_matrix["tn"]
-        )
-        metrics.business_false_positives_total.labels(specialist_type).inc(
-            confusion_matrix["fp"]
-        )
-        metrics.business_false_negatives_total.labels(specialist_type).inc(
-            confusion_matrix["fn"]
-        )
+        metrics.business_true_positives_total.labels(specialist_type).inc(confusion_matrix["tp"])
+        metrics.business_true_negatives_total.labels(specialist_type).inc(confusion_matrix["tn"])
+        metrics.business_false_positives_total.labels(specialist_type).inc(confusion_matrix["fp"])
+        metrics.business_false_negatives_total.labels(specialist_type).inc(confusion_matrix["fn"])
 
         # Atualizar métricas derivadas (gauges)
         metrics.set_consensus_agreement_rate(derived_metrics["agreement_rate"])
@@ -1241,9 +1163,7 @@ class BusinessMetricsCollector:
                 confusion = variant_data["confusion_matrix"]
 
                 # Atualizar agreement rate
-                metrics.set_ab_test_variant_agreement(
-                    variant, derived["agreement_rate"]
-                )
+                metrics.set_ab_test_variant_agreement(variant, derived["agreement_rate"])
 
                 # Atualizar sample size
                 metrics.set_ab_test_sample_size(variant, confusion["total"])
@@ -1323,9 +1243,7 @@ class BusinessMetricsCollector:
             }
 
         except ImportError:
-            logger.warning(
-                "scipy not available, cannot calculate statistical significance"
-            )
+            logger.warning("scipy not available, cannot calculate statistical significance")
             return {
                 "p_value": None,
                 "is_significant": False,
@@ -1392,20 +1310,14 @@ class BusinessMetricsCollector:
             logger.info(
                 "Daily metrics collection completed",
                 status=daily_summary["status"],
-                opinions_processed=daily_summary["metrics_summary"][
-                    "opinions_processed"
-                ],
-                decisions_processed=daily_summary["metrics_summary"][
-                    "decisions_processed"
-                ],
+                opinions_processed=daily_summary["metrics_summary"]["opinions_processed"],
+                decisions_processed=daily_summary["metrics_summary"]["decisions_processed"],
             )
 
             return daily_summary
 
         except Exception as e:
-            logger.error(
-                "Error in daily metrics collection", error=str(e), exc_info=True
-            )
+            logger.error("Error in daily metrics collection", error=str(e), exc_info=True)
             return {
                 "status": "error",
                 "window_hours": 24,

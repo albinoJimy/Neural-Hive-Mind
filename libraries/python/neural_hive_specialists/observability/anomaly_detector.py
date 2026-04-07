@@ -214,9 +214,7 @@ class AnomalyDetector:
 
             # Identificar features anômalas
             anomalous_features = (
-                self._identify_anomalous_features(current_metrics, X)
-                if is_anomaly
-                else []
+                self._identify_anomalous_features(current_metrics, X) if is_anomaly else []
             )
 
             # Confidence (inverso do anomaly score normalizado)
@@ -276,9 +274,7 @@ class AnomalyDetector:
             logger.error("Error preparing features", error=str(e), metrics=metrics)
             return None
 
-    def _prepare_features_batch(
-        self, metrics_list: List[Dict[str, float]]
-    ) -> np.ndarray:
+    def _prepare_features_batch(self, metrics_list: List[Dict[str, float]]) -> np.ndarray:
         """
         Prepara features de lista de métricas.
 
@@ -464,8 +460,7 @@ class AnomalyDetector:
         # Isolation Forest não fornece feature importance diretamente
         # Retornar pesos uniformes
         importance = {
-            feature_name: 1.0 / len(self.feature_names)
-            for feature_name in self.feature_names
+            feature_name: 1.0 / len(self.feature_names) for feature_name in self.feature_names
         }
 
         return importance

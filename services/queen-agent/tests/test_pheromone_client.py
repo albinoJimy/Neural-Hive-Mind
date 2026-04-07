@@ -15,13 +15,15 @@ logger = structlog.get_logger()
 
 class UnifiedDomain(str, Enum):
     """Domínios unificados do Neural Hive-Mind"""
-    BUSINESS = 'BUSINESS'
-    TECHNICAL = 'TECHNICAL'
-    SECURITY = 'SECURITY'
-    INFRASTRUCTURE = 'INFRASTRUCTURE'
-    BEHAVIOR = 'BEHAVIOR'
-    OPERATIONAL = 'OPERATIONAL'
-    COMPLIANCE = 'COMPLIANCE'
+
+    BUSINESS = "BUSINESS"
+    TECHNICAL = "TECHNICAL"
+    SECURITY = "SECURITY"
+    INFRASTRUCTURE = "INFRASTRUCTURE"
+    BEHAVIOR = "BEHAVIOR"
+    OPERATIONAL = "OPERATIONAL"
+    COMPLIANCE = "COMPLIANCE"
+
 
 # Constante de TTL do cache (igual ao do modulo original)
 CACHE_TTL_SECONDS = 60
@@ -48,7 +50,7 @@ class PheromoneClientForTest:
         domain: UnifiedDomain,
         strength: float,
         metadata: Dict[str, Any],
-        signal_id: str = None
+        signal_id: str = None,
     ) -> None:
         """
         Publicar feromonio com formato de chave unificada.
@@ -56,7 +58,7 @@ class PheromoneClientForTest:
         """
         try:
             # Extrair layer do prefix (ex: 'pheromone:strategic:' -> 'strategic')
-            layer = self.prefix.rstrip(':').split(':')[-1] if ':' in self.prefix else 'strategic'
+            layer = self.prefix.rstrip(":").split(":")[-1] if ":" in self.prefix else "strategic"
 
             # Normalizar domain para string se for enum
             domain_str = domain.value if isinstance(domain, UnifiedDomain) else str(domain).upper()
@@ -74,16 +76,12 @@ class PheromoneClientForTest:
                 "metadata": metadata,
                 "domain": domain_str,
                 "pheromone_type": pheromone_type,
-                "signal_id": signal_id
+                "signal_id": signal_id,
             }
 
-            await self.redis_client.cache_strategic_context(
-                key,
-                pheromone_data,
-                ttl_seconds=86400
-            )
+            await self.redis_client.cache_strategic_context(key, pheromone_data, ttl_seconds=86400)
 
-            if pheromone_type == 'SUCCESS':
+            if pheromone_type == "SUCCESS":
                 self.invalidate_success_trails_cache()
 
         except Exception as e:
@@ -122,7 +120,7 @@ class PheromoneClientForTest:
 
                 try:
                     # Formato: pheromone:{layer}:{domain}:{pheromone_type}:{id}
-                    key_parts = key.split(':')
+                    key_parts = key.split(":")
                     if len(key_parts) < 5:
                         continue
                     # key_parts[0] = 'pheromone'
@@ -131,7 +129,7 @@ class PheromoneClientForTest:
                     # key_parts[3] = pheromone_type (SUCCESS, FAILURE, etc)
                     # key_parts[4:] = id (pode conter ':')
                     domain = key_parts[2]
-                    signal_id = ':'.join(key_parts[4:])
+                    signal_id = ":".join(key_parts[4:])
                 except Exception:
                     continue
 
@@ -140,16 +138,16 @@ class PheromoneClientForTest:
                     continue
 
                 trail = {
-                    'domain': domain,
-                    'strength': pheromone_data.get('strength', 0.0),
-                    'last_updated': pheromone_data.get('last_updated', 0),
-                    'metadata': pheromone_data.get('metadata', {}),
-                    'signal_id': signal_id,
-                    'key': key
+                    "domain": domain,
+                    "strength": pheromone_data.get("strength", 0.0),
+                    "last_updated": pheromone_data.get("last_updated", 0),
+                    "metadata": pheromone_data.get("metadata", {}),
+                    "signal_id": signal_id,
+                    "key": key,
                 }
                 trails.append(trail)
 
-            trails.sort(key=lambda t: t['strength'], reverse=True)
+            trails.sort(key=lambda t: t["strength"], reverse=True)
             limited_trails = trails[:limit]
 
             self._success_trails_cache = limited_trails
@@ -179,17 +177,14 @@ def mock_redis_client():
 def mock_settings():
     """Mock de configuracoes"""
     settings = MagicMock()
-    settings.REDIS_PHEROMONE_PREFIX = 'pheromone:strategic:'
+    settings.REDIS_PHEROMONE_PREFIX = "pheromone:strategic:"
     return settings
 
 
 @pytest.fixture
 def pheromone_client(mock_redis_client, mock_settings):
     """Instancia do PheromoneClient com mocks"""
-    client = PheromoneClientForTest(
-        redis_client=mock_redis_client,
-        settings=mock_settings
-    )
+    client = PheromoneClientForTest(redis_client=mock_redis_client, settings=mock_settings)
     client._metrics_mock = MagicMock()
     return client
 
@@ -197,6 +192,7 @@ def pheromone_client(mock_redis_client, mock_settings):
 @pytest.mark.asyncio
 async def test_get_success_trails_empty_redis(pheromone_client, mock_redis_client):
     """Validar retorno de lista vazia quando nao ha trilhas"""
+
     async def empty_scan_iter(match=None):
         return
         yield
@@ -213,19 +209,44 @@ async def test_get_success_trails_ordering(pheromone_client, mock_redis_client):
     """Validar ordenacao por strength (criar 5 trilhas com strengths: 0.9, 0.5, 0.8, 0.3, 0.7)"""
     # Novo formato: pheromone:{layer}:{domain}:{pheromone_type}:{id}
     keys = [
-        'pheromone:strategic:BUSINESS:SUCCESS:plan-1',
-        'pheromone:strategic:TECHNICAL:SUCCESS:plan-2',
-        'pheromone:strategic:SECURITY:SUCCESS:plan-3',
-        'pheromone:strategic:INFRASTRUCTURE:SUCCESS:plan-4',
-        'pheromone:strategic:BEHAVIOR:SUCCESS:plan-5',
+        "pheromone:strategic:BUSINESS:SUCCESS:plan-1",
+        "pheromone:strategic:TECHNICAL:SUCCESS:plan-2",
+        "pheromone:strategic:SECURITY:SUCCESS:plan-3",
+        "pheromone:strategic:INFRASTRUCTURE:SUCCESS:plan-4",
+        "pheromone:strategic:BEHAVIOR:SUCCESS:plan-5",
     ]
 
     pheromone_data = {
-        'pheromone:strategic:BUSINESS:SUCCESS:plan-1': {'strength': 0.9, 'last_updated': 1000, 'metadata': {}, 'domain': 'BUSINESS'},
-        'pheromone:strategic:TECHNICAL:SUCCESS:plan-2': {'strength': 0.5, 'last_updated': 1001, 'metadata': {}, 'domain': 'TECHNICAL'},
-        'pheromone:strategic:SECURITY:SUCCESS:plan-3': {'strength': 0.8, 'last_updated': 1002, 'metadata': {}, 'domain': 'SECURITY'},
-        'pheromone:strategic:INFRASTRUCTURE:SUCCESS:plan-4': {'strength': 0.3, 'last_updated': 1003, 'metadata': {}, 'domain': 'INFRASTRUCTURE'},
-        'pheromone:strategic:BEHAVIOR:SUCCESS:plan-5': {'strength': 0.7, 'last_updated': 1004, 'metadata': {}, 'domain': 'BEHAVIOR'},
+        "pheromone:strategic:BUSINESS:SUCCESS:plan-1": {
+            "strength": 0.9,
+            "last_updated": 1000,
+            "metadata": {},
+            "domain": "BUSINESS",
+        },
+        "pheromone:strategic:TECHNICAL:SUCCESS:plan-2": {
+            "strength": 0.5,
+            "last_updated": 1001,
+            "metadata": {},
+            "domain": "TECHNICAL",
+        },
+        "pheromone:strategic:SECURITY:SUCCESS:plan-3": {
+            "strength": 0.8,
+            "last_updated": 1002,
+            "metadata": {},
+            "domain": "SECURITY",
+        },
+        "pheromone:strategic:INFRASTRUCTURE:SUCCESS:plan-4": {
+            "strength": 0.3,
+            "last_updated": 1003,
+            "metadata": {},
+            "domain": "INFRASTRUCTURE",
+        },
+        "pheromone:strategic:BEHAVIOR:SUCCESS:plan-5": {
+            "strength": 0.7,
+            "last_updated": 1004,
+            "metadata": {},
+            "domain": "BEHAVIOR",
+        },
     }
 
     async def mock_scan_iter(match=None):
@@ -240,26 +261,39 @@ async def test_get_success_trails_ordering(pheromone_client, mock_redis_client):
     result = await pheromone_client.get_success_trails(limit=10)
 
     assert len(result) == 5
-    assert result[0]['strength'] == 0.9
-    assert result[1]['strength'] == 0.8
-    assert result[2]['strength'] == 0.7
-    assert result[3]['strength'] == 0.5
-    assert result[4]['strength'] == 0.3
+    assert result[0]["strength"] == 0.9
+    assert result[1]["strength"] == 0.8
+    assert result[2]["strength"] == 0.7
+    assert result[3]["strength"] == 0.5
+    assert result[4]["strength"] == 0.3
 
     # Domains agora são os 7 domínios unificados
-    assert result[0]['domain'] == 'BUSINESS'
-    assert result[1]['domain'] == 'SECURITY'
-    assert result[2]['domain'] == 'BEHAVIOR'
+    assert result[0]["domain"] == "BUSINESS"
+    assert result[1]["domain"] == "SECURITY"
+    assert result[2]["domain"] == "BEHAVIOR"
 
 
 @pytest.mark.asyncio
 async def test_get_success_trails_limit(pheromone_client, mock_redis_client):
     """Validar que apenas limit trilhas sao retornadas (criar 20 trilhas, limit=10)"""
     # Novo formato: pheromone:{layer}:{domain}:{pheromone_type}:{id}
-    domains = ['BUSINESS', 'TECHNICAL', 'SECURITY', 'INFRASTRUCTURE', 'BEHAVIOR', 'OPERATIONAL', 'COMPLIANCE']
-    keys = [f'pheromone:strategic:{domains[i % len(domains)]}:SUCCESS:plan-{i}' for i in range(20)]
+    domains = [
+        "BUSINESS",
+        "TECHNICAL",
+        "SECURITY",
+        "INFRASTRUCTURE",
+        "BEHAVIOR",
+        "OPERATIONAL",
+        "COMPLIANCE",
+    ]
+    keys = [f"pheromone:strategic:{domains[i % len(domains)]}:SUCCESS:plan-{i}" for i in range(20)]
     pheromone_data = {
-        key: {'strength': i * 0.05, 'last_updated': 1000 + i, 'metadata': {}, 'domain': domains[i % len(domains)]}
+        key: {
+            "strength": i * 0.05,
+            "last_updated": 1000 + i,
+            "metadata": {},
+            "domain": domains[i % len(domains)],
+        }
         for i, key in enumerate(keys)
     }
 
@@ -276,8 +310,8 @@ async def test_get_success_trails_limit(pheromone_client, mock_redis_client):
 
     assert len(result) == 10
     # Usar pytest.approx para evitar problemas de precisao float
-    assert result[0]['strength'] == pytest.approx(0.95, rel=1e-9)
-    assert result[9]['strength'] == pytest.approx(0.5, rel=1e-9)
+    assert result[0]["strength"] == pytest.approx(0.95, rel=1e-9)
+    assert result[9]["strength"] == pytest.approx(0.5, rel=1e-9)
 
 
 @pytest.mark.asyncio
@@ -286,13 +320,23 @@ async def test_get_success_trails_domain_extraction(pheromone_client, mock_redis
     # Novo formato: pheromone:{layer}:{domain}:{pheromone_type}:{id}
     # O ID pode conter ':' então testamos IDs complexos
     keys = [
-        'pheromone:strategic:BUSINESS:SUCCESS:simple-plan',
-        'pheromone:strategic:TECHNICAL:SUCCESS:plan:with:colons',
+        "pheromone:strategic:BUSINESS:SUCCESS:simple-plan",
+        "pheromone:strategic:TECHNICAL:SUCCESS:plan:with:colons",
     ]
 
     pheromone_data = {
-        'pheromone:strategic:BUSINESS:SUCCESS:simple-plan': {'strength': 0.9, 'last_updated': 1000, 'metadata': {}, 'domain': 'BUSINESS'},
-        'pheromone:strategic:TECHNICAL:SUCCESS:plan:with:colons': {'strength': 0.8, 'last_updated': 1001, 'metadata': {}, 'domain': 'TECHNICAL'},
+        "pheromone:strategic:BUSINESS:SUCCESS:simple-plan": {
+            "strength": 0.9,
+            "last_updated": 1000,
+            "metadata": {},
+            "domain": "BUSINESS",
+        },
+        "pheromone:strategic:TECHNICAL:SUCCESS:plan:with:colons": {
+            "strength": 0.8,
+            "last_updated": 1001,
+            "metadata": {},
+            "domain": "TECHNICAL",
+        },
     }
 
     async def mock_scan_iter(match=None):
@@ -307,23 +351,28 @@ async def test_get_success_trails_domain_extraction(pheromone_client, mock_redis
     result = await pheromone_client.get_success_trails(limit=10)
 
     assert len(result) == 2
-    domains = [r['domain'] for r in result]
+    domains = [r["domain"] for r in result]
     # Domínios são os 7 unificados (BUSINESS, TECHNICAL, etc.)
-    assert 'BUSINESS' in domains
-    assert 'TECHNICAL' in domains
+    assert "BUSINESS" in domains
+    assert "TECHNICAL" in domains
     # signal_id pode conter ':'
-    signal_ids = [r['signal_id'] for r in result]
-    assert 'simple-plan' in signal_ids
-    assert 'plan:with:colons' in signal_ids
+    signal_ids = [r["signal_id"] for r in result]
+    assert "simple-plan" in signal_ids
+    assert "plan:with:colons" in signal_ids
 
 
 @pytest.mark.asyncio
 async def test_get_success_trails_cache_hit(pheromone_client, mock_redis_client):
     """Validar que segunda chamada usa cache"""
     # Novo formato: pheromone:{layer}:{domain}:{pheromone_type}:{id}
-    keys = ['pheromone:strategic:BUSINESS:SUCCESS:plan-1']
+    keys = ["pheromone:strategic:BUSINESS:SUCCESS:plan-1"]
     pheromone_data = {
-        'pheromone:strategic:BUSINESS:SUCCESS:plan-1': {'strength': 0.9, 'last_updated': 1000, 'metadata': {}, 'domain': 'BUSINESS'}
+        "pheromone:strategic:BUSINESS:SUCCESS:plan-1": {
+            "strength": 0.9,
+            "last_updated": 1000,
+            "metadata": {},
+            "domain": "BUSINESS",
+        }
     }
 
     async def mock_scan_iter(match=None):
@@ -348,9 +397,14 @@ async def test_get_success_trails_cache_hit(pheromone_client, mock_redis_client)
 async def test_get_success_trails_cache_expiry(pheromone_client, mock_redis_client):
     """Validar que cache expira apos TTL"""
     # Novo formato: pheromone:{layer}:{domain}:{pheromone_type}:{id}
-    keys = ['pheromone:strategic:BUSINESS:SUCCESS:plan-1']
+    keys = ["pheromone:strategic:BUSINESS:SUCCESS:plan-1"]
     pheromone_data = {
-        'pheromone:strategic:BUSINESS:SUCCESS:plan-1': {'strength': 0.9, 'last_updated': 1000, 'metadata': {}, 'domain': 'BUSINESS'}
+        "pheromone:strategic:BUSINESS:SUCCESS:plan-1": {
+            "strength": 0.9,
+            "last_updated": 1000,
+            "metadata": {},
+            "domain": "BUSINESS",
+        }
     }
 
     scan_call_count = 0
@@ -383,7 +437,7 @@ async def test_get_success_trails_cache_expiry(pheromone_client, mock_redis_clie
 async def test_invalidate_cache_on_publish_success(pheromone_client, mock_redis_client):
     """Validar que publicar SUCCESS invalida cache"""
     # Preparar cache
-    pheromone_client._success_trails_cache = [{'domain': 'BUSINESS', 'strength': 0.9}]
+    pheromone_client._success_trails_cache = [{"domain": "BUSINESS", "strength": 0.9}]
     pheromone_client._cache_timestamp = time.time()
 
     assert pheromone_client._success_trails_cache is not None
@@ -391,11 +445,11 @@ async def test_invalidate_cache_on_publish_success(pheromone_client, mock_redis_
 
     # Publicar SUCCESS usando UnifiedDomain
     await pheromone_client.publish_pheromone(
-        pheromone_type='SUCCESS',
+        pheromone_type="SUCCESS",
         domain=UnifiedDomain.BUSINESS,
         strength=0.8,
         metadata={},
-        signal_id='plan-1'
+        signal_id="plan-1",
     )
 
     assert pheromone_client._success_trails_cache is None
@@ -406,17 +460,17 @@ async def test_invalidate_cache_on_publish_success(pheromone_client, mock_redis_
 async def test_publish_failure_does_not_invalidate_cache(pheromone_client, mock_redis_client):
     """Validar que publicar FAILURE nao invalida cache"""
     # Preparar cache
-    pheromone_client._success_trails_cache = [{'domain': 'TECHNICAL', 'strength': 0.9}]
+    pheromone_client._success_trails_cache = [{"domain": "TECHNICAL", "strength": 0.9}]
     original_timestamp = time.time()
     pheromone_client._cache_timestamp = original_timestamp
 
     # Publicar FAILURE usando UnifiedDomain
     await pheromone_client.publish_pheromone(
-        pheromone_type='FAILURE',
+        pheromone_type="FAILURE",
         domain=UnifiedDomain.TECHNICAL,
         strength=-1.0,
         metadata={},
-        signal_id='plan-1'
+        signal_id="plan-1",
     )
 
     assert pheromone_client._success_trails_cache is not None
@@ -428,14 +482,19 @@ async def test_get_success_trails_handles_malformed_keys(pheromone_client, mock_
     """Validar tratamento de chaves malformadas"""
     # Novo formato requer 5 partes: pheromone:{layer}:{domain}:{pheromone_type}:{id}
     keys = [
-        'pheromone:strategic:BUSINESS:SUCCESS:valid-plan',  # Válida
-        'invalid:key',  # Inválida - poucos segmentos
-        'pheromone:strategic:SUCCESS',  # Inválida - falta domain e id
-        'pheromone:strategic:SECURITY:SUCCESS',  # Inválida - falta id
+        "pheromone:strategic:BUSINESS:SUCCESS:valid-plan",  # Válida
+        "invalid:key",  # Inválida - poucos segmentos
+        "pheromone:strategic:SUCCESS",  # Inválida - falta domain e id
+        "pheromone:strategic:SECURITY:SUCCESS",  # Inválida - falta id
     ]
 
     pheromone_data = {
-        'pheromone:strategic:BUSINESS:SUCCESS:valid-plan': {'strength': 0.9, 'last_updated': 1000, 'metadata': {}, 'domain': 'BUSINESS'}
+        "pheromone:strategic:BUSINESS:SUCCESS:valid-plan": {
+            "strength": 0.9,
+            "last_updated": 1000,
+            "metadata": {},
+            "domain": "BUSINESS",
+        }
     }
 
     async def mock_scan_iter(match=None):
@@ -450,7 +509,7 @@ async def test_get_success_trails_handles_malformed_keys(pheromone_client, mock_
     result = await pheromone_client.get_success_trails(limit=10)
 
     assert len(result) == 1
-    assert result[0]['domain'] == 'BUSINESS'
+    assert result[0]["domain"] == "BUSINESS"
 
 
 @pytest.mark.asyncio
@@ -458,13 +517,18 @@ async def test_get_success_trails_handles_missing_data(pheromone_client, mock_re
     """Validar tratamento quando get_cached_context retorna None"""
     # Novo formato: pheromone:{layer}:{domain}:{pheromone_type}:{id}
     keys = [
-        'pheromone:strategic:OPERATIONAL:SUCCESS:plan-1',
-        'pheromone:strategic:COMPLIANCE:SUCCESS:plan-2',
+        "pheromone:strategic:OPERATIONAL:SUCCESS:plan-1",
+        "pheromone:strategic:COMPLIANCE:SUCCESS:plan-2",
     ]
 
     pheromone_data = {
-        'pheromone:strategic:OPERATIONAL:SUCCESS:plan-1': {'strength': 0.9, 'last_updated': 1000, 'metadata': {}, 'domain': 'OPERATIONAL'},
-        'pheromone:strategic:COMPLIANCE:SUCCESS:plan-2': None,
+        "pheromone:strategic:OPERATIONAL:SUCCESS:plan-1": {
+            "strength": 0.9,
+            "last_updated": 1000,
+            "metadata": {},
+            "domain": "OPERATIONAL",
+        },
+        "pheromone:strategic:COMPLIANCE:SUCCESS:plan-2": None,
     }
 
     async def mock_scan_iter(match=None):
@@ -479,12 +543,13 @@ async def test_get_success_trails_handles_missing_data(pheromone_client, mock_re
     result = await pheromone_client.get_success_trails(limit=10)
 
     assert len(result) == 1
-    assert result[0]['domain'] == 'OPERATIONAL'
+    assert result[0]["domain"] == "OPERATIONAL"
 
 
 @pytest.mark.asyncio
 async def test_get_success_trails_handles_exception(pheromone_client, mock_redis_client):
     """Validar tratamento de excecoes durante scan"""
+
     async def mock_scan_iter_error(match=None):
         raise Exception("Redis connection error")
         yield
@@ -501,7 +566,7 @@ async def test_get_success_trails_handles_exception(pheromone_client, mock_redis
 
 def test_invalidate_success_trails_cache(pheromone_client):
     """Validar invalidacao de cache"""
-    pheromone_client._success_trails_cache = [{'domain': 'INFRASTRUCTURE', 'strength': 0.9}]
+    pheromone_client._success_trails_cache = [{"domain": "INFRASTRUCTURE", "strength": 0.9}]
     pheromone_client._cache_timestamp = time.time()
 
     pheromone_client.invalidate_success_trails_cache()
@@ -515,11 +580,11 @@ async def test_publish_pheromone_with_all_domains(pheromone_client, mock_redis_c
     """Validar publicacao de feromonios com todos os 7 dominios unificados"""
     for domain in UnifiedDomain:
         await pheromone_client.publish_pheromone(
-            pheromone_type='SUCCESS',
+            pheromone_type="SUCCESS",
             domain=domain,
             strength=0.8,
-            metadata={'test': True},
-            signal_id=f'test-{domain.value.lower()}'
+            metadata={"test": True},
+            signal_id=f"test-{domain.value.lower()}",
         )
 
     # Verificar que cache_strategic_context foi chamado 7 vezes

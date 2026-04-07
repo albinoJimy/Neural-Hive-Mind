@@ -11,7 +11,7 @@ from src.models.feature import (
     OntologyFeatures,
     GraphFeatures,
     EmbeddingFeatures,
-    FeatureVector
+    FeatureVector,
 )
 
 
@@ -24,11 +24,7 @@ def computation_pipeline():
 @pytest.fixture
 def minimal_cognitive_plan():
     """Plano cognitivo mínimo"""
-    return {
-        "plan_id": "test-plan-123",
-        "priority": "high",
-        "tasks": []
-    }
+    return {"plan_id": "test-plan-123", "priority": "high", "tasks": []}
 
 
 @pytest.fixture
@@ -45,56 +41,47 @@ def full_cognitive_plan():
                 "type": "query",
                 "estimated_duration_ms": 1000,
                 "is_destructive": False,
-                "complexity_factor": 0.5
+                "complexity_factor": 0.5,
             },
             {
                 "task_id": "task-2",
                 "type": "transform",
                 "estimated_duration_ms": 2000,
                 "is_destructive": True,
-                "complexity_factor": 0.7
+                "complexity_factor": 0.7,
             },
             {
                 "task_id": "task-3",
                 "type": "validate",
                 "estimated_duration_ms": 500,
                 "is_destructive": False,
-                "complexity_factor": 0.3
-            }
+                "complexity_factor": 0.3,
+            },
         ],
         "ontology": {
             "domain_risk_weight": 0.6,
-            "patterns": [
-                {"quality": 0.8},
-                {"quality": 0.9}
-            ],
-            "anti_patterns": [
-                {"penalty": 0.2}
-            ]
+            "patterns": [{"quality": 0.8}, {"quality": 0.9}],
+            "anti_patterns": [{"penalty": 0.2}],
         },
         "dependency_graph": {
             "edges": [
                 {"source": "task-1", "target": "task-2"},
-                {"source": "task-2", "target": "task-3"}
+                {"source": "task-2", "target": "task-3"},
             ],
             "critical_path_length": 3,
             "max_parallelism": 2,
-            "num_levels": 3
+            "num_levels": 3,
         },
-        "embeddings": {
-            "tasks": [
-                [0.1, 0.2, 0.3, 0.4],
-                [0.5, 0.6, 0.7, 0.8],
-                [0.2, 0.3, 0.4, 0.5]
-            ]
-        }
+        "embeddings": {"tasks": [[0.1, 0.2, 0.3, 0.4], [0.5, 0.6, 0.7, 0.8], [0.2, 0.3, 0.4, 0.5]]},
     }
 
 
 class TestMetadataFeatures:
     """Testes para computação de features de metadados"""
 
-    def test_compute_metadata_features_empty_plan(self, computation_pipeline, minimal_cognitive_plan):
+    def test_compute_metadata_features_empty_plan(
+        self, computation_pipeline, minimal_cognitive_plan
+    ):
         """Testa computação de metadados com plano vazio"""
         result = computation_pipeline.compute_metadata_features(minimal_cognitive_plan)
 
@@ -142,8 +129,8 @@ class TestMetadataFeatures:
             "tasks": [
                 {"is_destructive": True},
                 {"is_destructive": True},
-                {"is_destructive": False}
-            ]
+                {"is_destructive": False},
+            ],
         }
 
         result = computation_pipeline.compute_metadata_features(plan)
@@ -157,8 +144,8 @@ class TestMetadataFeatures:
                 {"type": "query"},
                 {"type": "transform"},
                 {"type": "validate"},
-                {"type": "query"}  # tipo repetido
-            ]
+                {"type": "query"},  # tipo repetido
+            ],
         }
 
         result = computation_pipeline.compute_metadata_features(plan)
@@ -189,7 +176,9 @@ class TestOntologyFeatures:
         assert result.domain_risk_weight == 0.5
         assert result.num_patterns_detected is None
 
-    def test_compute_ontology_features_no_ontology(self, computation_pipeline, minimal_cognitive_plan):
+    def test_compute_ontology_features_no_ontology(
+        self, computation_pipeline, minimal_cognitive_plan
+    ):
         """Testa quando não há dados de ontologia"""
         result = computation_pipeline.compute_ontology_features(minimal_cognitive_plan)
         assert result is None
@@ -200,7 +189,7 @@ class TestOntologyFeatures:
             "tasks": [
                 {"complexity_factor": 0.2},
                 {"complexity_factor": 0.6},
-                {"complexity_factor": 0.8}
+                {"complexity_factor": 0.8},
             ]
         }
 
@@ -231,7 +220,7 @@ class TestGraphFeatures:
             "tasks": [
                 {"task_id": "t1", "depends_on": []},
                 {"task_id": "t2", "depends_on": ["t1"]},
-                {"task_id": "t3", "depends_on": ["t1"]}
+                {"task_id": "t3", "depends_on": ["t1"]},
             ]
         }
 
@@ -254,7 +243,9 @@ class TestGraphFeatures:
         assert result.avg_in_degree == pytest.approx(1.0, rel=0.1)
         assert result.max_in_degree == 1
 
-    def test_compute_graph_features_no_graph_data(self, computation_pipeline, minimal_cognitive_plan):
+    def test_compute_graph_features_no_graph_data(
+        self, computation_pipeline, minimal_cognitive_plan
+    ):
         """Testa quando não há dados de grafo"""
         result = computation_pipeline.compute_graph_features(minimal_cognitive_plan)
         assert result is None
@@ -274,14 +265,7 @@ class TestEmbeddingFeatures:
 
     def test_compute_embedding_features_norms(self, computation_pipeline):
         """Testa cálculo de normas de embeddings"""
-        plan = {
-            "embeddings": {
-                "tasks": [
-                    [0.3, 0.4],  # norm = 0.5
-                    [0.6, 0.8]   # norm = 1.0
-                ]
-            }
-        }
+        plan = {"embeddings": {"tasks": [[0.3, 0.4], [0.6, 0.8]]}}  # norm = 0.5  # norm = 1.0
 
         result = computation_pipeline.compute_embedding_features(plan)
 
@@ -290,22 +274,16 @@ class TestEmbeddingFeatures:
 
     def test_compute_embedding_features_diversity(self, computation_pipeline):
         """Testa cálculo de diversidade entre embeddings"""
-        plan = {
-            "embeddings": {
-                "tasks": [
-                    [1.0, 0.0, 0.0],
-                    [0.0, 1.0, 0.0],
-                    [0.0, 0.0, 1.0]
-                ]
-            }
-        }
+        plan = {"embeddings": {"tasks": [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]}}
 
         result = computation_pipeline.compute_embedding_features(plan)
 
         # Embeddings ortogonais têm alta diversidade
         assert result.avg_diversity > 0.5
 
-    def test_compute_embedding_features_no_embeddings(self, computation_pipeline, minimal_cognitive_plan):
+    def test_compute_embedding_features_no_embeddings(
+        self, computation_pipeline, minimal_cognitive_plan
+    ):
         """Testa quando não há embeddings"""
         result = computation_pipeline.compute_embedding_features(minimal_cognitive_plan)
         assert result is None
@@ -327,7 +305,9 @@ class TestComputeAll:
         assert isinstance(result.embedding, EmbeddingFeatures)
 
     @pytest.mark.asyncio
-    async def test_compute_all_with_minimal_plan(self, computation_pipeline, minimal_cognitive_plan):
+    async def test_compute_all_with_minimal_plan(
+        self, computation_pipeline, minimal_cognitive_plan
+    ):
         """Testa computação com plano mínimo"""
         result = await computation_pipeline.compute_all("test-plan-123", minimal_cognitive_plan)
 
@@ -356,7 +336,7 @@ class TestDAGLevelsCalculation:
         tasks = [
             {"task_id": "t1"},
             {"task_id": "t2", "depends_on": ["t1"]},
-            {"task_id": "t3", "depends_on": ["t2"]}
+            {"task_id": "t3", "depends_on": ["t2"]},
         ]
 
         levels = computation_pipeline._calculate_dag_levels(tasks)
@@ -371,7 +351,7 @@ class TestDAGLevelsCalculation:
         tasks = [
             {"task_id": "t1"},
             {"task_id": "t2", "depends_on": ["t1"]},
-            {"task_id": "t3", "depends_on": ["t1"]}
+            {"task_id": "t3", "depends_on": ["t1"]},
         ]
 
         levels = computation_pipeline._calculate_dag_levels(tasks)
@@ -383,10 +363,7 @@ class TestDAGLevelsCalculation:
 
     def test_calculate_dag_levels_with_task_id_field(self, computation_pipeline):
         """Testa DAG com campo task_id"""
-        tasks = [
-            {"task_id": "task-1"},
-            {"task_id": "task-2", "depends_on": ["task-1"]}
-        ]
+        tasks = [{"task_id": "task-1"}, {"task_id": "task-2", "depends_on": ["task-1"]}]
 
         levels = computation_pipeline._calculate_dag_levels(tasks)
 
@@ -398,10 +375,7 @@ class TestDiversityCalculation:
 
     def test_diversity_identical_embeddings(self, computation_pipeline):
         """Testa diversidade de embeddings idênticos"""
-        embeddings = [
-            [1.0, 0.0, 0.0],
-            [1.0, 0.0, 0.0]
-        ]
+        embeddings = [[1.0, 0.0, 0.0], [1.0, 0.0, 0.0]]
 
         diversity = computation_pipeline._calculate_diversity(embeddings)
 
@@ -410,10 +384,7 @@ class TestDiversityCalculation:
 
     def test_diversity_opposite_embeddings(self, computation_pipeline):
         """Testa diversidade de embeddings opostos"""
-        embeddings = [
-            [1.0, 0.0, 0.0],
-            [-1.0, 0.0, 0.0]
-        ]
+        embeddings = [[1.0, 0.0, 0.0], [-1.0, 0.0, 0.0]]
 
         diversity = computation_pipeline._calculate_diversity(embeddings)
 

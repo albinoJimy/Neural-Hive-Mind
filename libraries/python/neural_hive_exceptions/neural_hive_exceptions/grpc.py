@@ -52,7 +52,7 @@ class GRPCError(NeuralHiveError):
         message: str,
         status_code: grpc.StatusCode = grpc.StatusCode.INTERNAL,
         details: Optional[Dict[str, Any]] = None,
-        context: Optional[ErrorContext] = None
+        context: Optional[ErrorContext] = None,
     ):
         # Mapear status code gRPC para HTTP
         http_status_map = {
@@ -83,15 +83,14 @@ class GRPCError(NeuralHiveError):
             message=message,
             code=code,
             details=error_details,
-            http_status=http_status_map.get(status_code, 500)
+            http_status=http_status_map.get(status_code, 500),
         )
 
         self.grpc_status_code = status_code
 
 
 def grpc_error_to_status(
-    error: Exception,
-    context: Optional[ErrorContext] = None
+    error: Exception, context: Optional[ErrorContext] = None
 ) -> grpc.StatusCode:
     """
     Converte exceção Python em status gRPC apropriado.
@@ -133,10 +132,7 @@ def grpc_error_to_status(
     return grpc.StatusCode.UNKNOWN
 
 
-def create_grpc_error(
-    error: Exception,
-    context: Optional[ErrorContext] = None
-) -> GRPCError:
+def create_grpc_error(error: Exception, context: Optional[ErrorContext] = None) -> GRPCError:
     """
     Cria GRPCError a partir de qualquer exceção.
 
@@ -153,7 +149,7 @@ def create_grpc_error(
         message=str(error),
         status_code=status_code,
         details={"original_type": type(error).__name__},
-        context=context
+        context=context,
     )
 
 

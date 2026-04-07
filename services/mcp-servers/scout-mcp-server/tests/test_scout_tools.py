@@ -88,7 +88,8 @@ class TestSearchCodeTool:
     def code_dir(self):
         """Diretório com código para testes."""
         temp = tempfile.mkdtemp()
-        Path(temp, "class_scout.py").write_text("""
+        Path(temp, "class_scout.py").write_text(
+            """
 class ScoutAgent:
     def explore(self):
         return results
@@ -96,14 +97,17 @@ class ScoutAgent:
 class AnotherScout:
     def analyze(self):
         pass
-""")
-        Path(temp, "functions.py").write_text("""
+"""
+        )
+        Path(temp, "functions.py").write_text(
+            """
 def scout_function():
     pass
 
 def process_data():
     pass
-""")
+"""
+        )
         Path(temp, "README.md").write_text("scout is a tool")
 
         yield temp

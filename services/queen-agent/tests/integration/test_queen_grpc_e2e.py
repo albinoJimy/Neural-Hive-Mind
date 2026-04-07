@@ -26,7 +26,7 @@ from src.proto import queen_agent_pb2, queen_agent_pb2_grpc
 def get_free_port() -> int:
     """Obtém uma porta livre para o servidor gRPC"""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind(('', 0))
+        s.bind(("", 0))
         return s.getsockname()[1]
 
 
@@ -39,7 +39,7 @@ def mock_mongodb_client():
     client.db.analyst_insights.insert_one = AsyncMock()
     client.client = MagicMock()
     client.client.admin = MagicMock()
-    client.client.admin.command = AsyncMock(return_value={'ok': 1})
+    client.client.admin.command = AsyncMock(return_value={"ok": 1})
     return client
 
 
@@ -80,19 +80,31 @@ def mock_decision_engine():
 
 
 @pytest.fixture
-def servicer(mock_mongodb_client, mock_neo4j_client, mock_exception_service, mock_telemetry_aggregator, mock_decision_engine):
+def servicer(
+    mock_mongodb_client,
+    mock_neo4j_client,
+    mock_exception_service,
+    mock_telemetry_aggregator,
+    mock_decision_engine,
+):
     """Instância do servicer com mocks"""
     return QueenAgentServicer(
         mongodb_client=mock_mongodb_client,
         neo4j_client=mock_neo4j_client,
         exception_service=mock_exception_service,
         telemetry_aggregator=mock_telemetry_aggregator,
-        decision_engine=mock_decision_engine
+        decision_engine=mock_decision_engine,
     )
 
 
 @pytest_asyncio.fixture
-async def grpc_server_and_stub(mock_mongodb_client, mock_neo4j_client, mock_exception_service, mock_telemetry_aggregator, mock_decision_engine):
+async def grpc_server_and_stub(
+    mock_mongodb_client,
+    mock_neo4j_client,
+    mock_exception_service,
+    mock_telemetry_aggregator,
+    mock_decision_engine,
+):
     """
     Fixture que inicia um servidor gRPC real em porta efêmera
     e retorna o stub para chamadas de cliente.
@@ -105,25 +117,25 @@ async def grpc_server_and_stub(mock_mongodb_client, mock_neo4j_client, mock_exce
         neo4j_client=mock_neo4j_client,
         exception_service=mock_exception_service,
         telemetry_aggregator=mock_telemetry_aggregator,
-        decision_engine=mock_decision_engine
+        decision_engine=mock_decision_engine,
     )
 
     queen_agent_pb2_grpc.add_QueenAgentServicer_to_server(servicer, server)
-    server.add_insecure_port(f'[::]:{port}')
+    server.add_insecure_port(f"[::]:{port}")
     await server.start()
 
-    channel = aio.insecure_channel(f'localhost:{port}')
+    channel = aio.insecure_channel(f"localhost:{port}")
     stub = queen_agent_pb2_grpc.QueenAgentStub(channel)
 
     yield {
-        'server': server,
-        'channel': channel,
-        'stub': stub,
-        'servicer': servicer,
-        'mongodb_client': mock_mongodb_client,
-        'neo4j_client': mock_neo4j_client,
-        'telemetry_aggregator': mock_telemetry_aggregator,
-        'decision_engine': mock_decision_engine
+        "server": server,
+        "channel": channel,
+        "stub": stub,
+        "servicer": servicer,
+        "mongodb_client": mock_mongodb_client,
+        "neo4j_client": mock_neo4j_client,
+        "telemetry_aggregator": mock_telemetry_aggregator,
+        "decision_engine": mock_decision_engine,
     }
 
     await channel.close()
@@ -136,10 +148,9 @@ def mock_context():
     context = MagicMock()
     context.set_code = MagicMock()
     context.set_details = MagicMock()
-    context.invocation_metadata = MagicMock(return_value=[
-        ('traceparent', '00-trace123-span456-01'),
-        ('x-correlation-id', 'corr-789')
-    ])
+    context.invocation_metadata = MagicMock(
+        return_value=[("traceparent", "00-trace123-span456-01"), ("x-correlation-id", "corr-789")]
+    )
     return context
 
 
@@ -155,22 +166,22 @@ async def test_get_strategic_decision_e2e_success(servicer, mock_mongodb_client,
     Teste E2E: busca decisão estratégica completa
     Valida fluxo completo desde request até response
     """
-    decision_id = f'dec-{uuid.uuid4().hex[:8]}'
+    decision_id = f"dec-{uuid.uuid4().hex[:8]}"
     mock_decision = {
-        'decision_id': decision_id,
-        'decision_type': 'REPLANNING',
-        'confidence_score': 0.92,
-        'risk_assessment': {
-            'risk_score': 0.18,
-            'risk_factors': ['latencia_alta', 'sla_proximo_violacao'],
-            'mitigations': ['escalar_recursos', 'redirecionar_trafego']
+        "decision_id": decision_id,
+        "decision_type": "REPLANNING",
+        "confidence_score": 0.92,
+        "risk_assessment": {
+            "risk_score": 0.18,
+            "risk_factors": ["latencia_alta", "sla_proximo_violacao"],
+            "mitigations": ["escalar_recursos", "redirecionar_trafego"],
         },
-        'reasoning_summary': 'Replanning necessário devido a alta latência detectada em 3 pods',
-        'created_at': int(datetime.now().timestamp() * 1000),
-        'decision': {
-            'target_entities': ['plan-001', 'plan-002', 'pod-xyz'],
-            'action': 'trigger_replanning'
-        }
+        "reasoning_summary": "Replanning necessário devido a alta latência detectada em 3 pods",
+        "created_at": int(datetime.now().timestamp() * 1000),
+        "decision": {
+            "target_entities": ["plan-001", "plan-002", "pod-xyz"],
+            "action": "trigger_replanning",
+        },
     }
     mock_mongodb_client.get_strategic_decision.return_value = mock_decision
 
@@ -179,12 +190,12 @@ async def test_get_strategic_decision_e2e_success(servicer, mock_mongodb_client,
 
     # Validar resposta completa
     assert response.decision_id == decision_id
-    assert response.decision_type == 'REPLANNING'
+    assert response.decision_type == "REPLANNING"
     assert response.confidence_score == 0.92
     assert response.risk_score == 0.18
-    assert 'Replanning necessário' in response.reasoning_summary
+    assert "Replanning necessário" in response.reasoning_summary
     assert len(response.target_entities) == 3
-    assert response.action == 'trigger_replanning'
+    assert response.action == "trigger_replanning"
 
     # Validar que MongoDB foi chamado corretamente
     mock_mongodb_client.get_strategic_decision.assert_called_once_with(decision_id)
@@ -202,24 +213,26 @@ async def test_get_strategic_decision_e2e_not_found(servicer, mock_mongodb_clien
     """
     mock_mongodb_client.get_strategic_decision.return_value = None
 
-    request = queen_agent_pb2.GetStrategicDecisionRequest(decision_id='dec-inexistente')
+    request = queen_agent_pb2.GetStrategicDecisionRequest(decision_id="dec-inexistente")
     response = await servicer.GetStrategicDecision(request, mock_context)
 
     # Validar código de erro
     mock_context.set_code.assert_called_once_with(grpc.StatusCode.NOT_FOUND)
-    assert response.decision_id == ''
+    assert response.decision_id == ""
 
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_get_strategic_decision_e2e_mongodb_error(servicer, mock_mongodb_client, mock_context):
+async def test_get_strategic_decision_e2e_mongodb_error(
+    servicer, mock_mongodb_client, mock_context
+):
     """
     Teste E2E: erro de conexão com MongoDB
     Valida código de erro INTERNAL
     """
     mock_mongodb_client.get_strategic_decision.side_effect = Exception("MongoDB connection timeout")
 
-    request = queen_agent_pb2.GetStrategicDecisionRequest(decision_id='dec-123')
+    request = queen_agent_pb2.GetStrategicDecisionRequest(decision_id="dec-123")
     response = await servicer.GetStrategicDecision(request, mock_context)
 
     # Validar código de erro
@@ -234,7 +247,9 @@ async def test_get_strategic_decision_e2e_mongodb_error(servicer, mock_mongodb_c
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_list_strategic_decisions_e2e_with_filters(servicer, mock_mongodb_client, mock_context):
+async def test_list_strategic_decisions_e2e_with_filters(
+    servicer, mock_mongodb_client, mock_context
+):
     """
     Teste E2E: listagem com filtros aplicados
     Valida construção correta de query MongoDB
@@ -245,50 +260,46 @@ async def test_list_strategic_decisions_e2e_with_filters(servicer, mock_mongodb_
 
     mock_decisions = [
         {
-            'decision_id': 'dec-001',
-            'decision_type': 'REPLANNING',
-            'confidence_score': 0.95,
-            'risk_assessment': {'risk_score': 0.10},
-            'reasoning_summary': 'Decisão 1',
-            'created_at': now - 1800000,
-            'decision': {'target_entities': ['plan-001'], 'action': 'replanning'}
+            "decision_id": "dec-001",
+            "decision_type": "REPLANNING",
+            "confidence_score": 0.95,
+            "risk_assessment": {"risk_score": 0.10},
+            "reasoning_summary": "Decisão 1",
+            "created_at": now - 1800000,
+            "decision": {"target_entities": ["plan-001"], "action": "replanning"},
         },
         {
-            'decision_id': 'dec-002',
-            'decision_type': 'REPLANNING',
-            'confidence_score': 0.88,
-            'risk_assessment': {'risk_score': 0.22},
-            'reasoning_summary': 'Decisão 2',
-            'created_at': now - 1200000,
-            'decision': {'target_entities': ['plan-002'], 'action': 'replanning'}
-        }
+            "decision_id": "dec-002",
+            "decision_type": "REPLANNING",
+            "confidence_score": 0.88,
+            "risk_assessment": {"risk_score": 0.22},
+            "reasoning_summary": "Decisão 2",
+            "created_at": now - 1200000,
+            "decision": {"target_entities": ["plan-002"], "action": "replanning"},
+        },
     ]
     mock_mongodb_client.list_strategic_decisions.return_value = mock_decisions
     mock_mongodb_client.count_strategic_decisions.return_value = 2
 
     request = queen_agent_pb2.ListStrategicDecisionsRequest(
-        decision_type='REPLANNING',
-        start_date=start_date,
-        end_date=end_date,
-        limit=20,
-        offset=0
+        decision_type="REPLANNING", start_date=start_date, end_date=end_date, limit=20, offset=0
     )
     response = await servicer.ListStrategicDecisions(request, mock_context)
 
     # Validar resposta
     assert len(response.decisions) == 2
     assert response.total == 2
-    assert response.decisions[0].decision_id == 'dec-001'
-    assert response.decisions[1].decision_id == 'dec-002'
+    assert response.decisions[0].decision_id == "dec-001"
+    assert response.decisions[1].decision_id == "dec-002"
 
     # Validar filtros passados ao MongoDB
     call_args = mock_mongodb_client.list_strategic_decisions.call_args
     filters = call_args[0][0]
-    assert filters['decision_type'] == 'REPLANNING'
-    assert filters['created_at']['$gte'] == start_date
-    assert filters['created_at']['$lte'] == end_date
-    assert call_args.kwargs['limit'] == 20
-    assert call_args.kwargs['skip'] == 0
+    assert filters["decision_type"] == "REPLANNING"
+    assert filters["created_at"]["$gte"] == start_date
+    assert filters["created_at"]["$lte"] == end_date
+    assert call_args.kwargs["limit"] == 20
+    assert call_args.kwargs["skip"] == 0
 
 
 @pytest.mark.e2e
@@ -300,39 +311,38 @@ async def test_list_strategic_decisions_e2e_pagination(servicer, mock_mongodb_cl
     """
     mock_decisions = [
         {
-            'decision_id': f'dec-{i:03d}',
-            'decision_type': 'ESCALATION',
-            'confidence_score': 0.85 + (i * 0.01),
-            'risk_assessment': {'risk_score': 0.15},
-            'reasoning_summary': f'Decisão {i}',
-            'created_at': int(datetime.now().timestamp() * 1000),
-            'decision': {'target_entities': [], 'action': 'escalate'}
+            "decision_id": f"dec-{i:03d}",
+            "decision_type": "ESCALATION",
+            "confidence_score": 0.85 + (i * 0.01),
+            "risk_assessment": {"risk_score": 0.15},
+            "reasoning_summary": f"Decisão {i}",
+            "created_at": int(datetime.now().timestamp() * 1000),
+            "decision": {"target_entities": [], "action": "escalate"},
         }
         for i in range(21, 41)  # Simulando página 2 (offset=20)
     ]
     mock_mongodb_client.list_strategic_decisions.return_value = mock_decisions
     mock_mongodb_client.count_strategic_decisions.return_value = 100  # Total real de decisões
 
-    request = queen_agent_pb2.ListStrategicDecisionsRequest(
-        limit=20,
-        offset=20
-    )
+    request = queen_agent_pb2.ListStrategicDecisionsRequest(limit=20, offset=20)
     response = await servicer.ListStrategicDecisions(request, mock_context)
 
     # Validar paginação - total deve ser contagem real, não tamanho da página
     assert len(response.decisions) == 20
     assert response.total == 100
-    assert response.decisions[0].decision_id == 'dec-021'
+    assert response.decisions[0].decision_id == "dec-021"
 
     # Validar parâmetros de paginação
     call_args = mock_mongodb_client.list_strategic_decisions.call_args
-    assert call_args.kwargs['limit'] == 20
-    assert call_args.kwargs['skip'] == 20
+    assert call_args.kwargs["limit"] == 20
+    assert call_args.kwargs["skip"] == 20
 
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_list_strategic_decisions_e2e_empty_result(servicer, mock_mongodb_client, mock_context):
+async def test_list_strategic_decisions_e2e_empty_result(
+    servicer, mock_mongodb_client, mock_context
+):
     """
     Teste E2E: listagem vazia
     Valida comportamento quando não há decisões
@@ -341,8 +351,7 @@ async def test_list_strategic_decisions_e2e_empty_result(servicer, mock_mongodb_
     mock_mongodb_client.count_strategic_decisions.return_value = 0
 
     request = queen_agent_pb2.ListStrategicDecisionsRequest(
-        decision_type='RESOURCE_ALLOCATION',
-        limit=50
+        decision_type="RESOURCE_ALLOCATION", limit=50
     )
     response = await servicer.ListStrategicDecisions(request, mock_context)
 
@@ -358,18 +367,20 @@ async def test_list_strategic_decisions_e2e_empty_result(servicer, mock_mongodb_
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_get_system_status_e2e_healthy_system(servicer, mock_telemetry_aggregator, mock_context):
+async def test_get_system_status_e2e_healthy_system(
+    servicer, mock_telemetry_aggregator, mock_context
+):
     """
     Teste E2E: sistema saudável
     Valida métricas agregadas corretamente
     """
     mock_health = {
-        'system_score': 0.95,
-        'sla_compliance': 0.98,
-        'error_rate': 0.02,
-        'resource_saturation': 0.45,
-        'active_incidents': 0,
-        'timestamp': int(datetime.now().timestamp() * 1000)
+        "system_score": 0.95,
+        "sla_compliance": 0.98,
+        "error_rate": 0.02,
+        "resource_saturation": 0.45,
+        "active_incidents": 0,
+        "timestamp": int(datetime.now().timestamp() * 1000),
     }
     mock_telemetry_aggregator.aggregate_system_health.return_value = mock_health
 
@@ -389,18 +400,20 @@ async def test_get_system_status_e2e_healthy_system(servicer, mock_telemetry_agg
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_get_system_status_e2e_degraded_system(servicer, mock_telemetry_aggregator, mock_context):
+async def test_get_system_status_e2e_degraded_system(
+    servicer, mock_telemetry_aggregator, mock_context
+):
     """
     Teste E2E: sistema degradado
     Valida métricas com valores críticos
     """
     mock_health = {
-        'system_score': 0.42,
-        'sla_compliance': 0.68,
-        'error_rate': 0.35,
-        'resource_saturation': 0.92,
-        'active_incidents': 8,
-        'timestamp': int(datetime.now().timestamp() * 1000)
+        "system_score": 0.42,
+        "sla_compliance": 0.68,
+        "error_rate": 0.35,
+        "resource_saturation": 0.92,
+        "active_incidents": 8,
+        "timestamp": int(datetime.now().timestamp() * 1000),
     }
     mock_telemetry_aggregator.aggregate_system_health.return_value = mock_health
 
@@ -417,7 +430,9 @@ async def test_get_system_status_e2e_degraded_system(servicer, mock_telemetry_ag
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_get_system_status_e2e_prometheus_unavailable(servicer, mock_telemetry_aggregator, mock_context):
+async def test_get_system_status_e2e_prometheus_unavailable(
+    servicer, mock_telemetry_aggregator, mock_context
+):
     """
     Teste E2E: Prometheus indisponível
     Valida código de erro INTERNAL
@@ -446,21 +461,9 @@ async def test_get_active_conflicts_e2e_with_conflicts(servicer, mock_neo4j_clie
     """
     now = int(datetime.now().timestamp() * 1000)
     mock_conflicts = [
-        {
-            'decision_id': 'dec-001',
-            'conflicts_with': 'dec-002',
-            'created_at': now - 60000
-        },
-        {
-            'decision_id': 'dec-003',
-            'conflicts_with': 'dec-004',
-            'created_at': now - 30000
-        },
-        {
-            'decision_id': 'dec-005',
-            'conflicts_with': 'dec-001',
-            'created_at': now
-        }
+        {"decision_id": "dec-001", "conflicts_with": "dec-002", "created_at": now - 60000},
+        {"decision_id": "dec-003", "conflicts_with": "dec-004", "created_at": now - 30000},
+        {"decision_id": "dec-005", "conflicts_with": "dec-001", "created_at": now},
     ]
     mock_neo4j_client.list_active_conflicts.return_value = mock_conflicts
 
@@ -468,9 +471,9 @@ async def test_get_active_conflicts_e2e_with_conflicts(servicer, mock_neo4j_clie
     response = await servicer.GetActiveConflicts(request, mock_context)
 
     assert len(response.conflicts) == 3
-    assert response.conflicts[0].decision_id == 'dec-001'
-    assert response.conflicts[0].conflicts_with == 'dec-002'
-    assert response.conflicts[2].decision_id == 'dec-005'
+    assert response.conflicts[0].decision_id == "dec-001"
+    assert response.conflicts[0].conflicts_with == "dec-002"
+    assert response.conflicts[2].decision_id == "dec-005"
 
     mock_neo4j_client.list_active_conflicts.assert_called_once()
     mock_context.set_code.assert_not_called()
@@ -513,7 +516,9 @@ async def test_get_active_conflicts_e2e_neo4j_error(servicer, mock_neo4j_client,
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_full_decision_flow_e2e(servicer, mock_mongodb_client, mock_neo4j_client, mock_telemetry_aggregator, mock_context):
+async def test_full_decision_flow_e2e(
+    servicer, mock_mongodb_client, mock_neo4j_client, mock_telemetry_aggregator, mock_context
+):
     """
     Teste E2E: fluxo completo de consulta de decisão
     1. Verifica status do sistema
@@ -525,37 +530,37 @@ async def test_full_decision_flow_e2e(servicer, mock_mongodb_client, mock_neo4j_
 
     # 1. Setup: status do sistema
     mock_telemetry_aggregator.aggregate_system_health.return_value = {
-        'system_score': 0.75,
-        'sla_compliance': 0.88,
-        'error_rate': 0.08,
-        'resource_saturation': 0.65,
-        'active_incidents': 2,
-        'timestamp': now
+        "system_score": 0.75,
+        "sla_compliance": 0.88,
+        "error_rate": 0.08,
+        "resource_saturation": 0.65,
+        "active_incidents": 2,
+        "timestamp": now,
     }
 
     # 2. Setup: lista de decisões
     mock_mongodb_client.list_strategic_decisions.return_value = [
         {
-            'decision_id': 'dec-flow-001',
-            'decision_type': 'REPLANNING',
-            'confidence_score': 0.90,
-            'risk_assessment': {'risk_score': 0.15},
-            'reasoning_summary': 'Decisão do fluxo',
-            'created_at': now,
-            'decision': {'target_entities': ['plan-001'], 'action': 'replanning'}
+            "decision_id": "dec-flow-001",
+            "decision_type": "REPLANNING",
+            "confidence_score": 0.90,
+            "risk_assessment": {"risk_score": 0.15},
+            "reasoning_summary": "Decisão do fluxo",
+            "created_at": now,
+            "decision": {"target_entities": ["plan-001"], "action": "replanning"},
         }
     ]
     mock_mongodb_client.count_strategic_decisions.return_value = 1
 
     # 3. Setup: decisão específica
     mock_mongodb_client.get_strategic_decision.return_value = {
-        'decision_id': 'dec-flow-001',
-        'decision_type': 'REPLANNING',
-        'confidence_score': 0.90,
-        'risk_assessment': {'risk_score': 0.15},
-        'reasoning_summary': 'Decisão do fluxo',
-        'created_at': now,
-        'decision': {'target_entities': ['plan-001'], 'action': 'replanning'}
+        "decision_id": "dec-flow-001",
+        "decision_type": "REPLANNING",
+        "confidence_score": 0.90,
+        "risk_assessment": {"risk_score": 0.15},
+        "reasoning_summary": "Decisão do fluxo",
+        "created_at": now,
+        "decision": {"target_entities": ["plan-001"], "action": "replanning"},
     }
 
     # 4. Setup: sem conflitos
@@ -565,32 +570,28 @@ async def test_full_decision_flow_e2e(servicer, mock_mongodb_client, mock_neo4j_
 
     # Passo 1: Verificar status
     status_response = await servicer.GetSystemStatus(
-        queen_agent_pb2.GetSystemStatusRequest(),
-        mock_context
+        queen_agent_pb2.GetSystemStatusRequest(), mock_context
     )
     assert status_response.system_score == 0.75
     assert status_response.active_incidents == 2
 
     # Passo 2: Listar decisões recentes
     list_response = await servicer.ListStrategicDecisions(
-        queen_agent_pb2.ListStrategicDecisionsRequest(limit=10),
-        mock_context
+        queen_agent_pb2.ListStrategicDecisionsRequest(limit=10), mock_context
     )
     assert len(list_response.decisions) == 1
     decision_id = list_response.decisions[0].decision_id
 
     # Passo 3: Buscar decisão específica
     get_response = await servicer.GetStrategicDecision(
-        queen_agent_pb2.GetStrategicDecisionRequest(decision_id=decision_id),
-        mock_context
+        queen_agent_pb2.GetStrategicDecisionRequest(decision_id=decision_id), mock_context
     )
     assert get_response.decision_id == decision_id
     assert get_response.confidence_score == 0.90
 
     # Passo 4: Verificar conflitos
     conflicts_response = await servicer.GetActiveConflicts(
-        queen_agent_pb2.GetActiveConflictsRequest(),
-        mock_context
+        queen_agent_pb2.GetActiveConflictsRequest(), mock_context
     )
     assert len(conflicts_response.conflicts) == 0
 
@@ -609,33 +610,33 @@ async def test_submit_insight_e2e_success(servicer, mock_mongodb_client, mock_co
     """
     Teste E2E: submissão de insight aceita
     """
-    insight_id = f'insight-{uuid.uuid4().hex[:8]}'
+    insight_id = f"insight-{uuid.uuid4().hex[:8]}"
 
     request = queen_agent_pb2.SubmitInsightRequest(
         insight_id=insight_id,
-        version='1.0.0',
-        correlation_id='corr-123',
-        trace_id='trace-456',
-        span_id='span-789',
-        insight_type='ANOMALY_DETECTION',
-        priority='HIGH',
-        title='Alta latência detectada',
-        summary='Latência média acima de 500ms nos últimos 5 minutos',
-        detailed_analysis='Análise detalhada...',
+        version="1.0.0",
+        correlation_id="corr-123",
+        trace_id="trace-456",
+        span_id="span-789",
+        insight_type="ANOMALY_DETECTION",
+        priority="HIGH",
+        title="Alta latência detectada",
+        summary="Latência média acima de 500ms nos últimos 5 minutos",
+        detailed_analysis="Análise detalhada...",
         confidence_score=0.95,
         impact_score=0.8,
         created_at=int(datetime.now().timestamp() * 1000),
-        hash='abc123',
-        schema_version=1
+        hash="abc123",
+        schema_version=1,
     )
-    request.data_sources.extend(['prometheus', 'logs'])
-    request.tags.extend(['performance', 'latency'])
+    request.data_sources.extend(["prometheus", "logs"])
+    request.tags.extend(["performance", "latency"])
 
     response = await servicer.SubmitInsight(request, mock_context)
 
     assert response.accepted is True
     assert response.insight_id == insight_id
-    assert 'aceito com sucesso' in response.message
+    assert "aceito com sucesso" in response.message
 
     # Validar que foi salvo no MongoDB
     mock_mongodb_client.db.analyst_insights.insert_one.assert_called_once()
@@ -647,19 +648,21 @@ async def test_submit_insight_e2e_mongodb_error(servicer, mock_mongodb_client, m
     """
     Teste E2E: erro ao salvar insight
     """
-    mock_mongodb_client.db.analyst_insights.insert_one.side_effect = Exception("MongoDB write error")
+    mock_mongodb_client.db.analyst_insights.insert_one.side_effect = Exception(
+        "MongoDB write error"
+    )
 
     request = queen_agent_pb2.SubmitInsightRequest(
-        insight_id='insight-error',
-        version='1.0.0',
-        insight_type='ANOMALY_DETECTION',
-        priority='MEDIUM',
-        title='Test',
-        summary='Test',
+        insight_id="insight-error",
+        version="1.0.0",
+        insight_type="ANOMALY_DETECTION",
+        priority="MEDIUM",
+        title="Test",
+        summary="Test",
         confidence_score=0.5,
         impact_score=0.5,
         created_at=int(datetime.now().timestamp() * 1000),
-        schema_version=1
+        schema_version=1,
     )
 
     response = await servicer.SubmitInsight(request, mock_context)
@@ -680,18 +683,18 @@ async def test_grpc_server_get_strategic_decision_via_stub(grpc_server_and_stub)
     Teste E2E com servidor gRPC real: GetStrategicDecision via stub
     Valida chamada completa cliente -> servidor -> resposta
     """
-    stub = grpc_server_and_stub['stub']
-    mongodb_client = grpc_server_and_stub['mongodb_client']
+    stub = grpc_server_and_stub["stub"]
+    mongodb_client = grpc_server_and_stub["mongodb_client"]
 
-    decision_id = f'dec-{uuid.uuid4().hex[:8]}'
+    decision_id = f"dec-{uuid.uuid4().hex[:8]}"
     mock_decision = {
-        'decision_id': decision_id,
-        'decision_type': 'REPLANNING',
-        'confidence_score': 0.92,
-        'risk_assessment': {'risk_score': 0.18},
-        'reasoning_summary': 'Replanning necessário via stub test',
-        'created_at': int(datetime.now().timestamp() * 1000),
-        'decision': {'target_entities': ['plan-001'], 'action': 'trigger_replanning'}
+        "decision_id": decision_id,
+        "decision_type": "REPLANNING",
+        "confidence_score": 0.92,
+        "risk_assessment": {"risk_score": 0.18},
+        "reasoning_summary": "Replanning necessário via stub test",
+        "created_at": int(datetime.now().timestamp() * 1000),
+        "decision": {"target_entities": ["plan-001"], "action": "trigger_replanning"},
     }
     mongodb_client.get_strategic_decision.return_value = mock_decision
 
@@ -699,7 +702,7 @@ async def test_grpc_server_get_strategic_decision_via_stub(grpc_server_and_stub)
     response = await stub.GetStrategicDecision(request)
 
     assert response.decision_id == decision_id
-    assert response.decision_type == 'REPLANNING'
+    assert response.decision_type == "REPLANNING"
     assert response.confidence_score == 0.92
     mongodb_client.get_strategic_decision.assert_called_once_with(decision_id)
 
@@ -711,19 +714,19 @@ async def test_grpc_server_list_strategic_decisions_via_stub(grpc_server_and_stu
     Teste E2E com servidor gRPC real: ListStrategicDecisions via stub
     Valida paginação e total correto
     """
-    stub = grpc_server_and_stub['stub']
-    mongodb_client = grpc_server_and_stub['mongodb_client']
+    stub = grpc_server_and_stub["stub"]
+    mongodb_client = grpc_server_and_stub["mongodb_client"]
 
     now = int(datetime.now().timestamp() * 1000)
     mock_decisions = [
         {
-            'decision_id': f'dec-{i:03d}',
-            'decision_type': 'REPLANNING',
-            'confidence_score': 0.90,
-            'risk_assessment': {'risk_score': 0.10},
-            'reasoning_summary': f'Decisão {i}',
-            'created_at': now,
-            'decision': {'target_entities': [], 'action': 'replanning'}
+            "decision_id": f"dec-{i:03d}",
+            "decision_type": "REPLANNING",
+            "confidence_score": 0.90,
+            "risk_assessment": {"risk_score": 0.10},
+            "reasoning_summary": f"Decisão {i}",
+            "created_at": now,
+            "decision": {"target_entities": [], "action": "replanning"},
         }
         for i in range(1, 6)
     ]
@@ -735,7 +738,7 @@ async def test_grpc_server_list_strategic_decisions_via_stub(grpc_server_and_stu
 
     assert len(response.decisions) == 5
     assert response.total == 100  # Deve retornar total real, não tamanho da página
-    assert response.decisions[0].decision_id == 'dec-001'
+    assert response.decisions[0].decision_id == "dec-001"
 
 
 @pytest.mark.e2e
@@ -745,16 +748,16 @@ async def test_grpc_server_get_system_status_via_stub(grpc_server_and_stub):
     Teste E2E com servidor gRPC real: GetSystemStatus via stub
     Valida métricas do sistema
     """
-    stub = grpc_server_and_stub['stub']
-    telemetry_aggregator = grpc_server_and_stub['telemetry_aggregator']
+    stub = grpc_server_and_stub["stub"]
+    telemetry_aggregator = grpc_server_and_stub["telemetry_aggregator"]
 
     mock_health = {
-        'system_score': 0.95,
-        'sla_compliance': 0.98,
-        'error_rate': 0.02,
-        'resource_saturation': 0.45,
-        'active_incidents': 0,
-        'timestamp': int(datetime.now().timestamp() * 1000)
+        "system_score": 0.95,
+        "sla_compliance": 0.98,
+        "error_rate": 0.02,
+        "resource_saturation": 0.45,
+        "active_incidents": 0,
+        "timestamp": int(datetime.now().timestamp() * 1000),
     }
     telemetry_aggregator.aggregate_system_health.return_value = mock_health
 
@@ -773,21 +776,19 @@ async def test_grpc_server_get_active_conflicts_via_stub(grpc_server_and_stub):
     Teste E2E com servidor gRPC real: GetActiveConflicts via stub
     Valida consulta de conflitos
     """
-    stub = grpc_server_and_stub['stub']
-    neo4j_client = grpc_server_and_stub['neo4j_client']
+    stub = grpc_server_and_stub["stub"]
+    neo4j_client = grpc_server_and_stub["neo4j_client"]
 
     now = int(datetime.now().timestamp() * 1000)
-    mock_conflicts = [
-        {'decision_id': 'dec-001', 'conflicts_with': 'dec-002', 'created_at': now}
-    ]
+    mock_conflicts = [{"decision_id": "dec-001", "conflicts_with": "dec-002", "created_at": now}]
     neo4j_client.list_active_conflicts.return_value = mock_conflicts
 
     request = queen_agent_pb2.GetActiveConflictsRequest()
     response = await stub.GetActiveConflicts(request)
 
     assert len(response.conflicts) == 1
-    assert response.conflicts[0].decision_id == 'dec-001'
-    assert response.conflicts[0].conflicts_with == 'dec-002'
+    assert response.conflicts[0].decision_id == "dec-001"
+    assert response.conflicts[0].conflicts_with == "dec-002"
 
 
 @pytest.mark.e2e
@@ -797,29 +798,28 @@ async def test_grpc_server_make_strategic_decision_via_stub(grpc_server_and_stub
     Teste E2E com servidor gRPC real: MakeStrategicDecision via stub
     Valida criação de nova decisão estratégica
     """
-    stub = grpc_server_and_stub['stub']
-    decision_engine = grpc_server_and_stub['decision_engine']
+    stub = grpc_server_and_stub["stub"]
+    decision_engine = grpc_server_and_stub["decision_engine"]
 
     # Mock do retorno do StrategicDecisionEngine
     mock_decision = MagicMock()
-    mock_decision.decision_id = 'dec-new-001'
-    mock_decision.decision_type.value = 'REPLANNING'
+    mock_decision.decision_id = "dec-new-001"
+    mock_decision.decision_type.value = "REPLANNING"
     mock_decision.confidence_score = 0.88
     mock_decision.risk_assessment.risk_score = 0.15
-    mock_decision.reasoning_summary = 'Decisão estratégica criada via gRPC'
+    mock_decision.reasoning_summary = "Decisão estratégica criada via gRPC"
     decision_engine.make_strategic_decision.return_value = mock_decision
 
     request = queen_agent_pb2.MakeStrategicDecisionRequest(
-        event_type='sla_violation',
-        source_id='service-xyz'
+        event_type="sla_violation", source_id="service-xyz"
     )
     response = await stub.MakeStrategicDecision(request)
 
     assert response.success is True
-    assert response.decision_id == 'dec-new-001'
-    assert response.decision_type == 'REPLANNING'
+    assert response.decision_id == "dec-new-001"
+    assert response.decision_type == "REPLANNING"
     assert response.confidence_score == 0.88
-    assert 'criada com sucesso' in response.message
+    assert "criada com sucesso" in response.message
     decision_engine.make_strategic_decision.assert_called_once()
 
 
@@ -833,50 +833,52 @@ async def test_grpc_server_full_flow_via_stub(grpc_server_and_stub):
     3. Buscar decisão criada
     4. Listar decisões
     """
-    stub = grpc_server_and_stub['stub']
-    mongodb_client = grpc_server_and_stub['mongodb_client']
-    telemetry_aggregator = grpc_server_and_stub['telemetry_aggregator']
-    decision_engine = grpc_server_and_stub['decision_engine']
+    stub = grpc_server_and_stub["stub"]
+    mongodb_client = grpc_server_and_stub["mongodb_client"]
+    telemetry_aggregator = grpc_server_and_stub["telemetry_aggregator"]
+    decision_engine = grpc_server_and_stub["decision_engine"]
 
     now = int(datetime.now().timestamp() * 1000)
 
     # Setup mocks
     telemetry_aggregator.aggregate_system_health.return_value = {
-        'system_score': 0.75,
-        'sla_compliance': 0.88,
-        'error_rate': 0.08,
-        'resource_saturation': 0.65,
-        'active_incidents': 2,
-        'timestamp': now
+        "system_score": 0.75,
+        "sla_compliance": 0.88,
+        "error_rate": 0.08,
+        "resource_saturation": 0.65,
+        "active_incidents": 2,
+        "timestamp": now,
     }
 
     mock_decision = MagicMock()
-    mock_decision.decision_id = 'dec-flow-via-stub'
-    mock_decision.decision_type.value = 'REPLANNING'
+    mock_decision.decision_id = "dec-flow-via-stub"
+    mock_decision.decision_type.value = "REPLANNING"
     mock_decision.confidence_score = 0.90
     mock_decision.risk_assessment.risk_score = 0.12
-    mock_decision.reasoning_summary = 'Decisão do fluxo E2E'
+    mock_decision.reasoning_summary = "Decisão do fluxo E2E"
     decision_engine.make_strategic_decision.return_value = mock_decision
 
     mongodb_client.get_strategic_decision.return_value = {
-        'decision_id': 'dec-flow-via-stub',
-        'decision_type': 'REPLANNING',
-        'confidence_score': 0.90,
-        'risk_assessment': {'risk_score': 0.12},
-        'reasoning_summary': 'Decisão do fluxo E2E',
-        'created_at': now,
-        'decision': {'target_entities': ['plan-001'], 'action': 'replanning'}
+        "decision_id": "dec-flow-via-stub",
+        "decision_type": "REPLANNING",
+        "confidence_score": 0.90,
+        "risk_assessment": {"risk_score": 0.12},
+        "reasoning_summary": "Decisão do fluxo E2E",
+        "created_at": now,
+        "decision": {"target_entities": ["plan-001"], "action": "replanning"},
     }
 
-    mongodb_client.list_strategic_decisions.return_value = [{
-        'decision_id': 'dec-flow-via-stub',
-        'decision_type': 'REPLANNING',
-        'confidence_score': 0.90,
-        'risk_assessment': {'risk_score': 0.12},
-        'reasoning_summary': 'Decisão do fluxo E2E',
-        'created_at': now,
-        'decision': {'target_entities': ['plan-001'], 'action': 'replanning'}
-    }]
+    mongodb_client.list_strategic_decisions.return_value = [
+        {
+            "decision_id": "dec-flow-via-stub",
+            "decision_type": "REPLANNING",
+            "confidence_score": 0.90,
+            "risk_assessment": {"risk_score": 0.12},
+            "reasoning_summary": "Decisão do fluxo E2E",
+            "created_at": now,
+            "decision": {"target_entities": ["plan-001"], "action": "replanning"},
+        }
+    ]
     mongodb_client.count_strategic_decisions.return_value = 1
 
     # Passo 1: Verificar status do sistema
@@ -887,8 +889,7 @@ async def test_grpc_server_full_flow_via_stub(grpc_server_and_stub):
     # Passo 2: Criar decisão estratégica
     make_response = await stub.MakeStrategicDecision(
         queen_agent_pb2.MakeStrategicDecisionRequest(
-            event_type='sla_violation',
-            source_id='service-test'
+            event_type="sla_violation", source_id="service-test"
         )
     )
     assert make_response.success is True

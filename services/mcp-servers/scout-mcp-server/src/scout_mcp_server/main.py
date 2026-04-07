@@ -39,9 +39,7 @@ class ScoutMCPServer(BaseMCPServer):
 
 # Instância do servidor
 server = ScoutMCPServer(
-    name=settings.service_name,
-    version=settings.service_version,
-    allowed_origins=["*"]
+    name=settings.service_name, version=settings.service_version, allowed_origins=["*"]
 )
 
 
@@ -51,11 +49,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Startup
     await server.initialize()
     server.set_ready(True)
-    logger.info(
-        "scout_mcp_server_started",
-        host="0.0.0.0",
-        port=3010
-    )
+    logger.info("scout_mcp_server_started", host="0.0.0.0", port=3010)
 
     yield
 
@@ -70,7 +64,7 @@ app = FastAPI(
     title="Scout MCP Server",
     version=settings.service_version,
     description="Servidor MCP para descoberta e análise de código",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # Configurar CORS e health checks
@@ -96,7 +90,7 @@ def main() -> None:
             structlog.stdlib.add_logger_name,
             structlog.stdlib.add_log_level,
             structlog.processors.TimeStamper(fmt="iso"),
-            structlog.processors.JSONRenderer()
+            structlog.processors.JSONRenderer(),
         ],
         wrapper_class=structlog.stdlib.BoundLogger,
         context_class=dict,
@@ -109,7 +103,7 @@ def main() -> None:
         host="0.0.0.0",
         port=3010,
         log_level=settings.log_level.lower(),
-        access_log=True
+        access_log=True,
     )
 
 

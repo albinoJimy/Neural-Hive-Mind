@@ -23,9 +23,7 @@ class TestPackagerSBOMGeneration:
 
     @pytest.mark.asyncio
     async def test_package_generates_sbom(
-        self,
-        mock_sigstore_client,
-        sample_pipeline_context_with_artifacts
+        self, mock_sigstore_client, sample_pipeline_context_with_artifacts
     ):
         """Deve gerar SBOM para cada artefato."""
         from src.services.packager import Packager
@@ -33,7 +31,7 @@ class TestPackagerSBOMGeneration:
         packager = Packager(
             sigstore_client=mock_sigstore_client,
             s3_artifact_client=None,
-            artifact_registry_client=None
+            artifact_registry_client=None,
         )
 
         await packager.package(sample_pipeline_context_with_artifacts)
@@ -44,15 +42,11 @@ class TestPackagerSBOMGeneration:
 
     @pytest.mark.asyncio
     async def test_package_multiple_artifacts(
-        self,
-        mock_sigstore_client,
-        sample_pipeline_context_with_artifacts
+        self, mock_sigstore_client, sample_pipeline_context_with_artifacts
     ):
         """Deve processar multiplos artefatos."""
         from src.services.packager import Packager
-        from src.models.artifact import (
-            CodeForgeArtifact, GenerationMethod
-        )
+        from src.models.artifact import CodeForgeArtifact, GenerationMethod
         from src.types.artifact_types import ArtifactCategory
 
         # Adicionar segundo artefato
@@ -63,21 +57,21 @@ class TestPackagerSBOMGeneration:
             trace_id=str(uuid.uuid4()),
             span_id=str(uuid.uuid4()),
             artifact_type=ArtifactCategory.DOCUMENTATION,
-            language='markdown',
-            template_id='docs-v1',
+            language="markdown",
+            template_id="docs-v1",
             confidence_score=0.9,
             generation_method=GenerationMethod.TEMPLATE,
-            content_uri='mongodb://artifacts/test-456',
-            content_hash='def456',
+            content_uri="mongodb://artifacts/test-456",
+            content_hash="def456",
             created_at=datetime.now(),
-            metadata={}
+            metadata={},
         )
         sample_pipeline_context_with_artifacts.add_artifact(artifact2)
 
         packager = Packager(
             sigstore_client=mock_sigstore_client,
             s3_artifact_client=None,
-            artifact_registry_client=None
+            artifact_registry_client=None,
         )
 
         await packager.package(sample_pipeline_context_with_artifacts)
@@ -90,9 +84,7 @@ class TestPackagerSignature:
 
     @pytest.mark.asyncio
     async def test_package_signs_artifact(
-        self,
-        mock_sigstore_client,
-        sample_pipeline_context_with_artifacts
+        self, mock_sigstore_client, sample_pipeline_context_with_artifacts
     ):
         """Deve assinar cada artefato."""
         from src.services.packager import Packager
@@ -100,7 +92,7 @@ class TestPackagerSignature:
         packager = Packager(
             sigstore_client=mock_sigstore_client,
             s3_artifact_client=None,
-            artifact_registry_client=None
+            artifact_registry_client=None,
         )
 
         await packager.package(sample_pipeline_context_with_artifacts)
@@ -115,44 +107,38 @@ class TestPackagerS3Integration:
 
     @pytest.mark.asyncio
     async def test_package_verifies_s3_integrity(
-        self,
-        mock_sigstore_client,
-        mock_s3_client,
-        sample_pipeline_context_with_artifacts
+        self, mock_sigstore_client, mock_s3_client, sample_pipeline_context_with_artifacts
     ):
         """Deve verificar integridade do SBOM no S3."""
         from src.services.packager import Packager
 
-        mock_sigstore_client.generate_sbom.return_value = 's3://code-forge/sboms/test.json'
+        mock_sigstore_client.generate_sbom.return_value = "s3://code-forge/sboms/test.json"
 
         packager = Packager(
             sigstore_client=mock_sigstore_client,
             s3_artifact_client=mock_s3_client,
-            artifact_registry_client=None
+            artifact_registry_client=None,
         )
 
         await packager.package(sample_pipeline_context_with_artifacts)
 
         mock_s3_client.verify_sbom_integrity.assert_called_once_with(
-            's3://code-forge/sboms/test.json'
+            "s3://code-forge/sboms/test.json"
         )
 
     @pytest.mark.asyncio
     async def test_package_skips_s3_for_non_s3_uri(
-        self,
-        mock_sigstore_client,
-        mock_s3_client,
-        sample_pipeline_context_with_artifacts
+        self, mock_sigstore_client, mock_s3_client, sample_pipeline_context_with_artifacts
     ):
         """Deve pular verificacao S3 para URIs nao-S3."""
         from src.services.packager import Packager
 
-        mock_sigstore_client.generate_sbom.return_value = 'file:///local/sbom.json'
+        mock_sigstore_client.generate_sbom.return_value = "file:///local/sbom.json"
 
         packager = Packager(
             sigstore_client=mock_sigstore_client,
             s3_artifact_client=mock_s3_client,
-            artifact_registry_client=None
+            artifact_registry_client=None,
         )
 
         await packager.package(sample_pipeline_context_with_artifacts)
@@ -165,22 +151,19 @@ class TestPackagerIntegrityRetry:
 
     @pytest.mark.asyncio
     async def test_retry_on_integrity_failure(
-        self,
-        mock_sigstore_client,
-        mock_s3_client,
-        sample_pipeline_context_with_artifacts
+        self, mock_sigstore_client, mock_s3_client, sample_pipeline_context_with_artifacts
     ):
         """Deve fazer retry quando integridade falha."""
         from src.services.packager import Packager
 
-        mock_sigstore_client.generate_sbom.return_value = 's3://code-forge/sboms/test.json'
+        mock_sigstore_client.generate_sbom.return_value = "s3://code-forge/sboms/test.json"
         # Primeira verificacao falha, segunda sucede
         mock_s3_client.verify_sbom_integrity.side_effect = [False, True]
 
         packager = Packager(
             sigstore_client=mock_sigstore_client,
             s3_artifact_client=mock_s3_client,
-            artifact_registry_client=None
+            artifact_registry_client=None,
         )
 
         await packager.package(sample_pipeline_context_with_artifacts)
@@ -190,21 +173,18 @@ class TestPackagerIntegrityRetry:
 
     @pytest.mark.asyncio
     async def test_max_retries_exhausted(
-        self,
-        mock_sigstore_client,
-        mock_s3_client,
-        sample_pipeline_context_with_artifacts
+        self, mock_sigstore_client, mock_s3_client, sample_pipeline_context_with_artifacts
     ):
         """Deve parar apos max_retries."""
         from src.services.packager import Packager
 
-        mock_sigstore_client.generate_sbom.return_value = 's3://code-forge/sboms/test.json'
+        mock_sigstore_client.generate_sbom.return_value = "s3://code-forge/sboms/test.json"
         mock_s3_client.verify_sbom_integrity.return_value = False  # Sempre falha
 
         packager = Packager(
             sigstore_client=mock_sigstore_client,
             s3_artifact_client=mock_s3_client,
-            artifact_registry_client=None
+            artifact_registry_client=None,
         )
 
         await packager.package(sample_pipeline_context_with_artifacts)
@@ -222,17 +202,17 @@ class TestPackagerArtifactRegistry:
         mock_sigstore_client,
         mock_s3_client,
         mock_artifact_registry_client,
-        sample_pipeline_context_with_artifacts
+        sample_pipeline_context_with_artifacts,
     ):
         """Deve registrar SBOM no Artifact Registry."""
         from src.services.packager import Packager
 
-        mock_sigstore_client.generate_sbom.return_value = 's3://code-forge/sboms/test.json'
+        mock_sigstore_client.generate_sbom.return_value = "s3://code-forge/sboms/test.json"
 
         packager = Packager(
             sigstore_client=mock_sigstore_client,
             s3_artifact_client=mock_s3_client,
-            artifact_registry_client=mock_artifact_registry_client
+            artifact_registry_client=mock_artifact_registry_client,
         )
 
         await packager.package(sample_pipeline_context_with_artifacts)
@@ -246,17 +226,17 @@ class TestPackagerArtifactRegistry:
         self,
         mock_sigstore_client,
         mock_artifact_registry_client,
-        sample_pipeline_context_with_artifacts
+        sample_pipeline_context_with_artifacts,
     ):
         """Deve pular registro para URIs nao-S3."""
         from src.services.packager import Packager
 
-        mock_sigstore_client.generate_sbom.return_value = 'file:///local/sbom.json'
+        mock_sigstore_client.generate_sbom.return_value = "file:///local/sbom.json"
 
         packager = Packager(
             sigstore_client=mock_sigstore_client,
             s3_artifact_client=None,
-            artifact_registry_client=mock_artifact_registry_client
+            artifact_registry_client=mock_artifact_registry_client,
         )
 
         await packager.package(sample_pipeline_context_with_artifacts)
@@ -269,9 +249,7 @@ class TestPackagerMetadata:
 
     @pytest.mark.asyncio
     async def test_passes_ticket_id_to_sbom(
-        self,
-        mock_sigstore_client,
-        sample_pipeline_context_with_artifacts
+        self, mock_sigstore_client, sample_pipeline_context_with_artifacts
     ):
         """Deve passar ticket_id para geracao de SBOM."""
         from src.services.packager import Packager
@@ -279,19 +257,17 @@ class TestPackagerMetadata:
         packager = Packager(
             sigstore_client=mock_sigstore_client,
             s3_artifact_client=None,
-            artifact_registry_client=None
+            artifact_registry_client=None,
         )
 
         await packager.package(sample_pipeline_context_with_artifacts)
 
         call_kwargs = mock_sigstore_client.generate_sbom.call_args[1]
-        assert 'ticket_id' in call_kwargs
+        assert "ticket_id" in call_kwargs
 
     @pytest.mark.asyncio
     async def test_passes_artifact_id_to_sbom(
-        self,
-        mock_sigstore_client,
-        sample_pipeline_context_with_artifacts
+        self, mock_sigstore_client, sample_pipeline_context_with_artifacts
     ):
         """Deve passar artifact_id para geracao de SBOM."""
         from src.services.packager import Packager
@@ -299,13 +275,13 @@ class TestPackagerMetadata:
         packager = Packager(
             sigstore_client=mock_sigstore_client,
             s3_artifact_client=None,
-            artifact_registry_client=None
+            artifact_registry_client=None,
         )
 
         await packager.package(sample_pipeline_context_with_artifacts)
 
         call_kwargs = mock_sigstore_client.generate_sbom.call_args[1]
-        assert 'artifact_id' in call_kwargs
+        assert "artifact_id" in call_kwargs
 
 
 class TestPackagerPostgresPersistence:
@@ -313,10 +289,7 @@ class TestPackagerPostgresPersistence:
 
     @pytest.mark.asyncio
     async def test_saves_artifact_metadata_to_postgres(
-        self,
-        mock_sigstore_client,
-        mock_postgres_client,
-        sample_pipeline_context_with_artifacts
+        self, mock_sigstore_client, mock_postgres_client, sample_pipeline_context_with_artifacts
     ):
         """Deve persistir metadados do artefato no PostgreSQL."""
         from src.services.packager import Packager
@@ -325,7 +298,7 @@ class TestPackagerPostgresPersistence:
             sigstore_client=mock_sigstore_client,
             s3_artifact_client=None,
             artifact_registry_client=None,
-            postgres_client=mock_postgres_client
+            postgres_client=mock_postgres_client,
         )
 
         await packager.package(sample_pipeline_context_with_artifacts)
@@ -338,20 +311,18 @@ class TestPackagerPostgresPersistence:
         # Verificar que o artefato foi passado como argumento
         call_args = mock_postgres_client.save_artifact_metadata.call_args[0]
         artifact = call_args[0]
-        assert artifact.artifact_id == sample_pipeline_context_with_artifacts.generated_artifacts[0].artifact_id
+        assert (
+            artifact.artifact_id
+            == sample_pipeline_context_with_artifacts.generated_artifacts[0].artifact_id
+        )
 
     @pytest.mark.asyncio
     async def test_saves_metadata_for_multiple_artifacts(
-        self,
-        mock_sigstore_client,
-        mock_postgres_client,
-        sample_pipeline_context_with_artifacts
+        self, mock_sigstore_client, mock_postgres_client, sample_pipeline_context_with_artifacts
     ):
         """Deve persistir metadados para multiplos artefatos."""
         from src.services.packager import Packager
-        from src.models.artifact import (
-            CodeForgeArtifact, GenerationMethod
-        )
+        from src.models.artifact import CodeForgeArtifact, GenerationMethod
         from src.types.artifact_types import ArtifactCategory
         import uuid
 
@@ -363,14 +334,14 @@ class TestPackagerPostgresPersistence:
             trace_id=str(uuid.uuid4()),
             span_id=str(uuid.uuid4()),
             artifact_type=ArtifactCategory.DOCUMENTATION,
-            language='markdown',
-            template_id='docs-v1',
+            language="markdown",
+            template_id="docs-v1",
             confidence_score=0.9,
             generation_method=GenerationMethod.TEMPLATE,
-            content_uri='mongodb://artifacts/test-456',
-            content_hash='def456',
+            content_uri="mongodb://artifacts/test-456",
+            content_hash="def456",
             created_at=datetime.now(),
-            metadata={}
+            metadata={},
         )
         sample_pipeline_context_with_artifacts.add_artifact(artifact2)
 
@@ -378,7 +349,7 @@ class TestPackagerPostgresPersistence:
             sigstore_client=mock_sigstore_client,
             s3_artifact_client=None,
             artifact_registry_client=None,
-            postgres_client=mock_postgres_client
+            postgres_client=mock_postgres_client,
         )
 
         await packager.package(sample_pipeline_context_with_artifacts)
@@ -388,22 +359,21 @@ class TestPackagerPostgresPersistence:
 
     @pytest.mark.asyncio
     async def test_continues_packaging_when_postgres_fails(
-        self,
-        mock_sigstore_client,
-        mock_postgres_client,
-        sample_pipeline_context_with_artifacts
+        self, mock_sigstore_client, mock_postgres_client, sample_pipeline_context_with_artifacts
     ):
         """Deve continuar empacotamento quando persistencia PostgreSQL falha."""
         from src.services.packager import Packager
 
         # Configurar postgres_client para falhar
-        mock_postgres_client.save_artifact_metadata.side_effect = Exception("Postgres connection failed")
+        mock_postgres_client.save_artifact_metadata.side_effect = Exception(
+            "Postgres connection failed"
+        )
 
         packager = Packager(
             sigstore_client=mock_sigstore_client,
             s3_artifact_client=None,
             artifact_registry_client=None,
-            postgres_client=mock_postgres_client
+            postgres_client=mock_postgres_client,
         )
 
         # Não deve lançar excecao
@@ -420,9 +390,7 @@ class TestPackagerPostgresPersistence:
 
     @pytest.mark.asyncio
     async def test_skips_postgres_when_client_not_provided(
-        self,
-        mock_sigstore_client,
-        sample_pipeline_context_with_artifacts
+        self, mock_sigstore_client, sample_pipeline_context_with_artifacts
     ):
         """Deve funcionar sem cliente PostgreSQL (opcional)."""
         from src.services.packager import Packager
@@ -431,7 +399,7 @@ class TestPackagerPostgresPersistence:
             sigstore_client=mock_sigstore_client,
             s3_artifact_client=None,
             artifact_registry_client=None,
-            postgres_client=None
+            postgres_client=None,
         )
 
         # Não deve lançar excecao

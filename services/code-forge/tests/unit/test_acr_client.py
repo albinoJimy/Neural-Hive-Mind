@@ -15,7 +15,7 @@ from src.clients.acr_client import (
     get_acr_credentials,
     detect_acr_registry,
     extract_acr_registry_name,
-    ACR_TOKEN_DEFAULT_TTL
+    ACR_TOKEN_DEFAULT_TTL,
 )
 
 
@@ -32,7 +32,7 @@ class TestACRToken:
             token_type="Bearer",
             registry="myregistry.azurecr.io",
             expires_at=expires_at,
-            obtained_at=obtained_at
+            obtained_at=obtained_at,
         )
 
         assert token.access_token == "test-token"
@@ -48,7 +48,7 @@ class TestACRToken:
             token_type="Bearer",
             registry="myregistry.azurecr.io",
             expires_at=past,
-            obtained_at=datetime.now(timezone.utc)
+            obtained_at=datetime.now(timezone.utc),
         )
 
         assert token.is_expired() is True
@@ -62,7 +62,7 @@ class TestACRToken:
             token_type="Bearer",
             registry="myregistry.azurecr.io",
             expires_at=future,
-            obtained_at=datetime.now(timezone.utc)
+            obtained_at=datetime.now(timezone.utc),
         )
 
         assert token.is_expired() is False
@@ -76,7 +76,7 @@ class TestACRToken:
             token_type="Bearer",
             registry="myregistry.azurecr.io",
             expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
-            obtained_at=old_time
+            obtained_at=old_time,
         )
 
         # TTL de 2 horas, token tem 3 horas
@@ -91,7 +91,7 @@ class TestACRToken:
             token_type="Bearer",
             registry="myregistry.azurecr.io",
             expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
-            obtained_at=recent
+            obtained_at=recent,
         )
 
         # TTL de 2 horas, token acabou de ser criado
@@ -104,7 +104,7 @@ class TestACRToken:
             token_type="Bearer",
             registry="myregistry.azurecr.io",
             expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
-            obtained_at=datetime.now(timezone.utc)
+            obtained_at=datetime.now(timezone.utc),
         )
 
         credentials = token.get_credentials()
@@ -134,7 +134,7 @@ class TestACRClientInitialization:
             client_id="test-client-id",
             client_secret="test-secret",
             tenant_id="test-tenant-id",
-            token_ttl=3600
+            token_ttl=3600,
         )
 
         assert client.use_managed_identity is False
@@ -168,6 +168,7 @@ class TestGetManagedIdentityToken:
 
         # Mock aiohttp como não instalado
         import sys
+
         aiohttp_module = sys.modules.get("aiohttp")
         if aiohttp_module:
             # Se existe, remover temporariamente
@@ -217,7 +218,7 @@ class TestGetServicePrincipalToken:
         mock_response.json.return_value = {
             "access_token": "test-sp-token-12345",
             "token_type": "Bearer",
-            "expires_in": 3600
+            "expires_in": 3600,
         }
         mock_requests.post.return_value = mock_response
 
@@ -225,7 +226,7 @@ class TestGetServicePrincipalToken:
             registry="myregistry.azurecr.io",
             client_id="test-client-id",
             client_secret="test-secret",
-            tenant_id="test-tenant-id"
+            tenant_id="test-tenant-id",
         )
 
         token = client._get_service_principal_token()
@@ -244,7 +245,7 @@ class TestGetServicePrincipalToken:
             registry="myregistry.azurecr.io",
             client_id="test-client-id",
             client_secret="test-secret",
-            tenant_id="test-tenant-id"
+            tenant_id="test-tenant-id",
         )
 
         token = client._get_service_principal_token()
@@ -265,7 +266,7 @@ class TestGetACRToken:
             token_type="Bearer",
             registry="myregistry.azurecr.io",
             expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
-            obtained_at=datetime.now(timezone.utc)
+            obtained_at=datetime.now(timezone.utc),
         )
         client._cached_token = cached_token
 
@@ -276,9 +277,7 @@ class TestGetACRToken:
     def test_get_acr_token_no_auth_available(self):
         """Testa erro quando nenhum método de auth está disponível."""
         client = ACRClient(
-            registry="myregistry.azurecr.io",
-            use_managed_identity=False,
-            client_id=None
+            registry="myregistry.azurecr.io", use_managed_identity=False, client_id=None
         )
         client._cached_token = None
 
@@ -301,7 +300,7 @@ class TestGetACRCredentials:
             token_type="Bearer",
             registry="myregistry.azurecr.io",
             expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
-            obtained_at=datetime.now(timezone.utc)
+            obtained_at=datetime.now(timezone.utc),
         )
 
         username, password = client.get_acr_credentials()
@@ -314,15 +313,18 @@ class TestGetACRCredentials:
 class TestIsACRRegistry:
     """Testes para detecção de registry ACR."""
 
-    @pytest.mark.parametrize("image_uri,expected", [
-        ("myregistry.azurecr.io/myimage:tag", True),
-        ("myregistry.azurecr.io/myimage", True),
-        ("myregistry.eastus.azurecr.io/myimage:tag", True),
-        ("docker.io/library/nginx", False),
-        ("gcr.io/myproject/myimage", False),
-        ("ghcr.io/user/repo", False),
-        ("127.0.0.1:5000/image", False),
-    ])
+    @pytest.mark.parametrize(
+        "image_uri,expected",
+        [
+            ("myregistry.azurecr.io/myimage:tag", True),
+            ("myregistry.azurecr.io/myimage", True),
+            ("myregistry.eastus.azurecr.io/myimage:tag", True),
+            ("docker.io/library/nginx", False),
+            ("gcr.io/myproject/myimage", False),
+            ("ghcr.io/user/repo", False),
+            ("127.0.0.1:5000/image", False),
+        ],
+    )
     def test_is_acr_registry(self, image_uri, expected):
         """Testa detecção de registry ACR."""
         client = ACRClient(registry="myregistry.azurecr.io")
@@ -360,7 +362,7 @@ class TestRefreshIfNeeded:
             token_type="Bearer",
             registry="myregistry.azurecr.io",
             expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
-            obtained_at=old_time
+            obtained_at=old_time,
         )
 
         # Mock _get_managed_identity_token para retornar novo token
@@ -381,7 +383,7 @@ class TestRefreshIfNeeded:
             token_type="Bearer",
             registry="myregistry.azurecr.io",
             expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
-            obtained_at=recent
+            obtained_at=recent,
         )
 
         refreshed = client.refresh_if_needed()
@@ -435,7 +437,9 @@ class TestConvenienceFunctions:
         """Testa extração de nome do registry."""
         assert extract_acr_registry_name("myregistry.azurecr.io/myimage:tag") == "myregistry"
         assert extract_acr_registry_name("myregistry.azurecr.io/myimage") == "myregistry"
-        assert extract_acr_registry_name("myregistry.eastus.azurecr.io/myimage") == "myregistry.eastus"
+        assert (
+            extract_acr_registry_name("myregistry.eastus.azurecr.io/myimage") == "myregistry.eastus"
+        )
 
     def test_extract_acr_registry_name_non_acr(self):
         """Testa extração de nome para URI não-ACR."""

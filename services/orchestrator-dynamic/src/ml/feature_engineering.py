@@ -6,6 +6,7 @@ para modelos de predição de duração e detecção de anomalias.
 """
 
 from datetime import datetime, timezone
+
 UTC = timezone.utc  # type: ignore, timedelta
 from typing import Any
 

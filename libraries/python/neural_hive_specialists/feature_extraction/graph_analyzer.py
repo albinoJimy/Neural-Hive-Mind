@@ -48,9 +48,7 @@ class GraphAnalyzer:
                 G.add_edge(dep_id, task_id)
 
         self.graph = G
-        logger.debug(
-            "Graph built", nodes=G.number_of_nodes(), edges=G.number_of_edges()
-        )
+        logger.debug("Graph built", nodes=G.number_of_nodes(), edges=G.number_of_edges())
         return G
 
     def extract_graph_features(self) -> Dict[str, Any]:
@@ -101,9 +99,7 @@ class GraphAnalyzer:
             if nx.is_directed_acyclic_graph(G):
                 features["num_levels"] = len(list(nx.topological_generations(G)))
             else:
-                logger.warning(
-                    "Graph contains cycles, cannot compute topological levels"
-                )
+                logger.warning("Graph contains cycles, cannot compute topological levels")
                 features["num_levels"] = 0
                 features["has_cycles"] = True
         except Exception as e:
@@ -154,9 +150,7 @@ class GraphAnalyzer:
         bottlenecks = [node for node, score in betweenness.items() if score > 0.5]
 
         if bottlenecks:
-            logger.warning(
-                "Bottlenecks identified", count=len(bottlenecks), task_ids=bottlenecks
-            )
+            logger.warning("Bottlenecks identified", count=len(bottlenecks), task_ids=bottlenecks)
 
         return bottlenecks
 
@@ -171,9 +165,7 @@ class GraphAnalyzer:
 
         # Normalizar métricas
         density_score = min(1.0, features["density"] * 2)  # Densidade alta = complexo
-        coupling_score = min(
-            1.0, features["avg_coupling"] / 3
-        )  # Acoplamento alto = complexo
+        coupling_score = min(1.0, features["avg_coupling"] / 3)  # Acoplamento alto = complexo
         levels_score = min(1.0, features["num_levels"] / 10)  # Muitos níveis = complexo
 
         # Média ponderada

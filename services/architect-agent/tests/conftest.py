@@ -67,7 +67,7 @@ def mock_scout_client():
         "architecture_type": "microservices",
         "components": [],
         "patterns": [],
-        "recommendations": []
+        "recommendations": [],
     }
     return mock
 
@@ -95,10 +95,7 @@ def mock_llm_client():
 def mock_opa_client():
     """Mock do OPA client."""
     mock = AsyncMock()
-    mock.evaluate_policy.return_value = {
-        "result": True,
-        "reasons": []
-    }
+    mock.evaluate_policy.return_value = {"result": True, "reasons": []}
     return mock
 
 
@@ -110,12 +107,9 @@ def sample_cognitive_plan():
         "intent": {
             "action": "design",
             "subject": "user_management_api",
-            "context": {
-                "domain": "technical",
-                "requirements": ["rest", "authentication", "crud"]
-            }
+            "context": {"domain": "technical", "requirements": ["rest", "authentication", "crud"]},
         },
         "original_intent_text": "Design a user management API with REST endpoints",
         "specialists": ["technical", "architecture"],
-        "created_at": "2026-03-27T10:00:00Z"
+        "created_at": "2026-03-27T10:00:00Z",
     }

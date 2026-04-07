@@ -126,9 +126,7 @@ class TestLoadOnlineModel:
 
     def test_disabled_returns_none(self):
         """Testa retorna None quando online learning está desabilitado."""
-        client = OnlineLearningClient(
-            "technical", online_learning_enabled=False
-        )
+        client = OnlineLearningClient("technical", online_learning_enabled=False)
 
         result = client._load_online_model()
 
@@ -168,9 +166,7 @@ class TestGetOnlineModel:
 
     def test_disabled_returns_none(self):
         """Testa retorna None quando desabilitado."""
-        client = OnlineLearningClient(
-            "technical", online_learning_enabled=False
-        )
+        client = OnlineLearningClient("technical", online_learning_enabled=False)
 
         result = client.get_online_model()
 
@@ -234,7 +230,7 @@ class TestPredictWithEnsemble:
 
         result = client.predict_with_ensemble(features, mock_batch_model)
 
-        assert result["prediction"] == [1, 0]  #.argmax([0.3, 0.7]) = 1
+        assert result["prediction"] == [1, 0]  # .argmax([0.3, 0.7]) = 1
         assert client._prediction_count == 1
 
     def test_predict_batch_only_fallback(self, client, mock_batch_model):
@@ -379,9 +375,7 @@ class TestIsOnlineModelAvailable:
 
     def test_available_when_disabled(self):
         """Testa retorna False quando desabilitado."""
-        client = OnlineLearningClient(
-            "technical", online_learning_enabled=False
-        )
+        client = OnlineLearningClient("technical", online_learning_enabled=False)
 
         assert client.is_online_model_available() is False
 
@@ -406,7 +400,9 @@ class TestGetOnlineModelVersion:
         client = OnlineLearningClient("technical")
         expected_version = "v2.5"
 
-        with patch.object(client, "get_online_model", return_value={"model_version": expected_version}):
+        with patch.object(
+            client, "get_online_model", return_value={"model_version": expected_version}
+        ):
             version = client.get_online_model_version()
 
         assert version == expected_version

@@ -72,27 +72,29 @@ async def test_list_all(insight_repository):
 async def test_list_by_analysis_type(insight_repository):
     """Testar listar por tipo de análise."""
     # Criar insights de tipos diferentes
-    await insight_repository.create(InsightCreate(
-        analysis_type=AnalysisType.TIMESERIES,
-        title="TS Insight",
-        description="",
-        data={},
-        metadata=InsightMetadata(source=InsightSource.API),
-        tags=["ts"],
-    ))
-
-    await insight_repository.create(InsightCreate(
-        analysis_type=AnalysisType.ANOMALY_DETECTION,
-        title="Anomaly Insight",
-        description="",
-        data={},
-        metadata=InsightMetadata(source=InsightSource.API),
-        tags=["anomaly"],
-    ))
-
-    items, total = await insight_repository.list(
-        analysis_type=AnalysisType.TIMESERIES
+    await insight_repository.create(
+        InsightCreate(
+            analysis_type=AnalysisType.TIMESERIES,
+            title="TS Insight",
+            description="",
+            data={},
+            metadata=InsightMetadata(source=InsightSource.API),
+            tags=["ts"],
+        )
     )
+
+    await insight_repository.create(
+        InsightCreate(
+            analysis_type=AnalysisType.ANOMALY_DETECTION,
+            title="Anomaly Insight",
+            description="",
+            data={},
+            metadata=InsightMetadata(source=InsightSource.API),
+            tags=["anomaly"],
+        )
+    )
+
+    items, total = await insight_repository.list(analysis_type=AnalysisType.TIMESERIES)
 
     assert total >= 1
     assert all(i.analysis_type == AnalysisType.TIMESERIES for i in items)
@@ -101,14 +103,16 @@ async def test_list_by_analysis_type(insight_repository):
 @pytest.mark.asyncio
 async def test_list_by_source(insight_repository):
     """Testar listar por fonte."""
-    await insight_repository.create(InsightCreate(
-        analysis_type=AnalysisType.TIMESERIES,
-        title="Kafka Insight",
-        description="",
-        data={},
-        metadata=InsightMetadata(source=InsightSource.KAFKA),
-        tags=["kafka"],
-    ))
+    await insight_repository.create(
+        InsightCreate(
+            analysis_type=AnalysisType.TIMESERIES,
+            title="Kafka Insight",
+            description="",
+            data={},
+            metadata=InsightMetadata(source=InsightSource.KAFKA),
+            tags=["kafka"],
+        )
+    )
 
     items, total = await insight_repository.list(source=InsightSource.KAFKA)
 
@@ -119,14 +123,16 @@ async def test_list_by_source(insight_repository):
 @pytest.mark.asyncio
 async def test_list_by_tags(insight_repository):
     """Testar listar por tags."""
-    await insight_repository.create(InsightCreate(
-        analysis_type=AnalysisType.TIMESERIES,
-        title="Tagged Insight",
-        description="",
-        data={},
-        metadata=InsightMetadata(source=InsightSource.API),
-        tags=["important", "production"],
-    ))
+    await insight_repository.create(
+        InsightCreate(
+            analysis_type=AnalysisType.TIMESERIES,
+            title="Tagged Insight",
+            description="",
+            data={},
+            metadata=InsightMetadata(source=InsightSource.API),
+            tags=["important", "production"],
+        )
+    )
 
     items, total = await insight_repository.list(tags=["important"])
 
@@ -139,14 +145,16 @@ async def test_list_pagination(insight_repository):
     """Testar paginação."""
     # Criar 5 insights
     for i in range(5):
-        await insight_repository.create(InsightCreate(
-            analysis_type=AnalysisType.TIMESERIES,
-            title=f"Page Insight {i}",
-            description="",
-            data={"index": i},
-            metadata=InsightMetadata(source=InsightSource.API),
-            tags=[],
-        ))
+        await insight_repository.create(
+            InsightCreate(
+                analysis_type=AnalysisType.TIMESERIES,
+                title=f"Page Insight {i}",
+                description="",
+                data={"index": i},
+                metadata=InsightMetadata(source=InsightSource.API),
+                tags=[],
+            )
+        )
 
     items1, total1 = await insight_repository.list(limit=2, offset=0)
     items2, total2 = await insight_repository.list(limit=2, offset=2)
@@ -163,9 +171,7 @@ async def test_update_status(insight_repository, sample_insight_create):
     created = await insight_repository.create(sample_insight_create)
 
     result = await insight_repository.update_status(
-        created.insight_id,
-        InsightStatus.COMPLETED,
-        {"result": "success"}
+        created.insight_id, InsightStatus.COMPLETED, {"result": "success"}
     )
 
     assert result is not None
@@ -176,10 +182,7 @@ async def test_update_status(insight_repository, sample_insight_create):
 @pytest.mark.asyncio
 async def test_update_status_not_found(insight_repository):
     """Testar atualizar status de insight inexistente."""
-    result = await insight_repository.update_status(
-        "non-existent-id",
-        InsightStatus.COMPLETED
-    )
+    result = await insight_repository.update_status("non-existent-id", InsightStatus.COMPLETED)
     assert result is None
 
 
@@ -210,9 +213,7 @@ async def test_cache_set_get(insight_repository):
     data = [{"timestamp": "2024-01-01T00:00:00", "value": 50.0}]
     statistics = {"min": 50.0, "max": 50.0, "mean": 50.0, "std": 0.0}
 
-    cached = await insight_repository.cache_set(
-        cache_key, "test_metric", data, statistics
-    )
+    cached = await insight_repository.cache_set(cache_key, "test_metric", data, statistics)
 
     assert cached.cache_key == cache_key
     assert cached.metric_name == "test_metric"
@@ -262,11 +263,14 @@ async def test_get_analytics_summary(insight_repository):
         created = await insight_repository.create(insight)
         # Atualizar com métricas
         await insight_repository.update_status(created.insight_id, InsightStatus.COMPLETED)
-        await insight_repository.update_metrics(created.insight_id, {
-            "processing_time_ms": 100 + i * 50,
-            "confidence_score": 0.8 + i * 0.05,
-            "data_points": 100,
-        })
+        await insight_repository.update_metrics(
+            created.insight_id,
+            {
+                "processing_time_ms": 100 + i * 50,
+                "confidence_score": 0.8 + i * 0.05,
+                "data_points": 100,
+            },
+        )
 
     summary = await insight_repository.get_analytics_summary(time_range_hours=24)
 

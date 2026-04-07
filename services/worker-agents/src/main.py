@@ -552,7 +552,9 @@ async def startup():
         try:
             executor_registry.validate_configuration()
         except RuntimeError as e:
-            logger.exception("executor_validation_failed", error=str(e), environment=config.environment)
+            logger.exception(
+                "executor_validation_failed", error=str(e), environment=config.environment
+            )
             raise
         app_state["executor_registry"] = executor_registry
 

@@ -185,6 +185,7 @@ class TestRetryDecorator:
     @pytest.mark.asyncio
     async def test_retry_success_on_first_attempt(self):
         """Testa sucesso na primeira tentativa."""
+
         async def mock_func(*args, **kwargs):
             return "success"
 
@@ -228,6 +229,7 @@ class TestRetryDecorator:
     @pytest.mark.asyncio
     async def test_retry_max_attempts_exceeded(self):
         """Testa erro quando máximo de tentativas é excedido."""
+
         async def always_failing_func():
             raise ValueError("always fails")
 
@@ -302,6 +304,7 @@ class TestRetryDecorator:
     @pytest.mark.asyncio
     async def test_retry_sync_function_raises(self):
         """Testa que função síncrona levanta erro."""
+
         def sync_func():
             return "sync"
 
@@ -358,6 +361,7 @@ class TestRetryContext:
     @pytest.mark.asyncio
     async def test_retry_context_max_attempts_exceeded(self):
         """Testa erro quando máximo de tentativas é excedido."""
+
         async def always_failing():
             raise ValueError("fails")
 

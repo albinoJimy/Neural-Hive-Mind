@@ -114,9 +114,7 @@ class TestPIIDetectorInitialization:
 
             assert detector.enabled is True
             assert detector.supported_languages == ["pt", "en"]
-            mock_analyzer.assert_called_once_with(
-                nlp_engine=ANY, supported_languages=["pt", "en"]
-            )
+            mock_analyzer.assert_called_once_with(nlp_engine=ANY, supported_languages=["pt", "en"])
             mock_anonymizer.assert_called_once()
 
     def test_initialization_handles_unsupported_language(self, mock_config):
@@ -253,9 +251,7 @@ class TestDetectPII:
 
         assert results == []
 
-    def test_detect_pii_unsupported_language_fallback(
-        self, detector, mock_analyzer_result
-    ):
+    def test_detect_pii_unsupported_language_fallback(self, detector, mock_analyzer_result):
         """Testa fallback para inglês quando idioma não suportado."""
         detector.supported_languages = ["pt", "en"]
         detector.analyzer.analyze.return_value = [mock_analyzer_result]
@@ -312,9 +308,7 @@ class TestAnonymizeText:
 
             return detector
 
-    def test_anonymize_text_success(
-        self, detector, mock_analyzer_result, mock_anonymized_result
-    ):
+    def test_anonymize_text_success(self, detector, mock_analyzer_result, mock_anonymized_result):
         """Testa anonimização bem-sucedida de texto."""
         detector.analyzer.analyze.return_value = [mock_analyzer_result]
         detector.anonymizer.anonymize.return_value = mock_anonymized_result
@@ -332,9 +326,7 @@ class TestAnonymizeText:
         """Testa que texto sem PII retorna original."""
         detector.analyzer.analyze.return_value = []
 
-        anonymized_text, metadata = detector.anonymize_text(
-            "texto sem PII", language="pt"
-        )
+        anonymized_text, metadata = detector.anonymize_text("texto sem PII", language="pt")
 
         assert anonymized_text == "texto sem PII"
         assert metadata == []
@@ -425,9 +417,7 @@ class TestAnonymizeDict:
         data = {"description": "João Silva mora em São Paulo"}
         fields_to_scan = ["description"]
 
-        anonymized_data, metadata = detector.anonymize_dict(
-            data, fields_to_scan, language="pt"
-        )
+        anonymized_data, metadata = detector.anonymize_dict(data, fields_to_scan, language="pt")
 
         assert anonymized_data["description"] == "<PERSON> mora em <LOCATION>"
         assert len(metadata) == 1
@@ -443,9 +433,7 @@ class TestAnonymizeDict:
         data = {"opinion": {"reasoning": "João Silva é o responsável"}}
         fields_to_scan = ["opinion.reasoning"]
 
-        anonymized_data, metadata = detector.anonymize_dict(
-            data, fields_to_scan, language="pt"
-        )
+        anonymized_data, metadata = detector.anonymize_dict(data, fields_to_scan, language="pt")
 
         assert anonymized_data["opinion"]["reasoning"] == "<PERSON> mora em <LOCATION>"
         assert len(metadata) == 1
@@ -458,9 +446,7 @@ class TestAnonymizeDict:
         data = {"description": "texto sem PII"}
         fields_to_scan = ["description"]
 
-        anonymized_data, metadata = detector.anonymize_dict(
-            data, fields_to_scan, language="pt"
-        )
+        anonymized_data, metadata = detector.anonymize_dict(data, fields_to_scan, language="pt")
 
         assert anonymized_data["description"] == "texto sem PII"
         assert metadata == []
@@ -471,9 +457,7 @@ class TestAnonymizeDict:
         detector = PIIDetector(mock_config)
 
         data = {"description": "João Silva"}
-        anonymized_data, metadata = detector.anonymize_dict(
-            data, ["description"], language="pt"
-        )
+        anonymized_data, metadata = detector.anonymize_dict(data, ["description"], language="pt")
 
         assert anonymized_data == data
         assert metadata == []

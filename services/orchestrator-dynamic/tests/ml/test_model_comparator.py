@@ -57,7 +57,7 @@ def comparator(mock_config, mock_model_registry, mock_mongodb_client, mock_metri
         model_registry=mock_model_registry,
         mongodb_client=mock_mongodb_client,
         metrics=mock_metrics,
-        logger=MagicMock()
+        logger=MagicMock(),
     )
 
 
@@ -67,15 +67,13 @@ class TestComparisonResult:
     def test_default_values(self):
         """Verifica valores default."""
         result = ComparisonResult(
-            model_name='test_model',
-            current_version='1',
-            candidate_version='2'
+            model_name="test_model", current_version="1", candidate_version="2"
         )
 
-        assert result.model_name == 'test_model'
-        assert result.current_version == '1'
-        assert result.candidate_version == '2'
-        assert result.recommendation == 'manual_review'
+        assert result.model_name == "test_model"
+        assert result.current_version == "1"
+        assert result.candidate_version == "2"
+        assert result.recommendation == "manual_review"
         assert result.confidence_score == 0.5
         assert result.metrics_comparison == {}
         assert result.statistical_tests == {}
@@ -85,20 +83,20 @@ class TestComparisonResult:
     def test_to_dict(self):
         """Verifica conversão para dict."""
         result = ComparisonResult(
-            model_name='test_model',
-            current_version='1',
-            candidate_version='2',
-            recommendation='promote',
-            confidence_score=0.85
+            model_name="test_model",
+            current_version="1",
+            candidate_version="2",
+            recommendation="promote",
+            confidence_score=0.85,
         )
 
         data = result.to_dict()
 
-        assert data['model_name'] == 'test_model'
-        assert data['recommendation'] == 'promote'
-        assert data['confidence_score'] == 0.85
-        assert 'compared_at' in data
-        assert isinstance(data['compared_at'], str)  # ISO format
+        assert data["model_name"] == "test_model"
+        assert data["recommendation"] == "promote"
+        assert data["confidence_score"] == 0.85
+        assert "compared_at" in data
+        assert isinstance(data["compared_at"], str)  # ISO format
 
 
 class TestModelComparator:
@@ -122,25 +120,25 @@ class TestModelComparator:
 
         # Test data
         test_data = {
-            'X_test': np.random.rand(600, 10).tolist(),
-            'y_test': y_true.tolist(),
-            'metadata': {'task_type': ['api_call'] * 600}
+            "X_test": np.random.rand(600, 10).tolist(),
+            "y_test": y_true.tolist(),
+            "metadata": {"task_type": ["api_call"] * 600},
         }
 
         # Execute
         result = await comparator.compare_models(
-            model_name='test_classifier',
-            current_version='1',
-            candidate_version='2',
-            test_data=test_data
+            model_name="test_classifier",
+            current_version="1",
+            candidate_version="2",
+            test_data=test_data,
         )
 
         # Assertions
         assert isinstance(result, ComparisonResult)
-        assert result.model_name == 'test_classifier'
-        assert result.recommendation in ['promote', 'reject', 'manual_review']
-        assert 'accuracy' in result.metrics_comparison
-        assert 'mcnemar_test' in result.statistical_tests
+        assert result.model_name == "test_classifier"
+        assert result.recommendation in ["promote", "reject", "manual_review"]
+        assert "accuracy" in result.metrics_comparison
+        assert "mcnemar_test" in result.statistical_tests
 
     @pytest.mark.asyncio
     async def test_compare_regression_models(self, comparator, mock_model_registry):
@@ -161,24 +159,27 @@ class TestModelComparator:
 
         # Test data
         test_data = {
-            'X_test': np.random.rand(1000, 10).tolist(),
-            'y_test': y_true.tolist(),
-            'metadata': {'task_type': ['computation'] * 1000}
+            "X_test": np.random.rand(1000, 10).tolist(),
+            "y_test": y_true.tolist(),
+            "metadata": {"task_type": ["computation"] * 1000},
         }
 
         # Execute
         result = await comparator.compare_models(
-            model_name='duration_predictor',
-            current_version='1',
-            candidate_version='2',
-            test_data=test_data
+            model_name="duration_predictor",
+            current_version="1",
+            candidate_version="2",
+            test_data=test_data,
         )
 
         # Assertions
-        assert result.recommendation in ['promote', 'manual_review']
-        assert 'mae' in result.metrics_comparison
-        assert result.metrics_comparison['mae']['candidate'] < result.metrics_comparison['mae']['current']
-        assert 'paired_ttest' in result.statistical_tests
+        assert result.recommendation in ["promote", "manual_review"]
+        assert "mae" in result.metrics_comparison
+        assert (
+            result.metrics_comparison["mae"]["candidate"]
+            < result.metrics_comparison["mae"]["current"]
+        )
+        assert "paired_ttest" in result.statistical_tests
 
     @pytest.mark.asyncio
     async def test_model_load_failure(self, comparator, mock_model_registry):
@@ -186,20 +187,17 @@ class TestModelComparator:
         mock_model_registry.load_model.return_value = None
 
         test_data = {
-            'X_test': np.random.rand(100, 10).tolist(),
-            'y_test': np.random.rand(100).tolist(),
-            'metadata': {}
+            "X_test": np.random.rand(100, 10).tolist(),
+            "y_test": np.random.rand(100).tolist(),
+            "metadata": {},
         }
 
         result = await comparator.compare_models(
-            model_name='test_model',
-            current_version='1',
-            candidate_version='2',
-            test_data=test_data
+            model_name="test_model", current_version="1", candidate_version="2", test_data=test_data
         )
 
-        assert result.recommendation == 'reject'
-        assert 'Falha ao carregar modelos' in result.recommendation_reason
+        assert result.recommendation == "reject"
+        assert "Falha ao carregar modelos" in result.recommendation_reason
         assert result.confidence_score == 0.0
 
 
@@ -214,9 +212,9 @@ class TestStatisticalTests:
 
         result = comparator._mcnemar_test(y_true, current_preds, candidate_preds)
 
-        assert result['significant'] is True
-        assert result['p_value'] < 0.05
-        assert 'candidato' in result['interpretation'].lower()
+        assert result["significant"] is True
+        assert result["p_value"] < 0.05
+        assert "candidato" in result["interpretation"].lower()
 
     def test_mcnemar_test_no_difference(self, comparator):
         """Testa McNemar quando não há diferença significativa."""
@@ -226,8 +224,8 @@ class TestStatisticalTests:
 
         result = comparator._mcnemar_test(y_true, current_preds, candidate_preds)
 
-        assert result['significant'] is False
-        assert 'não há diferença' in result['interpretation'].lower()
+        assert result["significant"] is False
+        assert "não há diferença" in result["interpretation"].lower()
 
     def test_mcnemar_test_identical_predictions(self, comparator):
         """Testa McNemar quando predições são idênticas."""
@@ -236,9 +234,9 @@ class TestStatisticalTests:
 
         result = comparator._mcnemar_test(y_true, preds, preds)
 
-        assert result['significant'] is False
-        assert result['p_value'] == 1.0
-        assert 'idêntica' in result['interpretation'].lower()
+        assert result["significant"] is False
+        assert result["p_value"] == 1.0
+        assert "idêntica" in result["interpretation"].lower()
 
     def test_paired_ttest_significant_improvement(self, comparator):
         """Testa paired t-test quando candidato tem erros menores."""
@@ -249,9 +247,9 @@ class TestStatisticalTests:
 
         result = comparator._paired_ttest(y_true, current_preds, candidate_preds)
 
-        assert result['significant'] is True
-        assert result['mean_candidate_error'] < result['mean_current_error']
-        assert 'candidato' in result['interpretation'].lower()
+        assert result["significant"] is True
+        assert result["mean_candidate_error"] < result["mean_current_error"]
+        assert "candidato" in result["interpretation"].lower()
 
     def test_paired_ttest_no_difference(self, comparator):
         """Testa paired t-test quando não há diferença."""
@@ -263,7 +261,7 @@ class TestStatisticalTests:
 
         result = comparator._paired_ttest(y_true, current_preds, candidate_preds)
 
-        assert result['significant'] is False
+        assert result["significant"] is False
 
 
 class TestFairnessAnalysis:
@@ -271,35 +269,31 @@ class TestFairnessAnalysis:
 
     def test_fairness_analysis_with_groups(self, comparator):
         """Testa análise de fairness com grupos diferentes."""
-        y_true = np.concatenate([
-            np.ones(500) * 100,   # task_type: api_call
-            np.ones(500) * 200    # task_type: computation
-        ])
-
-        # Current model: viés contra api_call (erro maior)
-        current_preds = np.concatenate([
-            np.ones(500) * 70,    # Erro: 30
-            np.ones(500) * 190    # Erro: 10
-        ])
-
-        # Candidate model: mais justo
-        candidate_preds = np.concatenate([
-            np.ones(500) * 95,    # Erro: 5
-            np.ones(500) * 195    # Erro: 5
-        ])
-
-        metadata = {
-            'task_type': ['api_call'] * 500 + ['computation'] * 500
-        }
-
-        result = comparator._fairness_analysis(
-            y_true, current_preds, candidate_preds, metadata
+        y_true = np.concatenate(
+            [
+                np.ones(500) * 100,  # task_type: api_call
+                np.ones(500) * 200,  # task_type: computation
+            ]
         )
 
-        assert 'task_type' in result
-        assert 'api_call' in result['task_type']['groups']
-        assert 'computation' in result['task_type']['groups']
-        assert result['task_type']['groups']['api_call']['improvement_pct'] > 0
+        # Current model: viés contra api_call (erro maior)
+        current_preds = np.concatenate(
+            [np.ones(500) * 70, np.ones(500) * 190]  # Erro: 30  # Erro: 10
+        )
+
+        # Candidate model: mais justo
+        candidate_preds = np.concatenate(
+            [np.ones(500) * 95, np.ones(500) * 195]  # Erro: 5  # Erro: 5
+        )
+
+        metadata = {"task_type": ["api_call"] * 500 + ["computation"] * 500}
+
+        result = comparator._fairness_analysis(y_true, current_preds, candidate_preds, metadata)
+
+        assert "task_type" in result
+        assert "api_call" in result["task_type"]["groups"]
+        assert "computation" in result["task_type"]["groups"]
+        assert result["task_type"]["groups"]["api_call"]["improvement_pct"] > 0
 
     def test_fairness_analysis_empty_metadata(self, comparator):
         """Testa análise de fairness sem metadados."""
@@ -312,26 +306,20 @@ class TestFairnessAnalysis:
 
     def test_fairness_disparity_calculation(self, comparator):
         """Testa cálculo de ratio de disparidade."""
-        y_true = np.concatenate([
-            np.ones(100) * 100,
-            np.ones(100) * 100
-        ])
+        y_true = np.concatenate([np.ones(100) * 100, np.ones(100) * 100])
 
         # Predições com disparidade
-        candidate_preds = np.concatenate([
-            np.ones(100) * 80,    # MAE: 20
-            np.ones(100) * 95     # MAE: 5
-        ])
-
-        metadata = {'domain': ['internal'] * 100 + ['external'] * 100}
-
-        result = comparator._fairness_analysis(
-            y_true, candidate_preds, candidate_preds, metadata
+        candidate_preds = np.concatenate(
+            [np.ones(100) * 80, np.ones(100) * 95]  # MAE: 20  # MAE: 5
         )
 
+        metadata = {"domain": ["internal"] * 100 + ["external"] * 100}
+
+        result = comparator._fairness_analysis(y_true, candidate_preds, candidate_preds, metadata)
+
         # Disparity ratio = 20/5 = 4.0
-        assert result['domain']['disparity_ratio'] >= 4.0
-        assert result['domain']['is_fair'] is False
+        assert result["domain"]["disparity_ratio"] >= 4.0
+        assert result["domain"]["is_fair"] is False
 
 
 class TestMetricsComparison:
@@ -343,15 +331,13 @@ class TestMetricsComparison:
         current_preds = np.array([110, 190, 310, 390, 510])  # MAE: 10
         candidate_preds = np.array([105, 195, 305, 395, 505])  # MAE: 5
 
-        result = comparator._compare_metrics(
-            y_true, current_preds, candidate_preds, 'regression'
-        )
+        result = comparator._compare_metrics(y_true, current_preds, candidate_preds, "regression")
 
-        assert 'mae' in result
-        assert result['mae']['improved'] is True
-        assert result['mae']['candidate'] < result['mae']['current']
-        assert 'rmse' in result
-        assert 'r2' in result
+        assert "mae" in result
+        assert result["mae"]["improved"] is True
+        assert result["mae"]["candidate"] < result["mae"]["current"]
+        assert "rmse" in result
+        assert "r2" in result
 
     def test_classification_metrics(self, comparator):
         """Testa métricas de classificação."""
@@ -360,12 +346,12 @@ class TestMetricsComparison:
         candidate_preds = np.array([0, 1, 0, 1, 0, 1, 0, 1])  # 100% acc
 
         result = comparator._compare_metrics(
-            y_true, current_preds, candidate_preds, 'classification'
+            y_true, current_preds, candidate_preds, "classification"
         )
 
-        assert 'accuracy' in result
-        assert result['accuracy']['improved'] is True
-        assert 'f1_score' in result
+        assert "accuracy" in result
+        assert result["accuracy"]["improved"] is True
+        assert "f1_score" in result
 
 
 class TestRecommendation:
@@ -374,70 +360,70 @@ class TestRecommendation:
     def test_promote_recommendation(self, comparator):
         """Testa recomendação de promoção."""
         result = ComparisonResult(
-            model_name='test',
-            current_version='1',
-            candidate_version='2',
+            model_name="test",
+            current_version="1",
+            candidate_version="2",
             metrics_comparison={
-                'mae': {'current': 100, 'candidate': 80, 'diff_pct': -20, 'improved': True},
-                'r2': {'current': 0.8, 'candidate': 0.9, 'diff_pct': 12.5, 'improved': True}
+                "mae": {"current": 100, "candidate": 80, "diff_pct": -20, "improved": True},
+                "r2": {"current": 0.8, "candidate": 0.9, "diff_pct": 12.5, "improved": True},
             },
             statistical_tests={
-                'paired_ttest': {
-                    'significant': True,
-                    'interpretation': 'Candidato tem erros significativamente menores'
+                "paired_ttest": {
+                    "significant": True,
+                    "interpretation": "Candidato tem erros significativamente menores",
                 }
-            }
+            },
         )
 
         comparator._determine_recommendation(result)
 
-        assert result.recommendation == 'promote'
+        assert result.recommendation == "promote"
         assert result.confidence_score >= 0.7
 
     def test_reject_recommendation(self, comparator):
         """Testa recomendação de rejeição."""
         result = ComparisonResult(
-            model_name='test',
-            current_version='1',
-            candidate_version='2',
+            model_name="test",
+            current_version="1",
+            candidate_version="2",
             metrics_comparison={
-                'mae': {'current': 80, 'candidate': 120, 'diff_pct': 50, 'improved': False},
-                'r2': {'current': 0.9, 'candidate': 0.7, 'diff_pct': -22, 'improved': False}
+                "mae": {"current": 80, "candidate": 120, "diff_pct": 50, "improved": False},
+                "r2": {"current": 0.9, "candidate": 0.7, "diff_pct": -22, "improved": False},
             },
             statistical_tests={
-                'paired_ttest': {
-                    'significant': True,
-                    'interpretation': 'Modelo atual tem erros significativamente menores'
+                "paired_ttest": {
+                    "significant": True,
+                    "interpretation": "Modelo atual tem erros significativamente menores",
                 }
-            }
+            },
         )
 
         comparator._determine_recommendation(result)
 
-        assert result.recommendation == 'reject'
+        assert result.recommendation == "reject"
         assert result.confidence_score < 0.5
 
     def test_manual_review_recommendation(self, comparator):
         """Testa recomendação de revisão manual."""
         result = ComparisonResult(
-            model_name='test',
-            current_version='1',
-            candidate_version='2',
+            model_name="test",
+            current_version="1",
+            candidate_version="2",
             metrics_comparison={
-                'mae': {'current': 100, 'candidate': 98, 'diff_pct': -2, 'improved': True},
-                'r2': {'current': 0.85, 'candidate': 0.84, 'diff_pct': -1, 'improved': False}
+                "mae": {"current": 100, "candidate": 98, "diff_pct": -2, "improved": True},
+                "r2": {"current": 0.85, "candidate": 0.84, "diff_pct": -1, "improved": False},
             },
             statistical_tests={
-                'paired_ttest': {
-                    'significant': False,
-                    'interpretation': 'Não há diferença significativa nos erros'
+                "paired_ttest": {
+                    "significant": False,
+                    "interpretation": "Não há diferença significativa nos erros",
                 }
-            }
+            },
         )
 
         comparator._determine_recommendation(result)
 
-        assert result.recommendation == 'manual_review'
+        assert result.recommendation == "manual_review"
 
 
 class TestHTMLReportGeneration:
@@ -446,47 +432,42 @@ class TestHTMLReportGeneration:
     def test_generate_html_report(self, comparator):
         """Testa geração de relatório HTML."""
         result = ComparisonResult(
-            model_name='test_model',
-            current_version='1',
-            candidate_version='2',
+            model_name="test_model",
+            current_version="1",
+            candidate_version="2",
             metrics_comparison={
-                'f1_score': {
-                    'current': 0.80,
-                    'candidate': 0.85,
-                    'diff_pct': 6.25,
-                    'improved': True
-                }
+                "f1_score": {"current": 0.80, "candidate": 0.85, "diff_pct": 6.25, "improved": True}
             },
             statistical_tests={
-                'mcnemar_test': {
-                    'statistic': 10.5,
-                    'p_value': 0.001,
-                    'significant': True,
-                    'interpretation': 'Candidato é significativamente melhor'
+                "mcnemar_test": {
+                    "statistic": 10.5,
+                    "p_value": 0.001,
+                    "significant": True,
+                    "interpretation": "Candidato é significativamente melhor",
                 }
             },
             fairness_analysis={},
             visualizations={},
-            recommendation='promote',
-            recommendation_reason='Candidato tem F1 significativamente melhor',
+            recommendation="promote",
+            recommendation_reason="Candidato tem F1 significativamente melhor",
             confidence_score=0.85,
-            test_samples_count=1000
+            test_samples_count=1000,
         )
 
         html = comparator._generate_html_report(result)
 
-        assert '<html>' in html
-        assert 'test_model' in html
-        assert 'promote' in html.lower()
-        assert 'f1_score' in html.lower() or 'F1_SCORE' in html
+        assert "<html>" in html
+        assert "test_model" in html
+        assert "promote" in html.lower()
+        assert "f1_score" in html.lower() or "F1_SCORE" in html
 
     def test_inline_template_fallback(self, comparator):
         """Testa template inline quando arquivo não existe."""
         template = comparator._get_inline_template()
 
-        assert '<!DOCTYPE html>' in template
-        assert '{{ model_name }}' in template
-        assert '{{ recommendation }}' in template
+        assert "<!DOCTYPE html>" in template
+        assert "{{ model_name }}" in template
+        assert "{{ recommendation }}" in template
 
 
 class TestModelTypeDetection:
@@ -496,25 +477,25 @@ class TestModelTypeDetection:
         """Testa detecção de classificação pelo nome."""
         y = np.array([0, 1, 0, 1])
 
-        assert comparator._determine_model_type('anomaly_detector', y) == 'classification'
-        assert comparator._determine_model_type('my_classifier', y) == 'classification'
+        assert comparator._determine_model_type("anomaly_detector", y) == "classification"
+        assert comparator._determine_model_type("my_classifier", y) == "classification"
 
     def test_detect_regression_by_name(self, comparator):
         """Testa detecção de regressão pelo nome."""
         y = np.array([100, 200, 300])
 
-        assert comparator._determine_model_type('duration_predictor', y) == 'regression'
-        assert comparator._determine_model_type('time_predictor', y) == 'regression'
+        assert comparator._determine_model_type("duration_predictor", y) == "regression"
+        assert comparator._determine_model_type("time_predictor", y) == "regression"
 
     def test_detect_by_target_values(self, comparator):
         """Testa detecção pelo tipo de valores target."""
         # Classificação binária
         y_binary = np.array([0, 1, 0, 1, 0])
-        assert comparator._determine_model_type('unknown_model', y_binary) == 'classification'
+        assert comparator._determine_model_type("unknown_model", y_binary) == "classification"
 
         # Regressão contínua
         y_continuous = np.array([1.5, 2.7, 3.1, 4.8, 5.2])
-        assert comparator._determine_model_type('unknown_model', y_continuous) == 'regression'
+        assert comparator._determine_model_type("unknown_model", y_continuous) == "regression"
 
 
 class TestVisualizationGeneration:
@@ -564,7 +545,7 @@ class TestVisualizationGeneration:
         candidate_model.feature_importances_ = np.array([0.25, 0.35, 0.4])
 
         result = comparator._generate_feature_importance_diff(
-            current_model, candidate_model, ['feat_a', 'feat_b', 'feat_c']
+            current_model, candidate_model, ["feat_a", "feat_b", "feat_c"]
         )
 
         assert result is not None
@@ -576,7 +557,7 @@ class TestVisualizationGeneration:
         candidate_model = MagicMock(spec=[])
 
         result = comparator._generate_feature_importance_diff(
-            current_model, candidate_model, ['feat_a']
+            current_model, candidate_model, ["feat_a"]
         )
 
         assert result is None

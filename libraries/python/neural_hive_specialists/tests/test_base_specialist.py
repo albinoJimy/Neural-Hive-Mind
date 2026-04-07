@@ -12,6 +12,7 @@ from pydantic import ValidationError
 # Store patches para cleanup após o módulo
 _patches = []
 
+
 # Mock para SemanticPipeline.evaluate_plan que retorna dict válido
 def mock_semantic_evaluate(self, plan, context=None):
     return {
@@ -22,9 +23,11 @@ def mock_semantic_evaluate(self, plan, context=None):
         "reasoning_factors": [],
     }
 
+
 # Mock para ExplainabilityGenerator.generate que retorna tupla válida
 def mock_explainability_generate(self, evaluation_result, cognitive_plan, model):
     return ("explainability-token-123", {"method": "heuristic"})
+
 
 _semantic_pipeline_mock = MagicMock()
 _semantic_pipeline_mock.evaluate_plan = mock_semantic_evaluate
@@ -35,22 +38,47 @@ _explainability_mock.generate = mock_explainability_generate
 # Criar patches e iniciá-los
 _patch_mlflow = patch("neural_hive_specialists.base_specialist.MLflowClient", return_value=None)
 _patch_ledger = patch("neural_hive_specialists.base_specialist.LedgerClient", return_value=None)
-_patch_feature_store = patch("neural_hive_specialists.base_specialist.FeatureStore", return_value=None)
-_patch_opinion_cache = patch("neural_hive_specialists.base_specialist.OpinionCache", return_value=None)
-_patch_feature_cache = patch("neural_hive_specialists.base_specialist.FeatureCache", return_value=None)
-_patch_feature_extractor = patch("neural_hive_specialists.base_specialist.FeatureExtractor", return_value=None)
-_patch_semantic_pipeline = patch("neural_hive_specialists.base_specialist.SemanticPipeline", return_value=_semantic_pipeline_mock)
-_patch_explainability = patch("neural_hive_specialists.base_specialist.ExplainabilityGenerator", return_value=_explainability_mock)
-_patch_embeddings = patch("neural_hive_specialists.feature_extraction.embeddings_generator.EmbeddingsGenerator", return_value=None)
+_patch_feature_store = patch(
+    "neural_hive_specialists.base_specialist.FeatureStore", return_value=None
+)
+_patch_opinion_cache = patch(
+    "neural_hive_specialists.base_specialist.OpinionCache", return_value=None
+)
+_patch_feature_cache = patch(
+    "neural_hive_specialists.base_specialist.FeatureCache", return_value=None
+)
+_patch_feature_extractor = patch(
+    "neural_hive_specialists.base_specialist.FeatureExtractor", return_value=None
+)
+_patch_semantic_pipeline = patch(
+    "neural_hive_specialists.base_specialist.SemanticPipeline", return_value=_semantic_pipeline_mock
+)
+_patch_explainability = patch(
+    "neural_hive_specialists.base_specialist.ExplainabilityGenerator",
+    return_value=_explainability_mock,
+)
+_patch_embeddings = patch(
+    "neural_hive_specialists.feature_extraction.embeddings_generator.EmbeddingsGenerator",
+    return_value=None,
+)
 
-_patches.extend([
-    _patch_mlflow, _patch_ledger, _patch_feature_store, _patch_opinion_cache,
-    _patch_feature_cache, _patch_feature_extractor, _patch_semantic_pipeline,
-    _patch_explainability, _patch_embeddings
-])
+_patches.extend(
+    [
+        _patch_mlflow,
+        _patch_ledger,
+        _patch_feature_store,
+        _patch_opinion_cache,
+        _patch_feature_cache,
+        _patch_feature_extractor,
+        _patch_semantic_pipeline,
+        _patch_explainability,
+        _patch_embeddings,
+    ]
+)
 
 for p in _patches:
     p.start()
+
 
 # Fixture para garantir cleanup após os testes deste módulo
 @pytest.fixture(scope="module", autouse=True)
@@ -59,6 +87,7 @@ def cleanup_patches():
     yield
     for p in _patches:
         p.stop()
+
 
 from neural_hive_specialists.base_specialist import BaseSpecialist
 from neural_hive_specialists.schemas import (
@@ -152,9 +181,7 @@ class TestBaseSpecialistInitialization:
         mocker.patch("neural_hive_specialists.base_specialist.ExplainabilityGenerator")
         mocker.patch("neural_hive_specialists.base_specialist.SpecialistMetrics")
 
-        with patch.object(
-            HelperTestSpecialist, "_load_model", return_value=Mock()
-        ) as mock_load:
+        with patch.object(HelperTestSpecialist, "_load_model", return_value=Mock()) as mock_load:
             specialist = HelperTestSpecialist(mock_config)
             mock_load.assert_called_once()
 
@@ -206,9 +233,7 @@ class TestDeserializePlan:
         with pytest.raises(ValueError):
             specialist._deserialize_plan(plan_json)
 
-    def test_deserialize_invalid_version_format(
-        self, specialist, sample_cognitive_plan
-    ):
+    def test_deserialize_invalid_version_format(self, specialist, sample_cognitive_plan):
         """Levanta PlanVersionIncompatibleError para versão não-semver."""
         sample_cognitive_plan["version"] = "1.0"  # Não é semver completo
         plan_json = json.dumps(sample_cognitive_plan).encode("utf-8")
@@ -269,9 +294,7 @@ class TestEvaluatePlan:
     """Testes do método evaluate_plan."""
 
     @pytest.fixture
-    def specialist(
-        self, mock_config, mock_ledger_client, mock_explainability_gen, mocker
-    ):
+    def specialist(self, mock_config, mock_ledger_client, mock_explainability_gen, mocker):
         mocker.patch("neural_hive_specialists.base_specialist.MLflowClient")
         mocker.patch("neural_hive_specialists.base_specialist.SpecialistMetrics")
 
@@ -303,9 +326,7 @@ class TestEvaluatePlan:
         assert 0 <= result["opinion"]["confidence_score"] <= 1
         assert "processing_time_ms" in result
 
-    def test_evaluate_plan_calls_internal_method(
-        self, specialist, sample_cognitive_plan
-    ):
+    def test_evaluate_plan_calls_internal_method(self, specialist, sample_cognitive_plan):
         """Verifica que evaluate_plan() retorna resultado válido."""
         req = Mock(
             plan_id=sample_cognitive_plan["plan_id"],
@@ -360,9 +381,7 @@ class TestEvaluatePlan:
 
         mock_ledger_client.save_opinion_with_fallback.assert_called_once()
 
-    def test_evaluate_plan_records_metrics(
-        self, specialist, sample_cognitive_plan, mocker
-    ):
+    def test_evaluate_plan_records_metrics(self, specialist, sample_cognitive_plan, mocker):
         """Verifica que métricas são registradas."""
         req = Mock(
             plan_id=sample_cognitive_plan["plan_id"],
@@ -374,15 +393,11 @@ class TestEvaluatePlan:
             context={},
         )
 
-        with patch.object(
-            specialist.metrics, "observe_evaluation_duration"
-        ) as mock_record:
+        with patch.object(specialist.metrics, "observe_evaluation_duration") as mock_record:
             specialist.evaluate_plan(req)
             mock_record.assert_called_once()
 
-    def test_evaluate_plan_propagates_trace_context(
-        self, specialist, sample_cognitive_plan
-    ):
+    def test_evaluate_plan_propagates_trace_context(self, specialist, sample_cognitive_plan):
         """Verifica propagação de trace_id/span_id."""
         req = Mock(
             plan_id=sample_cognitive_plan["plan_id"],
@@ -415,9 +430,7 @@ class TestEvaluatePlan:
         with pytest.raises(ValueError):
             specialist.evaluate_plan(req)
 
-    def test_evaluate_plan_measures_processing_time(
-        self, specialist, sample_cognitive_plan
-    ):
+    def test_evaluate_plan_measures_processing_time(self, specialist, sample_cognitive_plan):
         """Verifica medição de tempo de processamento."""
         req = Mock(
             plan_id=sample_cognitive_plan["plan_id"],

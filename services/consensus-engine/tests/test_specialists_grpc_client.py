@@ -24,7 +24,7 @@ class TestSpecialistsGrpcClientTimestampValidation:
         mock_specialists_grpc_client,
         valid_evaluate_plan_response,
         sample_cognitive_plan,
-        sample_trace_context
+        sample_trace_context,
     ):
         """
         Verifica que evaluate_plan aceita timestamp válido.
@@ -43,19 +43,16 @@ class TestSpecialistsGrpcClientTimestampValidation:
         result = await mock_specialists_grpc_client.evaluate_plan(
             specialist_type=specialist_type,
             cognitive_plan=sample_cognitive_plan,
-            trace_context=sample_trace_context
+            trace_context=sample_trace_context,
         )
 
         # Assert
         assert result is not None, "Resultado não deve ser None"
-        assert 'evaluated_at' in result, "Resultado deve conter evaluated_at"
-        assert isinstance(result['evaluated_at'], str), "evaluated_at deve ser string ISO"
+        assert "evaluated_at" in result, "Resultado deve conter evaluated_at"
+        assert isinstance(result["evaluated_at"], str), "evaluated_at deve ser string ISO"
 
     async def test_evaluate_plan_rejects_none_timestamp(
-        self,
-        mock_specialists_grpc_client,
-        sample_cognitive_plan,
-        sample_trace_context
+        self, mock_specialists_grpc_client, sample_cognitive_plan, sample_trace_context
     ):
         """
         Verifica que evaluate_plan rejeita timestamp None.
@@ -71,10 +68,10 @@ class TestSpecialistsGrpcClientTimestampValidation:
             specialist_type=specialist_type,
             specialist_version="1.0.9",
             opinion="APPROVE",
-            processing_time_ms=100
+            processing_time_ms=100,
         )
         invalid_response.evaluated_at.CopyFrom(Timestamp())  # Timestamp vazio
-        invalid_response.ClearField('evaluated_at')  # Remover campo
+        invalid_response.ClearField("evaluated_at")  # Remover campo
 
         # Configurar stub no client.stubs
         mock_stub = AsyncMock()
@@ -86,14 +83,11 @@ class TestSpecialistsGrpcClientTimestampValidation:
             await mock_specialists_grpc_client.evaluate_plan(
                 specialist_type=specialist_type,
                 cognitive_plan=sample_cognitive_plan,
-                trace_context=sample_trace_context
+                trace_context=sample_trace_context,
             )
 
     async def test_evaluate_plan_rejects_dict_timestamp(
-        self,
-        mock_specialists_grpc_client,
-        sample_cognitive_plan,
-        sample_trace_context
+        self, mock_specialists_grpc_client, sample_cognitive_plan, sample_trace_context
     ):
         """
         Simula bug onde evaluated_at é desserializado como dict.
@@ -107,7 +101,7 @@ class TestSpecialistsGrpcClientTimestampValidation:
         invalid_response = MagicMock()
         invalid_response.opinion_id = "op-456"
         invalid_response.specialist_type = specialist_type
-        invalid_response.evaluated_at = {'seconds': 123, 'nanos': 456}  # Dict ao invés de Timestamp
+        invalid_response.evaluated_at = {"seconds": 123, "nanos": 456}  # Dict ao invés de Timestamp
 
         # Configurar stub no client.stubs
         mock_stub = AsyncMock()
@@ -119,14 +113,11 @@ class TestSpecialistsGrpcClientTimestampValidation:
             await mock_specialists_grpc_client.evaluate_plan(
                 specialist_type=specialist_type,
                 cognitive_plan=sample_cognitive_plan,
-                trace_context=sample_trace_context
+                trace_context=sample_trace_context,
             )
 
     async def test_evaluate_plan_rejects_missing_seconds_attribute(
-        self,
-        mock_specialists_grpc_client,
-        sample_cognitive_plan,
-        sample_trace_context
+        self, mock_specialists_grpc_client, sample_cognitive_plan, sample_trace_context
     ):
         """
         Verifica que timestamp sem atributo 'seconds' é rejeitado.
@@ -150,18 +141,18 @@ class TestSpecialistsGrpcClientTimestampValidation:
         mock_specialists_grpc_client.stubs[specialist_type] = mock_stub
 
         # Act & Assert
-        with pytest.raises((AttributeError, TypeError), match=r"(Timestamp missing required fields|Invalid evaluated_at type)"):
+        with pytest.raises(
+            (AttributeError, TypeError),
+            match=r"(Timestamp missing required fields|Invalid evaluated_at type)",
+        ):
             await mock_specialists_grpc_client.evaluate_plan(
                 specialist_type=specialist_type,
                 cognitive_plan=sample_cognitive_plan,
-                trace_context=sample_trace_context
+                trace_context=sample_trace_context,
             )
 
     async def test_evaluate_plan_rejects_invalid_seconds_type(
-        self,
-        mock_specialists_grpc_client,
-        sample_cognitive_plan,
-        sample_trace_context
+        self, mock_specialists_grpc_client, sample_cognitive_plan, sample_trace_context
     ):
         """
         Verifica que seconds com tipo incorreto (string) é rejeitado.
@@ -191,14 +182,11 @@ class TestSpecialistsGrpcClientTimestampValidation:
             await mock_specialists_grpc_client.evaluate_plan(
                 specialist_type=specialist_type,
                 cognitive_plan=sample_cognitive_plan,
-                trace_context=sample_trace_context
+                trace_context=sample_trace_context,
             )
 
     async def test_evaluate_plan_rejects_negative_seconds(
-        self,
-        mock_specialists_grpc_client,
-        sample_cognitive_plan,
-        sample_trace_context
+        self, mock_specialists_grpc_client, sample_cognitive_plan, sample_trace_context
     ):
         """
         Verifica que seconds negativos são rejeitados.
@@ -228,14 +216,11 @@ class TestSpecialistsGrpcClientTimestampValidation:
             await mock_specialists_grpc_client.evaluate_plan(
                 specialist_type=specialist_type,
                 cognitive_plan=sample_cognitive_plan,
-                trace_context=sample_trace_context
+                trace_context=sample_trace_context,
             )
 
     async def test_evaluate_plan_rejects_invalid_nanos_range(
-        self,
-        mock_specialists_grpc_client,
-        sample_cognitive_plan,
-        sample_trace_context
+        self, mock_specialists_grpc_client, sample_cognitive_plan, sample_trace_context
     ):
         """
         Verifica que nanos fora do range [0, 1e9) são rejeitados.
@@ -264,7 +249,7 @@ class TestSpecialistsGrpcClientTimestampValidation:
             await mock_specialists_grpc_client.evaluate_plan(
                 specialist_type=specialist_type,
                 cognitive_plan=sample_cognitive_plan,
-                trace_context=sample_trace_context
+                trace_context=sample_trace_context,
             )
 
         # Arrange - nanos >= 1e9
@@ -287,15 +272,11 @@ class TestSpecialistsGrpcClientTimestampValidation:
             await mock_specialists_grpc_client.evaluate_plan(
                 specialist_type=specialist_type,
                 cognitive_plan=sample_cognitive_plan,
-                trace_context=sample_trace_context
+                trace_context=sample_trace_context,
             )
 
     async def test_evaluate_plan_logs_detailed_error_context(
-        self,
-        mock_specialists_grpc_client,
-        sample_cognitive_plan,
-        sample_trace_context,
-        caplog
+        self, mock_specialists_grpc_client, sample_cognitive_plan, sample_trace_context, caplog
     ):
         """
         Verifica que logging detalhado ocorre em caso de erro.
@@ -309,7 +290,7 @@ class TestSpecialistsGrpcClientTimestampValidation:
         invalid_response = MagicMock()
         invalid_response.opinion_id = "op-505"
         invalid_response.specialist_type = specialist_type
-        invalid_response.evaluated_at = {'seconds': 123, 'nanos': 456}
+        invalid_response.evaluated_at = {"seconds": 123, "nanos": 456}
 
         # Configurar stub no client.stubs
         mock_stub = AsyncMock()
@@ -321,17 +302,14 @@ class TestSpecialistsGrpcClientTimestampValidation:
             await mock_specialists_grpc_client.evaluate_plan(
                 specialist_type=specialist_type,
                 cognitive_plan=sample_cognitive_plan,
-                trace_context=sample_trace_context
+                trace_context=sample_trace_context,
             )
 
         # Assert - verificar que erro foi logado (se implementado)
         # Note: Validação de log depende da implementação atual do cliente
 
     async def test_evaluate_plan_converts_timestamp_to_iso_string(
-        self,
-        mock_specialists_grpc_client,
-        sample_cognitive_plan,
-        sample_trace_context
+        self, mock_specialists_grpc_client, sample_cognitive_plan, sample_trace_context
     ):
         """
         Verifica que timestamp é convertido corretamente para string ISO.
@@ -351,7 +329,7 @@ class TestSpecialistsGrpcClientTimestampValidation:
             specialist_type=specialist_type,
             specialist_version="1.0.9",
             opinion="APPROVE",
-            processing_time_ms=200
+            processing_time_ms=200,
         )
         valid_response.evaluated_at.CopyFrom(known_timestamp)
 
@@ -364,18 +342,18 @@ class TestSpecialistsGrpcClientTimestampValidation:
         result = await mock_specialists_grpc_client.evaluate_plan(
             specialist_type=specialist_type,
             cognitive_plan=sample_cognitive_plan,
-            trace_context=sample_trace_context
+            trace_context=sample_trace_context,
         )
 
         # Assert
-        assert 'evaluated_at' in result, "Resultado deve conter evaluated_at"
-        evaluated_at_str = result['evaluated_at']
+        assert "evaluated_at" in result, "Resultado deve conter evaluated_at"
+        evaluated_at_str = result["evaluated_at"]
 
         # Verificar que é string ISO válida
         assert isinstance(evaluated_at_str, str), "evaluated_at deve ser string"
 
         # Tentar parsear de volta para validar formato
-        parsed_dt = datetime.fromisoformat(evaluated_at_str.replace('Z', '+00:00'))
+        parsed_dt = datetime.fromisoformat(evaluated_at_str.replace("Z", "+00:00"))
         assert isinstance(parsed_dt, datetime), "String deve ser datetime válido"
 
     async def test_evaluate_plan_parallel_handles_timestamp_errors(
@@ -383,7 +361,7 @@ class TestSpecialistsGrpcClientTimestampValidation:
         mock_specialists_grpc_client,
         sample_cognitive_plan,
         sample_trace_context,
-        valid_evaluate_plan_response
+        valid_evaluate_plan_response,
     ):
         """
         Verifica que evaluate_plan_parallel lida com erros de timestamp.
@@ -400,7 +378,7 @@ class TestSpecialistsGrpcClientTimestampValidation:
                 specialist_type=spec_type,
                 specialist_version="1.0.9",
                 opinion="APPROVE",
-                processing_time_ms=150 + i * 10
+                processing_time_ms=150 + i * 10,
             )
             timestamp = Timestamp()
             timestamp.FromDatetime(datetime.now(timezone.utc))
@@ -413,7 +391,7 @@ class TestSpecialistsGrpcClientTimestampValidation:
             response = MagicMock()
             response.opinion_id = f"op-invalid-{i}"
             response.specialist_type = spec_type
-            response.evaluated_at = {'seconds': 123, 'nanos': 456}  # Dict inválido
+            response.evaluated_at = {"seconds": 123, "nanos": 456}  # Dict inválido
             invalid_responses.append(response)
 
         # Configurar stubs para todos os specialists
@@ -430,8 +408,7 @@ class TestSpecialistsGrpcClientTimestampValidation:
         # Se não existir, este teste documenta o comportamento esperado
         try:
             results = await mock_specialists_grpc_client.evaluate_plan_parallel(
-                cognitive_plan=sample_cognitive_plan,
-                trace_context=sample_trace_context
+                cognitive_plan=sample_cognitive_plan, trace_context=sample_trace_context
             )
 
             # Assert - deve ter 3 opiniões válidas

@@ -20,8 +20,8 @@ class MockSentenceTransformer:
         return np.random.rand(len(texts), 384).astype(np.float32)
 
 
-sys.modules['sentence_transformers'] = MagicMock()
-sys.modules['sentence_transformers'].SentenceTransformer = MockSentenceTransformer
+sys.modules["sentence_transformers"] = MagicMock()
+sys.modules["sentence_transformers"].SentenceTransformer = MockSentenceTransformer
 
 from src.services.embedding_service import EmbeddingService
 
@@ -38,10 +38,7 @@ def mock_cache_client():
 @pytest.fixture
 def embedding_service(mock_cache_client):
     """Instância do EmbeddingService."""
-    service = EmbeddingService(
-        model_name="test-model",
-        cache_client=mock_cache_client
-    )
+    service = EmbeddingService(model_name="test-model", cache_client=mock_cache_client)
     return service
 
 
@@ -147,7 +144,7 @@ class TestBuildIndex:
         """Testa construção de índice."""
         texts = ["text1", "text2"]
 
-        with patch('src.services.embedding_service.faiss.IndexFlatL2') as mock_index_class:
+        with patch("src.services.embedding_service.faiss.IndexFlatL2") as mock_index_class:
             mock_index = Mock()
             mock_index_class.return_value = mock_index
 
@@ -195,7 +192,7 @@ class TestCalculateSimilarity:
     @pytest.mark.asyncio
     async def test_calculate_similarity_success(self, initialized_service):
         """Testa cálculo bem-sucedido."""
-        with patch('src.services.embedding_service.cosine', return_value=0.5):
+        with patch("src.services.embedding_service.cosine", return_value=0.5):
             result = await initialized_service.calculate_similarity("text1", "text2")
 
             assert result == 0.5
@@ -223,7 +220,7 @@ class TestClusterTexts:
         """Testa clustering bem-sucedido."""
         texts = ["text1", "text2"]
 
-        with patch('src.services.embedding_service.DBSCAN') as mock_dbscan:
+        with patch("src.services.embedding_service.DBSCAN") as mock_dbscan:
             clustering = Mock()
             clustering.fit_predict = Mock(return_value=np.array([0, 0]))
             mock_dbscan.return_value = clustering
@@ -246,8 +243,11 @@ class TestDetectSemanticDrift:
     @pytest.mark.asyncio
     async def test_detect_drift_success(self, initialized_service):
         """Testa deteção bem-sucedida."""
-        with patch('src.services.embedding_service.cosine', return_value=0.1):
-            with patch('src.services.embedding_service.np.mean', side_effect=[np.array([0.1]), np.array([0.2])]):
+        with patch("src.services.embedding_service.cosine", return_value=0.1):
+            with patch(
+                "src.services.embedding_service.np.mean",
+                side_effect=[np.array([0.1]), np.array([0.2])],
+            ):
                 result = await initialized_service.detect_semantic_drift(
                     ["baseline"], ["current"], threshold=0.5
                 )
@@ -270,8 +270,8 @@ class TestFindOutliers:
         """Testa detecção bem-sucedida."""
         texts = ["text1", "text2", "text3"]
 
-        with patch('src.services.embedding_service.cosine', side_effect=[0.1, 0.1, 0.8]):
-            with patch('src.services.embedding_service.np.percentile', return_value=0.5):
+        with patch("src.services.embedding_service.cosine", side_effect=[0.1, 0.1, 0.8]):
+            with patch("src.services.embedding_service.np.percentile", return_value=0.5):
                 result = await initialized_service.find_outliers(texts)
 
                 assert isinstance(result, list)

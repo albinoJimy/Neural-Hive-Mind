@@ -22,22 +22,10 @@ sys.path.insert(0, os.path.join(PROJECT_ROOT, "libraries", "domain"))
 def pytest_configure(config):
     """Configuração inicial do pytest."""
     # Adicionar marcadores customizados
-    config.addinivalue_line(
-        "markers",
-        "e2e_real: marca testes que requerem Vault/SPIRE reais"
-    )
-    config.addinivalue_line(
-        "markers",
-        "e2e_mock: marca testes que usam mocks"
-    )
-    config.addinivalue_line(
-        "markers",
-        "vault: marca testes específicos de Vault"
-    )
-    config.addinivalue_line(
-        "markers",
-        "spiffe: marca testes específicos de SPIFFE"
-    )
+    config.addinivalue_line("markers", "e2e_real: marca testes que requerem Vault/SPIRE reais")
+    config.addinivalue_line("markers", "e2e_mock: marca testes que usam mocks")
+    config.addinivalue_line("markers", "vault: marca testes específicos de Vault")
+    config.addinivalue_line("markers", "spiffe: marca testes específicos de SPIFFE")
 
 
 def pytest_collection_modifyitems(config, items):
@@ -61,10 +49,7 @@ def pytest_collection_modifyitems(config, items):
             # (assumindo que todos os testes neste módulo são E2E)
             if "e2e" in item.nodeid:
                 item.add_marker(
-                    pytest.mark.skipif(
-                        not real_e2e,
-                        reason="RUN_VAULT_SPIFFE_E2E not enabled"
-                    )
+                    pytest.mark.skipif(not real_e2e, reason="RUN_VAULT_SPIFFE_E2E not enabled")
                 )
 
 
@@ -89,6 +74,7 @@ def reset_metrics():
     """
     try:
         from prometheus_client import REGISTRY
+
         # Salvar estado inicial não é fácil, então apenas limpamos
         # coletores customizados após cada teste
         yield

@@ -31,13 +31,14 @@ from src.observability.metrics import OrchestratorMetrics
 # Fixtures
 # =============================================================================
 
+
 @pytest.fixture
 def test_config():
     """Test configuration with appropriate ML settings."""
     config = Mock()
     config.ml_predictions_enabled = True
-    config.mlflow_tracking_uri = 'http://localhost:5000'
-    config.mlflow_experiment_name = 'test-training-pipeline'
+    config.mlflow_tracking_uri = "http://localhost:5000"
+    config.mlflow_experiment_name = "test-training-pipeline"
     config.ml_training_window_days = 7
     config.ml_min_training_samples = 50
     config.ml_duration_error_threshold = 0.15  # 15% MAE for promotion
@@ -58,37 +59,36 @@ async def test_mongodb_client(test_config):
     sample_tickets = []
     base_time = datetime.now(timezone.utc) - timedelta(days=5)
 
-    task_types = ['BUILD', 'TEST', 'DEPLOY', 'VALIDATE', 'EXECUTE']
-    risk_bands = ['low', 'medium', 'high', 'critical']
+    task_types = ["BUILD", "TEST", "DEPLOY", "VALIDATE", "EXECUTE"]
+    risk_bands = ["low", "medium", "high", "critical"]
 
     for i in range(150):
         actual_duration = 50000 + (i * 500) + np.random.randint(-5000, 5000)
         predicted_duration = actual_duration * (0.9 + np.random.random() * 0.2)  # ±10% error
 
         ticket = {
-            'ticket_id': f'test-ticket-{i}',
-            'task_type': task_types[i % len(task_types)],
-            'risk_band': risk_bands[i % len(risk_bands)],
-            'qos': {
-                'delivery_mode': 'exactly_once',
-                'consistency': 'strong',
-                'durability': 'persistent'
+            "ticket_id": f"test-ticket-{i}",
+            "task_type": task_types[i % len(task_types)],
+            "risk_band": risk_bands[i % len(risk_bands)],
+            "qos": {
+                "delivery_mode": "exactly_once",
+                "consistency": "strong",
+                "durability": "persistent",
             },
-            'required_capabilities': ['python', 'docker'],
-            'parameters': {'test_param': 'value'},
-            'estimated_duration_ms': 60000,
-            'actual_duration_ms': actual_duration,
-            'started_at': (base_time + timedelta(hours=i)).timestamp() * 1000,
-            'completed_at': (base_time + timedelta(hours=i, seconds=actual_duration/1000)).timestamp() * 1000,
-            'retry_count': i % 3,
-            'created_at': base_time + timedelta(hours=i),
-            'status': 'completed',
-            'predictions': {
-                'duration_ms': predicted_duration
-            },
-            'allocation_metadata': {
-                'predicted_duration_ms': predicted_duration
-            }
+            "required_capabilities": ["python", "docker"],
+            "parameters": {"test_param": "value"},
+            "estimated_duration_ms": 60000,
+            "actual_duration_ms": actual_duration,
+            "started_at": (base_time + timedelta(hours=i)).timestamp() * 1000,
+            "completed_at": (
+                base_time + timedelta(hours=i, seconds=actual_duration / 1000)
+            ).timestamp()
+            * 1000,
+            "retry_count": i % 3,
+            "created_at": base_time + timedelta(hours=i),
+            "status": "completed",
+            "predictions": {"duration_ms": predicted_duration},
+            "allocation_metadata": {"predicted_duration_ms": predicted_duration},
         }
         sample_tickets.append(ticket)
 
@@ -111,9 +111,9 @@ async def test_mongodb_client(test_config):
 
     # Setup db mock
     client.db = {
-        'execution_tickets': tickets_collection,
-        'ml_feature_baselines': baselines_collection,
-        'ml_backfill_history': backfill_collection
+        "execution_tickets": tickets_collection,
+        "ml_feature_baselines": baselines_collection,
+        "ml_backfill_history": backfill_collection,
     }
 
     return client
@@ -122,33 +122,33 @@ async def test_mongodb_client(test_config):
 @pytest_asyncio.fixture
 async def mock_mlflow():
     """Mock MLflow for model registry tests."""
-    with patch('src.ml.model_registry.mlflow') as mlflow_mock, \
-         patch('src.ml.model_registry.MlflowClient') as client_mock:
-
+    with patch("src.ml.model_registry.mlflow") as mlflow_mock, patch(
+        "src.ml.model_registry.MlflowClient"
+    ) as client_mock:
         # Mock client
         mock_client = MagicMock()
         client_mock.return_value = mock_client
 
         # Mock experiment
         mock_experiment = MagicMock()
-        mock_experiment.experiment_id = 'test-exp-123'
+        mock_experiment.experiment_id = "test-exp-123"
         mock_client.get_experiment_by_name = MagicMock(return_value=mock_experiment)
-        mock_client.create_experiment = MagicMock(return_value='test-exp-123')
+        mock_client.create_experiment = MagicMock(return_value="test-exp-123")
 
         # Mock model versions
         mock_version = MagicMock()
-        mock_version.version = '1'
-        mock_version.current_stage = 'None'
-        mock_version.run_id = 'test-run-123'
+        mock_version.version = "1"
+        mock_version.current_stage = "None"
+        mock_version.run_id = "test-run-123"
         mock_client.search_model_versions = MagicMock(return_value=[mock_version])
         mock_client.transition_model_version_stage = MagicMock()
 
         # Mock run
         mock_run = MagicMock()
-        mock_run.data.metrics = {'mae': 5000, 'mae_percentage': 10.5, 'r2': 0.85}
-        mock_run.data.params = {'n_estimators': 100}
+        mock_run.data.metrics = {"mae": 5000, "mae_percentage": 10.5, "r2": 0.85}
+        mock_run.data.params = {"n_estimators": 100}
         mock_run.data.tags = {}
-        mock_run.info.run_id = 'test-run-123'
+        mock_run.info.run_id = "test-run-123"
         mock_client.get_run = MagicMock(return_value=mock_run)
 
         # Mock mlflow module
@@ -189,7 +189,7 @@ async def duration_predictor(test_config, test_mongodb_client, model_registry, m
         config=test_config,
         mongodb_client=test_mongodb_client,
         model_registry=model_registry,
-        metrics=mock_metrics
+        metrics=mock_metrics,
     )
     await predictor.initialize()
     return predictor
@@ -202,7 +202,7 @@ async def anomaly_detector(test_config, test_mongodb_client, model_registry, moc
         config=test_config,
         mongodb_client=test_mongodb_client,
         model_registry=model_registry,
-        metrics=mock_metrics
+        metrics=mock_metrics,
     )
     await detector.initialize()
     return detector
@@ -215,15 +215,13 @@ async def training_pipeline(
     model_registry,
     duration_predictor,
     anomaly_detector,
-    mock_metrics
+    mock_metrics,
 ):
     """TrainingPipeline instance for tests."""
     from src.ml.drift_detector import DriftDetector
 
     drift_detector = DriftDetector(
-        config=test_config,
-        mongodb_client=test_mongodb_client,
-        metrics=mock_metrics
+        config=test_config, mongodb_client=test_mongodb_client, metrics=mock_metrics
     )
 
     pipeline = TrainingPipeline(
@@ -233,7 +231,7 @@ async def training_pipeline(
         duration_predictor=duration_predictor,
         anomaly_detector=anomaly_detector,
         metrics=mock_metrics,
-        drift_detector=drift_detector
+        drift_detector=drift_detector,
     )
     return pipeline
 
@@ -241,6 +239,7 @@ async def training_pipeline(
 # =============================================================================
 # Test Cases
 # =============================================================================
+
 
 @pytest.mark.asyncio
 async def test_training_cycle_success(training_pipeline):
@@ -256,21 +255,21 @@ async def test_training_cycle_success(training_pipeline):
     result = await training_pipeline.run_training_cycle(window_days=7)
 
     # Verify successful completion
-    assert result['status'] == 'completed'
-    assert 'duration_predictor' in result
-    assert 'anomaly_detector' in result
+    assert result["status"] == "completed"
+    assert "duration_predictor" in result
+    assert "anomaly_detector" in result
 
     # Verify duration model metrics
-    duration_metrics = result['duration_predictor']
-    assert 'mae_percentage' in duration_metrics
-    assert duration_metrics['mae_percentage'] < 30  # Relaxed for test data
+    duration_metrics = result["duration_predictor"]
+    assert "mae_percentage" in duration_metrics
+    assert duration_metrics["mae_percentage"] < 30  # Relaxed for test data
 
     # Verify anomaly model metrics
-    anomaly_metrics = result['anomaly_detector']
-    assert 'precision' in anomaly_metrics
+    anomaly_metrics = result["anomaly_detector"]
+    assert "precision" in anomaly_metrics
 
     # Verify sample count
-    assert result['samples_used'] >= 50
+    assert result["samples_used"] >= 50
 
 
 @pytest.mark.asyncio
@@ -283,34 +282,53 @@ async def test_model_promotion(training_pipeline, model_registry):
     - Promotion criteria checked before transition
     """
     # Mock good metrics
-    with patch.object(training_pipeline.duration_predictor, 'train_model', new=AsyncMock(return_value={
-        'status': 'success',
-        'mae': 6000,
-        'mae_percentage': 12.0,  # < 15% threshold
-        'rmse': 8000,
-        'r2': 0.88,
-        'samples': 100,
-        'version': '1',
-        'promoted': True
-    })):
-        with patch.object(training_pipeline.anomaly_detector, 'train_model', new=AsyncMock(return_value={
-            'status': 'success',
-            'precision': 0.80,  # > 0.75 threshold
-            'recall': 0.76,
-            'f1_score': 0.78,
-            'samples': 100,
-            'version': '1',
-            'promoted': True
-        })):
+    with patch.object(
+        training_pipeline.duration_predictor,
+        "train_model",
+        new=AsyncMock(
+            return_value={
+                "status": "success",
+                "mae": 6000,
+                "mae_percentage": 12.0,  # < 15% threshold
+                "rmse": 8000,
+                "r2": 0.88,
+                "samples": 100,
+                "version": "1",
+                "promoted": True,
+            }
+        ),
+    ):
+        with patch.object(
+            training_pipeline.anomaly_detector,
+            "train_model",
+            new=AsyncMock(
+                return_value={
+                    "status": "success",
+                    "precision": 0.80,  # > 0.75 threshold
+                    "recall": 0.76,
+                    "f1_score": 0.78,
+                    "samples": 100,
+                    "version": "1",
+                    "promoted": True,
+                }
+            ),
+        ):
             result = await training_pipeline.run_training_cycle(window_days=7)
 
-            assert result['status'] == 'completed'
-            assert 'duration-predictor' in result.get('models_promoted', [])
-            assert 'anomaly-detector' in result.get('models_promoted', [])
+            assert result["status"] == "completed"
+            assert "duration-predictor" in result.get("models_promoted", [])
+            assert "anomaly-detector" in result.get("models_promoted", [])
 
 
 @pytest.mark.asyncio
-async def test_insufficient_data(test_config, test_mongodb_client, model_registry, duration_predictor, anomaly_detector, mock_metrics):
+async def test_insufficient_data(
+    test_config,
+    test_mongodb_client,
+    model_registry,
+    duration_predictor,
+    anomaly_detector,
+    mock_metrics,
+):
     """
     Test behavior with insufficient training data.
 
@@ -321,8 +339,8 @@ async def test_insufficient_data(test_config, test_mongodb_client, model_registr
     """
     # Create pipeline with empty data
     cursor_mock = AsyncMock()
-    cursor_mock.to_list = AsyncMock(return_value=[{'ticket_id': 'test-1'}] * 40)  # Only 40 samples
-    test_mongodb_client.db['execution_tickets'].find = Mock(return_value=cursor_mock)
+    cursor_mock.to_list = AsyncMock(return_value=[{"ticket_id": "test-1"}] * 40)  # Only 40 samples
+    test_mongodb_client.db["execution_tickets"].find = Mock(return_value=cursor_mock)
 
     pipeline = TrainingPipeline(
         config=test_config,
@@ -330,14 +348,14 @@ async def test_insufficient_data(test_config, test_mongodb_client, model_registr
         model_registry=model_registry,
         duration_predictor=duration_predictor,
         anomaly_detector=anomaly_detector,
-        metrics=mock_metrics
+        metrics=mock_metrics,
     )
 
     result = await pipeline.run_training_cycle(window_days=7)
 
-    assert result['status'] == 'skipped'
-    assert result['reason'] == 'insufficient_data'
-    assert result['samples'] < 50
+    assert result["status"] == "skipped"
+    assert result["reason"] == "insufficient_data"
+    assert result["samples"] < 50
 
 
 @pytest.mark.asyncio
@@ -352,20 +370,20 @@ async def test_feature_baseline(training_pipeline, test_mongodb_client):
     """
     result = await training_pipeline.run_training_cycle(window_days=7)
 
-    assert result['status'] == 'completed'
+    assert result["status"] == "completed"
 
     # Verify baseline was saved
-    baselines_collection = test_mongodb_client.db['ml_feature_baselines']
+    baselines_collection = test_mongodb_client.db["ml_feature_baselines"]
     baselines_collection.insert_one.assert_called()
 
     # Check call arguments
     call_args = baselines_collection.insert_one.call_args
     if call_args:
         baseline_doc = call_args[0][0]
-        assert 'features' in baseline_doc
-        assert 'target_distribution' in baseline_doc
-        assert 'training_mae' in baseline_doc
-        assert 'timestamp' in baseline_doc
+        assert "features" in baseline_doc
+        assert "target_distribution" in baseline_doc
+        assert "training_mae" in baseline_doc
+        assert "timestamp" in baseline_doc
 
 
 @pytest.mark.asyncio
@@ -381,18 +399,18 @@ async def test_backfill_errors(training_pipeline, test_mongodb_client, mock_metr
     """
     result = await training_pipeline.run_training_cycle(window_days=7, backfill_errors=True)
 
-    assert result['status'] == 'completed'
+    assert result["status"] == "completed"
 
-    if 'backfill_stats' in result:
-        stats = result['backfill_stats']
-        assert 'processed' in stats
-        assert stats['processed'] > 0
-        assert 'mean_error_ms' in stats
-        assert 'p95_error_ms' in stats
-        assert 'extreme_errors_count' in stats
+    if "backfill_stats" in result:
+        stats = result["backfill_stats"]
+        assert "processed" in stats
+        assert stats["processed"] > 0
+        assert "mean_error_ms" in stats
+        assert "p95_error_ms" in stats
+        assert "extreme_errors_count" in stats
 
         # Verify backfill history saved
-        backfill_collection = test_mongodb_client.db['ml_backfill_history']
+        backfill_collection = test_mongodb_client.db["ml_backfill_history"]
         backfill_collection.insert_one.assert_called()
 
 
@@ -407,15 +425,19 @@ async def test_model_cache(model_registry, mock_mlflow):
     - Cache expires after TTL
     """
     # First load
-    model1 = await model_registry.load_model('duration-predictor', version='latest', stage='Production')
+    model1 = await model_registry.load_model(
+        "duration-predictor", version="latest", stage="Production"
+    )
     assert model1 is not None
 
     # Check cache key exists
-    cache_key = 'duration-predictor_Production_latest'
+    cache_key = "duration-predictor_Production_latest"
     assert cache_key in model_registry._model_cache
 
     # Second load (should hit cache)
-    model2 = await model_registry.load_model('duration-predictor', version='latest', stage='Production')
+    model2 = await model_registry.load_model(
+        "duration-predictor", version="latest", stage="Production"
+    )
     assert model2 is not None
 
     # Verify same instance from cache
@@ -423,15 +445,22 @@ async def test_model_cache(model_registry, mock_mlflow):
     assert cached_model == model1
 
     # Simulate TTL expiry
-    model_registry._model_cache[cache_key] = (model1, datetime.now(timezone.utc).timestamp() - 4000)  # Old timestamp
+    model_registry._model_cache[cache_key] = (
+        model1,
+        datetime.now(timezone.utc).timestamp() - 4000,
+    )  # Old timestamp
 
     # Load after expiry (should fetch again)
-    model3 = await model_registry.load_model('duration-predictor', version='latest', stage='Production')
+    model3 = await model_registry.load_model(
+        "duration-predictor", version="latest", stage="Production"
+    )
     assert model3 is not None
 
 
 @pytest.mark.asyncio
-async def test_integration_with_predictor(test_config, test_mongodb_client, model_registry, mock_metrics):
+async def test_integration_with_predictor(
+    test_config, test_mongodb_client, model_registry, mock_metrics
+):
     """
     Test full integration: Train → MLPredictor → predict_and_enrich.
 
@@ -447,7 +476,7 @@ async def test_integration_with_predictor(test_config, test_mongodb_client, mode
         config=test_config,
         mongodb_client=test_mongodb_client,
         model_registry=model_registry,
-        metrics=mock_metrics
+        metrics=mock_metrics,
     )
     await duration_predictor.initialize()
 
@@ -455,14 +484,12 @@ async def test_integration_with_predictor(test_config, test_mongodb_client, mode
         config=test_config,
         mongodb_client=test_mongodb_client,
         model_registry=model_registry,
-        metrics=mock_metrics
+        metrics=mock_metrics,
     )
     await anomaly_detector.initialize()
 
     drift_detector = DriftDetector(
-        config=test_config,
-        mongodb_client=test_mongodb_client,
-        metrics=mock_metrics
+        config=test_config, mongodb_client=test_mongodb_client, metrics=mock_metrics
     )
 
     pipeline = TrainingPipeline(
@@ -472,39 +499,39 @@ async def test_integration_with_predictor(test_config, test_mongodb_client, mode
         duration_predictor=duration_predictor,
         anomaly_detector=anomaly_detector,
         metrics=mock_metrics,
-        drift_detector=drift_detector
+        drift_detector=drift_detector,
     )
 
     # Train models
     result = await pipeline.run_training_cycle(window_days=7)
-    assert result['status'] == 'completed'
+    assert result["status"] == "completed"
 
     # Create MLPredictor
     ml_predictor = MLPredictor(
         config=test_config,
         mongodb_client=test_mongodb_client,
         model_registry=model_registry,
-        metrics=mock_metrics
+        metrics=mock_metrics,
     )
     await ml_predictor.initialize()
 
     # Test predict_and_enrich
     test_ticket = {
-        'ticket_id': 'integration-test-1',
-        'task_type': 'BUILD',
-        'risk_band': 'medium',
-        'qos': {'delivery_mode': 'exactly_once', 'consistency': 'strong'},
-        'required_capabilities': ['python'],
-        'parameters': {},
-        'estimated_duration_ms': 60000
+        "ticket_id": "integration-test-1",
+        "task_type": "BUILD",
+        "risk_band": "medium",
+        "qos": {"delivery_mode": "exactly_once", "consistency": "strong"},
+        "required_capabilities": ["python"],
+        "parameters": {},
+        "estimated_duration_ms": 60000,
     }
 
     enriched = await ml_predictor.predict_and_enrich(test_ticket)
 
     # Verify predictions field
-    assert 'predictions' in enriched
-    predictions = enriched['predictions']
-    assert 'duration_ms' in predictions
-    assert 'duration_confidence' in predictions
-    assert 'anomaly' in predictions
-    assert predictions['anomaly']['is_anomaly'] is not None
+    assert "predictions" in enriched
+    predictions = enriched["predictions"]
+    assert "duration_ms" in predictions
+    assert "duration_confidence" in predictions
+    assert "anomaly" in predictions
+    assert predictions["anomaly"]["is_anomaly"] is not None

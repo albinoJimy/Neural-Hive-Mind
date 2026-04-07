@@ -7,8 +7,8 @@ from typing import Dict, Any, List
 from unittest.mock import AsyncMock, MagicMock, Mock
 
 # Configurar paths
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
-sys.path.insert(0, '/app/libraries/python')
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
+sys.path.insert(0, "/app/libraries/python")
 
 
 class MockMLflowClient:
@@ -18,9 +18,9 @@ class MockMLflowClient:
         self._enabled = True
         self._model_available = model_available
         self._model_metadata = {
-            'version': 'v1.2.3',
-            'stage': 'Production',
-            'run_id': 'test-run-123'
+            "version": "v1.2.3",
+            "stage": "Production",
+            "run_id": "test-run-123",
         }
 
     def is_enabled(self) -> bool:
@@ -47,14 +47,19 @@ class MockModel:
 
     def __init__(self):
         self.feature_names_in_ = [
-            'security_score', 'architecture_score', 'performance_score',
-            'code_quality_score', 'tech_debt_risk', 'complexity_score'
+            "security_score",
+            "architecture_score",
+            "performance_score",
+            "code_quality_score",
+            "tech_debt_risk",
+            "complexity_score",
         ]
         self.n_features_in_ = len(self.feature_names_in_)
 
     def predict(self, X):
         """Predição mock."""
         import numpy as np
+
         n_samples = X.shape[0] if len(X.shape) > 1 else 1
         # Retorna 1 (approve) para scores altos, 0 (reject) para baixos
         if len(X.shape) > 1:
@@ -65,6 +70,7 @@ class MockModel:
     def predict_proba(self, X):
         """Probabilidades mock."""
         import numpy as np
+
         n_samples = X.shape[0] if len(X.shape) > 1 else 1
         if len(X.shape) > 1:
             avg_scores = X.mean(axis=1)
@@ -77,6 +83,7 @@ class MockModel:
     def feature_importances_(self):
         """Importância de features mock."""
         import numpy as np
+
         return np.array([0.30, 0.25, 0.20, 0.15, 0.05, 0.05])
 
 
@@ -96,12 +103,12 @@ def mock_mlflow_client_unavailable():
 def sample_features():
     """Features de exemplo para predição."""
     return {
-        'security_score': 0.85,
-        'architecture_score': 0.75,
-        'performance_score': 0.70,
-        'code_quality_score': 0.80,
-        'tech_debt_risk': 0.30,
-        'complexity_score': 0.40
+        "security_score": 0.85,
+        "architecture_score": 0.75,
+        "performance_score": 0.70,
+        "code_quality_score": 0.80,
+        "tech_debt_risk": 0.30,
+        "complexity_score": 0.40,
     }
 
 
@@ -111,39 +118,33 @@ class TestMLModelLoading:
     def test_load_model_from_mlflow_success(self, mock_mlflow_client):
         """Testa carregamento bem-sucedido do modelo."""
         model = mock_mlflow_client.load_model_with_fallback(
-            'specialist_technical_model',
-            'Production'
+            "specialist_technical_model", "Production"
         )
 
         assert model is not None
-        assert hasattr(model, 'predict')
-        assert hasattr(model, 'feature_names_in_')
+        assert hasattr(model, "predict")
+        assert hasattr(model, "feature_names_in_")
 
     def test_load_model_from_mlflow_unavailable(self, mock_mlflow_client_unavailable):
         """Testa fallback quando modelo não está disponível."""
         model = mock_mlflow_client_unavailable.load_model_with_fallback(
-            'specialist_technical_model',
-            'Production'
+            "specialist_technical_model", "Production"
         )
 
         assert model is None
 
     def test_model_metadata_retrieval(self, mock_mlflow_client):
         """Testa recuperação de metadados do modelo."""
-        metadata = mock_mlflow_client.get_model_metadata(
-            'specialist_technical_model',
-            'Production'
-        )
+        metadata = mock_mlflow_client.get_model_metadata("specialist_technical_model", "Production")
 
-        assert 'version' in metadata
-        assert 'stage' in metadata
-        assert metadata['version'] == 'v1.2.3'
+        assert "version" in metadata
+        assert "stage" in metadata
+        assert metadata["version"] == "v1.2.3"
 
     def test_model_metadata_when_unavailable(self, mock_mlflow_client_unavailable):
         """Testa metadados quando modelo não está disponível."""
         metadata = mock_mlflow_client_unavailable.get_model_metadata(
-            'specialist_technical_model',
-            'Production'
+            "specialist_technical_model", "Production"
         )
 
         assert metadata == {}
@@ -155,19 +156,23 @@ class TestMLModelPrediction:
     def test_predict_with_loaded_model(self, mock_mlflow_client, sample_features):
         """Testa predição com modelo carregado."""
         model = mock_mlflow_client.load_model_with_fallback(
-            'specialist_technical_model',
-            'Production'
+            "specialist_technical_model", "Production"
         )
 
         import numpy as np
-        X = np.array([[
-            sample_features['security_score'],
-            sample_features['architecture_score'],
-            sample_features['performance_score'],
-            sample_features['code_quality_score'],
-            sample_features['tech_debt_risk'],
-            sample_features['complexity_score']
-        ]])
+
+        X = np.array(
+            [
+                [
+                    sample_features["security_score"],
+                    sample_features["architecture_score"],
+                    sample_features["performance_score"],
+                    sample_features["code_quality_score"],
+                    sample_features["tech_debt_risk"],
+                    sample_features["complexity_score"],
+                ]
+            ]
+        )
 
         prediction = model.predict(X)
 
@@ -176,19 +181,23 @@ class TestMLModelPrediction:
     def test_predict_proba_with_loaded_model(self, mock_mlflow_client, sample_features):
         """Testa predição de probabilidades."""
         model = mock_mlflow_client.load_model_with_fallback(
-            'specialist_technical_model',
-            'Production'
+            "specialist_technical_model", "Production"
         )
 
         import numpy as np
-        X = np.array([[
-            sample_features['security_score'],
-            sample_features['architecture_score'],
-            sample_features['performance_score'],
-            sample_features['code_quality_score'],
-            sample_features['tech_debt_risk'],
-            sample_features['complexity_score']
-        ]])
+
+        X = np.array(
+            [
+                [
+                    sample_features["security_score"],
+                    sample_features["architecture_score"],
+                    sample_features["performance_score"],
+                    sample_features["code_quality_score"],
+                    sample_features["tech_debt_risk"],
+                    sample_features["complexity_score"],
+                ]
+            ]
+        )
 
         proba = model.predict_proba(X)
 
@@ -198,16 +207,18 @@ class TestMLModelPrediction:
     def test_predict_batch_predictions(self, mock_mlflow_client):
         """Testa predição em batch."""
         model = mock_mlflow_client.load_model_with_fallback(
-            'specialist_technical_model',
-            'Production'
+            "specialist_technical_model", "Production"
         )
 
         import numpy as np
-        X = np.array([
-            [0.8, 0.8, 0.7, 0.8, 0.3, 0.4],  # Bom
-            [0.3, 0.3, 0.3, 0.3, 0.8, 0.9],   # Ruim
-            [0.6, 0.6, 0.6, 0.6, 0.5, 0.5],   # Médio
-        ])
+
+        X = np.array(
+            [
+                [0.8, 0.8, 0.7, 0.8, 0.3, 0.4],  # Bom
+                [0.3, 0.3, 0.3, 0.3, 0.8, 0.9],  # Ruim
+                [0.6, 0.6, 0.6, 0.6, 0.5, 0.5],  # Médio
+            ]
+        )
 
         predictions = model.predict(X)
 
@@ -219,24 +230,21 @@ class TestHeuristicFallback:
     """Testes de fallback para heurística."""
 
     def test_fallback_to_heuristic_when_model_unavailable(
-        self,
-        mock_mlflow_client_unavailable,
-        sample_features
+        self, mock_mlflow_client_unavailable, sample_features
     ):
         """Testa fallback para heurística quando modelo não disponível."""
         model = mock_mlflow_client_unavailable.load_model_with_fallback(
-            'specialist_technical_model',
-            'Production'
+            "specialist_technical_model", "Production"
         )
 
         assert model is None
 
         # Calcular score heurístico
         heuristic_score = (
-            sample_features['security_score'] * 0.35 +
-            sample_features['architecture_score'] * 0.30 +
-            sample_features['performance_score'] * 0.20 +
-            sample_features['code_quality_score'] * 0.15
+            sample_features["security_score"] * 0.35
+            + sample_features["architecture_score"] * 0.30
+            + sample_features["performance_score"] * 0.20
+            + sample_features["code_quality_score"] * 0.15
         )
 
         assert 0.0 <= heuristic_score <= 1.0
@@ -244,17 +252,17 @@ class TestHeuristicFallback:
     def test_heuristic_score_calculation(self):
         """Testa cálculo de score heurístico."""
         features = {
-            'security_score': 0.8,
-            'architecture_score': 0.7,
-            'performance_score': 0.75,
-            'code_quality_score': 0.6
+            "security_score": 0.8,
+            "architecture_score": 0.7,
+            "performance_score": 0.75,
+            "code_quality_score": 0.6,
         }
 
         heuristic_score = (
-            features['security_score'] * 0.35 +
-            features['architecture_score'] * 0.30 +
-            features['performance_score'] * 0.20 +
-            features['code_quality_score'] * 0.15
+            features["security_score"] * 0.35
+            + features["architecture_score"] * 0.30
+            + features["performance_score"] * 0.20
+            + features["code_quality_score"] * 0.15
         )
 
         expected = 0.8 * 0.35 + 0.7 * 0.30 + 0.75 * 0.20 + 0.6 * 0.15
@@ -310,35 +318,35 @@ class TestFeatureExtraction:
     def test_extract_features_from_cognitive_plan(self):
         """Testa extração de features de plano cognitivo."""
         cognitive_plan = {
-            'plan_id': 'plan-123',
-            'original_domain': 'technical',
-            'tasks': [
+            "plan_id": "plan-123",
+            "original_domain": "technical",
+            "tasks": [
                 {
-                    'description': 'Implement secure authentication',
-                    'dependencies': [],
-                    'estimated_duration_ms': 30000
+                    "description": "Implement secure authentication",
+                    "dependencies": [],
+                    "estimated_duration_ms": 30000,
                 },
                 {
-                    'description': 'Add caching for performance',
-                    'dependencies': [],
-                    'estimated_duration_ms': 20000
+                    "description": "Add caching for performance",
+                    "dependencies": [],
+                    "estimated_duration_ms": 20000,
                 },
                 {
-                    'description': 'Write unit tests',
-                    'dependencies': [],
-                    'estimated_duration_ms': 15000
-                }
-            ]
+                    "description": "Write unit tests",
+                    "dependencies": [],
+                    "estimated_duration_ms": 15000,
+                },
+            ],
         }
 
         # Features extraídas (simuladas)
         features = {
-            'security_score': 0.7,  # Tem 'authentication'
-            'architecture_score': 0.6,  # Estrutura básica
-            'performance_score': 0.7,  # Tem 'caching'
-            'code_quality_score': 0.7,  # Tem 'tests'
-            'tech_debt_risk': 0.4,  # Risco moderado
-            'complexity_score': 0.3  # Baixa complexidade
+            "security_score": 0.7,  # Tem 'authentication'
+            "architecture_score": 0.6,  # Estrutura básica
+            "performance_score": 0.7,  # Tem 'caching'
+            "code_quality_score": 0.7,  # Tem 'tests'
+            "tech_debt_risk": 0.4,  # Risco moderado
+            "complexity_score": 0.3,  # Baixa complexidade
         }
 
         for feature, value in features.items():
@@ -347,8 +355,12 @@ class TestFeatureExtraction:
     def test_feature_validation(self, sample_features):
         """Testa validação de features."""
         required_features = [
-            'security_score', 'architecture_score', 'performance_score',
-            'code_quality_score', 'tech_debt_risk', 'complexity_score'
+            "security_score",
+            "architecture_score",
+            "performance_score",
+            "code_quality_score",
+            "tech_debt_risk",
+            "complexity_score",
         ]
 
         for feature in required_features:
@@ -368,8 +380,7 @@ class TestModelPerformanceTracking:
         import numpy as np
 
         model = mock_mlflow_client.load_model_with_fallback(
-            'specialist_technical_model',
-            'Production'
+            "specialist_technical_model", "Production"
         )
 
         X = np.random.rand(1, 6)
@@ -387,8 +398,7 @@ class TestModelPerformanceTracking:
         import numpy as np
 
         model = mock_mlflow_client.load_model_with_fallback(
-            'specialist_technical_model',
-            'Production'
+            "specialist_technical_model", "Production"
         )
 
         # Batch de 100 predições
@@ -406,14 +416,14 @@ class TestModelPerformanceTracking:
         """Testa tracking de acurácia do modelo."""
         # Simular histórico de predições
         predictions_history = [
-            {'predicted': 1, 'actual': 1, 'confidence': 0.85},
-            {'predicted': 1, 'actual': 1, 'confidence': 0.78},
-            {'predicted': 0, 'actual': 0, 'confidence': 0.65},
-            {'predicted': 1, 'actual': 0, 'confidence': 0.55},  # Erro
-            {'predicted': 0, 'actual': 0, 'confidence': 0.72},
+            {"predicted": 1, "actual": 1, "confidence": 0.85},
+            {"predicted": 1, "actual": 1, "confidence": 0.78},
+            {"predicted": 0, "actual": 0, "confidence": 0.65},
+            {"predicted": 1, "actual": 0, "confidence": 0.55},  # Erro
+            {"predicted": 0, "actual": 0, "confidence": 0.72},
         ]
 
-        correct = sum(1 for p in predictions_history if p['predicted'] == p['actual'])
+        correct = sum(1 for p in predictions_history if p["predicted"] == p["actual"])
         accuracy = correct / len(predictions_history)
 
         assert accuracy == 0.8  # 4 de 5 corretas
@@ -426,17 +436,15 @@ class TestModelReloadOnChange:
         """Testa recarregamento quando versão muda."""
         # Carregar modelo
         model_v1 = mock_mlflow_client.load_model_with_fallback(
-            'specialist_technical_model',
-            'Production'
+            "specialist_technical_model", "Production"
         )
 
         # Simular mudança de versão
-        mock_mlflow_client._model_metadata['version'] = 'v1.3.0'
+        mock_mlflow_client._model_metadata["version"] = "v1.3.0"
 
         # Recarregar
         model_v2 = mock_mlflow_client.load_model_with_fallback(
-            'specialist_technical_model',
-            'Production'
+            "specialist_technical_model", "Production"
         )
 
         # Modelos devem ter versões diferentes
@@ -447,14 +455,12 @@ class TestModelReloadOnChange:
         """Testa recarregamento quando stage muda."""
         # Carregar de Production
         model_prod = mock_mlflow_client.load_model_with_fallback(
-            'specialist_technical_model',
-            'Production'
+            "specialist_technical_model", "Production"
         )
 
         # Carregar de Staging
         model_staging = mock_mlflow_client.load_model_with_fallback(
-            'specialist_technical_model',
-            'Staging'
+            "specialist_technical_model", "Staging"
         )
 
         assert model_prod is not None
@@ -470,10 +476,10 @@ class TestCachePredictions:
         import json
 
         features = {
-            'security_score': 0.8,
-            'architecture_score': 0.7,
-            'performance_score': 0.75,
-            'code_quality_score': 0.6
+            "security_score": 0.8,
+            "architecture_score": 0.7,
+            "performance_score": 0.75,
+            "code_quality_score": 0.6,
         }
 
         # Gerar chave de cache
@@ -487,35 +493,32 @@ class TestCachePredictions:
         """Testa cache hit."""
         cache = {}
 
-        features = {'security_score': 0.8, 'architecture_score': 0.7}
-        cache_key = 'test-key'
+        features = {"security_score": 0.8, "architecture_score": 0.7}
+        cache_key = "test-key"
 
         # Primeira chamada - cache miss
         if cache_key not in cache:
-            cache[cache_key] = {'prediction': 1, 'confidence': 0.85}
+            cache[cache_key] = {"prediction": 1, "confidence": 0.85}
 
         # Segunda chamada - cache hit
         result = cache.get(cache_key)
 
-        assert result['prediction'] == 1
-        assert result['confidence'] == 0.85
+        assert result["prediction"] == 1
+        assert result["confidence"] == 0.85
 
     def test_prediction_cache_expiry(self):
         """Testa expiração de cache."""
         import time
 
         cache = {}
-        cache_key = 'test-key'
+        cache_key = "test-key"
         ttl_seconds = 60
 
         # Adicionar entrada com timestamp
-        cache[cache_key] = {
-            'prediction': 1,
-            'timestamp': time.time() - 120  # 120 segundos atrás
-        }
+        cache[cache_key] = {"prediction": 1, "timestamp": time.time() - 120}  # 120 segundos atrás
 
         # Verificar expiração
         entry = cache.get(cache_key)
-        is_expired = (time.time() - entry['timestamp']) > ttl_seconds
+        is_expired = (time.time() - entry["timestamp"]) > ttl_seconds
 
         assert is_expired

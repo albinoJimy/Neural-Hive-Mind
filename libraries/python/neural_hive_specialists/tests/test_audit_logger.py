@@ -35,7 +35,7 @@ class TestAuditLogger:
 
     def test_init_with_audit_enabled(self, config):
         """Testa inicialização com audit logging habilitado."""
-        with patch('neural_hive_specialists.compliance.audit_logger.MongoClient'):
+        with patch("neural_hive_specialists.compliance.audit_logger.MongoClient"):
             from neural_hive_specialists.compliance.audit_logger import AuditLogger
 
             logger = AuditLogger(config, specialist_type="test_specialist")
@@ -55,14 +55,17 @@ class TestAuditLogger:
 
     def test_init_with_mongo_error_disables_audit(self, config):
         """Testa que erro no Mongo desabilita audit logging."""
-        with patch('neural_hive_specialists.compliance.audit_logger.MongoClient', side_effect=Exception("Connection error")):
+        with patch(
+            "neural_hive_specialists.compliance.audit_logger.MongoClient",
+            side_effect=Exception("Connection error"),
+        ):
             from neural_hive_specialists.compliance.audit_logger import AuditLogger
 
             logger = AuditLogger(config, specialist_type="test_specialist")
 
             assert logger.enabled is False
 
-    @patch('neural_hive_specialists.compliance.audit_logger.MongoClient')
+    @patch("neural_hive_specialists.compliance.audit_logger.MongoClient")
     def test_initialize_mongo_creates_indexes(self, mock_mongo_class, config):
         """Testa que índices são criados corretamente."""
         mock_client = MagicMock()
@@ -79,7 +82,7 @@ class TestAuditLogger:
         # Verificar que create_index foi chamado várias vezes (5 índices)
         assert mock_collection.create_index.call_count == 5
 
-    @patch('neural_hive_specialists.compliance.audit_logger.MongoClient')
+    @patch("neural_hive_specialists.compliance.audit_logger.MongoClient")
     def test_log_config_change_success(self, mock_mongo_class, config, sample_event_data):
         """Testa log de mudança de configuração."""
         mock_client = MagicMock()
@@ -112,7 +115,7 @@ class TestAuditLogger:
         assert "old_config" in doc["event_data"]
         assert "new_config" in doc["event_data"]
 
-    @patch('neural_hive_specialists.compliance.audit_logger.MongoClient')
+    @patch("neural_hive_specialists.compliance.audit_logger.MongoClient")
     def test_log_data_access_success(self, mock_mongo_class, config):
         """Testa log de acesso a dados."""
         mock_client = MagicMock()
@@ -143,7 +146,7 @@ class TestAuditLogger:
         assert doc["actor"] == "user123"
         assert doc["event_data"]["resource_type"] == "opinion"
 
-    @patch('neural_hive_specialists.compliance.audit_logger.MongoClient')
+    @patch("neural_hive_specialists.compliance.audit_logger.MongoClient")
     def test_log_pii_detection_success(self, mock_mongo_class, config):
         """Testa log de detecção de PII."""
         mock_client = MagicMock()
@@ -177,7 +180,7 @@ class TestAuditLogger:
         assert doc["event_data"]["anonymization_applied"] is True
         assert doc["severity"] == "warning"  # Has entities
 
-    @patch('neural_hive_specialists.compliance.audit_logger.MongoClient')
+    @patch("neural_hive_specialists.compliance.audit_logger.MongoClient")
     def test_log_encryption_operation_success(self, mock_mongo_class, config):
         """Testa log de operação de criptografia."""
         mock_client = MagicMock()
@@ -207,7 +210,7 @@ class TestAuditLogger:
         assert doc["event_data"]["field_name"] == "ssn"
         assert doc["event_data"]["success"] is True
 
-    @patch('neural_hive_specialists.compliance.audit_logger.MongoClient')
+    @patch("neural_hive_specialists.compliance.audit_logger.MongoClient")
     def test_log_retention_action_success(self, mock_mongo_class, config):
         """Testa log de ação de retenção."""
         mock_client = MagicMock()
@@ -237,7 +240,7 @@ class TestAuditLogger:
         assert doc["event_data"]["action_type"] == "mask"
         assert doc["event_data"]["affected_documents"] == 10
 
-    @patch('neural_hive_specialists.compliance.audit_logger.MongoClient')
+    @patch("neural_hive_specialists.compliance.audit_logger.MongoClient")
     def test_log_when_disabled_does_nothing(self, mock_mongo_class, config):
         """Testa que logs não são registrados quando desabilitado."""
         config.enable_audit_logging = False
@@ -256,7 +259,7 @@ class TestAuditLogger:
         logger.log_encryption_operation("encrypt", "field", True)
         logger.log_retention_action("mask", 1, "policy")
 
-    @patch('neural_hive_specialists.compliance.audit_logger.MongoClient')
+    @patch("neural_hive_specialists.compliance.audit_logger.MongoClient")
     def test_log_with_correlation_id(self, mock_mongo_class, config):
         """Testa log com correlation_id via metadata."""
         mock_client = MagicMock()
@@ -283,7 +286,7 @@ class TestAuditLogger:
 
         assert doc["correlation_id"] == "corr-123"
 
-    @patch('neural_hive_specialists.compliance.audit_logger.MongoClient')
+    @patch("neural_hive_specialists.compliance.audit_logger.MongoClient")
     def test_log_with_severity(self, mock_mongo_class, config):
         """Testa que severidade é 'warning' para config_change."""
         mock_client = MagicMock()
@@ -309,7 +312,7 @@ class TestAuditLogger:
 
         assert doc["severity"] == "warning"
 
-    @patch('neural_hive_specialists.compliance.audit_logger.MongoClient')
+    @patch("neural_hive_specialists.compliance.audit_logger.MongoClient")
     def test_log_with_metadata(self, mock_mongo_class, config):
         """Testa log com metadados customizados."""
         mock_client = MagicMock()
@@ -339,7 +342,7 @@ class TestAuditLogger:
         # Metadata é merged no event_data
         assert doc["event_data"]["ip_address"] == "192.168.1.1"
 
-    @patch('neural_hive_specialists.compliance.audit_logger.MongoClient')
+    @patch("neural_hive_specialists.compliance.audit_logger.MongoClient")
     def test_query_audit_logs(self, mock_mongo_class, config):
         """Testa consulta de logs de auditoria."""
         mock_client = MagicMock()
@@ -366,7 +369,7 @@ class TestAuditLogger:
         assert len(results) == 1
         assert results[0]["event_type"] == "config_change"
 
-    @patch('neural_hive_specialists.compliance.audit_logger.MongoClient')
+    @patch("neural_hive_specialists.compliance.audit_logger.MongoClient")
     def test_query_audit_logs_with_date_filter(self, mock_mongo_class, config):
         """Testa consulta de logs com filtro de data."""
         mock_client = MagicMock()
@@ -396,7 +399,7 @@ class TestAuditLogger:
         # Verificar que find foi chamado com filtro de data
         assert mock_collection.find.called
 
-    @patch('neural_hive_specialists.compliance.audit_logger.MongoClient')
+    @patch("neural_hive_specialists.compliance.audit_logger.MongoClient")
     def test_query_audit_logs_when_disabled(self, mock_mongo_class, config):
         """Testa consulta quando audit logging está desabilitado."""
         config.enable_audit_logging = False
@@ -409,7 +412,7 @@ class TestAuditLogger:
 
         assert results == []
 
-    @patch('neural_hive_specialists.compliance.audit_logger.MongoClient')
+    @patch("neural_hive_specialists.compliance.audit_logger.MongoClient")
     def test_get_audit_summary(self, mock_mongo_class, config):
         """Testa obtenção de resumo de auditoria."""
         mock_client = MagicMock()
@@ -437,7 +440,7 @@ class TestAuditLogger:
         assert summary["events_by_type"]["config_change"] == 10
         assert summary["events_by_type"]["data_access"] == 25
 
-    @patch('neural_hive_specialists.compliance.audit_logger.MongoClient')
+    @patch("neural_hive_specialists.compliance.audit_logger.MongoClient")
     def test_get_audit_summary_when_disabled(self, mock_mongo_class, config):
         """Testa resumo quando audit logging está desabilitado."""
         config.enable_audit_logging = False
@@ -453,7 +456,7 @@ class TestAuditLogger:
 
         assert summary == {}
 
-    @patch('neural_hive_specialists.compliance.audit_logger.MongoClient')
+    @patch("neural_hive_specialists.compliance.audit_logger.MongoClient")
     def test_document_structure_has_required_fields(self, mock_mongo_class, config):
         """Testa que documentos de auditoria têm campos obrigatórios."""
         mock_client = MagicMock()
@@ -491,7 +494,7 @@ class TestAuditLogger:
         for field in required_fields:
             assert field in doc, f"Campo obrigatório {field} não encontrado"
 
-    @patch('neural_hive_specialists.compliance.audit_logger.MongoClient')
+    @patch("neural_hive_specialists.compliance.audit_logger.MongoClient")
     def test_audit_id_is_uuid(self, mock_mongo_class, config):
         """Testa que audit_id é um UUID válido."""
         import uuid
@@ -523,7 +526,7 @@ class TestAuditLogger:
         except ValueError:
             pytest.fail("audit_id não é um UUID válido")
 
-    @patch('neural_hive_specialists.compliance.audit_logger.MongoClient')
+    @patch("neural_hive_specialists.compliance.audit_logger.MongoClient")
     def test_timestamp_is_datetime(self, mock_mongo_class, config):
         """Testa que timestamp é um datetime."""
         from datetime import datetime
@@ -551,7 +554,7 @@ class TestAuditLogger:
 
         assert isinstance(doc["timestamp"], datetime)
 
-    @patch('neural_hive_specialists.compliance.audit_logger.MongoClient')
+    @patch("neural_hive_specialists.compliance.audit_logger.MongoClient")
     def test_default_severity_for_config_change_is_warning(self, mock_mongo_class, config):
         """Testa que severidade padrão para config_change é 'warning'."""
         mock_client = MagicMock()

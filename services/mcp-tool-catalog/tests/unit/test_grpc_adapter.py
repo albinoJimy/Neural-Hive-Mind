@@ -26,16 +26,19 @@ from src.adapters.base_adapter import ExecutionResult
 # Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def mock_service_registry():
     """Mock do Service Registry client."""
     registry = AsyncMock()
-    registry.discover_service = AsyncMock(return_value={
-        "service_name": "analyst_agents",
-        "host": "analyst_agents.neural-hive.svc.cluster.local",
-        "port": 9090,
-        "metadata": {"version": "1.0.0"}
-    })
+    registry.discover_service = AsyncMock(
+        return_value={
+            "service_name": "analyst_agents",
+            "host": "analyst_agents.neural-hive.svc.cluster.local",
+            "port": 9090,
+            "metadata": {"version": "1.0.0"},
+        }
+    )
     registry.send_heartbeat = AsyncMock()
     return registry
 
@@ -58,6 +61,7 @@ def mock_grpc_stub():
 # Testes de Inicializacao
 # ============================================================================
 
+
 class TestGRPCAdapterInitialization:
     """Testes de inicializacao do GRPCAdapter."""
 
@@ -66,9 +70,7 @@ class TestGRPCAdapterInitialization:
         from src.adapters.grpc_adapter import GRPCAdapter
 
         adapter = GRPCAdapter(
-            service_registry=mock_service_registry,
-            timeout_seconds=30,
-            max_retries=3
+            service_registry=mock_service_registry, timeout_seconds=30, max_retries=3
         )
 
         assert adapter.service_registry == mock_service_registry
@@ -80,11 +82,7 @@ class TestGRPCAdapterInitialization:
         """Testa inicializacao sem Service Registry (direct connection)."""
         from src.adapters.grpc_adapter import GRPCAdapter
 
-        adapter = GRPCAdapter(
-            service_registry=None,
-            timeout_seconds=60,
-            max_retries=5
-        )
+        adapter = GRPCAdapter(service_registry=None, timeout_seconds=60, max_retries=5)
 
         assert adapter.service_registry is None
         assert adapter.timeout_seconds == 60
@@ -94,6 +92,7 @@ class TestGRPCAdapterInitialization:
 # ============================================================================
 # Testes de Execucao gRPC
 # ============================================================================
+
 
 class TestGRPCAdapterExecution:
     """Testes de execucao de chamadas gRPC."""
@@ -111,7 +110,7 @@ class TestGRPCAdapterExecution:
         mock_response.insight_data = '{"key": "value"}'
         mock_response.exit_code = 0
 
-        with patch.object(adapter, '_get_stub', new_callable=AsyncMock) as mock_get_stub:
+        with patch.object(adapter, "_get_stub", new_callable=AsyncMock) as mock_get_stub:
             mock_stub = AsyncMock()
             mock_stub.ExecuteTool = AsyncMock(return_value=mock_response)
             mock_get_stub.return_value = mock_stub
@@ -121,7 +120,7 @@ class TestGRPCAdapterExecution:
                 tool_name="analyst_agents",
                 command="analyst_agents:GetInsight",
                 parameters={"insight_id": "123"},
-                context={"trace_id": "trace-123"}
+                context={"trace_id": "trace-123"},
             )
 
             assert result.success is True
@@ -140,7 +139,7 @@ class TestGRPCAdapterExecution:
         mock_response.success = True
         mock_response.message = "Analysis complete"
 
-        with patch.object(adapter, '_get_stub', new_callable=AsyncMock) as mock_get_stub:
+        with patch.object(adapter, "_get_stub", new_callable=AsyncMock) as mock_get_stub:
             mock_stub = AsyncMock()
             mock_stub.ExecuteTool = AsyncMock(return_value=mock_response)
             mock_get_stub.return_value = mock_stub
@@ -150,7 +149,7 @@ class TestGRPCAdapterExecution:
                 tool_name="analyst_agents",
                 command="analyst_agents:GetInsight",
                 parameters={"insight_id": "456"},
-                context={}
+                context={},
             )
 
             # Verifica que o service registry foi consultado
@@ -164,7 +163,7 @@ class TestGRPCAdapterExecution:
 
         adapter = GRPCAdapter(service_registry=mock_service_registry)
 
-        with patch.object(adapter, '_get_stub', new_callable=AsyncMock) as mock_get_stub:
+        with patch.object(adapter, "_get_stub", new_callable=AsyncMock) as mock_get_stub:
             mock_stub = AsyncMock()
             # Simular erro gRPC
             mock_stub.ExecuteTool = AsyncMock(
@@ -181,7 +180,7 @@ class TestGRPCAdapterExecution:
                 tool_name="analyst_agents",
                 command="analyst_agents:GetInsight",
                 parameters={},
-                context={}
+                context={},
             )
 
             assert result.success is False
@@ -193,12 +192,9 @@ class TestGRPCAdapterExecution:
         from src.adapters.grpc_adapter import GRPCAdapter
         import asyncio
 
-        adapter = GRPCAdapter(
-            service_registry=mock_service_registry,
-            timeout_seconds=1
-        )
+        adapter = GRPCAdapter(service_registry=mock_service_registry, timeout_seconds=1)
 
-        with patch.object(adapter, '_get_stub', new_callable=AsyncMock) as mock_get_stub:
+        with patch.object(adapter, "_get_stub", new_callable=AsyncMock) as mock_get_stub:
             mock_stub = AsyncMock()
             # Simular timeout
             mock_stub.ExecuteTool = AsyncMock(side_effect=asyncio.TimeoutError())
@@ -209,7 +205,7 @@ class TestGRPCAdapterExecution:
                 tool_name="analyst_agents",
                 command="analyst_agents:GetInsight",
                 parameters={},
-                context={}
+                context={},
             )
 
             assert result.success is False
@@ -220,10 +216,7 @@ class TestGRPCAdapterExecution:
         """Testa retry em erros transientes."""
         from src.adapters.grpc_adapter import GRPCAdapter
 
-        adapter = GRPCAdapter(
-            service_registry=mock_service_registry,
-            max_retries=3
-        )
+        adapter = GRPCAdapter(service_registry=mock_service_registry, max_retries=3)
 
         mock_response = Mock()
         mock_response.success = True
@@ -238,7 +231,7 @@ class TestGRPCAdapterExecution:
                 raise AioRpcError(grpc.StatusCode.UNAVAILABLE, "Temporary failure", ())
             return mock_response
 
-        with patch.object(adapter, '_get_stub', new_callable=AsyncMock) as mock_get_stub:
+        with patch.object(adapter, "_get_stub", new_callable=AsyncMock) as mock_get_stub:
             mock_stub = AsyncMock()
             mock_stub.ExecuteTool = AsyncMock(side_effect=side_effect_retry)
             mock_get_stub.return_value = mock_stub
@@ -248,7 +241,7 @@ class TestGRPCAdapterExecution:
                 tool_name="analyst_agents",
                 command="analyst_agents:GetInsight",
                 parameters={},
-                context={}
+                context={},
             )
 
             assert result.success is True
@@ -260,12 +253,9 @@ class TestGRPCAdapterExecution:
         """Testa que exaustao de retries retorna falha."""
         from src.adapters.grpc_adapter import GRPCAdapter
 
-        adapter = GRPCAdapter(
-            service_registry=mock_service_registry,
-            max_retries=2
-        )
+        adapter = GRPCAdapter(service_registry=mock_service_registry, max_retries=2)
 
-        with patch.object(adapter, '_get_stub', new_callable=AsyncMock) as mock_get_stub:
+        with patch.object(adapter, "_get_stub", new_callable=AsyncMock) as mock_get_stub:
             mock_stub = AsyncMock()
             mock_stub.ExecuteTool = AsyncMock(
                 side_effect=AioRpcError(grpc.StatusCode.UNAVAILABLE, "Persistent failure", ())
@@ -277,7 +267,7 @@ class TestGRPCAdapterExecution:
                 tool_name="analyst_agents",
                 command="analyst_agents:GetInsight",
                 parameters={},
-                context={}
+                context={},
             )
 
             assert result.success is False
@@ -287,6 +277,7 @@ class TestGRPCAdapterExecution:
 # ============================================================================
 # Testes de Service Discovery
 # ============================================================================
+
 
 class TestServiceDiscovery:
     """Testes de descoberta de servicos."""
@@ -342,6 +333,7 @@ class TestServiceDiscovery:
 # Testes de Channel Management
 # ============================================================================
 
+
 class TestChannelManagement:
     """Testes de gerenciamento de canais gRPC."""
 
@@ -359,7 +351,9 @@ class TestChannelManagement:
             mock_channel_instance = AsyncMock()
             mock_channel.return_value = mock_channel_instance
 
-            stub = await adapter._get_stub("analyst_agents", "analyst_agents.neural-hive.svc.cluster.local", 9090)
+            stub = await adapter._get_stub(
+                "analyst_agents", "analyst_agents.neural-hive.svc.cluster.local", 9090
+            )
 
             assert stub is not None
             mock_channel.assert_called_once()
@@ -404,6 +398,7 @@ class TestChannelManagement:
 # Testes de Validacao de Disponibilidade
 # ============================================================================
 
+
 class TestAvailabilityValidation:
     """Testes de validacao de disponibilidade de ferramentas."""
 
@@ -441,12 +436,14 @@ class TestAvailabilityValidation:
         mock_health_response = Mock()
         mock_health_response.status = "SERVING"
 
-        with patch.object(adapter, '_get_stub', new_callable=AsyncMock) as mock_get_stub:
+        with patch.object(adapter, "_get_stub", new_callable=AsyncMock) as mock_get_stub:
             mock_stub = AsyncMock()
             mock_stub.Check = AsyncMock(return_value=mock_health_response)
             mock_get_stub.return_value = mock_stub
 
-            is_available = await adapter.validate_tool_availability("analyst_agents", health_check=True)
+            is_available = await adapter.validate_tool_availability(
+                "analyst_agents", health_check=True
+            )
 
             assert is_available is True
 
@@ -454,6 +451,7 @@ class TestAvailabilityValidation:
 # ============================================================================
 # Testes de Metadata e Tracing
 # ============================================================================
+
 
 class TestMetadataAndTracing:
     """Testes de metadata gRPC e distributed tracing."""
@@ -475,7 +473,7 @@ class TestMetadataAndTracing:
             metadata_sent.extend(metadata)
             return mock_response
 
-        with patch.object(adapter, '_get_stub', new_callable=AsyncMock) as mock_get_stub:
+        with patch.object(adapter, "_get_stub", new_callable=AsyncMock) as mock_get_stub:
             mock_stub = AsyncMock()
             mock_stub.ExecuteTool = AsyncMock(side_effect=capture_metadata)
             mock_get_stub.return_value = mock_stub
@@ -485,7 +483,7 @@ class TestMetadataAndTracing:
                 tool_name="analyst_agents",
                 command="analyst_agents:GetInsight",
                 parameters={},
-                context={"trace_id": "trace-123", "span_id": "span-456"}
+                context={"trace_id": "trace-123", "span_id": "span-456"},
             )
 
             # Verificar que metadata foi enviada
@@ -509,7 +507,7 @@ class TestMetadataAndTracing:
             metadata_sent.extend(metadata)
             return mock_response
 
-        with patch.object(adapter, '_get_stub', new_callable=AsyncMock) as mock_get_stub:
+        with patch.object(adapter, "_get_stub", new_callable=AsyncMock) as mock_get_stub:
             mock_stub = AsyncMock()
             mock_stub.ExecuteTool = AsyncMock(side_effect=capture_metadata)
             mock_get_stub.return_value = mock_stub
@@ -519,7 +517,7 @@ class TestMetadataAndTracing:
                 tool_name="analyst_agents",
                 command="analyst_agents:GetInsight",
                 parameters={},
-                context={"auth_token": "jwt-token-123"}
+                context={"auth_token": "jwt-token-123"},
             )
 
             # Verificar que auth token foi enviado
@@ -531,6 +529,7 @@ class TestMetadataAndTracing:
 # Testes de Tratamento de Erros
 # ============================================================================
 
+
 class TestErrorHandling:
     """Testes de tratamento de erros especificos."""
 
@@ -541,7 +540,7 @@ class TestErrorHandling:
 
         adapter = GRPCAdapter(service_registry=mock_service_registry)
 
-        with patch.object(adapter, '_get_stub', new_callable=AsyncMock) as mock_get_stub:
+        with patch.object(adapter, "_get_stub", new_callable=AsyncMock) as mock_get_stub:
             mock_stub = AsyncMock()
             mock_stub.ExecuteTool = AsyncMock(
                 side_effect=AioRpcError(
@@ -557,7 +556,7 @@ class TestErrorHandling:
                 tool_name="analyst_agents",
                 command="analyst_agents:GetInsight",
                 parameters={},
-                context={}
+                context={},
             )
 
             assert result.success is False
@@ -570,7 +569,7 @@ class TestErrorHandling:
 
         adapter = GRPCAdapter(service_registry=mock_service_registry)
 
-        with patch.object(adapter, '_get_stub', new_callable=AsyncMock) as mock_get_stub:
+        with patch.object(adapter, "_get_stub", new_callable=AsyncMock) as mock_get_stub:
             mock_stub = AsyncMock()
             mock_stub.ExecuteTool = AsyncMock(
                 side_effect=AioRpcError(
@@ -586,7 +585,7 @@ class TestErrorHandling:
                 tool_name="analyst_agents",
                 command="analyst_agents:GetInsight",
                 parameters={},
-                context={}
+                context={},
             )
 
             assert result.success is False
@@ -599,7 +598,7 @@ class TestErrorHandling:
 
         adapter = GRPCAdapter(service_registry=mock_service_registry)
 
-        with patch.object(adapter, '_get_stub', new_callable=AsyncMock) as mock_get_stub:
+        with patch.object(adapter, "_get_stub", new_callable=AsyncMock) as mock_get_stub:
             mock_stub = AsyncMock()
             mock_stub.ExecuteTool = AsyncMock(
                 side_effect=AioRpcError(
@@ -615,7 +614,7 @@ class TestErrorHandling:
                 tool_name="analyst_agents",
                 command="analyst_agents:GetInsight",
                 parameters={},
-                context={}
+                context={},
             )
 
             assert result.success is False
@@ -625,6 +624,7 @@ class TestErrorHandling:
 # ============================================================================
 # Testes de Performance
 # ============================================================================
+
 
 class TestPerformanceMetrics:
     """Testes de metricas de performance."""
@@ -640,7 +640,7 @@ class TestPerformanceMetrics:
         mock_response.success = True
         mock_response.message = "Done"
 
-        with patch.object(adapter, '_get_stub', new_callable=AsyncMock) as mock_get_stub:
+        with patch.object(adapter, "_get_stub", new_callable=AsyncMock) as mock_get_stub:
             mock_stub = AsyncMock()
             mock_stub.ExecuteTool = AsyncMock(return_value=mock_response)
             mock_get_stub.return_value = mock_stub
@@ -650,7 +650,7 @@ class TestPerformanceMetrics:
                 tool_name="analyst_agents",
                 command="analyst_agents:GetInsight",
                 parameters={},
-                context={}
+                context={},
             )
 
             assert result.execution_time_ms >= 0
@@ -667,7 +667,7 @@ class TestPerformanceMetrics:
         mock_response.success = True
         mock_response.message = "Done"
 
-        with patch.object(adapter, '_get_stub', new_callable=AsyncMock) as mock_get_stub:
+        with patch.object(adapter, "_get_stub", new_callable=AsyncMock) as mock_get_stub:
             mock_stub = AsyncMock()
             mock_stub.ExecuteTool = AsyncMock(return_value=mock_response)
             mock_get_stub.return_value = mock_stub
@@ -677,7 +677,7 @@ class TestPerformanceMetrics:
                 tool_name="analyst_agents",
                 command="analyst_agents:GetInsight",
                 parameters={},
-                context={}
+                context={},
             )
 
             assert "command" in result.metadata

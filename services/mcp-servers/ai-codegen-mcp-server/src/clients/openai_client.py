@@ -30,13 +30,10 @@ class OpenAIClient:
             timeout = aiohttp.ClientTimeout(total=self.settings.api_timeout)
             headers = {
                 "Authorization": f"Bearer {self.settings.openai_api_key}",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
             }
 
-            self._session = aiohttp.ClientSession(
-                timeout=timeout,
-                headers=headers
-            )
+            self._session = aiohttp.ClientSession(timeout=timeout, headers=headers)
         return self._session
 
     async def close(self) -> None:
@@ -48,12 +45,7 @@ class OpenAIClient:
         """Verifica se o cliente está configurado."""
         return bool(self.settings.openai_api_key)
 
-    async def _request(
-        self,
-        endpoint: str,
-        data: dict,
-        retries: int = 3
-    ) -> dict[str, Any]:
+    async def _request(self, endpoint: str, data: dict, retries: int = 3) -> dict[str, Any]:
         """
         Executa requisição HTTP POST com retry.
 
@@ -68,7 +60,7 @@ class OpenAIClient:
         if not self.is_available():
             return {
                 "error": "OpenAI not configured",
-                "message": "OPENAI_API_KEY não está configurado"
+                "message": "OPENAI_API_KEY não está configurado",
             }
 
         session = await self._get_session()
@@ -80,16 +72,13 @@ class OpenAIClient:
                     if response.status == 401:
                         return {
                             "error": "Authentication failed",
-                            "message": "API key OpenAI inválida"
+                            "message": "API key OpenAI inválida",
                         }
 
                     if response.status == 429:
                         # Rate limit - aguardar e tentar novamente
                         retry_after = int(response.headers.get("Retry-After", 5))
-                        logger.warning(
-                            "openai_rate_limited",
-                            retry_after=retry_after
-                        )
+                        logger.warning("openai_rate_limited", retry_after=retry_after)
                         await asyncio.sleep(retry_after)
                         continue
 
@@ -97,43 +86,26 @@ class OpenAIClient:
                         error_body = await response.json()
                         return {
                             "error": f"HTTP {response.status}",
-                            "message": error_body.get("error", {}).get("message", "Unknown error")
+                            "message": error_body.get("error", {}).get("message", "Unknown error"),
                         }
 
                     return await response.json()
 
             except asyncio.TimeoutError:
-                logger.warning(
-                    "openai_request_timeout",
-                    attempt=attempt + 1,
-                    endpoint=endpoint
-                )
+                logger.warning("openai_request_timeout", attempt=attempt + 1, endpoint=endpoint)
                 if attempt == retries - 1:
-                    return {
-                        "error": "Timeout",
-                        "message": f"Timeout após {retries} tentativas"
-                    }
+                    return {"error": "Timeout", "message": f"Timeout após {retries} tentativas"}
 
             except aiohttp.ClientError as e:
-                logger.warning(
-                    "openai_request_error",
-                    attempt=attempt + 1,
-                    error=str(e)
-                )
+                logger.warning("openai_request_error", attempt=attempt + 1, error=str(e))
                 if attempt == retries - 1:
-                    return {
-                        "error": "Connection error",
-                        "message": str(e)
-                    }
-                await asyncio.sleep(2 ** attempt)
+                    return {"error": "Connection error", "message": str(e)}
+                await asyncio.sleep(2**attempt)
 
         return {"error": "Unknown error"}
 
     async def generate_code(
-        self,
-        prompt: str,
-        language: str,
-        max_tokens: int = 500
+        self, prompt: str, language: str, max_tokens: int = 500
     ) -> dict[str, Any]:
         """
         Gera código a partir de uma descrição.
@@ -154,10 +126,10 @@ Responda APENAS com o código, sem explicações adicionais."""
             "model": self.settings.openai_code_model,
             "messages": [
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": prompt}
+                {"role": "user", "content": prompt},
             ],
             "max_tokens": max_tokens,
-            "temperature": 0.2
+            "temperature": 0.2,
         }
 
         result = await self._request("/chat/completions", data)
@@ -172,15 +144,11 @@ Responda APENAS com o código, sem explicações adicionais."""
             "success": True,
             "code": message.get("content", ""),
             "model": result.get("model"),
-            "usage": result.get("usage", {})
+            "usage": result.get("usage", {}),
         }
 
     async def complete_code(
-        self,
-        code: str,
-        language: str,
-        cursor_position: int,
-        max_tokens: int = 200
+        self, code: str, language: str, cursor_position: int, max_tokens: int = 200
     ) -> dict[str, Any]:
         """
         Completa código parcial.
@@ -218,10 +186,10 @@ Complete o código na posição do cursor:"""
             "model": self.settings.openai_code_model,
             "messages": [
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
+                {"role": "user", "content": user_prompt},
             ],
             "max_tokens": max_tokens,
-            "temperature": 0.1
+            "temperature": 0.1,
         }
 
         result = await self._request("/chat/completions", data)
@@ -236,14 +204,10 @@ Complete o código na posição do cursor:"""
             "success": True,
             "completion": message.get("content", ""),
             "model": result.get("model"),
-            "usage": result.get("usage", {})
+            "usage": result.get("usage", {}),
         }
 
-    async def explain_code(
-        self,
-        code: str,
-        language: str
-    ) -> dict[str, Any]:
+    async def explain_code(self, code: str, language: str) -> dict[str, Any]:
         """
         Gera explicação para um trecho de código.
 
@@ -270,10 +234,10 @@ Explique o código de forma clara e didática, incluindo:
             "model": self.settings.openai_model,
             "messages": [
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
+                {"role": "user", "content": user_prompt},
             ],
             "max_tokens": 1000,
-            "temperature": 0.3
+            "temperature": 0.3,
         }
 
         result = await self._request("/chat/completions", data)
@@ -288,5 +252,5 @@ Explique o código de forma clara e didática, incluindo:
             "success": True,
             "explanation": message.get("content", ""),
             "model": result.get("model"),
-            "usage": result.get("usage", {})
+            "usage": result.get("usage", {}),
         }

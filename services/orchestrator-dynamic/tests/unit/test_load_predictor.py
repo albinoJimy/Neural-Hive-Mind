@@ -16,7 +16,7 @@ def mock_config():
     config = Mock(spec=OrchestratorSettings)
     config.ml_local_load_window_minutes = 60
     config.ml_local_load_cache_ttl_seconds = 30
-    config.mongodb_collection_tickets = 'execution_tickets'
+    config.mongodb_collection_tickets = "execution_tickets"
     return config
 
 
@@ -50,7 +50,7 @@ def load_predictor(mock_config, mock_mongodb, mock_redis, mock_metrics):
         config=mock_config,
         mongodb_client=mock_mongodb,
         redis_client=mock_redis,
-        metrics=mock_metrics
+        metrics=mock_metrics,
     )
 
 
@@ -58,11 +58,7 @@ class TestLoadPredictorQueueTime:
     """Testes de predição de queue time."""
 
     @pytest.mark.asyncio
-    async def test_predict_queue_time_with_cache_hit(
-        self,
-        load_predictor,
-        mock_redis
-    ):
+    async def test_predict_queue_time_with_cache_hit(self, load_predictor, mock_redis):
         """Testa predição de queue time com cache hit."""
         # Configurar cache hit
         mock_redis.get.return_value = "1500.0"
@@ -72,15 +68,13 @@ class TestLoadPredictorQueueTime:
         assert result == 1500.0
         mock_redis.get.assert_called_once()
         # Não deve buscar do MongoDB quando há cache
-        assert not hasattr(load_predictor.mongodb_client.db.get('execution_tickets', Mock()), 'find')
+        assert not hasattr(
+            load_predictor.mongodb_client.db.get("execution_tickets", Mock()), "find"
+        )
 
     @pytest.mark.asyncio
     async def test_predict_queue_time_no_historical_data(
-        self,
-        load_predictor,
-        mock_mongodb,
-        mock_redis,
-        mock_config
+        self, load_predictor, mock_mongodb, mock_redis, mock_config
     ):
         """Testa predição quando não há dados históricos."""
         # Configurar MongoDB para retornar lista vazia
@@ -98,18 +92,14 @@ class TestLoadPredictorQueueTime:
 
     @pytest.mark.asyncio
     async def test_predict_queue_time_with_historical_data(
-        self,
-        load_predictor,
-        mock_mongodb,
-        mock_redis,
-        mock_config
+        self, load_predictor, mock_mongodb, mock_redis, mock_config
     ):
         """Testa predição com dados históricos."""
         # Dados históricos simulados
         historical_tickets = [
-            {'actual_duration_ms': 2000.0},
-            {'actual_duration_ms': 3000.0},
-            {'actual_duration_ms': 2500.0}
+            {"actual_duration_ms": 2000.0},
+            {"actual_duration_ms": 3000.0},
+            {"actual_duration_ms": 2500.0},
         ]
 
         mock_collection = AsyncMock()
@@ -126,18 +116,13 @@ class TestLoadPredictorQueueTime:
         mock_redis.setex.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_predict_queue_time_without_mongodb(
-        self,
-        mock_config,
-        mock_redis,
-        mock_metrics
-    ):
+    async def test_predict_queue_time_without_mongodb(self, mock_config, mock_redis, mock_metrics):
         """Testa predição quando MongoDB não está disponível."""
         predictor = LoadPredictor(
             config=mock_config,
             mongodb_client=None,  # MongoDB indisponível
             redis_client=mock_redis,
-            metrics=mock_metrics
+            metrics=mock_metrics,
         )
 
         result = await predictor.predict_queue_time(worker_id="worker-1")
@@ -147,10 +132,7 @@ class TestLoadPredictorQueueTime:
 
     @pytest.mark.asyncio
     async def test_predict_queue_time_error_handling(
-        self,
-        load_predictor,
-        mock_mongodb,
-        mock_config
+        self, load_predictor, mock_mongodb, mock_config
     ):
         """Testa tratamento de erros durante predição."""
         # Simular erro no MongoDB
@@ -168,11 +150,7 @@ class TestLoadPredictorWorkerLoad:
     """Testes de predição de carga de worker."""
 
     @pytest.mark.asyncio
-    async def test_predict_worker_load_with_cache(
-        self,
-        load_predictor,
-        mock_redis
-    ):
+    async def test_predict_worker_load_with_cache(self, load_predictor, mock_redis):
         """Testa predição de carga com cache hit."""
         mock_redis.get.return_value = "0.6"
 
@@ -183,10 +161,7 @@ class TestLoadPredictorWorkerLoad:
 
     @pytest.mark.asyncio
     async def test_predict_worker_load_calculates_from_queue_depth(
-        self,
-        load_predictor,
-        mock_mongodb,
-        mock_config
+        self, load_predictor, mock_mongodb, mock_config
     ):
         """Testa cálculo de carga baseado em queue depth."""
         # Simular queue depth de 5
@@ -201,10 +176,7 @@ class TestLoadPredictorWorkerLoad:
 
     @pytest.mark.asyncio
     async def test_predict_worker_load_caps_at_100_percent(
-        self,
-        load_predictor,
-        mock_mongodb,
-        mock_config
+        self, load_predictor, mock_mongodb, mock_config
     ):
         """Testa que carga é limitada a 100%."""
         # Simular queue depth muito alta
@@ -218,18 +190,10 @@ class TestLoadPredictorWorkerLoad:
         assert result == 1.0
 
     @pytest.mark.asyncio
-    async def test_predict_worker_load_without_mongodb(
-        self,
-        mock_config,
-        mock_redis,
-        mock_metrics
-    ):
+    async def test_predict_worker_load_without_mongodb(self, mock_config, mock_redis, mock_metrics):
         """Testa predição de carga sem MongoDB."""
         predictor = LoadPredictor(
-            config=mock_config,
-            mongodb_client=None,
-            redis_client=mock_redis,
-            metrics=mock_metrics
+            config=mock_config, mongodb_client=None, redis_client=mock_redis, metrics=mock_metrics
         )
 
         result = await predictor.predict_worker_load(worker_id="worker-1")
@@ -243,11 +207,7 @@ class TestLoadPredictorMetrics:
 
     @pytest.mark.asyncio
     async def test_records_queue_prediction_metrics(
-        self,
-        load_predictor,
-        mock_metrics,
-        mock_mongodb,
-        mock_config
+        self, load_predictor, mock_metrics, mock_mongodb, mock_config
     ):
         """Testa registro de métricas de predição de queue."""
         mock_collection = AsyncMock()
@@ -261,17 +221,12 @@ class TestLoadPredictorMetrics:
         # Verificar chamadas de métricas
         mock_metrics.record_ml_prediction.assert_called_once()
         mock_metrics.record_predicted_queue_time.assert_called_once_with(
-            predicted_ms=1000.0,
-            source='local'
+            predicted_ms=1000.0, source="local"
         )
 
     @pytest.mark.asyncio
     async def test_records_load_prediction_metrics(
-        self,
-        load_predictor,
-        mock_metrics,
-        mock_mongodb,
-        mock_config
+        self, load_predictor, mock_metrics, mock_mongodb, mock_config
     ):
         """Testa registro de métricas de predição de carga."""
         mock_collection = AsyncMock()
@@ -283,6 +238,5 @@ class TestLoadPredictorMetrics:
         # Verificar chamadas de métricas
         mock_metrics.record_ml_prediction.assert_called_once()
         mock_metrics.record_predicted_worker_load.assert_called_once_with(
-            predicted_pct=0.3,
-            source='local'
+            predicted_pct=0.3, source="local"
         )

@@ -21,14 +21,14 @@ def sample_codebase():
     with tempfile.TemporaryDirectory() as tmpdir:
         # Criar arquivos com diferentes níveis de "interesse"
         files = {
-            'boring.py': '''
+            "boring.py": """
 # Arquivo simples, pouco interessante
 x = 1
 y = 2
 def add(a, b):
     return a + b
-''',
-            'interesting.py': '''
+""",
+            "interesting.py": """
 # Arquivo com padrões interessantes
 from abc import ABC, abstractmethod
 
@@ -40,8 +40,8 @@ class Strategy(ABC):
 class ConcreteStrategy(Strategy):
     def execute(self):
         return "concrete"
-''',
-            'complex.py': '''
+""",
+            "complex.py": """
 # Arquivo complexo com múltiplos padrões
 from typing import Protocol, TypeVar, Generic
 from dataclasses import dataclass
@@ -70,7 +70,7 @@ class Context:
     def transition(self):
         if self._state == State.ACTIVE:
             self._state = State.INACTIVE
-''',
+""",
         }
         for filename, content in files.items():
             Path(tmpdir, filename).write_text(content)
@@ -84,9 +84,9 @@ class TestCuriosityScoreBasic:
     def test_calculate_score_simple_file(self, curiosity_calculator, sample_codebase):
         """Testa score de arquivo simples."""
         explorer = CodebaseExplorer(sample_codebase)
-        boring_file = str(Path(sample_codebase) / 'boring.py')
+        boring_file = str(Path(sample_codebase) / "boring.py")
 
-        with open(boring_file, 'r') as f:
+        with open(boring_file, "r") as f:
             code = f.read()
 
         score = curiosity_calculator.calculate_score(code, boring_file)
@@ -98,9 +98,9 @@ class TestCuriosityScoreBasic:
     def test_calculate_score_interesting_file(self, curiosity_calculator, sample_codebase):
         """Testa score de arquivo com padrões."""
         explorer = CodebaseExplorer(sample_codebase)
-        interesting_file = str(Path(sample_codebase) / 'interesting.py')
+        interesting_file = str(Path(sample_codebase) / "interesting.py")
 
-        with open(interesting_file, 'r') as f:
+        with open(interesting_file, "r") as f:
             code = f.read()
 
         score = curiosity_calculator.calculate_score(code, interesting_file)
@@ -111,9 +111,9 @@ class TestCuriosityScoreBasic:
 
     def test_calculate_score_complex_file(self, curiosity_calculator, sample_codebase):
         """Testa score de arquivo complexo."""
-        complex_file = str(Path(sample_codebase) / 'complex.py')
+        complex_file = str(Path(sample_codebase) / "complex.py")
 
-        with open(complex_file, 'r') as f:
+        with open(complex_file, "r") as f:
             code = f.read()
 
         score = curiosity_calculator.calculate_score(code, complex_file)
@@ -128,7 +128,7 @@ class TestCuriosityFactors:
 
     def test_high_complexity_factor(self, curiosity_calculator):
         """Testa fator de complexidade ciclomática."""
-        code = '''
+        code = """
 def complex_function(x):
     if x > 0:
         if x > 10:
@@ -137,7 +137,7 @@ def complex_function(x):
                     if i % 2 == 0:
                         return i
     return 0
-'''
+"""
         score = curiosity_calculator.calculate_score(code, "complex.py")
 
         # Alta complexidade aumenta score
@@ -145,7 +145,7 @@ def complex_function(x):
 
     def test_pattern_density_factor(self, curiosity_calculator):
         """Testa fator de densidade de padrões."""
-        code = '''
+        code = """
 class Repository:
     def find(self):
         pass
@@ -161,7 +161,7 @@ class Factory:
 
 class Singleton:
     _instance = None
-'''
+"""
         score = curiosity_calculator.calculate_score(code, "patterns.py")
 
         # Múltiplos padrões aumentam score significativamente
@@ -169,14 +169,14 @@ class Singleton:
 
     def test_unknown_keywords_factor(self, curiosity_calculator):
         """Testa fator de palavras-chave desconhecidas."""
-        code = '''
+        code = """
 import some_unknown_library
 from mysterious_module import UnknownClass
 
 def function():
     obscure_pattern = True
     return enigmatic_result
-'''
+"""
         score = curiosity_calculator.calculate_score(code, "unknown.py")
 
         # Palavras desconhecidas aumentam curiosidade
@@ -211,14 +211,14 @@ class TestCuriosityComparison:
         explorer = CodebaseExplorer(sample_codebase)
 
         files = [
-            str(Path(sample_codebase) / 'boring.py'),
-            str(Path(sample_codebase) / 'interesting.py'),
-            str(Path(sample_codebase) / 'complex.py'),
+            str(Path(sample_codebase) / "boring.py"),
+            str(Path(sample_codebase) / "interesting.py"),
+            str(Path(sample_codebase) / "complex.py"),
         ]
 
         scores = []
         for filepath in files:
-            with open(filepath, 'r') as f:
+            with open(filepath, "r") as f:
                 code = f.read()
             scores.append((filepath, curiosity_calculator.calculate_score(code, filepath)))
 
@@ -226,17 +226,17 @@ class TestCuriosityComparison:
         scores.sort(key=lambda x: x[1], reverse=True)
 
         # complex.py deve ter o maior score
-        assert 'complex.py' in scores[0][0]
+        assert "complex.py" in scores[0][0]
         # boring.py deve ter o menor score
-        assert 'boring.py' in scores[-1][0]
+        assert "boring.py" in scores[-1][0]
 
     def test_threshold_filtering(self, curiosity_calculator, sample_codebase):
         """Testa filtragem por threshold de curiosidade."""
         threshold = 25
 
         interesting_files = []
-        for filepath in Path(sample_codebase).glob('*.py'):
-            with open(filepath, 'r') as f:
+        for filepath in Path(sample_codebase).glob("*.py"):
+            with open(filepath, "r") as f:
                 code = f.read()
             score = curiosity_calculator.calculate_score(code, str(filepath))
             if score >= threshold:
@@ -251,11 +251,11 @@ class TestCuriosityDecay:
 
     def test_recently_visited_lower_score(self, curiosity_calculator):
         """Testa que arquivos visitados recentemente têm score reduzido."""
-        code = '''
+        code = """
 class InterestingClass:
     def method(self):
         pass
-'''
+"""
         filename = "interesting.py"
 
         # Primeira visita - score original
@@ -273,10 +273,10 @@ class InterestingClass:
         """Testa que fator de decaimento é configurável."""
         curiosity_calculator.decay_factor = 0.9  # 10% de decaimento por visita
 
-        code = '''
+        code = """
 class Test:
     pass
-'''
+"""
         filename = "test.py"
 
         score1 = curiosity_calculator.calculate_score(code, filename)
@@ -303,22 +303,24 @@ class TestCuriosityAggregation:
         """Testa encontrar diretório mais curioso."""
         with tempfile.TemporaryDirectory() as tmpdir:
             # Criar subdiretórios
-            dir_a = Path(tmpdir) / 'module_a'
-            dir_b = Path(tmpdir) / 'module_b'
+            dir_a = Path(tmpdir) / "module_a"
+            dir_b = Path(tmpdir) / "module_b"
             dir_a.mkdir()
             dir_b.mkdir()
 
             # dir_b tem código mais interessante
-            (dir_a / 'simple.py').write_text('x = 1')
-            (dir_b / 'complex.py').write_text('''
+            (dir_a / "simple.py").write_text("x = 1")
+            (dir_b / "complex.py").write_text(
+                """
 class Complex:
     def __init__(self):
         self._observers = []
     def attach(self, obs):
         self._observers.append(obs)
-''')
+"""
+            )
 
             scores = curiosity_calculator.rank_directories(tmpdir)
 
             # module_b deve ter score maior que module_a
-            assert scores['module_b'] > scores['module_a']
+            assert scores["module_b"] > scores["module_a"]

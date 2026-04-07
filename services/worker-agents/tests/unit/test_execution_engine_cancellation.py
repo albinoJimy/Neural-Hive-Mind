@@ -13,7 +13,7 @@ from src.engine.execution_engine import ExecutionEngine
 def mock_config():
     """Create mock configuration for tests."""
     config = MagicMock()
-    config.agent_id = 'test-worker-1'
+    config.agent_id = "test-worker-1"
     config.max_concurrent_tasks = 10
     config.max_retries_per_ticket = 3
     config.task_timeout_multiplier = 1.5
@@ -49,7 +49,7 @@ def mock_executor_registry():
     """Create mock executor registry."""
     registry = MagicMock()
     mock_executor = AsyncMock()
-    mock_executor.execute = AsyncMock(return_value={'success': True})
+    mock_executor.execute = AsyncMock(return_value={"success": True})
     registry.get_executor = MagicMock(return_value=mock_executor)
     return registry
 
@@ -86,7 +86,7 @@ def execution_engine(
     mock_dependency_coordinator,
     mock_executor_registry,
     mock_redis_client,
-    mock_metrics
+    mock_metrics,
 ):
     """Create ExecutionEngine instance."""
     return ExecutionEngine(
@@ -96,7 +96,7 @@ def execution_engine(
         dependency_coordinator=mock_dependency_coordinator,
         executor_registry=mock_executor_registry,
         redis_client=mock_redis_client,
-        metrics=mock_metrics
+        metrics=mock_metrics,
     )
 
 
@@ -107,22 +107,18 @@ class TestCancelActiveTask:
     async def test_cancel_non_existent_task(self, execution_engine):
         """Returns failure when task not found."""
         result = await execution_engine.cancel_active_task(
-            ticket_id='non-existent',
-            reason='preemption'
+            ticket_id="non-existent", reason="preemption"
         )
 
-        assert result['success'] is False
-        assert 'not active' in result['message']
+        assert result["success"] is False
+        assert "not active" in result["message"]
 
     @pytest.mark.asyncio
     async def test_cancel_active_task_success(
-        self,
-        execution_engine,
-        mock_ticket_client,
-        mock_result_producer,
-        mock_redis_client
+        self, execution_engine, mock_ticket_client, mock_result_producer, mock_redis_client
     ):
         """Successfully cancels an active task."""
+
         # Create a mock task that will be cancelled
         async def long_running_task():
             try:
@@ -131,18 +127,18 @@ class TestCancelActiveTask:
                 raise
 
         task = asyncio.create_task(long_running_task())
-        execution_engine.active_tasks['test-ticket'] = task
+        execution_engine.active_tasks["test-ticket"] = task
 
         result = await execution_engine.cancel_active_task(
-            ticket_id='test-ticket',
-            reason='preemption',
-            preempted_by='high-priority-ticket',
-            grace_period_seconds=5
+            ticket_id="test-ticket",
+            reason="preemption",
+            preempted_by="high-priority-ticket",
+            grace_period_seconds=5,
         )
 
-        assert result['success'] is True
-        assert result['ticket_id'] == 'test-ticket'
-        assert result['reason'] == 'preemption'
+        assert result["success"] is True
+        assert result["ticket_id"] == "test-ticket"
+        assert result["reason"] == "preemption"
 
         # Verify ticket status was updated
         mock_ticket_client.update_ticket_status.assert_called()
@@ -151,12 +147,9 @@ class TestCancelActiveTask:
         mock_result_producer.publish_result.assert_called()
 
     @pytest.mark.asyncio
-    async def test_cancel_with_checkpoint_save(
-        self,
-        execution_engine,
-        mock_redis_client
-    ):
+    async def test_cancel_with_checkpoint_save(self, execution_engine, mock_redis_client):
         """Saves checkpoint during cancellation."""
+
         async def long_running_task():
             try:
                 await asyncio.sleep(100)
@@ -164,26 +157,22 @@ class TestCancelActiveTask:
                 raise
 
         task = asyncio.create_task(long_running_task())
-        execution_engine.active_tasks['test-ticket'] = task
+        execution_engine.active_tasks["test-ticket"] = task
 
         result = await execution_engine.cancel_active_task(
-            ticket_id='test-ticket',
-            reason='preemption'
+            ticket_id="test-ticket", reason="preemption"
         )
 
-        assert result['checkpoint_saved'] is True
-        assert result['checkpoint_key'] == 'checkpoint:test-ticket'
+        assert result["checkpoint_saved"] is True
+        assert result["checkpoint_key"] == "checkpoint:test-ticket"
 
         # Verify checkpoint was saved to Redis
         mock_redis_client.set.assert_called()
 
     @pytest.mark.asyncio
-    async def test_cancel_metrics_recorded(
-        self,
-        execution_engine,
-        mock_metrics
-    ):
+    async def test_cancel_metrics_recorded(self, execution_engine, mock_metrics):
         """Metrics are recorded during cancellation."""
+
         async def long_running_task():
             try:
                 await asyncio.sleep(100)
@@ -191,15 +180,12 @@ class TestCancelActiveTask:
                 raise
 
         task = asyncio.create_task(long_running_task())
-        execution_engine.active_tasks['test-ticket'] = task
+        execution_engine.active_tasks["test-ticket"] = task
 
-        await execution_engine.cancel_active_task(
-            ticket_id='test-ticket',
-            reason='preemption'
-        )
+        await execution_engine.cancel_active_task(ticket_id="test-ticket", reason="preemption")
 
         # Verify metrics were recorded
-        mock_metrics.tasks_cancelled_total.labels.assert_called_with(reason='preemption')
+        mock_metrics.tasks_cancelled_total.labels.assert_called_with(reason="preemption")
         mock_metrics.tasks_preempted_total.inc.assert_called_once()
 
 
@@ -210,13 +196,11 @@ class TestSaveCheckpoint:
     async def test_save_checkpoint_success(self, execution_engine, mock_redis_client):
         """Successfully saves checkpoint."""
         result = await execution_engine._save_checkpoint(
-            ticket_id='test-ticket',
-            reason='preemption',
-            preempted_by='high-priority-ticket'
+            ticket_id="test-ticket", reason="preemption", preempted_by="high-priority-ticket"
         )
 
-        assert result['success'] is True
-        assert result['checkpoint_key'] == 'checkpoint:test-ticket'
+        assert result["success"] is True
+        assert result["checkpoint_key"] == "checkpoint:test-ticket"
         mock_redis_client.set.assert_called_once()
 
     @pytest.mark.asyncio
@@ -225,25 +209,23 @@ class TestSaveCheckpoint:
         execution_engine.redis_client = None
 
         result = await execution_engine._save_checkpoint(
-            ticket_id='test-ticket',
-            reason='preemption'
+            ticket_id="test-ticket", reason="preemption"
         )
 
-        assert result['success'] is False
-        assert 'Redis not available' in result['message']
+        assert result["success"] is False
+        assert "Redis not available" in result["message"]
 
     @pytest.mark.asyncio
     async def test_save_checkpoint_redis_error(self, execution_engine, mock_redis_client):
         """Handles Redis error gracefully."""
-        mock_redis_client.set.side_effect = Exception('Redis connection error')
+        mock_redis_client.set.side_effect = Exception("Redis connection error")
 
         result = await execution_engine._save_checkpoint(
-            ticket_id='test-ticket',
-            reason='preemption'
+            ticket_id="test-ticket", reason="preemption"
         )
 
-        assert result['success'] is False
-        assert 'Redis connection error' in result['message']
+        assert result["success"] is False
+        assert "Redis connection error" in result["message"]
 
 
 class TestExecuteTicketCancellation:
@@ -255,11 +237,11 @@ class TestExecuteTicketCancellation:
         execution_engine,
         mock_executor_registry,
         mock_ticket_client,
-        mock_dependency_coordinator
+        mock_dependency_coordinator,
     ):
         """_execute_ticket properly handles CancelledError."""
         # Mock the tracer
-        with patch('src.engine.execution_engine.get_tracer') as mock_get_tracer:
+        with patch("src.engine.execution_engine.get_tracer") as mock_get_tracer:
             mock_span = MagicMock()
             mock_span.__enter__ = MagicMock(return_value=mock_span)
             mock_span.__exit__ = MagicMock(return_value=None)
@@ -272,7 +254,7 @@ class TestExecuteTicketCancellation:
             # Mock executor that will be cancelled
             async def slow_execute(ticket):
                 await asyncio.sleep(100)
-                return {'success': True}
+                return {"success": True}
 
             mock_executor = AsyncMock()
             mock_executor.execute = slow_execute
@@ -281,15 +263,11 @@ class TestExecuteTicketCancellation:
             # Mock dependency coordinator to not block
             mock_dependency_coordinator.wait_for_dependencies = AsyncMock(return_value=None)
 
-            ticket = {
-                'ticket_id': 'test-ticket',
-                'task_type': 'test',
-                'sla': {'timeout_ms': 60000}
-            }
+            ticket = {"ticket_id": "test-ticket", "task_type": "test", "sla": {"timeout_ms": 60000}}
 
             # Start the execution
             task = asyncio.create_task(execution_engine._execute_ticket(ticket))
-            execution_engine.active_tasks['test-ticket'] = task
+            execution_engine.active_tasks["test-ticket"] = task
 
             # Give it a moment to start
             await asyncio.sleep(0.1)
@@ -308,6 +286,7 @@ class TestGracefulShutdownWithPreemption:
     @pytest.mark.asyncio
     async def test_shutdown_cancels_active_tasks(self, execution_engine, mock_metrics):
         """Shutdown cancels all active tasks."""
+
         async def long_running_task():
             try:
                 await asyncio.sleep(100)
@@ -317,7 +296,7 @@ class TestGracefulShutdownWithPreemption:
         # Create multiple active tasks
         for i in range(3):
             task = asyncio.create_task(long_running_task())
-            execution_engine.active_tasks[f'ticket-{i}'] = task
+            execution_engine.active_tasks[f"ticket-{i}"] = task
 
         # Shutdown with short timeout to force cancellation
         await execution_engine.shutdown(timeout_seconds=1)

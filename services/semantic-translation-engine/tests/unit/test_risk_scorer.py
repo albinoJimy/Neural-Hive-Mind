@@ -38,28 +38,20 @@ class TestRiskScorerMultiDomain:
         """Tasks seguras para teste"""
         return [
             TaskNode(
-                task_id='task-1',
-                task_type='query',
-                description='Query users',
-                dependencies=[]
+                task_id="task-1", task_type="query", description="Query users", dependencies=[]
             ),
             TaskNode(
-                task_id='task-2',
-                task_type='transform',
-                description='Transform data',
-                dependencies=['task-1']
-            )
+                task_id="task-2",
+                task_type="transform",
+                description="Transform data",
+                dependencies=["task-1"],
+            ),
         ]
 
     @pytest.fixture
     def intermediate_repr(self):
         """Representação intermediária de teste"""
-        return {
-            'metadata': {
-                'priority': 'high',
-                'security_level': 'confidential'
-            }
-        }
+        return {"metadata": {"priority": "high", "security_level": "confidential"}}
 
     def test_score_multi_domain_returns_four_values(
         self, risk_scorer, intermediate_repr, sample_tasks_safe
@@ -80,64 +72,56 @@ class TestRiskScorerMultiDomain:
         self, risk_scorer, intermediate_repr, sample_tasks_safe
     ):
         """Verificar que risk_matrix contém todos os campos do RiskMatrix"""
-        _, _, _, risk_matrix = risk_scorer.score_multi_domain(
-            intermediate_repr, sample_tasks_safe
-        )
+        _, _, _, risk_matrix = risk_scorer.score_multi_domain(intermediate_repr, sample_tasks_safe)
 
         # Verificar campos obrigatórios do RiskMatrix
-        assert 'entity_id' in risk_matrix
-        assert 'entity_type' in risk_matrix
-        assert 'assessments' in risk_matrix
-        assert 'overall_score' in risk_matrix
-        assert 'overall_band' in risk_matrix
-        assert 'highest_risk_domain' in risk_matrix
-        assert 'created_at' in risk_matrix
+        assert "entity_id" in risk_matrix
+        assert "entity_type" in risk_matrix
+        assert "assessments" in risk_matrix
+        assert "overall_score" in risk_matrix
+        assert "overall_band" in risk_matrix
+        assert "highest_risk_domain" in risk_matrix
+        assert "created_at" in risk_matrix
 
         # Verificar entity_type é 'plan'
-        assert risk_matrix['entity_type'] == 'plan'
+        assert risk_matrix["entity_type"] == "plan"
 
         # Verificar overall_score é float entre 0 e 1
-        assert isinstance(risk_matrix['overall_score'], float)
-        assert 0.0 <= risk_matrix['overall_score'] <= 1.0
+        assert isinstance(risk_matrix["overall_score"], float)
+        assert 0.0 <= risk_matrix["overall_score"] <= 1.0
 
         # Verificar que assessments contém todos os domínios
-        assessments = risk_matrix['assessments']
-        assert 'business' in assessments
-        assert 'security' in assessments
-        assert 'operational' in assessments
+        assessments = risk_matrix["assessments"]
+        assert "business" in assessments
+        assert "security" in assessments
+        assert "operational" in assessments
 
         # Verificar que cada assessment tem os campos esperados
         for domain, assessment in assessments.items():
-            assert 'score' in assessment
-            assert 'band' in assessment
-            assert 'domain' in assessment
-            assert 'factors' in assessment
-            assert isinstance(assessment['score'], float)
-            assert 0.0 <= assessment['score'] <= 1.0
+            assert "score" in assessment
+            assert "band" in assessment
+            assert "domain" in assessment
+            assert "factors" in assessment
+            assert isinstance(assessment["score"], float)
+            assert 0.0 <= assessment["score"] <= 1.0
 
     def test_score_multi_domain_aggregates_scores_correctly(
         self, risk_scorer, intermediate_repr, sample_tasks_safe
     ):
         """Verificar agregação de scores com pesos corretos"""
-        _, _, _, risk_matrix = risk_scorer.score_multi_domain(
-            intermediate_repr, sample_tasks_safe
-        )
+        _, _, _, risk_matrix = risk_scorer.score_multi_domain(intermediate_repr, sample_tasks_safe)
 
         # Extrair scores dos assessments
-        assessments = risk_matrix['assessments']
-        business_score = assessments['business']['score']
-        security_score = assessments['security']['score']
-        operational_score = assessments['operational']['score']
+        assessments = risk_matrix["assessments"]
+        business_score = assessments["business"]["score"]
+        security_score = assessments["security"]["score"]
+        operational_score = assessments["operational"]["score"]
 
         # Calcular manualmente com pesos
-        expected = (
-            business_score * 0.4 +
-            security_score * 0.35 +
-            operational_score * 0.25
-        )
+        expected = business_score * 0.4 + security_score * 0.35 + operational_score * 0.25
 
         # Overall deve ser próximo ao calculado (ou maior se floor aplicado)
-        assert risk_matrix['overall_score'] >= expected - 0.01
+        assert risk_matrix["overall_score"] >= expected - 0.01
 
     def test_score_multi_domain_safe_operations_no_floor(
         self, risk_scorer, intermediate_repr, sample_tasks_safe
@@ -147,15 +131,13 @@ class TestRiskScorerMultiDomain:
             intermediate_repr, sample_tasks_safe
         )
 
-        assert factors['destructive'] == 0.0
+        assert factors["destructive"] == 0.0
 
     def test_score_multi_domain_returns_valid_band(
         self, risk_scorer, intermediate_repr, sample_tasks_safe
     ):
         """Verificar que banda de risco é válida"""
-        _, band, _, _ = risk_scorer.score_multi_domain(
-            intermediate_repr, sample_tasks_safe
-        )
+        _, band, _, _ = risk_scorer.score_multi_domain(intermediate_repr, sample_tasks_safe)
 
         assert band in [RiskBand.LOW, RiskBand.MEDIUM, RiskBand.HIGH, RiskBand.CRITICAL]
 
@@ -163,20 +145,15 @@ class TestRiskScorerMultiDomain:
         self, risk_scorer, intermediate_repr, sample_tasks_safe
     ):
         """Verificar que highest_risk_domain é o domínio com maior score"""
-        _, _, _, risk_matrix = risk_scorer.score_multi_domain(
-            intermediate_repr, sample_tasks_safe
-        )
+        _, _, _, risk_matrix = risk_scorer.score_multi_domain(intermediate_repr, sample_tasks_safe)
 
-        assessments = risk_matrix['assessments']
-        domain_scores = {
-            domain: assessment['score']
-            for domain, assessment in assessments.items()
-        }
+        assessments = risk_matrix["assessments"]
+        domain_scores = {domain: assessment["score"] for domain, assessment in assessments.items()}
 
         # Encontrar domínio com maior score
         expected_highest = max(domain_scores, key=domain_scores.get)
 
-        assert risk_matrix['highest_risk_domain'] == expected_highest
+        assert risk_matrix["highest_risk_domain"] == expected_highest
 
 
 class TestRiskScorerFloorApplication:
@@ -202,32 +179,32 @@ class TestRiskScorerFloorApplication:
 
     def test_apply_risk_floor_low_severity(self, risk_scorer):
         """is_destructive=True, severity='low', base_score=0.5 → floor 0.7"""
-        result = risk_scorer._apply_risk_floor(0.5, True, 'low')
+        result = risk_scorer._apply_risk_floor(0.5, True, "low")
         assert result == 0.7
 
     def test_apply_risk_floor_medium_severity(self, risk_scorer):
         """is_destructive=True, severity='medium', base_score=0.6 → floor 0.7"""
-        result = risk_scorer._apply_risk_floor(0.6, True, 'medium')
+        result = risk_scorer._apply_risk_floor(0.6, True, "medium")
         assert result == 0.7
 
     def test_apply_risk_floor_high_severity(self, risk_scorer):
         """is_destructive=True, severity='high', base_score=0.5 → floor 0.8"""
-        result = risk_scorer._apply_risk_floor(0.5, True, 'high')
+        result = risk_scorer._apply_risk_floor(0.5, True, "high")
         assert result == 0.8
 
     def test_apply_risk_floor_critical_severity(self, risk_scorer):
         """is_destructive=True, severity='critical', base_score=0.7 → floor 0.9"""
-        result = risk_scorer._apply_risk_floor(0.7, True, 'critical')
+        result = risk_scorer._apply_risk_floor(0.7, True, "critical")
         assert result == 0.9
 
     def test_apply_risk_floor_no_change_if_above_floor(self, risk_scorer):
         """Score acima do floor não deve ser modificado"""
-        result = risk_scorer._apply_risk_floor(0.85, True, 'low')
+        result = risk_scorer._apply_risk_floor(0.85, True, "low")
         assert result == 0.85
 
     def test_apply_risk_floor_not_applied_for_safe_operations(self, risk_scorer):
         """is_destructive=False não aplica floor"""
-        result = risk_scorer._apply_risk_floor(0.3, False, 'low')
+        result = risk_scorer._apply_risk_floor(0.3, False, "low")
         assert result == 0.3
 
 
@@ -257,22 +234,17 @@ class TestRiskScorerDestructiveIntegration:
         """Tasks destrutivas para teste"""
         return [
             TaskNode(
-                task_id='task-1',
-                task_type='delete',
-                description='Delete old records',
-                dependencies=[]
+                task_id="task-1",
+                task_type="delete",
+                description="Delete old records",
+                dependencies=[],
             )
         ]
 
     @pytest.fixture
     def intermediate_repr(self):
         """Representação intermediária de teste"""
-        return {
-            'metadata': {
-                'priority': 'medium',
-                'security_level': 'internal'
-            }
-        }
+        return {"metadata": {"priority": "medium", "security_level": "internal"}}
 
     def test_score_multi_domain_integrates_destructive_detector(
         self, risk_scorer, intermediate_repr, sample_tasks_destructive
@@ -284,7 +256,7 @@ class TestRiskScorerDestructiveIntegration:
 
         # Floor deve ser aplicado para operação destrutiva
         assert score >= 0.7
-        assert factors['destructive'] == 1.0
+        assert factors["destructive"] == 1.0
 
     def test_score_multi_domain_destructive_tasks_in_factors(
         self, risk_scorer, intermediate_repr, sample_tasks_destructive
@@ -294,31 +266,28 @@ class TestRiskScorerDestructiveIntegration:
             intermediate_repr, sample_tasks_destructive
         )
 
-        assert factors['destructive'] == 1.0
+        assert factors["destructive"] == 1.0
 
     def test_score_multi_domain_safe_tasks_in_factors(self, risk_scorer, intermediate_repr):
         """Tasks seguras devem ter destructive=0.0 em factors"""
         safe_tasks = [
             TaskNode(
-                task_id='task-1',
-                task_type='query',
-                description='Query users',
-                dependencies=[]
+                task_id="task-1", task_type="query", description="Query users", dependencies=[]
             )
         ]
         _, _, factors, _ = risk_scorer.score_multi_domain(intermediate_repr, safe_tasks)
 
-        assert factors['destructive'] == 0.0
+        assert factors["destructive"] == 0.0
 
     def test_score_multi_domain_severity_affects_floor(self, risk_scorer, intermediate_repr):
         """Diferentes severidades devem resultar em diferentes floors"""
         # Criar tasks que triggeram critical severity (high impact indicator)
         critical_tasks = [
             TaskNode(
-                task_id='task-1',
-                task_type='delete',
-                description='Delete all production data',
-                dependencies=[]
+                task_id="task-1",
+                task_type="delete",
+                description="Delete all production data",
+                dependencies=[],
             )
         ]
 
@@ -404,26 +373,16 @@ class TestRiskScorerBackwardCompatibility:
         """Tasks de teste"""
         return [
             TaskNode(
-                task_id='task-1',
-                task_type='query',
-                description='Query users',
-                dependencies=[]
+                task_id="task-1", task_type="query", description="Query users", dependencies=[]
             )
         ]
 
     @pytest.fixture
     def intermediate_repr(self):
         """Representação intermediária de teste"""
-        return {
-            'metadata': {
-                'priority': 'medium',
-                'security_level': 'internal'
-            }
-        }
+        return {"metadata": {"priority": "medium", "security_level": "internal"}}
 
-    def test_score_method_still_works(
-        self, risk_scorer, intermediate_repr, sample_tasks
-    ):
+    def test_score_method_still_works(self, risk_scorer, intermediate_repr, sample_tasks):
         """Verificar que método score() original ainda funciona"""
         result = risk_scorer.score(intermediate_repr, sample_tasks)
 
@@ -480,24 +439,16 @@ class TestRiskScorerLogging:
         """Tasks de teste"""
         return [
             TaskNode(
-                task_id='task-1',
-                task_type='query',
-                description='Query users',
-                dependencies=[]
+                task_id="task-1", task_type="query", description="Query users", dependencies=[]
             )
         ]
 
     @pytest.fixture
     def intermediate_repr(self):
         """Representação intermediária de teste"""
-        return {
-            'metadata': {
-                'priority': 'medium',
-                'security_level': 'internal'
-            }
-        }
+        return {"metadata": {"priority": "medium", "security_level": "internal"}}
 
-    @patch('src.services.risk_scorer.logger')
+    @patch("src.services.risk_scorer.logger")
     def test_score_multi_domain_logs_structured_data(
         self, mock_logger, risk_scorer, intermediate_repr, sample_tasks
     ):
@@ -508,20 +459,18 @@ class TestRiskScorerLogging:
         call_args = mock_logger.info.call_args
 
         # Verificar que foi chamado com campos esperados
-        assert 'risk_score' in call_args.kwargs or 'risk_score=' in str(call_args)
+        assert "risk_score" in call_args.kwargs or "risk_score=" in str(call_args)
 
-    @patch('src.services.risk_scorer.logger')
-    def test_apply_risk_floor_logs_warning_when_applied(
-        self, mock_logger, risk_scorer
-    ):
+    @patch("src.services.risk_scorer.logger")
+    def test_apply_risk_floor_logs_warning_when_applied(self, mock_logger, risk_scorer):
         """Verificar que warning é emitido quando floor é aplicado"""
-        risk_scorer._apply_risk_floor(0.5, True, 'low')
+        risk_scorer._apply_risk_floor(0.5, True, "low")
 
         mock_logger.warning.assert_called()
         call_args = mock_logger.warning.call_args
 
         # Verificar mensagem de warning
-        assert 'Floor de risco aplicado' in call_args.args[0]
+        assert "Floor de risco aplicado" in call_args.args[0]
 
 
 class TestRiskScorerEdgeCases:
@@ -548,18 +497,11 @@ class TestRiskScorerEdgeCases:
     @pytest.fixture
     def intermediate_repr(self):
         """Representação intermediária de teste"""
-        return {
-            'metadata': {
-                'priority': 'medium',
-                'security_level': 'internal'
-            }
-        }
+        return {"metadata": {"priority": "medium", "security_level": "internal"}}
 
     def test_score_multi_domain_empty_tasks_list(self, risk_scorer, intermediate_repr):
         """Lista vazia de tasks não deve causar erro"""
-        score, band, factors, matrix = risk_scorer.score_multi_domain(
-            intermediate_repr, []
-        )
+        score, band, factors, matrix = risk_scorer.score_multi_domain(intermediate_repr, [])
 
         # Deve retornar resultado válido
         assert isinstance(score, float)
@@ -568,13 +510,10 @@ class TestRiskScorerEdgeCases:
 
     def test_score_multi_domain_missing_metadata(self, risk_scorer):
         """intermediate_repr sem campos obrigatórios deve usar valores padrão"""
-        empty_repr = {'metadata': {}}
+        empty_repr = {"metadata": {}}
         tasks = [
             TaskNode(
-                task_id='task-1',
-                task_type='query',
-                description='Query users',
-                dependencies=[]
+                task_id="task-1", task_type="query", description="Query users", dependencies=[]
             )
         ]
 
@@ -589,17 +528,17 @@ class TestRiskScorerEdgeCases:
         # Criar 20 tasks com dependências
         tasks = []
         for i in range(20):
-            deps = [f'task-{j}' for j in range(max(0, i-3), i)]
-            tasks.append(TaskNode(
-                task_id=f'task-{i}',
-                task_type='transform',
-                description=f'Transform data {i}',
-                dependencies=deps
-            ))
+            deps = [f"task-{j}" for j in range(max(0, i - 3), i)]
+            tasks.append(
+                TaskNode(
+                    task_id=f"task-{i}",
+                    task_type="transform",
+                    description=f"Transform data {i}",
+                    dependencies=deps,
+                )
+            )
 
-        score, band, factors, matrix = risk_scorer.score_multi_domain(
-            intermediate_repr, tasks
-        )
+        score, band, factors, matrix = risk_scorer.score_multi_domain(intermediate_repr, tasks)
 
         # Score deve ser elevado devido à complexidade
         assert score > 0.3  # Score não trivial esperado

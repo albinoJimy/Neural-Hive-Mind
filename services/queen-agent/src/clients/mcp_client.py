@@ -38,15 +38,12 @@ class MCPClientError(Exception):
     """Erro base do cliente MCP."""
 
 
-
 class MCPConnectionError(MCPClientError):
     """Erro de conexão com servidor MCP."""
 
 
-
 class MCPToolExecutionError(MCPClientError):
     """Erro na execução de ferramenta MCP."""
-
 
 
 class MCPClient:

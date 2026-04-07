@@ -7,8 +7,8 @@ from typing import Dict, Any
 from unittest.mock import Mock
 
 # Configurar paths
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
-sys.path.insert(0, '/app/libraries/python')
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
+sys.path.insert(0, "/app/libraries/python")
 
 
 class MockMLflowClient:
@@ -17,7 +17,7 @@ class MockMLflowClient:
     def __init__(self, model_available: bool = True):
         self._enabled = True
         self._model_available = model_available
-        self._model_metadata = {'version': 'v1.0.5', 'stage': 'Production'}
+        self._model_metadata = {"version": "v1.0.5", "stage": "Production"}
 
     def is_enabled(self) -> bool:
         return self._enabled
@@ -43,12 +43,16 @@ class MockArchitectureModel:
 
     def __init__(self):
         self.feature_names_in_ = [
-            'design_patterns_score', 'solid_score', 'coupling_cohesion_score',
-            'separation_score', 'modularity_score'
+            "design_patterns_score",
+            "solid_score",
+            "coupling_cohesion_score",
+            "separation_score",
+            "modularity_score",
         ]
 
     def predict(self, X):
         import numpy as np
+
         if len(X.shape) > 1:
             return np.where(X.mean(axis=1) > 0.5, 1, 0)
         return 1 if X.mean() > 0.5 else 0
@@ -62,11 +66,11 @@ def mock_mlflow_client():
 @pytest.fixture
 def sample_architecture_features():
     return {
-        'design_patterns_score': 0.80,
-        'solid_score': 0.75,
-        'coupling_cohesion_score': 0.70,
-        'separation_score': 0.85,
-        'modularity_score': 0.65
+        "design_patterns_score": 0.80,
+        "solid_score": 0.75,
+        "coupling_cohesion_score": 0.70,
+        "separation_score": 0.85,
+        "modularity_score": 0.65,
     }
 
 
@@ -75,15 +79,13 @@ class TestMLModelLoading:
 
     def test_load_architecture_model_success(self, mock_mlflow_client):
         model = mock_mlflow_client.load_model_with_fallback(
-            'specialist_architecture_model', 'Production'
+            "specialist_architecture_model", "Production"
         )
         assert model is not None
 
     def test_load_architecture_model_unavailable(self):
         client = MockMLflowClient(model_available=False)
-        model = client.load_model_with_fallback(
-            'specialist_architecture_model', 'Production'
-        )
+        model = client.load_model_with_fallback("specialist_architecture_model", "Production")
         assert model is None
 
 
@@ -92,17 +94,22 @@ class TestMLModelPrediction:
 
     def test_predict_architecture_design(self, mock_mlflow_client, sample_architecture_features):
         model = mock_mlflow_client.load_model_with_fallback(
-            'specialist_architecture_model', 'Production'
+            "specialist_architecture_model", "Production"
         )
 
         import numpy as np
-        X = np.array([[
-            sample_architecture_features['design_patterns_score'],
-            sample_architecture_features['solid_score'],
-            sample_architecture_features['coupling_cohesion_score'],
-            sample_architecture_features['separation_score'],
-            sample_architecture_features['modularity_score']
-        ]])
+
+        X = np.array(
+            [
+                [
+                    sample_architecture_features["design_patterns_score"],
+                    sample_architecture_features["solid_score"],
+                    sample_architecture_features["coupling_cohesion_score"],
+                    sample_architecture_features["separation_score"],
+                    sample_architecture_features["modularity_score"],
+                ]
+            ]
+        )
 
         prediction = model.predict(X)
         assert prediction[0] in [0, 1]
@@ -115,11 +122,11 @@ class TestHeuristicFallback:
         ml_model = None
 
         heuristic_score = (
-            sample_architecture_features['design_patterns_score'] * 0.25 +
-            sample_architecture_features['solid_score'] * 0.25 +
-            sample_architecture_features['coupling_cohesion_score'] * 0.20 +
-            sample_architecture_features['separation_score'] * 0.15 +
-            sample_architecture_features['modularity_score'] * 0.15
+            sample_architecture_features["design_patterns_score"] * 0.25
+            + sample_architecture_features["solid_score"] * 0.25
+            + sample_architecture_features["coupling_cohesion_score"] * 0.20
+            + sample_architecture_features["separation_score"] * 0.15
+            + sample_architecture_features["modularity_score"] * 0.15
         )
 
         assert 0.0 <= heuristic_score <= 1.0
@@ -132,14 +139,8 @@ class TestCachePredictions:
         import hashlib
         import json
 
-        features = {
-            'design_patterns_score': 0.80,
-            'solid_score': 0.75,
-            'modularity_score': 0.65
-        }
+        features = {"design_patterns_score": 0.80, "solid_score": 0.75, "modularity_score": 0.65}
 
-        cache_key = hashlib.md5(
-            json.dumps(features, sort_keys=True).encode()
-        ).hexdigest()
+        cache_key = hashlib.md5(json.dumps(features, sort_keys=True).encode()).hexdigest()
 
         assert len(cache_key) == 32

@@ -111,5 +111,7 @@ class BaseTaskExecutor(ABC):
                 ticket_id, template_id, parameters
             )
         except Exception as exc:
-            self.logger.exception("code_forge_submission_failed", ticket_id=ticket_id, error=str(exc))
+            self.logger.exception(
+                "code_forge_submission_failed", ticket_id=ticket_id, error=str(exc)
+            )
             return None

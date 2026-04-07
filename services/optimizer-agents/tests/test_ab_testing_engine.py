@@ -34,21 +34,25 @@ def mock_mongodb_client():
     client.get_ab_test_results = AsyncMock(return_value=None)
     client.list_ab_test_results = AsyncMock(return_value=[])
     client.get_ab_test_history = AsyncMock(return_value=[])
-    client.get_ab_test_aggregations = AsyncMock(return_value={
-        "period": {"days": 30},
-        "total_experiments": 0,
-        "completed_experiments": 0,
-        "recommendations_count": {"APPLY": 0, "REJECT": 0, "INCONCLUSIVE": 0},
-        "avg_confidence": 0.0,
-        "win_rate": 0.0,
-        "avg_sample_size": 0,
-    })
-    client.get_ab_test_dashboard = AsyncMock(return_value={
-        "period": {"days": 30},
-        "total_experiments": 0,
-        "top_experiments": [],
-        "metric_breakdown": {},
-    })
+    client.get_ab_test_aggregations = AsyncMock(
+        return_value={
+            "period": {"days": 30},
+            "total_experiments": 0,
+            "completed_experiments": 0,
+            "recommendations_count": {"APPLY": 0, "REJECT": 0, "INCONCLUSIVE": 0},
+            "avg_confidence": 0.0,
+            "win_rate": 0.0,
+            "avg_sample_size": 0,
+        }
+    )
+    client.get_ab_test_dashboard = AsyncMock(
+        return_value={
+            "period": {"days": 30},
+            "total_experiments": 0,
+            "top_experiments": [],
+            "metric_breakdown": {},
+        }
+    )
     return client
 
 
@@ -138,7 +142,9 @@ class TestABTestingEngineAssignment:
     """Testes para atribuicao de grupos."""
 
     @pytest.mark.asyncio
-    async def test_assign_to_group_deterministic(self, ab_engine, mock_mongodb_client, mock_redis_client):
+    async def test_assign_to_group_deterministic(
+        self, ab_engine, mock_mongodb_client, mock_redis_client
+    ):
         """Testar que atribuicao e deterministica."""
         # Setup experiment config
         mock_mongodb_client.get_experiment.return_value = {
@@ -176,7 +182,9 @@ class TestABTestingEngineAssignment:
         assert group1 == group2
 
     @pytest.mark.asyncio
-    async def test_assign_to_group_balanced(self, ab_engine, mock_mongodb_client, mock_redis_client):
+    async def test_assign_to_group_balanced(
+        self, ab_engine, mock_mongodb_client, mock_redis_client
+    ):
         """Testar balanceamento aproximado de 50/50."""
         mock_mongodb_client.get_experiment.return_value = {
             "experiment_id": "test-exp-balance",
@@ -237,7 +245,9 @@ class TestABTestingEngineAnalysis:
     """Testes para analise de resultados."""
 
     @pytest.mark.asyncio
-    async def test_analyze_results_significant(self, ab_engine, mock_mongodb_client, mock_redis_client):
+    async def test_analyze_results_significant(
+        self, ab_engine, mock_mongodb_client, mock_redis_client
+    ):
         """Testar analise com resultado estatisticamente significativo."""
         # Setup experiment config
         mock_mongodb_client.get_experiment.return_value = {
@@ -277,7 +287,9 @@ class TestABTestingEngineAnalysis:
         assert results.treatment_size == 500
 
     @pytest.mark.asyncio
-    async def test_analyze_results_not_significant(self, ab_engine, mock_mongodb_client, mock_redis_client):
+    async def test_analyze_results_not_significant(
+        self, ab_engine, mock_mongodb_client, mock_redis_client
+    ):
         """Testar analise sem significancia estatistica."""
         mock_mongodb_client.get_experiment.return_value = {
             "experiment_id": "test-exp-nosig",
@@ -317,7 +329,9 @@ class TestABTestingEngineEarlyStopping:
     """Testes para parada antecipada."""
 
     @pytest.mark.asyncio
-    async def test_early_stopping_when_significant(self, ab_engine, mock_mongodb_client, mock_redis_client):
+    async def test_early_stopping_when_significant(
+        self, ab_engine, mock_mongodb_client, mock_redis_client
+    ):
         """Testar parada antecipada quando significancia e atingida."""
         mock_mongodb_client.get_experiment.return_value = {
             "experiment_id": "test-exp-early",
@@ -390,7 +404,9 @@ class TestABTestingEnginePersistence:
     """Testes para persistencia de resultados de A/B testing."""
 
     @pytest.mark.asyncio
-    async def test_analyze_results_persists_to_mongodb(self, ab_engine, mock_mongodb_client, mock_redis_client):
+    async def test_analyze_results_persists_to_mongodb(
+        self, ab_engine, mock_mongodb_client, mock_redis_client
+    ):
         """Testar que resultados sao persistidos no MongoDB apos analise."""
         # Setup experiment config
         mock_mongodb_client.get_experiment.return_value = {
@@ -442,7 +458,9 @@ class TestABTestingEnginePersistence:
         assert "primary_metrics_analysis" in results_dict
 
     @pytest.mark.asyncio
-    async def test_analyze_results_handles_persistence_error(self, ab_engine, mock_mongodb_client, mock_redis_client):
+    async def test_analyze_results_handles_persistence_error(
+        self, ab_engine, mock_mongodb_client, mock_redis_client
+    ):
         """Testar que erros de persistencia nao quebram a analise."""
         mock_mongodb_client.get_experiment.return_value = {
             "experiment_id": "test-exp-error",
@@ -526,10 +544,12 @@ class TestMongoDBClientABTestingPersistence:
     async def test_get_ab_test_results_integration(self, mock_mongodb_client):
         """Testar integracao de recuperar resultados de A/B testing."""
         # Setup mock para retornar dados
-        mock_mongodb_client.get_ab_test_results = AsyncMock(return_value={
-            "experiment_id": "exp-123",
-            "statistical_recommendation": "APPLY",
-        })
+        mock_mongodb_client.get_ab_test_results = AsyncMock(
+            return_value={
+                "experiment_id": "exp-123",
+                "statistical_recommendation": "APPLY",
+            }
+        )
 
         results = await mock_mongodb_client.get_ab_test_results("exp-123")
 

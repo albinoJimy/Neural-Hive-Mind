@@ -21,7 +21,7 @@ def sample_plan():
             Component(name="auth-service", stack="python/fastapi"),
         ],
         patterns=[Pattern.REPOSITORY, Pattern.SAGA],
-        rationale="API gateway pattern"
+        rationale="API gateway pattern",
     )
 
 
@@ -34,7 +34,7 @@ def sample_implemented():
             {"name": "auth-service", "stack": "nodejs/express"},  # Stack divergiu
         ],
         "patterns": ["repository"],  # SAGA não aplicado
-        "tech_stack": {"frameworks": ["python/fastapi", "nodejs/express"]}
+        "tech_stack": {"frameworks": ["python/fastapi", "nodejs/express"]},
     }
 
 
@@ -73,7 +73,7 @@ def test_detect_drifts_no_drifts_when_match(detector, sample_plan):
             {"name": "auth-service", "stack": "python/fastapi"},
         ],
         "patterns": ["repository", "saga"],
-        "tech_stack": {"frameworks": ["python/fastapi"]}
+        "tech_stack": {"frameworks": ["python/fastapi"]},
     }
 
     drifts = detector.detect_drifts(sample_plan, implemented)
@@ -88,7 +88,7 @@ def test_detect_drifts_missing_component(detector, sample_plan):
             # auth-service missing
         ],
         "patterns": ["repository"],
-        "tech_stack": {"frameworks": ["python/fastapi"]}
+        "tech_stack": {"frameworks": ["python/fastapi"]},
     }
 
     drifts = detector.detect_drifts(sample_plan, implemented)
@@ -104,7 +104,7 @@ def test_detect_drifts_architecture_type_change(detector, sample_plan):
             {"name": "api-gateway", "stack": "python/fastapi"},
         ],
         "patterns": ["repository"],
-        "tech_stack": {"frameworks": ["python/fastapi"]}
+        "tech_stack": {"frameworks": ["python/fastapi"]},
     }
 
     drifts = detector.detect_drifts(sample_plan, implemented)
@@ -133,7 +133,7 @@ def test_calculate_diff_detects_additions(calculator, sample_plan):
             Component(name="payment-service", stack="python/fastapi"),  # New
         ],
         patterns=[Pattern.REPOSITORY],
-        rationale="Updated"
+        rationale="Updated",
     )
 
     diff = calculator.calculate_diff(sample_plan, new_plan)
@@ -150,7 +150,7 @@ def test_calculate_diff_detects_removals(calculator, sample_plan):
             # auth-service removed
         ],
         patterns=[Pattern.REPOSITORY],
-        rationale="Updated"
+        rationale="Updated",
     )
 
     diff = calculator.calculate_diff(sample_plan, new_plan)
@@ -167,7 +167,7 @@ def test_calculate_diff_detects_stack_modifications(calculator, sample_plan):
             Component(name="auth-service", stack="python/fastapi"),
         ],
         patterns=[Pattern.REPOSITORY],
-        rationale="Updated"
+        rationale="Updated",
     )
 
     diff = calculator.calculate_diff(sample_plan, new_plan)
@@ -182,7 +182,7 @@ def test_calculate_diff_detects_migration_required(calculator, sample_plan):
         architecture_type=ArchitectureType.MONOLITH,  # Type change
         components=sample_plan.components,
         patterns=sample_plan.patterns,
-        rationale="Updated"
+        rationale="Updated",
     )
 
     diff = calculator.calculate_diff(sample_plan, new_plan)
@@ -207,7 +207,7 @@ def test_calculate_diff_migration_with_replicas_change(calculator):
             Component(name="api-gateway", stack="python/fastapi", replicas=1),
         ],
         patterns=[],
-        rationale="Old"
+        rationale="Old",
     )
 
     new_plan = ArchitecturePlan(
@@ -218,7 +218,7 @@ def test_calculate_diff_migration_with_replicas_change(calculator):
             Component(name="api-gateway", stack="python/fastapi", replicas=3),  # Changed
         ],
         patterns=[],
-        rationale="New"
+        rationale="New",
     )
 
     diff = calculator.calculate_diff(old_plan, new_plan)
@@ -232,7 +232,7 @@ def test_calculate_diff_fields_match_plans(calculator, sample_plan):
         architecture_type=ArchitectureType.MICROSERVICES,
         components=[],
         patterns=[],
-        rationale="New"
+        rationale="New",
     )
 
     diff = calculator.calculate_diff(sample_plan, new_plan)
@@ -247,6 +247,7 @@ async def test_evolution_tracker_initializes():
     mock_session.client = Mock()
 
     from src.evolution.evolution_tracker import EvolutionTracker
+
     tracker = EvolutionTracker(mock_session)
 
     assert tracker.drift_detector is not None
@@ -262,10 +263,13 @@ async def test_record_evolution_creates_history(sample_plan):
     mock_collection.insert_one = AsyncMock()
 
     # Configurar mock para encadeamento de subscritos
-    mock_db.__getitem__ = Mock(side_effect=lambda key: mock_db if key != "evolution_history" else mock_collection)
+    mock_db.__getitem__ = Mock(
+        side_effect=lambda key: mock_db if key != "evolution_history" else mock_collection
+    )
     mock_session.client = mock_db
 
     from src.evolution.evolution_tracker import EvolutionTracker
+
     tracker = EvolutionTracker(mock_session)
 
     # Criar histórico diretamente sem mockar db (teste unitário simplificado)
@@ -280,7 +284,7 @@ async def test_record_evolution_creates_history(sample_plan):
         changes=["Added new component"],
         drifts=[],
         created_at=datetime.now(timezone.utc),
-        created_by="test-user"
+        created_by="test-user",
     )
 
     assert history.plan_id == "arch-123"
@@ -308,20 +312,23 @@ async def test_get_history_returns_list():
 
     mock_session.client = mock_db
     mock_db.__getitem__ = Mock(return_value=mock_db)
-    mock_cursor.to_list = AsyncMock(return_value=[
-        {
-            "history_id": "evo-123",
-            "plan_id": "arch-123",
-            "version": 1,
-            "changes": ["Initial version"],
-            "drifts": [],
-            "created_at": datetime.now(timezone.utc).isoformat(),
-            "created_by": "architect-agent"
-        }
-    ])
+    mock_cursor.to_list = AsyncMock(
+        return_value=[
+            {
+                "history_id": "evo-123",
+                "plan_id": "arch-123",
+                "version": 1,
+                "changes": ["Initial version"],
+                "drifts": [],
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "created_by": "architect-agent",
+            }
+        ]
+    )
     mock_db.find.return_value.sort.return_value.limit.return_value = mock_cursor
 
     from src.evolution.evolution_tracker import EvolutionTracker
+
     tracker = EvolutionTracker(mock_session)
 
     with patch.object(tracker, "db", mock_db):
@@ -337,6 +344,7 @@ async def test_calculate_diff_placeholder():
     mock_session.client = Mock()
 
     from src.evolution.evolution_tracker import EvolutionTracker
+
     tracker = EvolutionTracker(mock_session)
 
     diff = await tracker.calculate_diff("arch-old", "arch-new")

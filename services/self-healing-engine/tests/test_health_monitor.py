@@ -21,8 +21,7 @@ class TestHealthMonitor:
     def health_monitor(self, mock_service_registry_client):
         """Fixture do HealthMonitor."""
         return HealthMonitor(
-            service_registry_client=mock_service_registry_client,
-            check_interval_seconds=30
+            service_registry_client=mock_service_registry_client, check_interval_seconds=30
         )
 
     @pytest.mark.asyncio
@@ -66,11 +65,14 @@ class TestHealthMonitor:
         # Mock do AIOKafkaConsumer com métodos sincrónicos para committed/highwater
         with patch("aiokafka.AIOKafkaConsumer") as mock_consumer_class:
             mock_consumer = MagicMock()
+
             # committed e highwater retornam coroutines
             async def mock_committed(tps):
                 return {TopicPartition("test-topic", 0): 1000}
+
             async def mock_highwater(tps):
                 return {TopicPartition("test-topic", 0): 1050}
+
             async def mock_stop():
                 pass
 
@@ -80,10 +82,7 @@ class TestHealthMonitor:
             mock_consumer.partitions_for_topic = MagicMock(return_value=[0])
             mock_consumer_class.return_value = mock_consumer
 
-            lag_status = await health_monitor.check_kafka_consumer_lag(
-                "test-group",
-                "test-topic"
-            )
+            lag_status = await health_monitor.check_kafka_consumer_lag("test-group", "test-topic")
 
         assert lag_status.lag == 50
         assert lag_status.within_threshold is True
@@ -97,10 +96,13 @@ class TestHealthMonitor:
 
         with patch("aiokafka.AIOKafkaConsumer") as mock_consumer_class:
             mock_consumer = MagicMock()
+
             async def mock_committed(tps):
                 return {TopicPartition("test-topic", 0): 1000}
+
             async def mock_highwater(tps):
                 return {TopicPartition("test-topic", 0): 15000}
+
             async def mock_stop():
                 pass
 
@@ -110,10 +112,7 @@ class TestHealthMonitor:
             mock_consumer.partitions_for_topic = MagicMock(return_value=[0])
             mock_consumer_class.return_value = mock_consumer
 
-            lag_status = await health_monitor.check_kafka_consumer_lag(
-                "test-group",
-                "test-topic"
-            )
+            lag_status = await health_monitor.check_kafka_consumer_lag("test-group", "test-topic")
 
         assert lag_status.lag == 14000
         assert lag_status.within_threshold is False
@@ -126,9 +125,7 @@ class TestHealthMonitor:
             mock_client.admin.command = AsyncMock(return_value={"ok": 1.0})
             mock_client_class.return_value = mock_client
 
-            status = await health_monitor.check_database_connection(
-                "mongodb://localhost:27017"
-            )
+            status = await health_monitor.check_database_connection("mongodb://localhost:27017")
 
         assert status.connected is True
         assert status.connection_string == "mongodb://localhost:27017"
@@ -139,9 +136,7 @@ class TestHealthMonitor:
         with patch("motor.motor_asyncio.AsyncIOMotorClient") as mock_client_class:
             mock_client_class.side_effect = Exception("Connection refused")
 
-            status = await health_monitor.check_database_connection(
-                "mongodb://localhost:27017"
-            )
+            status = await health_monitor.check_database_connection("mongodb://localhost:27017")
 
         assert status.connected is False
         assert status.error is not None
@@ -149,9 +144,7 @@ class TestHealthMonitor:
     def test_health_status_model(self):
         """Testa o modelo HealthStatus."""
         status = HealthStatus(
-            service_name="test-service",
-            healthy=True,
-            checked_at=datetime.now(timezone.utc)
+            service_name="test-service", healthy=True, checked_at=datetime.now(timezone.utc)
         )
         assert status.service_name == "test-service"
         assert status.healthy is True
@@ -163,7 +156,7 @@ class TestHealthMonitor:
             topic="test-topic",
             lag=100,
             threshold=10000,
-            within_threshold=True
+            within_threshold=True,
         )
         assert status.lag == 100
         assert status.within_threshold is True
@@ -171,9 +164,7 @@ class TestHealthMonitor:
     def test_connection_status_model(self):
         """Testa o modelo ConnectionStatus."""
         status = ConnectionStatus(
-            connection_string="mongodb://localhost:27017",
-            connected=True,
-            database_type="mongodb"
+            connection_string="mongodb://localhost:27017", connected=True, database_type="mongodb"
         )
         assert status.connected is True
         assert status.database_type == "mongodb"

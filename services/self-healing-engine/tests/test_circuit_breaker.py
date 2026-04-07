@@ -17,7 +17,7 @@ from datetime import datetime, timedelta
 from src.services.circuit_breaker import (
     CircuitBreaker,
     CircuitBreakerState,
-    CircuitBreakerOpenError
+    CircuitBreakerOpenError,
 )
 
 
@@ -26,11 +26,7 @@ class TestCircuitBreaker:
 
     def test_initial_state(self):
         """Testa estado inicial do circuit breaker."""
-        cb = CircuitBreaker(
-            service_name="test-service",
-            failure_threshold=3,
-            timeout_seconds=60
-        )
+        cb = CircuitBreaker(service_name="test-service", failure_threshold=3, timeout_seconds=60)
         assert cb.state == CircuitBreakerState.CLOSED
         assert cb.failure_count == 0
         assert cb.last_failure_time is None
@@ -89,6 +85,7 @@ class TestCircuitBreaker:
 
         # Aguardar timeout
         import time
+
         time.sleep(1.5)
 
         # Tentar chamar deve transicionar para HALF_OPEN
@@ -99,7 +96,9 @@ class TestCircuitBreaker:
 
     def test_half_open_to_closed_on_success(self):
         """Testa transição HALF_OPEN → CLOSED após sucesso."""
-        cb = CircuitBreaker("test-service", failure_threshold=2, timeout_seconds=1, half_open_max_calls=1)
+        cb = CircuitBreaker(
+            "test-service", failure_threshold=2, timeout_seconds=1, half_open_max_calls=1
+        )
 
         cb.record_failure("Error 1")
         cb.record_failure("Error 2")
@@ -107,6 +106,7 @@ class TestCircuitBreaker:
 
         # Aguardar timeout fora do teste assíncrono
         import time
+
         time.sleep(1.5)
 
         # Primeira chamada após sucesso deve fechar o circuito (half_open_max_calls=1)
@@ -118,13 +118,16 @@ class TestCircuitBreaker:
 
     def test_half_open_to_open_on_failure(self):
         """Testa transição HALF_OPEN → OPEN após falha."""
-        cb = CircuitBreaker("test-service", failure_threshold=2, timeout_seconds=1, half_open_max_calls=1)
+        cb = CircuitBreaker(
+            "test-service", failure_threshold=2, timeout_seconds=1, half_open_max_calls=1
+        )
 
         cb.record_failure("Error 1")
         cb.record_failure("Error 2")
         assert cb.state == CircuitBreakerState.OPEN
 
         import time
+
         time.sleep(1.5)
 
         # Falha em HALF_OPEN deve reabrir

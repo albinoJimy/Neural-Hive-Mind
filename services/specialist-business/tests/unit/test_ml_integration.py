@@ -7,8 +7,8 @@ from typing import Dict, Any, List
 from unittest.mock import AsyncMock, MagicMock, Mock
 
 # Configurar paths
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
-sys.path.insert(0, '/app/libraries/python')
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
+sys.path.insert(0, "/app/libraries/python")
 
 
 class MockMLflowClient:
@@ -18,9 +18,9 @@ class MockMLflowClient:
         self._enabled = True
         self._model_available = model_available
         self._model_metadata = {
-            'version': 'v2.1.0',
-            'stage': 'Production',
-            'run_id': 'business-run-456'
+            "version": "v2.1.0",
+            "stage": "Production",
+            "run_id": "business-run-456",
         }
 
     def is_enabled(self) -> bool:
@@ -47,14 +47,19 @@ class MockBusinessModel:
 
     def __init__(self):
         self.feature_names_in_ = [
-            'business_value', 'roi_score', 'cost_benefit_ratio',
-            'process_efficiency', 'strategic_alignment', 'market_impact'
+            "business_value",
+            "roi_score",
+            "cost_benefit_ratio",
+            "process_efficiency",
+            "strategic_alignment",
+            "market_impact",
         ]
         self.n_features_in_ = len(self.feature_names_in_)
 
     def predict(self, X):
         """Predição mock."""
         import numpy as np
+
         if len(X.shape) > 1:
             avg_scores = X.mean(axis=1)
             return np.where(avg_scores > 0.5, 1, 0)
@@ -63,6 +68,7 @@ class MockBusinessModel:
     def predict_proba(self, X):
         """Probabilidades mock."""
         import numpy as np
+
         if len(X.shape) > 1:
             avg_scores = X.mean(axis=1)
             proba_approve = avg_scores
@@ -74,6 +80,7 @@ class MockBusinessModel:
     def feature_importances_(self):
         """Importância de features mock."""
         import numpy as np
+
         return np.array([0.25, 0.20, 0.18, 0.15, 0.12, 0.10])
 
 
@@ -93,12 +100,12 @@ def mock_mlflow_client_unavailable():
 def sample_business_features():
     """Features de exemplo para predição de negócio."""
     return {
-        'business_value': 0.85,
-        'roi_score': 0.75,
-        'cost_benefit_ratio': 0.80,
-        'process_efficiency': 0.70,
-        'strategic_alignment': 0.90,
-        'market_impact': 0.65
+        "business_value": 0.85,
+        "roi_score": 0.75,
+        "cost_benefit_ratio": 0.80,
+        "process_efficiency": 0.70,
+        "strategic_alignment": 0.90,
+        "market_impact": 0.65,
     }
 
 
@@ -108,31 +115,26 @@ class TestMLModelLoading:
     def test_load_business_model_from_mlflow_success(self, mock_mlflow_client):
         """Testa carregamento bem-sucedido do modelo de negócio."""
         model = mock_mlflow_client.load_model_with_fallback(
-            'specialist_business_model',
-            'Production'
+            "specialist_business_model", "Production"
         )
 
         assert model is not None
-        assert hasattr(model, 'predict')
+        assert hasattr(model, "predict")
 
     def test_load_business_model_unavailable(self, mock_mlflow_client_unavailable):
         """Testa fallback quando modelo não está disponível."""
         model = mock_mlflow_client_unavailable.load_model_with_fallback(
-            'specialist_business_model',
-            'Production'
+            "specialist_business_model", "Production"
         )
 
         assert model is None
 
     def test_business_model_metadata(self, mock_mlflow_client):
         """Testa recuperação de metadados do modelo de negócio."""
-        metadata = mock_mlflow_client.get_model_metadata(
-            'specialist_business_model',
-            'Production'
-        )
+        metadata = mock_mlflow_client.get_model_metadata("specialist_business_model", "Production")
 
-        assert 'version' in metadata
-        assert metadata['version'] == 'v2.1.0'
+        assert "version" in metadata
+        assert metadata["version"] == "v2.1.0"
 
 
 class TestMLModelPrediction:
@@ -141,19 +143,23 @@ class TestMLModelPrediction:
     def test_predict_business_case(self, mock_mlflow_client, sample_business_features):
         """Testa predição de caso de negócio."""
         model = mock_mlflow_client.load_model_with_fallback(
-            'specialist_business_model',
-            'Production'
+            "specialist_business_model", "Production"
         )
 
         import numpy as np
-        X = np.array([[
-            sample_business_features['business_value'],
-            sample_business_features['roi_score'],
-            sample_business_features['cost_benefit_ratio'],
-            sample_business_features['process_efficiency'],
-            sample_business_features['strategic_alignment'],
-            sample_business_features['market_impact']
-        ]])
+
+        X = np.array(
+            [
+                [
+                    sample_business_features["business_value"],
+                    sample_business_features["roi_score"],
+                    sample_business_features["cost_benefit_ratio"],
+                    sample_business_features["process_efficiency"],
+                    sample_business_features["strategic_alignment"],
+                    sample_business_features["market_impact"],
+                ]
+            ]
+        )
 
         prediction = model.predict(X)
 
@@ -162,19 +168,23 @@ class TestMLModelPrediction:
     def test_predict_proba_business_case(self, mock_mlflow_client, sample_business_features):
         """Testa predição de probabilidades para caso de negócio."""
         model = mock_mlflow_client.load_model_with_fallback(
-            'specialist_business_model',
-            'Production'
+            "specialist_business_model", "Production"
         )
 
         import numpy as np
-        X = np.array([[
-            sample_business_features['business_value'],
-            sample_business_features['roi_score'],
-            sample_business_features['cost_benefit_ratio'],
-            sample_business_features['process_efficiency'],
-            sample_business_features['strategic_alignment'],
-            sample_business_features['market_impact']
-        ]])
+
+        X = np.array(
+            [
+                [
+                    sample_business_features["business_value"],
+                    sample_business_features["roi_score"],
+                    sample_business_features["cost_benefit_ratio"],
+                    sample_business_features["process_efficiency"],
+                    sample_business_features["strategic_alignment"],
+                    sample_business_features["market_impact"],
+                ]
+            ]
+        )
 
         proba = model.predict_proba(X)
 
@@ -191,12 +201,12 @@ class TestHeuristicFallback:
 
         # Calcular score heurístico de negócio
         heuristic_score = (
-            sample_business_features['business_value'] * 0.25 +
-            sample_business_features['roi_score'] * 0.20 +
-            sample_business_features['cost_benefit_ratio'] * 0.18 +
-            sample_business_features['process_efficiency'] * 0.15 +
-            sample_business_features['strategic_alignment'] * 0.12 +
-            sample_business_features['market_impact'] * 0.10
+            sample_business_features["business_value"] * 0.25
+            + sample_business_features["roi_score"] * 0.20
+            + sample_business_features["cost_benefit_ratio"] * 0.18
+            + sample_business_features["process_efficiency"] * 0.15
+            + sample_business_features["strategic_alignment"] * 0.12
+            + sample_business_features["market_impact"] * 0.10
         )
 
         assert 0.0 <= heuristic_score <= 1.0
@@ -236,32 +246,32 @@ class TestFeatureExtraction:
     def test_extract_business_features_from_plan(self):
         """Testa extração de features de negócio de plano cognitivo."""
         cognitive_plan = {
-            'plan_id': 'business-plan-123',
-            'original_domain': 'business-process-automation',
-            'original_priority': 'high',
-            'description': 'Automate customer onboarding to improve conversion and ROI',
-            'tasks': [
+            "plan_id": "business-plan-123",
+            "original_domain": "business-process-automation",
+            "original_priority": "high",
+            "description": "Automate customer onboarding to improve conversion and ROI",
+            "tasks": [
                 {
-                    'description': 'Design efficient workflow with parallel processing',
-                    'dependencies': [],
-                    'estimated_duration_ms': 20000
+                    "description": "Design efficient workflow with parallel processing",
+                    "dependencies": [],
+                    "estimated_duration_ms": 20000,
                 },
                 {
-                    'description': 'Implement KPI tracking for conversion metrics',
-                    'dependencies': [],
-                    'estimated_duration_ms': 30000
-                }
-            ]
+                    "description": "Implement KPI tracking for conversion metrics",
+                    "dependencies": [],
+                    "estimated_duration_ms": 30000,
+                },
+            ],
         }
 
         # Features extraídas (simuladas)
         features = {
-            'business_value': 0.80,  # Automatização de onboarding
-            'roi_score': 0.75,  # Menção de conversão/ROI
-            'cost_benefit_ratio': 0.70,  # Duração moderada
-            'process_efficiency': 0.85,  # Palavra "efficient"
-            'strategic_alignment': 0.75,  # Prioridade alta
-            'market_impact': 0.65
+            "business_value": 0.80,  # Automatização de onboarding
+            "roi_score": 0.75,  # Menção de conversão/ROI
+            "cost_benefit_ratio": 0.70,  # Duração moderada
+            "process_efficiency": 0.85,  # Palavra "efficient"
+            "strategic_alignment": 0.75,  # Prioridade alta
+            "market_impact": 0.65,
         }
 
         for feature, value in features.items():
@@ -277,8 +287,7 @@ class TestModelPerformanceTracking:
         import numpy as np
 
         model = mock_mlflow_client.load_model_with_fallback(
-            'specialist_business_model',
-            'Production'
+            "specialist_business_model", "Production"
         )
 
         X = np.random.rand(1, 6)
@@ -292,14 +301,14 @@ class TestModelPerformanceTracking:
     def test_business_model_accuracy(self):
         """Testa acurácia do modelo de negócio."""
         predictions_history = [
-            {'predicted': 1, 'actual': 1, 'confidence': 0.88},
-            {'predicted': 1, 'actual': 1, 'confidence': 0.82},
-            {'predicted': 0, 'actual': 1, 'confidence': 0.52},  # Erro
-            {'predicted': 1, 'actual': 1, 'confidence': 0.91},
-            {'predicted': 0, 'actual': 0, 'confidence': 0.65},
+            {"predicted": 1, "actual": 1, "confidence": 0.88},
+            {"predicted": 1, "actual": 1, "confidence": 0.82},
+            {"predicted": 0, "actual": 1, "confidence": 0.52},  # Erro
+            {"predicted": 1, "actual": 1, "confidence": 0.91},
+            {"predicted": 0, "actual": 0, "confidence": 0.65},
         ]
 
-        correct = sum(1 for p in predictions_history if p['predicted'] == p['actual'])
+        correct = sum(1 for p in predictions_history if p["predicted"] == p["actual"])
         accuracy = correct / len(predictions_history)
 
         assert accuracy == 0.8
@@ -314,11 +323,11 @@ class TestCachePredictions:
         import json
 
         features = {
-            'business_value': 0.85,
-            'roi_score': 0.75,
-            'workflow_score': 0.80,
-            'kpi_score': 0.70,
-            'cost_score': 0.65
+            "business_value": 0.85,
+            "roi_score": 0.75,
+            "workflow_score": 0.80,
+            "kpi_score": 0.70,
+            "cost_score": 0.65,
         }
 
         features_json = json.dumps(features, sort_keys=True)
@@ -330,18 +339,14 @@ class TestCachePredictions:
     def test_business_cache_hit(self):
         """Testa cache hit para avaliação de negócio."""
         cache = {}
-        cache_key = 'business-eval-key'
+        cache_key = "business-eval-key"
 
         # Primeira chamada
         if cache_key not in cache:
-            cache[cache_key] = {
-                'recommendation': 'approve',
-                'confidence': 0.82,
-                'risk': 0.18
-            }
+            cache[cache_key] = {"recommendation": "approve", "confidence": 0.82, "risk": 0.18}
 
         # Cache hit
         result = cache.get(cache_key)
 
-        assert result['recommendation'] == 'approve'
-        assert result['confidence'] == 0.82
+        assert result["recommendation"] == "approve"
+        assert result["confidence"] == 0.82

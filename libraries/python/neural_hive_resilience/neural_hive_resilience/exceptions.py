@@ -15,9 +15,7 @@ from typing import Optional
 class ResilienceError(Exception):
     """Classe base para todas as exceções de resiliência."""
 
-    def __init__(
-        self, message: str, service: str = "unknown", **kwargs
-    ):
+    def __init__(self, message: str, service: str = "unknown", **kwargs):
         self.message = message
         self.service = service
         self.context = kwargs
@@ -25,6 +23,7 @@ class ResilienceError(Exception):
 
 
 # ==================== Circuit Breaker Exceptions ====================
+
 
 class CircuitBreakerError(ResilienceError):
     """Exceção base para erros de circuit breaker."""
@@ -59,14 +58,13 @@ class CircuitBreakerHalfOpenError(CircuitBreakerError):
     Estado de transição onde algumas chamadas são permitidas para teste.
     """
 
-    def __init__(
-        self, message: str, service: str, circuit: str, **kwargs
-    ):
+    def __init__(self, message: str, service: str, circuit: str, **kwargs):
         super().__init__(message, service=service, **kwargs)
         self.circuit = circuit
 
 
 # ==================== Retry Exceptions ====================
+
 
 class RetryError(ResilienceError):
     """Exceção base para erros de retry."""
@@ -123,6 +121,7 @@ class MaxRetriesExceededError(RetryError):
 
 # ==================== Rate Limiting Exceptions ====================
 
+
 class RateLimitError(ResilienceError):
     """Exceção base para erros de rate limiting."""
 
@@ -168,6 +167,7 @@ class ConcurrencyLimitExceededError(RateLimitError):
 
 # ==================== Timeout Exceptions ====================
 
+
 class TimeoutError(ResilienceError):
     """Exceção base para erros de timeout."""
 
@@ -183,6 +183,7 @@ class TimeoutError(ResilienceError):
 
 
 # ==================== Fallback Exceptions ====================
+
 
 class FallbackError(ResilienceError):
     """Exceção base para erros de fallback."""
@@ -210,6 +211,7 @@ class AllFallbacksFailedError(FallbackError):
 
 
 # ==================== Bulkhead Exceptions ====================
+
 
 class BulkheadError(ResilienceError):
     """Exceção base para erros de bulkhead."""
@@ -240,6 +242,7 @@ class BulkheadRejectedError(BulkheadError):
 
 # ==================== Resilience Registry Exceptions ====================
 
+
 class RegistryError(ResilienceError):
     """Exceção base para erros do registro de resiliência."""
 
@@ -249,9 +252,7 @@ class RegistryError(ResilienceError):
 class PolicyNotFoundError(RegistryError):
     """Levantada quando uma política não é encontrada no registro."""
 
-    def __init__(
-        self, message: str, policy_name: str, policy_type: str, **kwargs
-    ):
+    def __init__(self, message: str, policy_name: str, policy_type: str, **kwargs):
         super().__init__(message, **kwargs)
         self.policy_name = policy_name
         self.policy_type = policy_type
@@ -260,9 +261,7 @@ class PolicyNotFoundError(RegistryError):
 class PolicyAlreadyExistsError(RegistryError):
     """Levantada quando tenta registrar uma política que já existe."""
 
-    def __init__(
-        self, message: str, policy_name: str, policy_type: str, **kwargs
-    ):
+    def __init__(self, message: str, policy_name: str, policy_type: str, **kwargs):
         super().__init__(message, **kwargs)
         self.policy_name = policy_name
         self.policy_type = policy_type

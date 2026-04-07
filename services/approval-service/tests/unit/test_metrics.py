@@ -38,10 +38,9 @@ class TestNeuralHiveMetricsGauge:
 
         # Simula resultado da agregacao
         mock_cursor = MagicMock()
-        mock_cursor.to_list = AsyncMock(return_value=[
-            {'_id': 'high', 'count': 5},
-            {'_id': 'critical', 'count': 2}
-        ])
+        mock_cursor.to_list = AsyncMock(
+            return_value=[{"_id": "high", "count": 5}, {"_id": "critical", "count": 2}]
+        )
         mock_collection.aggregate.return_value = mock_cursor
 
         metrics = NeuralHiveMetrics(mongodb_client=mock_client)
@@ -55,8 +54,8 @@ class TestNeuralHiveMetricsGauge:
         # Verifica que aggregate foi chamado com pipeline correto
         mock_collection.aggregate.assert_called_once()
         call_args = mock_collection.aggregate.call_args[0][0]
-        assert call_args[0] == {'$match': {'status': 'pending'}}
-        assert call_args[1] == {'$group': {'_id': '$risk_band', 'count': {'$sum': 1}}}
+        assert call_args[0] == {"$match": {"status": "pending"}}
+        assert call_args[1] == {"$group": {"_id": "$risk_band", "count": {"$sum": 1}}}
 
     @pytest.mark.asyncio
     async def test_update_pending_gauge_handles_empty_results(self):
@@ -87,7 +86,7 @@ class TestNeuralHiveMetricsGauge:
 
         # Simula erro na query
         mock_cursor = MagicMock()
-        mock_cursor.to_list = AsyncMock(side_effect=Exception('MongoDB error'))
+        mock_cursor.to_list = AsyncMock(side_effect=Exception("MongoDB error"))
         mock_collection.aggregate.return_value = mock_cursor
 
         metrics = NeuralHiveMetrics(mongodb_client=mock_client)
@@ -109,16 +108,10 @@ class TestNeuralHiveMetricsCounters:
         metrics = NeuralHiveMetrics()
 
         # Deve executar sem erro com enum
-        metrics.increment_approval_requests_received(
-            risk_band=RiskBand.HIGH,
-            is_destructive=True
-        )
+        metrics.increment_approval_requests_received(risk_band=RiskBand.HIGH, is_destructive=True)
 
         # Deve executar sem erro com string
-        metrics.increment_approval_requests_received(
-            risk_band='medium',
-            is_destructive=False
-        )
+        metrics.increment_approval_requests_received(risk_band="medium", is_destructive=False)
 
     def test_increment_approvals_total_normalizes_enum(self):
         """Teste que risk_band enum e normalizado para string"""
@@ -127,10 +120,7 @@ class TestNeuralHiveMetricsCounters:
         metrics = NeuralHiveMetrics()
 
         # Deve executar sem erro com enum
-        metrics.increment_approvals_total(
-            decision='approved',
-            risk_band=RiskBand.CRITICAL
-        )
+        metrics.increment_approvals_total(decision="approved", risk_band=RiskBand.CRITICAL)
 
     def test_observe_time_to_decision_normalizes_enum(self):
         """Teste que risk_band enum e normalizado para string"""
@@ -140,7 +130,5 @@ class TestNeuralHiveMetricsCounters:
 
         # Deve executar sem erro com enum
         metrics.observe_time_to_decision(
-            time_seconds=120.5,
-            decision='approved',
-            risk_band=RiskBand.HIGH
+            time_seconds=120.5, decision="approved", risk_band=RiskBand.HIGH
         )

@@ -13,7 +13,7 @@ from tensorflow import keras
 from neural_hive_ml.predictive_models.base_predictor import BasePredictor
 from neural_hive_ml.predictive_models.feature_engineering import (
     extract_ticket_features,
-    create_feature_vector
+    create_feature_vector,
 )
 
 logger = logging.getLogger(__name__)
@@ -26,7 +26,7 @@ class AnomalyDetector(BasePredictor):
         self,
         config: Dict[str, Any],
         model_registry: Optional[Any] = None,
-        metrics: Optional[Any] = None
+        metrics: Optional[Any] = None,
     ):
         """
         Inicializa o detector de anomalias.
@@ -40,8 +40,8 @@ class AnomalyDetector(BasePredictor):
         """
         super().__init__(config, model_registry, metrics)
 
-        self.model_type = config.get('model_type', 'isolation_forest')
-        self.contamination = config.get('contamination', 0.05)
+        self.model_type = config.get("model_type", "isolation_forest")
+        self.contamination = config.get("contamination", 0.05)
         self.feature_names = self._get_feature_names()
         self.scaler = StandardScaler()
         self.autoencoder_threshold = None
@@ -65,7 +65,7 @@ class AnomalyDetector(BasePredictor):
                 model_uri = f"models:/{model_name}/Production"
 
                 # Carregar modelo (sklearn ou keras dependendo do tipo)
-                if self.model_type == 'isolation_forest':
+                if self.model_type == "isolation_forest":
                     self.model = mlflow.sklearn.load_model(model_uri)
                 else:  # autoencoder
                     self.model = mlflow.keras.load_model(model_uri)
@@ -73,6 +73,7 @@ class AnomalyDetector(BasePredictor):
                 # Carregar artifacts (scaler e threshold)
                 # Baixar artifacts para diretório temporário
                 import tempfile
+
                 with tempfile.TemporaryDirectory() as tmpdir:
                     # Baixar artifacts do run
                     client = mlflow.tracking.MlflowClient()
@@ -82,20 +83,26 @@ class AnomalyDetector(BasePredictor):
 
                         # Baixar scaler
                         try:
-                            scaler_path = client.download_artifacts(run_id, "artifacts/scaler.joblib", tmpdir)
+                            scaler_path = client.download_artifacts(
+                                run_id, "artifacts/scaler.joblib", tmpdir
+                            )
                             self.scaler = joblib.load(scaler_path)
                             logger.info("Scaler carregado com sucesso")
                         except Exception as e:
                             logger.warning(f"Erro ao carregar scaler: {e}, usando scaler padrão")
 
                         # Baixar threshold para autoencoder
-                        if self.model_type == 'autoencoder':
+                        if self.model_type == "autoencoder":
                             try:
-                                threshold_path = client.download_artifacts(run_id, "artifacts/threshold.npy", tmpdir)
+                                threshold_path = client.download_artifacts(
+                                    run_id, "artifacts/threshold.npy", tmpdir
+                                )
                                 self.autoencoder_threshold = np.load(threshold_path)
                                 logger.info(f"Threshold carregado: {self.autoencoder_threshold}")
                             except Exception as e:
-                                logger.warning(f"Erro ao carregar threshold: {e}, usando threshold padrão")
+                                logger.warning(
+                                    f"Erro ao carregar threshold: {e}, usando threshold padrão"
+                                )
                                 self.autoencoder_threshold = 0.1  # Fallback
 
                 logger.info(f"AnomalyDetector inicializado com {self.model_type}")
@@ -127,17 +134,17 @@ class AnomalyDetector(BasePredictor):
             features = features.reshape(1, -1)
 
             # Normaliza
-            if hasattr(self.scaler, 'mean_'):
+            if hasattr(self.scaler, "mean_"):
                 features_scaled = self.scaler.transform(features)
             else:
                 features_scaled = features
 
             # Detecta anomalia com ML
             if self.model:
-                if self.model_type == 'isolation_forest':
+                if self.model_type == "isolation_forest":
                     prediction = self.model.predict(features_scaled)[0]
                     score = self.model.score_samples(features_scaled)[0]
-                    is_anomaly = (prediction == -1)
+                    is_anomaly = prediction == -1
                 else:  # autoencoder
                     reconstruction = self.model.predict(features_scaled)
                     reconstruction_error = np.mean(np.square(features_scaled - reconstruction))
@@ -146,24 +153,21 @@ class AnomalyDetector(BasePredictor):
             else:
                 # Fallback heurístico
                 is_anomaly, anomaly_type, explanation = self._heuristic_detection(
-                    features_dict,
-                    ticket
+                    features_dict, ticket
                 )
                 score = 1.0 if is_anomaly else 0.0
 
                 result = {
-                    'is_anomaly': is_anomaly,
-                    'anomaly_score': score,
-                    'anomaly_type': anomaly_type,
-                    'explanation': explanation,
-                    'model_type': 'heuristic'
+                    "is_anomaly": is_anomaly,
+                    "anomaly_score": score,
+                    "anomaly_type": anomaly_type,
+                    "explanation": explanation,
+                    "model_type": "heuristic",
                 }
 
                 if is_anomaly and self.metrics:
                     await self.metrics.record_anomaly_detection(
-                        anomaly_type=anomaly_type,
-                        severity='MEDIUM',
-                        score=score
+                        anomaly_type=anomaly_type, severity="MEDIUM", score=score
                     )
 
                 return result
@@ -172,36 +176,28 @@ class AnomalyDetector(BasePredictor):
             anomaly_type, explanation = self._explain_anomaly(features_dict, ticket)
 
             result = {
-                'is_anomaly': bool(is_anomaly),
-                'anomaly_score': float(score),
-                'anomaly_type': anomaly_type if is_anomaly else None,
-                'explanation': explanation if is_anomaly else None,
-                'model_type': self.model_type
+                "is_anomaly": bool(is_anomaly),
+                "anomaly_score": float(score),
+                "anomaly_type": anomaly_type if is_anomaly else None,
+                "explanation": explanation if is_anomaly else None,
+                "model_type": self.model_type,
             }
 
             # Registra métricas
             if is_anomaly and self.metrics:
                 severity = self._determine_severity(score)
                 await self.metrics.record_anomaly_detection(
-                    anomaly_type=anomaly_type,
-                    severity=severity,
-                    score=score
+                    anomaly_type=anomaly_type, severity=severity, score=score
                 )
 
             return result
 
         except Exception as e:
             logger.error(f"Erro ao detectar anomalia: {e}")
-            return {
-                'is_anomaly': False,
-                'anomaly_score': 0.0,
-                'error': str(e)
-            }
+            return {"is_anomaly": False, "anomaly_score": 0.0, "error": str(e)}
 
     async def train_model(
-        self,
-        training_data: pd.DataFrame,
-        labels: Optional[np.ndarray] = None
+        self, training_data: pd.DataFrame, labels: Optional[np.ndarray] = None
     ) -> Dict[str, Any]:
         """
         Treina modelo de detecção de anomalias.
@@ -224,12 +220,12 @@ class AnomalyDetector(BasePredictor):
             X_scaled = self.scaler.transform(X)
 
             # Treina modelo
-            if self.model_type == 'isolation_forest':
+            if self.model_type == "isolation_forest":
                 self.model = IsolationForest(
                     contamination=self.contamination,
                     n_estimators=100,
-                    max_samples='auto',
-                    random_state=42
+                    max_samples="auto",
+                    random_state=42,
                 )
                 self.model.fit(X_scaled)
 
@@ -239,12 +235,7 @@ class AnomalyDetector(BasePredictor):
 
                 # Treina autoencoder
                 history = self.model.fit(
-                    X_scaled,
-                    X_scaled,
-                    epochs=50,
-                    batch_size=32,
-                    validation_split=0.15,
-                    verbose=0
+                    X_scaled, X_scaled, epochs=50, batch_size=32, validation_split=0.15, verbose=0
                 )
 
                 # Define threshold (95º percentil de reconstruction error)
@@ -257,17 +248,17 @@ class AnomalyDetector(BasePredictor):
             if labels is not None:
                 predictions = self._predict_labels(X_scaled)
                 metrics = {
-                    'precision': float(precision_score(labels, predictions)),
-                    'recall': float(recall_score(labels, predictions)),
-                    'f1_score': float(f1_score(labels, predictions)),
-                    'anomaly_rate': float((predictions == -1).mean())
+                    "precision": float(precision_score(labels, predictions)),
+                    "recall": float(recall_score(labels, predictions)),
+                    "f1_score": float(f1_score(labels, predictions)),
+                    "anomaly_rate": float((predictions == -1).mean()),
                 }
             else:
                 # Sem labels, apenas reporta taxa de anomalias detectadas
                 predictions = self._predict_labels(X_scaled)
                 metrics = {
-                    'anomaly_rate': float((predictions == -1).mean()),
-                    'training_samples': len(training_data)
+                    "anomaly_rate": float((predictions == -1).mean()),
+                    "training_samples": len(training_data),
                 }
 
             # Salva modelo com scaler e threshold
@@ -279,7 +270,7 @@ class AnomalyDetector(BasePredictor):
 
             # Salvar artefatos adicionais (scaler e threshold) em arquivos temporários
             with tempfile.TemporaryDirectory() as tmpdir:
-                scaler_path = os.path.join(tmpdir, 'scaler.joblib')
+                scaler_path = os.path.join(tmpdir, "scaler.joblib")
                 joblib.dump(self.scaler, scaler_path)
 
                 # Salvar modelo com artefatos adicionais
@@ -294,40 +285,36 @@ class AnomalyDetector(BasePredictor):
 
                 with mlflow.start_run():
                     # Log parameters
-                    mlflow.log_param('contamination', self.contamination)
-                    mlflow.log_param('model_type', self.model_type)
-                    mlflow.log_param('feature_count', len(self.feature_names))
+                    mlflow.log_param("contamination", self.contamination)
+                    mlflow.log_param("model_type", self.model_type)
+                    mlflow.log_param("feature_count", len(self.feature_names))
 
                     # Log metrics
                     for metric_name, metric_value in metrics.items():
                         mlflow.log_metric(metric_name, metric_value)
 
                     # Log tags
-                    mlflow.set_tag('contamination', str(self.contamination))
-                    mlflow.set_tag('training_date', pd.Timestamp.now().isoformat())
+                    mlflow.set_tag("contamination", str(self.contamination))
+                    mlflow.set_tag("training_date", pd.Timestamp.now().isoformat())
 
                     # Log scaler artifact
-                    mlflow.log_artifact(scaler_path, artifact_path='artifacts')
+                    mlflow.log_artifact(scaler_path, artifact_path="artifacts")
 
                     # Log model (diferente para sklearn vs keras)
-                    if self.model_type == 'isolation_forest':
+                    if self.model_type == "isolation_forest":
                         mlflow.sklearn.log_model(
-                            self.model,
-                            artifact_path="model",
-                            registered_model_name=model_name
+                            self.model, artifact_path="model", registered_model_name=model_name
                         )
                     else:  # autoencoder
                         # Salvar threshold
-                        threshold_path = os.path.join(tmpdir, 'threshold.npy')
+                        threshold_path = os.path.join(tmpdir, "threshold.npy")
                         np.save(threshold_path, self.autoencoder_threshold)
-                        mlflow.log_artifact(threshold_path, artifact_path='artifacts')
+                        mlflow.log_artifact(threshold_path, artifact_path="artifacts")
 
                         mlflow.keras.log_model(
-                            self.model,
-                            artifact_path="model",
-                            registered_model_name=model_name
+                            self.model, artifact_path="model", registered_model_name=model_name
                         )
-                        mlflow.log_param('autoencoder_threshold', float(self.autoencoder_threshold))
+                        mlflow.log_param("autoencoder_threshold", float(self.autoencoder_threshold))
 
             logger.info(f"Treinamento concluído: {metrics}")
             return metrics
@@ -344,33 +331,29 @@ class AnomalyDetector(BasePredictor):
     def _get_feature_names(self) -> list:
         """Define features para detecção de anomalias."""
         return [
-            'risk_weight',
-            'capabilities_count',
-            'parameters_size',
-            'qos_priority',
-            'qos_consistency',
-            'qos_durability',
-            'task_type_encoded',
-            'hour_of_day',
-            'day_of_week',
-            'is_weekend',
-            'is_business_hours',
-            'estimated_duration_ms',
-            'sla_timeout_ms',
-            'retry_count',
-            'avg_duration_by_task',
-            'std_duration_by_task',
-            'success_rate_by_task',
-            'avg_duration_by_risk',
-            'risk_to_capabilities_ratio',
-            'estimated_to_sla_ratio'
+            "risk_weight",
+            "capabilities_count",
+            "parameters_size",
+            "qos_priority",
+            "qos_consistency",
+            "qos_durability",
+            "task_type_encoded",
+            "hour_of_day",
+            "day_of_week",
+            "is_weekend",
+            "is_business_hours",
+            "estimated_duration_ms",
+            "sla_timeout_ms",
+            "retry_count",
+            "avg_duration_by_task",
+            "std_duration_by_task",
+            "success_rate_by_task",
+            "avg_duration_by_risk",
+            "risk_to_capabilities_ratio",
+            "estimated_to_sla_ratio",
         ]
 
-    def _explain_anomaly(
-        self,
-        features: Dict[str, Any],
-        ticket: Dict[str, Any]
-    ) -> Tuple[str, str]:
+    def _explain_anomaly(self, features: Dict[str, Any], ticket: Dict[str, Any]) -> Tuple[str, str]:
         """
         Identifica tipo de anomalia e gera explicação.
 
@@ -382,42 +365,40 @@ class AnomalyDetector(BasePredictor):
             Tuple (anomaly_type, explanation)
         """
         # Resource mismatch
-        if features['risk_weight'] < 25 and features['capabilities_count'] > 8:
+        if features["risk_weight"] < 25 and features["capabilities_count"] > 8:
             return (
-                'resource_mismatch',
-                'Ticket com baixo risco mas muitas capabilities requeridas'
+                "resource_mismatch",
+                "Ticket com baixo risco mas muitas capabilities requeridas",
             )
 
         # QoS inconsistency
-        if features['qos_consistency'] == 1.0 and features['risk_weight'] < 30:
+        if features["qos_consistency"] == 1.0 and features["risk_weight"] < 30:
             return (
-                'qos_inconsistency',
-                'EXACTLY_ONCE garantido para ticket de baixo risco (overhead desnecessário)'
+                "qos_inconsistency",
+                "EXACTLY_ONCE garantido para ticket de baixo risco (overhead desnecessário)",
             )
 
         # Duration outlier
-        if features.get('avg_duration_by_task', 0) > 0:
-            expected = features['avg_duration_by_task']
-            actual = features['estimated_duration_ms']
-            if abs(actual - expected) > 3 * features.get('std_duration_by_task', 10000):
+        if features.get("avg_duration_by_task", 0) > 0:
+            expected = features["avg_duration_by_task"]
+            actual = features["estimated_duration_ms"]
+            if abs(actual - expected) > 3 * features.get("std_duration_by_task", 10000):
                 return (
-                    'duration_outlier',
-                    f'Duração estimada ({actual}ms) muito diferente da média histórica ({expected}ms)'
+                    "duration_outlier",
+                    f"Duração estimada ({actual}ms) muito diferente da média histórica ({expected}ms)",
                 )
 
         # Capability anomaly
-        if features['capabilities_count'] > 10:
+        if features["capabilities_count"] > 10:
             return (
-                'capability_anomaly',
-                f'Número anormal de capabilities: {features["capabilities_count"]}'
+                "capability_anomaly",
+                f'Número anormal de capabilities: {features["capabilities_count"]}',
             )
 
-        return ('unknown', 'Padrão anômalo detectado pelo modelo ML')
+        return ("unknown", "Padrão anômalo detectado pelo modelo ML")
 
     def _heuristic_detection(
-        self,
-        features: Dict[str, Any],
-        ticket: Dict[str, Any]
+        self, features: Dict[str, Any], ticket: Dict[str, Any]
     ) -> Tuple[bool, str, str]:
         """
         Detecção heurística de anomalias (fallback).
@@ -430,35 +411,27 @@ class AnomalyDetector(BasePredictor):
             Tuple (is_anomaly, anomaly_type, explanation)
         """
         # Regra 1: Capabilities excessivas
-        if features['capabilities_count'] > 12:
+        if features["capabilities_count"] > 12:
             return (
                 True,
-                'capability_anomaly',
-                f'Capabilities excessivas: {features["capabilities_count"]}'
+                "capability_anomaly",
+                f'Capabilities excessivas: {features["capabilities_count"]}',
             )
 
         # Regra 2: Risk/QoS mismatch
-        if features['risk_weight'] > 75 and features['qos_priority'] < 0.5:
-            return (
-                True,
-                'qos_inconsistency',
-                'Alto risco com baixa prioridade QoS'
-            )
+        if features["risk_weight"] > 75 and features["qos_priority"] < 0.5:
+            return (True, "qos_inconsistency", "Alto risco com baixa prioridade QoS")
 
         # Regra 3: Timeout inadequado
-        if features['estimated_to_sla_ratio'] > 0.95:
-            return (
-                True,
-                'timeout_risk',
-                'SLA timeout muito próximo da duração estimada'
-            )
+        if features["estimated_to_sla_ratio"] > 0.95:
+            return (True, "timeout_risk", "SLA timeout muito próximo da duração estimada")
 
         # Regra 4: Retry count alto
-        if features['retry_count'] > 3:
+        if features["retry_count"] > 3:
             return (
                 True,
-                'excessive_retries',
-                f'Número excessivo de retries: {features["retry_count"]}'
+                "excessive_retries",
+                f'Número excessivo de retries: {features["retry_count"]}',
             )
 
         return (False, None, None)
@@ -475,54 +448,47 @@ class AnomalyDetector(BasePredictor):
         """
         # Encoder
         encoder_input = keras.layers.Input(shape=(input_dim,))
-        encoded = keras.layers.Dense(64, activation='relu')(encoder_input)
-        encoded = keras.layers.Dense(32, activation='relu')(encoded)
-        encoded = keras.layers.Dense(16, activation='relu')(encoded)
+        encoded = keras.layers.Dense(64, activation="relu")(encoder_input)
+        encoded = keras.layers.Dense(32, activation="relu")(encoded)
+        encoded = keras.layers.Dense(16, activation="relu")(encoded)
 
         # Decoder
-        decoded = keras.layers.Dense(32, activation='relu')(encoded)
-        decoded = keras.layers.Dense(64, activation='relu')(decoded)
-        decoder_output = keras.layers.Dense(input_dim, activation='linear')(decoded)
+        decoded = keras.layers.Dense(32, activation="relu")(encoded)
+        decoded = keras.layers.Dense(64, activation="relu")(decoded)
+        decoder_output = keras.layers.Dense(input_dim, activation="linear")(decoded)
 
         # Autoencoder completo
         autoencoder = keras.Model(encoder_input, decoder_output)
 
-        autoencoder.compile(
-            optimizer='adam',
-            loss='mse'
-        )
+        autoencoder.compile(optimizer="adam", loss="mse")
 
         return autoencoder
 
     def _predict_labels(self, X: np.ndarray) -> np.ndarray:
         """Gera predições de labels (-1=anomaly, 1=normal)."""
-        if self.model_type == 'isolation_forest':
+        if self.model_type == "isolation_forest":
             return self.model.predict(X)
         else:  # autoencoder
             reconstructions = self.model.predict(X)
             reconstruction_errors = np.mean(np.square(X - reconstructions), axis=1)
-            predictions = np.where(
-                reconstruction_errors > self.autoencoder_threshold,
-                -1,
-                1
-            )
+            predictions = np.where(reconstruction_errors > self.autoencoder_threshold, -1, 1)
             return predictions
 
     def _determine_severity(self, score: float) -> str:
         """Determina severidade baseada no score de anomalia."""
-        if self.model_type == 'isolation_forest':
+        if self.model_type == "isolation_forest":
             # Scores mais negativos = mais anômalos
             if score < -0.5:
-                return 'CRITICAL'
+                return "CRITICAL"
             elif score < -0.3:
-                return 'HIGH'
+                return "HIGH"
             else:
-                return 'MEDIUM'
+                return "MEDIUM"
         else:  # autoencoder
             # Reconstruction error maior = mais anômalo
             if score > self.autoencoder_threshold * 2:
-                return 'CRITICAL'
+                return "CRITICAL"
             elif score > self.autoencoder_threshold * 1.5:
-                return 'HIGH'
+                return "HIGH"
             else:
-                return 'MEDIUM'
+                return "MEDIUM"

@@ -22,6 +22,7 @@ logger = structlog.get_logger()
 
 class SonarQubeStatus(str, Enum):
     """Analysis status from SonarQube."""
+
     PENDING = "PENDING"
     IN_PROGRESS = "IN_PROGRESS"
     SUCCESS = "SUCCESS"
@@ -31,6 +32,7 @@ class SonarQubeStatus(str, Enum):
 
 class SonarQubeSeverity(str, Enum):
     """Issue severity levels."""
+
     BLOCKER = "BLOCKER"
     CRITICAL = "CRITICAL"
     MAJOR = "MAJOR"
@@ -187,9 +189,7 @@ class SonarQubeClient:
                 elif status in ("PENDING", "IN_PROGRESS"):
                     # Check timeout
                     if datetime.now(timezone.utc).timestamp() > deadline:
-                        raise SonarQubeTimeoutError(
-                            f"Analysis timeout after {max_wait}s"
-                        )
+                        raise SonarQubeTimeoutError(f"Analysis timeout after {max_wait}s")
                     await asyncio.sleep(self.poll_interval)
                 else:
                     raise SonarQubeAPIError(f"Unknown task status: {status}")
@@ -230,7 +230,9 @@ class SonarQubeClient:
 
             # Verify project exists
             try:
-                response = await self._client.get(f"/api/projects/search", params={"projects": project_key})
+                response = await self._client.get(
+                    f"/api/projects/search", params={"projects": project_key}
+                )
                 response.raise_for_status()
                 projects = response.json().get("components", [])
                 if not projects:
@@ -297,9 +299,7 @@ class SonarQubeClient:
                     response.raise_for_status()
                     analysis_data = response.json()
 
-                    duration = (
-                        datetime.now(timezone.utc) - start_time
-                    ).total_seconds()
+                    duration = (datetime.now(timezone.utc) - start_time).total_seconds()
 
                     # Parse issues
                     issues = await self._fetch_issues(project_key, analysis_id)
@@ -400,9 +400,7 @@ class SonarQubeClient:
             self.logger.warning("sonarqube_fetch_issues_failed", error=str(e))
             return []
 
-    async def _fetch_quality_gate(
-        self, project_key: str
-    ) -> SonarQubeQualityGate | None:
+    async def _fetch_quality_gate(self, project_key: str) -> SonarQubeQualityGate | None:
         """Fetch quality gate status."""
         try:
             response = await self._client.get(
@@ -419,12 +417,14 @@ class SonarQubeClient:
 
             # Parse conditions
             for cond in data.get("conditions", []):
-                qg.conditions.append({
-                    "metric": cond.get("metric"),
-                    "status": cond.get("status"),
-                    "actual": cond.get("actual"),
-                    "error": cond.get("error"),
-                })
+                qg.conditions.append(
+                    {
+                        "metric": cond.get("metric"),
+                        "status": cond.get("status"),
+                        "actual": cond.get("actual"),
+                        "error": cond.get("error"),
+                    }
+                )
 
             return qg
 

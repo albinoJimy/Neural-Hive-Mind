@@ -13,7 +13,7 @@ from unittest.mock import Mock, MagicMock, AsyncMock, patch
 from datetime import datetime, timezone
 
 # Adicionar biblioteca ao path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../..', 'libraries/python'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../..", "libraries/python"))
 
 from neural_hive_specialists.evolution_hooks import (
     FingerprintExtractor,
@@ -31,6 +31,7 @@ from neural_hive_specialists.evolution_hooks import (
 # Mock config
 class MockConfig:
     """Config mock para testes."""
+
     specialist_type = "evolution"
     service_name = "specialist-evolution-test"
     mlflow_experiment_name = "test"
@@ -103,10 +104,9 @@ class MockCollection:
 
     def count_documents(self, query):
         """Count mock."""
-        return len([
-            doc for doc in self._data.values()
-            if query is None or self._match_query(doc, query)
-        ])
+        return len(
+            [doc for doc in self._data.values() if query is None or self._match_query(doc, query)]
+        )
 
     def aggregate(self, pipeline):
         """Aggregate mock."""
@@ -121,6 +121,7 @@ class MockCollection:
                 return False
             if isinstance(value, dict) and "$regex" in value:
                 import re
+
                 pattern = value["$regex"]
                 if not re.match(pattern, doc.get(key, "")):
                     return False
@@ -176,21 +177,21 @@ def sample_cognitive_plan():
                 "name": "analyze_code",
                 "task_type": "ANALYZE",
                 "dependencies": [],
-                "estimated_duration_ms": 500
+                "estimated_duration_ms": 500,
             },
             {
                 "name": "refactor_module",
                 "task_type": "REFACTOR",
                 "dependencies": ["analyze_code"],
-                "estimated_duration_ms": 2000
+                "estimated_duration_ms": 2000,
             },
             {
                 "name": "run_tests",
                 "task_type": "TEST",
                 "dependencies": ["refactor_module"],
-                "estimated_duration_ms": 1500
-            }
-        ]
+                "estimated_duration_ms": 1500,
+            },
+        ],
     }
 
 
@@ -205,7 +206,7 @@ def sample_fingerprint():
         avg_dependency_count=1.0,
         has_conditional_deps=False,
         estimated_duration_range=DurationRange.MEDIUM,
-        complexity_signature="T-S-abc123"
+        complexity_signature="T-S-abc123",
     )
 
 
@@ -218,13 +219,8 @@ def sample_evolution_evaluation():
         recommendation="approve",
         weights_used=DEFAULT_WEIGHTS.copy(),
         reasoning_factors=[
-            {
-                "factor_name": "maintainability",
-                "weight": 0.25,
-                "score": 0.8,
-                "description": "Test"
-            }
-        ]
+            {"factor_name": "maintainability", "weight": 0.25, "score": 0.8, "description": "Test"}
+        ],
     )
 
 
@@ -246,11 +242,7 @@ class TestFingerprintExtractorIntegration:
 
     def test_extract_from_minimal_plan(self, fingerprint_extractor):
         """Testa extração de plano minimal."""
-        minimal_plan = {
-            "plan_id": "minimal-1",
-            "original_domain": "business",
-            "tasks": []
-        }
+        minimal_plan = {"plan_id": "minimal-1", "original_domain": "business", "tasks": []}
 
         fingerprint = fingerprint_extractor.extract(minimal_plan)
 
@@ -268,11 +260,9 @@ class TestFingerprintExtractorIntegration:
                 {
                     "name": "task1",
                     "task_type": "BUILD",
-                    "dependencies": [
-                        {"task_id": "task2", "condition": "on_success"}
-                    ]
+                    "dependencies": [{"task_id": "task2", "condition": "on_success"}],
                 }
-            ]
+            ],
         }
 
         fingerprint = fingerprint_extractor.extract(plan_with_conditional)
@@ -283,7 +273,9 @@ class TestFingerprintExtractorIntegration:
 class TestPatternRegistryIntegration:
     """Testes de integração do PatternRegistry."""
 
-    def test_store_and_retrieve(self, mock_mongo_client, sample_fingerprint, sample_evolution_evaluation):
+    def test_store_and_retrieve(
+        self, mock_mongo_client, sample_fingerprint, sample_evolution_evaluation
+    ):
         """Testa armazenar e recuperar avaliação."""
         registry = SyncPatternRegistry(mock_mongo_client, database="test_neural_hive")
 
@@ -291,7 +283,7 @@ class TestPatternRegistryIntegration:
         pattern_id = registry.store_evaluation(
             plan_id="test-plan-1",
             fingerprint=sample_fingerprint,
-            evaluation=sample_evolution_evaluation
+            evaluation=sample_evolution_evaluation,
         )
 
         assert pattern_id is not None
@@ -299,7 +291,11 @@ class TestPatternRegistryIntegration:
 
     def test_add_feedback(self, mock_mongo_client, sample_fingerprint, sample_evolution_evaluation):
         """Testa adicionar feedback a padrão existente."""
-        from neural_hive_specialists.evolution_hooks import FeedbackData, FeedbackOutcome, FeedbackSource
+        from neural_hive_specialists.evolution_hooks import (
+            FeedbackData,
+            FeedbackOutcome,
+            FeedbackSource,
+        )
 
         registry = SyncPatternRegistry(mock_mongo_client, database="test_neural_hive")
 
@@ -307,20 +303,17 @@ class TestPatternRegistryIntegration:
         registry.store_evaluation(
             plan_id="test-plan-feedback",
             fingerprint=sample_fingerprint,
-            evaluation=sample_evolution_evaluation
+            evaluation=sample_evolution_evaluation,
         )
 
         # Adicionar feedback
         feedback = FeedbackData(
             outcome=FeedbackOutcome.APPROVE,
             source=FeedbackSource.HUMAN,
-            reasoning="Approved after review"
+            reasoning="Approved after review",
         )
 
-        result = registry.add_feedback(
-            plan_id="test-plan-feedback",
-            feedback=feedback
-        )
+        result = registry.add_feedback(plan_id="test-plan-feedback", feedback=feedback)
 
         assert result is True
 
@@ -338,27 +331,23 @@ class TestPatternRegistryIntegration:
                 avg_dependency_count=1.0,
                 has_conditional_deps=False,
                 estimated_duration_range=DurationRange.MEDIUM,
-                complexity_signature=f"T-M-hash{i}"
+                complexity_signature=f"T-M-hash{i}",
             )
 
             evaluation = EvolutionEvaluation(
                 confidence_score=0.7 + (i * 0.05),
                 risk_score=0.3 - (i * 0.05),
                 recommendation="approve",
-                weights_used=DEFAULT_WEIGHTS.copy()
+                weights_used=DEFAULT_WEIGHTS.copy(),
             )
 
             registry.store_evaluation(
-                plan_id=f"similar-plan-{i}",
-                fingerprint=fingerprint,
-                evaluation=evaluation
+                plan_id=f"similar-plan-{i}", fingerprint=fingerprint, evaluation=evaluation
             )
 
         # Buscar similares
         similar = registry.find_similar_patterns(
-            fingerprint=sample_fingerprint,
-            limit=10,
-            min_similarity=0.0
+            fingerprint=sample_fingerprint, limit=10, min_similarity=0.0
         )
 
         # Deve encontrar alguns resultados
@@ -371,11 +360,7 @@ class TestWeightAdapterIntegration:
     @pytest.mark.asyncio
     async def test_adapt_weights_with_insufficient_history(self, mock_mongo_client):
         """Testa adaptação com histórico insuficiente."""
-        adapter = WeightAdapter(
-            mock_mongo_client,
-            min_similar_patterns=5,
-            max_adjustment=0.05
-        )
+        adapter = WeightAdapter(mock_mongo_client, min_similar_patterns=5, max_adjustment=0.05)
 
         fingerprint = Fingerprint(
             domain="unknown",
@@ -385,7 +370,7 @@ class TestWeightAdapterIntegration:
             avg_dependency_count=0.0,
             has_conditional_deps=False,
             estimated_duration_range=DurationRange.SHORT,
-            complexity_signature="U-S-xyz"
+            complexity_signature="U-S-xyz",
         )
 
         # Sem histórico suficiente, deve retornar defaults
@@ -397,9 +382,7 @@ class TestWeightAdapterIntegration:
     async def test_adapt_weights_preserves_sum(self, mock_mongo_client):
         """Testa que pesos adaptados preservam soma = 1.0."""
         adapter = WeightAdapter(
-            mock_mongo_client,
-            min_similar_patterns=1,  # Baixo para teste
-            max_adjustment=0.05
+            mock_mongo_client, min_similar_patterns=1, max_adjustment=0.05  # Baixo para teste
         )
 
         fingerprint = Fingerprint(
@@ -410,12 +393,16 @@ class TestWeightAdapterIntegration:
             avg_dependency_count=1.0,
             has_conditional_deps=False,
             estimated_duration_range=DurationRange.MEDIUM,
-            complexity_signature="T-M-abc"
+            complexity_signature="T-M-abc",
         )
 
         # Armazenar alguns padrões com feedback
         registry = SyncPatternRegistry(mock_mongo_client, database="test_neural_hive")
-        from neural_hive_specialists.evolution_hooks import FeedbackData, FeedbackOutcome, FeedbackSource
+        from neural_hive_specialists.evolution_hooks import (
+            FeedbackData,
+            FeedbackOutcome,
+            FeedbackSource,
+        )
 
         for i in range(3):
             fp = Fingerprint(
@@ -426,22 +413,19 @@ class TestWeightAdapterIntegration:
                 avg_dependency_count=1.0,
                 has_conditional_deps=False,
                 estimated_duration_range=DurationRange.MEDIUM,
-                complexity_signature=f"T-M-{i}"
+                complexity_signature=f"T-M-{i}",
             )
 
             eval = EvolutionEvaluation(
                 confidence_score=0.75,
                 risk_score=0.25,
                 recommendation="approve",
-                weights_used={**DEFAULT_WEIGHTS, "maintainability": 0.30}  # Testar com peso alto
+                weights_used={**DEFAULT_WEIGHTS, "maintainability": 0.30},  # Testar com peso alto
             )
 
             registry.store_evaluation(f"plan-{i}", fp, eval)
 
-            feedback = FeedbackData(
-                outcome=FeedbackOutcome.APPROVE,
-                source=FeedbackSource.HUMAN
-            )
+            feedback = FeedbackData(outcome=FeedbackOutcome.APPROVE, source=FeedbackSource.HUMAN)
             registry.add_feedback(f"plan-{i}", feedback)
 
         # Adaptar - mesmo sem histórico suficiente, soma deve ser 1.0
@@ -469,21 +453,23 @@ class TestEvolutionSpecialistIntegration:
         # Importar especialista (pode falhar se não instalado)
         try:
             import importlib.util
+
             spec = importlib.util.spec_from_file_location(
                 "specialist",
-                "/home/jimy/NHM/Neural-Hive-Mind/services/specialist-evolution/src/specialist.py"
+                "/home/jimy/NHM/Neural-Hive-Mind/services/specialist-evolution/src/specialist.py",
             )
             specialist_module = importlib.util.module_from_spec(spec)
 
             # Mock base class
             from unittest.mock import MagicMock
-            sys.modules['neural_hive_specialists'] = MagicMock()
-            sys.modules['neural_hive_specialists'].BaseSpecialist = object
+
+            sys.modules["neural_hive_specialists"] = MagicMock()
+            sys.modules["neural_hive_specialists"].BaseSpecialist = object
 
             spec.loader.exec_module(specialist_module)
 
             # Verificar constantes
-            assert hasattr(specialist_module.EvolutionSpecialist, 'DEFAULT_WEIGHTS')
+            assert hasattr(specialist_module.EvolutionSpecialist, "DEFAULT_WEIGHTS")
 
         except Exception as e:
             pytest.skip(f"EvolutionSpecialist não disponível: {e}")
@@ -494,16 +480,18 @@ class TestEvolutionSpecialistIntegration:
 
         try:
             import importlib.util
+
             spec = importlib.util.spec_from_file_location(
                 "specialist",
-                "/home/jimy/NHM/Neural-Hive-Mind/services/specialist-evolution/src/specialist.py"
+                "/home/jimy/NHM/Neural-Hive-Mind/services/specialist-evolution/src/specialist.py",
             )
             specialist_module = importlib.util.module_from_spec(spec)
 
             # Mock base class
             from unittest.mock import MagicMock
-            sys.modules['neural_hive_specialists'] = MagicMock()
-            sys.modules['neural_hive_specialists'].BaseSpecialist = object
+
+            sys.modules["neural_hive_specialists"] = MagicMock()
+            sys.modules["neural_hive_specialists"].BaseSpecialist = object
 
             spec.loader.exec_module(specialist_module)
 
@@ -516,12 +504,14 @@ class TestEvolutionSpecialistIntegration:
     def test_default_weights_match_constants(self):
         """Verifica que DEFAULT_WEIGHTS bate com constante do módulo."""
         # Ler o arquivo specialist.py e verificar que DEFAULT_WEIGHTS está definido corretamente
-        specialist_path = "/home/jimy/NHM/Neural-Hive-Mind/services/specialist-evolution/src/specialist.py"
-        with open(specialist_path, 'r') as f:
+        specialist_path = (
+            "/home/jimy/NHM/Neural-Hive-Mind/services/specialist-evolution/src/specialist.py"
+        )
+        with open(specialist_path, "r") as f:
             content = f.read()
 
         # Verificar que DEFAULT_WEIGHTS está definido com valores corretos
-        assert 'DEFAULT_WEIGHTS = {' in content
+        assert "DEFAULT_WEIGHTS = {" in content
         assert '"maintainability": 0.25' in content
         assert '"scalability": 0.25' in content
         assert '"extensibility": 0.20' in content
@@ -545,9 +535,19 @@ class TestEndToEndFlow:
             "original_domain": "technical",
             "original_priority": "normal",
             "tasks": [
-                {"name": "task1", "task_type": "ANALYZE", "dependencies": [], "estimated_duration_ms": 1000},
-                {"name": "task2", "task_type": "BUILD", "dependencies": ["task1"], "estimated_duration_ms": 2000},
-            ]
+                {
+                    "name": "task1",
+                    "task_type": "ANALYZE",
+                    "dependencies": [],
+                    "estimated_duration_ms": 1000,
+                },
+                {
+                    "name": "task2",
+                    "task_type": "BUILD",
+                    "dependencies": ["task1"],
+                    "estimated_duration_ms": 2000,
+                },
+            ],
         }
 
         # 3. Extrair fingerprint
@@ -560,7 +560,7 @@ class TestEndToEndFlow:
             confidence_score=0.8,
             risk_score=0.2,
             recommendation="approve",
-            weights_used=DEFAULT_WEIGHTS.copy()
+            weights_used=DEFAULT_WEIGHTS.copy(),
         )
         pattern_id = registry.store_evaluation(plan["plan_id"], fingerprint, evaluation)
         assert pattern_id is not None
@@ -572,6 +572,7 @@ class TestEndToEndFlow:
 
         # 6. Adaptar pesos (mesmo que não mude, deve rodar sem erro)
         import asyncio
+
         adapted = asyncio.run(adapter.adapt_weights(fingerprint))
         assert sum(adapted.values()) == pytest.approx(1.0, abs=0.001)
 
@@ -581,8 +582,13 @@ class TestEndToEndFlow:
             "plan_id": "consistency-test",
             "original_domain": "business",
             "tasks": [
-                {"name": "a", "task_type": "ANALYZE", "dependencies": [], "estimated_duration_ms": 100}
-            ]
+                {
+                    "name": "a",
+                    "task_type": "ANALYZE",
+                    "dependencies": [],
+                    "estimated_duration_ms": 100,
+                }
+            ],
         }
 
         fp1 = fingerprint_extractor.extract(plan)

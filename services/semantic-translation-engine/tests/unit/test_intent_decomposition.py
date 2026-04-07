@@ -21,7 +21,7 @@ class TestIntentClassifier:
     @pytest.fixture
     def classifier(self):
         """IntentClassifier sem modelo de embeddings (apenas padrões)."""
-        return IntentClassifier(config={'intent_classification_min_confidence': 0.3})
+        return IntentClassifier(config={"intent_classification_min_confidence": 0.3})
 
     def test_classify_viability_analysis_portuguese(self, classifier):
         """Testa classificação de análise de viabilidade em português."""
@@ -32,7 +32,10 @@ class TestIntentClassifier:
         assert classification.intent_type == IntentType.VIABILITY_ANALYSIS
         assert classification.confidence >= 0.3
         assert classification.recommended_task_count >= 6
-        assert 'security' in classification.semantic_domains or 'architecture' in classification.semantic_domains
+        assert (
+            "security" in classification.semantic_domains
+            or "architecture" in classification.semantic_domains
+        )
 
     def test_classify_migration_portuguese(self, classifier):
         """Testa classificação de migração em português."""
@@ -51,7 +54,7 @@ class TestIntentClassifier:
 
         assert classification.intent_type == IntentType.SECURITY_AUDIT
         assert classification.confidence >= 0.3
-        assert 'security' in classification.semantic_domains
+        assert "security" in classification.semantic_domains
 
     def test_classify_feature_implementation(self, classifier):
         """Testa classificação de implementação de feature."""
@@ -76,7 +79,7 @@ class TestIntentClassifier:
         intent = "xyz abc 123"
 
         # Mock _score_by_semantics para evitar dependência de ML (problema de ambiente)
-        with patch.object(classifier, '_score_by_semantics', return_value={}):
+        with patch.object(classifier, "_score_by_semantics", return_value={}):
             classification = classifier.classify(intent)
 
         assert classification.intent_type == IntentType.GENERIC
@@ -89,10 +92,10 @@ class TestIntentClassifier:
 
         hints = classifier.get_decomposition_hints(classification)
 
-        assert 'intent_type' in hints
-        assert 'recommended_task_count' in hints
-        assert 'semantic_domains' in hints
-        assert 'should_use_template' in hints
+        assert "intent_type" in hints
+        assert "recommended_task_count" in hints
+        assert "semantic_domains" in hints
+        assert "should_use_template" in hints
 
 
 class TestDecompositionTemplates:
@@ -134,16 +137,16 @@ class TestDecompositionTemplates:
         classification = IntentClassification(
             intent_type=IntentType.VIABILITY_ANALYSIS,
             confidence=0.8,
-            matched_patterns=['analisar viabilidade'],
+            matched_patterns=["analisar viabilidade"],
             recommended_task_count=8,
-            semantic_domains=['security', 'architecture', 'quality']
+            semantic_domains=["security", "architecture", "quality"],
         )
 
         tasks = templates.generate_tasks(
             classification=classification,
             intent_text="Analisar viabilidade de migração do sistema de autenticação para OAuth2",
-            entities=['autenticação', 'OAuth2'],
-            base_task_id=0
+            entities=["autenticação", "OAuth2"],
+            base_task_id=0,
         )
 
         # Deve gerar 8 tasks
@@ -160,31 +163,31 @@ class TestDecompositionTemplates:
 
         # Verificar metadata de decomposição
         for task in tasks:
-            assert 'template_id' in task.metadata
-            assert 'semantic_domain' in task.metadata
-            assert task.metadata['decomposition_method'] == 'template_based'
+            assert "template_id" in task.metadata
+            assert "semantic_domain" in task.metadata
+            assert task.metadata["decomposition_method"] == "template_based"
 
     def test_generate_tasks_with_subject_target_extraction(self, templates):
         """Testa extração de subject e target do texto do intent."""
         classification = IntentClassification(
             intent_type=IntentType.MIGRATION,
             confidence=0.8,
-            matched_patterns=['migração'],
+            matched_patterns=["migração"],
             recommended_task_count=8,
-            semantic_domains=['security', 'architecture']
+            semantic_domains=["security", "architecture"],
         )
 
         tasks = templates.generate_tasks(
             classification=classification,
             intent_text="Migrar sistema de autenticação de LDAP para OAuth2 com MFA",
-            entities=['autenticação', 'LDAP', 'OAuth2'],
-            base_task_id=0
+            entities=["autenticação", "LDAP", "OAuth2"],
+            base_task_id=0,
         )
 
         # Verificar que subject e target foram extraídos e usados nas descrições
-        descriptions = ' '.join(t.description for t in tasks)
-        assert 'LDAP' in descriptions or 'autenticação' in descriptions
-        assert 'OAuth2' in descriptions or 'MFA' in descriptions
+        descriptions = " ".join(t.description for t in tasks)
+        assert "LDAP" in descriptions or "autenticação" in descriptions
+        assert "OAuth2" in descriptions or "MFA" in descriptions
 
     def test_get_semantic_coverage(self, templates):
         """Testa obtenção de cobertura semântica."""
@@ -192,7 +195,7 @@ class TestDecompositionTemplates:
 
         assert isinstance(coverage, dict)
         assert sum(coverage.values()) >= 6  # Total de tasks
-        assert 'security' in coverage or 'architecture' in coverage
+        assert "security" in coverage or "architecture" in coverage
 
 
 class TestDAGGeneratorIntentDecomposition:
@@ -211,13 +214,13 @@ class TestDAGGeneratorIntentDecomposition:
     def test_generate_uses_intent_decomposition(self, dag_generator):
         """Testa que generate() usa decomposição por intent quando disponível."""
         intermediate_repr = {
-            'original_text': 'Analisar viabilidade técnica de migração para OAuth2 com MFA',
-            'objectives': ['analyze'],
-            'entities': [
-                {'type': 'system', 'name': 'autenticação'},
-                {'type': 'technology', 'name': 'OAuth2'}
+            "original_text": "Analisar viabilidade técnica de migração para OAuth2 com MFA",
+            "objectives": ["analyze"],
+            "entities": [
+                {"type": "system", "name": "autenticação"},
+                {"type": "technology", "name": "OAuth2"},
             ],
-            'constraints': {'domain': 'security'}
+            "constraints": {"domain": "security"},
         }
 
         tasks, execution_order = dag_generator.generate(intermediate_repr)
@@ -226,17 +229,17 @@ class TestDAGGeneratorIntentDecomposition:
         assert len(tasks) >= 6
 
         # Verificar que tasks têm metadata de decomposição por template
-        template_tasks = [t for t in tasks if t.metadata.get('decomposition_method') == 'template_based']
+        template_tasks = [
+            t for t in tasks if t.metadata.get("decomposition_method") == "template_based"
+        ]
         assert len(template_tasks) >= 6
 
     def test_generate_falls_back_without_original_text(self, dag_generator):
         """Testa fallback quando original_text não está disponível."""
         intermediate_repr = {
-            'objectives': ['create', 'query'],
-            'entities': [
-                {'type': 'user', 'name': 'customer'}
-            ],
-            'constraints': {}
+            "objectives": ["create", "query"],
+            "entities": [{"type": "user", "name": "customer"}],
+            "constraints": {},
         }
 
         tasks, execution_order = dag_generator.generate(intermediate_repr)
@@ -244,16 +247,18 @@ class TestDAGGeneratorIntentDecomposition:
         # Sem original_text, deve usar fluxo legado
         assert len(tasks) >= 1
         # Tasks não devem ter metadata de template
-        template_tasks = [t for t in tasks if t.metadata.get('decomposition_method') == 'template_based']
+        template_tasks = [
+            t for t in tasks if t.metadata.get("decomposition_method") == "template_based"
+        ]
         assert len(template_tasks) == 0
 
     def test_generate_disabled_uses_legacy_flow(self, dag_generator_disabled):
         """Testa que fluxo legado é usado quando decomposição está desabilitada."""
         intermediate_repr = {
-            'original_text': 'Analisar viabilidade técnica de migração para OAuth2',
-            'objectives': ['analyze'],
-            'entities': [],
-            'constraints': {}
+            "original_text": "Analisar viabilidade técnica de migração para OAuth2",
+            "objectives": ["analyze"],
+            "entities": [],
+            "constraints": {},
         }
 
         tasks, execution_order = dag_generator_disabled.generate(intermediate_repr)
@@ -262,7 +267,9 @@ class TestDAGGeneratorIntentDecomposition:
         assert len(tasks) >= 1
 
         # Tasks não devem ter metadata de template
-        template_tasks = [t for t in tasks if t.metadata.get('decomposition_method') == 'template_based']
+        template_tasks = [
+            t for t in tasks if t.metadata.get("decomposition_method") == "template_based"
+        ]
         assert len(template_tasks) == 0
 
 
@@ -277,17 +284,14 @@ class TestIntentDecompositionEndToEnd:
     def test_oauth2_migration_viability(self, dag_generator):
         """Testa decomposição completa de análise de viabilidade OAuth2."""
         intermediate_repr = {
-            'original_text': 'Analisar viabilidade técnica de migração do sistema de autenticação para OAuth2 com suporte a MFA',
-            'objectives': ['analyze_viability'],
-            'entities': [
-                {'type': 'system', 'name': 'autenticação'},
-                {'type': 'technology', 'name': 'OAuth2'},
-                {'type': 'feature', 'name': 'MFA'}
+            "original_text": "Analisar viabilidade técnica de migração do sistema de autenticação para OAuth2 com suporte a MFA",
+            "objectives": ["analyze_viability"],
+            "entities": [
+                {"type": "system", "name": "autenticação"},
+                {"type": "technology", "name": "OAuth2"},
+                {"type": "feature", "name": "MFA"},
             ],
-            'constraints': {
-                'domain': 'security',
-                'priority': 'high'
-            }
+            "constraints": {"domain": "security", "priority": "high"},
         }
 
         tasks, execution_order = dag_generator.generate(intermediate_repr)
@@ -299,7 +303,7 @@ class TestIntentDecompositionEndToEnd:
         assert len(execution_order) == len(tasks)
 
         # Verificar diversidade de domínios semânticos
-        domains = {t.metadata.get('semantic_domain') for t in tasks if t.metadata}
+        domains = {t.metadata.get("semantic_domain") for t in tasks if t.metadata}
         assert len(domains) >= 3
 
         # Verificar que há tasks de diferentes tipos
@@ -309,17 +313,14 @@ class TestIntentDecompositionEndToEnd:
     def test_infrastructure_autoscaling(self, dag_generator):
         """Testa decomposição de mudança de infraestrutura."""
         intermediate_repr = {
-            'original_text': 'Projetar estratégia de auto-scaling para microserviços com base em métricas de CPU e memória',
-            'objectives': ['design_infrastructure'],
-            'entities': [
-                {'type': 'component', 'name': 'microserviços'},
-                {'type': 'metric', 'name': 'CPU'},
-                {'type': 'metric', 'name': 'memória'}
+            "original_text": "Projetar estratégia de auto-scaling para microserviços com base em métricas de CPU e memória",
+            "objectives": ["design_infrastructure"],
+            "entities": [
+                {"type": "component", "name": "microserviços"},
+                {"type": "metric", "name": "CPU"},
+                {"type": "metric", "name": "memória"},
             ],
-            'constraints': {
-                'domain': 'infrastructure',
-                'priority': 'high'
-            }
+            "constraints": {"domain": "infrastructure", "priority": "high"},
         }
 
         tasks, execution_order = dag_generator.generate(intermediate_repr)
@@ -328,8 +329,12 @@ class TestIntentDecompositionEndToEnd:
         assert len(tasks) >= 5
 
         # Verificar que há tasks relacionadas a capacidade/performance
-        descriptions = ' '.join(t.description.lower() for t in tasks)
-        assert 'capacidade' in descriptions or 'capacity' in descriptions or 'scaling' in descriptions.lower()
+        descriptions = " ".join(t.description.lower() for t in tasks)
+        assert (
+            "capacidade" in descriptions
+            or "capacity" in descriptions
+            or "scaling" in descriptions.lower()
+        )
 
 
 class TestIntentClassifierEdgeCases:
@@ -337,11 +342,11 @@ class TestIntentClassifierEdgeCases:
 
     @pytest.fixture
     def classifier(self):
-        return IntentClassifier(config={'intent_classification_min_confidence': 0.3})
+        return IntentClassifier(config={"intent_classification_min_confidence": 0.3})
 
     def test_classify_empty_string(self, classifier):
         """Testa classificação de string vazia."""
-        with patch.object(classifier, '_score_by_semantics', return_value={}):
+        with patch.object(classifier, "_score_by_semantics", return_value={}):
             classification = classifier.classify("")
 
         assert classification.intent_type == IntentType.GENERIC
@@ -349,7 +354,7 @@ class TestIntentClassifierEdgeCases:
 
     def test_classify_very_short_text(self, classifier):
         """Testa classificação de texto muito curto."""
-        with patch.object(classifier, '_score_by_semantics', return_value={}):
+        with patch.object(classifier, "_score_by_semantics", return_value={}):
             classification = classifier.classify("sim")
 
         assert classification.confidence >= 0.0
@@ -363,7 +368,7 @@ class TestIntentClassifierEdgeCases:
         assert classification.intent_type in [
             IntentType.MIGRATION,
             IntentType.SECURITY_AUDIT,
-            IntentType.GENERIC
+            IntentType.GENERIC,
         ]
 
 
@@ -399,14 +404,14 @@ class TestIntentDecompositionWithEntities:
     def test_decomposition_with_multiple_entities(self, dag_generator):
         """Testa decomposição com múltiplas entidades."""
         intermediate_repr = {
-            'original_text': 'Configurar user, product e order services para auto-scaling',
-            'objectives': ['configure'],
-            'entities': [
-                {'type': 'service', 'name': 'user'},
-                {'type': 'service', 'name': 'product'},
-                {'type': 'service', 'name': 'order'}
+            "original_text": "Configurar user, product e order services para auto-scaling",
+            "objectives": ["configure"],
+            "entities": [
+                {"type": "service", "name": "user"},
+                {"type": "service", "name": "product"},
+                {"type": "service", "name": "order"},
             ],
-            'constraints': {'domain': 'infrastructure'}
+            "constraints": {"domain": "infrastructure"},
         }
 
         tasks, execution_order = dag_generator.generate(intermediate_repr)
@@ -417,14 +422,14 @@ class TestIntentDecompositionWithEntities:
     def test_decomposition_with_nested_entities(self, dag_generator):
         """Testa decomposição com entidades aninhadas."""
         intermediate_repr = {
-            'original_text': 'Configurar cache Redis para sessions de user',
-            'objectives': ['configure'],
-            'entities': [
-                {'type': 'cache', 'name': 'Redis'},
-                {'type': 'resource', 'name': 'sessions'},
-                {'type': 'service', 'name': 'user'}
+            "original_text": "Configurar cache Redis para sessions de user",
+            "objectives": ["configure"],
+            "entities": [
+                {"type": "cache", "name": "Redis"},
+                {"type": "resource", "name": "sessions"},
+                {"type": "service", "name": "user"},
             ],
-            'constraints': {'domain': 'infrastructure'}
+            "constraints": {"domain": "infrastructure"},
         }
 
         tasks, execution_order = dag_generator.generate(intermediate_repr)
@@ -445,9 +450,9 @@ class TestDAGGeneratorWithIntentDecompositionDisabled:
     def test_legacy_mode_generates_basic_tasks(self, dag_generator):
         """Testa que modo legado gera tasks básicas."""
         intermediate_repr = {
-            'objectives': ['create', 'validate'],
-            'entities': [{'type': 'user', 'name': 'customer'}],
-            'constraints': {}
+            "objectives": ["create", "validate"],
+            "entities": [{"type": "user", "name": "customer"}],
+            "constraints": {},
         }
 
         tasks, execution_order = dag_generator.generate(intermediate_repr)
@@ -458,9 +463,9 @@ class TestDAGGeneratorWithIntentDecompositionDisabled:
     def test_legacy_mode_respects_domain_hints(self, dag_generator):
         """Testa que modo legado respeita hints de domínio."""
         intermediate_repr = {
-            'objectives': ['query'],
-            'entities': [],
-            'constraints': {'domain': 'security-analysis'}
+            "objectives": ["query"],
+            "entities": [],
+            "constraints": {"domain": "security-analysis"},
         }
 
         tasks, execution_order = dag_generator.generate(intermediate_repr)
@@ -474,15 +479,15 @@ class TestIntentClassificationConfidence:
 
     @pytest.fixture
     def classifier(self):
-        return IntentClassifier(config={'intent_classification_min_confidence': 0.5})
+        return IntentClassifier(config={"intent_classification_min_confidence": 0.5})
 
     def test_high_confidence_classification(self, classifier):
         """Testa classificação com alta confiança."""
         intent = "Realizar auditoria completa de segurança no sistema de autenticação"
 
-        with patch.object(classifier, '_score_by_semantics', return_value={
-            IntentType.SECURITY_AUDIT: 0.95
-        }):
+        with patch.object(
+            classifier, "_score_by_semantics", return_value={IntentType.SECURITY_AUDIT: 0.95}
+        ):
             classification = classifier.classify(intent)
 
         # Confiança deve ser alta (mock retorna 0.95, mas o código pode ajustar)
@@ -492,10 +497,11 @@ class TestIntentClassificationConfidence:
         """Testa classificação com baixa confiança."""
         intent = "Operação genérica do sistema"
 
-        with patch.object(classifier, '_score_by_semantics', return_value={
-            IntentType.GENERIC: 0.4,
-            IntentType.FEATURE_IMPLEMENTATION: 0.35
-        }):
+        with patch.object(
+            classifier,
+            "_score_by_semantics",
+            return_value={IntentType.GENERIC: 0.4, IntentType.FEATURE_IMPLEMENTATION: 0.35},
+        ):
             classification = classifier.classify(intent)
 
         # Baixa confiança deve resultar em tipo GENérico
@@ -505,10 +511,11 @@ class TestIntentClassificationConfidence:
         """Testa empate de scores usa primeira match."""
         intent = "Ação ambígua"
 
-        with patch.object(classifier, '_score_by_semantics', return_value={
-            IntentType.GENERIC: 0.5,
-            IntentType.FEATURE_IMPLEMENTATION: 0.5
-        }):
+        with patch.object(
+            classifier,
+            "_score_by_semantics",
+            return_value={IntentType.GENERIC: 0.5, IntentType.FEATURE_IMPLEMENTATION: 0.5},
+        ):
             classification = classifier.classify(intent)
 
         # Deve escolher um dos tipos com score igual
@@ -525,10 +532,10 @@ class TestDecompositionTaskParameters:
     def test_tasks_include_context_parameters(self, dag_generator):
         """Testa que tasks incluem parâmetros de contexto."""
         intermediate_repr = {
-            'original_text': 'Criar endpoint REST para usuários',
-            'objectives': ['create'],
-            'entities': [{'type': 'resource', 'name': 'endpoint REST'}],
-            'constraints': {}
+            "original_text": "Criar endpoint REST para usuários",
+            "objectives": ["create"],
+            "entities": [{"type": "resource", "name": "endpoint REST"}],
+            "constraints": {},
         }
 
         tasks, execution_order = dag_generator.generate(intermediate_repr)
@@ -540,15 +547,14 @@ class TestDecompositionTaskParameters:
     def test_task_descriptions_include_entity_context(self, dag_generator):
         """Testa que descrições de tasks incluem contexto das entidades."""
         intermediate_repr = {
-            'original_text': 'Configurar auto-scaling para microserviços',
-            'objectives': ['configure'],
-            'entities': [{'type': 'component', 'name': 'microserviços'}],
-            'constraints': {}
+            "original_text": "Configurar auto-scaling para microserviços",
+            "objectives": ["configure"],
+            "entities": [{"type": "component", "name": "microserviços"}],
+            "constraints": {},
         }
 
         tasks, execution_order = dag_generator.generate(intermediate_repr)
 
         # Alguma descrição deve mencionar a entidade
-        descriptions = ' '.join(t.description.lower() for t in tasks)
-        assert 'microserviços' in descriptions or 'microservice' in descriptions
-
+        descriptions = " ".join(t.description.lower() for t in tasks)
+        assert "microserviços" in descriptions or "microservice" in descriptions

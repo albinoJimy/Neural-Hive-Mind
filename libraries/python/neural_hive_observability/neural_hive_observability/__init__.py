@@ -50,7 +50,7 @@ from .health import (
     CustomHealthCheck,
     DatabaseHealthCheck,
     KafkaHealthCheck,
-    MemoryHealthCheck
+    MemoryHealthCheck,
 )
 from .health_checks import ClickHouseSchemaHealthCheck, OTELPipelineHealthCheck
 from .context import ContextManager
@@ -61,7 +61,7 @@ from .grpc_instrumentation import (
     extract_grpc_context,
     inject_grpc_context,
     instrument_grpc_channel,
-    NeuralHiveGrpcServerInterceptor
+    NeuralHiveGrpcServerInterceptor,
 )
 from .context import inject_context_to_metadata
 from .kafka_instrumentation import (
@@ -69,7 +69,7 @@ from .kafka_instrumentation import (
     instrument_kafka_consumer,
     InstrumentedKafkaProducer,
     InstrumentedAIOKafkaConsumer,
-    InstrumentedAIOKafkaProducer
+    InstrumentedAIOKafkaProducer,
 )
 
 # Versão da biblioteca
@@ -84,6 +84,7 @@ _metrics: Optional[NeuralHiveMetrics] = None
 _health_checker: Optional[HealthChecker] = None
 _context_manager: Optional[ContextManager] = None
 
+
 def init_observability(
     service_name: str,
     service_version: str = "unknown",
@@ -95,7 +96,7 @@ def init_observability(
     prometheus_port: int = 8000,
     log_level: str = "INFO",
     enable_health_checks: bool = True,
-    **kwargs
+    **kwargs,
 ) -> None:
     """
     Inicializa a observabilidade completa do Neural Hive-Mind.
@@ -133,11 +134,12 @@ def init_observability(
         neural_hive_layer=neural_hive_layer,
         neural_hive_domain=neural_hive_domain,
         environment=environment or os.getenv("ENVIRONMENT", "production"),
-        otel_endpoint=otel_endpoint or os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://opentelemetry-collector:4317"),
+        otel_endpoint=otel_endpoint
+        or os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://opentelemetry-collector:4317"),
         prometheus_port=prometheus_port,
         log_level=log_level,
         enable_health_checks=enable_health_checks,
-        **kwargs
+        **kwargs,
     )
 
     logger.info(f"Inicializando observabilidade para {service_name} ({neural_hive_component})")
@@ -166,29 +168,32 @@ def init_observability(
 
         # Registrar métricas de inicialização
         if _metrics:
-            _metrics.service_startup_total.labels(
-                **_config.common_labels
-            ).inc()
+            _metrics.service_startup_total.labels(**_config.common_labels).inc()
 
     except Exception as e:
         logger.error(f"Erro ao inicializar observabilidade: {e}")
         raise
 
+
 def get_config() -> Optional[ObservabilityConfig]:
     """Retorna a configuração atual de observabilidade."""
     return _config
+
 
 def get_metrics() -> Optional[NeuralHiveMetrics]:
     """Retorna a instância de métricas."""
     return _metrics
 
+
 def get_health_checker() -> Optional[HealthChecker]:
     """Retorna o health checker."""
     return _health_checker
 
+
 def get_context_manager() -> Optional[ContextManager]:
     """Retorna o context manager."""
     return _context_manager
+
 
 # Aliases para facilitar o uso
 # Nota: Usando nomes com underscore para evitar conflito com módulos
@@ -203,19 +208,15 @@ _context = property(lambda: get_context_manager())
 __all__ = [
     # Função principal
     "init_observability",
-
     # Tracing
     "trace_intent",
     "trace_plan",
     "get_tracer",
-
     # Métricas
     "NeuralHiveMetrics",
     "get_metrics",
-
     # Logging
     "get_logger",
-
     # Health checks
     "HealthChecker",
     "HealthManager",  # Alias para compatibilidade retroativa
@@ -230,18 +231,14 @@ __all__ = [
     "get_health_checker",
     "ClickHouseSchemaHealthCheck",
     "OTELPipelineHealthCheck",
-
     # Context
     "ContextManager",
     "get_context_manager",
-
     # Config
     "ObservabilityConfig",
     "get_config",
-
     # Utilitários (use as funções get_* em vez das properties)
     # "_metrics", "_health", "_context" são privados
-
     # gRPC instrumentation
     "init_grpc_instrumentation",
     "create_instrumented_grpc_server",
@@ -250,10 +247,8 @@ __all__ = [
     "instrument_grpc_channel",
     "NeuralHiveGrpcServerInterceptor",
     "trace_grpc_method",
-
     # Context propagation
     "inject_context_to_metadata",
-
     # Kafka instrumentation
     "instrument_kafka_producer",
     "instrument_kafka_consumer",

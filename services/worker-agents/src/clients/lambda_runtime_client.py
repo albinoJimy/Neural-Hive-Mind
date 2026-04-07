@@ -23,9 +23,7 @@ tracer = trace.get_tracer(__name__)
 class LambdaRuntimeError(Exception):
     """Erro de execução no Lambda Runtime."""
 
-    def __init__(
-        self, message: str, status_code: int | None = None, error_type: str | None = None
-    ):
+    def __init__(self, message: str, status_code: int | None = None, error_type: str | None = None):
         super().__init__(message)
         self.status_code = status_code
         self.error_type = error_type
@@ -33,7 +31,6 @@ class LambdaRuntimeError(Exception):
 
 class LambdaTimeoutError(Exception):
     """Timeout aguardando execução Lambda."""
-
 
 
 class LambdaInvocationType(StrEnum):
@@ -70,9 +67,7 @@ class LambdaInvocationRequest(BaseModel):
     invocation_type: LambdaInvocationType = Field(default=LambdaInvocationType.REQUEST_RESPONSE)
     log_type: LambdaLogType = Field(default=LambdaLogType.TAIL)
     qualifier: str | None = Field(default=None, description="Versão ou alias da função")
-    client_context: dict[str, Any] | None = Field(
-        default=None, description="Contexto do cliente"
-    )
+    client_context: dict[str, Any] | None = Field(default=None, description="Contexto do cliente")
 
 
 class LambdaExecutionOutput(BaseModel):

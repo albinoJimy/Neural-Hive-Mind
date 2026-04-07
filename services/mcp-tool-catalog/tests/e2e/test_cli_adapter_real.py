@@ -5,7 +5,12 @@ import tempfile
 import pytest
 
 from src.adapters.cli_adapter import CLIAdapter
-from src.models.tool_descriptor import AuthenticationMethod, IntegrationType, ToolCategory, ToolDescriptor
+from src.models.tool_descriptor import (
+    AuthenticationMethod,
+    IntegrationType,
+    ToolCategory,
+    ToolDescriptor,
+)
 
 
 @pytest.mark.e2e

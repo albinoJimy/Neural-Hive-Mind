@@ -15,7 +15,9 @@ class StubTicketClient:
     def __init__(self):
         self.status_calls = []
 
-    async def update_ticket_status(self, ticket_id, status, error_message=None, actual_duration_ms=None):
+    async def update_ticket_status(
+        self, ticket_id, status, error_message=None, actual_duration_ms=None
+    ):
         self.status_calls.append(
             {
                 "ticket_id": ticket_id,
@@ -33,7 +35,9 @@ class StubResultProducer:
     def __init__(self):
         self.published = []
 
-    async def publish_result(self, ticket_id, status, result, error_message=None, actual_duration_ms=None):
+    async def publish_result(
+        self, ticket_id, status, result, error_message=None, actual_duration_ms=None
+    ):
         self.published.append(
             {
                 "ticket_id": ticket_id,
@@ -127,7 +131,9 @@ async def test_execute_ticket_success(config, sample_ticket):
     executor = StubExecutorSuccess()
     registry = RegistryWrapper(executor)
 
-    engine = ExecutionEngine(config, ticket_client, result_producer, dependency_coordinator, registry)
+    engine = ExecutionEngine(
+        config, ticket_client, result_producer, dependency_coordinator, registry
+    )
     await engine.process_ticket(sample_ticket)
     await asyncio.wait_for(engine.active_tasks[sample_ticket["ticket_id"]], timeout=2)
 
@@ -145,7 +151,9 @@ async def test_execute_ticket_with_retry(config, sample_ticket):
     executor = StubExecutorRetry(fail_times=1)
     registry = RegistryWrapper(executor)
 
-    engine = ExecutionEngine(config, ticket_client, result_producer, dependency_coordinator, registry)
+    engine = ExecutionEngine(
+        config, ticket_client, result_producer, dependency_coordinator, registry
+    )
     await engine.process_ticket(sample_ticket)
     await asyncio.wait_for(engine.active_tasks[sample_ticket["ticket_id"]], timeout=3)
 
@@ -166,7 +174,9 @@ async def test_execute_ticket_timeout(config, sample_ticket):
     sample_ticket["sla"]["timeout_ms"] = 100
     config.max_retries_per_ticket = 0
 
-    engine = ExecutionEngine(config, ticket_client, result_producer, dependency_coordinator, registry)
+    engine = ExecutionEngine(
+        config, ticket_client, result_producer, dependency_coordinator, registry
+    )
     await engine.process_ticket(sample_ticket)
     await asyncio.wait_for(engine.active_tasks[sample_ticket["ticket_id"]], timeout=3)
 
@@ -185,7 +195,9 @@ async def test_execute_ticket_executor_error_marks_failed(config, sample_ticket)
     dependency_coordinator = StubDependencyCoordinator()
     registry = BadRegistry()
 
-    engine = ExecutionEngine(config, ticket_client, result_producer, dependency_coordinator, registry)
+    engine = ExecutionEngine(
+        config, ticket_client, result_producer, dependency_coordinator, registry
+    )
     await engine.process_ticket(sample_ticket)
     await asyncio.wait_for(engine.active_tasks[sample_ticket["ticket_id"]], timeout=2)
 

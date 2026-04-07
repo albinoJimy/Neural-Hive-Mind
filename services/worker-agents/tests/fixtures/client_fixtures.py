@@ -31,14 +31,14 @@ class MockHTTPServer:
         path: str,
         status_code: int = 200,
         json_data: Optional[Dict] = None,
-        text: str = '',
+        text: str = "",
     ) -> None:
         """Add a mock response for a given method and path."""
-        key = f'{method.upper()}:{path}'
+        key = f"{method.upper()}:{path}"
         self.responses[key] = {
-            'status_code': status_code,
-            'json': json_data,
-            'text': text,
+            "status_code": status_code,
+            "json": json_data,
+            "text": text,
         }
 
     def handle_request(self, request: httpx.Request) -> httpx.Response:
@@ -48,25 +48,25 @@ class MockHTTPServer:
         method = request.method
 
         # Try exact match first
-        key = f'{method}:{path}'
+        key = f"{method}:{path}"
         if key in self.responses:
             resp = self.responses[key]
-            content = json.dumps(resp['json']) if resp.get('json') else resp.get('text', '')
+            content = json.dumps(resp["json"]) if resp.get("json") else resp.get("text", "")
             return httpx.Response(
-                status_code=resp['status_code'],
+                status_code=resp["status_code"],
                 content=content.encode(),
-                headers={'content-type': 'application/json'} if resp.get('json') else {},
+                headers={"content-type": "application/json"} if resp.get("json") else {},
             )
 
         # Try pattern matching (simple prefix matching)
         for pattern, resp in self.responses.items():
-            p_method, p_path = pattern.split(':', 1)
-            if p_method == method and path.startswith(p_path.rstrip('/')):
-                content = json.dumps(resp['json']) if resp.get('json') else resp.get('text', '')
+            p_method, p_path = pattern.split(":", 1)
+            if p_method == method and path.startswith(p_path.rstrip("/")):
+                content = json.dumps(resp["json"]) if resp.get("json") else resp.get("text", "")
                 return httpx.Response(
-                    status_code=resp['status_code'],
+                    status_code=resp["status_code"],
                     content=content.encode(),
-                    headers={'content-type': 'application/json'} if resp.get('json') else {},
+                    headers={"content-type": "application/json"} if resp.get("json") else {},
                 )
 
         # Default 404 response
@@ -88,7 +88,7 @@ class MockHTTPServer:
 class MockArgoCDServer(MockHTTPServer):
     """Mock ArgoCD API server."""
 
-    def __init__(self, base_health_status: str = 'Healthy'):
+    def __init__(self, base_health_status: str = "Healthy"):
         super().__init__()
         self.applications: Dict[str, Dict] = {}
         self.health_status = base_health_status
@@ -106,50 +106,50 @@ class MockArgoCDServer(MockHTTPServer):
         method = request.method
 
         # POST /api/v1/applications - Create application
-        if method == 'POST' and path == '/api/v1/applications':
+        if method == "POST" and path == "/api/v1/applications":
             try:
                 body = json.loads(request.content)
-                name = body.get('metadata', {}).get('name', 'unknown')
+                name = body.get("metadata", {}).get("name", "unknown")
                 self.applications[name] = {
-                    'metadata': body.get('metadata', {}),
-                    'spec': body.get('spec', {}),
-                    'status': {
-                        'health': {'status': 'Progressing'},
-                        'sync': {'status': 'OutOfSync'},
+                    "metadata": body.get("metadata", {}),
+                    "spec": body.get("spec", {}),
+                    "status": {
+                        "health": {"status": "Progressing"},
+                        "sync": {"status": "OutOfSync"},
                     },
                 }
                 return httpx.Response(
                     status_code=201,
                     content=json.dumps(self.applications[name]).encode(),
-                    headers={'content-type': 'application/json'},
+                    headers={"content-type": "application/json"},
                 )
             except Exception as e:
                 return httpx.Response(
                     status_code=400,
-                    content=json.dumps({'error': str(e)}).encode(),
+                    content=json.dumps({"error": str(e)}).encode(),
                 )
 
         # GET /api/v1/applications/{name} - Get application
-        if method == 'GET' and path.startswith('/api/v1/applications/'):
-            name = path.split('/')[-1]
+        if method == "GET" and path.startswith("/api/v1/applications/"):
+            name = path.split("/")[-1]
             if name in self.applications:
                 app = self.applications[name]
                 # Simulate health status progression
-                app['status']['health']['status'] = self.health_status
-                app['status']['sync']['status'] = 'Synced'
+                app["status"]["health"]["status"] = self.health_status
+                app["status"]["sync"]["status"] = "Synced"
                 return httpx.Response(
                     status_code=200,
                     content=json.dumps(app).encode(),
-                    headers={'content-type': 'application/json'},
+                    headers={"content-type": "application/json"},
                 )
             return httpx.Response(status_code=404, content=b'{"error": "Application not found"}')
 
         # DELETE /api/v1/applications/{name} - Delete application
-        if method == 'DELETE' and path.startswith('/api/v1/applications/'):
-            name = path.split('/')[-1]
+        if method == "DELETE" and path.startswith("/api/v1/applications/"):
+            name = path.split("/")[-1]
             if name in self.applications:
                 del self.applications[name]
-                return httpx.Response(status_code=200, content=b'{}')
+                return httpx.Response(status_code=200, content=b"{}")
             return httpx.Response(status_code=404, content=b'{"error": "Application not found"}')
 
         return httpx.Response(status_code=404, content=b'{"error": "Not found"}')
@@ -173,14 +173,14 @@ class MockOPAServer(MockHTTPServer):
 
         def default_policy(input_data: Dict) -> Dict:
             return {
-                'allow': self.default_allow,
-                'violations': [] if self.default_allow else [
-                    {'message': 'Policy violation', 'rule': 'default'}
-                ],
+                "allow": self.default_allow,
+                "violations": []
+                if self.default_allow
+                else [{"message": "Policy violation", "rule": "default"}],
             }
 
-        self.policies['policy/allow'] = default_policy
-        self.policies['authz/allow'] = default_policy
+        self.policies["policy/allow"] = default_policy
+        self.policies["authz/allow"] = default_policy
 
     def add_policy(self, path: str, handler: Callable[[Dict], Dict]) -> None:
         """Add a custom policy handler."""
@@ -193,32 +193,32 @@ class MockOPAServer(MockHTTPServer):
         method = request.method
 
         # POST /v1/data/{policy_path} - Evaluate policy
-        if method == 'POST' and path.startswith('/v1/data/'):
-            policy_path = path.replace('/v1/data/', '')
+        if method == "POST" and path.startswith("/v1/data/"):
+            policy_path = path.replace("/v1/data/", "")
             try:
                 body = json.loads(request.content)
-                input_data = body.get('input', {})
+                input_data = body.get("input", {})
 
                 if policy_path in self.policies:
                     result = self.policies[policy_path](input_data)
                 else:
                     # Default policy response
                     result = {
-                        'allow': self.default_allow,
-                        'violations': [] if self.default_allow else [
-                            {'message': 'Unknown policy', 'rule': policy_path}
-                        ],
+                        "allow": self.default_allow,
+                        "violations": []
+                        if self.default_allow
+                        else [{"message": "Unknown policy", "rule": policy_path}],
                     }
 
                 return httpx.Response(
                     status_code=200,
-                    content=json.dumps({'result': result}).encode(),
-                    headers={'content-type': 'application/json'},
+                    content=json.dumps({"result": result}).encode(),
+                    headers={"content-type": "application/json"},
                 )
             except Exception as e:
                 return httpx.Response(
                     status_code=400,
-                    content=json.dumps({'error': str(e)}).encode(),
+                    content=json.dumps({"error": str(e)}).encode(),
                 )
 
         return httpx.Response(status_code=404, content=b'{"error": "Not found"}')
@@ -227,7 +227,7 @@ class MockOPAServer(MockHTTPServer):
 class MockGitHubActionsServer(MockHTTPServer):
     """Mock GitHub Actions API server."""
 
-    def __init__(self, default_conclusion: str = 'success'):
+    def __init__(self, default_conclusion: str = "success"):
         super().__init__()
         self.workflows: Dict[str, Dict] = {}
         self.runs: Dict[str, Dict] = {}
@@ -241,36 +241,38 @@ class MockGitHubActionsServer(MockHTTPServer):
         method = request.method
 
         # POST /repos/{owner}/{repo}/actions/workflows/{workflow_id}/dispatches
-        if method == 'POST' and '/actions/workflows/' in path and path.endswith('/dispatches'):
+        if method == "POST" and "/actions/workflows/" in path and path.endswith("/dispatches"):
             self.run_counter += 1
-            run_id = f'run-{self.run_counter}'
+            run_id = f"run-{self.run_counter}"
             self.runs[run_id] = {
-                'id': run_id,
-                'status': 'completed',
-                'conclusion': self.default_conclusion,
-                'run_duration_ms': 120000,
+                "id": run_id,
+                "status": "completed",
+                "conclusion": self.default_conclusion,
+                "run_duration_ms": 120000,
             }
-            return httpx.Response(status_code=204, content=b'')
+            return httpx.Response(status_code=204, content=b"")
 
         # GET /repos/{owner}/{repo}/actions/runs/{run_id}
-        if method == 'GET' and '/actions/runs/' in path:
-            run_id = path.split('/')[-1]
+        if method == "GET" and "/actions/runs/" in path:
+            run_id = path.split("/")[-1]
             if run_id in self.runs:
                 return httpx.Response(
                     status_code=200,
                     content=json.dumps(self.runs[run_id]).encode(),
-                    headers={'content-type': 'application/json'},
+                    headers={"content-type": "application/json"},
                 )
             # Return simulated run for any unknown run_id
             return httpx.Response(
                 status_code=200,
-                content=json.dumps({
-                    'id': run_id,
-                    'status': 'completed',
-                    'conclusion': self.default_conclusion,
-                    'run_duration_ms': 120000,
-                }).encode(),
-                headers={'content-type': 'application/json'},
+                content=json.dumps(
+                    {
+                        "id": run_id,
+                        "status": "completed",
+                        "conclusion": self.default_conclusion,
+                        "run_duration_ms": 120000,
+                    }
+                ).encode(),
+                headers={"content-type": "application/json"},
             )
 
         return httpx.Response(status_code=404, content=b'{"error": "Not found"}')
@@ -279,7 +281,7 @@ class MockGitHubActionsServer(MockHTTPServer):
 class MockSonarQubeServer(MockHTTPServer):
     """Mock SonarQube API server."""
 
-    def __init__(self, quality_gate_status: str = 'OK'):
+    def __init__(self, quality_gate_status: str = "OK"):
         super().__init__()
         self.quality_gate_status = quality_gate_status
         self.issues: List[Dict] = []
@@ -291,26 +293,30 @@ class MockSonarQubeServer(MockHTTPServer):
         method = request.method
 
         # POST /api/qualitygates/project_status
-        if method == 'GET' and '/api/qualitygates/project_status' in path:
+        if method == "GET" and "/api/qualitygates/project_status" in path:
             return httpx.Response(
                 status_code=200,
-                content=json.dumps({
-                    'projectStatus': {
-                        'status': self.quality_gate_status,
+                content=json.dumps(
+                    {
+                        "projectStatus": {
+                            "status": self.quality_gate_status,
+                        }
                     }
-                }).encode(),
-                headers={'content-type': 'application/json'},
+                ).encode(),
+                headers={"content-type": "application/json"},
             )
 
         # GET /api/issues/search
-        if method == 'GET' and '/api/issues/search' in path:
+        if method == "GET" and "/api/issues/search" in path:
             return httpx.Response(
                 status_code=200,
-                content=json.dumps({
-                    'issues': self.issues,
-                    'total': len(self.issues),
-                }).encode(),
-                headers={'content-type': 'application/json'},
+                content=json.dumps(
+                    {
+                        "issues": self.issues,
+                        "total": len(self.issues),
+                    }
+                ).encode(),
+                headers={"content-type": "application/json"},
             )
 
         return httpx.Response(status_code=404, content=b'{"error": "Not found"}')
@@ -318,22 +324,23 @@ class MockSonarQubeServer(MockHTTPServer):
 
 # Pytest Fixtures
 
+
 @pytest.fixture
 def mock_argocd_server():
     """Mock ArgoCD server with healthy status."""
-    return MockArgoCDServer(base_health_status='Healthy')
+    return MockArgoCDServer(base_health_status="Healthy")
 
 
 @pytest.fixture
 def mock_argocd_server_progressing():
     """Mock ArgoCD server with progressing status."""
-    return MockArgoCDServer(base_health_status='Progressing')
+    return MockArgoCDServer(base_health_status="Progressing")
 
 
 @pytest.fixture
 def mock_argocd_server_degraded():
     """Mock ArgoCD server with degraded status."""
-    return MockArgoCDServer(base_health_status='Degraded')
+    return MockArgoCDServer(base_health_status="Degraded")
 
 
 @pytest.fixture
@@ -351,26 +358,26 @@ def mock_opa_server_deny():
 @pytest.fixture
 def mock_github_actions_server():
     """Mock GitHub Actions server with success conclusion."""
-    return MockGitHubActionsServer(default_conclusion='success')
+    return MockGitHubActionsServer(default_conclusion="success")
 
 
 @pytest.fixture
 def mock_github_actions_server_failure():
     """Mock GitHub Actions server with failure conclusion."""
-    return MockGitHubActionsServer(default_conclusion='failure')
+    return MockGitHubActionsServer(default_conclusion="failure")
 
 
 @pytest.fixture
 def mock_sonarqube_server():
     """Mock SonarQube server with OK quality gate."""
-    return MockSonarQubeServer(quality_gate_status='OK')
+    return MockSonarQubeServer(quality_gate_status="OK")
 
 
 @pytest.fixture
 def mock_sonarqube_server_failed():
     """Mock SonarQube server with ERROR quality gate."""
-    server = MockSonarQubeServer(quality_gate_status='ERROR')
+    server = MockSonarQubeServer(quality_gate_status="ERROR")
     server.issues = [
-        {'key': 'issue1', 'severity': 'CRITICAL', 'message': 'SQL Injection vulnerability'},
+        {"key": "issue1", "severity": "CRITICAL", "message": "SQL Injection vulnerability"},
     ]
     return server

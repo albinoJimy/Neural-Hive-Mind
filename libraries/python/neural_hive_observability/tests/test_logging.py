@@ -37,7 +37,7 @@ class TestCorrelationFormatter:
             service_name="test-service",
             service_version="1.0.0",
             neural_hive_component="test-component",
-            neural_hive_layer="test-layer"
+            neural_hive_layer="test-layer",
         )
 
         formatter = CorrelationFormatter(config)
@@ -48,7 +48,7 @@ class TestCorrelationFormatter:
             lineno=1,
             msg="Test message",
             args=(),
-            exc_info=None
+            exc_info=None,
         )
 
         output = formatter.format(record)
@@ -65,8 +65,7 @@ class TestCorrelationFormatter:
     def test_formatter_includes_trace_correlation(self):
         """Testa que formatter inclui correlação de trace."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         formatter = CorrelationFormatter(config)
@@ -77,7 +76,7 @@ class TestCorrelationFormatter:
             lineno=1,
             msg="Test message",
             args=(),
-            exc_info=None
+            exc_info=None,
         )
 
         output = formatter.format(record)
@@ -91,8 +90,7 @@ class TestCorrelationFormatter:
     def test_formatter_includes_intent_id(self):
         """Testa que formatter inclui intent_id."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         formatter = CorrelationFormatter(config)
@@ -103,7 +101,7 @@ class TestCorrelationFormatter:
             lineno=1,
             msg="Test message",
             args=(),
-            exc_info=None
+            exc_info=None,
         )
         record.intent_id = "test-intent-123"
 
@@ -115,8 +113,7 @@ class TestCorrelationFormatter:
     def test_formatter_includes_plan_id(self):
         """Testa que formatter inclui plan_id."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         formatter = CorrelationFormatter(config)
@@ -127,7 +124,7 @@ class TestCorrelationFormatter:
             lineno=1,
             msg="Test message",
             args=(),
-            exc_info=None
+            exc_info=None,
         )
         record.plan_id = "test-plan-456"
 
@@ -139,8 +136,7 @@ class TestCorrelationFormatter:
     def test_formatter_includes_user_id(self):
         """Testa que formatter inclui user_id."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         formatter = CorrelationFormatter(config)
@@ -151,7 +147,7 @@ class TestCorrelationFormatter:
             lineno=1,
             msg="Test message",
             args=(),
-            exc_info=None
+            exc_info=None,
         )
         record.user_id = "test-user-789"
 
@@ -163,8 +159,7 @@ class TestCorrelationFormatter:
     def test_formatter_includes_extra_fields(self):
         """Testa que formatter inclui campos extras."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         formatter = CorrelationFormatter(config)
@@ -175,7 +170,7 @@ class TestCorrelationFormatter:
             lineno=1,
             msg="Test message",
             args=(),
-            exc_info=None
+            exc_info=None,
         )
         record.extra_fields = {"custom_field": "custom_value", "number": 42}
 
@@ -188,8 +183,7 @@ class TestCorrelationFormatter:
     def test_formatter_includes_exception(self):
         """Testa que formatter inclui informações de exceção."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         formatter = CorrelationFormatter(config)
@@ -198,6 +192,7 @@ class TestCorrelationFormatter:
             raise ValueError("Test exception")
         except ValueError:
             import sys
+
             exc_info = sys.exc_info()
             record = logging.LogRecord(
                 name="test.logger",
@@ -206,7 +201,7 @@ class TestCorrelationFormatter:
                 lineno=1,
                 msg="Error message",
                 args=(),
-                exc_info=exc_info
+                exc_info=exc_info,
             )
 
         output = formatter.format(record)
@@ -220,8 +215,7 @@ class TestCorrelationFormatter:
     def test_formatter_timestamp_iso_format(self):
         """Testa que timestamp está em formato ISO."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         formatter = CorrelationFormatter(config)
@@ -232,7 +226,7 @@ class TestCorrelationFormatter:
             lineno=1,
             msg="Test message",
             args=(),
-            exc_info=None
+            exc_info=None,
         )
 
         output = formatter.format(record)
@@ -245,8 +239,7 @@ class TestCorrelationFormatter:
     def test_formatter_includes_module_function_line(self):
         """Testa que formatter inclui module, function e line."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         formatter = CorrelationFormatter(config)
@@ -257,7 +250,7 @@ class TestCorrelationFormatter:
             lineno=42,
             msg="Test message",
             args=(),
-            exc_info=None
+            exc_info=None,
         )
 
         output = formatter.format(record)
@@ -337,10 +330,7 @@ class TestNeuralHiveLoggerAdapter:
         logger = logging.getLogger("test.logger")
         adapter = NeuralHiveLoggerAdapter(logger)
 
-        msg, kwargs = adapter.process(
-            "Test message",
-            {"exc_info": True, "stack_info": False}
-        )
+        msg, kwargs = adapter.process("Test message", {"exc_info": True, "stack_info": False})
 
         assert msg == "Test message"
         assert kwargs["exc_info"] is True
@@ -353,17 +343,14 @@ class TestNeuralHiveLoggerAdapter:
 
         # Criar handler real para capturar logs
         import io
+
         log_capture = io.StringIO()
         handler = logging.StreamHandler(log_capture)
         handler.setLevel(logging.INFO)
         logger.addHandler(handler)
         logger.setLevel(logging.INFO)
 
-        adapter.info_with_correlation(
-            "Test message",
-            intent_id="intent-123",
-            plan_id="plan-456"
-        )
+        adapter.info_with_correlation("Test message", intent_id="intent-123", plan_id="plan-456")
 
         # Verificar que log foi criado
         assert len(log_capture.getvalue()) > 0
@@ -376,17 +363,14 @@ class TestNeuralHiveLoggerAdapter:
         adapter = NeuralHiveLoggerAdapter(logger)
 
         import io
+
         log_capture = io.StringIO()
         handler = logging.StreamHandler(log_capture)
         handler.setLevel(logging.ERROR)
         logger.addHandler(handler)
         logger.setLevel(logging.ERROR)
 
-        adapter.error_with_correlation(
-            "Error message",
-            intent_id="intent-123",
-            plan_id="plan-456"
-        )
+        adapter.error_with_correlation("Error message", intent_id="intent-123", plan_id="plan-456")
 
         assert len(log_capture.getvalue()) > 0
 
@@ -398,16 +382,14 @@ class TestNeuralHiveLoggerAdapter:
         adapter = NeuralHiveLoggerAdapter(logger)
 
         import io
+
         log_capture = io.StringIO()
         handler = logging.StreamHandler(log_capture)
         handler.setLevel(logging.WARNING)
         logger.addHandler(handler)
         logger.setLevel(logging.WARNING)
 
-        adapter.warning_with_correlation(
-            "Warning message",
-            intent_id="intent-123"
-        )
+        adapter.warning_with_correlation("Warning message", intent_id="intent-123")
 
         assert len(log_capture.getvalue()) > 0
 
@@ -420,9 +402,7 @@ class TestInitLogging:
     def test_init_logging_sets_up_root_logger(self):
         """Testa que init_logging configura root logger."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component",
-            log_format="json"
+            service_name="test-service", neural_hive_component="test-component", log_format="json"
         )
 
         init_logging(config)
@@ -433,9 +413,7 @@ class TestInitLogging:
     def test_init_logging_with_debug_level(self):
         """Testa init_logging com nível DEBUG."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component",
-            log_level="DEBUG"
+            service_name="test-service", neural_hive_component="test-component", log_level="DEBUG"
         )
 
         init_logging(config)
@@ -446,8 +424,7 @@ class TestInitLogging:
     def test_init_logging_sets_external_library_levels(self):
         """Testa que níveis de bibliotecas externas são configurados."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         init_logging(config)
@@ -465,8 +442,7 @@ class TestInitLogging:
     def test_init_logging_creates_handler(self):
         """Testa que init_logging cria handler."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         # Limpar handlers existentes
@@ -502,18 +478,14 @@ class TestLogIntentFunctions:
         """Testa log_intent_start."""
         logger = get_logger("test.intent.start")
         import io
+
         log_capture = io.StringIO()
         handler = logging.StreamHandler(log_capture)
         handler.setLevel(logging.INFO)
         logger.logger.addHandler(handler)
         logger.logger.setLevel(logging.INFO)
 
-        log_intent_start(
-            logger,
-            intent_id="intent-123",
-            user_input="Test input",
-            channel="web"
-        )
+        log_intent_start(logger, intent_id="intent-123", user_input="Test input", channel="web")
 
         assert len(log_capture.getvalue()) > 0
         logger.logger.removeHandler(handler)
@@ -522,6 +494,7 @@ class TestLogIntentFunctions:
         """Testa log_intent_completion."""
         logger = get_logger("test.intent.completion")
         import io
+
         log_capture = io.StringIO()
         handler = logging.StreamHandler(log_capture)
         handler.setLevel(logging.INFO)
@@ -529,11 +502,7 @@ class TestLogIntentFunctions:
         logger.logger.setLevel(logging.INFO)
 
         log_intent_completion(
-            logger,
-            intent_id="intent-123",
-            confidence=0.95,
-            processing_duration=1.5,
-            channel="api"
+            logger, intent_id="intent-123", confidence=0.95, processing_duration=1.5, channel="api"
         )
 
         assert len(log_capture.getvalue()) > 0
@@ -543,18 +512,14 @@ class TestLogIntentFunctions:
         """Testa log_intent_start com input vazio."""
         logger = get_logger("test.intent.start.empty")
         import io
+
         log_capture = io.StringIO()
         handler = logging.StreamHandler(log_capture)
         handler.setLevel(logging.INFO)
         logger.logger.addHandler(handler)
         logger.logger.setLevel(logging.INFO)
 
-        log_intent_start(
-            logger,
-            intent_id="intent-123",
-            user_input="",
-            channel="mobile"
-        )
+        log_intent_start(logger, intent_id="intent-123", user_input="", channel="mobile")
 
         assert len(log_capture.getvalue()) > 0
         logger.logger.removeHandler(handler)
@@ -567,6 +532,7 @@ class TestLogPlanFunctions:
         """Testa log_plan_execution_start."""
         logger = get_logger("test.plan.start")
         import io
+
         log_capture = io.StringIO()
         handler = logging.StreamHandler(log_capture)
         handler.setLevel(logging.INFO)
@@ -574,10 +540,7 @@ class TestLogPlanFunctions:
         logger.logger.setLevel(logging.INFO)
 
         log_plan_execution_start(
-            logger,
-            plan_id="plan-456",
-            intent_id="intent-123",
-            plan_type="data_processing"
+            logger, plan_id="plan-456", intent_id="intent-123", plan_type="data_processing"
         )
 
         assert len(log_capture.getvalue()) > 0
@@ -587,6 +550,7 @@ class TestLogPlanFunctions:
         """Testa log_plan_execution_completion com sucesso."""
         logger = get_logger("test.plan.completion")
         import io
+
         log_capture = io.StringIO()
         handler = logging.StreamHandler(log_capture)
         handler.setLevel(logging.INFO)
@@ -599,7 +563,7 @@ class TestLogPlanFunctions:
             success=True,
             execution_duration=5.2,
             intent_id="intent-123",
-            plan_type="data_processing"
+            plan_type="data_processing",
         )
 
         assert len(log_capture.getvalue()) > 0
@@ -609,6 +573,7 @@ class TestLogPlanFunctions:
         """Testa log_plan_execution_completion com falha."""
         logger = get_logger("test.plan.completion.fail")
         import io
+
         log_capture = io.StringIO()
         handler = logging.StreamHandler(log_capture)
         handler.setLevel(logging.INFO)
@@ -621,7 +586,7 @@ class TestLogPlanFunctions:
             success=False,
             execution_duration=2.1,
             intent_id="intent-123",
-            plan_type="validation"
+            plan_type="validation",
         )
 
         assert len(log_capture.getvalue()) > 0
@@ -631,17 +596,14 @@ class TestLogPlanFunctions:
         """Testa log_plan_execution_start sem intent_id."""
         logger = get_logger("test.plan.start.no_intent")
         import io
+
         log_capture = io.StringIO()
         handler = logging.StreamHandler(log_capture)
         handler.setLevel(logging.INFO)
         logger.logger.addHandler(handler)
         logger.logger.setLevel(logging.INFO)
 
-        log_plan_execution_start(
-            logger,
-            plan_id="plan-789",
-            plan_type="standalone"
-        )
+        log_plan_execution_start(logger, plan_id="plan-789", plan_type="standalone")
 
         assert len(log_capture.getvalue()) > 0
         logger.logger.removeHandler(handler)
@@ -655,7 +617,7 @@ class TestLoggingIntegration:
         config = ObservabilityConfig(
             service_name="integration-test",
             neural_hive_component="test-component",
-            log_format="json"
+            log_format="json",
         )
 
         init_logging(config)
@@ -664,15 +626,14 @@ class TestLoggingIntegration:
 
         # Criar string buffer para capturar output
         import io
+
         log_capture = io.StringIO()
         handler = logging.StreamHandler(log_capture)
         handler.setFormatter(CorrelationFormatter(config))
         logger.logger.addHandler(handler)
 
         logger.info_with_correlation(
-            "Integration test message",
-            intent_id="test-intent",
-            plan_id="test-plan"
+            "Integration test message", intent_id="test-intent", plan_id="test-plan"
         )
 
         log_output = log_capture.getvalue()

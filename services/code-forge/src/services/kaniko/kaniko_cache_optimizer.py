@@ -117,7 +117,11 @@ class KanikoCacheOptimizer:
             logger.info("kaniko_cache_local_configured", cache_dir=cache_dir)
 
         # Derivar cache repo da imagem se não especificado
-        if not self.config.cache_repo and image_tag and self.config.cache_level == CacheLevel.REGISTRY:
+        if (
+            not self.config.cache_repo
+            and image_tag
+            and self.config.cache_level == CacheLevel.REGISTRY
+        ):
             cache_repo = self._derive_cache_repo(image_tag)
             args.append(f"--cache-repo={cache_repo}")
 
@@ -243,9 +247,7 @@ class KanikoCacheOptimizer:
                 spec=client.V1PersistentVolumeClaimSpec(
                     access_modes=["ReadWriteMany"],
                     storage_class_name=storage_class,
-                    resources=client.V1ResourceRequirements(
-                        requests={"storage": f"{size_gb}Gi"}
-                    ),
+                    resources=client.V1ResourceRequirements(requests={"storage": f"{size_gb}Gi"}),
                 ),
             )
 
@@ -441,36 +443,42 @@ class KanikoCacheOptimizer:
         # Recomendação de cache level
         if build_frequency > 10:
             if self.config.cache_level == CacheLevel.LOCAL:
-                recommendations.append({
-                    "type": "upgrade_cache_level",
-                    "priority": "high",
-                    "description": "Builds frequentes detectados. Considere usar cache PVC ou Registry.",
-                    "current": self.config.cache_level.value,
-                    "recommended": "pvc" if build_frequency < 50 else "registry",
-                    "reason": f"{build_frequency} builds/dia exige cache persistente",
-                })
+                recommendations.append(
+                    {
+                        "type": "upgrade_cache_level",
+                        "priority": "high",
+                        "description": "Builds frequentes detectados. Considere usar cache PVC ou Registry.",
+                        "current": self.config.cache_level.value,
+                        "recommended": "pvc" if build_frequency < 50 else "registry",
+                        "reason": f"{build_frequency} builds/dia exige cache persistente",
+                    }
+                )
 
         # Recomendação de cache warming
         if cache_hit_rate < 0.3:
-            recommendations.append({
-                "type": "enable_cache_warming",
-                "priority": "medium",
-                "description": "Baixa taxa de cache hit. Considere aquecer o cache com builds comuns.",
-                "current_hit_rate": cache_hit_rate,
-                "target_hit_rate": 0.6,
-                "reason": "Cache warming pode melhorar hit rate em 20-30%",
-            })
+            recommendations.append(
+                {
+                    "type": "enable_cache_warming",
+                    "priority": "medium",
+                    "description": "Baixa taxa de cache hit. Considere aquecer o cache com builds comuns.",
+                    "current_hit_rate": cache_hit_rate,
+                    "target_hit_rate": 0.6,
+                    "reason": "Cache warming pode melhorar hit rate em 20-30%",
+                }
+            )
 
         # Recomendação de tamanho
         if self.metrics.total_cache_size_mb > (self.config.max_cache_size_gb * 1024 * 0.8):
-            recommendations.append({
-                "type": "increase_cache_size",
-                "priority": "low",
-                "description": "Cache approaching size limit. Considere aumentar max_cache_size_gb.",
-                "current_size_gb": self.config.max_cache_size_gb,
-                "recommended_size_gb": self.config.max_cache_size_gb * 2,
-                "reason": "Cache near 80% capacity",
-            })
+            recommendations.append(
+                {
+                    "type": "increase_cache_size",
+                    "priority": "low",
+                    "description": "Cache approaching size limit. Considere aumentar max_cache_size_gb.",
+                    "current_size_gb": self.config.max_cache_size_gb,
+                    "recommended_size_gb": self.config.max_cache_size_gb * 2,
+                    "reason": "Cache near 80% capacity",
+                }
+            )
 
         return recommendations
 

@@ -1053,9 +1053,7 @@ class SpecialistMetrics:
             state: Estado (closed, open, half-open)
         """
         state_value = {"closed": 0, "open": 1, "half-open": 2}.get(state, 0)
-        self.circuit_breaker_state.labels(self.specialist_type, client_name).set(
-            state_value
-        )
+        self.circuit_breaker_state.labels(self.specialist_type, client_name).set(state_value)
 
         logger.debug(
             "Circuit breaker state updated",
@@ -1198,9 +1196,7 @@ class SpecialistMetrics:
         Args:
             duration: Duração em segundos
         """
-        self.auth_token_validation_duration_seconds.labels(
-            self.specialist_type
-        ).observe(duration)
+        self.auth_token_validation_duration_seconds.labels(self.specialist_type).observe(duration)
 
         logger.debug(
             "Auth validation duration observed",
@@ -1218,9 +1214,7 @@ class SpecialistMetrics:
 
     def increment_model_inference(self, status: str = "success"):
         """Incrementa contador de inferências."""
-        self.model_inference_total.labels(
-            specialist_type=self.specialist_type, status=status
-        ).inc()
+        self.model_inference_total.labels(specialist_type=self.specialist_type, status=status).inc()
 
     def increment_model_timeout(self):
         """Incrementa contador de timeouts de modelo."""
@@ -1236,23 +1230,19 @@ class SpecialistMetrics:
         self.model_inference_total.labels(
             specialist_type=self.specialist_type, status="error"
         ).inc()
-        self.model_fallback_total.labels(
-            specialist_type=self.specialist_type, reason="error"
-        ).inc()
+        self.model_fallback_total.labels(specialist_type=self.specialist_type, reason="error").inc()
 
     def observe_feature_extraction_duration(self, duration_seconds: float):
         """Registra duração de extração de features."""
-        self.feature_extraction_duration.labels(
-            specialist_type=self.specialist_type
-        ).observe(duration_seconds)
+        self.feature_extraction_duration.labels(specialist_type=self.specialist_type).observe(
+            duration_seconds
+        )
 
     def set_feature_vector_size(self, size: int):
         """Define tamanho do vetor de features."""
         self.feature_vector_size.labels(specialist_type=self.specialist_type).set(size)
 
-    def observe_explainability_computation_time(
-        self, method: str, duration_seconds: float
-    ):
+    def observe_explainability_computation_time(self, method: str, duration_seconds: float):
         """Registra tempo de computação de explicabilidade."""
         self.explainability_computation_time.labels(
             specialist_type=self.specialist_type, method=method
@@ -1333,15 +1323,11 @@ class SpecialistMetrics:
 
     def increment_embedding_cache_hit(self):
         """Incrementa contador de cache hits de embeddings."""
-        self.embedding_cache_hits_total.labels(
-            specialist_type=self.specialist_type
-        ).inc()
+        self.embedding_cache_hits_total.labels(specialist_type=self.specialist_type).inc()
 
     def increment_embedding_cache_miss(self):
         """Incrementa contador de cache misses de embeddings."""
-        self.embedding_cache_misses_total.labels(
-            specialist_type=self.specialist_type
-        ).inc()
+        self.embedding_cache_misses_total.labels(specialist_type=self.specialist_type).inc()
 
     def observe_embedding_generation_duration(self, duration: float, cache_status: str):
         """Observa duração da geração de embeddings por status de cache."""
@@ -1358,15 +1344,11 @@ class SpecialistMetrics:
         total = self._cache_hits + self._cache_misses
         if total > 0:
             hit_ratio = self._cache_hits / total
-            self.cache_hit_ratio.labels(specialist_type=self.specialist_type).set(
-                hit_ratio
-            )
+            self.cache_hit_ratio.labels(specialist_type=self.specialist_type).set(hit_ratio)
         else:
             self.cache_hit_ratio.labels(specialist_type=self.specialist_type).set(0.0)
 
-    def observe_batch_evaluation(
-        self, total: int, successful: int, failed: int, duration: float
-    ):
+    def observe_batch_evaluation(self, total: int, successful: int, failed: int, duration: float):
         """
         Registra métricas de batch evaluation.
 
@@ -1390,21 +1372,17 @@ class SpecialistMetrics:
         ).inc()
 
         # Registrar duração
-        self.batch_evaluation_duration_seconds.labels(
-            specialist_type=self.specialist_type
-        ).observe(duration)
+        self.batch_evaluation_duration_seconds.labels(specialist_type=self.specialist_type).observe(
+            duration
+        )
 
         # Registrar tamanho do batch
-        self.batch_size_histogram.labels(specialist_type=self.specialist_type).observe(
-            total
-        )
+        self.batch_size_histogram.labels(specialist_type=self.specialist_type).observe(total)
 
         # Calcular e registrar taxa de sucesso
         if total > 0:
             success_rate = successful / total
-            self.batch_success_rate.labels(specialist_type=self.specialist_type).set(
-                success_rate
-            )
+            self.batch_success_rate.labels(specialist_type=self.specialist_type).set(success_rate)
 
         logger.info(
             "Batch evaluation metrics recorded",
@@ -1456,19 +1434,13 @@ class SpecialistMetrics:
         import time
 
         # Registrar duração
-        self.warmup_duration_seconds.labels(
-            specialist_type=self.specialist_type
-        ).observe(duration)
+        self.warmup_duration_seconds.labels(specialist_type=self.specialist_type).observe(duration)
 
         # Incrementar contador
-        self.warmup_total.labels(
-            specialist_type=self.specialist_type, status=status
-        ).inc()
+        self.warmup_total.labels(specialist_type=self.specialist_type, status=status).inc()
 
         # Atualizar timestamp
-        self.warmup_last_timestamp.labels(specialist_type=self.specialist_type).set(
-            time.time()
-        )
+        self.warmup_last_timestamp.labels(specialist_type=self.specialist_type).set(time.time())
 
         logger.info(
             "Warmup metrics recorded",
@@ -1505,9 +1477,7 @@ class SpecialistMetrics:
             tenant_id: ID do tenant
         """
         capped_tenant_id = self._apply_tenant_cardinality_cap(tenant_id)
-        self.tenant_evaluations_total.labels(
-            self.specialist_type, capped_tenant_id
-        ).inc()
+        self.tenant_evaluations_total.labels(self.specialist_type, capped_tenant_id).inc()
 
         logger.debug(
             "Tenant evaluation incremented",
@@ -1516,9 +1486,7 @@ class SpecialistMetrics:
             capped_tenant_id=capped_tenant_id,
         )
 
-    def observe_tenant_evaluation_duration(
-        self, tenant_id: str, duration_seconds: float
-    ):
+    def observe_tenant_evaluation_duration(self, tenant_id: str, duration_seconds: float):
         """
         Registra duração de avaliação por tenant com cardinality cap.
 
@@ -1547,9 +1515,7 @@ class SpecialistMetrics:
             error_type: Tipo do erro
         """
         capped_tenant_id = self._apply_tenant_cardinality_cap(tenant_id)
-        self.tenant_errors_total.labels(
-            self.specialist_type, capped_tenant_id, error_type
-        ).inc()
+        self.tenant_errors_total.labels(self.specialist_type, capped_tenant_id, error_type).inc()
 
         logger.debug(
             "Tenant error incremented",
@@ -1586,9 +1552,7 @@ class SpecialistMetrics:
             tenant_id: ID do tenant
         """
         capped_tenant_id = self._apply_tenant_cardinality_cap(tenant_id)
-        self.tenant_cache_hits_total.labels(
-            self.specialist_type, capped_tenant_id
-        ).inc()
+        self.tenant_cache_hits_total.labels(self.specialist_type, capped_tenant_id).inc()
 
     def increment_tenant_cache_miss(self, tenant_id: str):
         """
@@ -1598,9 +1562,7 @@ class SpecialistMetrics:
             tenant_id: ID do tenant
         """
         capped_tenant_id = self._apply_tenant_cardinality_cap(tenant_id)
-        self.tenant_cache_misses_total.labels(
-            self.specialist_type, capped_tenant_id
-        ).inc()
+        self.tenant_cache_misses_total.labels(self.specialist_type, capped_tenant_id).inc()
 
     # ============================================================================
     # Disaster Recovery Helper Methods
@@ -1608,9 +1570,7 @@ class SpecialistMetrics:
 
     def set_backup_last_success_timestamp(self, tenant_id: str, timestamp: float):
         """Define timestamp de último backup bem-sucedido."""
-        self.dr_backup_last_success_timestamp.labels(
-            self.specialist_type, tenant_id
-        ).set(timestamp)
+        self.dr_backup_last_success_timestamp.labels(self.specialist_type, tenant_id).set(timestamp)
 
     def observe_backup_duration(self, duration: float):
         """Observa duração de backup."""
@@ -1618,9 +1578,7 @@ class SpecialistMetrics:
 
     def set_backup_size(self, tenant_id: str, size_bytes: int):
         """Define tamanho de backup."""
-        self.dr_backup_size_bytes.labels(self.specialist_type, tenant_id).set(
-            size_bytes
-        )
+        self.dr_backup_size_bytes.labels(self.specialist_type, tenant_id).set(size_bytes)
 
     def increment_backup_total(self, status: str):
         """Incrementa contador de backups."""
@@ -1628,15 +1586,13 @@ class SpecialistMetrics:
 
     def observe_backup_component_duration(self, component: str, duration: float):
         """Observa duração por componente."""
-        self.dr_backup_component_duration_seconds.labels(
-            self.specialist_type, component
-        ).observe(duration)
+        self.dr_backup_component_duration_seconds.labels(self.specialist_type, component).observe(
+            duration
+        )
 
     def set_backup_component_size(self, component: str, size_bytes: int):
         """Define tamanho por componente."""
-        self.dr_backup_component_size_bytes.labels(self.specialist_type, component).set(
-            size_bytes
-        )
+        self.dr_backup_component_size_bytes.labels(self.specialist_type, component).set(size_bytes)
 
     def increment_restore_total(self, status: str):
         """Incrementa contador de restores."""
@@ -1656,21 +1612,15 @@ class SpecialistMetrics:
 
     def observe_recovery_test_duration(self, duration: float):
         """Observa duração de teste de recovery."""
-        self.dr_recovery_test_duration_seconds.labels(self.specialist_type).observe(
-            duration
-        )
+        self.dr_recovery_test_duration_seconds.labels(self.specialist_type).observe(duration)
 
     def increment_storage_upload_error(self, storage_provider: str):
         """Incrementa erros de upload."""
-        self.dr_storage_upload_errors_total.labels(
-            self.specialist_type, storage_provider
-        ).inc()
+        self.dr_storage_upload_errors_total.labels(self.specialist_type, storage_provider).inc()
 
     def increment_storage_download_error(self, storage_provider: str):
         """Incrementa erros de download."""
-        self.dr_storage_download_errors_total.labels(
-            self.specialist_type, storage_provider
-        ).inc()
+        self.dr_storage_download_errors_total.labels(self.specialist_type, storage_provider).inc()
 
     def get_summary(self) -> Dict[str, Any]:
         """
@@ -1687,9 +1637,7 @@ class SpecialistMetrics:
             avg_processing_time = (
                 self._total_processing_time / self._total_evaluations
             ) * 1000  # ms
-            avg_confidence_score = (
-                self._total_confidence_score / self._total_evaluations
-            )
+            avg_confidence_score = self._total_confidence_score / self._total_evaluations
             success_rate = (self._success_evaluations / self._total_evaluations) * 100
 
         summary = {
@@ -1719,15 +1667,9 @@ class SpecialistMetrics:
 
         # Estatísticas de cache de embeddings
         try:
-            emb_hits = self.embedding_cache_hits_total.labels(
-                self.specialist_type
-            )._value.get()
-            emb_misses = self.embedding_cache_misses_total.labels(
-                self.specialist_type
-            )._value.get()
-            emb_size = self.embedding_cache_size.labels(
-                self.specialist_type
-            )._value.get()
+            emb_hits = self.embedding_cache_hits_total.labels(self.specialist_type)._value.get()
+            emb_misses = self.embedding_cache_misses_total.labels(self.specialist_type)._value.get()
+            emb_size = self.embedding_cache_size.labels(self.specialist_type)._value.get()
             total_emb_ops = emb_hits + emb_misses
             summary["embedding_cache"] = {
                 "hits": emb_hits,
@@ -1770,12 +1712,8 @@ class SpecialistMetrics:
 
         # Estatísticas de warmup (se disponíveis)
         try:
-            warmup_success = self.warmup_total.labels(
-                self.specialist_type, "success"
-            )._value.get()
-            warmup_error = self.warmup_total.labels(
-                self.specialist_type, "error"
-            )._value.get()
+            warmup_success = self.warmup_total.labels(self.specialist_type, "success")._value.get()
+            warmup_error = self.warmup_total.labels(self.specialist_type, "error")._value.get()
             total_warmups = warmup_success + warmup_error
 
             if total_warmups > 0:
@@ -1810,12 +1748,8 @@ class SpecialistMetrics:
                 "precision": self.business_precision_score.labels(
                     self.specialist_type
                 )._value.get(),
-                "recall": self.business_recall_score.labels(
-                    self.specialist_type
-                )._value.get(),
-                "f1_score": self.business_f1_score.labels(
-                    self.specialist_type
-                )._value.get(),
+                "recall": self.business_recall_score.labels(self.specialist_type)._value.get(),
+                "f1_score": self.business_f1_score.labels(self.specialist_type)._value.get(),
                 "business_value_generated": self.business_value_generated_total.labels(
                     self.specialist_type
                 )._value.get(),
@@ -1893,9 +1827,9 @@ class SpecialistMetrics:
 
     def increment_pii_entities_detected(self, entity_type: str, count: int = 1):
         """Incrementa contador de entidades PII detectadas."""
-        self.compliance_pii_entities_detected_total.labels(
-            self.specialist_type, entity_type
-        ).inc(count)
+        self.compliance_pii_entities_detected_total.labels(self.specialist_type, entity_type).inc(
+            count
+        )
         logger.debug(
             "PII entities detected",
             specialist_type=self.specialist_type,
@@ -1905,9 +1839,9 @@ class SpecialistMetrics:
 
     def observe_pii_detection_duration(self, duration: float):
         """Observa duração de detecção PII."""
-        self.compliance_pii_detection_duration_seconds.labels(
-            self.specialist_type
-        ).observe(duration)
+        self.compliance_pii_detection_duration_seconds.labels(self.specialist_type).observe(
+            duration
+        )
         logger.debug(
             "PII detection duration observed",
             specialist_type=self.specialist_type,
@@ -1916,9 +1850,7 @@ class SpecialistMetrics:
 
     def increment_pii_anonymization(self, strategy: str):
         """Incrementa contador de anonimizações."""
-        self.compliance_pii_anonymization_total.labels(
-            self.specialist_type, strategy
-        ).inc()
+        self.compliance_pii_anonymization_total.labels(self.specialist_type, strategy).inc()
         logger.debug(
             "PII anonymization applied",
             specialist_type=self.specialist_type,
@@ -1927,9 +1859,7 @@ class SpecialistMetrics:
 
     def increment_pii_detection_error(self, error_type: str):
         """Incrementa contador de erros de detecção PII."""
-        self.compliance_pii_detection_errors_total.labels(
-            self.specialist_type, error_type
-        ).inc()
+        self.compliance_pii_detection_errors_total.labels(self.specialist_type, error_type).inc()
         logger.debug(
             "PII detection error",
             specialist_type=self.specialist_type,
@@ -1938,9 +1868,7 @@ class SpecialistMetrics:
 
     def increment_fields_encrypted(self, field_name: str):
         """Incrementa contador de campos criptografados."""
-        self.compliance_fields_encrypted_total.labels(
-            self.specialist_type, field_name
-        ).inc()
+        self.compliance_fields_encrypted_total.labels(self.specialist_type, field_name).inc()
         logger.debug(
             "Field encrypted",
             specialist_type=self.specialist_type,
@@ -1949,9 +1877,7 @@ class SpecialistMetrics:
 
     def increment_fields_decrypted(self, field_name: str):
         """Incrementa contador de campos descriptografados."""
-        self.compliance_fields_decrypted_total.labels(
-            self.specialist_type, field_name
-        ).inc()
+        self.compliance_fields_decrypted_total.labels(self.specialist_type, field_name).inc()
         logger.debug(
             "Field decrypted",
             specialist_type=self.specialist_type,
@@ -1960,9 +1886,9 @@ class SpecialistMetrics:
 
     def observe_encryption_duration(self, operation: str, duration: float):
         """Observa duração de operação de criptografia."""
-        self.compliance_encryption_duration_seconds.labels(
-            self.specialist_type, operation
-        ).observe(duration)
+        self.compliance_encryption_duration_seconds.labels(self.specialist_type, operation).observe(
+            duration
+        )
         logger.debug(
             "Encryption operation duration observed",
             specialist_type=self.specialist_type,
@@ -1972,9 +1898,7 @@ class SpecialistMetrics:
 
     def increment_encryption_error(self, error_type: str):
         """Incrementa contador de erros de criptografia."""
-        self.compliance_encryption_errors_total.labels(
-            self.specialist_type, error_type
-        ).inc()
+        self.compliance_encryption_errors_total.labels(self.specialist_type, error_type).inc()
         logger.debug(
             "Encryption error",
             specialist_type=self.specialist_type,
@@ -1983,9 +1907,7 @@ class SpecialistMetrics:
 
     def increment_audit_event(self, event_type: str):
         """Incrementa contador de eventos auditados."""
-        self.compliance_audit_events_total.labels(
-            self.specialist_type, event_type
-        ).inc()
+        self.compliance_audit_events_total.labels(self.specialist_type, event_type).inc()
         logger.debug(
             "Audit event logged",
             specialist_type=self.specialist_type,
@@ -1994,9 +1916,7 @@ class SpecialistMetrics:
 
     def increment_audit_error(self, error_type: str):
         """Incrementa contador de erros de auditoria."""
-        self.compliance_audit_logging_errors_total.labels(
-            self.specialist_type, error_type
-        ).inc()
+        self.compliance_audit_logging_errors_total.labels(self.specialist_type, error_type).inc()
         logger.debug(
             "Audit logging error",
             specialist_type=self.specialist_type,
@@ -2029,9 +1949,9 @@ class SpecialistMetrics:
 
     def observe_retention_execution_duration(self, duration: float):
         """Observa duração de execução de retenção."""
-        self.compliance_retention_execution_duration_seconds.labels(
-            self.specialist_type
-        ).observe(duration)
+        self.compliance_retention_execution_duration_seconds.labels(self.specialist_type).observe(
+            duration
+        )
         logger.debug(
             "Retention execution duration observed",
             specialist_type=self.specialist_type,
@@ -2050,30 +1970,22 @@ class SpecialistMetrics:
     def set_false_positive_rate(self, rate: float):
         """Define taxa de falsos positivos."""
         self.business_false_positive_rate.labels(self.specialist_type).set(rate)
-        logger.debug(
-            "False positive rate set", specialist_type=self.specialist_type, rate=rate
-        )
+        logger.debug("False positive rate set", specialist_type=self.specialist_type, rate=rate)
 
     def set_false_negative_rate(self, rate: float):
         """Define taxa de falsos negativos."""
         self.business_false_negative_rate.labels(self.specialist_type).set(rate)
-        logger.debug(
-            "False negative rate set", specialist_type=self.specialist_type, rate=rate
-        )
+        logger.debug("False negative rate set", specialist_type=self.specialist_type, rate=rate)
 
     def set_precision_score(self, score: float):
         """Define precision score."""
         self.business_precision_score.labels(self.specialist_type).set(score)
-        logger.debug(
-            "Precision score set", specialist_type=self.specialist_type, score=score
-        )
+        logger.debug("Precision score set", specialist_type=self.specialist_type, score=score)
 
     def set_recall_score(self, score: float):
         """Define recall score."""
         self.business_recall_score.labels(self.specialist_type).set(score)
-        logger.debug(
-            "Recall score set", specialist_type=self.specialist_type, score=score
-        )
+        logger.debug("Recall score set", specialist_type=self.specialist_type, score=score)
 
     def set_f1_score(self, score: float):
         """Define F1 score."""
@@ -2115,12 +2027,8 @@ class SpecialistMetrics:
         """Atualiza timestamp de última atualização de métricas de negócio."""
         import time
 
-        self.business_metrics_last_update_timestamp.labels(self.specialist_type).set(
-            time.time()
-        )
-        logger.debug(
-            "Business metrics timestamp updated", specialist_type=self.specialist_type
-        )
+        self.business_metrics_last_update_timestamp.labels(self.specialist_type).set(time.time())
+        logger.debug("Business metrics timestamp updated", specialist_type=self.specialist_type)
 
     def increment_anomaly_detected(self, severity: str = "warning"):
         """
@@ -2130,9 +2038,7 @@ class SpecialistMetrics:
             severity: 'info', 'warning', ou 'critical'
         """
         self.anomaly_detected_total.labels(self.specialist_type, severity).inc()
-        logger.debug(
-            "Anomaly detected", specialist_type=self.specialist_type, severity=severity
-        )
+        logger.debug("Anomaly detected", specialist_type=self.specialist_type, severity=severity)
 
     # ============================================================================
     # Ensemble Metrics Helper Methods
@@ -2170,9 +2076,7 @@ class SpecialistMetrics:
         Args:
             model_name: Nome do modelo que falhou
         """
-        self.ensemble_model_failures_total.labels(
-            self.specialist_type, model_name
-        ).inc()
+        self.ensemble_model_failures_total.labels(self.specialist_type, model_name).inc()
 
     def set_ensemble_weight(self, model_name: str, weight: float):
         """
@@ -2194,13 +2098,9 @@ class SpecialistMetrics:
         Args:
             coverage: Percentual de modelos calibrados (0.0 a 1.0)
         """
-        self.ensemble_calibration_coverage.labels(self.specialist_type).observe(
-            coverage
-        )
+        self.ensemble_calibration_coverage.labels(self.specialist_type).observe(coverage)
 
-    def increment_ensemble_probabilistic_prediction(
-        self, method: str, calibrated: bool
-    ):
+    def increment_ensemble_probabilistic_prediction(self, method: str, calibrated: bool):
         """
         Incrementa contador de predições probabilísticas do ensemble.
 
@@ -2233,9 +2133,7 @@ class SpecialistMetrics:
             variant: 'model_a' ou 'model_b'
             score: Confidence score (0.0 a 1.0)
         """
-        self.ab_test_variant_confidence_score.labels(
-            self.specialist_type, variant
-        ).observe(score)
+        self.ab_test_variant_confidence_score.labels(self.specialist_type, variant).observe(score)
 
     def observe_ab_test_variant_risk(self, variant: str, score: float):
         """
@@ -2245,9 +2143,7 @@ class SpecialistMetrics:
             variant: 'model_a' ou 'model_b'
             score: Risk score (0.0 a 1.0)
         """
-        self.ab_test_variant_risk_score.labels(self.specialist_type, variant).observe(
-            score
-        )
+        self.ab_test_variant_risk_score.labels(self.specialist_type, variant).observe(score)
 
     def observe_ab_test_variant_processing_time(self, variant: str, duration: float):
         """
@@ -2257,9 +2153,9 @@ class SpecialistMetrics:
             variant: 'model_a' ou 'model_b'
             duration: Duração em segundos
         """
-        self.ab_test_variant_processing_time_seconds.labels(
-            self.specialist_type, variant
-        ).observe(duration)
+        self.ab_test_variant_processing_time_seconds.labels(self.specialist_type, variant).observe(
+            duration
+        )
 
     def set_ab_test_variant_agreement(self, variant: str, rate: float):
         """
@@ -2269,9 +2165,7 @@ class SpecialistMetrics:
             variant: 'model_a' ou 'model_b'
             rate: Taxa de concordância (0.0 a 1.0)
         """
-        self.ab_test_variant_consensus_agreement.labels(
-            self.specialist_type, variant
-        ).set(rate)
+        self.ab_test_variant_consensus_agreement.labels(self.specialist_type, variant).set(rate)
 
     def increment_ab_test_recommendation(self, variant: str, recommendation: str):
         """
@@ -2347,9 +2241,9 @@ class SpecialistMetrics:
         Args:
             time_seconds: Tempo de aprovação em segundos
         """
-        self.approval_time_histogram.labels(
-            specialist_type=self.specialist_type
-        ).observe(time_seconds)
+        self.approval_time_histogram.labels(specialist_type=self.specialist_type).observe(
+            time_seconds
+        )
 
     def set_human_review_time_saved(self, hours: float):
         """
@@ -2358,9 +2252,7 @@ class SpecialistMetrics:
         Args:
             hours: Tempo economizado em horas
         """
-        self.human_review_time_saved_hours.labels(
-            specialist_type=self.specialist_type
-        ).set(hours)
+        self.human_review_time_saved_hours.labels(specialist_type=self.specialist_type).set(hours)
         # Also update the alias metric
         self.time_saved_hours.labels(specialist_type=self.specialist_type).set(hours)
 
@@ -2374,9 +2266,7 @@ class SpecialistMetrics:
             hours: Tempo economizado em horas
         """
         self.time_saved_hours.labels(specialist_type=self.specialist_type).set(hours)
-        self.human_review_time_saved_hours.labels(
-            specialist_type=self.specialist_type
-        ).set(hours)
+        self.human_review_time_saved_hours.labels(specialist_type=self.specialist_type).set(hours)
 
     def set_estimated_review_time_per_plan(self, seconds: float):
         """
@@ -2407,9 +2297,9 @@ class SpecialistMetrics:
         Args:
             seconds: Segundos de disponibilidade
         """
-        self.model_availability_total_seconds.labels(
-            specialist_type=self.specialist_type
-        ).inc(seconds)
+        self.model_availability_total_seconds.labels(specialist_type=self.specialist_type).inc(
+            seconds
+        )
 
     def increment_model_downtime(self, seconds: float):
         """
@@ -2418,15 +2308,11 @@ class SpecialistMetrics:
         Args:
             seconds: Segundos de indisponibilidade
         """
-        self.model_downtime_total_seconds.labels(
-            specialist_type=self.specialist_type
-        ).inc(seconds)
+        self.model_downtime_total_seconds.labels(specialist_type=self.specialist_type).inc(seconds)
 
     def increment_model_health_check_failure(self):
         """Incrementa contador de falhas em health checks."""
-        self.model_health_check_failures_total.labels(
-            specialist_type=self.specialist_type
-        ).inc()
+        self.model_health_check_failures_total.labels(specialist_type=self.specialist_type).inc()
 
     # ============================================================================
     # Feedback and Continuous Learning Helper Methods
@@ -2439,9 +2325,7 @@ class SpecialistMetrics:
         Args:
             submitted_by_role: Role do revisor que submeteu feedback
         """
-        self.feedback_submissions_total.labels(
-            self.specialist_type, submitted_by_role
-        ).inc()
+        self.feedback_submissions_total.labels(self.specialist_type, submitted_by_role).inc()
 
     def observe_feedback_rating(self, rating: float):
         """
@@ -2515,9 +2399,7 @@ class SpecialistMetrics:
         Args:
             timestamp: Unix timestamp
         """
-        self.retraining_last_trigger_timestamp.labels(self.specialist_type).set(
-            timestamp
-        )
+        self.retraining_last_trigger_timestamp.labels(self.specialist_type).set(timestamp)
 
     def observe_retraining_run_duration(self, duration: float):
         """
@@ -2526,9 +2408,7 @@ class SpecialistMetrics:
         Args:
             duration: Duração em segundos
         """
-        self.retraining_mlflow_run_duration_seconds.labels(
-            self.specialist_type
-        ).observe(duration)
+        self.retraining_mlflow_run_duration_seconds.labels(self.specialist_type).observe(duration)
 
     def set_retraining_model_performance(self, metric_name: str, value: float):
         """
@@ -2538,9 +2418,7 @@ class SpecialistMetrics:
             metric_name: 'precision', 'recall', 'f1', etc.
             value: Valor da métrica (0.0-1.0)
         """
-        self.retraining_model_performance.labels(self.specialist_type, metric_name).set(
-            value
-        )
+        self.retraining_model_performance.labels(self.specialist_type, metric_name).set(value)
 
     def set_retraining_dataset_size(self, dataset_type: str, size: int):
         """
@@ -2550,6 +2428,4 @@ class SpecialistMetrics:
             dataset_type: 'base', 'feedback', 'total'
             size: Tamanho do dataset
         """
-        self.retraining_dataset_size.labels(self.specialist_type, dataset_type).set(
-            size
-        )
+        self.retraining_dataset_size.labels(self.specialist_type, dataset_type).set(size)

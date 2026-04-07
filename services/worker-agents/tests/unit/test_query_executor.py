@@ -14,8 +14,8 @@ from src.executors.base_executor import ValidationError
 def mock_config():
     """Configuração mock para testes."""
     config = MagicMock()
-    config.agent_id = 'test-agent'
-    config.namespace = 'test'
+    config.agent_id = "test-agent"
+    config.namespace = "test"
     return config
 
 
@@ -41,7 +41,7 @@ def query_executor(mock_config, mock_metrics):
         mongodb_client=None,
         redis_client=None,
         neo4j_client=None,
-        kafka_consumer=None
+        kafka_consumer=None,
     )
     return executor
 
@@ -51,40 +51,34 @@ class TestQueryExecutorBasics:
 
     def test_get_task_type(self, query_executor):
         """Verifica que get_task_type retorna 'QUERY'."""
-        assert query_executor.get_task_type() == 'QUERY'
+        assert query_executor.get_task_type() == "QUERY"
 
     def test_validate_ticket_success(self, query_executor):
         """Valida ticket com campos obrigatórios."""
         ticket = {
-            'ticket_id': 'test-123',
-            'task_id': 'task-123',
-            'task_type': 'QUERY',
-            'parameters': {
-                'query_type': 'mongodb',
-                'collection': 'test_collection'
-            }
+            "ticket_id": "test-123",
+            "task_id": "task-123",
+            "task_type": "QUERY",
+            "parameters": {"query_type": "mongodb", "collection": "test_collection"},
         }
         # Não deve levantar exceção
         query_executor.validate_ticket(ticket)
 
     def test_validate_ticket_missing_fields(self, query_executor):
         """Falha quando campos obrigatórios estão faltando."""
-        ticket = {
-            'ticket_id': 'test-123',
-            'task_type': 'QUERY'
-        }
-        with pytest.raises(ValidationError, match='Missing required fields'):
+        ticket = {"ticket_id": "test-123", "task_type": "QUERY"}
+        with pytest.raises(ValidationError, match="Missing required fields"):
             query_executor.validate_ticket(ticket)
 
     def test_validate_ticket_wrong_type(self, query_executor):
         """Falha quando task_type não é QUERY."""
         ticket = {
-            'ticket_id': 'test-123',
-            'task_id': 'task-123',
-            'task_type': 'BUILD',
-            'parameters': {}
+            "ticket_id": "test-123",
+            "task_id": "task-123",
+            "task_type": "BUILD",
+            "parameters": {},
         }
-        with pytest.raises(ValidationError, match='Task type mismatch'):
+        with pytest.raises(ValidationError, match="Task type mismatch"):
             query_executor.validate_ticket(ticket)
 
 
@@ -107,48 +101,44 @@ class TestMongoDBQueries:
         mock_cursor.sort = MagicMock(return_value=mock_cursor)
         mock_cursor.skip = MagicMock(return_value=mock_cursor)
         mock_cursor.limit = MagicMock(return_value=mock_cursor)
-        mock_cursor.to_list = AsyncMock(return_value=[
-            {'_id': 'doc1', 'name': 'test1'},
-            {'_id': 'doc2', 'name': 'test2'}
-        ])
+        mock_cursor.to_list = AsyncMock(
+            return_value=[{"_id": "doc1", "name": "test1"}, {"_id": "doc2", "name": "test2"}]
+        )
 
         ticket = {
-            'ticket_id': 'test-123',
-            'task_id': 'task-123',
-            'task_type': 'QUERY',
-            'parameters': {
-                'query_type': 'mongodb',
-                'collection': 'test_collection',
-                'filter': {'status': 'active'},
-                'limit': 10
-            }
+            "ticket_id": "test-123",
+            "task_id": "task-123",
+            "task_type": "QUERY",
+            "parameters": {
+                "query_type": "mongodb",
+                "collection": "test_collection",
+                "filter": {"status": "active"},
+                "limit": 10,
+            },
         }
 
         result = await query_executor.execute(ticket)
 
-        assert result['success'] is True
-        assert len(result['output']['documents']) == 2
-        assert result['output']['count'] == 2
-        assert result['metadata']['query_type'] == 'mongodb'
-        assert result['metadata']['collection'] == 'test_collection'
+        assert result["success"] is True
+        assert len(result["output"]["documents"]) == 2
+        assert result["output"]["count"] == 2
+        assert result["metadata"]["query_type"] == "mongodb"
+        assert result["metadata"]["collection"] == "test_collection"
 
     @pytest.mark.asyncio
     async def test_mongodb_query_no_client(self, query_executor):
         """Testa query MongoDB quando cliente não disponível."""
         ticket = {
-            'ticket_id': 'test-123',
-            'task_id': 'task-123',
-            'task_type': 'QUERY',
-            'parameters': {
-                'query_type': 'mongodb',
-                'collection': 'test'
-            }
+            "ticket_id": "test-123",
+            "task_id": "task-123",
+            "task_type": "QUERY",
+            "parameters": {"query_type": "mongodb", "collection": "test"},
         }
 
         result = await query_executor.execute(ticket)
 
-        assert result['success'] is False
-        assert 'not available' in result['metadata']['error'].lower()
+        assert result["success"] is False
+        assert "not available" in result["metadata"]["error"].lower()
 
     @pytest.mark.asyncio
     async def test_mongodb_query_missing_collection(self, query_executor, mock_config):
@@ -156,16 +146,14 @@ class TestMongoDBQueries:
         query_executor.mongodb_client = MagicMock()
 
         ticket = {
-            'ticket_id': 'test-123',
-            'task_id': 'task-123',
-            'task_type': 'QUERY',
-            'parameters': {
-                'query_type': 'mongodb'
-            }
+            "ticket_id": "test-123",
+            "task_id": "task-123",
+            "task_type": "QUERY",
+            "parameters": {"query_type": "mongodb"},
         }
 
         # Com a nova validação, deve falhar em validate_ticket()
-        with pytest.raises(ValidationError, match='Missing required parameters.*collection'):
+        with pytest.raises(ValidationError, match="Missing required parameters.*collection"):
             await query_executor.execute(ticket)
 
 
@@ -177,46 +165,42 @@ class TestNeo4jQueries:
         """Testa query Neo4j bem-sucedida."""
         # Mock Neo4j client
         query_executor.neo4j_client = MagicMock()
-        query_executor.neo4j_client.execute_query = AsyncMock(return_value=[
-            {'n': {'id': '1', 'name': 'Node1'}},
-            {'n': {'id': '2', 'name': 'Node2'}}
-        ])
+        query_executor.neo4j_client.execute_query = AsyncMock(
+            return_value=[{"n": {"id": "1", "name": "Node1"}}, {"n": {"id": "2", "name": "Node2"}}]
+        )
 
         ticket = {
-            'ticket_id': 'test-123',
-            'task_id': 'task-123',
-            'task_type': 'QUERY',
-            'parameters': {
-                'query_type': 'neo4j',
-                'cypher_query': 'MATCH (n) RETURN n LIMIT 10',
-                'parameters': {'limit': 10}
-            }
+            "ticket_id": "test-123",
+            "task_id": "task-123",
+            "task_type": "QUERY",
+            "parameters": {
+                "query_type": "neo4j",
+                "cypher_query": "MATCH (n) RETURN n LIMIT 10",
+                "parameters": {"limit": 10},
+            },
         }
 
         result = await query_executor.execute(ticket)
 
-        assert result['success'] is True
-        assert result['output']['count'] == 2
-        assert result['metadata']['query_type'] == 'neo4j'
+        assert result["success"] is True
+        assert result["output"]["count"] == 2
+        assert result["metadata"]["query_type"] == "neo4j"
         query_executor.neo4j_client.execute_query.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_neo4j_query_no_client(self, query_executor):
         """Testa query Neo4j quando cliente não disponível."""
         ticket = {
-            'ticket_id': 'test-123',
-            'task_id': 'task-123',
-            'task_type': 'QUERY',
-            'parameters': {
-                'query_type': 'neo4j',
-                'cypher_query': 'MATCH (n) RETURN n'
-            }
+            "ticket_id": "test-123",
+            "task_id": "task-123",
+            "task_type": "QUERY",
+            "parameters": {"query_type": "neo4j", "cypher_query": "MATCH (n) RETURN n"},
         }
 
         result = await query_executor.execute(ticket)
 
-        assert result['success'] is False
-        assert 'not available' in result['metadata']['error'].lower()
+        assert result["success"] is False
+        assert "not available" in result["metadata"]["error"].lower()
 
 
 class TestRedisQueries:
@@ -229,22 +213,18 @@ class TestRedisQueries:
         query_executor.redis_client.get = AsyncMock(return_value='{"key": "value"}')
 
         ticket = {
-            'ticket_id': 'test-123',
-            'task_id': 'task-123',
-            'task_type': 'QUERY',
-            'parameters': {
-                'query_type': 'redis',
-                'operation': 'get',
-                'key': 'test_key'
-            }
+            "ticket_id": "test-123",
+            "task_id": "task-123",
+            "task_type": "QUERY",
+            "parameters": {"query_type": "redis", "operation": "get", "key": "test_key"},
         }
 
         result = await query_executor.execute(ticket)
 
-        assert result['success'] is True
-        assert result['output']['key'] == 'test_key'
-        assert result['output']['exists'] is True
-        assert result['output']['value'] == {'key': 'value'}
+        assert result["success"] is True
+        assert result["output"]["key"] == "test_key"
+        assert result["output"]["exists"] is True
+        assert result["output"]["value"] == {"key": "value"}
 
     @pytest.mark.asyncio
     async def test_redis_scan_success(self, query_executor):
@@ -254,47 +234,43 @@ class TestRedisQueries:
         async def mock_scan_iter(*args, **kwargs):
             """Generator mock para scan_iter."""
             for i in range(5):
-                yield f'key:{i}'
+                yield f"key:{i}"
 
         query_executor.redis_client = MagicMock()
         query_executor.redis_client.scan_iter = mock_scan_iter
 
         ticket = {
-            'ticket_id': 'test-123',
-            'task_id': 'task-123',
-            'task_type': 'QUERY',
-            'parameters': {
-                'query_type': 'redis',
-                'operation': 'scan',
-                'pattern': 'test:*',
-                'count': 100
-            }
+            "ticket_id": "test-123",
+            "task_id": "task-123",
+            "task_type": "QUERY",
+            "parameters": {
+                "query_type": "redis",
+                "operation": "scan",
+                "pattern": "test:*",
+                "count": 100,
+            },
         }
 
         result = await query_executor.execute(ticket)
 
-        assert result['success'] is True
-        assert result['output']['count'] == 5
-        assert result['output']['pattern'] == 'test:*'
+        assert result["success"] is True
+        assert result["output"]["count"] == 5
+        assert result["output"]["pattern"] == "test:*"
 
     @pytest.mark.asyncio
     async def test_redis_no_client(self, query_executor):
         """Testa query Redis quando cliente não disponível."""
         ticket = {
-            'ticket_id': 'test-123',
-            'task_id': 'task-123',
-            'task_type': 'QUERY',
-            'parameters': {
-                'query_type': 'redis',
-                'operation': 'get',
-                'key': 'test'
-            }
+            "ticket_id": "test-123",
+            "task_id": "task-123",
+            "task_type": "QUERY",
+            "parameters": {"query_type": "redis", "operation": "get", "key": "test"},
         }
 
         result = await query_executor.execute(ticket)
 
-        assert result['success'] is False
-        assert 'not available' in result['metadata']['error'].lower()
+        assert result["success"] is False
+        assert "not available" in result["metadata"]["error"].lower()
 
 
 class TestKafkaQueries:
@@ -306,15 +282,15 @@ class TestKafkaQueries:
         # Este teste usa o mock de importação
         # A implementação real tenta importar aiokafka
         ticket = {
-            'ticket_id': 'test-123',
-            'task_id': 'task-123',
-            'task_type': 'QUERY',
-            'parameters': {
-                'query_type': 'kafka',
-                'topic': 'test-topic',
-                'max_messages': 10,
-                'timeout_ms': 5000
-            }
+            "ticket_id": "test-123",
+            "task_id": "task-123",
+            "task_type": "QUERY",
+            "parameters": {
+                "query_type": "kafka",
+                "topic": "test-topic",
+                "max_messages": 10,
+                "timeout_ms": 5000,
+            },
         }
 
         # Como aiokafka pode não estar instalado no ambiente de teste,
@@ -322,27 +298,24 @@ class TestKafkaQueries:
         result = await query_executor.execute(ticket)
 
         # Pode ser sucesso se aiokafka instalado, ou erro se não instalado
-        assert 'success' in result
-        assert 'metadata' in result
-        assert result['metadata']['query_type'] == 'kafka'
+        assert "success" in result
+        assert "metadata" in result
+        assert result["metadata"]["query_type"] == "kafka"
 
     @pytest.mark.asyncio
     async def test_kafka_query_missing_topic(self, query_executor):
         """Testa query Kafka sem parâmetro topic."""
         ticket = {
-            'ticket_id': 'test-123',
-            'task_id': 'task-123',
-            'task_type': 'QUERY',
-            'parameters': {
-                'query_type': 'kafka',
-                'max_messages': 10
-            }
+            "ticket_id": "test-123",
+            "task_id": "task-123",
+            "task_type": "QUERY",
+            "parameters": {"query_type": "kafka", "max_messages": 10},
         }
 
         result = await query_executor.execute(ticket)
 
-        assert result['success'] is False
-        assert 'topic' in result['metadata']['error'].lower()
+        assert result["success"] is False
+        assert "topic" in result["metadata"]["error"].lower()
 
 
 class TestUtilityMethods:
@@ -352,29 +325,29 @@ class TestUtilityMethods:
         """Testa serialização de documento com _id."""
         from bson.objectid import ObjectId
 
-        doc = {'_id': ObjectId('507f1f77bcf86cd799439011'), 'name': 'test'}
+        doc = {"_id": ObjectId("507f1f77bcf86cd799439011"), "name": "test"}
         serialized = query_executor._serialize_doc(doc)
 
-        assert '_id' in serialized
-        assert isinstance(serialized['_id'], str)
-        assert serialized['name'] == 'test'
+        assert "_id" in serialized
+        assert isinstance(serialized["_id"], str)
+        assert serialized["name"] == "test"
 
     def test_is_json_valid(self, query_executor):
         """Testa detecção de JSON válido."""
         assert query_executor._is_json('{"key": "value"}') is True
-        assert query_executor._is_json('[]') is True
-        assert query_executor._is_json('not json') is False
-        assert query_executor._is_json('') is False
+        assert query_executor._is_json("[]") is True
+        assert query_executor._is_json("not json") is False
+        assert query_executor._is_json("") is False
 
     def test_error_result(self, query_executor):
         """Testa geração de resultado de erro."""
-        result = query_executor._error_result('Test error', 'test_type')
+        result = query_executor._error_result("Test error", "test_type")
 
-        assert result['success'] is False
-        assert result['output'] is None
-        assert result['metadata']['query_type'] == 'test_type'
-        assert result['metadata']['error'] == 'Test error'
-        assert len(result['logs']) == 1
+        assert result["success"] is False
+        assert result["output"] is None
+        assert result["metadata"]["query_type"] == "test_type"
+        assert result["metadata"]["error"] == "Test error"
+        assert len(result["logs"]) == 1
 
 
 class TestQueryTypeDispatch:
@@ -384,18 +357,16 @@ class TestQueryTypeDispatch:
     async def test_unsupported_query_type(self, query_executor):
         """Testa erro para query_type não suportado."""
         ticket = {
-            'ticket_id': 'test-123',
-            'task_id': 'task-123',
-            'task_type': 'QUERY',
-            'parameters': {
-                'query_type': 'unsupported_type'
-            }
+            "ticket_id": "test-123",
+            "task_id": "task-123",
+            "task_type": "QUERY",
+            "parameters": {"query_type": "unsupported_type"},
         }
 
         result = await query_executor.execute(ticket)
 
-        assert result['success'] is False
-        assert 'Unsupported query_type' in result['metadata']['error']
+        assert result["success"] is False
+        assert "Unsupported query_type" in result["metadata"]["error"]
 
     @pytest.mark.asyncio
     async def test_default_query_type_mongodb(self, query_executor):
@@ -412,15 +383,13 @@ class TestQueryTypeDispatch:
         mock_cursor.to_list = AsyncMock(return_value=[])
 
         ticket = {
-            'ticket_id': 'test-123',
-            'task_id': 'task-123',
-            'task_type': 'QUERY',
-            'parameters': {
-                'collection': 'test'
-            }
+            "ticket_id": "test-123",
+            "task_id": "task-123",
+            "task_type": "QUERY",
+            "parameters": {"collection": "test"},
         }
 
         result = await query_executor.execute(ticket)
 
         # Deve usar mongodb como padrão
-        assert result['metadata']['query_type'] == 'mongodb'
+        assert result["metadata"]["query_type"] == "mongodb"

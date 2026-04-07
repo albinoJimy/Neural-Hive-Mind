@@ -5,6 +5,7 @@ Cliente de integração Vault para worker-agents service
 import asyncio
 from collections.abc import Callable
 from datetime import datetime, timezone
+
 UTC = timezone.utc  # type: ignore, timedelta
 from typing import Any, Optional
 
@@ -191,9 +192,7 @@ class WorkerVaultClient:
                     "ttl": ttl,
                 }
                 if ttl > 0:
-                    self._kafka_credentials_expiry = datetime.now(UTC) + timedelta(
-                        seconds=ttl
-                    )
+                    self._kafka_credentials_expiry = datetime.now(UTC) + timedelta(seconds=ttl)
 
                 self.logger.info("kafka_credentials_fetched", ttl=ttl)
                 vault_credentials_fetched_total.labels(
@@ -245,7 +244,9 @@ class WorkerVaultClient:
             self.logger.info("execution_result_stored", ticket_id=ticket_id)
             return True
         except Exception as e:
-            self.logger.exception("execution_result_store_failed", ticket_id=ticket_id, error=str(e))
+            self.logger.exception(
+                "execution_result_store_failed", ticket_id=ticket_id, error=str(e)
+            )
             return False
 
     async def _renew_credentials_loop(self):
@@ -290,9 +291,7 @@ class WorkerVaultClient:
             Intervalo em segundos até a próxima verificação
         """
         if self._kafka_credentials_expiry:
-            time_until_expiry = (
-                self._kafka_credentials_expiry - datetime.now(UTC)
-            ).total_seconds()
+            time_until_expiry = (self._kafka_credentials_expiry - datetime.now(UTC)).total_seconds()
             if time_until_expiry > 0:
                 # Verificar quando atingir o threshold
                 check_at = time_until_expiry * (1 - self._credential_renewal_threshold)
@@ -308,9 +307,7 @@ class WorkerVaultClient:
         if not self._kafka_credentials_expiry:
             return
 
-        time_until_expiry = (
-            self._kafka_credentials_expiry - datetime.now(UTC)
-        ).total_seconds()
+        time_until_expiry = (self._kafka_credentials_expiry - datetime.now(UTC)).total_seconds()
         if time_until_expiry <= 0:
             self.logger.warning(
                 "kafka_credentials_expired", expired_seconds_ago=abs(time_until_expiry)
@@ -349,9 +346,7 @@ class WorkerVaultClient:
 
                 self._kafka_credentials = new_creds
                 if ttl > 0:
-                    self._kafka_credentials_expiry = datetime.now(UTC) + timedelta(
-                        seconds=ttl
-                    )
+                    self._kafka_credentials_expiry = datetime.now(UTC) + timedelta(seconds=ttl)
 
                 self.logger.info(
                     "kafka_credentials_renewed", ttl=ttl, username=secret.get("username")
@@ -369,7 +364,9 @@ class WorkerVaultClient:
                             note="Kafka producer atualizado via callback",
                         )
                     except Exception as cb_error:
-                        self.logger.exception("kafka_credentials_callback_failed", error=str(cb_error))
+                        self.logger.exception(
+                            "kafka_credentials_callback_failed", error=str(cb_error)
+                        )
                 else:
                     self.logger.warning(
                         "kafka_credentials_renewed_no_callback",

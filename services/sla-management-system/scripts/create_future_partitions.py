@@ -31,31 +31,34 @@ async def create_partitions_for_next_months(months: int = 3):
     """
     # Configuração do PostgreSQL via variáveis de ambiente
     pg_config = {
-        'host': os.getenv('POSTGRESQL_HOST', 'localhost'),
-        'port': int(os.getenv('POSTGRESQL_PORT', '5432')),
-        'database': os.getenv('POSTGRESQL_DATABASE', 'sla_management'),
-        'user': os.getenv('POSTGRESQL_USER', 'postgres'),
-        'password': os.getenv('POSTGRESQL_PASSWORD', '')
+        "host": os.getenv("POSTGRESQL_HOST", "localhost"),
+        "port": int(os.getenv("POSTGRESQL_PORT", "5432")),
+        "database": os.getenv("POSTGRESQL_DATABASE", "sla_management"),
+        "user": os.getenv("POSTGRESQL_USER", "postgres"),
+        "password": os.getenv("POSTGRESQL_PASSWORD", ""),
     }
 
     try:
         conn = await asyncpg.connect(**pg_config)
-        logger.info("postgresql_connected", host=pg_config['host'])
+        logger.info("postgresql_connected", host=pg_config["host"])
 
         # Verificar se a tabela parent é particionada
-        is_partitioned = await conn.fetchval('''
+        is_partitioned = await conn.fetchval(
+            """
             SELECT EXISTS (
                 SELECT 1 FROM pg_class c
                 JOIN pg_partitioned_table pt ON c.oid = pt.partrelid
                 WHERE c.relname = $1
             )
-        ''', PARENT_TABLE)
+        """,
+            PARENT_TABLE,
+        )
 
         if not is_partitioned:
             logger.error(
                 "table_not_partitioned",
                 table=PARENT_TABLE,
-                hint="Execute a migração 001_add_budget_history_partitioning.sql primeiro"
+                hint="Execute a migração 001_add_budget_history_partitioning.sql primeiro",
             )
             await conn.close()
             raise RuntimeError(
@@ -81,12 +84,15 @@ async def create_partitions_for_next_months(months: int = 3):
             end_date = (target_month + timedelta(days=32)).replace(day=1)
 
             # Verificar se partição já existe
-            exists = await conn.fetchval('''
+            exists = await conn.fetchval(
+                """
                 SELECT EXISTS (
                     SELECT 1 FROM pg_class
                     WHERE relname = $1 AND relkind = 'r'
                 )
-            ''', partition_name)
+            """,
+                partition_name,
+            )
 
             if exists:
                 logger.info("partition_already_exists", partition=partition_name)
@@ -94,23 +100,29 @@ async def create_partitions_for_next_months(months: int = 3):
 
             # Criar partição na tabela parent correta
             try:
-                await conn.execute(f'''
+                await conn.execute(
+                    f"""
                     CREATE TABLE IF NOT EXISTS {partition_name}
                     PARTITION OF {PARENT_TABLE}
                     FOR VALUES FROM ('{start_date.strftime("%Y-%m-%d")}')
                     TO ('{end_date.strftime("%Y-%m-%d")}')
-                ''')
+                """
+                )
 
                 # Criar índices na nova partição (mesmo padrão da migração)
-                await conn.execute(f'''
+                await conn.execute(
+                    f"""
                     CREATE INDEX IF NOT EXISTS idx_{partition_name}_slo_calc_status
                     ON {partition_name}(slo_id, calculated_at DESC, status)
-                ''')
+                """
+                )
 
-                await conn.execute(f'''
+                await conn.execute(
+                    f"""
                     CREATE INDEX IF NOT EXISTS idx_{partition_name}_service_calc
                     ON {partition_name}(service_name, calculated_at DESC)
-                ''')
+                """
+                )
 
                 partitions_created += 1
                 logger.info(
@@ -118,20 +130,16 @@ async def create_partitions_for_next_months(months: int = 3):
                     partition=partition_name,
                     parent_table=PARENT_TABLE,
                     start=start_date.strftime("%Y-%m-%d"),
-                    end=end_date.strftime("%Y-%m-%d")
+                    end=end_date.strftime("%Y-%m-%d"),
                 )
             except Exception as e:
-                logger.error(
-                    "partition_creation_failed",
-                    partition=partition_name,
-                    error=str(e)
-                )
+                logger.error("partition_creation_failed", partition=partition_name, error=str(e))
 
         await conn.close()
         logger.info(
             "partition_creation_completed",
             partitions_created=partitions_created,
-            months_checked=months
+            months_checked=months,
         )
         return partitions_created
 
@@ -142,7 +150,7 @@ async def create_partitions_for_next_months(months: int = 3):
 
 async def main():
     """Ponto de entrada principal."""
-    months = int(os.getenv('PARTITION_MONTHS_AHEAD', '3'))
+    months = int(os.getenv("PARTITION_MONTHS_AHEAD", "3"))
     await create_partitions_for_next_months(months)
 
 

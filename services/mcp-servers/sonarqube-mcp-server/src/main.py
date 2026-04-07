@@ -48,7 +48,7 @@ class SonarQubeMCPServer(BaseMCPServer):
 server = SonarQubeMCPServer(
     name=settings.service_name,
     version=settings.service_version,
-    allowed_origins=settings.CORS_ORIGINS
+    allowed_origins=settings.CORS_ORIGINS,
 )
 
 
@@ -58,11 +58,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Startup
     await server.initialize()
     server.set_ready(True)
-    logger.info(
-        "sonarqube_mcp_server_started",
-        host=settings.http_host,
-        port=settings.http_port
-    )
+    logger.info("sonarqube_mcp_server_started", host=settings.http_host, port=settings.http_port)
 
     yield
 
@@ -77,7 +73,7 @@ app = FastAPI(
     title="SonarQube MCP Server",
     version=settings.service_version,
     description="Servidor MCP para análise de qualidade de código com SonarQube",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # Configurar CORS e health checks
@@ -102,7 +98,7 @@ def main() -> None:
             structlog.stdlib.add_logger_name,
             structlog.stdlib.add_log_level,
             structlog.processors.TimeStamper(fmt="iso"),
-            structlog.processors.JSONRenderer()
+            structlog.processors.JSONRenderer(),
         ],
         wrapper_class=structlog.stdlib.BoundLogger,
         context_class=dict,
@@ -115,7 +111,7 @@ def main() -> None:
         host=settings.http_host,
         port=settings.http_port,
         log_level=settings.log_level.lower(),
-        access_log=True
+        access_log=True,
     )
 
 

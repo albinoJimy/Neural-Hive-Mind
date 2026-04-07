@@ -62,9 +62,7 @@ class SLAAlertConsumer:
         security_protocol = getattr(config, "kafka_security_protocol", "PLAINTEXT")
         if security_protocol != "PLAINTEXT":
             consumer_config["security_protocol"] = security_protocol
-            consumer_config["sasl_mechanism"] = getattr(
-                config, "kafka_sasl_mechanism", "PLAIN"
-            )
+            consumer_config["sasl_mechanism"] = getattr(config, "kafka_sasl_mechanism", "PLAIN")
             consumer_config["sasl_plain_username"] = config.kafka_sasl_username
             consumer_config["sasl_plain_password"] = config.kafka_sasl_password
 

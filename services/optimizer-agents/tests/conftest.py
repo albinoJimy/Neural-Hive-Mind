@@ -83,44 +83,38 @@ def mock_orchestrator_client():
 @pytest.fixture
 def sample_optimization_hypothesis():
     """Sample optimization hypothesis for testing."""
-    from src.models.optimization_hypothesis import OptimizationHypothesis, OptimizationType, ProposedAdjustment
+    from src.models.optimization_hypothesis import (
+        OptimizationHypothesis,
+        OptimizationType,
+        ProposedAdjustment,
+    )
 
     return OptimizationHypothesis(
         hypothesis_id=str(uuid4()),
         hypothesis_text="Reduce latency by adjusting consensus weights",
         optimization_type=OptimizationType.WEIGHT_RECALIBRATION,
         target_component="consensus-engine",
-        baseline_metrics={
-            "latency_p95": 200.0,
-            "error_rate": 0.01,
-            "throughput": 1000.0
-        },
-        target_metrics={
-            "latency_p95": 150.0,
-            "error_rate": 0.01
-        },
+        baseline_metrics={"latency_p95": 200.0, "error_rate": 0.01, "throughput": 1000.0},
+        target_metrics={"latency_p95": 150.0, "error_rate": 0.01},
         proposed_adjustments=[
             ProposedAdjustment(
                 parameter_name="business_weight",
                 old_value="0.25",
                 new_value="0.30",
-                previous_value=0.25
+                previous_value=0.25,
             ),
             ProposedAdjustment(
                 parameter_name="technical_weight",
                 old_value="0.25",
                 new_value="0.20",
-                previous_value=0.25
-            )
+                previous_value=0.25,
+            ),
         ],
         expected_improvement=0.25,
         confidence_score=0.85,
         risk_score=0.3,
         priority=3,
-        metadata={
-            "created_by": "optimizer-agents",
-            "context_id": "test-context-001"
-        }
+        metadata={"created_by": "optimizer-agents", "context_id": "test-context-001"},
     )
 
 
@@ -143,7 +137,7 @@ def sample_code_recommendation():
 +        self._cache_ttl = 600  # 10 minutes
          self._last_cache_update = None
 """,
-        "description": "Increase weights cache TTL for better performance"
+        "description": "Increase weights cache TTL for better performance",
     }
 
 
@@ -158,7 +152,7 @@ def sample_database_recommendation():
         "severity": "medium",
         "auto_apply": False,
         "query_suggestion": "db.plan_approvals.createIndex({created_at: 1, status: 1})",
-        "description": "Add compound index for status queries"
+        "description": "Add compound index for status queries",
     }
 
 
@@ -173,7 +167,7 @@ def sample_unsafe_recommendation():
         "severity": "low",
         "auto_apply": True,
         "code_diff": "--- a/test.py\n+++ b/test.py\n@@ -1,1 +1,1 @@\n-old\n+new\n",
-        "description": "Should be blocked by safety check"
+        "description": "Should be blocked by safety check",
     }
 
 
@@ -188,14 +182,18 @@ def sample_critical_recommendation():
         "severity": "critical",
         "auto_apply": True,
         "code_diff": "--- a/main.py\n+++ b/main.py\n@@ -1,1 +1,1 @@\n-old\n+new\n",
-        "description": "Critical change requiring manual review"
+        "description": "Critical change requiring manual review",
     }
 
 
 @pytest.fixture
 def sample_experiment_request():
     """Sample experiment request for testing."""
-    from src.models.experiment_request import ExperimentRequest, ExperimentType, RandomizationStrategy
+    from src.models.experiment_request import (
+        ExperimentRequest,
+        ExperimentType,
+        RandomizationStrategy,
+    )
 
     return ExperimentRequest(
         experiment_id=str(uuid4()),
@@ -213,14 +211,14 @@ def sample_experiment_request():
                 "metric_name": "latency_p95",
                 "operator": "LTE",
                 "threshold": 150.0,
-                "confidence_level": 0.95
+                "confidence_level": 0.95,
             }
         ],
         guardrails=[
             {
                 "metric_name": "error_rate",
                 "max_degradation_percentage": 0.05,
-                "abort_threshold": 0.10
+                "abort_threshold": 0.10,
             }
         ],
         traffic_percentage=0.1,
@@ -230,7 +228,7 @@ def sample_experiment_request():
         ethical_approval_required=False,
         rollback_on_failure=True,
         created_at=int(datetime.now(timezone.utc).timestamp() * 1000),
-        created_by="optimizer-agents"
+        created_by="optimizer-agents",
     )
 
 
@@ -245,5 +243,5 @@ def sample_ab_test_config():
         "minimum_sample_size": 500,
         "maximum_duration_seconds": 3600,
         "early_stopping_enabled": True,
-        "bayesian_analysis_enabled": True
+        "bayesian_analysis_enabled": True,
     }

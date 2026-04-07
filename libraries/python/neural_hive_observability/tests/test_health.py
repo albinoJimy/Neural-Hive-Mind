@@ -51,9 +51,7 @@ class TestHealthCheckResult:
     def test_create_result(self):
         """Testa criação de resultado."""
         result = HealthCheckResult(
-            name="test-check",
-            status=HealthStatus.HEALTHY,
-            message="Test OK"
+            name="test-check", status=HealthStatus.HEALTHY, message="Test OK"
         )
 
         assert result.name == "test-check"
@@ -65,9 +63,7 @@ class TestHealthCheckResult:
     def test_create_result_with_details(self):
         """Testa criação com detalhes."""
         result = HealthCheckResult(
-            name="test-check",
-            status=HealthStatus.HEALTHY,
-            details={"key": "value", "count": 42}
+            name="test-check", status=HealthStatus.HEALTHY, details={"key": "value", "count": 42}
         )
 
         assert result.details == {"key": "value", "count": 42}
@@ -75,9 +71,7 @@ class TestHealthCheckResult:
     def test_create_result_with_duration(self):
         """Testa criação com duração."""
         result = HealthCheckResult(
-            name="test-check",
-            status=HealthStatus.HEALTHY,
-            duration_seconds=1.5
+            name="test-check", status=HealthStatus.HEALTHY, duration_seconds=1.5
         )
 
         assert result.duration_seconds == 1.5
@@ -93,6 +87,7 @@ class TestHealthCheck:
 
     def test_health_check_initialization(self):
         """Testa inicialização de subclass."""
+
         class ConcreteHealthCheck(HealthCheck):
             async def check(self):
                 return self._create_result(HealthStatus.HEALTHY)
@@ -104,14 +99,10 @@ class TestHealthCheck:
 
     def test_create_result_helper(self):
         """Testa método helper _create_result."""
+
         class ConcreteHealthCheck(HealthCheck):
             async def check(self):
-                return self._create_result(
-                    HealthStatus.HEALTHY,
-                    "Test OK",
-                    {"key": "value"},
-                    0.0
-                )
+                return self._create_result(HealthStatus.HEALTHY, "Test OK", {"key": "value"}, 0.0)
 
         hc = ConcreteHealthCheck(name="concrete")
 
@@ -131,10 +122,7 @@ class TestDatabaseHealthCheck:
         """Testa check com conexão ativa."""
         connection_check = Mock(return_value=True)
 
-        db_check = DatabaseHealthCheck(
-            name="database",
-            connection_check=connection_check
-        )
+        db_check = DatabaseHealthCheck(name="database", connection_check=connection_check)
 
         result = await db_check.check()
 
@@ -146,10 +134,7 @@ class TestDatabaseHealthCheck:
         """Testa check sem conexão."""
         connection_check = Mock(return_value=False)
 
-        db_check = DatabaseHealthCheck(
-            name="database",
-            connection_check=connection_check
-        )
+        db_check = DatabaseHealthCheck(name="database", connection_check=connection_check)
 
         result = await db_check.check()
 
@@ -169,14 +154,13 @@ class TestDatabaseHealthCheck:
     @pytest.mark.asyncio
     async def test_check_with_timeout(self):
         """Testa check com timeout."""
+
         async def slow_check():
             await asyncio.sleep(10)
             return True
 
         db_check = DatabaseHealthCheck(
-            name="database",
-            connection_check=slow_check,
-            timeout_seconds=0.1
+            name="database", connection_check=slow_check, timeout_seconds=0.1
         )
 
         result = await db_check.check()
@@ -189,10 +173,7 @@ class TestDatabaseHealthCheck:
         """Testa check com exceção."""
         connection_check = Mock(side_effect=Exception("Connection error"))
 
-        db_check = DatabaseHealthCheck(
-            name="database",
-            connection_check=connection_check
-        )
+        db_check = DatabaseHealthCheck(name="database", connection_check=connection_check)
 
         result = await db_check.check()
 
@@ -208,10 +189,7 @@ class TestKafkaHealthCheck:
         """Testa check com conexão ativa."""
         producer_check = Mock(return_value=True)
 
-        kafka_check = KafkaHealthCheck(
-            name="kafka",
-            producer_check=producer_check
-        )
+        kafka_check = KafkaHealthCheck(name="kafka", producer_check=producer_check)
 
         result = await kafka_check.check()
 
@@ -223,10 +201,7 @@ class TestKafkaHealthCheck:
         """Testa check sem conexão."""
         producer_check = Mock(return_value=False)
 
-        kafka_check = KafkaHealthCheck(
-            name="kafka",
-            producer_check=producer_check
-        )
+        kafka_check = KafkaHealthCheck(name="kafka", producer_check=producer_check)
 
         result = await kafka_check.check()
 
@@ -246,15 +221,12 @@ class TestKafkaHealthCheck:
     @pytest.mark.asyncio
     async def test_check_with_timeout(self):
         """Testa check com timeout."""
+
         async def slow_check():
             await asyncio.sleep(10)
             return True
 
-        kafka_check = KafkaHealthCheck(
-            name="kafka",
-            producer_check=slow_check,
-            timeout_seconds=0.1
-        )
+        kafka_check = KafkaHealthCheck(name="kafka", producer_check=slow_check, timeout_seconds=0.1)
 
         result = await kafka_check.check()
 
@@ -268,19 +240,15 @@ class TestMemoryHealthCheck:
     @pytest.mark.asyncio
     async def test_check_with_psutil_available(self):
         """Testa check com psutil disponível."""
-        with patch('neural_hive_observability.health.psutil') as mock_psutil:
+        with patch("neural_hive_observability.health.psutil") as mock_psutil:
             mock_process = Mock()
             mock_process.memory_percent.return_value = 50.0
             mock_process.memory_info.return_value = Mock(
-                rss=1024 * 1024 * 100,
-                vms=1024 * 1024 * 200
+                rss=1024 * 1024 * 100, vms=1024 * 1024 * 200
             )
             mock_psutil.Process.return_value = mock_process
 
-            mem_check = MemoryHealthCheck(
-                name="memory",
-                max_memory_percent=80.0
-            )
+            mem_check = MemoryHealthCheck(name="memory", max_memory_percent=80.0)
 
             result = await mem_check.check()
 
@@ -292,19 +260,15 @@ class TestMemoryHealthCheck:
     @pytest.mark.asyncio
     async def test_check_with_high_memory(self):
         """Testa check com memória alta."""
-        with patch('neural_hive_observability.health.psutil') as mock_psutil:
+        with patch("neural_hive_observability.health.psutil") as mock_psutil:
             mock_process = Mock()
             mock_process.memory_percent.return_value = 90.0
             mock_process.memory_info.return_value = Mock(
-                rss=1024 * 1024 * 500,
-                vms=1024 * 1024 * 1000
+                rss=1024 * 1024 * 500, vms=1024 * 1024 * 1000
             )
             mock_psutil.Process.return_value = mock_process
 
-            mem_check = MemoryHealthCheck(
-                name="memory",
-                max_memory_percent=80.0
-            )
+            mem_check = MemoryHealthCheck(name="memory", max_memory_percent=80.0)
 
             result = await mem_check.check()
 
@@ -314,19 +278,15 @@ class TestMemoryHealthCheck:
     @pytest.mark.asyncio
     async def test_check_with_degraded_memory(self):
         """Testa check com memória degradada."""
-        with patch('neural_hive_observability.health.psutil') as mock_psutil:
+        with patch("neural_hive_observability.health.psutil") as mock_psutil:
             mock_process = Mock()
             mock_process.memory_percent.return_value = 75.0
             mock_process.memory_info.return_value = Mock(
-                rss=1024 * 1024 * 400,
-                vms=1024 * 1024 * 800
+                rss=1024 * 1024 * 400, vms=1024 * 1024 * 800
             )
             mock_psutil.Process.return_value = mock_process
 
-            mem_check = MemoryHealthCheck(
-                name="memory",
-                max_memory_percent=80.0
-            )
+            mem_check = MemoryHealthCheck(name="memory", max_memory_percent=80.0)
 
             result = await mem_check.check()
 
@@ -336,7 +296,7 @@ class TestMemoryHealthCheck:
     @pytest.mark.asyncio
     async def test_check_without_psutil(self):
         """Testa check sem psutil."""
-        with patch('neural_hive_observability.health.psutil', side_effect=ImportError):
+        with patch("neural_hive_observability.health.psutil", side_effect=ImportError):
             mem_check = MemoryHealthCheck(name="memory")
 
             result = await mem_check.check()
@@ -353,10 +313,7 @@ class TestRedisHealthCheck:
         """Testa check com conexão síncrona."""
         connection_check = Mock(return_value=True)
 
-        redis_check = RedisHealthCheck(
-            name="redis",
-            connection_check=connection_check
-        )
+        redis_check = RedisHealthCheck(name="redis", connection_check=connection_check)
 
         result = await redis_check.check()
 
@@ -365,13 +322,11 @@ class TestRedisHealthCheck:
     @pytest.mark.asyncio
     async def test_check_with_async_connection(self):
         """Testa check com conexão assíncrona."""
+
         async def async_ping():
             return True
 
-        redis_check = RedisHealthCheck(
-            name="redis",
-            connection_check=async_ping
-        )
+        redis_check = RedisHealthCheck(name="redis", connection_check=async_ping)
 
         result = await redis_check.check()
 
@@ -382,10 +337,7 @@ class TestRedisHealthCheck:
         """Testa check sem conexão."""
         connection_check = Mock(return_value=False)
 
-        redis_check = RedisHealthCheck(
-            name="redis",
-            connection_check=connection_check
-        )
+        redis_check = RedisHealthCheck(name="redis", connection_check=connection_check)
 
         result = await redis_check.check()
 
@@ -405,10 +357,7 @@ class TestRedisHealthCheck:
         """Testa check com exceção."""
         connection_check = Mock(side_effect=Exception("Redis error"))
 
-        redis_check = RedisHealthCheck(
-            name="redis",
-            connection_check=connection_check
-        )
+        redis_check = RedisHealthCheck(name="redis", connection_check=connection_check)
 
         result = await redis_check.check()
 
@@ -424,9 +373,7 @@ class TestCustomHealthCheck:
         check_func = Mock(return_value=True)
 
         custom_check = CustomHealthCheck(
-            name="custom",
-            check_func=check_func,
-            description="Custom check"
+            name="custom", check_func=check_func, description="Custom check"
         )
 
         result = await custom_check.check()
@@ -437,13 +384,12 @@ class TestCustomHealthCheck:
     @pytest.mark.asyncio
     async def test_check_with_async_function(self):
         """Testa check com função assíncrona."""
+
         async def async_check():
             return True
 
         custom_check = CustomHealthCheck(
-            name="custom",
-            check_func=async_check,
-            description="Async custom check"
+            name="custom", check_func=async_check, description="Async custom check"
         )
 
         result = await custom_check.check()
@@ -455,10 +401,7 @@ class TestCustomHealthCheck:
         """Testa check que retorna False."""
         check_func = Mock(return_value=False)
 
-        custom_check = CustomHealthCheck(
-            name="custom",
-            check_func=check_func
-        )
+        custom_check = CustomHealthCheck(name="custom", check_func=check_func)
 
         result = await custom_check.check()
 
@@ -469,10 +412,7 @@ class TestCustomHealthCheck:
         """Testa check que lança exceção."""
         check_func = Mock(side_effect=Exception("Check error"))
 
-        custom_check = CustomHealthCheck(
-            name="custom",
-            check_func=check_func
-        )
+        custom_check = CustomHealthCheck(name="custom", check_func=check_func)
 
         result = await custom_check.check()
 
@@ -485,8 +425,7 @@ class TestHealthChecker:
     def test_initialization(self):
         """Testa inicialização do HealthChecker."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         checker = HealthChecker(config)
@@ -497,8 +436,7 @@ class TestHealthChecker:
     def test_register_check(self):
         """Testa registro de health check."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         checker = HealthChecker(config)
@@ -516,8 +454,7 @@ class TestHealthChecker:
     def test_register_default_checks(self):
         """Testa registro de checks padrão."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         checker = HealthChecker(config)
@@ -530,8 +467,7 @@ class TestHealthChecker:
     async def test_check_all(self):
         """Testa execução de todos os checks."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         checker = HealthChecker(config)
@@ -544,15 +480,14 @@ class TestHealthChecker:
             HealthStatus.HEALTHY,
             HealthStatus.DEGRADED,
             HealthStatus.UNHEALTHY,
-            HealthStatus.UNKNOWN
+            HealthStatus.UNKNOWN,
         ]
 
     @pytest.mark.asyncio
     async def test_check_single(self):
         """Testa execução de check único."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         checker = HealthChecker(config)
@@ -567,8 +502,7 @@ class TestHealthChecker:
     async def test_check_single_not_found(self):
         """Testa check único não encontrado."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         checker = HealthChecker(config)
@@ -581,8 +515,7 @@ class TestHealthChecker:
     async def test_check_single_with_exception(self):
         """Testa check único com exceção."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         checker = HealthChecker(config)
@@ -602,8 +535,7 @@ class TestHealthChecker:
     def test_get_last_results(self):
         """Testa obtenção dos últimos resultados."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         checker = HealthChecker(config)
@@ -615,8 +547,7 @@ class TestHealthChecker:
     def test_get_overall_status_without_results(self):
         """Testa status geral sem resultados."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         checker = HealthChecker(config)
@@ -627,8 +558,7 @@ class TestHealthChecker:
     def test_get_overall_status_with_all_healthy(self):
         """Testa status geral com todos healthy."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         checker = HealthChecker(config)
@@ -636,7 +566,7 @@ class TestHealthChecker:
         # Simular resultados todos healthy
         checker._last_results = {
             "check1": Mock(status=HealthStatus.HEALTHY),
-            "check2": Mock(status=HealthStatus.HEALTHY)
+            "check2": Mock(status=HealthStatus.HEALTHY),
         }
 
         status = checker.get_overall_status()
@@ -645,15 +575,14 @@ class TestHealthChecker:
     def test_get_overall_status_with_unhealthy(self):
         """Testa status geral com um unhealthy."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         checker = HealthChecker(config)
 
         checker._last_results = {
             "check1": Mock(status=HealthStatus.HEALTHY),
-            "check2": Mock(status=HealthStatus.UNHEALTHY)
+            "check2": Mock(status=HealthStatus.UNHEALTHY),
         }
 
         status = checker.get_overall_status()
@@ -662,15 +591,14 @@ class TestHealthChecker:
     def test_get_overall_status_with_degraded(self):
         """Testa status geral com degraded."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         checker = HealthChecker(config)
 
         checker._last_results = {
             "check1": Mock(status=HealthStatus.HEALTHY),
-            "check2": Mock(status=HealthStatus.DEGRADED)
+            "check2": Mock(status=HealthStatus.DEGRADED),
         }
 
         status = checker.get_overall_status()
@@ -682,7 +610,7 @@ class TestHealthChecker:
             service_name="test-service",
             service_version="1.0.0",
             neural_hive_component="test-component",
-            neural_hive_layer="test-layer"
+            neural_hive_layer="test-layer",
         )
 
         checker = HealthChecker(config)

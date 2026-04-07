@@ -42,10 +42,10 @@ def sample_ticket():
                 "cpu_limit": "1",
                 "cpu_request": "500m",
                 "memory_limit": "1Gi",
-                "memory_request": "512Mi"
+                "memory_request": "512Mi",
             }
         },
-        "environment": "development"
+        "environment": "development",
     }
 
 
@@ -55,11 +55,8 @@ def sample_ticket_ml():
     return {
         "ticket_id": "ticket-ml-123",
         "task_type": "ML_TRAINING",
-        "parameters": {
-            "model": "sentiment-classifier",
-            "bias_testing_completed": False
-        },
-        "environment": "production"
+        "parameters": {"model": "sentiment-classifier", "bias_testing_completed": False},
+        "environment": "production",
     }
 
 
@@ -72,25 +69,19 @@ def sample_ticket_deploy():
         "parameters": {
             "affected_percentage": 0.5,  # 50%
             "rollback_plan": False,
-            "tests_passed": False
+            "tests_passed": False,
         },
-        "environment": "production"
+        "environment": "production",
     }
 
 
 @pytest.mark.asyncio
 async def test_enforce_guardrails_no_violations(
-    mock_opa_client,
-    mock_mongodb_client,
-    mock_redis_client,
-    sample_ticket
+    mock_opa_client, mock_mongodb_client, mock_redis_client, sample_ticket
 ):
     """Testa guardrails sem violações."""
     enforcer = GuardrailEnforcer(
-        mock_opa_client,
-        mock_mongodb_client,
-        mock_redis_client,
-        mode="BLOCKING"
+        mock_opa_client, mock_mongodb_client, mock_redis_client, mode="BLOCKING"
     )
 
     violations = await enforcer.enforce_guardrails(sample_ticket)
@@ -100,17 +91,10 @@ async def test_enforce_guardrails_no_violations(
 
 @pytest.mark.asyncio
 async def test_check_bias_risk(
-    mock_opa_client,
-    mock_mongodb_client,
-    mock_redis_client,
-    sample_ticket_ml
+    mock_opa_client, mock_mongodb_client, mock_redis_client, sample_ticket_ml
 ):
     """Testa detecção de uso de modelo ML sem bias testing."""
-    enforcer = GuardrailEnforcer(
-        mock_opa_client,
-        mock_mongodb_client,
-        mock_redis_client
-    )
+    enforcer = GuardrailEnforcer(mock_opa_client, mock_mongodb_client, mock_redis_client)
 
     violations = await enforcer._check_bias_risk(sample_ticket_ml)
 
@@ -120,49 +104,28 @@ async def test_check_bias_risk(
 
 
 @pytest.mark.asyncio
-async def test_check_privacy_compliance(
-    mock_opa_client,
-    mock_mongodb_client,
-    mock_redis_client
-):
+async def test_check_privacy_compliance(mock_opa_client, mock_mongodb_client, mock_redis_client):
     """Testa detecção de violação GDPR."""
     ticket = {
         "ticket_id": "ticket-privacy-123",
         "task_type": "DATA_PROCESSING",
-        "parameters": {
-            "data_classification": "PII",
-            "user_consent": False
-        }
+        "parameters": {"data_classification": "PII", "user_consent": False},
     }
 
-    enforcer = GuardrailEnforcer(
-        mock_opa_client,
-        mock_mongodb_client,
-        mock_redis_client
-    )
+    enforcer = GuardrailEnforcer(mock_opa_client, mock_mongodb_client, mock_redis_client)
 
     violations = await enforcer._check_privacy_compliance(ticket)
 
     assert len(violations) > 0
-    assert any(
-        v.violation_type == ViolationType.COMPLIANCE_BREACH
-        for v in violations
-    )
+    assert any(v.violation_type == ViolationType.COMPLIANCE_BREACH for v in violations)
 
 
 @pytest.mark.asyncio
 async def test_check_blast_radius(
-    mock_opa_client,
-    mock_mongodb_client,
-    mock_redis_client,
-    sample_ticket_deploy
+    mock_opa_client, mock_mongodb_client, mock_redis_client, sample_ticket_deploy
 ):
     """Testa detecção de blast radius > 10%."""
-    enforcer = GuardrailEnforcer(
-        mock_opa_client,
-        mock_mongodb_client,
-        mock_redis_client
-    )
+    enforcer = GuardrailEnforcer(mock_opa_client, mock_mongodb_client, mock_redis_client)
 
     violations = await enforcer._check_blast_radius(sample_ticket_deploy)
 
@@ -172,17 +135,10 @@ async def test_check_blast_radius(
 
 @pytest.mark.asyncio
 async def test_check_rollback_plan(
-    mock_opa_client,
-    mock_mongodb_client,
-    mock_redis_client,
-    sample_ticket_deploy
+    mock_opa_client, mock_mongodb_client, mock_redis_client, sample_ticket_deploy
 ):
     """Testa que mudanças críticas requerem rollback plan."""
-    enforcer = GuardrailEnforcer(
-        mock_opa_client,
-        mock_mongodb_client,
-        mock_redis_client
-    )
+    enforcer = GuardrailEnforcer(mock_opa_client, mock_mongodb_client, mock_redis_client)
 
     violations = await enforcer._check_rollback_plan(sample_ticket_deploy)
 
@@ -191,25 +147,15 @@ async def test_check_rollback_plan(
 
 
 @pytest.mark.asyncio
-async def test_check_cost_threshold(
-    mock_opa_client,
-    mock_mongodb_client,
-    mock_redis_client
-):
+async def test_check_cost_threshold(mock_opa_client, mock_mongodb_client, mock_redis_client):
     """Testa bloqueio de mudanças que excedem budget."""
     ticket = {
         "ticket_id": "ticket-cost-123",
         "task_type": "DEPLOY",
-        "parameters": {
-            "estimated_cost_usd": 5000  # Acima do threshold de $1000
-        }
+        "parameters": {"estimated_cost_usd": 5000},  # Acima do threshold de $1000
     }
 
-    enforcer = GuardrailEnforcer(
-        mock_opa_client,
-        mock_mongodb_client,
-        mock_redis_client
-    )
+    enforcer = GuardrailEnforcer(mock_opa_client, mock_mongodb_client, mock_redis_client)
 
     violations = await enforcer._check_cost_threshold(ticket)
 
@@ -219,17 +165,11 @@ async def test_check_cost_threshold(
 
 @pytest.mark.asyncio
 async def test_guardrails_advisory_mode(
-    mock_opa_client,
-    mock_mongodb_client,
-    mock_redis_client,
-    sample_ticket_deploy
+    mock_opa_client, mock_mongodb_client, mock_redis_client, sample_ticket_deploy
 ):
     """Testa que modo ADVISORY apenas alerta."""
     enforcer = GuardrailEnforcer(
-        mock_opa_client,
-        mock_mongodb_client,
-        mock_redis_client,
-        mode="ADVISORY"
+        mock_opa_client, mock_mongodb_client, mock_redis_client, mode="ADVISORY"
     )
 
     violations = await enforcer.enforce_guardrails(sample_ticket_deploy)
@@ -240,17 +180,11 @@ async def test_guardrails_advisory_mode(
 
 @pytest.mark.asyncio
 async def test_guardrails_blocking_mode(
-    mock_opa_client,
-    mock_mongodb_client,
-    mock_redis_client,
-    sample_ticket_deploy
+    mock_opa_client, mock_mongodb_client, mock_redis_client, sample_ticket_deploy
 ):
     """Testa que modo BLOCKING rejeita ticket."""
     enforcer = GuardrailEnforcer(
-        mock_opa_client,
-        mock_mongodb_client,
-        mock_redis_client,
-        mode="BLOCKING"
+        mock_opa_client, mock_mongodb_client, mock_redis_client, mode="BLOCKING"
     )
 
     violations = await enforcer.enforce_guardrails(sample_ticket_deploy)

@@ -20,7 +20,7 @@ from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock
 
 # Adicionar src ao path para importacao
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../src"))
 
 from grpc_server.registry_servicer import ServiceRegistryServicer
 from models.agent import AgentType, AgentStatus, AgentInfo, AgentTelemetry
@@ -32,7 +32,7 @@ from proto import service_registry_pb2, service_registry_pb2_grpc
 def get_free_port() -> int:
     """Obter uma porta livre para o servidor de teste"""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind(('', 0))
+        s.bind(("", 0))
         s.listen(1)
         port = s.getsockname()[1]
     return port
@@ -41,7 +41,7 @@ def get_free_port() -> int:
 class MockPubSub:
     """Mock do Redis PubSub para testes"""
 
-    def __init__(self, mock_client: 'MockRedisClient'):
+    def __init__(self, mock_client: "MockRedisClient"):
         self._mock_client = mock_client
         self._subscribed_channel = None
         self._closed = False
@@ -52,7 +52,10 @@ class MockPubSub:
     async def listen(self):
         """Gera mensagens do canal subscrito"""
         while not self._closed:
-            if self._subscribed_channel and self._subscribed_channel in self._mock_client._pubsub_messages:
+            if (
+                self._subscribed_channel
+                and self._subscribed_channel in self._mock_client._pubsub_messages
+            ):
                 messages = self._mock_client._pubsub_messages[self._subscribed_channel]
                 while messages:
                     msg = messages.pop(0)
@@ -117,7 +120,7 @@ class MockEtcdClient:
         # Publicar evento de registro
         await self._mock_redis.publish(
             f"{self.prefix}:events",
-            json.dumps({"event": "registered", "agent_id": str(agent_info.agent_id)})
+            json.dumps({"event": "registered", "agent_id": str(agent_info.agent_id)}),
         )
 
     async def get_agent(self, agent_id):
@@ -130,7 +133,7 @@ class MockEtcdClient:
             # Publicar evento de deregistro
             await self._mock_redis.publish(
                 f"{self.prefix}:events",
-                json.dumps({"event": "deregistered", "agent_id": str(agent_id)})
+                json.dumps({"event": "deregistered", "agent_id": str(agent_id)}),
             )
             return True
         return False
@@ -142,10 +145,10 @@ class MockEtcdClient:
             agents = [a for a in agents if a.agent_type == agent_type]
 
         if filters:
-            if 'namespace' in filters:
-                agents = [a for a in agents if a.namespace == filters['namespace']]
-            if 'cluster' in filters:
-                agents = [a for a in agents if a.cluster == filters['cluster']]
+            if "namespace" in filters:
+                agents = [a for a in agents if a.namespace == filters["namespace"]]
+            if "cluster" in filters:
+                agents = [a for a in agents if a.cluster == filters["cluster"]]
 
         return agents
 
@@ -163,7 +166,9 @@ class MockPheromoneClient:
     async def close(self):
         pass
 
-    async def get_agent_pheromone_score(self, agent_id: str, agent_type=None, domain: str = "default") -> float:
+    async def get_agent_pheromone_score(
+        self, agent_id: str, agent_type=None, domain: str = "default"
+    ) -> float:
         return self._scores.get(agent_id, self.default_score)
 
     def set_score(self, agent_id: str, score: float):
@@ -190,7 +195,7 @@ async def create_grpc_server(etcd_client: MockEtcdClient, pheromone_client: Mock
     # Criar servidor gRPC async
     server = grpc.aio.server()
     service_registry_pb2_grpc.add_ServiceRegistryServicer_to_server(servicer, server)
-    server.add_insecure_port(f'[::]:{port}')
+    server.add_insecure_port(f"[::]:{port}")
 
     await server.start()
 
@@ -211,7 +216,7 @@ async def create_grpc_channel(port: int):
     Yields:
         service_registry_pb2_grpc.ServiceRegistryStub: Stub cliente
     """
-    channel = grpc.aio.insecure_channel(f'localhost:{port}')
+    channel = grpc.aio.insecure_channel(f"localhost:{port}")
     stub = service_registry_pb2_grpc.ServiceRegistryStub(channel)
 
     try:
@@ -235,9 +240,7 @@ class TestDiscoverE2EWithRealServer:
 
     @pytest.mark.asyncio
     @pytest.mark.integration
-    async def test_full_discovery_flow_with_worker_and_guard(
-        self, etcd_client, pheromone_client
-    ):
+    async def test_full_discovery_flow_with_worker_and_guard(self, etcd_client, pheromone_client):
         """
         Testa fluxo completo E2E:
         1. Worker registra com capabilities ["python", "terraform"]
@@ -255,7 +258,7 @@ class TestDiscoverE2EWithRealServer:
                         metadata={"service": "worker-1"},
                         namespace="production",
                         cluster="us-east-1",
-                        version="1.0.0"
+                        version="1.0.0",
                     )
                 )
                 worker_id = worker_response.agent_id
@@ -270,7 +273,7 @@ class TestDiscoverE2EWithRealServer:
                         metadata={"service": "guard-1"},
                         namespace="production",
                         cluster="us-east-1",
-                        version="1.0.0"
+                        version="1.0.0",
                     )
                 )
                 guard_id = guard_response.agent_id
@@ -281,9 +284,7 @@ class TestDiscoverE2EWithRealServer:
                 # 3. Descobrir agentes com capability "python"
                 discover_response = await stub.DiscoverAgents(
                     service_registry_pb2.DiscoverRequest(
-                        capabilities=["python"],
-                        filters={},
-                        max_results=5
+                        capabilities=["python"], filters={}, max_results=5
                     )
                 )
 
@@ -300,9 +301,7 @@ class TestDiscoverE2EWithRealServer:
 
     @pytest.mark.asyncio
     @pytest.mark.integration
-    async def test_discover_multiple_workers_with_ranking(
-        self, etcd_client, pheromone_client
-    ):
+    async def test_discover_multiple_workers_with_ranking(self, etcd_client, pheromone_client):
         """Testa descoberta com multiplos workers e ranking por score"""
         async with create_grpc_server(etcd_client, pheromone_client) as (server, port):
             async with create_grpc_channel(port) as stub:
@@ -316,7 +315,7 @@ class TestDiscoverE2EWithRealServer:
                             metadata={"worker_num": str(i)},
                             namespace="default",
                             cluster="local",
-                            version="1.0.0"
+                            version="1.0.0",
                         )
                     )
                     worker_ids.append(response.agent_id)
@@ -330,17 +329,15 @@ class TestDiscoverE2EWithRealServer:
                                 success_rate=success_rate,
                                 avg_duration_ms=100,
                                 total_executions=100,
-                                failed_executions=int(100 * (1 - success_rate))
-                            )
+                                failed_executions=int(100 * (1 - success_rate)),
+                            ),
                         )
                     )
 
                 # Descobrir agentes
                 discover_response = await stub.DiscoverAgents(
                     service_registry_pb2.DiscoverRequest(
-                        capabilities=["python"],
-                        filters={},
-                        max_results=10
+                        capabilities=["python"], filters={}, max_results=10
                     )
                 )
 
@@ -349,17 +346,12 @@ class TestDiscoverE2EWithRealServer:
                 assert len(discover_response.agents) == 3
 
                 # Verificar ordenacao por telemetry score (descrescente)
-                success_rates = [
-                    agent.telemetry.success_rate
-                    for agent in discover_response.agents
-                ]
+                success_rates = [agent.telemetry.success_rate for agent in discover_response.agents]
                 assert success_rates == sorted(success_rates, reverse=True)
 
     @pytest.mark.asyncio
     @pytest.mark.integration
-    async def test_discover_with_namespace_filter(
-        self, etcd_client, pheromone_client
-    ):
+    async def test_discover_with_namespace_filter(self, etcd_client, pheromone_client):
         """Testa descoberta com filtro de namespace via servidor gRPC real"""
         async with create_grpc_server(etcd_client, pheromone_client) as (server, port):
             async with create_grpc_channel(port) as stub:
@@ -371,7 +363,7 @@ class TestDiscoverE2EWithRealServer:
                         metadata={},
                         namespace="production",
                         cluster="us-east-1",
-                        version="1.0.0"
+                        version="1.0.0",
                     )
                 )
 
@@ -382,16 +374,14 @@ class TestDiscoverE2EWithRealServer:
                         metadata={},
                         namespace="staging",
                         cluster="us-east-1",
-                        version="1.0.0"
+                        version="1.0.0",
                     )
                 )
 
                 # Descobrir apenas no namespace production
                 discover_response = await stub.DiscoverAgents(
                     service_registry_pb2.DiscoverRequest(
-                        capabilities=["python"],
-                        filters={"namespace": "production"},
-                        max_results=10
+                        capabilities=["python"], filters={"namespace": "production"}, max_results=10
                     )
                 )
 
@@ -402,9 +392,7 @@ class TestDiscoverE2EWithRealServer:
 
     @pytest.mark.asyncio
     @pytest.mark.integration
-    async def test_discover_multiple_capabilities_and_logic(
-        self, etcd_client, pheromone_client
-    ):
+    async def test_discover_multiple_capabilities_and_logic(self, etcd_client, pheromone_client):
         """Testa que multiplas capabilities usam logica AND via servidor real"""
         async with create_grpc_server(etcd_client, pheromone_client) as (server, port):
             async with create_grpc_channel(port) as stub:
@@ -416,7 +404,7 @@ class TestDiscoverE2EWithRealServer:
                         metadata={},
                         namespace="default",
                         cluster="local",
-                        version="1.0.0"
+                        version="1.0.0",
                     )
                 )
 
@@ -428,7 +416,7 @@ class TestDiscoverE2EWithRealServer:
                         metadata={},
                         namespace="default",
                         cluster="local",
-                        version="1.0.0"
+                        version="1.0.0",
                     )
                 )
 
@@ -440,16 +428,14 @@ class TestDiscoverE2EWithRealServer:
                         metadata={},
                         namespace="default",
                         cluster="local",
-                        version="1.0.0"
+                        version="1.0.0",
                     )
                 )
 
                 # Descobrir com ambas capabilities
                 discover_response = await stub.DiscoverAgents(
                     service_registry_pb2.DiscoverRequest(
-                        capabilities=["python", "terraform"],
-                        filters={},
-                        max_results=10
+                        capabilities=["python", "terraform"], filters={}, max_results=10
                     )
                 )
 
@@ -461,9 +447,7 @@ class TestDiscoverE2EWithRealServer:
 
     @pytest.mark.asyncio
     @pytest.mark.integration
-    async def test_discover_filters_unhealthy_agents(
-        self, etcd_client, pheromone_client
-    ):
+    async def test_discover_filters_unhealthy_agents(self, etcd_client, pheromone_client):
         """Testa que agentes UNHEALTHY sao filtrados via servidor real"""
         async with create_grpc_server(etcd_client, pheromone_client) as (server, port):
             async with create_grpc_channel(port) as stub:
@@ -475,7 +459,7 @@ class TestDiscoverE2EWithRealServer:
                         metadata={},
                         namespace="default",
                         cluster="local",
-                        version="1.0.0"
+                        version="1.0.0",
                     )
                 )
 
@@ -487,8 +471,8 @@ class TestDiscoverE2EWithRealServer:
                             success_rate=0.95,
                             avg_duration_ms=100,
                             total_executions=100,
-                            failed_executions=5
-                        )
+                            failed_executions=5,
+                        ),
                     )
                 )
 
@@ -500,7 +484,7 @@ class TestDiscoverE2EWithRealServer:
                         metadata={},
                         namespace="default",
                         cluster="local",
-                        version="1.0.0"
+                        version="1.0.0",
                     )
                 )
 
@@ -512,17 +496,15 @@ class TestDiscoverE2EWithRealServer:
                             success_rate=0.1,  # Muito baixa -> UNHEALTHY
                             avg_duration_ms=500,
                             total_executions=100,
-                            failed_executions=90
-                        )
+                            failed_executions=90,
+                        ),
                     )
                 )
 
                 # Descobrir agentes
                 discover_response = await stub.DiscoverAgents(
                     service_registry_pb2.DiscoverRequest(
-                        capabilities=["python"],
-                        filters={},
-                        max_results=10
+                        capabilities=["python"], filters={}, max_results=10
                     )
                 )
 
@@ -532,9 +514,7 @@ class TestDiscoverE2EWithRealServer:
 
     @pytest.mark.asyncio
     @pytest.mark.integration
-    async def test_discover_respects_max_results(
-        self, etcd_client, pheromone_client
-    ):
+    async def test_discover_respects_max_results(self, etcd_client, pheromone_client):
         """Testa que max_results limita resultados via servidor real"""
         async with create_grpc_server(etcd_client, pheromone_client) as (server, port):
             async with create_grpc_channel(port) as stub:
@@ -547,16 +527,14 @@ class TestDiscoverE2EWithRealServer:
                             metadata={"worker": str(i)},
                             namespace="default",
                             cluster="local",
-                            version="1.0.0"
+                            version="1.0.0",
                         )
                     )
 
                 # Descobrir com max_results=3
                 discover_response = await stub.DiscoverAgents(
                     service_registry_pb2.DiscoverRequest(
-                        capabilities=["python"],
-                        filters={},
-                        max_results=3
+                        capabilities=["python"], filters={}, max_results=3
                     )
                 )
 
@@ -565,9 +543,7 @@ class TestDiscoverE2EWithRealServer:
 
     @pytest.mark.asyncio
     @pytest.mark.integration
-    async def test_discover_no_matching_capabilities(
-        self, etcd_client, pheromone_client
-    ):
+    async def test_discover_no_matching_capabilities(self, etcd_client, pheromone_client):
         """Testa retorno vazio quando nenhum agent tem a capability"""
         async with create_grpc_server(etcd_client, pheromone_client) as (server, port):
             async with create_grpc_channel(port) as stub:
@@ -579,16 +555,14 @@ class TestDiscoverE2EWithRealServer:
                         metadata={},
                         namespace="default",
                         cluster="local",
-                        version="1.0.0"
+                        version="1.0.0",
                     )
                 )
 
                 # Descobrir capabilities inexistentes
                 discover_response = await stub.DiscoverAgents(
                     service_registry_pb2.DiscoverRequest(
-                        capabilities=["go", "rust"],
-                        filters={},
-                        max_results=10
+                        capabilities=["go", "rust"], filters={}, max_results=10
                     )
                 )
 
@@ -598,9 +572,7 @@ class TestDiscoverE2EWithRealServer:
 
     @pytest.mark.asyncio
     @pytest.mark.integration
-    async def test_register_and_deregister_flow(
-        self, etcd_client, pheromone_client
-    ):
+    async def test_register_and_deregister_flow(self, etcd_client, pheromone_client):
         """Testa fluxo completo de registro e deregistro via servidor real"""
         async with create_grpc_server(etcd_client, pheromone_client) as (server, port):
             async with create_grpc_channel(port) as stub:
@@ -612,7 +584,7 @@ class TestDiscoverE2EWithRealServer:
                         metadata={},
                         namespace="default",
                         cluster="local",
-                        version="1.0.0"
+                        version="1.0.0",
                     )
                 )
                 agent_id = register_response.agent_id
@@ -620,9 +592,7 @@ class TestDiscoverE2EWithRealServer:
                 # Verificar que agent pode ser descoberto
                 discover_response = await stub.DiscoverAgents(
                     service_registry_pb2.DiscoverRequest(
-                        capabilities=["python"],
-                        filters={},
-                        max_results=10
+                        capabilities=["python"], filters={}, max_results=10
                     )
                 )
                 assert len(discover_response.agents) == 1
@@ -636,18 +606,14 @@ class TestDiscoverE2EWithRealServer:
                 # Verificar que agent nao pode mais ser descoberto
                 discover_response = await stub.DiscoverAgents(
                     service_registry_pb2.DiscoverRequest(
-                        capabilities=["python"],
-                        filters={},
-                        max_results=10
+                        capabilities=["python"], filters={}, max_results=10
                     )
                 )
                 assert len(discover_response.agents) == 0
 
     @pytest.mark.asyncio
     @pytest.mark.integration
-    async def test_heartbeat_updates_telemetry(
-        self, etcd_client, pheromone_client
-    ):
+    async def test_heartbeat_updates_telemetry(self, etcd_client, pheromone_client):
         """Testa que heartbeat atualiza telemetria via servidor real"""
         async with create_grpc_server(etcd_client, pheromone_client) as (server, port):
             async with create_grpc_channel(port) as stub:
@@ -659,7 +625,7 @@ class TestDiscoverE2EWithRealServer:
                         metadata={},
                         namespace="default",
                         cluster="local",
-                        version="1.0.0"
+                        version="1.0.0",
                     )
                 )
                 agent_id = register_response.agent_id
@@ -672,8 +638,8 @@ class TestDiscoverE2EWithRealServer:
                             success_rate=0.85,
                             avg_duration_ms=150,
                             total_executions=200,
-                            failed_executions=30
-                        )
+                            failed_executions=30,
+                        ),
                     )
                 )
 
@@ -690,9 +656,7 @@ class TestDiscoverE2EWithRealServer:
 
     @pytest.mark.asyncio
     @pytest.mark.integration
-    async def test_list_agents_by_type(
-        self, etcd_client, pheromone_client
-    ):
+    async def test_list_agents_by_type(self, etcd_client, pheromone_client):
         """Testa listagem de agentes por tipo via servidor real"""
         async with create_grpc_server(etcd_client, pheromone_client) as (server, port):
             async with create_grpc_channel(port) as stub:
@@ -705,7 +669,7 @@ class TestDiscoverE2EWithRealServer:
                             metadata={},
                             namespace="default",
                             cluster="local",
-                            version="1.0.0"
+                            version="1.0.0",
                         )
                     )
 
@@ -717,15 +681,14 @@ class TestDiscoverE2EWithRealServer:
                             metadata={},
                             namespace="default",
                             cluster="local",
-                            version="1.0.0"
+                            version="1.0.0",
                         )
                     )
 
                 # Listar apenas workers
                 list_response = await stub.ListAgents(
                     service_registry_pb2.ListAgentsRequest(
-                        agent_type=service_registry_pb2.WORKER,
-                        filters={}
+                        agent_type=service_registry_pb2.WORKER, filters={}
                     )
                 )
                 assert len(list_response.agents) == 3
@@ -735,8 +698,7 @@ class TestDiscoverE2EWithRealServer:
                 # Listar apenas guards
                 list_response = await stub.ListAgents(
                     service_registry_pb2.ListAgentsRequest(
-                        agent_type=service_registry_pb2.GUARD,
-                        filters={}
+                        agent_type=service_registry_pb2.GUARD, filters={}
                     )
                 )
                 assert len(list_response.agents) == 2
@@ -745,9 +707,7 @@ class TestDiscoverE2EWithRealServer:
 
     @pytest.mark.asyncio
     @pytest.mark.integration
-    async def test_concurrent_registrations(
-        self, etcd_client, pheromone_client
-    ):
+    async def test_concurrent_registrations(self, etcd_client, pheromone_client):
         """Testa registros concorrentes via servidor real"""
         async with create_grpc_server(etcd_client, pheromone_client) as (server, port):
             async with create_grpc_channel(port) as stub:
@@ -760,7 +720,7 @@ class TestDiscoverE2EWithRealServer:
                             metadata={"idx": str(idx)},
                             namespace="default",
                             cluster="local",
-                            version="1.0.0"
+                            version="1.0.0",
                         )
                     )
 
@@ -775,9 +735,7 @@ class TestDiscoverE2EWithRealServer:
                 # Verificar que todos podem ser descobertos
                 discover_response = await stub.DiscoverAgents(
                     service_registry_pb2.DiscoverRequest(
-                        capabilities=["python"],
-                        filters={},
-                        max_results=30
+                        capabilities=["python"], filters={}, max_results=30
                     )
                 )
                 assert len(discover_response.agents) == 20

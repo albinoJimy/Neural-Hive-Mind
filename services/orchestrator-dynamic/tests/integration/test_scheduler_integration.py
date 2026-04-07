@@ -43,27 +43,19 @@ def mock_service_registry_client():
             "agent_type": "worker-agent",
             "status": "HEALTHY",
             "capabilities": ["python", "data-processing"],
-            "telemetry": {
-                "success_rate": 0.95,
-                "avg_duration_ms": 800,
-                "total_executions": 100
-            },
+            "telemetry": {"success_rate": 0.95, "avg_duration_ms": 800, "total_executions": 100},
             "active_tasks": 3,
-            "max_concurrent_tasks": 10
+            "max_concurrent_tasks": 10,
         },
         {
             "agent_id": "worker-002",
             "agent_type": "worker-agent",
             "status": "HEALTHY",
             "capabilities": ["python", "ml-inference"],
-            "telemetry": {
-                "success_rate": 0.92,
-                "avg_duration_ms": 1000,
-                "total_executions": 75
-            },
+            "telemetry": {"success_rate": 0.92, "avg_duration_ms": 1000, "total_executions": 75},
             "active_tasks": 2,
-            "max_concurrent_tasks": 10
-        }
+            "max_concurrent_tasks": 10,
+        },
     ]
 
     client.discover_agents = AsyncMock(return_value=workers)
@@ -74,9 +66,7 @@ def mock_service_registry_client():
 def mock_opa_client():
     """OPA client mock."""
     client = AsyncMock()
-    client.evaluate_policy = AsyncMock(return_value={
-        "result": {"allow": True, "warnings": []}
-    })
+    client.evaluate_policy = AsyncMock(return_value={"result": {"allow": True, "warnings": []}})
     return client
 
 
@@ -99,17 +89,15 @@ def mock_policy_validator():
 def mock_ml_predictor():
     """MLPredictor mock."""
     predictor = AsyncMock()
-    predictor.predict_and_enrich = AsyncMock(side_effect=lambda ticket: {
-        **ticket,
-        "predictions": {
-            "duration_ms": ticket.get("estimated_duration_ms", 1000) * 1.1,
-            "anomaly": {
-                "is_anomaly": False,
-                "anomaly_score": 0.15,
-                "anomaly_type": None
-            }
+    predictor.predict_and_enrich = AsyncMock(
+        side_effect=lambda ticket: {
+            **ticket,
+            "predictions": {
+                "duration_ms": ticket.get("estimated_duration_ms", 1000) * 1.1,
+                "anomaly": {"is_anomaly": False, "anomaly_score": 0.15, "anomaly_type": None},
+            },
         }
-    })
+    )
     return predictor
 
 
@@ -142,17 +130,17 @@ def sample_cognitive_plan() -> Dict[str, Any]:
                 "task_id": "task-1",
                 "description": "Process data",
                 "required_capabilities": ["python", "data-processing"],
-                "estimated_duration_ms": 1000
+                "estimated_duration_ms": 1000,
             },
             {
                 "task_id": "task-2",
                 "description": "Run ML inference",
                 "required_capabilities": ["python", "ml-inference"],
-                "estimated_duration_ms": 2000
-            }
+                "estimated_duration_ms": 2000,
+            },
         ],
         "execution_order": ["task-1", "task-2"],
-        "risk_band": "normal"
+        "risk_band": "normal",
     }
 
 
@@ -163,7 +151,7 @@ def sample_consolidated_decision() -> Dict[str, Any]:
         "decision_id": "decision-123",
         "correlation_id": "corr-123",
         "trace_id": "trace-123",
-        "timestamp": datetime.now(timezone.utc).isoformat()
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -178,15 +166,13 @@ class TestSchedulerIntegration:
         # Criar componentes reais
         priority_calculator = PriorityCalculator(real_config)
         resource_allocator = ResourceAllocator(
-            registry_client=mock_service_registry_client,
-            config=real_config,
-            metrics=real_metrics
+            registry_client=mock_service_registry_client, config=real_config, metrics=real_metrics
         )
         scheduler = IntelligentScheduler(
             config=real_config,
             metrics=real_metrics,
             priority_calculator=priority_calculator,
-            resource_allocator=resource_allocator
+            resource_allocator=resource_allocator,
         )
 
         # Ticket de teste
@@ -196,17 +182,17 @@ class TestSchedulerIntegration:
             "qos": {
                 "delivery_mode": "EXACTLY_ONCE",
                 "consistency": "STRONG",
-                "durability": "PERSISTENT"
+                "durability": "PERSISTENT",
             },
             "sla": {
                 "deadline": (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(),
-                "timeout_ms": 3600000
+                "timeout_ms": 3600000,
             },
             "required_capabilities": ["python", "data-processing"],
             "namespace": "default",
             "security_level": "standard",
             "estimated_duration_ms": 1000,
-            "created_at": datetime.now(timezone.utc).isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
         # Executar
@@ -220,9 +206,7 @@ class TestSchedulerIntegration:
         assert result["allocation_metadata"]["workers_evaluated"] == 2
 
     @pytest.mark.asyncio
-    async def test_scheduling_with_service_registry_unavailable(
-        self, real_config, real_metrics
-    ):
+    async def test_scheduling_with_service_registry_unavailable(self, real_config, real_metrics):
         """Testa fallback quando Service Registry está indisponível."""
         # Criar client que falha
         failing_client = AsyncMock(spec=ServiceRegistryClient)
@@ -231,15 +215,13 @@ class TestSchedulerIntegration:
         # Criar componentes
         priority_calculator = PriorityCalculator(real_config)
         resource_allocator = ResourceAllocator(
-            registry_client=failing_client,
-            config=real_config,
-            metrics=real_metrics
+            registry_client=failing_client, config=real_config, metrics=real_metrics
         )
         scheduler = IntelligentScheduler(
             config=real_config,
             metrics=real_metrics,
             priority_calculator=priority_calculator,
-            resource_allocator=resource_allocator
+            resource_allocator=resource_allocator,
         )
 
         # Ticket de teste
@@ -252,7 +234,7 @@ class TestSchedulerIntegration:
             "namespace": "default",
             "security_level": "standard",
             "estimated_duration_ms": 1000,
-            "created_at": datetime.now(timezone.utc).isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
         # Executar
@@ -270,15 +252,13 @@ class TestSchedulerIntegration:
         # Criar componentes
         priority_calculator = PriorityCalculator(real_config)
         resource_allocator = ResourceAllocator(
-            registry_client=mock_service_registry_client,
-            config=real_config,
-            metrics=real_metrics
+            registry_client=mock_service_registry_client, config=real_config, metrics=real_metrics
         )
         scheduler = IntelligentScheduler(
             config=real_config,
             metrics=real_metrics,
             priority_calculator=priority_calculator,
-            resource_allocator=resource_allocator
+            resource_allocator=resource_allocator,
         )
 
         # Ticket com predições ML
@@ -297,9 +277,9 @@ class TestSchedulerIntegration:
                 "anomaly": {
                     "is_anomaly": True,
                     "anomaly_score": 0.85,
-                    "anomaly_type": "duration_outlier"
-                }
-            }
+                    "anomaly_type": "duration_outlier",
+                },
+            },
         }
 
         # Executar
@@ -316,15 +296,13 @@ class TestSchedulerIntegration:
         # Criar componentes
         priority_calculator = PriorityCalculator(real_config)
         resource_allocator = ResourceAllocator(
-            registry_client=mock_service_registry_client,
-            config=real_config,
-            metrics=real_metrics
+            registry_client=mock_service_registry_client, config=real_config, metrics=real_metrics
         )
         scheduler = IntelligentScheduler(
             config=real_config,
             metrics=real_metrics,
             priority_calculator=priority_calculator,
-            resource_allocator=resource_allocator
+            resource_allocator=resource_allocator,
         )
 
         # Criar 5 tickets com mesmas capabilities
@@ -339,7 +317,7 @@ class TestSchedulerIntegration:
                 "namespace": "default",
                 "security_level": "standard",
                 "estimated_duration_ms": 1000,
-                "created_at": datetime.now(timezone.utc).isoformat()
+                "created_at": datetime.now(timezone.utc).isoformat(),
             }
             tickets.append(ticket)
 
@@ -358,15 +336,13 @@ class TestSchedulerIntegration:
         # Criar componentes
         priority_calculator = PriorityCalculator(real_config)
         resource_allocator = ResourceAllocator(
-            registry_client=mock_service_registry_client,
-            config=real_config,
-            metrics=real_metrics
+            registry_client=mock_service_registry_client, config=real_config, metrics=real_metrics
         )
         scheduler = IntelligentScheduler(
             config=real_config,
             metrics=real_metrics,
             priority_calculator=priority_calculator,
-            resource_allocator=resource_allocator
+            resource_allocator=resource_allocator,
         )
 
         # Criar 10 tickets
@@ -381,14 +357,12 @@ class TestSchedulerIntegration:
                 "namespace": "default",
                 "security_level": "standard",
                 "estimated_duration_ms": 1000,
-                "created_at": datetime.now(timezone.utc).isoformat()
+                "created_at": datetime.now(timezone.utc).isoformat(),
             }
             tickets.append(ticket)
 
         # Agendar concorrentemente
-        results = await asyncio.gather(*[
-            scheduler.schedule_ticket(ticket) for ticket in tickets
-        ])
+        results = await asyncio.gather(*[scheduler.schedule_ticket(ticket) for ticket in tickets])
 
         # Verificar todos alocados
         assert len(results) == 10
@@ -403,15 +377,13 @@ class TestSchedulerIntegration:
         # Criar componentes
         priority_calculator = PriorityCalculator(real_config)
         resource_allocator = ResourceAllocator(
-            registry_client=mock_service_registry_client,
-            config=real_config,
-            metrics=real_metrics
+            registry_client=mock_service_registry_client, config=real_config, metrics=real_metrics
         )
         scheduler = IntelligentScheduler(
             config=real_config,
             metrics=real_metrics,
             priority_calculator=priority_calculator,
-            resource_allocator=resource_allocator
+            resource_allocator=resource_allocator,
         )
 
         # Criar tickets com diferentes risk bands
@@ -428,7 +400,7 @@ class TestSchedulerIntegration:
                 "namespace": "default",
                 "security_level": "standard",
                 "estimated_duration_ms": 1000,
-                "created_at": datetime.now(timezone.utc).isoformat()
+                "created_at": datetime.now(timezone.utc).isoformat(),
             }
 
             result = await scheduler.schedule_ticket(ticket)
@@ -447,15 +419,13 @@ class TestSchedulerIntegration:
         # Criar componentes
         priority_calculator = PriorityCalculator(real_config)
         resource_allocator = ResourceAllocator(
-            registry_client=mock_service_registry_client,
-            config=real_config,
-            metrics=real_metrics
+            registry_client=mock_service_registry_client, config=real_config, metrics=real_metrics
         )
         scheduler = IntelligentScheduler(
             config=real_config,
             metrics=real_metrics,
             priority_calculator=priority_calculator,
-            resource_allocator=resource_allocator
+            resource_allocator=resource_allocator,
         )
 
         # Ticket de teste
@@ -468,7 +438,7 @@ class TestSchedulerIntegration:
             "namespace": "default",
             "security_level": "standard",
             "estimated_duration_ms": 1000,
-            "created_at": datetime.now(timezone.utc).isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
         # Medir latência
@@ -481,7 +451,12 @@ class TestSchedulerIntegration:
 
     @pytest.mark.asyncio
     async def test_allocate_resources_with_opa_rejection(
-        self, mock_service_registry_client, mock_policy_validator, mock_ml_predictor, real_config, real_metrics
+        self,
+        mock_service_registry_client,
+        mock_policy_validator,
+        mock_ml_predictor,
+        real_config,
+        real_metrics,
     ):
         """Testa que activity allocate_resources trata rejeição OPA corretamente."""
         # Configurar PolicyValidator para rejeitar
@@ -492,7 +467,7 @@ class TestSchedulerIntegration:
                 "policy": "resource_limits",
                 "rule": "max_timeout_exceeded",
                 "severity": "CRITICAL",
-                "message": "Timeout excede limite permitido para risk_band"
+                "message": "Timeout excede limite permitido para risk_band",
             }
         ]
         rejection_result.feature_flags = {"enable_intelligent_scheduler": True}
@@ -501,15 +476,13 @@ class TestSchedulerIntegration:
         # Criar scheduler
         priority_calculator = PriorityCalculator(real_config)
         resource_allocator = ResourceAllocator(
-            registry_client=mock_service_registry_client,
-            config=real_config,
-            metrics=real_metrics
+            registry_client=mock_service_registry_client, config=real_config, metrics=real_metrics
         )
         scheduler = IntelligentScheduler(
             config=real_config,
             metrics=real_metrics,
             priority_calculator=priority_calculator,
-            resource_allocator=resource_allocator
+            resource_allocator=resource_allocator,
         )
 
         # Ticket de teste
@@ -522,7 +495,7 @@ class TestSchedulerIntegration:
             "namespace": "default",
             "security_level": "standard",
             "estimated_duration_ms": 1000,
-            "created_at": datetime.now(timezone.utc).isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
         # Simular activity allocate_resources
@@ -553,15 +526,13 @@ class TestSchedulerIntegration:
         # Criar scheduler
         priority_calculator = PriorityCalculator(real_config)
         resource_allocator = ResourceAllocator(
-            registry_client=mock_service_registry_client,
-            config=real_config,
-            metrics=real_metrics
+            registry_client=mock_service_registry_client, config=real_config, metrics=real_metrics
         )
         scheduler = IntelligentScheduler(
             config=real_config,
             metrics=real_metrics,
             priority_calculator=priority_calculator,
-            resource_allocator=resource_allocator
+            resource_allocator=resource_allocator,
         )
 
         # Ticket de teste
@@ -574,7 +545,7 @@ class TestSchedulerIntegration:
             "namespace": "default",
             "security_level": "standard",
             "estimated_duration_ms": 1000,
-            "created_at": datetime.now(timezone.utc).isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
         # Simular lógica de allocate_resources com feature flag
@@ -584,7 +555,7 @@ class TestSchedulerIntegration:
         feature_flags = validation_result.feature_flags
 
         # Se feature flag desabilitada, usar fallback stub em vez de scheduler
-        if not feature_flags.get('enable_intelligent_scheduler', True):
+        if not feature_flags.get("enable_intelligent_scheduler", True):
             # Criar alocação fallback (stub)
             result = {
                 **ticket,
@@ -596,8 +567,8 @@ class TestSchedulerIntegration:
                     "agent_score": 0.5,
                     "composite_score": 0.5,
                     "allocation_method": "fallback_stub",
-                    "workers_evaluated": 0
-                }
+                    "workers_evaluated": 0,
+                },
             }
         else:
             # Usar scheduler inteligente

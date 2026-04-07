@@ -18,12 +18,12 @@ if src_path not in sys.path:
     sys.path.insert(0, src_path)
 
 # Mock de dependências problemáticas antes de importar
-sys.modules['neural_hive_security'] = MagicMock()
-sys.modules['neural_hive_security.cors'] = MagicMock()
+sys.modules["neural_hive_security"] = MagicMock()
+sys.modules["neural_hive_security.cors"] = MagicMock()
 
 from src.consumers.strategic_decision_consumer import (
     StrategicDecisionConsumer,
-    StrategicDecisionType
+    StrategicDecisionType,
 )
 
 
@@ -73,7 +73,7 @@ def consumer(mock_config, mock_mongodb_client, mock_temporal_client, mock_metric
         config=mock_config,
         mongodb_client=mock_mongodb_client,
         temporal_client=mock_temporal_client,
-        metrics=mock_metrics
+        metrics=mock_metrics,
     )
 
 
@@ -95,7 +95,9 @@ class TestStrategicDecisionConsumerInitialization:
         mock_producer = MagicMock()
         mock_producer.start = AsyncMock()
 
-        with patch('src.consumers.strategic_decision_consumer.instrument_kafka_consumer') as mock_instrument:
+        with patch(
+            "src.consumers.strategic_decision_consumer.instrument_kafka_consumer"
+        ) as mock_instrument:
             mock_instrument.return_value = mock_producer
 
             await consumer.initialize()
@@ -111,27 +113,24 @@ class TestProcessMessage:
     async def test_process_priority_change_decision(self, consumer, mock_mongodb_client):
         """Deve processar decisão de mudança de prioridade."""
         decision_data = {
-            'decision_id': 'decision-123',
-            'decision_type': StrategicDecisionType.PRIORITY_CHANGE.value,
-            'plan_id': 'plan-456',
-            'correlation_id': 'corr-789',
-            'parameters': {
-                'priority': 'CRITICAL'
-            }
+            "decision_id": "decision-123",
+            "decision_type": StrategicDecisionType.PRIORITY_CHANGE.value,
+            "plan_id": "plan-456",
+            "correlation_id": "corr-789",
+            "parameters": {"priority": "CRITICAL"},
         }
 
         message = MagicMock()
-        message.value = json.dumps(decision_data).encode('utf-8')
+        message.value = json.dumps(decision_data).encode("utf-8")
         message.headers = []
-        message.topic = 'strategic.decisions'
+        message.topic = "strategic.decisions"
         message.partition = 0
         message.offset = 0
 
         # Mock MongoDB
-        mock_mongodb_client.get_cognitive_plan = AsyncMock(return_value={
-            'plan_id': 'plan-456',
-            'status': 'IN_PROGRESS'
-        })
+        mock_mongodb_client.get_cognitive_plan = AsyncMock(
+            return_value={"plan_id": "plan-456", "status": "IN_PROGRESS"}
+        )
         mock_mongodb_client.update_cognitive_plan = AsyncMock()
         mock_mongodb_client.insert_strategic_decision = AsyncMock()
 
@@ -144,30 +143,29 @@ class TestProcessMessage:
         # Verificar que o plano foi atualizado
         mock_mongodb_client.update_cognitive_plan.assert_called_once()
         call_args = mock_mongodb_client.update_cognitive_plan.call_args
-        assert call_args.kwargs['plan_id'] == 'plan-456'
-        assert call_args.kwargs['updates']['priority'] == 'CRITICAL'
+        assert call_args.kwargs["plan_id"] == "plan-456"
+        assert call_args.kwargs["updates"]["priority"] == "CRITICAL"
 
     @pytest.mark.asyncio
-    async def test_process_cancellation_decision(self, consumer, mock_mongodb_client, mock_temporal_client):
+    async def test_process_cancellation_decision(
+        self, consumer, mock_mongodb_client, mock_temporal_client
+    ):
         """Deve processar decisão de cancelamento."""
         decision_data = {
-            'decision_id': 'decision-123',
-            'decision_type': StrategicDecisionType.CANCELLATION.value,
-            'plan_id': 'plan-456',
-            'parameters': {
-                'reason': 'Strategic decision'
-            }
+            "decision_id": "decision-123",
+            "decision_type": StrategicDecisionType.CANCELLATION.value,
+            "plan_id": "plan-456",
+            "parameters": {"reason": "Strategic decision"},
         }
 
         message = MagicMock()
-        message.value = json.dumps(decision_data).encode('utf-8')
+        message.value = json.dumps(decision_data).encode("utf-8")
         message.headers = []
 
         # Mock MongoDB retorna plano em progresso
-        mock_mongodb_client.get_cognitive_plan = AsyncMock(return_value={
-            'plan_id': 'plan-456',
-            'status': 'IN_PROGRESS'
-        })
+        mock_mongodb_client.get_cognitive_plan = AsyncMock(
+            return_value={"plan_id": "plan-456", "status": "IN_PROGRESS"}
+        )
         mock_mongodb_client.update_cognitive_plan = AsyncMock()
         mock_mongodb_client.insert_strategic_decision = AsyncMock()
 
@@ -178,34 +176,31 @@ class TestProcessMessage:
         await consumer._process_message(message)
 
         # Verificar que workflow foi cancelado
-        mock_temporal_client.cancel_workflow.assert_called_once_with('orchestration-plan-456')
+        mock_temporal_client.cancel_workflow.assert_called_once_with("orchestration-plan-456")
 
         # Verificar que plano foi atualizado
         mock_mongodb_client.update_cognitive_plan.assert_called_once()
         call_args = mock_mongodb_client.update_cognitive_plan.call_args
-        assert call_args.kwargs['plan_id'] == 'plan-456'
-        assert call_args.kwargs['updates']['status'] == 'CANCELLED'
+        assert call_args.kwargs["plan_id"] == "plan-456"
+        assert call_args.kwargs["updates"]["status"] == "CANCELLED"
 
     @pytest.mark.asyncio
     async def test_process_escalation_decision(self, consumer, mock_mongodb_client):
         """Deve processar decisão de escalada."""
         decision_data = {
-            'decision_id': 'decision-123',
-            'decision_type': StrategicDecisionType.ESCALATION.value,
-            'plan_id': 'plan-456',
-            'parameters': {
-                'reason': 'Critical issue detected'
-            }
+            "decision_id": "decision-123",
+            "decision_type": StrategicDecisionType.ESCALATION.value,
+            "plan_id": "plan-456",
+            "parameters": {"reason": "Critical issue detected"},
         }
 
         message = MagicMock()
-        message.value = json.dumps(decision_data).encode('utf-8')
+        message.value = json.dumps(decision_data).encode("utf-8")
         message.headers = []
 
-        mock_mongodb_client.get_cognitive_plan = AsyncMock(return_value={
-            'plan_id': 'plan-456',
-            'status': 'IN_PROGRESS'
-        })
+        mock_mongodb_client.get_cognitive_plan = AsyncMock(
+            return_value={"plan_id": "plan-456", "status": "IN_PROGRESS"}
+        )
         mock_mongodb_client.update_cognitive_plan = AsyncMock()
         mock_mongodb_client.insert_strategic_decision = AsyncMock()
 
@@ -217,28 +212,29 @@ class TestProcessMessage:
         # Verificar escalada
         mock_mongodb_client.update_cognitive_plan.assert_called_once()
         call_args = mock_mongodb_client.update_cognitive_plan.call_args
-        assert call_args.kwargs['updates']['escalated'] is True
-        assert call_args.kwargs['updates']['escalation_reason'] == 'Critical issue detected'
+        assert call_args.kwargs["updates"]["escalated"] is True
+        assert call_args.kwargs["updates"]["escalation_reason"] == "Critical issue detected"
 
     @pytest.mark.asyncio
-    async def test_skip_cancellation_of_completed_plan(self, consumer, mock_mongodb_client, mock_temporal_client):
+    async def test_skip_cancellation_of_completed_plan(
+        self, consumer, mock_mongodb_client, mock_temporal_client
+    ):
         """Deve ignorar cancelamento de plano já completado."""
         decision_data = {
-            'decision_id': 'decision-123',
-            'decision_type': StrategicDecisionType.CANCELLATION.value,
-            'plan_id': 'plan-456',
-            'parameters': {}
+            "decision_id": "decision-123",
+            "decision_type": StrategicDecisionType.CANCELLATION.value,
+            "plan_id": "plan-456",
+            "parameters": {},
         }
 
         message = MagicMock()
-        message.value = json.dumps(decision_data).encode('utf-8')
+        message.value = json.dumps(decision_data).encode("utf-8")
         message.headers = []
 
         # Mock MongoDB retorna plano completado
-        mock_mongodb_client.get_cognitive_plan = AsyncMock(return_value={
-            'plan_id': 'plan-456',
-            'status': 'COMPLETED'
-        })
+        mock_mongodb_client.get_cognitive_plan = AsyncMock(
+            return_value={"plan_id": "plan-456", "status": "COMPLETED"}
+        )
         mock_mongodb_client.update_cognitive_plan = AsyncMock()
 
         consumer.consumer = AsyncMock()
@@ -253,26 +249,28 @@ class TestProcessMessage:
     async def test_process_workflow_adjustment(self, consumer, mock_mongodb_client):
         """Deve processar ajuste de workflow."""
         decision_data = {
-            'decision_id': 'decision-123',
-            'decision_type': StrategicDecisionType.WORKFLOW_ADJUSTMENT.value,
-            'plan_id': 'plan-456',
-            'parameters': {
-                'adjustments': [
-                    {'action': 'add_task', 'task_id': 'task-789'},
-                    {'action': 'modify_param', 'param': 'timeout', 'value': 300}
+            "decision_id": "decision-123",
+            "decision_type": StrategicDecisionType.WORKFLOW_ADJUSTMENT.value,
+            "plan_id": "plan-456",
+            "parameters": {
+                "adjustments": [
+                    {"action": "add_task", "task_id": "task-789"},
+                    {"action": "modify_param", "param": "timeout", "value": 300},
                 ]
-            }
+            },
         }
 
         message = MagicMock()
-        message.value = json.dumps(decision_data).encode('utf-8')
+        message.value = json.dumps(decision_data).encode("utf-8")
         message.headers = []
 
-        mock_mongodb_client.get_cognitive_plan = AsyncMock(return_value={
-            'plan_id': 'plan-456',
-            'status': 'IN_PROGRESS',
-            'workflow_adjustments': []
-        })
+        mock_mongodb_client.get_cognitive_plan = AsyncMock(
+            return_value={
+                "plan_id": "plan-456",
+                "status": "IN_PROGRESS",
+                "workflow_adjustments": [],
+            }
+        )
         mock_mongodb_client.update_cognitive_plan = AsyncMock()
         mock_mongodb_client.insert_strategic_decision = AsyncMock()
 
@@ -284,33 +282,26 @@ class TestProcessMessage:
         # Verificar ajustes
         mock_mongodb_client.update_cognitive_plan.assert_called_once()
         call_args = mock_mongodb_client.update_cognitive_plan.call_args
-        adjustments = call_args.kwargs['updates']['workflow_adjustments']
+        adjustments = call_args.kwargs["updates"]["workflow_adjustments"]
         assert len(adjustments) == 2
 
     @pytest.mark.asyncio
     async def test_process_resource_reallocation(self, consumer, mock_mongodb_client):
         """Deve processar realocação de recursos."""
         decision_data = {
-            'decision_id': 'decision-123',
-            'decision_type': StrategicDecisionType.RESOURCE_REALLOCATION.value,
-            'plan_id': 'plan-456',
-            'parameters': {
-                'resources': {
-                    'cpu': '4000m',
-                    'memory': '8Gi',
-                    'workers': 4
-                }
-            }
+            "decision_id": "decision-123",
+            "decision_type": StrategicDecisionType.RESOURCE_REALLOCATION.value,
+            "plan_id": "plan-456",
+            "parameters": {"resources": {"cpu": "4000m", "memory": "8Gi", "workers": 4}},
         }
 
         message = MagicMock()
-        message.value = json.dumps(decision_data).encode('utf-8')
+        message.value = json.dumps(decision_data).encode("utf-8")
         message.headers = []
 
-        mock_mongodb_client.get_cognitive_plan = AsyncMock(return_value={
-            'plan_id': 'plan-456',
-            'status': 'IN_PROGRESS'
-        })
+        mock_mongodb_client.get_cognitive_plan = AsyncMock(
+            return_value={"plan_id": "plan-456", "status": "IN_PROGRESS"}
+        )
         mock_mongodb_client.update_cognitive_plan = AsyncMock()
         mock_mongodb_client.insert_strategic_decision = AsyncMock()
 
@@ -322,31 +313,25 @@ class TestProcessMessage:
         # Verificar realocação
         mock_mongodb_client.update_cognitive_plan.assert_called_once()
         call_args = mock_mongodb_client.update_cognitive_plan.call_args
-        assert call_args.kwargs['updates']['resource_allocation']['cpu'] == '4000m'
+        assert call_args.kwargs["updates"]["resource_allocation"]["cpu"] == "4000m"
 
     @pytest.mark.asyncio
     async def test_process_policy_update(self, consumer, mock_mongodb_client):
         """Deve processar atualização de políticas."""
         decision_data = {
-            'decision_id': 'decision-123',
-            'decision_type': StrategicDecisionType.POLICY_UPDATE.value,
-            'plan_id': 'plan-456',
-            'parameters': {
-                'policies': {
-                    'retry_policy': 'exponential_backoff',
-                    'timeout': 300
-                }
-            }
+            "decision_id": "decision-123",
+            "decision_type": StrategicDecisionType.POLICY_UPDATE.value,
+            "plan_id": "plan-456",
+            "parameters": {"policies": {"retry_policy": "exponential_backoff", "timeout": 300}},
         }
 
         message = MagicMock()
-        message.value = json.dumps(decision_data).encode('utf-8')
+        message.value = json.dumps(decision_data).encode("utf-8")
         message.headers = []
 
-        mock_mongodb_client.get_cognitive_plan = AsyncMock(return_value={
-            'plan_id': 'plan-456',
-            'status': 'IN_PROGRESS'
-        })
+        mock_mongodb_client.get_cognitive_plan = AsyncMock(
+            return_value={"plan_id": "plan-456", "status": "IN_PROGRESS"}
+        )
         mock_mongodb_client.update_cognitive_plan = AsyncMock()
         mock_mongodb_client.insert_strategic_decision = AsyncMock()
 
@@ -358,7 +343,7 @@ class TestProcessMessage:
         # Verificar políticas
         mock_mongodb_client.update_cognitive_plan.assert_called_once()
         call_args = mock_mongodb_client.update_cognitive_plan.call_args
-        assert call_args.kwargs['updates']['policies']['retry_policy'] == 'exponential_backoff'
+        assert call_args.kwargs["updates"]["policies"]["retry_policy"] == "exponential_backoff"
 
 
 class TestStoreDecision:
@@ -368,9 +353,9 @@ class TestStoreDecision:
     async def test_store_decision_in_mongodb(self, consumer, mock_mongodb_client):
         """Deve armazenar decisão no MongoDB."""
         decision = {
-            'decision_id': 'decision-123',
-            'decision_type': 'PRIORITY_CHANGE',
-            'plan_id': 'plan-456'
+            "decision_id": "decision-123",
+            "decision_type": "PRIORITY_CHANGE",
+            "plan_id": "plan-456",
         }
 
         await consumer._store_decision(decision)
@@ -379,16 +364,16 @@ class TestStoreDecision:
         call_args = mock_mongodb_client.insert_strategic_decision.call_args
         stored_decision = call_args[0][0]
 
-        assert stored_decision['decision_id'] == 'decision-123'
-        assert 'received_at' in stored_decision
-        assert stored_decision['consumer'] == 'orchestrator-dynamic'
+        assert stored_decision["decision_id"] == "decision-123"
+        assert "received_at" in stored_decision
+        assert stored_decision["consumer"] == "orchestrator-dynamic"
 
     @pytest.mark.asyncio
     async def test_store_without_mongodb(self, consumer):
         """Deve lidar gracefully com MongoDB indisponível."""
         consumer.mongodb_client = None
 
-        decision = {'decision_id': 'decision-123'}
+        decision = {"decision_id": "decision-123"}
 
         # Não deve lançar exceção
         await consumer._store_decision(decision)
@@ -412,7 +397,9 @@ class TestConsumerLifecycle:
         mock_producer.__aiter__ = lambda self: async_iterator()
         mock_producer.commit = AsyncMock()
 
-        with patch('src.consumers.strategic_decision_consumer.instrument_kafka_consumer') as mock_instrument:
+        with patch(
+            "src.consumers.strategic_decision_consumer.instrument_kafka_consumer"
+        ) as mock_instrument:
             mock_instrument.return_value = mock_producer
 
             await consumer.initialize()
@@ -439,7 +426,7 @@ class TestErrorHandling:
     async def test_error_handling_invalid_json(self, consumer, mock_mongodb_client):
         """Deve lidar com JSON inválido na mensagem."""
         message = MagicMock()
-        message.value = b'{invalid json}'
+        message.value = b"{invalid json}"
         message.headers = []
 
         await consumer._process_message(message)
@@ -453,14 +440,14 @@ class TestErrorHandling:
     async def test_error_recovery_on_mongodb_failure(self, consumer, mock_mongodb_client):
         """Deve recuperar de falha no MongoDB."""
         decision_data = {
-            'decision_id': 'decision-123',
-            'decision_type': StrategicDecisionType.PRIORITY_CHANGE.value,
-            'plan_id': 'plan-456',
-            'parameters': {'priority': 'CRITICAL'}
+            "decision_id": "decision-123",
+            "decision_type": StrategicDecisionType.PRIORITY_CHANGE.value,
+            "plan_id": "plan-456",
+            "parameters": {"priority": "CRITICAL"},
         }
 
         message = MagicMock()
-        message.value = json.dumps(decision_data).encode('utf-8')
+        message.value = json.dumps(decision_data).encode("utf-8")
         message.headers = []
 
         # MongoDB lança exceção
@@ -481,21 +468,20 @@ class TestMetricsTracking:
     async def test_metrics_tracking_on_process(self, consumer, mock_mongodb_client, mock_metrics):
         """Deve atualizar métricas ao processar decisão."""
         decision_data = {
-            'decision_id': 'decision-123',
-            'decision_type': StrategicDecisionType.PRIORITY_CHANGE.value,
-            'plan_id': 'plan-456',
-            'correlation_id': 'corr-789',
-            'parameters': {'priority': 'CRITICAL'}
+            "decision_id": "decision-123",
+            "decision_type": StrategicDecisionType.PRIORITY_CHANGE.value,
+            "plan_id": "plan-456",
+            "correlation_id": "corr-789",
+            "parameters": {"priority": "CRITICAL"},
         }
 
         message = MagicMock()
-        message.value = json.dumps(decision_data).encode('utf-8')
+        message.value = json.dumps(decision_data).encode("utf-8")
         message.headers = []
 
-        mock_mongodb_client.get_cognitive_plan = AsyncMock(return_value={
-            'plan_id': 'plan-456',
-            'status': 'IN_PROGRESS'
-        })
+        mock_mongodb_client.get_cognitive_plan = AsyncMock(
+            return_value={"plan_id": "plan-456", "status": "IN_PROGRESS"}
+        )
         mock_mongodb_client.update_cognitive_plan = AsyncMock()
         mock_mongodb_client.insert_strategic_decision = AsyncMock()
 

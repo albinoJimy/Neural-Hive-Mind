@@ -39,7 +39,9 @@ def mock_config_custom():
 @pytest.fixture
 def ticket_critical() -> Dict[str, Any]:
     """Ticket com risco crítico, QoS alto, deadline se aproximando."""
-    deadline = datetime.now(timezone.utc) + timedelta(minutes=6)  # 90% do tempo consumido (1h total)
+    deadline = datetime.now(timezone.utc) + timedelta(
+        minutes=6
+    )  # 90% do tempo consumido (1h total)
     created = datetime.now(timezone.utc) - timedelta(minutes=54)
 
     return {
@@ -48,14 +50,11 @@ def ticket_critical() -> Dict[str, Any]:
         "qos": {
             "delivery_mode": "EXACTLY_ONCE",
             "consistency": "STRONG",
-            "durability": "PERSISTENT"
+            "durability": "PERSISTENT",
         },
-        "sla": {
-            "deadline": deadline.isoformat(),
-            "timeout_ms": 3600000
-        },
+        "sla": {"deadline": deadline.isoformat(), "timeout_ms": 3600000},
         "created_at": created.isoformat(),
-        "estimated_duration_ms": 1000
+        "estimated_duration_ms": 1000,
     }
 
 
@@ -71,14 +70,11 @@ def ticket_low() -> Dict[str, Any]:
         "qos": {
             "delivery_mode": "AT_MOST_ONCE",
             "consistency": "EVENTUAL",
-            "durability": "EPHEMERAL"
+            "durability": "EPHEMERAL",
         },
-        "sla": {
-            "deadline": deadline.isoformat(),
-            "timeout_ms": 3600000
-        },
+        "sla": {"deadline": deadline.isoformat(), "timeout_ms": 3600000},
         "created_at": created.isoformat(),
-        "estimated_duration_ms": 1000
+        "estimated_duration_ms": 1000,
     }
 
 
@@ -94,14 +90,11 @@ def ticket_deadline_approaching() -> Dict[str, Any]:
         "qos": {
             "delivery_mode": "AT_LEAST_ONCE",
             "consistency": "EVENTUAL",
-            "durability": "PERSISTENT"
+            "durability": "PERSISTENT",
         },
-        "sla": {
-            "deadline": deadline.isoformat(),
-            "timeout_ms": 3600000
-        },
+        "sla": {"deadline": deadline.isoformat(), "timeout_ms": 3600000},
         "created_at": created.isoformat(),
-        "estimated_duration_ms": 1000
+        "estimated_duration_ms": 1000,
     }
 
 
@@ -117,14 +110,11 @@ def ticket_deadline_safe() -> Dict[str, Any]:
         "qos": {
             "delivery_mode": "AT_LEAST_ONCE",
             "consistency": "EVENTUAL",
-            "durability": "PERSISTENT"
+            "durability": "PERSISTENT",
         },
-        "sla": {
-            "deadline": deadline.isoformat(),
-            "timeout_ms": 3600000
-        },
+        "sla": {"deadline": deadline.isoformat(), "timeout_ms": 3600000},
         "created_at": created.isoformat(),
-        "estimated_duration_ms": 1000
+        "estimated_duration_ms": 1000,
     }
 
 
@@ -139,13 +129,11 @@ def ticket_no_deadline() -> Dict[str, Any]:
         "qos": {
             "delivery_mode": "AT_LEAST_ONCE",
             "consistency": "EVENTUAL",
-            "durability": "PERSISTENT"
+            "durability": "PERSISTENT",
         },
-        "sla": {
-            "timeout_ms": 3600000
-        },
+        "sla": {"timeout_ms": 3600000},
         "created_at": created.isoformat(),
-        "estimated_duration_ms": 1000
+        "estimated_duration_ms": 1000,
     }
 
 
@@ -179,9 +167,16 @@ class TestPriorityCalculator:
 
         ticket = {
             "risk_band": "high",
-            "qos": {"delivery_mode": "AT_LEAST_ONCE", "consistency": "EVENTUAL", "durability": "PERSISTENT"},
-            "sla": {"deadline": (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(), "timeout_ms": 3600000},
-            "created_at": datetime.now(timezone.utc).isoformat()
+            "qos": {
+                "delivery_mode": "AT_LEAST_ONCE",
+                "consistency": "EVENTUAL",
+                "durability": "PERSISTENT",
+            },
+            "sla": {
+                "deadline": (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(),
+                "timeout_ms": 3600000,
+            },
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
         score = calculator.calculate_priority_score(ticket)
@@ -196,9 +191,16 @@ class TestPriorityCalculator:
         # Pesos: risk=0.5, qos=0.3, sla=0.2
         ticket = {
             "risk_band": "critical",
-            "qos": {"delivery_mode": "EXACTLY_ONCE", "consistency": "STRONG", "durability": "PERSISTENT"},
-            "sla": {"deadline": (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(), "timeout_ms": 3600000},
-            "created_at": datetime.now(timezone.utc).isoformat()
+            "qos": {
+                "delivery_mode": "EXACTLY_ONCE",
+                "consistency": "STRONG",
+                "durability": "PERSISTENT",
+            },
+            "sla": {
+                "deadline": (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(),
+                "timeout_ms": 3600000,
+            },
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
         score = calculator.calculate_priority_score(ticket)
@@ -206,13 +208,10 @@ class TestPriorityCalculator:
         # Com pesos customizados, risco tem mais peso
         assert score > 0.7
 
-    @pytest.mark.parametrize("risk_band,expected_weight", [
-        ("critical", 1.0),
-        ("high", 0.7),
-        ("normal", 0.5),
-        ("low", 0.3),
-        ("unknown", 0.5)
-    ])
+    @pytest.mark.parametrize(
+        "risk_band,expected_weight",
+        [("critical", 1.0), ("high", 0.7), ("normal", 0.5), ("low", 0.3), ("unknown", 0.5)],
+    )
     def test_calculate_risk_weight(self, mock_config_default, risk_band, expected_weight):
         """Testa todos os risk bands."""
         calculator = PriorityCalculator(mock_config_default)
@@ -225,11 +224,7 @@ class TestPriorityCalculator:
         """Testa QoS com maiores garantias."""
         calculator = PriorityCalculator(mock_config_default)
 
-        qos = {
-            "delivery_mode": "EXACTLY_ONCE",
-            "consistency": "STRONG",
-            "durability": "PERSISTENT"
-        }
+        qos = {"delivery_mode": "EXACTLY_ONCE", "consistency": "STRONG", "durability": "PERSISTENT"}
 
         weight = calculator._calculate_qos_weight(qos)
 
@@ -243,7 +238,7 @@ class TestPriorityCalculator:
         qos = {
             "delivery_mode": "AT_LEAST_ONCE",
             "consistency": "EVENTUAL",
-            "durability": "PERSISTENT"
+            "durability": "PERSISTENT",
         }
 
         weight = calculator._calculate_qos_weight(qos)
@@ -269,22 +264,18 @@ class TestPriorityCalculator:
         calculator = PriorityCalculator(mock_config_default)
 
         urgency = calculator._calculate_sla_urgency(
-            ticket_deadline_approaching["sla"],
-            ticket_deadline_approaching["created_at"]
+            ticket_deadline_approaching["sla"], ticket_deadline_approaching["created_at"]
         )
 
         # 90% consumido → urgency ≈ 0.9 ou 1.0
         assert urgency >= 0.85
 
-    def test_calculate_sla_urgency_deadline_safe(
-        self, mock_config_default, ticket_deadline_safe
-    ):
+    def test_calculate_sla_urgency_deadline_safe(self, mock_config_default, ticket_deadline_safe):
         """Testa urgência com 20% do deadline consumido."""
         calculator = PriorityCalculator(mock_config_default)
 
         urgency = calculator._calculate_sla_urgency(
-            ticket_deadline_safe["sla"],
-            ticket_deadline_safe["created_at"]
+            ticket_deadline_safe["sla"], ticket_deadline_safe["created_at"]
         )
 
         # 20% consumido → urgency ≈ 0.2
@@ -298,25 +289,19 @@ class TestPriorityCalculator:
         deadline = datetime.now(timezone.utc) - timedelta(minutes=10)
         created = datetime.now(timezone.utc) - timedelta(hours=2)
 
-        sla = {
-            "deadline": deadline.isoformat(),
-            "timeout_ms": 3600000
-        }
+        sla = {"deadline": deadline.isoformat(), "timeout_ms": 3600000}
 
         urgency = calculator._calculate_sla_urgency(sla, created.isoformat())
 
         # Deadline passou → urgency = 1.0
         assert urgency == 1.0
 
-    def test_calculate_sla_urgency_no_deadline(
-        self, mock_config_default, ticket_no_deadline
-    ):
+    def test_calculate_sla_urgency_no_deadline(self, mock_config_default, ticket_no_deadline):
         """Testa urgência quando não há deadline explícito."""
         calculator = PriorityCalculator(mock_config_default)
 
         urgency = calculator._calculate_sla_urgency(
-            ticket_no_deadline["sla"],
-            ticket_no_deadline["created_at"]
+            ticket_no_deadline["sla"], ticket_no_deadline["created_at"]
         )
 
         # Usa created_at + timeout_ms como deadline
@@ -331,22 +316,32 @@ class TestPriorityCalculator:
         tickets = [
             {
                 "risk_band": "critical",
-                "qos": {"delivery_mode": "EXACTLY_ONCE", "consistency": "STRONG", "durability": "PERSISTENT"},
-                "sla": {
-                    "deadline": (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat(),  # Passado
-                    "timeout_ms": 3600000
+                "qos": {
+                    "delivery_mode": "EXACTLY_ONCE",
+                    "consistency": "STRONG",
+                    "durability": "PERSISTENT",
                 },
-                "created_at": (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
+                "sla": {
+                    "deadline": (
+                        datetime.now(timezone.utc) - timedelta(hours=1)
+                    ).isoformat(),  # Passado
+                    "timeout_ms": 3600000,
+                },
+                "created_at": (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat(),
             },
             {
                 "risk_band": "low",
-                "qos": {"delivery_mode": "AT_MOST_ONCE", "consistency": "EVENTUAL", "durability": "EPHEMERAL"},
+                "qos": {
+                    "delivery_mode": "AT_MOST_ONCE",
+                    "consistency": "EVENTUAL",
+                    "durability": "EPHEMERAL",
+                },
                 "sla": {
                     "deadline": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
-                    "timeout_ms": 3600000
+                    "timeout_ms": 3600000,
                 },
-                "created_at": datetime.now(timezone.utc).isoformat()
-            }
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            },
         ]
 
         for ticket in tickets:

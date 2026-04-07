@@ -10,8 +10,8 @@ import pytest
 from unittest.mock import MagicMock
 
 # Configurar paths para importação
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
-sys.path.insert(0, '/app/libraries/python')
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+sys.path.insert(0, "/app/libraries/python")
 
 
 @pytest.fixture(scope="session")
@@ -20,26 +20,28 @@ def mock_env_vars():
     original_env = os.environ.copy()
 
     # Set required environment variables
-    os.environ.update({
-        'ENVIRONMENT': 'test',
-        'LOG_LEVEL': 'DEBUG',
-        'MLFLOW_TRACKING_URI': 'http://localhost:5000',
-        'MONGODB_URI': 'mongodb://localhost:27017/test',
-        'REDIS_CLUSTER_NODES': 'localhost:6379',
-        'NEO4J_URI': 'bolt://localhost:7687',
-        'NEO4J_PASSWORD': 'test_password',
-        'JWT_SECRET_KEY': 'test_secret_key_for_testing_only',
-        'ENABLE_JWT_AUTH': 'false',
-        'ENABLE_CACHING': 'false',
-        'ENABLE_LEDGER': 'false',
-        'MODEL_REQUIRED': 'false',
-        'ENABLE_FEEDBACK_COLLECTION': 'false',
-        'FEEDBACK_API_ENABLED': 'false',
-        'ENABLE_PII_DETECTION': 'false',
-        'HTTP_PORT': '8001',
-        'GRPC_PORT': '50051',
-        'PROMETHEUS_PORT': '8002',
-    })
+    os.environ.update(
+        {
+            "ENVIRONMENT": "test",
+            "LOG_LEVEL": "DEBUG",
+            "MLFLOW_TRACKING_URI": "http://localhost:5000",
+            "MONGODB_URI": "mongodb://localhost:27017/test",
+            "REDIS_CLUSTER_NODES": "localhost:6379",
+            "NEO4J_URI": "bolt://localhost:7687",
+            "NEO4J_PASSWORD": "test_password",
+            "JWT_SECRET_KEY": "test_secret_key_for_testing_only",
+            "ENABLE_JWT_AUTH": "false",
+            "ENABLE_CACHING": "false",
+            "ENABLE_LEDGER": "false",
+            "MODEL_REQUIRED": "false",
+            "ENABLE_FEEDBACK_COLLECTION": "false",
+            "FEEDBACK_API_ENABLED": "false",
+            "ENABLE_PII_DETECTION": "false",
+            "HTTP_PORT": "8001",
+            "GRPC_PORT": "50051",
+            "PROMETHEUS_PORT": "8002",
+        }
+    )
 
     yield
 
@@ -52,6 +54,7 @@ def mock_env_vars():
 def real_config(mock_env_vars):
     """Configuração real do BehaviorSpecialistConfig."""
     from src.config import BehaviorSpecialistConfig
+
     return BehaviorSpecialistConfig()
 
 
@@ -76,8 +79,8 @@ def real_specialist(real_config, mock_mlflow_client, mock_ledger_client):
     """Instância real do BehaviorSpecialist."""
     from src.specialist import BehaviorSpecialist
 
-    with patch('neural_hive_specialists.BaseSpecialist.__init__', return_value=None):
-        with patch('src.specialist.structlog.get_logger'):
+    with patch("neural_hive_specialists.BaseSpecialist.__init__", return_value=None):
+        with patch("src.specialist.structlog.get_logger"):
             specialist = BehaviorSpecialist(real_config)
             specialist.config = real_config
             specialist.specialist_type = "behavior"
@@ -93,30 +96,30 @@ def real_specialist(real_config, mock_mlflow_client, mock_ledger_client):
 def sample_cognitive_plan():
     """Plano cognitivo de exemplo."""
     return {
-        'plan_id': 'behavior-plan-123',
-        'original_domain': 'ui-design',
-        'original_priority': 'high',
-        'description': 'Design intuitive user interface',
-        'tasks': [
+        "plan_id": "behavior-plan-123",
+        "original_domain": "ui-design",
+        "original_priority": "high",
+        "description": "Design intuitive user interface",
+        "tasks": [
             {
-                'task_id': 'task-1',
-                'description': 'Design intuitive user interface',
-                'dependencies': [],
-                'estimated_duration_ms': 200
+                "task_id": "task-1",
+                "description": "Design intuitive user interface",
+                "dependencies": [],
+                "estimated_duration_ms": 200,
             },
             {
-                'task_id': 'task-2',
-                'description': 'Ensure WCAG AA accessibility compliance',
-                'dependencies': ['task-1'],
-                'estimated_duration_ms': 300
+                "task_id": "task-2",
+                "description": "Ensure WCAG AA accessibility compliance",
+                "dependencies": ["task-1"],
+                "estimated_duration_ms": 300,
             },
             {
-                'task_id': 'task-3',
-                'description': 'Optimize response time for user actions',
-                'dependencies': [],
-                'estimated_duration_ms': 150
-            }
-        ]
+                "task_id": "task-3",
+                "description": "Optimize response time for user actions",
+                "dependencies": [],
+                "estimated_duration_ms": 150,
+            },
+        ],
     }
 
 

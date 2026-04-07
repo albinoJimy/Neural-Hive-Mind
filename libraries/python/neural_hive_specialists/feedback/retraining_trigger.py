@@ -63,15 +63,9 @@ class RetrainingTriggerRecord(BaseModel):
     triggered_at: datetime = Field(
         default_factory=datetime.utcnow, description="Timestamp do trigger"
     )
-    feedback_count: int = Field(
-        ..., description="Quantidade de feedbacks que disparou trigger"
-    )
-    feedback_window_days: int = Field(
-        ..., description="Janela de tempo considerada (dias)"
-    )
-    mlflow_run_id: Optional[str] = Field(
-        default=None, description="ID do run MLflow iniciado"
-    )
+    feedback_count: int = Field(..., description="Quantidade de feedbacks que disparou trigger")
+    feedback_window_days: int = Field(..., description="Janela de tempo considerada (dias)")
+    mlflow_run_id: Optional[str] = Field(default=None, description="ID do run MLflow iniciado")
     mlflow_experiment_id: Optional[str] = Field(
         default=None, description="ID do experimento MLflow"
     )
@@ -79,12 +73,8 @@ class RetrainingTriggerRecord(BaseModel):
         default="pending",
         description="Status do trigger (pending, running, completed, failed)",
     )
-    error_message: Optional[str] = Field(
-        default=None, description="Mensagem de erro se falhou"
-    )
-    completed_at: Optional[datetime] = Field(
-        default=None, description="Timestamp de conclusão"
-    )
+    error_message: Optional[str] = Field(default=None, description="Mensagem de erro se falhou")
+    completed_at: Optional[datetime] = Field(default=None, description="Timestamp de conclusão")
     metadata: Dict[str, Any] = Field(
         default_factory=dict,
         description="Metadados (model_version, dataset_size, etc.)",
@@ -151,9 +141,7 @@ class RetrainingTrigger:
         """Cria índices para queries de triggers."""
         try:
             # Índice composto para verificar cooldown
-            self._triggers_collection.create_index(
-                [("specialist_type", 1), ("triggered_at", -1)]
-            )
+            self._triggers_collection.create_index([("specialist_type", 1), ("triggered_at", -1)])
 
             # Índice para trigger_id único
             self._triggers_collection.create_index([("trigger_id", 1)], unique=True)
@@ -202,9 +190,7 @@ class RetrainingTrigger:
             return False
 
         except Exception as e:
-            logger.error(
-                "Error checking cooldown", specialist_type=specialist_type, error=str(e)
-            )
+            logger.error("Error checking cooldown", specialist_type=specialist_type, error=str(e))
             # Em caso de erro, assumir que cooldown está ativo (seguro)
             return True
 
@@ -242,9 +228,7 @@ class RetrainingTrigger:
 
         return should_trigger, feedback_count
 
-    def _start_mlflow_run(
-        self, specialist_type: str, feedback_count: int
-    ) -> Tuple[str, str]:
+    def _start_mlflow_run(self, specialist_type: str, feedback_count: int) -> Tuple[str, str]:
         """
         Inicia run MLflow via mlflow.projects.run().
 
@@ -272,9 +256,7 @@ class RetrainingTrigger:
                 "specialist_type": specialist_type,
                 "feedback_count": str(feedback_count),
                 "window_days": str(self.config.retraining_feedback_window_days),
-                "min_feedback_quality": str(
-                    self.config.retraining_min_feedback_quality
-                ),
+                "min_feedback_quality": str(self.config.retraining_min_feedback_quality),
                 "model_type": self.config.training_model_types[0],  # Usar primeiro tipo
                 "hyperparameter_tuning": "true"
                 if self.config.training_hyperparameter_tuning
@@ -487,9 +469,7 @@ class RetrainingTrigger:
             )
 
         except Exception as e:
-            logger.error(
-                "Failed to update trigger status", trigger_id=trigger_id, error=str(e)
-            )
+            logger.error("Failed to update trigger status", trigger_id=trigger_id, error=str(e))
 
     def get_recent_triggers(self, specialist_type: str, limit: int = 10) -> list:
         """
@@ -524,9 +504,7 @@ class RetrainingTrigger:
             )
             return []
 
-    def check_and_trigger(
-        self, specialist_type: str, force: bool = False
-    ) -> Optional[str]:
+    def check_and_trigger(self, specialist_type: str, force: bool = False) -> Optional[str]:
         """
         Verifica threshold e dispara re-treinamento se necessário.
 
@@ -537,9 +515,7 @@ class RetrainingTrigger:
         Returns:
             trigger_id se disparado, None caso contrário
         """
-        logger.info(
-            "Checking retraining trigger", specialist_type=specialist_type, force=force
-        )
+        logger.info("Checking retraining trigger", specialist_type=specialist_type, force=force)
 
         # Verificar se está habilitado
         if not self.config.enable_retraining_trigger:
@@ -560,9 +536,7 @@ class RetrainingTrigger:
 
         # Verificar cooldown (a menos que force=True)
         if not force and self._check_cooldown(specialist_type):
-            logger.info(
-                "Cooldown active - skipping trigger", specialist_type=specialist_type
-            )
+            logger.info("Cooldown active - skipping trigger", specialist_type=specialist_type)
             return None
 
         # Disparar re-treinamento
@@ -659,13 +633,9 @@ class RetrainingTrigger:
                             "precision", metrics["precision"]
                         )
                     if "recall" in metrics:
-                        self.metrics.set_retraining_model_performance(
-                            "recall", metrics["recall"]
-                        )
+                        self.metrics.set_retraining_model_performance("recall", metrics["recall"])
                     if "f1" in metrics:
-                        self.metrics.set_retraining_model_performance(
-                            "f1", metrics["f1"]
-                        )
+                        self.metrics.set_retraining_model_performance("f1", metrics["f1"])
 
                 logger.info(
                     "Retraining run completed",
@@ -693,9 +663,7 @@ class RetrainingTrigger:
             return new_status
 
         except Exception as e:
-            logger.error(
-                "Error monitoring run status", trigger_id=trigger_id, error=str(e)
-            )
+            logger.error("Error monitoring run status", trigger_id=trigger_id, error=str(e))
             return None
 
     def close(self):

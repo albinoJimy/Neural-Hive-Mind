@@ -38,7 +38,7 @@ def mock_repository():
         "total": 1,
         "offset": 0,
         "limit": 50,
-        "items": [test_recommendation]
+        "items": [test_recommendation],
     }
 
     # get_by_id retorna o dado se for test-001, None caso contrário
@@ -63,9 +63,9 @@ def mock_repository():
         "avg_improvement_pct": 15.5,
         "top_issue_types": [
             {"type": "high_complexity", "count": 5},
-            {"type": "slow_query", "count": 3}
+            {"type": "slow_query", "count": 3},
         ],
-        "recent_recommendations": []
+        "recent_recommendations": [],
     }
     repo.get_timeline.return_value = []
     return repo
@@ -80,6 +80,7 @@ def client(mock_repository):
         return mock_repository
 
     from src.api.optimizations import get_optimization_repository
+
     app.dependency_overrides[get_optimization_repository] = override_get_repo
 
     yield TestClient(app)
@@ -114,7 +115,7 @@ class TestOptimizationsAPI:
         """Testa aprovação de recomendação."""
         response = client.post(
             "/api/v1/optimizations/recommendations/test-001/approve",
-            json={"recommendation_ids": ["rec-001"], "approved_by": "test@example.com"}
+            json={"recommendation_ids": ["rec-001"], "approved_by": "test@example.com"},
         )
         assert response.status_code == 200
         data = response.json()
@@ -122,6 +123,7 @@ class TestOptimizationsAPI:
 
     def test_apply_recommendation(self, client, mock_repository):
         """Testa aplicação de otimização."""
+
         # Garantir que o status da recomendação é approved
         async def mock_get_by_id_approved(rec_id):
             if rec_id == "test-001":
@@ -142,7 +144,7 @@ class TestOptimizationsAPI:
 
         response = client.post(
             "/api/v1/optimizations/recommendations/test-001/apply",
-            json={"recommendation_ids": ["rec-001"], "validate": True}
+            json={"recommendation_ids": ["rec-001"], "validate": True},
         )
         assert response.status_code == 200
         data = response.json()

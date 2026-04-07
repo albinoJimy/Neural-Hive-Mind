@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 import sys
 import os
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from src.clients.postgres_client import PostgresClient, PipelineResultORM
 from src.models.artifact import PipelineResult, PipelineStatus
@@ -36,17 +36,17 @@ def mock_session():
 def sample_pipeline_result():
     """PipelineResult de exemplo para testes"""
     return PipelineResult(
-        pipeline_id='pipe-123',
-        ticket_id='ticket-456',
-        plan_id='plan-789',
-        intent_id='intent-001',
-        decision_id='decision-001',
+        pipeline_id="pipe-123",
+        ticket_id="ticket-456",
+        plan_id="plan-789",
+        intent_id="intent-001",
+        decision_id="decision-001",
         status=PipelineStatus.COMPLETED,
         artifacts=[],
         pipeline_stages=[],
         total_duration_ms=5000,
         approval_required=False,
-        created_at=datetime.now(timezone.utc)
+        created_at=datetime.now(timezone.utc),
     )
 
 
@@ -61,16 +61,16 @@ async def test_start_success(mock_engine, mock_session):
     mock_result.scalar = MagicMock(return_value=0)
     mock_session.execute.return_value = mock_result
 
-    with patch('src.clients.postgres_client.create_async_engine', return_value=mock_engine), \
-         patch('src.clients.postgres_client.async_sessionmaker', return_value=mock_session_maker):
-
+    with patch("src.clients.postgres_client.create_async_engine", return_value=mock_engine), patch(
+        "src.clients.postgres_client.async_sessionmaker", return_value=mock_session_maker
+    ):
         # Mock run_sync para criar tabelas
         mock_conn = AsyncMock()
         mock_conn.run_sync = AsyncMock()
         mock_engine.begin.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
         mock_engine.begin.return_value.__aexit__ = AsyncMock(return_value=None)
 
-        client = PostgresClient('postgresql://user:pass@localhost/db')
+        client = PostgresClient("postgresql://user:pass@localhost/db")
         await client.start()
 
         assert client.engine is not None
@@ -88,15 +88,15 @@ async def test_stop_disposes_engine(mock_engine, mock_session):
     mock_result.scalar = MagicMock(return_value=0)
     mock_session.execute.return_value = mock_result
 
-    with patch('src.clients.postgres_client.create_async_engine', return_value=mock_engine), \
-         patch('src.clients.postgres_client.async_sessionmaker', return_value=mock_session_maker):
-
+    with patch("src.clients.postgres_client.create_async_engine", return_value=mock_engine), patch(
+        "src.clients.postgres_client.async_sessionmaker", return_value=mock_session_maker
+    ):
         mock_conn = AsyncMock()
         mock_conn.run_sync = AsyncMock()
         mock_engine.begin.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
         mock_engine.begin.return_value.__aexit__ = AsyncMock(return_value=None)
 
-        client = PostgresClient('postgresql://user:pass@localhost/db')
+        client = PostgresClient("postgresql://user:pass@localhost/db")
         await client.start()
         await client.stop()
 
@@ -116,15 +116,15 @@ async def test_save_pipeline_success(mock_engine, mock_session, sample_pipeline_
     mock_result.scalar = MagicMock(return_value=0)
     mock_session.execute.return_value = mock_result
 
-    with patch('src.clients.postgres_client.create_async_engine', return_value=mock_engine), \
-         patch('src.clients.postgres_client.async_sessionmaker', return_value=mock_session_maker):
-
+    with patch("src.clients.postgres_client.create_async_engine", return_value=mock_engine), patch(
+        "src.clients.postgres_client.async_sessionmaker", return_value=mock_session_maker
+    ):
         mock_conn = AsyncMock()
         mock_conn.run_sync = AsyncMock()
         mock_engine.begin.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
         mock_engine.begin.return_value.__aexit__ = AsyncMock(return_value=None)
 
-        client = PostgresClient('postgresql://user:pass@localhost/db')
+        client = PostgresClient("postgresql://user:pass@localhost/db")
         await client.start()
 
         await client.save_pipeline(sample_pipeline_result)
@@ -142,12 +142,12 @@ async def test_get_pipeline_found(mock_engine, mock_session):
 
     # Mock do resultado com ORM
     mock_orm = MagicMock()
-    mock_orm.pipeline_id = 'pipe-123'
-    mock_orm.ticket_id = 'ticket-456'
-    mock_orm.plan_id = 'plan-789'
-    mock_orm.intent_id = 'intent-001'
-    mock_orm.decision_id = 'decision-001'
-    mock_orm.status = 'COMPLETED'
+    mock_orm.pipeline_id = "pipe-123"
+    mock_orm.ticket_id = "ticket-456"
+    mock_orm.plan_id = "plan-789"
+    mock_orm.intent_id = "intent-001"
+    mock_orm.decision_id = "decision-001"
+    mock_orm.status = "COMPLETED"
     mock_orm.artifacts = []
     mock_orm.pipeline_stages = []
     mock_orm.total_duration_ms = 5000
@@ -168,21 +168,21 @@ async def test_get_pipeline_found(mock_engine, mock_session):
     mock_result.scalar = MagicMock(return_value=0)
     mock_session.execute.return_value = mock_result
 
-    with patch('src.clients.postgres_client.create_async_engine', return_value=mock_engine), \
-         patch('src.clients.postgres_client.async_sessionmaker', return_value=mock_session_maker):
-
+    with patch("src.clients.postgres_client.create_async_engine", return_value=mock_engine), patch(
+        "src.clients.postgres_client.async_sessionmaker", return_value=mock_session_maker
+    ):
         mock_conn = AsyncMock()
         mock_conn.run_sync = AsyncMock()
         mock_engine.begin.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
         mock_engine.begin.return_value.__aexit__ = AsyncMock(return_value=None)
 
-        client = PostgresClient('postgresql://user:pass@localhost/db')
+        client = PostgresClient("postgresql://user:pass@localhost/db")
         await client.start()
 
-        result = await client.get_pipeline('pipe-123')
+        result = await client.get_pipeline("pipe-123")
 
         assert result is not None
-        assert result.pipeline_id == 'pipe-123'
+        assert result.pipeline_id == "pipe-123"
 
 
 @pytest.mark.asyncio
@@ -197,18 +197,18 @@ async def test_get_pipeline_not_found(mock_engine, mock_session):
     mock_result.scalar = MagicMock(return_value=0)
     mock_session.execute.return_value = mock_result
 
-    with patch('src.clients.postgres_client.create_async_engine', return_value=mock_engine), \
-         patch('src.clients.postgres_client.async_sessionmaker', return_value=mock_session_maker):
-
+    with patch("src.clients.postgres_client.create_async_engine", return_value=mock_engine), patch(
+        "src.clients.postgres_client.async_sessionmaker", return_value=mock_session_maker
+    ):
         mock_conn = AsyncMock()
         mock_conn.run_sync = AsyncMock()
         mock_engine.begin.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
         mock_engine.begin.return_value.__aexit__ = AsyncMock(return_value=None)
 
-        client = PostgresClient('postgresql://user:pass@localhost/db')
+        client = PostgresClient("postgresql://user:pass@localhost/db")
         await client.start()
 
-        result = await client.get_pipeline('nonexistent')
+        result = await client.get_pipeline("nonexistent")
 
         assert result is None
 
@@ -231,18 +231,18 @@ async def test_list_pipelines_with_filters(mock_engine, mock_session):
 
     mock_session.execute.side_effect = [mock_start_result, mock_list_result]
 
-    with patch('src.clients.postgres_client.create_async_engine', return_value=mock_engine), \
-         patch('src.clients.postgres_client.async_sessionmaker', return_value=mock_session_maker):
-
+    with patch("src.clients.postgres_client.create_async_engine", return_value=mock_engine), patch(
+        "src.clients.postgres_client.async_sessionmaker", return_value=mock_session_maker
+    ):
         mock_conn = AsyncMock()
         mock_conn.run_sync = AsyncMock()
         mock_engine.begin.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
         mock_engine.begin.return_value.__aexit__ = AsyncMock(return_value=None)
 
-        client = PostgresClient('postgresql://user:pass@localhost/db')
+        client = PostgresClient("postgresql://user:pass@localhost/db")
         await client.start()
 
-        results = await client.list_pipelines({'ticket_id': 'ticket-456'})
+        results = await client.list_pipelines({"ticket_id": "ticket-456"})
 
         assert isinstance(results, list)
 
@@ -262,18 +262,20 @@ async def test_update_pipeline_status(mock_engine, mock_session):
 
     mock_session.execute.side_effect = [mock_start_result, mock_update_result]
 
-    with patch('src.clients.postgres_client.create_async_engine', return_value=mock_engine), \
-         patch('src.clients.postgres_client.async_sessionmaker', return_value=mock_session_maker):
-
+    with patch("src.clients.postgres_client.create_async_engine", return_value=mock_engine), patch(
+        "src.clients.postgres_client.async_sessionmaker", return_value=mock_session_maker
+    ):
         mock_conn = AsyncMock()
         mock_conn.run_sync = AsyncMock()
         mock_engine.begin.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
         mock_engine.begin.return_value.__aexit__ = AsyncMock(return_value=None)
 
-        client = PostgresClient('postgresql://user:pass@localhost/db')
+        client = PostgresClient("postgresql://user:pass@localhost/db")
         await client.start()
 
-        updated = await client.update_pipeline_status('pipe-123', PipelineStatus.FAILED, 'Test error')
+        updated = await client.update_pipeline_status(
+            "pipe-123", PipelineStatus.FAILED, "Test error"
+        )
 
         assert updated is True
 
@@ -289,15 +291,15 @@ async def test_health_check_success(mock_engine, mock_session):
     mock_result.scalar = MagicMock(return_value=0)
     mock_session.execute.return_value = mock_result
 
-    with patch('src.clients.postgres_client.create_async_engine', return_value=mock_engine), \
-         patch('src.clients.postgres_client.async_sessionmaker', return_value=mock_session_maker):
-
+    with patch("src.clients.postgres_client.create_async_engine", return_value=mock_engine), patch(
+        "src.clients.postgres_client.async_sessionmaker", return_value=mock_session_maker
+    ):
         mock_conn = AsyncMock()
         mock_conn.run_sync = AsyncMock()
         mock_engine.begin.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
         mock_engine.begin.return_value.__aexit__ = AsyncMock(return_value=None)
 
-        client = PostgresClient('postgresql://user:pass@localhost/db')
+        client = PostgresClient("postgresql://user:pass@localhost/db")
         await client.start()
 
         healthy = await client.health_check()
@@ -308,19 +310,19 @@ async def test_health_check_success(mock_engine, mock_session):
 @pytest.mark.asyncio
 async def test_operations_raise_when_not_started():
     """Testar que operações falham quando cliente não iniciado"""
-    client = PostgresClient('postgresql://user:pass@localhost/db')
+    client = PostgresClient("postgresql://user:pass@localhost/db")
 
-    with pytest.raises(RuntimeError, match='PostgreSQL client not started'):
-        await client.get_pipeline('pipe-123')
+    with pytest.raises(RuntimeError, match="PostgreSQL client not started"):
+        await client.get_pipeline("pipe-123")
 
-    with pytest.raises(RuntimeError, match='PostgreSQL client not started'):
+    with pytest.raises(RuntimeError, match="PostgreSQL client not started"):
         await client.list_pipelines({})
 
 
 def test_url_conversion_to_asyncpg():
     """Testar conversão de URL para driver asyncpg"""
-    client = PostgresClient('postgresql://user:pass@localhost/db')
-    assert 'asyncpg' in client.url
+    client = PostgresClient("postgresql://user:pass@localhost/db")
+    assert "asyncpg" in client.url
 
-    client2 = PostgresClient('postgresql+asyncpg://user:pass@localhost/db')
-    assert 'asyncpg' in client2.url
+    client2 = PostgresClient("postgresql+asyncpg://user:pass@localhost/db")
+    assert "asyncpg" in client2.url

@@ -9,11 +9,9 @@ from src.services.incident_orchestrator import IncidentOrchestrator
 def mock_threat_detector():
     """Mock ThreatDetector"""
     detector = MagicMock()
-    detector.detect_anomaly = AsyncMock(return_value={
-        "threat_type": "unauthorized_access",
-        "severity": "high",
-        "confidence": 0.95
-    })
+    detector.detect_anomaly = AsyncMock(
+        return_value={"threat_type": "unauthorized_access", "severity": "high", "confidence": 0.95}
+    )
     return detector
 
 
@@ -21,12 +19,14 @@ def mock_threat_detector():
 def mock_incident_classifier():
     """Mock IncidentClassifier"""
     classifier = MagicMock()
-    classifier.classify_incident = AsyncMock(return_value={
-        "incident_id": "INC-001",
-        "severity": "high",
-        "runbook_id": "RB-SEC-001",
-        "priority": 1
-    })
+    classifier.classify_incident = AsyncMock(
+        return_value={
+            "incident_id": "INC-001",
+            "severity": "high",
+            "runbook_id": "RB-SEC-001",
+            "priority": 1,
+        }
+    )
     return classifier
 
 
@@ -34,10 +34,9 @@ def mock_incident_classifier():
 def mock_policy_enforcer():
     """Mock PolicyEnforcer"""
     enforcer = MagicMock()
-    enforcer.enforce_policy = AsyncMock(return_value={
-        "success": True,
-        "actions": [{"action": "revoke_access"}]
-    })
+    enforcer.enforce_policy = AsyncMock(
+        return_value={"success": True, "actions": [{"action": "revoke_access"}]}
+    )
     return enforcer
 
 
@@ -45,11 +44,13 @@ def mock_policy_enforcer():
 def mock_remediation_coordinator():
     """Mock RemediationCoordinator"""
     coordinator = MagicMock()
-    coordinator.coordinate_remediation = AsyncMock(return_value={
-        "remediation_id": "REM-001",
-        "status": "completed",
-        "actions": [{"action_type": "restart_pod"}]
-    })
+    coordinator.coordinate_remediation = AsyncMock(
+        return_value={
+            "remediation_id": "REM-001",
+            "status": "completed",
+            "actions": [{"action_type": "restart_pod"}],
+        }
+    )
     return coordinator
 
 
@@ -80,11 +81,9 @@ def mock_itsm_client():
     """Mock ITSM client"""
     client = MagicMock()
     client.is_healthy = MagicMock(return_value=True)
-    client.create_incident = AsyncMock(return_value={
-        "success": True,
-        "ticket_id": "SNOW-12345",
-        "itsm_type": "servicenow"
-    })
+    client.create_incident = AsyncMock(
+        return_value={"success": True, "ticket_id": "SNOW-12345", "itsm_type": "servicenow"}
+    )
     return client
 
 
@@ -95,7 +94,7 @@ def incident_orchestrator(
     mock_policy_enforcer,
     mock_remediation_coordinator,
     mock_mongodb_client,
-    mock_kafka_producer
+    mock_kafka_producer,
 ):
     """IncidentOrchestrator with mocked dependencies"""
     return IncidentOrchestrator(
@@ -104,7 +103,7 @@ def incident_orchestrator(
         policy_enforcer=mock_policy_enforcer,
         remediation_coordinator=mock_remediation_coordinator,
         mongodb_client=mock_mongodb_client,
-        kafka_producer=mock_kafka_producer
+        kafka_producer=mock_kafka_producer,
     )
 
 
@@ -121,7 +120,7 @@ class TestOpenCriticalIncident:
         incident = {
             "incident_id": "INC-001",
             "severity": "critical",
-            "threat_type": "data_exfiltration"
+            "threat_type": "data_exfiltration",
         }
         issues = ["MTTR exceeded", "Remediation failed"]
 
@@ -141,7 +140,7 @@ class TestOpenCriticalIncident:
         incident = {
             "incident_id": "INC-001",
             "severity": "critical",
-            "threat_type": "unauthorized_access"
+            "threat_type": "unauthorized_access",
         }
         issues = ["SLA not restored"]
 
@@ -156,17 +155,12 @@ class TestOpenCriticalIncident:
         self, incident_orchestrator, mock_itsm_client
     ):
         """Test handling ITSM creation failure"""
-        mock_itsm_client.create_incident = AsyncMock(return_value={
-            "success": False,
-            "error": "Connection refused"
-        })
+        mock_itsm_client.create_incident = AsyncMock(
+            return_value={"success": False, "error": "Connection refused"}
+        )
         incident_orchestrator.itsm_client = mock_itsm_client
 
-        incident = {
-            "incident_id": "INC-001",
-            "severity": "high",
-            "threat_type": "dos_attack"
-        }
+        incident = {"incident_id": "INC-001", "severity": "high", "threat_type": "dos_attack"}
         issues = ["Attack ongoing"]
 
         # Should not raise error
@@ -184,14 +178,13 @@ class TestPublishIncidentOutcome:
         result = {
             "incident_id": "INC-001",
             "flow": "E1-E6_complete",
-            "e5_sla_validation": {"sla_met": True}
+            "e5_sla_validation": {"sla_met": True},
         }
 
         await incident_orchestrator._publish_incident_outcome(result)
 
         mock_kafka_producer.publish_remediation_result.assert_called_once_with(
-            remediation_id="INC-001",
-            result=result
+            remediation_id="INC-001", result=result
         )
 
     @pytest.mark.asyncio
@@ -241,6 +234,7 @@ class TestE5ValidateSLARestoration:
         remediation_result = {"status": "completed"}
         # Set start time to simulate long running remediation
         from datetime import timedelta
+
         flow_start_time = datetime.now(timezone.utc) - timedelta(seconds=100)
 
         result = await incident_orchestrator._e5_validate_sla_restoration(
@@ -269,15 +263,13 @@ class TestE6DocumentLessons:
     """Tests for _e6_document_lessons method"""
 
     @pytest.mark.asyncio
-    async def test_document_lessons_success(
-        self, incident_orchestrator, mock_mongodb_client
-    ):
+    async def test_document_lessons_success(self, incident_orchestrator, mock_mongodb_client):
         """Test successful lessons documentation"""
         incident = {
             "incident_id": "INC-001",
             "threat_type": "unauthorized_access",
             "severity": "high",
-            "runbook_id": "RB-SEC-001"
+            "runbook_id": "RB-SEC-001",
         }
         enforcement_result = {"success": True, "actions": []}
         remediation_result = {"status": "completed", "actions": []}
@@ -305,7 +297,7 @@ class TestE6DocumentLessons:
             "incident_id": "INC-001",
             "threat_type": "dos_attack",
             "severity": "critical",
-            "runbook_id": "RB-AVAIL-001"
+            "runbook_id": "RB-AVAIL-001",
         }
         enforcement_result = {"success": True, "actions": []}
         remediation_result = {"status": "completed", "actions": []}
@@ -325,10 +317,7 @@ class TestProcessIncidentFlow:
     @pytest.mark.asyncio
     async def test_full_flow_success(self, incident_orchestrator):
         """Test successful complete E1-E6 flow"""
-        event = {
-            "type": "security_event",
-            "event_id": "EVT-001"
-        }
+        event = {"type": "security_event", "event_id": "EVT-001"}
 
         result = await incident_orchestrator.process_incident_flow(event)
 
@@ -342,16 +331,11 @@ class TestProcessIncidentFlow:
         assert "e6_lessons_learned" in result
 
     @pytest.mark.asyncio
-    async def test_flow_no_anomaly_detected(
-        self, incident_orchestrator, mock_threat_detector
-    ):
+    async def test_flow_no_anomaly_detected(self, incident_orchestrator, mock_threat_detector):
         """Test flow when no anomaly is detected"""
         mock_threat_detector.detect_anomaly = AsyncMock(return_value=None)
 
-        event = {
-            "type": "normal_event",
-            "event_id": "EVT-002"
-        }
+        event = {"type": "normal_event", "event_id": "EVT-002"}
 
         result = await incident_orchestrator.process_incident_flow(event)
 

@@ -200,9 +200,7 @@ class GRPCAdapter(BaseToolAdapter):
             },
         )
 
-    async def validate_tool_availability(
-        self, tool_name: str, health_check: bool = False
-    ) -> bool:
+    async def validate_tool_availability(self, tool_name: str, health_check: bool = False) -> bool:
         """
         Valida se a ferramenta está disponível via gRPC.
 
@@ -260,7 +258,9 @@ class GRPCAdapter(BaseToolAdapter):
                     self._service_cache[service_name] = service_info
                     return service_info
             except Exception as e:
-                self.logger.warning("service_registry_discovery_failed", service=service_name, error=str(e))
+                self.logger.warning(
+                    "service_registry_discovery_failed", service=service_name, error=str(e)
+                )
 
         # Fallback para DNS
         try:
@@ -279,9 +279,7 @@ class GRPCAdapter(BaseToolAdapter):
             self.logger.error("service_not_found", service=service_name)
             return None
 
-    async def _get_stub(
-        self, service_name: str, host: str, port: int
-    ) -> Any:
+    async def _get_stub(self, service_name: str, host: str, port: int) -> Any:
         """
         Obtém stub gRPC para o serviço.
 

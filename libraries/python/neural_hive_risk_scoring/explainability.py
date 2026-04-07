@@ -21,6 +21,7 @@ logger = structlog.get_logger(__name__)
 @dataclass
 class FactorContribution:
     """Contribuição de um fator para o score final."""
+
     name: str
     value: float
     weight: float
@@ -32,19 +33,20 @@ class FactorContribution:
     def to_dict(self) -> Dict:
         """Converte para dicionário."""
         return {
-            'name': self.name,
-            'value': self.value,
-            'weight': self.weight,
-            'contribution': self.contribution,
-            'contribution_percentage': self.contribution_percentage,
-            'direction': self.direction,
-            'description': self.description
+            "name": self.name,
+            "value": self.value,
+            "weight": self.weight,
+            "contribution": self.contribution,
+            "contribution_percentage": self.contribution_percentage,
+            "direction": self.direction,
+            "description": self.description,
         }
 
 
 @dataclass
 class RiskExplanation:
     """Explicação completa de uma avaliação de risco."""
+
     entity_id: str
     domain: UnifiedDomain
     final_score: float
@@ -59,22 +61,23 @@ class RiskExplanation:
     def to_dict(self) -> Dict:
         """Converte para dicionário."""
         return {
-            'entity_id': self.entity_id,
-            'domain': self.domain.value,
-            'final_score': self.final_score,
-            'final_band': self.final_band.value,
-            'base_score': self.base_score,
-            'total_adjustment': self.total_adjustment,
-            'reasoning': self.reasoning,
-            'timestamp': self.timestamp.isoformat(),
-            'factors': [f.to_dict() for f in self.factors],
-            'metadata': self.metadata
+            "entity_id": self.entity_id,
+            "domain": self.domain.value,
+            "final_score": self.final_score,
+            "final_band": self.final_band.value,
+            "base_score": self.base_score,
+            "total_adjustment": self.total_adjustment,
+            "reasoning": self.reasoning,
+            "timestamp": self.timestamp.isoformat(),
+            "factors": [f.to_dict() for f in self.factors],
+            "metadata": self.metadata,
         }
 
 
 @dataclass
 class WhatIfScenario:
     """Resultado de análise what-if."""
+
     scenario_name: str
     modified_factors: Dict[str, float]
     original_score: float
@@ -86,13 +89,13 @@ class WhatIfScenario:
     def to_dict(self) -> Dict:
         """Converte para dicionário."""
         return {
-            'scenario_name': self.scenario_name,
-            'modified_factors': self.modified_factors,
-            'original_score': self.original_score,
-            'new_score': self.new_score,
-            'score_delta': self.score_delta,
-            'band_change': [b.value for b in self.band_change] if self.band_change else None,
-            'impact': self.impact
+            "scenario_name": self.scenario_name,
+            "modified_factors": self.modified_factors,
+            "original_score": self.original_score,
+            "new_score": self.new_score,
+            "score_delta": self.score_delta,
+            "band_change": [b.value for b in self.band_change] if self.band_change else None,
+            "impact": self.impact,
         }
 
 
@@ -108,10 +111,7 @@ class RiskExplainability:
         self.config = config
 
     def explain_assessment(
-        self,
-        assessment: RiskAssessment,
-        entity_id: str,
-        base_score: float = 0.5
+        self, assessment: RiskAssessment, entity_id: str, base_score: float = 0.5
     ) -> RiskExplanation:
         """Gera explicação detalhada para avaliação.
 
@@ -125,9 +125,7 @@ class RiskExplainability:
         """
         # Calcular contribuições dos fatores
         factors = self._calculate_factor_contributions(
-            assessment.factors,
-            assessment.domain,
-            base_score
+            assessment.factors, assessment.domain, base_score
         )
 
         # Calcular ajuste total
@@ -135,10 +133,7 @@ class RiskExplainability:
 
         # Gerar reasoning
         reasoning = self._generate_detailed_reasoning(
-            assessment.score,
-            assessment.band,
-            factors,
-            total_adjustment
+            assessment.score, assessment.band, factors, total_adjustment
         )
 
         explanation = RiskExplanation(
@@ -149,23 +144,20 @@ class RiskExplainability:
             factors=factors,
             base_score=base_score,
             total_adjustment=total_adjustment,
-            reasoning=reasoning
+            reasoning=reasoning,
         )
 
         logger.debug(
             "risk_explanation_generated",
             entity_id=entity_id,
             domain=assessment.domain.value,
-            score=assessment.score
+            score=assessment.score,
         )
 
         return explanation
 
     def _calculate_factor_contributions(
-        self,
-        factors: Dict[str, float],
-        domain: UnifiedDomain,
-        base_score: float
+        self, factors: Dict[str, float], domain: UnifiedDomain, base_score: float
     ) -> List[FactorContribution]:
         """Calcula contribuição de cada fator.
 
@@ -189,11 +181,11 @@ class RiskExplainability:
 
             # Direção
             if contribution > 0.01:
-                direction = 'increases_risk'
+                direction = "increases_risk"
             elif contribution < -0.01:
-                direction = 'decreases_risk'
+                direction = "decreases_risk"
             else:
-                direction = 'neutral'
+                direction = "neutral"
 
             # Descrição
             description = self._get_factor_description(factor_name, factor_value, domain)
@@ -206,7 +198,7 @@ class RiskExplainability:
                     contribution=contribution,
                     contribution_percentage=0.0,  # Calculado depois
                     direction=direction,
-                    description=description
+                    description=description,
                 )
             )
 
@@ -222,42 +214,35 @@ class RiskExplainability:
         return contributions
 
     def _get_factor_description(
-        self,
-        factor_name: str,
-        factor_value: float,
-        domain: UnifiedDomain
+        self, factor_name: str, factor_value: float, domain: UnifiedDomain
     ) -> str:
         """Gera descrição legível do fator."""
         descriptions = {
             # Business factors
-            'priority': f"Prioridade {'alta' if factor_value > 0.6 else 'baixa'}",
-            'cost': f"Custo estimado {'elevado' if factor_value > 0.6 else 'moderado'}",
-            'kpi_alignment': f"Alinhamento com KPIs {'baixo' if factor_value > 0.6 else 'alto'}",
-            'complexity': f"Complexidade {'alta' if factor_value > 0.6 else 'baixa'}",
-
+            "priority": f"Prioridade {'alta' if factor_value > 0.6 else 'baixa'}",
+            "cost": f"Custo estimado {'elevado' if factor_value > 0.6 else 'moderado'}",
+            "kpi_alignment": f"Alinhamento com KPIs {'baixo' if factor_value > 0.6 else 'alto'}",
+            "complexity": f"Complexidade {'alta' if factor_value > 0.6 else 'baixa'}",
             # Technical factors
-            'code_quality': f"Qualidade de código {'baixa' if factor_value > 0.6 else 'boa'}",
-            'performance': f"Risco de performance {'alto' if factor_value > 0.6 else 'baixo'}",
-            'scalability': f"Escalabilidade {'limitada' if factor_value > 0.6 else 'boa'}",
-            'dependencies': f"Dependências {'críticas' if factor_value > 0.6 else 'estáveis'}",
-
+            "code_quality": f"Qualidade de código {'baixa' if factor_value > 0.6 else 'boa'}",
+            "performance": f"Risco de performance {'alto' if factor_value > 0.6 else 'baixo'}",
+            "scalability": f"Escalabilidade {'limitada' if factor_value > 0.6 else 'boa'}",
+            "dependencies": f"Dependências {'críticas' if factor_value > 0.6 else 'estáveis'}",
             # Security factors
-            'security_level': f"Nível de segurança {'baixo' if factor_value > 0.6 else 'adequado'}",
-            'pii_exposure': f"Exposição a PII {'alta' if factor_value > 0.6 else 'baixa'}",
-            'authentication': f"Autenticação {'fraca' if factor_value > 0.6 else 'forte'}",
-            'encryption': f"Criptografia {'insuficiente' if factor_value > 0.6 else 'adequada'}",
-
+            "security_level": f"Nível de segurança {'baixo' if factor_value > 0.6 else 'adequado'}",
+            "pii_exposure": f"Exposição a PII {'alta' if factor_value > 0.6 else 'baixa'}",
+            "authentication": f"Autenticação {'fraca' if factor_value > 0.6 else 'forte'}",
+            "encryption": f"Criptografia {'insuficiente' if factor_value > 0.6 else 'adequada'}",
             # Operational factors
-            'availability': f"Disponibilidade {'arriscada' if factor_value > 0.6 else 'confiável'}",
-            'reliability': f"Confiabilidade {'baixa' if factor_value > 0.6 else 'alta'}",
-            'maintainability': f"Manutenibilidade {'difícil' if factor_value > 0.6 else 'fácil'}",
-            'observability': f"Observabilidade {'insuficiente' if factor_value > 0.6 else 'boa'}",
-
+            "availability": f"Disponibilidade {'arriscada' if factor_value > 0.6 else 'confiável'}",
+            "reliability": f"Confiabilidade {'baixa' if factor_value > 0.6 else 'alta'}",
+            "maintainability": f"Manutenibilidade {'difícil' if factor_value > 0.6 else 'fácil'}",
+            "observability": f"Observabilidade {'insuficiente' if factor_value > 0.6 else 'boa'}",
             # Compliance factors
-            'regulatory': f"Risco regulatório {'alto' if factor_value > 0.6 else 'baixo'}",
-            'audit_trail': f"Trilha de auditoria {'incompleta' if factor_value > 0.6 else 'completa'}",
-            'data_retention': f"Retenção de dados {'problemática' if factor_value > 0.6 else 'adequada'}",
-            'policy_adherence': f"Aderência a políticas {'baixa' if factor_value > 0.6 else 'boa'}",
+            "regulatory": f"Risco regulatório {'alto' if factor_value > 0.6 else 'baixo'}",
+            "audit_trail": f"Trilha de auditoria {'incompleta' if factor_value > 0.6 else 'completa'}",
+            "data_retention": f"Retenção de dados {'problemática' if factor_value > 0.6 else 'adequada'}",
+            "policy_adherence": f"Aderência a políticas {'baixa' if factor_value > 0.6 else 'boa'}",
         }
 
         return descriptions.get(factor_name, f"Fator {factor_name} = {factor_value:.2f}")
@@ -267,7 +252,7 @@ class RiskExplainability:
         final_score: float,
         final_band: RiskBand,
         factors: List[FactorContribution],
-        total_adjustment: float
+        total_adjustment: float,
     ) -> str:
         """Gera justificativa detalhada."""
         # Top 3 fatores
@@ -275,7 +260,11 @@ class RiskExplainability:
 
         factor_descriptions = []
         for f in top_factors:
-            direction_symbol = "↑" if f.direction == 'increases_risk' else ("↓" if f.direction == 'decreases_risk' else "→")
+            direction_symbol = (
+                "↑"
+                if f.direction == "increases_risk"
+                else ("↓" if f.direction == "decreases_risk" else "→")
+            )
             factor_descriptions.append(
                 f"{f.name} ({direction_symbol} {abs(f.contribution):.2f}, {f.contribution_percentage:.1f}%)"
             )
@@ -293,7 +282,7 @@ class RiskExplainability:
         assessment: RiskAssessment,
         entity_id: str,
         scenarios: Dict[str, Dict[str, float]],
-        base_score: float = 0.5
+        base_score: float = 0.5,
     ) -> List[WhatIfScenario]:
         """Realiza análise what-if de cenários.
 
@@ -332,11 +321,11 @@ class RiskExplainability:
 
             # Nova band
             thresholds = self.config.get_thresholds(assessment.domain)
-            if new_score >= thresholds['critical']:
+            if new_score >= thresholds["critical"]:
                 new_band = RiskBand.CRITICAL
-            elif new_score >= thresholds['high']:
+            elif new_score >= thresholds["high"]:
                 new_band = RiskBand.HIGH
-            elif new_score >= thresholds['medium']:
+            elif new_score >= thresholds["medium"]:
                 new_band = RiskBand.MEDIUM
             else:
                 new_band = RiskBand.LOW
@@ -346,11 +335,11 @@ class RiskExplainability:
 
             # Impacto
             if abs(score_delta) >= 0.2:
-                impact = 'significant'
+                impact = "significant"
             elif abs(score_delta) >= 0.1:
-                impact = 'moderate'
+                impact = "moderate"
             else:
-                impact = 'minimal'
+                impact = "minimal"
 
             # Mudança de band
             band_change = None
@@ -365,23 +354,18 @@ class RiskExplainability:
                     new_score=new_score,
                     score_delta=score_delta,
                     band_change=band_change,
-                    impact=impact
+                    impact=impact,
                 )
             )
 
         logger.debug(
-            "what_if_analysis_completed",
-            entity_id=entity_id,
-            scenarios_count=len(scenarios)
+            "what_if_analysis_completed", entity_id=entity_id, scenarios_count=len(scenarios)
         )
 
         return results
 
     def compare_assessments(
-        self,
-        assessment1: RiskAssessment,
-        assessment2: RiskAssessment,
-        entity_id: str
+        self, assessment1: RiskAssessment, assessment2: RiskAssessment, entity_id: str
     ) -> Dict:
         """Compara duas avaliações da mesma entidade.
 
@@ -404,39 +388,40 @@ class RiskExplainability:
             delta = value2 - value1
 
             if abs(delta) > 0.01:  # Mudança significativa
-                factor_changes.append({
-                    'factor': factor_name,
-                    'from': value1,
-                    'to': value2,
-                    'delta': delta,
-                    'direction': 'increased' if delta > 0 else ('decreased' if delta < 0 else 'unchanged')
-                })
+                factor_changes.append(
+                    {
+                        "factor": factor_name,
+                        "from": value1,
+                        "to": value2,
+                        "delta": delta,
+                        "direction": "increased"
+                        if delta > 0
+                        else ("decreased" if delta < 0 else "unchanged"),
+                    }
+                )
 
         # Ordenar por magnitude da mudança
-        factor_changes.sort(key=lambda x: abs(x['delta']), reverse=True)
+        factor_changes.sort(key=lambda x: abs(x["delta"]), reverse=True)
 
         # Mudança de band
         band_changed = assessment1.band != assessment2.band
 
         return {
-            'entity_id': entity_id,
-            'domain1': assessment1.domain.value,
-            'domain2': assessment2.domain.value,
-            'score1': assessment1.score,
-            'score2': assessment2.score,
-            'score_delta': score_delta,
-            'band1': assessment1.band.value,
-            'band2': assessment2.band.value,
-            'band_changed': band_changed,
-            'factor_changes': factor_changes,
-            'timestamp1': assessment1.assessed_at.isoformat() if assessment1.assessed_at else None,
-            'timestamp2': assessment2.assessed_at.isoformat() if assessment2.assessed_at else None
+            "entity_id": entity_id,
+            "domain1": assessment1.domain.value,
+            "domain2": assessment2.domain.value,
+            "score1": assessment1.score,
+            "score2": assessment2.score,
+            "score_delta": score_delta,
+            "band1": assessment1.band.value,
+            "band2": assessment2.band.value,
+            "band_changed": band_changed,
+            "factor_changes": factor_changes,
+            "timestamp1": assessment1.assessed_at.isoformat() if assessment1.assessed_at else None,
+            "timestamp2": assessment2.assessed_at.isoformat() if assessment2.assessed_at else None,
         }
 
-    def get_feature_importance(
-        self,
-        domain: UnifiedDomain
-    ) -> List[Tuple[str, float]]:
+    def get_feature_importance(self, domain: UnifiedDomain) -> List[Tuple[str, float]]:
         """Retorna importância de features por domínio.
 
         Args:
@@ -449,10 +434,7 @@ class RiskExplainability:
         sorted_weights = sorted(weights.items(), key=lambda x: x[1], reverse=True)
         return sorted_weights
 
-    def generate_recommendations(
-        self,
-        explanation: RiskExplanation
-    ) -> List[str]:
+    def generate_recommendations(self, explanation: RiskExplanation) -> List[str]:
         """Gera recomendações baseado na explicação.
 
         Args:
@@ -464,14 +446,12 @@ class RiskExplainability:
         recommendations = []
 
         # Analisar fatores que mais aumentam risco
-        risk_increasing = [f for f in explanation.factors if f.direction == 'increases_risk']
+        risk_increasing = [f for f in explanation.factors if f.direction == "increases_risk"]
 
         for factor in risk_increasing[:3]:  # Top 3
             if factor.contribution > 0.1:
                 recommendation = self._get_recommendation_for_factor(
-                    factor.name,
-                    factor.value,
-                    explanation.domain
+                    factor.name, factor.value, explanation.domain
                 )
                 if recommendation:
                     recommendations.append(recommendation)
@@ -489,36 +469,30 @@ class RiskExplainability:
         return recommendations
 
     def _get_recommendation_for_factor(
-        self,
-        factor_name: str,
-        factor_value: float,
-        domain: UnifiedDomain
+        self, factor_name: str, factor_value: float, domain: UnifiedDomain
     ) -> Optional[str]:
         """Retorna recomendação específica para um fator."""
         recommendations = {
-            'priority': "Reavalie a prioridade desta ação. Consere adiar ou escalar.",
-            'cost': "Revise estimativas de custo. Considere abordagem mais econômica.",
-            'complexity': "Simplifique a abordagem para reduzir complexidade.",
-            'code_quality': "Realize refactoring e code review antes de prosseguir.",
-            'performance': "Adicione testes de carga e otimizações de performance.",
-            'scalability': "Revise arquitetura para garantir escalabilidade.",
-            'dependencies': "Audite dependências e considere alternatives mais estáveis.",
-            'security_level': "Revise controles de segurança e adicione camadas de proteção.",
-            'pii_exposure': "Minimize exposição a dados sensíveis. Revista políticas de privacidade.",
-            'authentication': "Fortaleça mecanismos de autenticação (MFA, etc.).",
-            'encryption': "Implemente criptografia em repouso e em trânsito.",
-            'availability': "Adicione redundância e failover para garantir disponibilidade.",
-            'observability': "Melhore logs, métricas e tracing para melhor observabilidade.",
-            'regulatory': "Assegure conformidade com regulamentações aplicáveis.",
-            'audit_trail': "Implemente trilha de auditoria completa.",
+            "priority": "Reavalie a prioridade desta ação. Consere adiar ou escalar.",
+            "cost": "Revise estimativas de custo. Considere abordagem mais econômica.",
+            "complexity": "Simplifique a abordagem para reduzir complexidade.",
+            "code_quality": "Realize refactoring e code review antes de prosseguir.",
+            "performance": "Adicione testes de carga e otimizações de performance.",
+            "scalability": "Revise arquitetura para garantir escalabilidade.",
+            "dependencies": "Audite dependências e considere alternatives mais estáveis.",
+            "security_level": "Revise controles de segurança e adicione camadas de proteção.",
+            "pii_exposure": "Minimize exposição a dados sensíveis. Revista políticas de privacidade.",
+            "authentication": "Fortaleça mecanismos de autenticação (MFA, etc.).",
+            "encryption": "Implemente criptografia em repouso e em trânsito.",
+            "availability": "Adicione redundância e failover para garantir disponibilidade.",
+            "observability": "Melhore logs, métricas e tracing para melhor observabilidade.",
+            "regulatory": "Assegure conformidade com regulamentações aplicáveis.",
+            "audit_trail": "Implemente trilha de auditoria completa.",
         }
 
         return recommendations.get(factor_name)
 
-    def create_summary_report(
-        self,
-        explanation: RiskExplanation
-    ) -> str:
+    def create_summary_report(self, explanation: RiskExplanation) -> str:
         """Cria relatório resumido em formato legível.
 
         Args:
@@ -539,7 +513,11 @@ class RiskExplainability:
         ]
 
         for factor in explanation.factors:
-            direction_symbol = "↑" if factor.direction == 'increases_risk' else ("↓" if factor.direction == 'decreases_risk' else "→")
+            direction_symbol = (
+                "↑"
+                if factor.direction == "increases_risk"
+                else ("↓" if factor.direction == "decreases_risk" else "→")
+            )
             lines.append(
                 f"  {direction_symbol} {factor.name}: {factor.value:.2f} "
                 f"(peso={factor.weight:.2f}, contribuição={factor.contribution:+.2f})"

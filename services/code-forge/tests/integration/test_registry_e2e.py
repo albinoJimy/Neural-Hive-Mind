@@ -225,7 +225,9 @@ class TestRegistryDetectionE2E:
         builder = ContainerBuilder()
 
         # ECR
-        assert builder._detect_registry_type("123456.dkr.ecr.us-east-1.amazonaws.com/image") == "ecr"
+        assert (
+            builder._detect_registry_type("123456.dkr.ecr.us-east-1.amazonaws.com/image") == "ecr"
+        )
 
         # GCR
         assert builder._detect_registry_type("gcr.io/project/image") == "gcr"

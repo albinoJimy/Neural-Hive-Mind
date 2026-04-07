@@ -34,7 +34,11 @@ class TestValidateSecurity:
                 "ticket_id": "ticket-123",
                 "validation_status": "approved",
                 "violations": [],
-                "risk_assessment": {"risk_score": 0.0, "severity": "low", "impact": "No violations"},
+                "risk_assessment": {
+                    "risk_score": 0.0,
+                    "severity": "low",
+                    "impact": "No violations",
+                },
                 "approval_required": False,
             }
         )
@@ -80,7 +84,11 @@ class TestValidateSecurity:
                         "description": "API key detectada nos parametros",
                     }
                 ],
-                "risk_assessment": {"risk_score": 1.0, "severity": "critical", "impact": "1 CRITICAL violation"},
+                "risk_assessment": {
+                    "risk_score": 1.0,
+                    "severity": "critical",
+                    "impact": "1 CRITICAL violation",
+                },
                 "approval_required": False,
             }
         )
@@ -128,9 +136,7 @@ class TestScanVulnerabilities:
     """Testes da ferramenta scan_vulnerabilities."""
 
     @pytest.mark.asyncio
-    async def test_scan_vulnerabilities_with_vulnerabilities_found(
-        self, mock_vulnerability_report
-    ):
+    async def test_scan_vulnerabilities_with_vulnerabilities_found(self, mock_vulnerability_report):
         """
         DADO: Uma imagem de container com vulnerabilidades
         QUANDO: Executo scan_vulnerabilities
@@ -268,9 +274,7 @@ class TestDetectThreats:
 
             from guard_mcp_server.tools.guard_tools import detect_threats
 
-            result = await detect_threats(
-                event_type="normal_request", event_data=mock_event
-            )
+            result = await detect_threats(event_type="normal_request", event_data=mock_event)
 
         assert result["threat_found"] is False
         assert result["threat_id"] is None
@@ -541,7 +545,11 @@ class TestValidateSecurityEdgeCases:
                     "ticket_id": "ticket-123",
                     "validation_status": "approved",
                     "violations": [],
-                    "risk_assessment": {"risk_score": 0.0, "severity": "low", "impact": "No violations"},
+                    "risk_assessment": {
+                        "risk_score": 0.0,
+                        "severity": "low",
+                        "impact": "No violations",
+                    },
                     "approval_required": False,
                 }
             )
@@ -579,7 +587,11 @@ class TestValidateSecurityEdgeCases:
                     "ticket_id": "ticket-123",
                     "validation_status": "approved",
                     "violations": [],
-                    "risk_assessment": {"risk_score": 0.0, "severity": "low", "impact": "No violations"},
+                    "risk_assessment": {
+                        "risk_score": 0.0,
+                        "severity": "low",
+                        "impact": "No violations",
+                    },
                     "approval_required": False,
                 }
             )

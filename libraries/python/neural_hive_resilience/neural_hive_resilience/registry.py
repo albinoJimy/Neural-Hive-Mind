@@ -113,11 +113,14 @@ class ResilienceRegistry:
         # Storage por tipo
         self._circuit_breakers: Dict[str, MonitoredCircuitBreaker] = {}
         self._retry_policies: Dict[str, RetryPolicy] = {}
-        self._rate_limiters: Dict[str, Union[
-            TokenBucketRateLimiter,
-            SlidingWindowLogRateLimiter,
-            ConcurrencyLimiter,
-        ]] = {}
+        self._rate_limiters: Dict[
+            str,
+            Union[
+                TokenBucketRateLimiter,
+                SlidingWindowLogRateLimiter,
+                ConcurrencyLimiter,
+            ],
+        ] = {}
         self._timeouts: Dict[str, float] = {}
         self._fallbacks: Dict[str, FallbackChain] = {}
         self._bulkheads: Dict[str, SemaphoreBulkhead] = {}

@@ -14,7 +14,9 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 import pandas as pd
-from motor.motor_asyncio import AsyncIOMotorClient  # noqa: F401 - mantido para compatibilidade com planilha
+from motor.motor_asyncio import (
+    AsyncIOMotorClient,
+)  # noqa: F401 - mantido para compatibilidade com planilha
 
 # Adicionar path das bibliotecas
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
@@ -39,7 +41,7 @@ class ProductionModelTrainer:
         window_days: int,
         min_samples: int,
         backfill_errors: bool = False,
-        dry_run: bool = False
+        dry_run: bool = False,
     ) -> None:
         self.window_days = window_days
         self.min_samples = min_samples
@@ -75,28 +77,13 @@ class ProductionModelTrainer:
         await self.model_registry.initialize()
 
         self.duration_predictor = DurationPredictor(
-            self.config,
-            self.mongo_client,
-            self.model_registry,
-            self.metrics
+            self.config, self.mongo_client, self.model_registry, self.metrics
         )
         self.anomaly_detector = AnomalyDetector(
-            self.config,
-            self.mongo_client,
-            self.model_registry,
-            self.metrics
+            self.config, self.mongo_client, self.model_registry, self.metrics
         )
-        self.load_predictor = LoadPredictor(
-            self.config,
-            self.mongo_client,
-            None,
-            self.metrics
-        )
-        self.drift_detector = DriftDetector(
-            self.config,
-            self.mongo_client,
-            self.metrics
-        )
+        self.load_predictor = LoadPredictor(self.config, self.mongo_client, None, self.metrics)
+        self.drift_detector = DriftDetector(self.config, self.mongo_client, self.metrics)
 
         self.training_pipeline = TrainingPipeline(
             self.config,
@@ -105,12 +92,11 @@ class ProductionModelTrainer:
             self.duration_predictor,
             self.anomaly_detector,
             self.metrics,
-            drift_detector=self.drift_detector
+            drift_detector=self.drift_detector,
         )
 
         await asyncio.gather(
-            self.duration_predictor.initialize(),
-            self.anomaly_detector.initialize()
+            self.duration_predictor.initialize(), self.anomaly_detector.initialize()
         )
 
         if self.dry_run:
@@ -126,14 +112,16 @@ class ProductionModelTrainer:
         async def _noop_save_model(*args, **kwargs):
             self.logger.info(
                 "dry_run_skip_save_model",
-                extra={"model_name": kwargs.get("model_name") or (args[2] if len(args) > 2 else "unknown")}
+                extra={
+                    "model_name": kwargs.get("model_name")
+                    or (args[2] if len(args) > 2 else "unknown")
+                },
             )
             return "dry-run"
 
         async def _noop_promote_model(*args, **kwargs):
             self.logger.info(
-                "dry_run_skip_promote_model",
-                extra={"model_name": kwargs.get("model_name")}
+                "dry_run_skip_promote_model", extra={"model_name": kwargs.get("model_name")}
             )
             return None
 
@@ -151,7 +139,7 @@ class ProductionModelTrainer:
         query = {
             "status": "COMPLETED",
             "actual_duration_ms": {"$exists": True, "$gt": 0},
-            "completed_at": {"$gte": cutoff_date}
+            "completed_at": {"$gte": cutoff_date},
         }
 
         return await tickets_collection.count_documents(query)
@@ -164,11 +152,13 @@ class ProductionModelTrainer:
         cutoff_date = datetime.now(timezone.utc) - timedelta(days=self.window_days)
         tickets_collection = self.mongo_client.db[self.config.mongodb_collection_tickets]
 
-        tickets = await tickets_collection.find({
-            "status": "COMPLETED",
-            "actual_duration_ms": {"$exists": True, "$gt": 0},
-            "completed_at": {"$gte": cutoff_date}
-        }).to_list(None)
+        tickets = await tickets_collection.find(
+            {
+                "status": "COMPLETED",
+                "actual_duration_ms": {"$exists": True, "$gt": 0},
+                "completed_at": {"$gte": cutoff_date},
+            }
+        ).to_list(None)
 
         if not tickets:
             return pd.DataFrame()
@@ -182,15 +172,11 @@ class ProductionModelTrainer:
 
         self.logger.info(
             "training_started",
-            extra={
-                "window_days": self.window_days,
-                "backfill_errors": self.backfill_errors
-            }
+            extra={"window_days": self.window_days, "backfill_errors": self.backfill_errors},
         )
 
         results = await self.training_pipeline.run_training_cycle(
-            window_days=self.window_days,
-            backfill_errors=self.backfill_errors
+            window_days=self.window_days, backfill_errors=self.backfill_errors
         )
 
         self.training_results = results
@@ -209,20 +195,19 @@ class ProductionModelTrainer:
             "duration_predictor": {
                 "mae_percentage": duration_mae_pct,
                 "threshold": 15.0,
-                "passed": duration_mae_pct is not None and duration_mae_pct < 15.0
+                "passed": duration_mae_pct is not None and duration_mae_pct < 15.0,
             },
             "anomaly_detector": {
                 "precision": anomaly_precision,
                 "threshold": 0.75,
-                "passed": anomaly_precision is not None and anomaly_precision > 0.75
+                "passed": anomaly_precision is not None and anomaly_precision > 0.75,
             },
-            "load_predictor": {
-                "status": "heuristic",
-                "passed": True
-            }
+            "load_predictor": {"status": "heuristic", "passed": True},
         }
 
-        validation["overall_passed"] = validation["duration_predictor"]["passed"] and validation["anomaly_detector"]["passed"]
+        validation["overall_passed"] = (
+            validation["duration_predictor"]["passed"] and validation["anomaly_detector"]["passed"]
+        )
         return validation
 
     async def save_feature_baseline(self) -> Dict[str, Any]:
@@ -249,7 +234,9 @@ class ProductionModelTrainer:
                 if actual_duration and actual_duration > 0:
                     target_values.append(float(actual_duration))
             except Exception as err:
-                self.logger.warning("feature_extraction_failed_for_baseline", extra={"error": str(err)})
+                self.logger.warning(
+                    "feature_extraction_failed_for_baseline", extra={"error": str(err)}
+                )
                 continue
 
         if not features_data or not target_values:
@@ -262,14 +249,14 @@ class ProductionModelTrainer:
             target_values=target_values,
             training_mae=training_mae,
             model_name="duration-predictor",
-            version=self.training_results.get("duration_predictor", {}).get("version", "latest")
+            version=self.training_results.get("duration_predictor", {}).get("version", "latest"),
         )
 
         return {
             "saved": True,
             "features_count": len(features_data),
             "target_count": len(target_values),
-            "training_mae": training_mae
+            "training_mae": training_mae,
         }
 
     def generate_report(
@@ -277,7 +264,7 @@ class ProductionModelTrainer:
         results: Dict[str, Any],
         validation: Dict[str, Any],
         baseline_info: Dict[str, Any],
-        samples_available: int
+        samples_available: int,
     ) -> Path:
         """Gera relatório JSON no /tmp com métricas e status."""
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
@@ -323,15 +310,15 @@ class ProductionModelTrainer:
                     results={"status": "skipped", "reason": "insufficient_data"},
                     validation={"overall_passed": False},
                     baseline_info={"saved": False, "reason": "insufficient_data"},
-                    samples_available=samples_available
+                    samples_available=samples_available,
                 )
                 self.logger.warning(
                     "insufficient_training_data",
                     extra={
                         "samples": samples_available,
                         "required": self.min_samples,
-                        "report": str(warning_report)
-                    }
+                        "report": str(warning_report),
+                    },
                 )
                 return 1
 
@@ -339,13 +326,17 @@ class ProductionModelTrainer:
             validation = self.validate_models(results)
             baseline_info = await self.save_feature_baseline()
 
-            report_path = self.generate_report(results, validation, baseline_info, samples_available)
+            report_path = self.generate_report(
+                results, validation, baseline_info, samples_available
+            )
 
             if validation.get("overall_passed"):
                 self.logger.info("training_successful", extra={"report": str(report_path)})
                 return 0
 
-            self.logger.warning("training_completed_with_validation_issues", extra={"report": str(report_path)})
+            self.logger.warning(
+                "training_completed_with_validation_issues", extra={"report": str(report_path)}
+            )
             return 1
 
         except Exception as exc:  # pragma: no cover - proteção de execução
@@ -356,9 +347,12 @@ class ProductionModelTrainer:
                 "error": str(exc),
                 "window_days": self.window_days,
                 "backfill_errors": self.backfill_errors,
-                "dry_run": self.dry_run
+                "dry_run": self.dry_run,
             }
-            report_path = Path("/tmp") / f"ml_training_report_error_{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S')}.json"
+            report_path = (
+                Path("/tmp")
+                / f"ml_training_report_error_{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S')}.json"
+            )
             report_path.write_text(json.dumps(failure_report, indent=2, default=str))
 
             return 1
@@ -369,19 +363,31 @@ class ProductionModelTrainer:
 
 def parse_args() -> argparse.Namespace:
     """Parsers de argumentos CLI."""
-    parser = argparse.ArgumentParser(description="Treinamento de modelos ML para orchestrator-dynamic")
-    parser.add_argument("--window-days", type=int, default=540, help="Janela de dados em dias (default: 540)")
-    parser.add_argument("--min-samples", type=int, default=100, help="Mínimo de amostras para treinamento (default: 100)")
-    parser.add_argument("--backfill-errors", action="store_true", help="Habilitar backfill de erros históricos")
-    parser.add_argument("--dry-run", action="store_true", help="Executa fluxo sem salvar/promover modelos")
+    parser = argparse.ArgumentParser(
+        description="Treinamento de modelos ML para orchestrator-dynamic"
+    )
+    parser.add_argument(
+        "--window-days", type=int, default=540, help="Janela de dados em dias (default: 540)"
+    )
+    parser.add_argument(
+        "--min-samples",
+        type=int,
+        default=100,
+        help="Mínimo de amostras para treinamento (default: 100)",
+    )
+    parser.add_argument(
+        "--backfill-errors", action="store_true", help="Habilitar backfill de erros históricos"
+    )
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Executa fluxo sem salvar/promover modelos"
+    )
     return parser.parse_args()
 
 
 def configure_logging() -> None:
     """Configura logging básico para execução standalone."""
     logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(name)s - %(message)s"
+        level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s - %(message)s"
     )
 
 
@@ -393,7 +399,7 @@ def main() -> None:
         window_days=args.window_days,
         min_samples=args.min_samples,
         backfill_errors=args.backfill_errors,
-        dry_run=args.dry_run
+        dry_run=args.dry_run,
     )
 
     exit_code = asyncio.run(trainer.run())

@@ -113,9 +113,7 @@ class GPUInferenceWrapper:
                         return self.model.predict(X_cpu)
 
             except Exception as e:
-                logger.warning(
-                    "GPU inference failed, falling back to CPU", error=str(e)
-                )
+                logger.warning("GPU inference failed, falling back to CPU", error=str(e))
                 return self.model.predict(X)
         else:
             return self.model.predict(X)
@@ -154,9 +152,7 @@ class GPUInferenceWrapper:
                     return self.model.predict_proba(X_cpu)
 
             except Exception as e:
-                logger.warning(
-                    "GPU predict_proba failed, falling back to CPU", error=str(e)
-                )
+                logger.warning("GPU predict_proba failed, falling back to CPU", error=str(e))
                 return self.model.predict_proba(X)
         else:
             return self.model.predict_proba(X)

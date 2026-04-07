@@ -11,8 +11,8 @@ import sys
 
 # Mock boto3 antes de importar ecr_client
 mock_boto3_session = MagicMock()
-sys.modules['boto3'] = MagicMock()
-sys.modules['boto3'].Session = mock_boto3_session
+sys.modules["boto3"] = MagicMock()
+sys.modules["boto3"].Session = mock_boto3_session
 
 from src.clients.ecr_client import (
     ECRClient,
@@ -20,7 +20,7 @@ from src.clients.ecr_client import (
     get_ecr_credentials,
     detect_ecr_registry,
     extract_ecr_region,
-    ECR_TOKEN_DEFAULT_TTL
+    ECR_TOKEN_DEFAULT_TTL,
 )
 
 
@@ -37,7 +37,7 @@ class TestECRToken:
             password="password",
             endpoint="123456789012.dkr.ecr.us-east-1.amazonaws.com",
             expires_at=expires_at,
-            obtained_at=obtained_at
+            obtained_at=obtained_at,
         )
 
         assert token.username == "AWS"
@@ -53,7 +53,7 @@ class TestECRToken:
             password="password",
             endpoint="123456789012.dkr.ecr.us-east-1.amazonaws.com",
             expires_at=past,
-            obtained_at=datetime.now(timezone.utc)
+            obtained_at=datetime.now(timezone.utc),
         )
 
         assert token.is_expired() is True
@@ -67,7 +67,7 @@ class TestECRToken:
             password="password",
             endpoint="123456789012.dkr.ecr.us-east-1.amazonaws.com",
             expires_at=future,
-            obtained_at=datetime.now(timezone.utc)
+            obtained_at=datetime.now(timezone.utc),
         )
 
         assert token.is_expired() is False
@@ -81,7 +81,7 @@ class TestECRToken:
             password="password",
             endpoint="123456789012.dkr.ecr.us-east-1.amazonaws.com",
             expires_at=datetime.now(timezone.utc) + timedelta(hours=12),
-            obtained_at=old_time
+            obtained_at=old_time,
         )
 
         # TTL de 1 hora, token tem 2 horas
@@ -96,7 +96,7 @@ class TestECRToken:
             password="password",
             endpoint="123456789012.dkr.ecr.us-east-1.amazonaws.com",
             expires_at=datetime.now(timezone.utc) + timedelta(hours=12),
-            obtained_at=recent
+            obtained_at=recent,
         )
 
         # TTL de 1 hora, token acabou de ser criado
@@ -109,7 +109,7 @@ class TestECRToken:
             password="testpass",
             endpoint="123456789012.dkr.ecr.us-east-1.amazonaws.com",
             expires_at=datetime.now(timezone.utc) + timedelta(hours=12),
-            obtained_at=datetime.now(timezone.utc)
+            obtained_at=datetime.now(timezone.utc),
         )
 
         username, password = token.get_credentials()
@@ -137,7 +137,7 @@ class TestECRClientInitialization:
             use_irsa=False,
             access_key_id="AKIAIOSFODNN7EXAMPLE",
             secret_access_key="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
-            token_ttl=7200
+            token_ttl=7200,
         )
 
         assert client.region == "eu-west-1"
@@ -182,7 +182,7 @@ class TestGetECRToken:
         """Setup para cada teste."""
         # Reset mock
         mock_boto3_session_session = MagicMock()
-        sys.modules['boto3'].Session = mock_boto3_session_session
+        sys.modules["boto3"].Session = mock_boto3_session_session
 
     def test_get_ecr_token_cache_miss(self):
         """Testa cache miss - obtém novo token."""
@@ -197,7 +197,7 @@ class TestGetECRToken:
             ]
         }
         mock_session.client.return_value = mock_ecr
-        sys.modules['boto3'].Session.return_value = mock_session
+        sys.modules["boto3"].Session.return_value = mock_session
 
         client = ECRClient()
         client._cached_token = None  # Garantir cache vazio
@@ -222,15 +222,13 @@ class TestGetECRToken:
             ]
         }
         mock_session.client.return_value = mock_ecr
-        sys.modules['boto3'].Session.return_value = mock_session
+        sys.modules["boto3"].Session.return_value = mock_session
 
         client = ECRClient()
 
         token = client.get_ecr_token(registry_id="123456789012")
 
-        mock_ecr.get_authorization_token.assert_called_once_with(
-            registryIds=["123456789012"]
-        )
+        mock_ecr.get_authorization_token.assert_called_once_with(registryIds=["123456789012"])
 
 
 class TestGetECRCredentials:
@@ -322,7 +320,7 @@ class TestGetRegistryURI:
         mock_sts.get_caller_identity.return_value = {
             "Account": "987654321098",
             "UserId": "AIDAI...",
-            "Arn": "arn:aws:iam::987654321098:user/test"
+            "Arn": "arn:aws:iam::987654321098:user/test",
         }
         mock_session.client.return_value = mock_sts
         mock_boto3.Session.return_value = mock_session
@@ -361,7 +359,7 @@ class TestRefreshIfNeeded:
             password="OLD",
             endpoint="old.dkr.ecr.amazonaws.com",
             expires_at=datetime.now(timezone.utc) + timedelta(hours=12),
-            obtained_at=old_time
+            obtained_at=old_time,
         )
 
         refreshed = client.refresh_if_needed()
@@ -380,7 +378,7 @@ class TestRefreshIfNeeded:
             password="CURRENT",
             endpoint="current.dkr.ecr.amazonaws.com",
             expires_at=datetime.now(timezone.utc) + timedelta(hours=12),
-            obtained_at=recent
+            obtained_at=recent,
         )
 
         refreshed = client.refresh_if_needed()
@@ -421,7 +419,9 @@ class TestConvenienceFunctions:
     def test_detect_ecr_registry_true(self):
         """Testa detecção de ECR - positivo."""
         assert detect_ecr_registry("123456789012.dkr.ecr.us-east-1.amazonaws.com/myapp") is True
-        assert detect_ecr_registry("123456789012.dkr.ecr.eu-west-1.amazonaws.com/myapp:latest") is True
+        assert (
+            detect_ecr_registry("123456789012.dkr.ecr.eu-west-1.amazonaws.com/myapp:latest") is True
+        )
 
     def test_detect_ecr_registry_false(self):
         """Testa detecção de ECR - negativo."""
@@ -431,9 +431,17 @@ class TestConvenienceFunctions:
 
     def test_extract_ecr_region(self):
         """Testa extração de região de URI ECR."""
-        assert extract_ecr_region("123456789012.dkr.ecr.us-east-1.amazonaws.com/myapp") == "us-east-1"
-        assert extract_ecr_region("123456789012.dkr.ecr.eu-west-1.amazonaws.com/myapp:latest") == "eu-west-1"
-        assert extract_ecr_region("123456789012.dkr.ecr.ap-southeast-1.amazonaws.com/myapp") == "ap-southeast-1"
+        assert (
+            extract_ecr_region("123456789012.dkr.ecr.us-east-1.amazonaws.com/myapp") == "us-east-1"
+        )
+        assert (
+            extract_ecr_region("123456789012.dkr.ecr.eu-west-1.amazonaws.com/myapp:latest")
+            == "eu-west-1"
+        )
+        assert (
+            extract_ecr_region("123456789012.dkr.ecr.ap-southeast-1.amazonaws.com/myapp")
+            == "ap-southeast-1"
+        )
 
     def test_extract_ecr_region_non_ecr(self):
         """Testa extração de região para URI não-ECR."""

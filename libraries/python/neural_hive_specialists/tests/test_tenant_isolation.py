@@ -49,9 +49,7 @@ class TestCacheIsolation:
 
     def test_cache_keys_include_tenant_id(self):
         """Verifica que chaves de cache incluem tenant_id."""
-        cache = OpinionCache(
-            redis_cluster_nodes="localhost:6379", specialist_type="technical"
-        )
+        cache = OpinionCache(redis_cluster_nodes="localhost:6379", specialist_type="technical")
 
         plan_bytes = b'{"action": "test"}'
 
@@ -76,9 +74,7 @@ class TestCacheIsolation:
 
     def test_cache_default_tenant_fallback(self):
         """Verifica fallback para tenant 'default'."""
-        cache = OpinionCache(
-            redis_cluster_nodes="localhost:6379", specialist_type="technical"
-        )
+        cache = OpinionCache(redis_cluster_nodes="localhost:6379", specialist_type="technical")
 
         plan_bytes = b'{"action": "test"}'
 
@@ -183,9 +179,7 @@ class TestDataLeakagePrevention:
 
     def test_no_cache_leakage_between_tenants(self):
         """Verifica que cache de um tenant não vaza para outro."""
-        cache = OpinionCache(
-            redis_cluster_nodes="localhost:6379", specialist_type="technical"
-        )
+        cache = OpinionCache(redis_cluster_nodes="localhost:6379", specialist_type="technical")
 
         plan_bytes = b'{"action": "test"}'
 
@@ -220,9 +214,7 @@ class TestDataLeakagePrevention:
         ledger = LedgerClient(config)
 
         # Consulta com tenant_id = 'tenant-A'
-        opinions_a = ledger.get_opinions_by_plan(
-            "shared-plan-999", tenant_id="tenant-A"
-        )
+        opinions_a = ledger.get_opinions_by_plan("shared-plan-999", tenant_id="tenant-A")
 
         # Como o mock retorna lista vazia, apenas verificamos que funciona
         assert isinstance(opinions_a, list)

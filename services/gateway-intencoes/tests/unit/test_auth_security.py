@@ -22,15 +22,16 @@ async def test_verify_token_uses_secret_from_settings():
     # Precisamos patchar antes da importacao em auth.py acontecer.
     # Como auth.py faz "from config.settings import get_settings", precisamos
     # patchar no modulo onde ele e usado (auth), nao onde e definido (settings).
-    with patch('src.security.auth.get_settings', return_value=mock_settings):
+    with patch("src.security.auth.get_settings", return_value=mock_settings):
         # Create a valid token with the same secret
         import jwt
-        test_payload = {'sub': 'user123', 'exp': 9999999999}
+
+        test_payload = {"sub": "user123", "exp": 9999999999}
         test_token = jwt.encode(test_payload, "test-secret-from-env", algorithm="HS256")
 
         # Should decode successfully once auth.py uses settings
         result = await verify_token(test_token)
-        assert result['sub'] == 'user123'
+        assert result["sub"] == "user123"
 
 
 @pytest.mark.asyncio
@@ -43,7 +44,7 @@ async def test_verify_token_raises_for_invalid_token():
     type(mock_settings).JWT_SECRET = PropertyMock(return_value="valid-test-secret")
     mock_settings.jwt_algorithm = "HS256"
 
-    with patch('src.security.auth.get_settings', return_value=mock_settings):
+    with patch("src.security.auth.get_settings", return_value=mock_settings):
         with pytest.raises(HTTPException) as exc_info:
             await verify_token("invalid-token")
 

@@ -16,9 +16,7 @@ class SpecialistConfig(BaseSettings):
 
     # Identificação
     specialist_type: str = Field(..., description="Tipo do especialista")
-    specialist_version: str = Field(
-        default="1.0.0", description="Versão do especialista"
-    )
+    specialist_version: str = Field(default="1.0.0", description="Versão do especialista")
     service_name: str = Field(..., description="Nome do serviço")
 
     # Ambiente
@@ -233,18 +231,12 @@ class SpecialistConfig(BaseSettings):
     supported_plan_versions: List[str] = Field(default=["1.0.0"])
 
     # Thresholds
-    min_confidence_score: float = Field(
-        default=0.8, description="Score mínimo de confiança"
-    )
-    high_risk_threshold: float = Field(
-        default=0.7, description="Threshold de alto risco"
-    )
+    min_confidence_score: float = Field(default=0.8, description="Score mínimo de confiança")
+    high_risk_threshold: float = Field(default=0.7, description="Threshold de alto risco")
 
     # Timeouts
     evaluation_timeout_ms: int = Field(default=5000, description="Timeout de avaliação")
-    model_inference_timeout_ms: int = Field(
-        default=3000, description="Timeout de inferência"
-    )
+    model_inference_timeout_ms: int = Field(default=3000, description="Timeout de inferência")
 
     # Circuit Breaker
     circuit_breaker_failure_threshold: int = Field(
@@ -263,9 +255,7 @@ class SpecialistConfig(BaseSettings):
     ledger_buffer_size: int = Field(
         default=100, description="Tamanho do buffer em memória para fallback do ledger"
     )
-    mlflow_cache_ttl_seconds: int = Field(
-        default=3600, description="TTL para modelos em cache"
-    )
+    mlflow_cache_ttl_seconds: int = Field(default=3600, description="TTL para modelos em cache")
 
     # Feature Flags
     enable_explainability: bool = Field(default=True)
@@ -349,9 +339,7 @@ class SpecialistConfig(BaseSettings):
     )
 
     # Explainability - Method Preference
-    explainability_method_preference: Literal[
-        "auto", "shap", "lime", "heuristic"
-    ] = Field(
+    explainability_method_preference: Literal["auto", "shap", "lime", "heuristic"] = Field(
         default="auto",
         env="EXPLAINABILITY_METHOD_PREFERENCE",
         description="Preferência de método de explicabilidade (auto usa auto-detecção)",
@@ -1514,9 +1502,7 @@ class SpecialistConfig(BaseSettings):
         """Valida que tenant_isolation_level é um valor válido."""
         valid_levels = ["logical", "physical"]
         if v not in valid_levels:
-            raise ValueError(
-                f"tenant_isolation_level deve ser um de {valid_levels}, recebido: {v}"
-            )
+            raise ValueError(f"tenant_isolation_level deve ser um de {valid_levels}, recebido: {v}")
         return v
 
     @field_validator("backup_storage_provider")
@@ -1611,10 +1597,9 @@ class SpecialistConfig(BaseSettings):
         return v
 
         model_config = SettingsConfigDict(
-        env_file='.env',
-        env_file_encoding='utf-8',
-        case_sensitive=False
-    )
+            env_file=".env", env_file_encoding="utf-8", case_sensitive=False
+        )
+
     def to_dict(self) -> dict:
         """Converte configuração para dicionário."""
         return self.dict()

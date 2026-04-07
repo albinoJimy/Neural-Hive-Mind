@@ -16,18 +16,18 @@ logger = logging.getLogger(__name__)
 
 # Expected tables in the neural_hive database (from infrastructure/clickhouse/schema.sql)
 DEFAULT_EXPECTED_TABLES = [
-    'execution_logs',
-    'telemetry_metrics',
-    'worker_utilization',
-    'queue_snapshots',
-    'ml_model_performance',
-    'scheduling_decisions',
+    "execution_logs",
+    "telemetry_metrics",
+    "worker_utilization",
+    "queue_snapshots",
+    "ml_model_performance",
+    "scheduling_decisions",
 ]
 
 # Expected materialized views
 DEFAULT_EXPECTED_VIEWS = [
-    'hourly_ticket_volume',
-    'daily_worker_stats',
+    "hourly_ticket_volume",
+    "daily_worker_stats",
 ]
 
 
@@ -43,8 +43,8 @@ class ClickHouseSchemaHealthCheck(HealthCheck):
         clickhouse_client: Any,
         expected_tables: Optional[List[str]] = None,
         expected_views: Optional[List[str]] = None,
-        database: str = 'neural_hive',
-        name: str = 'clickhouse_schema',
+        database: str = "neural_hive",
+        name: str = "clickhouse_schema",
         timeout_seconds: float = 10.0,
     ):
         """
@@ -84,9 +84,7 @@ class ClickHouseSchemaHealthCheck(HealthCheck):
             connection_ok = await self._check_connection()
             if not connection_ok:
                 return self._create_result(
-                    HealthStatus.UNHEALTHY,
-                    'Cannot connect to ClickHouse',
-                    start_time=start_time
+                    HealthStatus.UNHEALTHY, "Cannot connect to ClickHouse", start_time=start_time
                 )
 
             # Check database exists
@@ -95,8 +93,8 @@ class ClickHouseSchemaHealthCheck(HealthCheck):
                 return self._create_result(
                     HealthStatus.UNHEALTHY,
                     f"Database '{self.database}' does not exist",
-                    details={'database': self.database, 'exists': False},
-                    start_time=start_time
+                    details={"database": self.database, "exists": False},
+                    start_time=start_time,
                 )
 
             # Get existing tables
@@ -108,13 +106,13 @@ class ClickHouseSchemaHealthCheck(HealthCheck):
             missing_views = [v for v in self.expected_views if v not in existing_views]
 
             details = {
-                'database': self.database,
-                'expected_tables': len(self.expected_tables),
-                'found_tables': len(existing_tables),
-                'missing_tables': missing_tables,
-                'expected_views': len(self.expected_views),
-                'found_views': len(existing_views),
-                'missing_views': missing_views,
+                "database": self.database,
+                "expected_tables": len(self.expected_tables),
+                "found_tables": len(existing_tables),
+                "missing_tables": missing_tables,
+                "expected_views": len(self.expected_views),
+                "found_views": len(existing_views),
+                "missing_views": missing_views,
             }
 
             if missing_tables or missing_views:
@@ -125,7 +123,7 @@ class ClickHouseSchemaHealthCheck(HealthCheck):
                         HealthStatus.UNHEALTHY,
                         f"Schema not initialized: all {len(self.expected_tables)} tables missing",
                         details=details,
-                        start_time=start_time
+                        start_time=start_time,
                     )
                 elif len(missing_tables) > 0:
                     # Some tables missing - degraded
@@ -133,7 +131,7 @@ class ClickHouseSchemaHealthCheck(HealthCheck):
                         HealthStatus.DEGRADED,
                         f"Schema incomplete: {len(missing_tables)} tables and {len(missing_views)} views missing",
                         details=details,
-                        start_time=start_time
+                        start_time=start_time,
                     )
                 else:
                     # Only views missing - still degraded but less critical
@@ -141,57 +139,50 @@ class ClickHouseSchemaHealthCheck(HealthCheck):
                         HealthStatus.DEGRADED,
                         f"Materialized views missing: {missing_views}",
                         details=details,
-                        start_time=start_time
+                        start_time=start_time,
                     )
 
             return self._create_result(
                 HealthStatus.HEALTHY,
                 f"Schema complete: {len(existing_tables)} tables, {len(existing_views)} views",
                 details=details,
-                start_time=start_time
+                start_time=start_time,
             )
 
         except asyncio.TimeoutError:
             return self._create_result(
                 HealthStatus.UNHEALTHY,
                 f"Timeout checking ClickHouse schema ({self.timeout_seconds}s)",
-                start_time=start_time
+                start_time=start_time,
             )
         except Exception as e:
             logger.error(f"Error checking ClickHouse schema: {e}")
             return self._create_result(
-                HealthStatus.UNHEALTHY,
-                f"Error checking schema: {str(e)}",
-                start_time=start_time
+                HealthStatus.UNHEALTHY, f"Error checking schema: {str(e)}", start_time=start_time
             )
 
     async def _check_connection(self) -> bool:
         """Check if ClickHouse connection is working."""
         try:
             # Try different client interfaces
-            if hasattr(self.client, 'execute'):
+            if hasattr(self.client, "execute"):
                 # clickhouse-driver sync client
                 result = await asyncio.wait_for(
-                    asyncio.get_event_loop().run_in_executor(
-                        None, self.client.execute, 'SELECT 1'
-                    ),
-                    timeout=self.timeout_seconds
+                    asyncio.get_event_loop().run_in_executor(None, self.client.execute, "SELECT 1"),
+                    timeout=self.timeout_seconds,
                 )
                 return result is not None
-            elif hasattr(self.client, 'fetch'):
+            elif hasattr(self.client, "fetch"):
                 # aioch async client
                 result = await asyncio.wait_for(
-                    self.client.fetch('SELECT 1'),
-                    timeout=self.timeout_seconds
+                    self.client.fetch("SELECT 1"), timeout=self.timeout_seconds
                 )
                 return result is not None
-            elif hasattr(self.client, 'ping'):
+            elif hasattr(self.client, "ping"):
                 # Generic ping method
                 return await asyncio.wait_for(
-                    asyncio.get_event_loop().run_in_executor(
-                        None, self.client.ping
-                    ),
-                    timeout=self.timeout_seconds
+                    asyncio.get_event_loop().run_in_executor(None, self.client.ping),
+                    timeout=self.timeout_seconds,
                 )
             else:
                 logger.warning("Unknown ClickHouse client type, assuming connected")
@@ -240,20 +231,15 @@ class ClickHouseSchemaHealthCheck(HealthCheck):
 
     async def _execute_query(self, query: str) -> List[tuple]:
         """Execute a query and return results."""
-        if hasattr(self.client, 'execute'):
+        if hasattr(self.client, "execute"):
             # clickhouse-driver sync client
             return await asyncio.wait_for(
-                asyncio.get_event_loop().run_in_executor(
-                    None, self.client.execute, query
-                ),
-                timeout=self.timeout_seconds
+                asyncio.get_event_loop().run_in_executor(None, self.client.execute, query),
+                timeout=self.timeout_seconds,
             )
-        elif hasattr(self.client, 'fetch'):
+        elif hasattr(self.client, "fetch"):
             # aioch async client
-            return await asyncio.wait_for(
-                self.client.fetch(query),
-                timeout=self.timeout_seconds
-            )
+            return await asyncio.wait_for(self.client.fetch(query), timeout=self.timeout_seconds)
         else:
             raise RuntimeError("Unknown ClickHouse client type")
 
@@ -268,7 +254,7 @@ class ClickHouseConnectionHealthCheck(HealthCheck):
     def __init__(
         self,
         clickhouse_client: Any,
-        name: str = 'clickhouse_connection',
+        name: str = "clickhouse_connection",
         timeout_seconds: float = 5.0,
     ):
         """
@@ -287,35 +273,29 @@ class ClickHouseConnectionHealthCheck(HealthCheck):
         start_time = time.time()
 
         try:
-            if hasattr(self.client, 'execute'):
+            if hasattr(self.client, "execute"):
                 result = await asyncio.wait_for(
-                    asyncio.get_event_loop().run_in_executor(
-                        None, self.client.execute, 'SELECT 1'
-                    ),
-                    timeout=self.timeout_seconds
+                    asyncio.get_event_loop().run_in_executor(None, self.client.execute, "SELECT 1"),
+                    timeout=self.timeout_seconds,
                 )
                 if result:
                     return self._create_result(
-                        HealthStatus.HEALTHY,
-                        'ClickHouse connection OK',
-                        start_time=start_time
+                        HealthStatus.HEALTHY, "ClickHouse connection OK", start_time=start_time
                     )
 
             return self._create_result(
-                HealthStatus.UNHEALTHY,
-                'ClickHouse connection failed',
-                start_time=start_time
+                HealthStatus.UNHEALTHY, "ClickHouse connection failed", start_time=start_time
             )
 
         except asyncio.TimeoutError:
             return self._create_result(
                 HealthStatus.UNHEALTHY,
                 f"ClickHouse connection timeout ({self.timeout_seconds}s)",
-                start_time=start_time
+                start_time=start_time,
             )
         except Exception as e:
             return self._create_result(
                 HealthStatus.UNHEALTHY,
                 f"ClickHouse connection error: {str(e)}",
-                start_time=start_time
+                start_time=start_time,
             )

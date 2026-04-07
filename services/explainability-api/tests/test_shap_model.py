@@ -9,11 +9,7 @@ import numpy as np
 from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime
 
-from src.models.shap_model import (
-    DecisionWrapperModel,
-    FeatureExtractor,
-    ModelTrainer
-)
+from src.models.shap_model import DecisionWrapperModel, FeatureExtractor, ModelTrainer
 
 
 class TestDecisionWrapperModel:
@@ -40,22 +36,22 @@ class TestDecisionWrapperModel:
                     "confidence_score": 0.9,
                     "risk_score": 0.1,
                     "processing_time_ms": 500,
-                    "seniority_multiplier": 1.5
+                    "seniority_multiplier": 1.5,
                 },
                 {
                     "specialist_type": "technical",
                     "confidence_score": 0.8,
                     "risk_score": 0.2,
                     "processing_time_ms": 800,
-                    "seniority_multiplier": 1.0
-                }
+                    "seniority_multiplier": 1.0,
+                },
             ],
             "consensus_metrics": {
                 "divergence_score": 0.2,
                 "unanimous": True,
                 "bayesian_confidence": 0.85,
-                "voting_confidence": 0.90
-            }
+                "voting_confidence": 0.90,
+            },
         }
 
     def test_init(self, model):
@@ -79,9 +75,9 @@ class TestDecisionWrapperModel:
         # Verificar valores esperados
         assert features[0][0] == 0.85  # confidence
         assert features[0][1] == 0.15  # risk
-        assert features[0][2] == 0.2   # divergence
-        assert features[0][4] >= 0     # processing_time (normalizado)
-        assert features[0][5] == 1.0   # unanimous
+        assert features[0][2] == 0.2  # divergence
+        assert features[0][4] >= 0  # processing_time (normalizado)
+        assert features[0][5] == 1.0  # unanimous
 
     def test_extract_features_without_seniority(self, model):
         """Testa extração quando seniority_multiplier está ausente."""
@@ -89,18 +85,14 @@ class TestDecisionWrapperModel:
             "aggregated_confidence": 0.7,
             "aggregated_risk": 0.3,
             "specialist_votes": [
-                {
-                    "confidence_score": 0.7,
-                    "risk_score": 0.3,
-                    "processing_time_ms": 1000
-                }
+                {"confidence_score": 0.7, "risk_score": 0.3, "processing_time_ms": 1000}
             ],
             "consensus_metrics": {
                 "divergence_score": 0.1,
                 "unanimous": False,
                 "bayesian_confidence": 0.7,
-                "voting_confidence": 0.75
-            }
+                "voting_confidence": 0.75,
+            },
         }
 
         features = model.extract_features(decision)
@@ -201,7 +193,7 @@ class TestDecisionWrapperModel:
         with pytest.raises(RuntimeError, match="Cannot save untrained"):
             model.save(str(tmp_path / "model.joblib"))
 
-    @patch('src.models.shap_model.joblib.dump')
+    @patch("src.models.shap_model.joblib.dump")
     def test_save_after_training(self, mock_dump, model, sample_decision, tmp_path):
         """Testa salvar modelo treinado."""
         decisions = [sample_decision.copy() for _ in range(15)]
@@ -218,22 +210,22 @@ class TestDecisionWrapperModel:
         call_args = mock_dump.call_args[0][1]
         assert call_args == model_path
 
-    @patch('src.models.shap_model.joblib.load')
+    @patch("src.models.shap_model.joblib.load")
     def test_load_model(self, mock_load, model, tmp_path):
         """Testa carregar modelo salvo."""
         mock_data = {
-            'model': Mock(),
-            'scaler': Mock(),
-            'feature_names': ['f1', 'f2'],
-            'model_type': 'random_forest',
-            'is_trained': True
+            "model": Mock(),
+            "scaler": Mock(),
+            "feature_names": ["f1", "f2"],
+            "model_type": "random_forest",
+            "is_trained": True,
         }
         mock_load.return_value = mock_data
 
         model.load(str(tmp_path / "model.joblib"))
 
         assert model.is_trained
-        assert model.feature_names == ['f1', 'f2']
+        assert model.feature_names == ["f1", "f2"]
 
 
 class TestFeatureExtractor:
@@ -251,29 +243,25 @@ class TestFeatureExtractor:
             {
                 "aggregated_confidence": 0.8,
                 "aggregated_risk": 0.2,
-                "specialist_votes": [
-                    {"processing_time_ms": 500, "seniority_multiplier": 1.0}
-                ],
+                "specialist_votes": [{"processing_time_ms": 500, "seniority_multiplier": 1.0}],
                 "consensus_metrics": {
                     "divergence_score": 0.1,
                     "unanimous": True,
                     "bayesian_confidence": 0.8,
-                    "voting_confidence": 0.85
-                }
+                    "voting_confidence": 0.85,
+                },
             },
             {
                 "aggregated_confidence": 0.3,
                 "aggregated_risk": 0.7,
-                "specialist_votes": [
-                    {"processing_time_ms": 1500, "seniority_multiplier": 1.5}
-                ],
+                "specialist_votes": [{"processing_time_ms": 1500, "seniority_multiplier": 1.5}],
                 "consensus_metrics": {
                     "divergence_score": 0.5,
                     "unanimous": False,
                     "bayesian_confidence": 0.3,
-                    "voting_confidence": 0.4
-                }
-            }
+                    "voting_confidence": 0.4,
+                },
+            },
         ]
 
     def test_init(self, extractor):
@@ -317,11 +305,7 @@ class TestModelTrainer:
     @pytest.fixture
     def trainer(self):
         """Fixture para ModelTrainer."""
-        return ModelTrainer(
-            model_type="random_forest",
-            min_samples=10,
-            target_accuracy=0.6
-        )
+        return ModelTrainer(model_type="random_forest", min_samples=10, target_accuracy=0.6)
 
     @pytest.fixture
     def sample_decisions(self):
@@ -338,15 +322,15 @@ class TestModelTrainer:
                         "processing_time_ms": 500 + i * 10,
                         "seniority_multiplier": 1.0,
                         "confidence_score": 0.3 + (i * 0.035),
-                        "risk_score": 0.7 - (i * 0.035)
+                        "risk_score": 0.7 - (i * 0.035),
                     }
                 ],
                 "consensus_metrics": {
                     "divergence_score": 0.1 + (i * 0.01),
                     "unanimous": i % 2 == 0,
                     "bayesian_confidence": 0.3 + (i * 0.035),
-                    "voting_confidence": 0.3 + (i * 0.035)
-                }
+                    "voting_confidence": 0.3 + (i * 0.035),
+                },
             }
             decisions.append(decision)
         return decisions
@@ -388,7 +372,7 @@ class TestModelTrainer:
 
         output_path = str(tmp_path / "model.joblib")
 
-        with patch('src.models.shap_model.joblib.dump') as mock_dump:
+        with patch("src.models.shap_model.joblib.dump") as mock_dump:
             trainer.save_trained_model(output_path)
             mock_dump.assert_called_once()
 
@@ -397,7 +381,7 @@ class TestModelTrainer:
         with pytest.raises(RuntimeError, match="No trained model"):
             trainer.save_trained_model(str(tmp_path / "model.joblib"))
 
-    @patch('src.models.shap_model.DecisionWrapperModel.load')
+    @patch("src.models.shap_model.DecisionWrapperModel.load")
     def test_load_model(self, mock_load, trainer):
         """Testa carregar modelo."""
         trainer.load_model("path/to/model.joblib")

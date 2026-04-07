@@ -61,12 +61,19 @@ def mock_orchestrator_client():
 def mock_load_predictor():
     """Mock do LoadPredictor."""
     predictor = AsyncMock()
-    predictor.predict_load = AsyncMock(return_value={
-        "forecast": [
-            {"timestamp": 1699056000, "predicted_load": 100, "lower_bound": 80, "upper_bound": 120}
-        ],
-        "metadata": {"confidence_level": 0.95}
-    })
+    predictor.predict_load = AsyncMock(
+        return_value={
+            "forecast": [
+                {
+                    "timestamp": 1699056000,
+                    "predicted_load": 100,
+                    "lower_bound": 80,
+                    "upper_bound": 120,
+                }
+            ],
+            "metadata": {"confidence_level": 0.95},
+        }
+    )
     return predictor
 
 
@@ -276,7 +283,9 @@ class TestValidateSLOAdjustment:
         assert len(result["errors"]) == 0
 
     @pytest.mark.asyncio
-    async def test_validate_invalid_availability(self, servicer, mock_mongodb_client, mock_grpc_context):
+    async def test_validate_invalid_availability(
+        self, servicer, mock_mongodb_client, mock_grpc_context
+    ):
         """Testa validação com disponibilidade inválida."""
         mock_mongodb_client.find_one.return_value = None
         mock_mongodb_client.count.return_value = 0
@@ -295,11 +304,16 @@ class TestValidateSLOAdjustment:
         result = await servicer.ValidateSLOAdjustment(request, mock_grpc_context)
 
         assert result["is_valid"] is False
-        assert any("disponibilidade" in e["description"].lower() or "availability" in e["description"].lower()
-                   for e in result["errors"])
+        assert any(
+            "disponibilidade" in e["description"].lower()
+            or "availability" in e["description"].lower()
+            for e in result["errors"]
+        )
 
     @pytest.mark.asyncio
-    async def test_validate_invalid_error_rate(self, servicer, mock_mongodb_client, mock_grpc_context):
+    async def test_validate_invalid_error_rate(
+        self, servicer, mock_mongodb_client, mock_grpc_context
+    ):
         """Testa validação com error rate inválido."""
         mock_mongodb_client.find_one.return_value = None
         mock_mongodb_client.count.return_value = 0
@@ -325,7 +339,9 @@ class TestRollbackSLOs:
     """Testes para RollbackSLOs."""
 
     @pytest.mark.asyncio
-    async def test_rollback_success(self, servicer, mock_mongodb_client, mock_redis_client, mock_grpc_context):
+    async def test_rollback_success(
+        self, servicer, mock_mongodb_client, mock_redis_client, mock_grpc_context
+    ):
         """Testa rollback bem-sucedido de SLOs."""
 
         async def mock_cursor():

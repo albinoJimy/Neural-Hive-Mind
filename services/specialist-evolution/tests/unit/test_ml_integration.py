@@ -7,8 +7,8 @@ from typing import Dict, Any
 from unittest.mock import Mock
 
 # Configurar paths
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
-sys.path.insert(0, '/app/libraries/python')
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
+sys.path.insert(0, "/app/libraries/python")
 
 
 class MockMLflowClient:
@@ -17,7 +17,7 @@ class MockMLflowClient:
     def __init__(self, model_available: bool = True):
         self._enabled = True
         self._model_available = model_available
-        self._model_metadata = {'version': 'v1.0.0', 'stage': 'Production'}
+        self._model_metadata = {"version": "v1.0.0", "stage": "Production"}
 
     def is_enabled(self) -> bool:
         return self._enabled
@@ -43,12 +43,16 @@ class MockEvolutionModel:
 
     def __init__(self):
         self.feature_names_in_ = [
-            'maintainability_score', 'scalability_score', 'extensibility_score',
-            'modularity_score', 'tech_debt_score'
+            "maintainability_score",
+            "scalability_score",
+            "extensibility_score",
+            "modularity_score",
+            "tech_debt_score",
         ]
 
     def predict(self, X):
         import numpy as np
+
         if len(X.shape) > 1:
             return np.where(X.mean(axis=1) > 0.5, 1, 0)
         return 1 if X.mean() > 0.5 else 0
@@ -62,11 +66,11 @@ def mock_mlflow_client():
 @pytest.fixture
 def sample_evolution_features():
     return {
-        'maintainability_score': 0.80,
-        'scalability_score': 0.75,
-        'extensibility_score': 0.70,
-        'modularity_score': 0.85,
-        'tech_debt_score': 0.65
+        "maintainability_score": 0.80,
+        "scalability_score": 0.75,
+        "extensibility_score": 0.70,
+        "modularity_score": 0.85,
+        "tech_debt_score": 0.65,
     }
 
 
@@ -75,7 +79,7 @@ class TestMLModelLoading:
 
     def test_load_evolution_model_success(self, mock_mlflow_client):
         model = mock_mlflow_client.load_model_with_fallback(
-            'specialist_evolution_model', 'Production'
+            "specialist_evolution_model", "Production"
         )
         assert model is not None
 
@@ -85,17 +89,22 @@ class TestMLModelPrediction:
 
     def test_predict_evolution_design(self, mock_mlflow_client, sample_evolution_features):
         model = mock_mlflow_client.load_model_with_fallback(
-            'specialist_evolution_model', 'Production'
+            "specialist_evolution_model", "Production"
         )
 
         import numpy as np
-        X = np.array([[
-            sample_evolution_features['maintainability_score'],
-            sample_evolution_features['scalability_score'],
-            sample_evolution_features['extensibility_score'],
-            sample_evolution_features['modularity_score'],
-            sample_evolution_features['tech_debt_score']
-        ]])
+
+        X = np.array(
+            [
+                [
+                    sample_evolution_features["maintainability_score"],
+                    sample_evolution_features["scalability_score"],
+                    sample_evolution_features["extensibility_score"],
+                    sample_evolution_features["modularity_score"],
+                    sample_evolution_features["tech_debt_score"],
+                ]
+            ]
+        )
 
         prediction = model.predict(X)
         assert prediction[0] in [0, 1]
@@ -113,15 +122,15 @@ class TestHeuristicFallback:
             "scalability": 0.25,
             "extensibility": 0.20,
             "modularity": 0.15,
-            "tech_debt_prevention": 0.15
+            "tech_debt_prevention": 0.15,
         }
 
         heuristic_score = (
-            sample_evolution_features['maintainability_score'] * default_weights['maintainability'] +
-            sample_evolution_features['scalability_score'] * default_weights['scalability'] +
-            sample_evolution_features['extensibility_score'] * default_weights['extensibility'] +
-            sample_evolution_features['modularity_score'] * default_weights['modularity'] +
-            sample_evolution_features['tech_debt_score'] * default_weights['tech_debt_prevention']
+            sample_evolution_features["maintainability_score"] * default_weights["maintainability"]
+            + sample_evolution_features["scalability_score"] * default_weights["scalability"]
+            + sample_evolution_features["extensibility_score"] * default_weights["extensibility"]
+            + sample_evolution_features["modularity_score"] * default_weights["modularity"]
+            + sample_evolution_features["tech_debt_score"] * default_weights["tech_debt_prevention"]
         )
 
         assert 0.0 <= heuristic_score <= 1.0
@@ -137,7 +146,7 @@ class TestAdaptiveWeights:
             "scalability": 0.25,
             "extensibility": 0.20,
             "modularity": 0.15,
-            "tech_debt_prevention": 0.15
+            "tech_debt_prevention": 0.15,
         }
 
         total_weight = sum(default_weights.values())
@@ -150,14 +159,14 @@ class TestAdaptiveWeights:
             "scalability": 0.25,
             "extensibility": 0.20,
             "modularity": 0.15,
-            "tech_debt_prevention": 0.15
+            "tech_debt_prevention": 0.15,
         }
 
         # Simular ajuste baseado em histórico
         adjustment_factor = 0.05
         adapted_weights = default_weights.copy()
-        adapted_weights['maintainability'] += adjustment_factor
-        adapted_weights['scalability'] -= adjustment_factor
+        adapted_weights["maintainability"] += adjustment_factor
+        adapted_weights["scalability"] -= adjustment_factor
 
         total_weight = sum(adapted_weights.values())
         assert abs(total_weight - 1.0) < 0.01
@@ -170,13 +179,8 @@ class TestCachePredictions:
         import hashlib
         import json
 
-        features = {
-            'maintainability_score': 0.80,
-            'scalability_score': 0.75
-        }
+        features = {"maintainability_score": 0.80, "scalability_score": 0.75}
 
-        cache_key = hashlib.md5(
-            json.dumps(features, sort_keys=True).encode()
-        ).hexdigest()
+        cache_key = hashlib.md5(json.dumps(features, sort_keys=True).encode()).hexdigest()
 
         assert len(cache_key) == 32

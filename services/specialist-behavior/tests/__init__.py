@@ -1,2 +1,1 @@
 """Testes para specialist-behavior."""
-

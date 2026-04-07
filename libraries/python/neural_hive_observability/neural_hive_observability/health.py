@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 class HealthStatus(Enum):
     """Status de health check."""
+
     HEALTHY = "healthy"
     UNHEALTHY = "unhealthy"
     DEGRADED = "degraded"
@@ -30,6 +31,7 @@ class HealthStatus(Enum):
 @dataclass
 class HealthCheckResult:
     """Resultado de health check."""
+
     name: str
     status: HealthStatus
     message: Optional[str] = None
@@ -67,7 +69,7 @@ class HealthCheck(ABC):
         status: HealthStatus,
         message: Optional[str] = None,
         details: Optional[Dict[str, Any]] = None,
-        start_time: float = 0.0
+        start_time: float = 0.0,
     ) -> HealthCheckResult:
         """Cria resultado padronizado."""
         return HealthCheckResult(
@@ -76,7 +78,7 @@ class HealthCheck(ABC):
             message=message,
             details=details or {},
             duration_seconds=time.time() - start_time if start_time > 0 else 0.0,
-            timestamp=time.time()
+            timestamp=time.time(),
         )
 
 
@@ -101,40 +103,36 @@ class DatabaseHealthCheck(HealthCheck):
         try:
             if self.connection_check:
                 if await asyncio.wait_for(
-                    asyncio.get_event_loop().run_in_executor(
-                        None, self.connection_check
-                    ),
-                    timeout=self.timeout_seconds
+                    asyncio.get_event_loop().run_in_executor(None, self.connection_check),
+                    timeout=self.timeout_seconds,
                 ):
                     return self._create_result(
-                        HealthStatus.HEALTHY,
-                        "Conexão com database OK",
-                        start_time=start_time
+                        HealthStatus.HEALTHY, "Conexão com database OK", start_time=start_time
                     )
                 else:
                     return self._create_result(
                         HealthStatus.UNHEALTHY,
                         "Falha na conexão com database",
-                        start_time=start_time
+                        start_time=start_time,
                     )
             else:
                 return self._create_result(
                     HealthStatus.UNKNOWN,
                     "Health check de database não configurado",
-                    start_time=start_time
+                    start_time=start_time,
                 )
 
         except asyncio.TimeoutError:
             return self._create_result(
                 HealthStatus.UNHEALTHY,
                 f"Timeout na conexão com database ({self.timeout_seconds}s)",
-                start_time=start_time
+                start_time=start_time,
             )
         except Exception as e:
             return self._create_result(
                 HealthStatus.UNHEALTHY,
                 f"Erro na conexão com database: {str(e)}",
-                start_time=start_time
+                start_time=start_time,
             )
 
 
@@ -159,40 +157,34 @@ class KafkaHealthCheck(HealthCheck):
         try:
             if self.producer_check:
                 if await asyncio.wait_for(
-                    asyncio.get_event_loop().run_in_executor(
-                        None, self.producer_check
-                    ),
-                    timeout=self.timeout_seconds
+                    asyncio.get_event_loop().run_in_executor(None, self.producer_check),
+                    timeout=self.timeout_seconds,
                 ):
                     return self._create_result(
-                        HealthStatus.HEALTHY,
-                        "Conexão com Kafka OK",
-                        start_time=start_time
+                        HealthStatus.HEALTHY, "Conexão com Kafka OK", start_time=start_time
                     )
                 else:
                     return self._create_result(
-                        HealthStatus.UNHEALTHY,
-                        "Falha na conexão com Kafka",
-                        start_time=start_time
+                        HealthStatus.UNHEALTHY, "Falha na conexão com Kafka", start_time=start_time
                     )
             else:
                 return self._create_result(
                     HealthStatus.UNKNOWN,
                     "Health check do Kafka não configurado",
-                    start_time=start_time
+                    start_time=start_time,
                 )
 
         except asyncio.TimeoutError:
             return self._create_result(
                 HealthStatus.UNHEALTHY,
                 f"Timeout na conexão com Kafka ({self.timeout_seconds}s)",
-                start_time=start_time
+                start_time=start_time,
             )
         except Exception as e:
             return self._create_result(
                 HealthStatus.UNHEALTHY,
                 f"Erro na conexão com Kafka: {str(e)}",
-                start_time=start_time
+                start_time=start_time,
             )
 
 
@@ -216,6 +208,7 @@ class MemoryHealthCheck(HealthCheck):
 
         try:
             import psutil
+
             process = psutil.Process()
             memory_info = process.memory_info()
             memory_percent = process.memory_percent()
@@ -224,7 +217,7 @@ class MemoryHealthCheck(HealthCheck):
                 "memory_rss_mb": round(memory_info.rss / 1024 / 1024, 2),
                 "memory_vms_mb": round(memory_info.vms / 1024 / 1024, 2),
                 "memory_percent": round(memory_percent, 2),
-                "max_memory_percent": self.max_memory_percent
+                "max_memory_percent": self.max_memory_percent,
             }
 
             if memory_percent > self.max_memory_percent:
@@ -232,34 +225,34 @@ class MemoryHealthCheck(HealthCheck):
                     HealthStatus.UNHEALTHY,
                     f"Alto uso de memória: {memory_percent:.1f}%",
                     details=details,
-                    start_time=start_time
+                    start_time=start_time,
                 )
             elif memory_percent > self.max_memory_percent * 0.8:
                 return self._create_result(
                     HealthStatus.DEGRADED,
                     f"Uso de memória elevado: {memory_percent:.1f}%",
                     details=details,
-                    start_time=start_time
+                    start_time=start_time,
                 )
             else:
                 return self._create_result(
                     HealthStatus.HEALTHY,
                     f"Uso de memória normal: {memory_percent:.1f}%",
                     details=details,
-                    start_time=start_time
+                    start_time=start_time,
                 )
 
         except ImportError:
             return self._create_result(
                 HealthStatus.UNKNOWN,
                 "psutil não disponível para check de memória",
-                start_time=start_time
+                start_time=start_time,
             )
         except Exception as e:
             return self._create_result(
                 HealthStatus.UNHEALTHY,
                 f"Erro ao verificar memória: {str(e)}",
-                start_time=start_time
+                start_time=start_time,
             )
 
 
@@ -323,7 +316,7 @@ class HealthChecker:
                     name=name,
                     status=HealthStatus.UNHEALTHY,
                     message=f"Erro interno: {str(e)}",
-                    timestamp=time.time()
+                    timestamp=time.time(),
                 )
                 results[name] = result
 
@@ -357,7 +350,7 @@ class HealthChecker:
                 name=check_name,
                 status=HealthStatus.UNHEALTHY,
                 message=f"Erro interno: {str(e)}",
-                timestamp=time.time()
+                timestamp=time.time(),
             )
 
     def get_last_results(self) -> Dict[str, HealthCheckResult]:
@@ -396,6 +389,7 @@ class HealthChecker:
         """Atualiza métrica de health check."""
         try:
             from . import get_metrics
+
             metrics = get_metrics()
             if metrics:
                 metrics.set_health_status(check_name, is_healthy)
@@ -456,7 +450,7 @@ class RedisHealthCheck(HealthCheck):
                 return self._create_result(
                     HealthStatus.UNKNOWN,
                     "Redis connection check não configurado",
-                    start_time=start_time
+                    start_time=start_time,
                 )
 
             # Executar check de conexão
@@ -467,22 +461,18 @@ class RedisHealthCheck(HealthCheck):
 
             if is_connected:
                 return self._create_result(
-                    HealthStatus.HEALTHY,
-                    "Redis conectado",
-                    start_time=start_time
+                    HealthStatus.HEALTHY, "Redis conectado", start_time=start_time
                 )
             else:
                 return self._create_result(
-                    HealthStatus.UNHEALTHY,
-                    "Redis não conectado",
-                    start_time=start_time
+                    HealthStatus.UNHEALTHY, "Redis não conectado", start_time=start_time
                 )
 
         except Exception as e:
             return self._create_result(
                 HealthStatus.UNHEALTHY,
                 f"Erro ao verificar conexão Redis: {str(e)}",
-                start_time=start_time
+                start_time=start_time,
             )
 
 
@@ -494,7 +484,7 @@ class CustomHealthCheck(HealthCheck):
         name: str,
         check_func: Callable[[], bool],
         description: str = "",
-        timeout_seconds: float = 5.0
+        timeout_seconds: float = 5.0,
     ):
         """
         Inicializa health check customizado.
@@ -524,20 +514,20 @@ class CustomHealthCheck(HealthCheck):
                 return self._create_result(
                     HealthStatus.HEALTHY,
                     self.description or f"{self.name} está saudável",
-                    start_time=start_time
+                    start_time=start_time,
                 )
             else:
                 return self._create_result(
                     HealthStatus.UNHEALTHY,
                     self.description or f"{self.name} está indisponível",
-                    start_time=start_time
+                    start_time=start_time,
                 )
 
         except Exception as e:
             return self._create_result(
                 HealthStatus.UNHEALTHY,
                 f"Erro no check '{self.name}': {str(e)}",
-                start_time=start_time
+                start_time=start_time,
             )
 
 

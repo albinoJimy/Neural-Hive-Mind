@@ -28,9 +28,7 @@ class TestPatternRegistry:
         registry = PatternRegistry(mongo_client)
 
         pattern_id = await registry.store_evaluation(
-            "plan-123",
-            sample_fingerprint,
-            sample_evaluation
+            "plan-123", sample_fingerprint, sample_evaluation
         )
 
         assert pattern_id is not None
@@ -53,12 +51,12 @@ class TestPatternRegistry:
                 task_count_range=TaskCountRange.MEDIUM,
                 task_types=["BUILD", "TEST"],
                 avg_dependency_count=1.0,
-                complexity_signature=f"TEST-{i}"
+                complexity_signature=f"TEST-{i}",
             )
             evaluation = EvolutionEvaluation(
                 confidence_score=0.7 + (i * 0.05),
                 risk_score=0.3 - (i * 0.05),
-                recommendation="approve"
+                recommendation="approve",
             )
             pattern_id = await registry.store_evaluation(f"plan-{i}", fingerprint, evaluation)
             assert pattern_id is not None
@@ -67,15 +65,15 @@ class TestPatternRegistry:
         count = await registry.collection.count_documents({})
         assert count == 5
 
-    async def test_add_feedback(self, mongo_client, sample_fingerprint, sample_evaluation, sample_feedback):
+    async def test_add_feedback(
+        self, mongo_client, sample_fingerprint, sample_evaluation, sample_feedback
+    ):
         """Testa adicionar feedback a uma avaliação existente."""
         registry = PatternRegistry(mongo_client)
 
         # Armazenar avaliação
         pattern_id = await registry.store_evaluation(
-            "plan-123",
-            sample_fingerprint,
-            sample_evaluation
+            "plan-123", sample_fingerprint, sample_evaluation
         )
 
         # Adicionar feedback
@@ -87,22 +85,19 @@ class TestPatternRegistry:
         assert doc["feedback"]["outcome"] == "approve"
         assert doc["feedback"]["source"] == "human"
 
-    async def test_add_feedback_with_corrected_weights(self, mongo_client, sample_fingerprint, sample_evaluation):
+    async def test_add_feedback_with_corrected_weights(
+        self, mongo_client, sample_fingerprint, sample_evaluation
+    ):
         """Testa adicionar feedback com pesos corrigidos."""
         registry = PatternRegistry(mongo_client)
 
         await registry.store_evaluation("plan-123", sample_fingerprint, sample_evaluation)
 
-        feedback = FeedbackData(
-            outcome=FeedbackOutcome.APPROVE,
-            source=FeedbackSource.HUMAN
-        )
+        feedback = FeedbackData(outcome=FeedbackOutcome.APPROVE, source=FeedbackSource.HUMAN)
         corrected_weights = {"maintainability": 0.30, "scalability": 0.20}
 
         updated = await registry.add_feedback(
-            "plan-123",
-            feedback,
-            corrected_weights=corrected_weights
+            "plan-123", feedback, corrected_weights=corrected_weights
         )
         assert updated is True
 
@@ -129,12 +124,12 @@ class TestPatternRegistry:
                 task_count_range=TaskCountRange.MEDIUM,
                 task_types=["BUILD", "TEST"],
                 avg_dependency_count=1.0,
-                complexity_signature=f"TEST-{i}"
+                complexity_signature=f"TEST-{i}",
             )
             evaluation = EvolutionEvaluation(
                 confidence_score=0.7 + (i * 0.05),
                 risk_score=0.3 - (i * 0.05),
-                recommendation="approve"
+                recommendation="approve",
             )
             await registry.store_evaluation(f"plan-{i}", fingerprint, evaluation)
 
@@ -145,7 +140,7 @@ class TestPatternRegistry:
             task_count_range=TaskCountRange.MEDIUM,
             task_types=["BUILD", "TEST"],
             avg_dependency_count=1.0,
-            complexity_signature="TEST-1"
+            complexity_signature="TEST-1",
         )
 
         similar = await registry.find_similar_patterns(search_fingerprint, limit=10)
@@ -162,7 +157,7 @@ class TestPatternRegistry:
             task_count_range=TaskCountRange.MEDIUM,
             task_types=["BUILD", "TEST", "DEPLOY"],
             avg_dependency_count=1.5,
-            complexity_signature="TEST-1"
+            complexity_signature="TEST-1",
         )
         fingerprint2 = Fingerprint(
             domain="technical",
@@ -170,13 +165,11 @@ class TestPatternRegistry:
             task_count_range=TaskCountRange.MEDIUM,
             task_types=["CODE_REVIEW"],  # Disjunto
             avg_dependency_count=0.0,
-            complexity_signature="TEST-2"
+            complexity_signature="TEST-2",
         )
 
         evaluation = EvolutionEvaluation(
-            confidence_score=0.75,
-            risk_score=0.25,
-            recommendation="approve"
+            confidence_score=0.75, risk_score=0.25, recommendation="approve"
         )
 
         await registry.store_evaluation("plan-1", fingerprint1, evaluation)
@@ -189,13 +182,11 @@ class TestPatternRegistry:
             task_count_range=TaskCountRange.MEDIUM,
             task_types=["BUILD", "TEST"],
             avg_dependency_count=1.0,
-            complexity_signature="TEST-0"
+            complexity_signature="TEST-0",
         )
 
         similar = await registry.find_similar_patterns(
-            search_fingerprint,
-            limit=10,
-            min_similarity=0.5
+            search_fingerprint, limit=10, min_similarity=0.5
         )
         # Deve retornar apenas fingerprint1 (similaridade 0.67)
         assert len(similar) >= 1
@@ -213,10 +204,9 @@ class TestPatternRegistry:
         assert registry._calculate_jaccard({"A", "B"}, {"A", "B"}) == 1.0
 
         # Subconjunto
-        assert registry._calculate_jaccard(
-            {"A", "B", "C"},
-            {"A", "B"}
-        ) == pytest.approx(0.667, abs=0.01)
+        assert registry._calculate_jaccard({"A", "B", "C"}, {"A", "B"}) == pytest.approx(
+            0.667, abs=0.01
+        )
 
         # Conjuntos disjuntos
         assert registry._calculate_jaccard({"A", "B"}, {"C", "D"}) == 0.0
@@ -224,14 +214,14 @@ class TestPatternRegistry:
         # Um conjunto vazio
         assert registry._calculate_jaccard(set(), set()) == 1.0
 
-    async def test_update_metrics_success(self, mongo_client, sample_fingerprint, sample_evaluation):
+    async def test_update_metrics_success(
+        self, mongo_client, sample_fingerprint, sample_evaluation
+    ):
         """Testa atualizar métricas após feedback positivo."""
         registry = PatternRegistry(mongo_client)
 
         pattern_id = await registry.store_evaluation(
-            "plan-123",
-            sample_fingerprint,
-            sample_evaluation
+            "plan-123", sample_fingerprint, sample_evaluation
         )
 
         # Atualizar métricas (sucesso)
@@ -242,14 +232,14 @@ class TestPatternRegistry:
         assert doc["metrics"]["times_matched"] == 1
         assert doc["metrics"]["success_rate"] == 1.0  # (0.5 * 0 + 1.0) / 1 = 1.0
 
-    async def test_update_metrics_failure(self, mongo_client, sample_fingerprint, sample_evaluation):
+    async def test_update_metrics_failure(
+        self, mongo_client, sample_fingerprint, sample_evaluation
+    ):
         """Testa atualizar métricas após feedback negativo."""
         registry = PatternRegistry(mongo_client)
 
         pattern_id = await registry.store_evaluation(
-            "plan-123",
-            sample_fingerprint,
-            sample_evaluation
+            "plan-123", sample_fingerprint, sample_evaluation
         )
 
         # Atualizar métricas (falha)
@@ -260,14 +250,14 @@ class TestPatternRegistry:
         assert doc["metrics"]["times_matched"] == 1
         assert doc["metrics"]["success_rate"] == 0.0  # (0.5 * 0 + 0.0) / 1 = 0.0
 
-    async def test_update_metrics_multiple_times(self, mongo_client, sample_fingerprint, sample_evaluation):
+    async def test_update_metrics_multiple_times(
+        self, mongo_client, sample_fingerprint, sample_evaluation
+    ):
         """Testa atualizar métricas múltiplas vezes."""
         registry = PatternRegistry(mongo_client)
 
         pattern_id = await registry.store_evaluation(
-            "plan-123",
-            sample_fingerprint,
-            sample_evaluation
+            "plan-123", sample_fingerprint, sample_evaluation
         )
 
         # 3 sucessos, 2 falhas
@@ -282,7 +272,9 @@ class TestPatternRegistry:
         # Success rate esperado: (0.5*0 + 1+1+1+0+0) / 5 = 3/5 = 0.6
         assert doc["metrics"]["success_rate"] == pytest.approx(0.6, abs=0.01)
 
-    async def test_get_pattern_by_plan_id(self, mongo_client, sample_fingerprint, sample_evaluation):
+    async def test_get_pattern_by_plan_id(
+        self, mongo_client, sample_fingerprint, sample_evaluation
+    ):
         """Testa buscar padrão por plan_id."""
         registry = PatternRegistry(mongo_client)
 
@@ -311,12 +303,10 @@ class TestPatternRegistry:
                 priority="high",
                 task_count_range=TaskCountRange.MEDIUM,
                 avg_dependency_count=1.0,
-                complexity_signature=f"TECH-{i}"
+                complexity_signature=f"TECH-{i}",
             )
             evaluation = EvolutionEvaluation(
-                confidence_score=0.75,
-                risk_score=0.25,
-                recommendation="approve"
+                confidence_score=0.75, risk_score=0.25, recommendation="approve"
             )
             await registry.store_evaluation(f"tech-plan-{i}", fingerprint, evaluation)
 
@@ -326,12 +316,10 @@ class TestPatternRegistry:
                 priority="normal",
                 task_count_range=TaskCountRange.MEDIUM,
                 avg_dependency_count=0.5,
-                complexity_signature=f"BIZ-{i}"
+                complexity_signature=f"BIZ-{i}",
             )
             evaluation = EvolutionEvaluation(
-                confidence_score=0.75,
-                risk_score=0.25,
-                recommendation="approve"
+                confidence_score=0.75, risk_score=0.25, recommendation="approve"
             )
             await registry.store_evaluation(f"biz-plan-{i}", fingerprint, evaluation)
 
@@ -351,14 +339,12 @@ class TestPatternRegistry:
             await registry.store_evaluation(f"plan-{i}", sample_fingerprint, sample_evaluation)
 
         # Adicionar feedback a alguns
-        await registry.add_feedback("plan-0", FeedbackData(
-            outcome=FeedbackOutcome.APPROVE,
-            source=FeedbackSource.HUMAN
-        ))
-        await registry.add_feedback("plan-1", FeedbackData(
-            outcome=FeedbackOutcome.REJECT,
-            source=FeedbackSource.HUMAN
-        ))
+        await registry.add_feedback(
+            "plan-0", FeedbackData(outcome=FeedbackOutcome.APPROVE, source=FeedbackSource.HUMAN)
+        )
+        await registry.add_feedback(
+            "plan-1", FeedbackData(outcome=FeedbackOutcome.REJECT, source=FeedbackSource.HUMAN)
+        )
 
         # Obter estatísticas
         stats = await registry.get_statistics()
@@ -378,7 +364,7 @@ class TestPatternRegistry:
             priority="high",
             task_count_range=TaskCountRange.MEDIUM,
             avg_dependency_count=0.0,
-            complexity_signature="NONE"
+            complexity_signature="NONE",
         )
 
         similar = await registry.find_similar_patterns(fingerprint)
@@ -388,14 +374,20 @@ class TestPatternRegistry:
 class TestPatternRegistryEdgeCases:
     """Testes de casos extremos para PatternRegistry."""
 
-    async def test_store_with_duplicate_plan_id(self, mongo_client, sample_fingerprint, sample_evaluation):
+    async def test_store_with_duplicate_plan_id(
+        self, mongo_client, sample_fingerprint, sample_evaluation
+    ):
         """Testa armazenar com plan_id duplicado (MongoDB deve permitir)."""
         registry = PatternRegistry(mongo_client)
 
         # Primeira inserção
-        pattern_id1 = await registry.store_evaluation("plan-123", sample_fingerprint, sample_evaluation)
+        pattern_id1 = await registry.store_evaluation(
+            "plan-123", sample_fingerprint, sample_evaluation
+        )
         # Segunda inserção (deve criar novo documento)
-        pattern_id2 = await registry.store_evaluation("plan-123", sample_fingerprint, sample_evaluation)
+        pattern_id2 = await registry.store_evaluation(
+            "plan-123", sample_fingerprint, sample_evaluation
+        )
 
         # Ambos devem ter IDs diferentes
         assert pattern_id1 != pattern_id2
@@ -412,12 +404,10 @@ class TestPatternRegistryEdgeCases:
                 task_count_range=TaskCountRange.MEDIUM,
                 task_types=["BUILD", "TEST"],
                 avg_dependency_count=1.0,
-                complexity_signature=f"TEST-{i:02d}"
+                complexity_signature=f"TEST-{i:02d}",
             )
             evaluation = EvolutionEvaluation(
-                confidence_score=0.75,
-                risk_score=0.25,
-                recommendation="approve"
+                confidence_score=0.75, risk_score=0.25, recommendation="approve"
             )
             await registry.store_evaluation(f"plan-{i}", fingerprint, evaluation)
 
@@ -428,7 +418,7 @@ class TestPatternRegistryEdgeCases:
             task_count_range=TaskCountRange.MEDIUM,
             task_types=["BUILD", "TEST"],
             avg_dependency_count=1.0,
-            complexity_signature="TEST-00"
+            complexity_signature="TEST-00",
         )
 
         similar = await registry.find_similar_patterns(search_fingerprint, limit=5)
@@ -444,12 +434,10 @@ class TestPatternRegistryEdgeCases:
             priority="high",
             task_count_range=TaskCountRange.MEDIUM,
             avg_dependency_count=1.5,
-            complexity_signature="T-M-B-T-D"
+            complexity_signature="T-M-B-T-D",
         )
         evaluation = EvolutionEvaluation(
-            confidence_score=0.75,
-            risk_score=0.25,
-            recommendation="approve"
+            confidence_score=0.75, risk_score=0.25, recommendation="approve"
         )
         await registry.store_evaluation("plan-1", fingerprint, evaluation)
 
@@ -459,7 +447,7 @@ class TestPatternRegistryEdgeCases:
             priority="high",
             task_count_range=TaskCountRange.MEDIUM,
             avg_dependency_count=1.0,
-            complexity_signature="T-M-X-X-X"
+            complexity_signature="T-M-X-X-X",
         )
 
         similar = await registry.find_similar_patterns(search_fingerprint)
@@ -475,12 +463,10 @@ class TestPatternRegistryEdgeCases:
             priority="high",
             task_count_range=TaskCountRange.MEDIUM,
             avg_dependency_count=1.0,
-            complexity_signature="TECH"
+            complexity_signature="TECH",
         )
         evaluation = EvolutionEvaluation(
-            confidence_score=0.75,
-            risk_score=0.25,
-            recommendation="approve"
+            confidence_score=0.75, risk_score=0.25, recommendation="approve"
         )
         await registry.store_evaluation("tech-plan", tech_fingerprint, evaluation)
 
@@ -490,7 +476,7 @@ class TestPatternRegistryEdgeCases:
             priority="high",
             task_count_range=TaskCountRange.MEDIUM,
             avg_dependency_count=0.5,
-            complexity_signature="TECH"
+            complexity_signature="TECH",
         )
 
         similar = await registry.find_similar_patterns(biz_fingerprint)

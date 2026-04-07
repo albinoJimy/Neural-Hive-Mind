@@ -4,6 +4,7 @@ Modelos Pydantic para Intent Envelope baseados no schema JSON-LD
 
 import uuid
 from datetime import datetime, timezone
+
 UTC = timezone.utc  # type: ignore
 from enum import Enum, StrEnum
 from typing import Any

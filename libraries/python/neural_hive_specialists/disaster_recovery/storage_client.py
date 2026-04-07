@@ -161,18 +161,14 @@ class S3StorageClient(StorageClient):
             import boto3
             from botocore.config import Config
         except ImportError:
-            raise ImportError(
-                "boto3 não instalado. Instale com: pip install boto3>=1.34.0"
-            )
+            raise ImportError("boto3 não instalado. Instale com: pip install boto3>=1.34.0")
 
         self.bucket = bucket
         self.region = region
         self.prefix = prefix.rstrip("/")
 
         # Configurar retry logic
-        config = Config(
-            region_name=region, retries={"max_attempts": 3, "mode": "adaptive"}
-        )
+        config = Config(region_name=region, retries={"max_attempts": 3, "mode": "adaptive"})
 
         # Criar cliente boto3
         if aws_access_key and aws_secret_key:
@@ -186,9 +182,7 @@ class S3StorageClient(StorageClient):
             # Usar IAM role
             self.s3_client = boto3.client("s3", config=config)
 
-        logger.info(
-            "S3StorageClient inicializado", bucket=bucket, region=region, prefix=prefix
-        )
+        logger.info("S3StorageClient inicializado", bucket=bucket, region=region, prefix=prefix)
 
     def _get_full_key(self, remote_key: str) -> str:
         """
@@ -260,9 +254,7 @@ class S3StorageClient(StorageClient):
         full_key = self._get_full_key(remote_key)
 
         try:
-            logger.info(
-                "Iniciando download S3", remote_key=full_key, local_path=local_path
-            )
+            logger.info("Iniciando download S3", remote_key=full_key, local_path=local_path)
 
             import time
 
@@ -301,9 +293,7 @@ class S3StorageClient(StorageClient):
         try:
             logger.debug("Listando backups S3", bucket=self.bucket, prefix=full_prefix)
 
-            response = self.s3_client.list_objects_v2(
-                Bucket=self.bucket, Prefix=full_prefix
-            )
+            response = self.s3_client.list_objects_v2(Bucket=self.bucket, Prefix=full_prefix)
 
             if "Contents" not in response:
                 return []
@@ -327,9 +317,7 @@ class S3StorageClient(StorageClient):
             return backups
 
         except Exception as e:
-            logger.error(
-                "Erro ao listar backups S3", error=str(e), error_type=type(e).__name__
-            )
+            logger.error("Erro ao listar backups S3", error=str(e), error_type=type(e).__name__)
             return []
 
     def delete_backup(self, remote_key: str) -> bool:
@@ -418,9 +406,7 @@ class GCSStorageClient(StorageClient):
 
         # Criar cliente GCS
         if credentials_path:
-            credentials = service_account.Credentials.from_service_account_file(
-                credentials_path
-            )
+            credentials = service_account.Credentials.from_service_account_file(credentials_path)
             self.client = storage.Client(project=project, credentials=credentials)
         else:
             # Usar credenciais padrão (ADC)
@@ -499,9 +485,7 @@ class GCSStorageClient(StorageClient):
         full_key = self._get_full_key(remote_key)
 
         try:
-            logger.info(
-                "Iniciando download GCS", remote_key=full_key, local_path=local_path
-            )
+            logger.info("Iniciando download GCS", remote_key=full_key, local_path=local_path)
 
             import time
 
@@ -539,9 +523,7 @@ class GCSStorageClient(StorageClient):
         full_prefix = self._get_full_key(prefix) if prefix else self.prefix
 
         try:
-            logger.debug(
-                "Listando backups GCS", bucket=self.bucket_name, prefix=full_prefix
-            )
+            logger.debug("Listando backups GCS", bucket=self.bucket_name, prefix=full_prefix)
 
             blobs = self.client.list_blobs(self.bucket_name, prefix=full_prefix)
 
@@ -564,9 +546,7 @@ class GCSStorageClient(StorageClient):
             return backups
 
         except Exception as e:
-            logger.error(
-                "Erro ao listar backups GCS", error=str(e), error_type=type(e).__name__
-            )
+            logger.error("Erro ao listar backups GCS", error=str(e), error_type=type(e).__name__)
             return []
 
     def delete_backup(self, remote_key: str) -> bool:

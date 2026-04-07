@@ -105,7 +105,9 @@ def _create_mock_mongo_client(explainability_data=None, seniority_data=None):
             # Filtrar por specialist_id com $in
             if "specialist_id" in query and "$in" in query["specialist_id"]:
                 specialist_list = query["specialist_id"]["$in"]
-                filtered_data = [d for d in filtered_data if d.get("specialist_id") in specialist_list]
+                filtered_data = [
+                    d for d in filtered_data if d.get("specialist_id") in specialist_list
+                ]
             # Filtrar por changed_at
             if "changed_at" in query and "$gte" in query["changed_at"]:
                 cutoff = query["changed_at"]["$gte"]
@@ -142,6 +144,7 @@ def mongo_client():
 def tracker(mongo_client):
     """TemporalTracker instance."""
     from src.services.temporal_tracker import TemporalTracker
+
     return TemporalTracker(mongo_client)
 
 
@@ -181,6 +184,7 @@ class TestGetCurrentSession:
 
         mongo_client, explainability_collection, _ = _create_mock_mongo_client(test_data)
         from src.services.temporal_tracker import TemporalTracker
+
         tracker_instance = TemporalTracker(mongo_client)
 
         # Configure find_one to return reference decision
@@ -200,6 +204,7 @@ class TestGetCurrentSession:
         """Testa sessão quando decisão de referência não existe."""
         mongo_client, explainability_collection, _ = _create_mock_mongo_client()
         from src.services.temporal_tracker import TemporalTracker
+
         tracker_instance = TemporalTracker(mongo_client)
 
         explainability_collection.find_one = AsyncMock(return_value=None)
@@ -225,6 +230,7 @@ class TestGetCurrentSession:
 
         mongo_client, explainability_collection, _ = _create_mock_mongo_client()
         from src.services.temporal_tracker import TemporalTracker
+
         tracker_instance = TemporalTracker(mongo_client)
 
         explainability_collection.find_one = AsyncMock(return_value=test_data[0])
@@ -267,6 +273,7 @@ class TestGetWindowAnalysis:
 
         mongo_client, _, _ = _create_mock_mongo_client(test_data)
         from src.services.temporal_tracker import TemporalTracker
+
         tracker_instance = TemporalTracker(mongo_client)
 
         result = await tracker_instance.get_window_analysis(days=7)
@@ -276,7 +283,7 @@ class TestGetWindowAnalysis:
         assert result["approve_count"] == 2
         assert result["reject_count"] == 1
         # approve_rate é arredondado para 3 casas decimais
-        assert abs(result["approve_rate"] - 2/3) < 0.001
+        assert abs(result["approve_rate"] - 2 / 3) < 0.001
         assert len(result["daily_breakdown"]) == 3
 
     @pytest.mark.asyncio
@@ -295,6 +302,7 @@ class TestGetWindowAnalysis:
 
         mongo_client, _, _ = _create_mock_mongo_client(test_data)
         from src.services.temporal_tracker import TemporalTracker
+
         tracker_instance = TemporalTracker(mongo_client)
 
         result = await tracker_instance.get_window_analysis(days=30)
@@ -310,6 +318,7 @@ class TestGetWindowAnalysis:
         """Testa análise de janela vazia."""
         mongo_client, _, _ = _create_mock_mongo_client([])
         from src.services.temporal_tracker import TemporalTracker
+
         tracker_instance = TemporalTracker(mongo_client)
 
         result = await tracker_instance.get_window_analysis(days=7)
@@ -349,6 +358,7 @@ class TestGetWindowAnalysis:
 
         mongo_client, _, _ = _create_mock_mongo_client(test_data)
         from src.services.temporal_tracker import TemporalTracker
+
         tracker_instance = TemporalTracker(mongo_client)
 
         result = await tracker_instance.get_window_analysis(days=7)
@@ -390,11 +400,11 @@ class TestGetSeniorityChanges:
 
         mongo_client, _, _ = _create_mock_mongo_client(seniority_data=seniority_data)
         from src.services.temporal_tracker import TemporalTracker
+
         tracker_instance = TemporalTracker(mongo_client)
 
         result = await tracker_instance.get_seniority_changes(
-            specialists=["spec_1", "spec_2"],
-            days=30
+            specialists=["spec_1", "spec_2"], days=30
         )
 
         assert result["period_days"] == 30
@@ -408,11 +418,11 @@ class TestGetSeniorityChanges:
         """Testa quando não há mudanças de senioridade."""
         mongo_client, _, _ = _create_mock_mongo_client(seniority_data=[])
         from src.services.temporal_tracker import TemporalTracker
+
         tracker_instance = TemporalTracker(mongo_client)
 
         result = await tracker_instance.get_seniority_changes(
-            specialists=["spec_1", "spec_2"],
-            days=30
+            specialists=["spec_1", "spec_2"], days=30
         )
 
         assert result["period_days"] == 30
@@ -445,15 +455,17 @@ class TestGetSeniorityChanges:
             filtered = [d for d in seniority_data if d.get("specialist_id") in ["spec_1", "spec_2"]]
             return AsyncCursorMock(filtered)
 
-        mongo_client, _, seniority_collection = _create_mock_mongo_client(seniority_data=seniority_data)
+        mongo_client, _, seniority_collection = _create_mock_mongo_client(
+            seniority_data=seniority_data
+        )
         seniority_collection.find = MagicMock(side_effect=create_filtered_cursor)
 
         from src.services.temporal_tracker import TemporalTracker
+
         tracker_instance = TemporalTracker(mongo_client)
 
         result = await tracker_instance.get_seniority_changes(
-            specialists=["spec_1", "spec_2"],
-            days=30
+            specialists=["spec_1", "spec_2"], days=30
         )
 
         # Apenas spec_1 deve estar nos resultados (spec_3 foi filtrado)
@@ -504,6 +516,7 @@ class TestGetSeniorityDistribution:
 
         mongo_client, _, _ = _create_mock_mongo_client(seniority_data=seniority_data)
         from src.services.temporal_tracker import TemporalTracker
+
         tracker_instance = TemporalTracker(mongo_client)
 
         since = now - timedelta(days=30)
@@ -542,6 +555,7 @@ class TestGetSeniorityDistribution:
 
         mongo_client, _, _ = _create_mock_mongo_client(seniority_data=sorted_data)
         from src.services.temporal_tracker import TemporalTracker
+
         tracker_instance = TemporalTracker(mongo_client)
 
         since = now - timedelta(days=30)
@@ -557,6 +571,7 @@ class TestGetSeniorityDistribution:
         """Testa distribuição com dados vazios."""
         mongo_client, _, _ = _create_mock_mongo_client(seniority_data=[])
         from src.services.temporal_tracker import TemporalTracker
+
         tracker_instance = TemporalTracker(mongo_client)
 
         since = datetime.now(timezone.utc) - timedelta(days=30)
@@ -584,6 +599,7 @@ class TestParseCursor:
 
         mongo_client, _, _ = _create_mock_mongo_client()
         from src.services.temporal_tracker import TemporalTracker
+
         tracker_instance = TemporalTracker(mongo_client)
 
         results = await tracker_instance._parse_cursor(cursor)
@@ -599,6 +615,7 @@ class TestParseCursor:
 
         mongo_client, _, _ = _create_mock_mongo_client()
         from src.services.temporal_tracker import TemporalTracker
+
         tracker_instance = TemporalTracker(mongo_client)
 
         results = await tracker_instance._parse_cursor(cursor)
@@ -618,6 +635,7 @@ class TestParseCursor:
 
         mongo_client, _, _ = _create_mock_mongo_client()
         from src.services.temporal_tracker import TemporalTracker
+
         tracker_instance = TemporalTracker(mongo_client)
 
         results = await tracker_instance._parse_cursor(cursor)

@@ -50,9 +50,7 @@ def mock_mlflow_client():
 def retraining_trigger(mock_config, mock_feedback_collector, mock_mlflow_client):
     """Instância de RetrainingTrigger com mocks."""
     with patch("neural_hive_specialists.feedback.retraining_trigger.MongoClient"):
-        trigger = RetrainingTrigger(
-            mock_config, mock_feedback_collector, mock_mlflow_client
-        )
+        trigger = RetrainingTrigger(mock_config, mock_feedback_collector, mock_mlflow_client)
         trigger._triggers_collection = MagicMock()
         return trigger
 
@@ -60,9 +58,7 @@ def retraining_trigger(mock_config, mock_feedback_collector, mock_mlflow_client)
 class TestRetrainingTrigger:
     """Testes do RetrainingTrigger."""
 
-    def test_should_trigger_when_threshold_met(
-        self, retraining_trigger, mock_feedback_collector
-    ):
+    def test_should_trigger_when_threshold_met(self, retraining_trigger, mock_feedback_collector):
         """Teste quando threshold é atingido."""
         mock_feedback_collector.count_recent_feedback.return_value = 150
 
@@ -150,9 +146,7 @@ class TestRetrainingTrigger:
         assert exp_id == "exp-123"
 
         # Verificar que mlflow.set_experiment foi chamado
-        mock_mlflow.set_experiment.assert_called_once_with(
-            "specialist-retraining-technical"
-        )
+        mock_mlflow.set_experiment.assert_called_once_with("specialist-retraining-technical")
 
         # Verificar que mlflow.projects.run foi chamado SEM experiment_id
         call_args = mock_mlflow.projects.run.call_args
@@ -175,9 +169,7 @@ class TestRetrainingTrigger:
 
     def test_trigger_retraining_mlflow_error(self, retraining_trigger):
         """Teste de erro no MLflow."""
-        retraining_trigger._start_mlflow_run = Mock(
-            side_effect=Exception("MLflow error")
-        )
+        retraining_trigger._start_mlflow_run = Mock(side_effect=Exception("MLflow error"))
         retraining_trigger._triggers_collection.insert_one = Mock()
         retraining_trigger._triggers_collection.update_one = Mock()
 
@@ -195,9 +187,7 @@ class TestRetrainingTrigger:
 
         retraining_trigger._triggers_collection.update_one.assert_called_once()
 
-    def test_check_and_trigger_threshold_not_met(
-        self, retraining_trigger, mock_feedback_collector
-    ):
+    def test_check_and_trigger_threshold_not_met(self, retraining_trigger, mock_feedback_collector):
         """Teste quando threshold não é atingido."""
         mock_feedback_collector.count_recent_feedback.return_value = 50
 
@@ -205,9 +195,7 @@ class TestRetrainingTrigger:
 
         assert trigger_id is None
 
-    def test_check_and_trigger_cooldown_active(
-        self, retraining_trigger, mock_feedback_collector
-    ):
+    def test_check_and_trigger_cooldown_active(self, retraining_trigger, mock_feedback_collector):
         """Teste quando cooldown está ativo."""
         mock_feedback_collector.count_recent_feedback.return_value = 150
         retraining_trigger._check_cooldown = Mock(return_value=True)
@@ -229,9 +217,7 @@ class TestRetrainingTrigger:
         assert trigger_id == "trigger-123"
         retraining_trigger.trigger_retraining.assert_called_once()
 
-    def test_check_and_trigger_success(
-        self, retraining_trigger, mock_feedback_collector
-    ):
+    def test_check_and_trigger_success(self, retraining_trigger, mock_feedback_collector):
         """Teste de check and trigger bem-sucedido."""
         mock_feedback_collector.count_recent_feedback.return_value = 150
         retraining_trigger._check_cooldown = Mock(return_value=False)

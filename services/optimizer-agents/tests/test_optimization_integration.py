@@ -17,7 +17,14 @@ class TestMultiDatabaseAnalyzers:
         """Testa análise de pipeline MongoDB."""
         analyzer = MongoDBAnalyzer()
         pipeline = [
-            {"$lookup": {"from": "users", "localField": "user_id", "foreignField": "_id", "as": "user"}},
+            {
+                "$lookup": {
+                    "from": "users",
+                    "localField": "user_id",
+                    "foreignField": "_id",
+                    "as": "user",
+                }
+            },
             {"$sort": {"created_at": -1}},
             {"$limit": 100},
         ]

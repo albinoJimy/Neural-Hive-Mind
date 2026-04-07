@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from .model_promotion import ModelPromotionManager
 from datetime import timezone
+
 UTC = timezone.utc  # type: ignore
 import numpy as np
 import structlog

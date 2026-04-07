@@ -403,9 +403,7 @@ class OrchestratorSettings(BaseSettings):
     )
 
     # SLA Alerts Integration (Slack + PagerDuty)
-    sla_alerts_enabled: bool = Field(
-        default=True, description="Habilitar consumer de alertas SLA"
-    )
+    sla_alerts_enabled: bool = Field(default=True, description="Habilitar consumer de alertas SLA")
     sla_alerts_topics: list[str] = Field(
         default=["sla.alerts", "sla.violations"],
         description="Tópicos Kafka para alertas SLA",
@@ -826,24 +824,19 @@ class OrchestratorSettings(BaseSettings):
 
     # OPA Authorization Middleware (HTTP API)
     enable_opa_authorization: bool = Field(
-        default=True,
-        description="Habilitar middleware de autorização OPA para API HTTP"
+        default=True, description="Habilitar middleware de autorização OPA para API HTTP"
     )
     opa_authorization_policy_path: str = Field(
-        default="neuralhive/orchestrator/authz",
-        description="Path da política de autorização HTTP"
+        default="neuralhive/orchestrator/authz", description="Path da política de autorização HTTP"
     )
     opa_user_id_header: str = Field(
-        default="X-User-ID",
-        description="Header contendo o ID do usuário"
+        default="X-User-ID", description="Header contendo o ID do usuário"
     )
     opa_tenant_id_header: str = Field(
-        default="X-Tenant-ID",
-        description="Header contendo o ID do tenant"
+        default="X-Tenant-ID", description="Header contendo o ID do tenant"
     )
     opa_role_header: str = Field(
-        default="X-User-Role",
-        description="Header contendo a role do usuário"
+        default="X-User-Role", description="Header contendo a role do usuário"
     )
 
     # Token Bucket Rate Limiting

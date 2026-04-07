@@ -8,13 +8,12 @@ from unittest.mock import patch, Mock
 # Adicionar diretório de scripts ao path
 sys.path.insert(
     0,
-    os.path.join(
-        os.path.dirname(__file__), "..", "scripts"
-    ),
+    os.path.join(os.path.dirname(__file__), "..", "scripts"),
 )
 
 try:
     import run_business_metrics_collector
+
     SCRIPT_AVAILABLE = True
 except ImportError:
     SCRIPT_AVAILABLE = False
@@ -24,12 +23,15 @@ except ImportError:
 class TestLoadConfig:
     """Testes para load_config()."""
 
-    @patch.dict(os.environ, {
-        "MONGODB_URI": "mongodb://localhost:27017",
-        "MONGODB_DATABASE": "test_db",
-        "BUSINESS_METRICS_WINDOW_HOURS": "48",
-        "ANOMALY_CONTAMINATION": "0.15",
-    })
+    @patch.dict(
+        os.environ,
+        {
+            "MONGODB_URI": "mongodb://localhost:27017",
+            "MONGODB_DATABASE": "test_db",
+            "BUSINESS_METRICS_WINDOW_HOURS": "48",
+            "ANOMALY_CONTAMINATION": "0.15",
+        },
+    )
     def test_load_config_from_env(self):
         """Testa carregamento de config das variáveis de ambiente."""
         config = run_business_metrics_collector.load_config()
@@ -45,10 +47,13 @@ class TestLoadConfig:
         with pytest.raises(SystemExit):
             run_business_metrics_collector.load_config()
 
-    @patch.dict(os.environ, {
-        "MONGODB_URI": "mongodb://localhost:27017",
-        "ENABLE_BUSINESS_METRICS": "false",
-    })
+    @patch.dict(
+        os.environ,
+        {
+            "MONGODB_URI": "mongodb://localhost:27017",
+            "ENABLE_BUSINESS_METRICS": "false",
+        },
+    )
     def test_load_config_business_metrics_disabled(self):
         """Testa configuração com business metrics desabilitado."""
         config = run_business_metrics_collector.load_config()

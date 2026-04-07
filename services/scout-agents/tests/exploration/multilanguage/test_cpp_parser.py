@@ -18,7 +18,7 @@ class TestCppParserBasic:
 
     def test_parse_simple_class(self, cpp_parser):
         """Testa parsing de classe simples."""
-        code = '''
+        code = """
 class UserService {
 private:
     std::string name;
@@ -30,16 +30,16 @@ public:
         return name;
     }
 };
-'''
+"""
         result = cpp_parser.parse(code, "UserService.cpp")
 
         assert result is not None
-        assert len(result['classes']) == 1
-        assert result['classes'][0]['name'] == 'UserService'
+        assert len(result["classes"]) == 1
+        assert result["classes"][0]["name"] == "UserService"
 
     def test_parse_struct(self, cpp_parser):
         """Testa parsing de struct C/C++."""
-        code = '''
+        code = """
 struct User {
     char name[50];
     int age;
@@ -49,16 +49,16 @@ struct Point {
     int x;
     int y;
 };
-'''
+"""
         result = cpp_parser.parse(code, "user.cpp")
 
         assert result is not None
-        structs = result.get('structs', [])
+        structs = result.get("structs", [])
         assert len(structs) >= 1
 
     def test_parse_function(self, cpp_parser):
         """Testa parsing de função."""
-        code = '''
+        code = """
 int add(int a, int b) {
     return a + b;
 }
@@ -66,16 +66,16 @@ int add(int a, int b) {
 std::string getName() {
     return "Test";
 }
-'''
+"""
         result = cpp_parser.parse(code, "functions.cpp")
 
         assert result is not None
-        functions = result['functions']
+        functions = result["functions"]
         assert len(functions) >= 1
 
     def test_parse_template(self, cpp_parser):
         """Testa parsing de template."""
-        code = '''
+        code = """
 template<typename T>
 class Container {
     T data;
@@ -87,39 +87,39 @@ template<typename K, typename V>
 class Map {
     // implementation
 };
-'''
+"""
         result = cpp_parser.parse(code, "container.hpp")
 
         assert result is not None
-        classes = result.get('classes', [])
+        classes = result.get("classes", [])
         assert len(classes) >= 1
 
     def test_parse_namespace(self, cpp_parser):
         """Testa parsing de namespace."""
-        code = '''
+        code = """
 namespace Example {
     class Service {
     public:
         void serve() {}
     };
 }
-'''
+"""
         result = cpp_parser.parse(code, "service.cpp")
 
         assert result is not None
-        assert 'Example' in result.get('namespaces', '')
+        assert "Example" in result.get("namespaces", "")
 
     def test_parse_includes(self, cpp_parser):
         """Testa extração de includes."""
-        code = '''
+        code = """
 #include <iostream>
 #include <vector>
 #include "myheader.h"
-'''
+"""
         result = cpp_parser.parse(code, "main.cpp")
 
         assert result is not None
-        includes = result['imports']
+        includes = result["imports"]
         assert len(includes) >= 3
 
 
@@ -128,20 +128,20 @@ class TestCppParserComplexity:
 
     def test_calculate_complexity_simple(self, cpp_parser):
         """Testa complexidade de função simples."""
-        code = '''
+        code = """
 int add(int a, int b) {
     return a + b;
 }
-'''
+"""
         result = cpp_parser.parse(code, "math.cpp")
 
         assert result is not None
-        complexity = result.get('complexity', 1)
+        complexity = result.get("complexity", 1)
         assert complexity >= 1
 
     def test_calculate_complexity_with_loops(self, cpp_parser):
         """Testa complexidade com loops."""
-        code = '''
+        code = """
 void process(std::vector<int> items) {
     for (auto item : items) {
         if (item > 0) {
@@ -149,11 +149,11 @@ void process(std::vector<int> items) {
         }
     }
 }
-'''
+"""
         result = cpp_parser.parse(code, "process.cpp")
 
         assert result is not None
-        complexity = result.get('complexity', 1)
+        complexity = result.get("complexity", 1)
         assert complexity > 1
 
 
@@ -162,7 +162,7 @@ class TestCppParserMacros:
 
     def test_detect_macros(self, cpp_parser):
         """Testa detecção de macros."""
-        code = '''
+        code = """
 #define MAX_SIZE 100
 #define PI 3.14159
 #define LOG(msg) std::cout << msg
@@ -170,7 +170,7 @@ class TestCppParserMacros:
 #ifdef DEBUG
     #define DEBUG_LOG(msg) LOG(msg)
 #endif
-'''
+"""
         result = cpp_parser.parse(code, "macros.hpp")
 
         assert result is not None
@@ -184,4 +184,4 @@ class TestCppParserErrorHandling:
         result = cpp_parser.parse("", "empty.cpp")
 
         assert result is not None
-        assert len(result['classes']) == 0
+        assert len(result["classes"]) == 0

@@ -162,8 +162,12 @@ class TestTriggerOptimization:
 
     @pytest.mark.asyncio
     async def test_trigger_optimization_unavailable_recalibrator(
-        self, mock_optimization_engine, mock_experiment_manager,
-        mock_slo_adjuster, mock_mongodb_client, mock_grpc_context
+        self,
+        mock_optimization_engine,
+        mock_experiment_manager,
+        mock_slo_adjuster,
+        mock_mongodb_client,
+        mock_grpc_context,
     ):
         """Testa erro quando WeightRecalibrator nao esta disponivel."""
         servicer = OptimizerServicer(
@@ -328,18 +332,21 @@ class TestListOptimizations:
         request.page_size = 5
 
         mock_mongodb_client.list_optimizations.return_value = [
-            {"optimization_id": f"opt-{i}", "optimization_type": "WEIGHT_RECALIBRATION",
-             "target_component": "test", "improvement_percentage": 0.0,
-             "applied_at": 0, "approval_status": "APPROVED"}
+            {
+                "optimization_id": f"opt-{i}",
+                "optimization_type": "WEIGHT_RECALIBRATION",
+                "target_component": "test",
+                "improvement_percentage": 0.0,
+                "applied_at": 0,
+                "approval_status": "APPROVED",
+            }
             for i in range(5)
         ]
 
         result = await optimizer_servicer.ListOptimizations(request, mock_grpc_context)
 
         assert result["total"] == 5
-        mock_mongodb_client.list_optimizations.assert_called_with(
-            filters={}, skip=0, limit=5
-        )
+        mock_mongodb_client.list_optimizations.assert_called_with(filters={}, skip=0, limit=5)
 
 
 class TestRollbackOptimization:
@@ -410,10 +417,26 @@ class TestGetStatistics:
         request = Mock()
 
         mock_mongodb_client.list_optimizations.return_value = [
-            {"optimization_type": "WEIGHT_RECALIBRATION", "target_component": "consensus", "improvement_percentage": 10.0},
-            {"optimization_type": "WEIGHT_RECALIBRATION", "target_component": "consensus", "improvement_percentage": 15.0},
-            {"optimization_type": "SLO_ADJUSTMENT", "target_component": "orchestrator", "improvement_percentage": 5.0},
-            {"optimization_type": "SLO_ADJUSTMENT", "target_component": "orchestrator", "improvement_percentage": -2.0},
+            {
+                "optimization_type": "WEIGHT_RECALIBRATION",
+                "target_component": "consensus",
+                "improvement_percentage": 10.0,
+            },
+            {
+                "optimization_type": "WEIGHT_RECALIBRATION",
+                "target_component": "consensus",
+                "improvement_percentage": 15.0,
+            },
+            {
+                "optimization_type": "SLO_ADJUSTMENT",
+                "target_component": "orchestrator",
+                "improvement_percentage": 5.0,
+            },
+            {
+                "optimization_type": "SLO_ADJUSTMENT",
+                "target_component": "orchestrator",
+                "improvement_percentage": -2.0,
+            },
         ]
 
         result = await optimizer_servicer.GetStatistics(request, mock_grpc_context)
@@ -446,9 +469,7 @@ class TestHealthCheck:
     """Testes para HealthCheck."""
 
     @pytest.mark.asyncio
-    async def test_health_check_healthy(
-        self, optimizer_servicer, mock_grpc_context
-    ):
+    async def test_health_check_healthy(self, optimizer_servicer, mock_grpc_context):
         """Testa resposta healthy quando tudo esta ok."""
         request = Mock()
 
@@ -458,9 +479,7 @@ class TestHealthCheck:
         assert result["version"] == "1.0.0"
 
     @pytest.mark.asyncio
-    async def test_health_check_unhealthy_no_engine(
-        self, mock_mongodb_client, mock_grpc_context
-    ):
+    async def test_health_check_unhealthy_no_engine(self, mock_mongodb_client, mock_grpc_context):
         """Testa unhealthy quando engine ausente."""
         servicer = OptimizerServicer(
             optimization_engine=None,
@@ -506,8 +525,18 @@ class TestGetLoadForecast:
 
         mock_load_predictor.predict_load.return_value = {
             "forecast": [
-                {"timestamp": 1699056000, "predicted_load": 100, "lower_bound": 80, "upper_bound": 120},
-                {"timestamp": 1699056600, "predicted_load": 110, "lower_bound": 90, "upper_bound": 130},
+                {
+                    "timestamp": 1699056000,
+                    "predicted_load": 100,
+                    "lower_bound": 80,
+                    "upper_bound": 120,
+                },
+                {
+                    "timestamp": 1699056600,
+                    "predicted_load": 110,
+                    "lower_bound": 90,
+                    "upper_bound": 130,
+                },
             ],
             "metadata": {
                 "model_horizon": 60,

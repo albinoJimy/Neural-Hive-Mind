@@ -12,7 +12,7 @@ import os
 from unittest.mock import Mock, AsyncMock, MagicMock
 
 # Adicionar src ao path para importação
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../src"))
 
 from grpc_server.registry_servicer import ServiceRegistryServicer
 from models.agent import AgentType
@@ -53,7 +53,7 @@ class TestRegisterRPC:
         metadata: dict = None,
         namespace: str = "default",
         cluster: str = "local",
-        version: str = "1.0.0"
+        version: str = "1.0.0",
     ):
         """Helper para criar requests de registro"""
         request = Mock()
@@ -72,12 +72,14 @@ class TestRegisterRPC:
         return request
 
     @pytest.mark.asyncio
-    async def test_register_with_int_agent_type_worker(self, servicer, mock_context, mock_registry_service):
+    async def test_register_with_int_agent_type_worker(
+        self, servicer, mock_context, mock_registry_service
+    ):
         """Testa registro com agent_type=1 (WORKER)"""
         request = self.create_register_request(
             agent_type=1,  # WORKER
             capabilities=["python", "terraform"],
-            metadata={"version": "1.0.0"}
+            metadata={"version": "1.0.0"},
         )
 
         response = await servicer.Register(request, mock_context)
@@ -92,12 +94,11 @@ class TestRegisterRPC:
         assert call_kwargs["agent_type"] == AgentType.WORKER
 
     @pytest.mark.asyncio
-    async def test_register_with_int_agent_type_scout(self, servicer, mock_context, mock_registry_service):
+    async def test_register_with_int_agent_type_scout(
+        self, servicer, mock_context, mock_registry_service
+    ):
         """Testa registro com agent_type=2 (SCOUT)"""
-        request = self.create_register_request(
-            agent_type=2,  # SCOUT
-            capabilities=["discovery"]
-        )
+        request = self.create_register_request(agent_type=2, capabilities=["discovery"])  # SCOUT
 
         response = await servicer.Register(request, mock_context)
 
@@ -110,11 +111,12 @@ class TestRegisterRPC:
         assert call_kwargs["agent_type"] == AgentType.SCOUT
 
     @pytest.mark.asyncio
-    async def test_register_with_int_agent_type_guard(self, servicer, mock_context, mock_registry_service):
+    async def test_register_with_int_agent_type_guard(
+        self, servicer, mock_context, mock_registry_service
+    ):
         """Testa registro com agent_type=3 (GUARD)"""
         request = self.create_register_request(
-            agent_type=3,  # GUARD
-            capabilities=["security", "audit"]
+            agent_type=3, capabilities=["security", "audit"]  # GUARD
         )
 
         response = await servicer.Register(request, mock_context)
@@ -128,11 +130,12 @@ class TestRegisterRPC:
         assert call_kwargs["agent_type"] == AgentType.GUARD
 
     @pytest.mark.asyncio
-    async def test_register_with_invalid_agent_type_0(self, servicer, mock_context, mock_registry_service):
+    async def test_register_with_invalid_agent_type_0(
+        self, servicer, mock_context, mock_registry_service
+    ):
         """Testa que agent_type=0 (UNSPECIFIED) retorna erro e não chama register_agent"""
         request = self.create_register_request(
-            agent_type=0,  # UNSPECIFIED - inválido
-            capabilities=["test"]
+            agent_type=0, capabilities=["test"]  # UNSPECIFIED - inválido
         )
 
         await servicer.Register(request, mock_context)
@@ -147,12 +150,11 @@ class TestRegisterRPC:
         mock_registry_service.register_agent.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_register_with_invalid_agent_type_99(self, servicer, mock_context, mock_registry_service):
+    async def test_register_with_invalid_agent_type_99(
+        self, servicer, mock_context, mock_registry_service
+    ):
         """Testa que agent_type=99 retorna erro apropriado e não chama register_agent"""
-        request = self.create_register_request(
-            agent_type=99,  # Inválido
-            capabilities=["test"]
-        )
+        request = self.create_register_request(agent_type=99, capabilities=["test"])  # Inválido
 
         await servicer.Register(request, mock_context)
 
@@ -166,12 +168,11 @@ class TestRegisterRPC:
         mock_registry_service.register_agent.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_register_with_empty_capabilities(self, servicer, mock_context, mock_registry_service):
+    async def test_register_with_empty_capabilities(
+        self, servicer, mock_context, mock_registry_service
+    ):
         """Testa que capabilities vazias retornam erro e não chama register_agent"""
-        request = self.create_register_request(
-            agent_type=1,
-            capabilities=[]  # Vazio
-        )
+        request = self.create_register_request(agent_type=1, capabilities=[])  # Vazio
 
         await servicer.Register(request, mock_context)
 
@@ -188,9 +189,7 @@ class TestRegisterRPC:
         """Testa que metadata é preservado no registro"""
         custom_metadata = {"app": "test-app", "env": "development"}
         request = self.create_register_request(
-            agent_type=1,
-            capabilities=["python"],
-            metadata=custom_metadata
+            agent_type=1, capabilities=["python"], metadata=custom_metadata
         )
 
         await servicer.Register(request, mock_context)
@@ -199,13 +198,11 @@ class TestRegisterRPC:
         assert call_kwargs["metadata"] == custom_metadata
 
     @pytest.mark.asyncio
-    async def test_register_uses_default_namespace(self, servicer, mock_context, mock_registry_service):
+    async def test_register_uses_default_namespace(
+        self, servicer, mock_context, mock_registry_service
+    ):
         """Testa que namespace padrão é 'default'"""
-        request = self.create_register_request(
-            agent_type=1,
-            capabilities=["python"],
-            namespace=""
-        )
+        request = self.create_register_request(agent_type=1, capabilities=["python"], namespace="")
 
         await servicer.Register(request, mock_context)
 
@@ -213,12 +210,12 @@ class TestRegisterRPC:
         assert call_kwargs["namespace"] == "default"
 
     @pytest.mark.asyncio
-    async def test_register_uses_custom_namespace(self, servicer, mock_context, mock_registry_service):
+    async def test_register_uses_custom_namespace(
+        self, servicer, mock_context, mock_registry_service
+    ):
         """Testa que namespace customizado é respeitado"""
         request = self.create_register_request(
-            agent_type=1,
-            capabilities=["python"],
-            namespace="production"
+            agent_type=1, capabilities=["python"], namespace="production"
         )
 
         await servicer.Register(request, mock_context)

@@ -62,9 +62,7 @@ class TestBuildEvaluatePlanResponseTimestamp:
         timestamp = response.evaluated_at
         assert isinstance(timestamp, Timestamp), "evaluated_at deve ser Timestamp"
         assert timestamp.seconds > 0, "Timestamp seconds deve ser positivo"
-        assert (
-            0 <= timestamp.nanos < 1_000_000_000
-        ), "Timestamp nanos deve estar no range [0, 1e9)"
+        assert 0 <= timestamp.nanos < 1_000_000_000, "Timestamp nanos deve estar no range [0, 1e9)"
 
         # Verificar conversão para datetime
         dt = timestamp.ToDatetime()
@@ -215,9 +213,7 @@ class TestBuildEvaluatePlanResponseTimestamp:
         timestamp = response.evaluated_at
         assert isinstance(timestamp, Timestamp), "evaluated_at deve ser Timestamp"
         assert timestamp.seconds > 0, "Timestamp seconds deve ser positivo"
-        assert (
-            0 <= timestamp.nanos < 1_000_000_000
-        ), "Timestamp nanos deve estar no range válido"
+        assert 0 <= timestamp.nanos < 1_000_000_000, "Timestamp nanos deve estar no range válido"
 
         # Verificar que pode ser convertido para datetime
         dt = timestamp.ToDatetime()

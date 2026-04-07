@@ -18,7 +18,7 @@ settings = get_settings()
 mcp = FastMCP(
     name="Queen MCP Server",
     version=settings.service_version,
-    instructions="Ferramentas estratégicas do Queen Agent para orquestração e decisão"
+    instructions="Ferramentas estratégicas do Queen Agent para orquestração e decisão",
 )
 
 
@@ -52,8 +52,4 @@ def get_queen_info() -> str:
 # Registrar ferramentas
 register_queen_tools(mcp)
 
-logger.info(
-    "queen_mcp_server_initialized",
-    name=mcp.name,
-    version=settings.service_version
-)
+logger.info("queen_mcp_server_initialized", name=mcp.name, version=settings.service_version)

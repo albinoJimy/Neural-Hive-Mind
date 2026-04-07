@@ -260,7 +260,7 @@ class TestCompositeMethods:
             duration_seconds=0.75,
             component="hierarchical_explainer",
             format_type="json",
-            components_used="hierarchical"
+            components_used="hierarchical",
         )
 
         # Verificar duração
@@ -277,10 +277,7 @@ class TestCompositeMethods:
         """Testa registo completo de consenso hierárquico."""
         clear_metrics()
 
-        V3Metrics.record_hierarchical_consensus(
-            strength=0.9,
-            dominant_level="expert"
-        )
+        V3Metrics.record_hierarchical_consensus(strength=0.9, dominant_level="expert")
 
         # Verificar gauge
         gauge_labels = ("expert",)
@@ -296,10 +293,7 @@ class TestCompositeMethods:
         """Testa registo de consenso com nível None."""
         clear_metrics()
 
-        V3Metrics.record_hierarchical_consensus(
-            strength=0.5,
-            dominant_level=None
-        )
+        V3Metrics.record_hierarchical_consensus(strength=0.5, dominant_level=None)
 
         # Gauge deve ter label "unknown"
         gauge_labels = ("unknown",)
@@ -316,8 +310,7 @@ class TestCompositeMethods:
         clear_metrics()
 
         V3Metrics.record_counterfactual_analysis(
-            scenario_type="vote_flip",
-            outcome="decision_changed"
+            scenario_type="vote_flip", outcome="decision_changed"
         )
 
         labels = ("vote_flip", "decision_changed")

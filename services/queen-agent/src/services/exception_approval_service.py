@@ -1,4 +1,3 @@
-
 import structlog
 
 from neural_hive_resilience.circuit_breaker import CircuitBreakerError

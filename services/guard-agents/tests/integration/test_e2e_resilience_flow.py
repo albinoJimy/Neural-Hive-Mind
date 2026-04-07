@@ -23,8 +23,8 @@ def mock_incident_event():
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "raw_data": {
             "incident_id": "INC-TEST-001",
-            "affected_resources": ["neural-hive-resilience/deployment/api-gateway"]
-        }
+            "affected_resources": ["neural-hive-resilience/deployment/api-gateway"],
+        },
     }
 
 
@@ -34,7 +34,7 @@ def mock_context():
     return {
         "environment": "staging",
         "is_critical_resource": True,
-        "affected_resources": ["neural-hive-resilience/deployment/api-gateway"]
+        "affected_resources": ["neural-hive-resilience/deployment/api-gateway"],
     }
 
 
@@ -68,39 +68,35 @@ async def test_e1_e6_complete_flow(mock_incident_event, mock_context):
     # Configurar comportamentos dos mocks
 
     # OPA: permitir enforcement
-    mock_opa_client.evaluate_policy = AsyncMock(return_value={
-        "allowed": True,
-        "reason": "Policy evaluation passed"
-    })
+    mock_opa_client.evaluate_policy = AsyncMock(
+        return_value={"allowed": True, "reason": "Policy evaluation passed"}
+    )
 
     # Istio: rate limiting aplicado
-    mock_istio_client.apply_rate_limit = AsyncMock(return_value={
-        "success": True,
-        "name": "rate-limit-test",
-        "rate_limit": "100/MINUTE"
-    })
+    mock_istio_client.apply_rate_limit = AsyncMock(
+        return_value={"success": True, "name": "rate-limit-test", "rate_limit": "100/MINUTE"}
+    )
 
     # Self-Healing Engine: remediação bem-sucedida
-    mock_self_healing_client.trigger_remediation = AsyncMock(return_value={
-        "remediation_id": "REM-TEST-001",
-        "status": "pending"
-    })
-    mock_self_healing_client.wait_for_completion = AsyncMock(return_value={
-        "remediation_id": "REM-TEST-001",
-        "status": "completed",
-        "actions": ["rate_limit_applied", "scaled_deployment"]
-    })
+    mock_self_healing_client.trigger_remediation = AsyncMock(
+        return_value={"remediation_id": "REM-TEST-001", "status": "pending"}
+    )
+    mock_self_healing_client.wait_for_completion = AsyncMock(
+        return_value={
+            "remediation_id": "REM-TEST-001",
+            "status": "completed",
+            "actions": ["rate_limit_applied", "scaled_deployment"],
+        }
+    )
 
     # Prometheus: SLA restaurado
-    mock_prometheus_client.validate_sla_restoration = AsyncMock(return_value={
-        "sla_restored": True,
-        "metrics": {
-            "success_rate": 99.95,
-            "latency_p99": 0.25,
-            "error_rate": 0.05
-        },
-        "violations": []
-    })
+    mock_prometheus_client.validate_sla_restoration = AsyncMock(
+        return_value={
+            "sla_restored": True,
+            "metrics": {"success_rate": 99.95, "latency_p99": 0.25, "error_rate": 0.05},
+            "violations": [],
+        }
+    )
 
     # MongoDB: persistência
     mock_mongodb.incidents_collection = Mock()
@@ -116,13 +112,13 @@ async def test_e1_e6_complete_flow(mock_incident_event, mock_context):
         k8s_client=mock_k8s,
         redis_client=mock_redis,
         opa_client=mock_opa_client,
-        istio_client=mock_istio_client
+        istio_client=mock_istio_client,
     )
     remediation_coordinator = RemediationCoordinator(
         k8s_client=mock_k8s,
         mongodb_client=mock_mongodb,
         kafka_producer=mock_kafka_producer,
-        self_healing_client=mock_self_healing_client
+        self_healing_client=mock_self_healing_client,
     )
 
     # Criar orquestrador
@@ -133,13 +129,12 @@ async def test_e1_e6_complete_flow(mock_incident_event, mock_context):
         remediation_coordinator=remediation_coordinator,
         mongodb_client=mock_mongodb,
         kafka_producer=mock_kafka_producer,
-        prometheus_client=mock_prometheus_client
+        prometheus_client=mock_prometheus_client,
     )
 
     # Executar fluxo completo
     result = await orchestrator.process_incident_flow(
-        event=mock_incident_event,
-        context=mock_context
+        event=mock_incident_event, context=mock_context
     )
 
     # Validações
@@ -221,30 +216,33 @@ async def test_e2e_with_sla_violation():
     mock_prometheus_client = AsyncMock()
 
     # Self-Healing: remediação falha
-    mock_self_healing_client.trigger_remediation = AsyncMock(return_value={
-        "remediation_id": "REM-FAIL-001",
-        "status": "pending"
-    })
-    mock_self_healing_client.wait_for_completion = AsyncMock(return_value={
-        "remediation_id": "REM-FAIL-001",
-        "status": "failed",
-        "error": "Playbook execution failed"
-    })
+    mock_self_healing_client.trigger_remediation = AsyncMock(
+        return_value={"remediation_id": "REM-FAIL-001", "status": "pending"}
+    )
+    mock_self_healing_client.wait_for_completion = AsyncMock(
+        return_value={
+            "remediation_id": "REM-FAIL-001",
+            "status": "failed",
+            "error": "Playbook execution failed",
+        }
+    )
 
     # Prometheus: SLA NÃO restaurado
-    mock_prometheus_client.validate_sla_restoration = AsyncMock(return_value={
-        "sla_restored": False,
-        "metrics": {
-            "success_rate": 85.0,  # Abaixo de 99.9%
-            "latency_p99": 2.5,    # Acima de 500ms
-            "error_rate": 15.0     # Acima de 0.1%
-        },
-        "violations": [
-            {"metric": "success_rate", "value": 85.0, "target": 99.9},
-            {"metric": "latency_p99", "value": 2.5, "target": 0.5},
-            {"metric": "error_rate", "value": 15.0, "target": 0.1}
-        ]
-    })
+    mock_prometheus_client.validate_sla_restoration = AsyncMock(
+        return_value={
+            "sla_restored": False,
+            "metrics": {
+                "success_rate": 85.0,  # Abaixo de 99.9%
+                "latency_p99": 2.5,  # Acima de 500ms
+                "error_rate": 15.0,  # Acima de 0.1%
+            },
+            "violations": [
+                {"metric": "success_rate", "value": 85.0, "target": 99.9},
+                {"metric": "latency_p99", "value": 2.5, "target": 0.5},
+                {"metric": "error_rate", "value": 15.0, "target": 0.1},
+            ],
+        }
+    )
 
     mock_mongodb.incidents_collection = Mock()
     mock_mongodb.incidents_collection.insert_one = AsyncMock()
@@ -258,7 +256,7 @@ async def test_e2e_with_sla_violation():
         k8s_client=mock_k8s,
         mongodb_client=mock_mongodb,
         kafka_producer=mock_kafka_producer,
-        self_healing_client=mock_self_healing_client
+        self_healing_client=mock_self_healing_client,
     )
 
     orchestrator = IncidentOrchestrator(
@@ -268,7 +266,7 @@ async def test_e2e_with_sla_violation():
         remediation_coordinator=remediation_coordinator,
         mongodb_client=mock_mongodb,
         kafka_producer=mock_kafka_producer,
-        prometheus_client=mock_prometheus_client
+        prometheus_client=mock_prometheus_client,
     )
 
     event = {
@@ -276,7 +274,7 @@ async def test_e2e_with_sla_violation():
         "event_id": "INC-FAIL-001",
         "severity": "critical",
         "threat_type": "data_exfiltration",
-        "timestamp": datetime.now(timezone.utc).isoformat()
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
     result = await orchestrator.process_incident_flow(event=event)

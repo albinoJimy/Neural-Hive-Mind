@@ -11,7 +11,7 @@ import pytest
 from unittest.mock import MagicMock, patch
 
 # Configurar path para importar código real
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 # Importar código REAL
 from src.specialist import BehaviorSpecialist
@@ -21,7 +21,7 @@ from src.config import BehaviorSpecialistConfig
 @pytest.fixture
 def real_config():
     """Configuração real do BehaviorSpecialistConfig."""
-    with patch('src.config.BehaviorSpecialistConfig.__init__', return_value=None):
+    with patch("src.config.BehaviorSpecialistConfig.__init__", return_value=None):
         config = BehaviorSpecialistConfig()
         config.specialist_id = "test-behavior-specialist"
         config.domain = "BEHAVIOR"
@@ -35,7 +35,7 @@ def real_config():
             "accessibility-evaluation",
             "usability-testing",
             "user-experience",
-            "interaction-design"
+            "interaction-design",
         ]
         config.accessibility_wcag_level = "AA"
         config.usability_threshold_high = 0.8
@@ -76,8 +76,8 @@ def mock_ledger_client():
 @pytest.fixture
 def real_specialist(real_config, mock_mlflow_client, mock_ledger_client):
     """Instância real do BehaviorSpecialist."""
-    with patch('src.specialist.structlog.get_logger'):
-        with patch('neural_hive_specialists.BaseSpecialist.__init__', return_value=None):
+    with patch("src.specialist.structlog.get_logger"):
+        with patch("neural_hive_specialists.BaseSpecialist.__init__", return_value=None):
             specialist = BehaviorSpecialist(real_config)
             specialist.config = real_config
             specialist.specialist_type = "behavior"
@@ -98,10 +98,10 @@ class TestBehaviorSpecialistInit:
 
     def test_specialist_attributes(self, real_specialist):
         """Verifica atributos do especialista."""
-        assert hasattr(real_specialist, 'config')
-        assert hasattr(real_specialist, 'specialist_type')
-        assert hasattr(real_specialist, '_model')
-        assert hasattr(real_specialist, 'mlflow_client')
+        assert hasattr(real_specialist, "config")
+        assert hasattr(real_specialist, "specialist_type")
+        assert hasattr(real_specialist, "_model")
+        assert hasattr(real_specialist, "mlflow_client")
 
 
 class TestLoadModel:
@@ -119,7 +119,7 @@ class TestLoadModel:
         model = real_specialist._load_model()
         assert model is None
 
-    @patch('src.specialist.logger')
+    @patch("src.specialist.logger")
     def test_load_model_exception(self, mock_logger, real_specialist):
         """Testa tratamento de exceção ao carregar modelo."""
         real_specialist.mlflow_client._enabled = True
@@ -135,11 +135,11 @@ class TestAnalyzeUsability:
     def test_analyze_usability_ideal_tasks(self, real_specialist):
         """Testa análise de usabilidade com número ideal de tarefas."""
         tasks = [
-            {'description': 'Task 1', 'estimated_duration_ms': 100},
-            {'description': 'Task 2', 'estimated_duration_ms': 150},
-            {'description': 'Task 3', 'estimated_duration_ms': 200},
+            {"description": "Task 1", "estimated_duration_ms": 100},
+            {"description": "Task 2", "estimated_duration_ms": 150},
+            {"description": "Task 3", "estimated_duration_ms": 200},
         ]
-        cognitive_plan = {'plan_id': 'test-plan'}
+        cognitive_plan = {"plan_id": "test-plan"}
 
         score = real_specialist._analyze_usability(tasks, cognitive_plan)
 
@@ -148,11 +148,8 @@ class TestAnalyzeUsability:
 
     def test_analyze_usability_too_many_tasks(self, real_specialist):
         """Testa análise de usabilidade com muitas tarefas."""
-        tasks = [
-            {'description': f'Task {i}', 'estimated_duration_ms': 100}
-            for i in range(15)
-        ]
-        cognitive_plan = {'plan_id': 'test-plan'}
+        tasks = [{"description": f"Task {i}", "estimated_duration_ms": 100} for i in range(15)]
+        cognitive_plan = {"plan_id": "test-plan"}
 
         score = real_specialist._analyze_usability(tasks, cognitive_plan)
 
@@ -167,12 +164,12 @@ class TestAnalyzeUsability:
     def test_analyze_usability_with_duration(self, real_specialist):
         """Testa que considera duração estimada."""
         tasks_fast = [
-            {'description': 'Fast task', 'estimated_duration_ms': 50},
-            {'description': 'Fast task 2', 'estimated_duration_ms': 80},
+            {"description": "Fast task", "estimated_duration_ms": 50},
+            {"description": "Fast task 2", "estimated_duration_ms": 80},
         ]
         tasks_slow = [
-            {'description': 'Slow task', 'estimated_duration_ms': 1500},
-            {'description': 'Slow task 2', 'estimated_duration_ms': 2000},
+            {"description": "Slow task", "estimated_duration_ms": 1500},
+            {"description": "Slow task 2", "estimated_duration_ms": 2000},
         ]
 
         score_fast = real_specialist._analyze_usability(tasks_fast, {})
@@ -187,8 +184,8 @@ class TestAnalyzeAccessibility:
 
     def test_analyze_accessibility_with_context_mentions(self, real_specialist):
         """Testa análise quando contexto menciona acessibilidade."""
-        cognitive_plan = {'original_domain': 'ui-design'}
-        context = {'accessibility': 'wcag aa compliance required'}
+        cognitive_plan = {"original_domain": "ui-design"}
+        context = {"accessibility": "wcag aa compliance required"}
 
         score = real_specialist._analyze_accessibility(cognitive_plan, context)
 
@@ -196,7 +193,7 @@ class TestAnalyzeAccessibility:
 
     def test_analyze_accessibility_ui_related_domain(self, real_specialist):
         """Testa análise para domínio relacionado a UI."""
-        cognitive_plan = {'original_domain': 'frontend-interface'}
+        cognitive_plan = {"original_domain": "frontend-interface"}
         context = {}
 
         score = real_specialist._analyze_accessibility(cognitive_plan, context)
@@ -205,7 +202,7 @@ class TestAnalyzeAccessibility:
 
     def test_analyze_accessibility_non_ui_domain(self, real_specialist):
         """Testa análise para domínio não-UI."""
-        cognitive_plan = {'original_domain': 'backend-processing'}
+        cognitive_plan = {"original_domain": "backend-processing"}
         context = {}
 
         score = real_specialist._analyze_accessibility(cognitive_plan, context)
@@ -218,25 +215,25 @@ class TestAnalyzeResponseTime:
 
     def test_response_time_instant(self, real_specialist):
         """Testa tempo de resposta instantâneo (< 100ms)."""
-        tasks = [{'estimated_duration_ms': 50}]
+        tasks = [{"estimated_duration_ms": 50}]
         score = real_specialist._analyze_response_time(tasks)
         assert score == 1.0
 
     def test_response_time_fast(self, real_specialist):
         """Testa tempo de resposta rápido (< 300ms)."""
-        tasks = [{'estimated_duration_ms': 200}]
+        tasks = [{"estimated_duration_ms": 200}]
         score = real_specialist._analyze_response_time(tasks)
         assert score == 0.9
 
     def test_response_time_acceptable(self, real_specialist):
         """Testa tempo de resposta aceitável (< 1000ms)."""
-        tasks = [{'estimated_duration_ms': 500}]
+        tasks = [{"estimated_duration_ms": 500}]
         score = real_specialist._analyze_response_time(tasks)
         assert score == 0.7
 
     def test_response_time_slow(self, real_specialist):
         """Testa tempo de resposta lento (> 3000ms)."""
-        tasks = [{'estimated_duration_ms': 5000}]
+        tasks = [{"estimated_duration_ms": 5000}]
         score = real_specialist._analyze_response_time(tasks)
         assert score < 0.5
 
@@ -251,19 +248,19 @@ class TestAnalyzeInteractionCost:
 
     def test_interaction_cost_low(self, real_specialist):
         """Testa custo de interação baixo (poucas tarefas)."""
-        tasks = [{'description': 'Task'}]
+        tasks = [{"description": "Task"}]
         score = real_specialist._analyze_interaction_cost(tasks)
         assert score >= 0.8
 
     def test_interaction_cost_medium(self, real_specialist):
         """Testa custo de interação médio."""
-        tasks = [{'description': f'Task {i}'} for i in range(5)]
+        tasks = [{"description": f"Task {i}"} for i in range(5)]
         score = real_specialist._analyze_interaction_cost(tasks)
         assert 0.5 <= score <= 0.8
 
     def test_interaction_cost_high(self, real_specialist):
         """Testa custo de interação alto (muitas tarefas)."""
-        tasks = [{'description': f'Task {i}'} for i in range(15)]
+        tasks = [{"description": f"Task {i}"} for i in range(15)]
         score = real_specialist._analyze_interaction_cost(tasks)
         assert score < 0.5
 
@@ -283,7 +280,7 @@ class TestCalculateBehavioralRisk:
             usability_score=0.3,
             accessibility_score=0.4,
             response_time_score=0.35,
-            interaction_cost_score=0.3
+            interaction_cost_score=0.3,
         )
         assert risk > 0.6
 
@@ -294,7 +291,7 @@ class TestCalculateBehavioralRisk:
             usability_score=0.9,
             accessibility_score=0.85,
             response_time_score=0.8,
-            interaction_cost_score=0.75
+            interaction_cost_score=0.75,
         )
         assert risk < 0.3
 
@@ -306,7 +303,7 @@ class TestCalculateBehavioralRisk:
             usability_score=0.2,
             accessibility_score=0.8,
             response_time_score=0.8,
-            interaction_cost_score=0.8
+            interaction_cost_score=0.8,
         )
 
         risk_low_accessibility = real_specialist._calculate_behavioral_risk(
@@ -314,7 +311,7 @@ class TestCalculateBehavioralRisk:
             usability_score=0.8,
             accessibility_score=0.2,
             response_time_score=0.8,
-            interaction_cost_score=0.8
+            interaction_cost_score=0.8,
         )
 
         assert risk_low_usability > risk_low_accessibility
@@ -325,43 +322,28 @@ class TestDetermineRecommendation:
 
     def test_recommendation_approve(self, real_specialist):
         """Testa recomendação de aprovação."""
-        rec = real_specialist._determine_recommendation(
-            confidence_score=0.85,
-            risk_score=0.2
-        )
-        assert rec == 'approve'
+        rec = real_specialist._determine_recommendation(confidence_score=0.85, risk_score=0.2)
+        assert rec == "approve"
 
     def test_recommendation_reject_low_confidence(self, real_specialist):
         """Testa rejeição por baixa confiança."""
-        rec = real_specialist._determine_recommendation(
-            confidence_score=0.4,
-            risk_score=0.5
-        )
-        assert rec == 'reject'
+        rec = real_specialist._determine_recommendation(confidence_score=0.4, risk_score=0.5)
+        assert rec == "reject"
 
     def test_recommendation_reject_high_risk(self, real_specialist):
         """Testa rejeição por alto risco."""
-        rec = real_specialist._determine_recommendation(
-            confidence_score=0.6,
-            risk_score=0.8
-        )
-        assert rec == 'reject'
+        rec = real_specialist._determine_recommendation(confidence_score=0.6, risk_score=0.8)
+        assert rec == "reject"
 
     def test_recommendation_review_required(self, real_specialist):
         """Testa recomendação de revisão necessária."""
-        rec = real_specialist._determine_recommendation(
-            confidence_score=0.6,
-            risk_score=0.6
-        )
-        assert rec == 'review_required'
+        rec = real_specialist._determine_recommendation(confidence_score=0.6, risk_score=0.6)
+        assert rec == "review_required"
 
     def test_recommendation_conditional(self, real_specialist):
         """Testa recomendação condicional."""
-        rec = real_specialist._determine_recommendation(
-            confidence_score=0.7,
-            risk_score=0.4
-        )
-        assert rec == 'conditional'
+        rec = real_specialist._determine_recommendation(confidence_score=0.7, risk_score=0.4)
+        assert rec == "conditional"
 
 
 class TestGenerateReasoning:
@@ -374,14 +356,14 @@ class TestGenerateReasoning:
             accessibility_score=0.75,
             response_time_score=0.7,
             interaction_cost_score=0.65,
-            recommendation='approve'
+            recommendation="approve",
         )
 
-        assert 'usability=0.80' in reasoning
-        assert 'accessibility=0.75' in reasoning
-        assert 'response_time=0.70' in reasoning
-        assert 'interaction_cost=0.65' in reasoning
-        assert 'approve' in reasoning
+        assert "usability=0.80" in reasoning
+        assert "accessibility=0.75" in reasoning
+        assert "response_time=0.70" in reasoning
+        assert "interaction_cost=0.65" in reasoning
+        assert "approve" in reasoning
 
 
 class TestGenerateMitigations:
@@ -393,11 +375,11 @@ class TestGenerateMitigations:
             usability_score=0.4,
             accessibility_score=0.8,
             response_time_score=0.8,
-            interaction_cost_score=0.8
+            interaction_cost_score=0.8,
         )
 
-        assert any(m['mitigation_type'] == 'improve_usability' for m in mitigations)
-        assert any(m['priority'] == 'high' for m in mitigations)
+        assert any(m["mitigation_type"] == "improve_usability" for m in mitigations)
+        assert any(m["priority"] == "high" for m in mitigations)
 
     def test_mitigations_low_accessibility(self, real_specialist):
         """Testa geração de mitigação para acessibilidade baixa."""
@@ -405,10 +387,10 @@ class TestGenerateMitigations:
             usability_score=0.8,
             accessibility_score=0.4,
             response_time_score=0.8,
-            interaction_cost_score=0.8
+            interaction_cost_score=0.8,
         )
 
-        assert any(m['mitigation_type'] == 'ensure_accessibility' for m in mitigations)
+        assert any(m["mitigation_type"] == "ensure_accessibility" for m in mitigations)
 
     def test_mitigations_all_good(self, real_specialist):
         """Testa que não gera mitigações quando tudo está bom."""
@@ -416,7 +398,7 @@ class TestGenerateMitigations:
             usability_score=0.8,
             accessibility_score=0.8,
             response_time_score=0.8,
-            interaction_cost_score=0.8
+            interaction_cost_score=0.8,
         )
 
         assert len(mitigations) == 0

@@ -10,16 +10,12 @@ from neural_hive_ml.drift_detector import CanaryDeployer
 def mock_model_repo():
     """Mock ModelVersionRepository."""
     repo = AsyncMock()
-    repo.get_active_model = AsyncMock(return_value={
-        "version": "v8",
-        "stage": "production",
-        "f1_score": 0.73
-    })
-    repo.get_model_version = AsyncMock(return_value={
-        "version": "v9",
-        "stage": "staging",
-        "f1_score": 0.75
-    })
+    repo.get_active_model = AsyncMock(
+        return_value={"version": "v8", "stage": "production", "f1_score": 0.73}
+    )
+    repo.get_model_version = AsyncMock(
+        return_value={"version": "v9", "stage": "staging", "f1_score": 0.75}
+    )
     repo.promote_model = AsyncMock(return_value=True)
     repo.update_model = AsyncMock(return_value=True)
     return repo
@@ -40,7 +36,7 @@ def canary_deployer(mock_model_repo, mock_kafka_producer):
         model_repo=mock_model_repo,
         kafka_producer=mock_kafka_producer,
         canary_duration_minutes=60,
-        canary_traffic_percentage=10
+        canary_traffic_percentage=10,
     )
 
 
@@ -49,10 +45,7 @@ class TestCanaryDeployerInit:
 
     def test_init_with_defaults(self, mock_model_repo, mock_kafka_producer):
         """Testa inicialização com valores padrão."""
-        deployer = CanaryDeployer(
-            model_repo=mock_model_repo,
-            kafka_producer=mock_kafka_producer
-        )
+        deployer = CanaryDeployer(model_repo=mock_model_repo, kafka_producer=mock_kafka_producer)
         assert deployer.canary_duration_minutes == 60
         assert deployer.canary_traffic_percentage == 10
 
@@ -62,7 +55,7 @@ class TestCanaryDeployerInit:
             model_repo=mock_model_repo,
             kafka_producer=mock_kafka_producer,
             canary_duration_minutes=120,
-            canary_traffic_percentage=25
+            canary_traffic_percentage=25,
         )
         assert deployer.canary_duration_minutes == 120
         assert deployer.canary_traffic_percentage == 25
@@ -72,7 +65,9 @@ class TestStartCanary:
     """Testes de start_canary."""
 
     @pytest.mark.asyncio
-    async def test_start_canary_success(self, canary_deployer, mock_model_repo, mock_kafka_producer):
+    async def test_start_canary_success(
+        self, canary_deployer, mock_model_repo, mock_kafka_producer
+    ):
         """Testa início de deploy canary com sucesso."""
         result = await canary_deployer.start_canary(version="v9", target_version="v8")
 
@@ -220,8 +215,7 @@ class TestCanaryLifecycle:
 
         # Promote or rollback
         final_result = await canary_deployer.promote_or_rollback(
-            canary_id,
-            should_promote=validate_result["should_promote"]
+            canary_id, should_promote=validate_result["should_promote"]
         )
 
         assert final_result["status"] in ["promoted", "rolled_back"]
@@ -236,10 +230,7 @@ class TestCanaryLifecycle:
         validate_result = await canary_deployer.validate_canary(canary_id)
 
         # Força rollback
-        final_result = await canary_deployer.promote_or_rollback(
-            canary_id,
-            should_promote=False
-        )
+        final_result = await canary_deployer.promote_or_rollback(canary_id, should_promote=False)
 
         assert final_result["status"] == "rolled_back"
 
@@ -261,7 +252,7 @@ class TestCanaryMetricsCalculation:
         deployer = CanaryDeployer(
             model_repo=mock_model_repo,
             kafka_producer=mock_kafka_producer,
-            canary_traffic_percentage=25
+            canary_traffic_percentage=25,
         )
 
         result = await deployer._calculate_traffic_split("v9", "v8")

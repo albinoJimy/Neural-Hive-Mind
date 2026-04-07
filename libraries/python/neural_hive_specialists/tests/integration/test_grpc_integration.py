@@ -156,9 +156,7 @@ class TestEvaluatePlanIntegration:
 
         # Validações de opinion
         opinion = response.opinion
-        assert (
-            0.0 <= opinion.confidence_score <= 1.0
-        ), "confidence_score deve estar entre 0 e 1"
+        assert 0.0 <= opinion.confidence_score <= 1.0, "confidence_score deve estar entre 0 e 1"
         assert 0.0 <= opinion.risk_score <= 1.0, "risk_score deve estar entre 0 e 1"
         assert opinion.recommendation in [
             "approve",
@@ -198,12 +196,8 @@ class TestEvaluatePlanIntegration:
 
         for factor in response.opinion.reasoning_factors:
             assert factor.factor_name, "factor_name deve estar presente"
-            assert (
-                0.0 <= factor.weight <= 1.0
-            ), f"weight deve estar entre 0 e 1: {factor.weight}"
-            assert (
-                0.0 <= factor.score <= 1.0
-            ), f"score deve estar entre 0 e 1: {factor.score}"
+            assert 0.0 <= factor.weight <= 1.0, f"weight deve estar entre 0 e 1: {factor.weight}"
+            assert 0.0 <= factor.score <= 1.0, f"score deve estar entre 0 e 1: {factor.score}"
 
 
 @pytest.mark.integration
@@ -252,9 +246,7 @@ class TestGetCapabilitiesIntegration:
             response.specialist_type == specialist_type
         ), f"specialist_type deve ser {specialist_type}"
         assert response.version, "version deve estar presente"
-        assert (
-            len(response.supported_domains) > 0
-        ), "supported_domains deve ter pelo menos um item"
+        assert len(response.supported_domains) > 0, "supported_domains deve ter pelo menos um item"
         assert (
             len(response.supported_plan_versions) > 0
         ), "supported_plan_versions deve ter pelo menos um item"
@@ -272,9 +264,7 @@ class TestGetCapabilitiesIntegration:
             assert (
                 metrics.average_processing_time_ms >= 0
             ), "average_processing_time_ms deve ser >= 0"
-            assert (
-                0.0 <= metrics.accuracy_score <= 1.0
-            ), "accuracy_score deve estar entre 0 e 1"
+            assert 0.0 <= metrics.accuracy_score <= 1.0, "accuracy_score deve estar entre 0 e 1"
             assert metrics.total_evaluations >= 0, "total_evaluations deve ser >= 0"
 
 
@@ -327,9 +317,7 @@ class TestGrpcErrorHandlingIntegration:
         try:
             response = stub.EvaluatePlan(request, timeout=10)
             # Se não falhar, confidence deve ser baixa para plano vazio
-            assert (
-                response.opinion.confidence_score <= 0.6
-            ), "Plano vazio deve ter baixa confiança"
+            assert response.opinion.confidence_score <= 0.6, "Plano vazio deve ter baixa confiança"
         except grpc.RpcError:
             # Erro é aceitável para plano inválido
             pass

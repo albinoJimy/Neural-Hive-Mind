@@ -9,7 +9,7 @@ import sys
 import os
 
 # Add src to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 
 class TestPIIDetectorLite:
@@ -78,7 +78,7 @@ class TestPIIDetectorLite:
         mock_detector.detect_pii.return_value = [
             {"type": "email", "value": "user@test.com", "start": 0, "end": 13},
             {"type": "phone", "value": "(11) 98765-4321", "start": 20, "end": 35},
-            {"type": "cpf", "value": "123.456.789-09", "start": 40, "end": 54}
+            {"type": "cpf", "value": "123.456.789-09", "start": 40, "end": 54},
         ]
 
         text = "user@test.com telefone (11) 98765-4321 cpf 123.456.789-09"
@@ -156,8 +156,7 @@ class TestPIIMasker:
     def test_mask_multiple_pii_in_text(self, mock_masker):
         """Testar mascaramento de múltiplos PII no mesmo texto"""
         mock_masker.mask_pii.return_value = (
-            "Cliente [NAME] com email [EMAIL] e telefone [PHONE] "
-            "cpf [CPF] solicitou acesso."
+            "Cliente [NAME] com email [EMAIL] e telefone [PHONE] " "cpf [CPF] solicitou acesso."
         )
 
         text = (
@@ -181,7 +180,9 @@ class TestPIIMasker:
         result = mock_masker.mask_pii(
             text,
             strategy="placeholder",
-            custom_patterns=[{"pattern": r"[A-Z]{4}-\d{4}-[A-Z]{4}-\d{4}", "label": "CUSTOM_TOKEN"}]
+            custom_patterns=[
+                {"pattern": r"[A-Z]{4}-\d{4}-[A-Z]{4}-\d{4}", "label": "CUSTOM_TOKEN"}
+            ],
         )
 
         assert "[CUSTOM_TOKEN]" in result
@@ -288,7 +289,7 @@ class TestPIIRegexPatterns:
 
     def test_email_regex_pattern(self):
         """Testar padrão regex para email"""
-        email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+        email_pattern = r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b"
 
         text = "Contact: user@domain.com and admin@test.co.uk"
         matches = re.findall(email_pattern, text)
@@ -299,13 +300,9 @@ class TestPIIRegexPatterns:
 
     def test_cpf_regex_pattern(self):
         """Testar padrão regex para CPF"""
-        cpf_pattern = r'\b\d{3}\.\d{3}\.\d{3}-\d{2}\b'
+        cpf_pattern = r"\b\d{3}\.\d{3}\.\d{3}-\d{2}\b"
 
-        test_cases = [
-            "123.456.789-09",
-            "987.654.321-00",
-            "111.222.333-44"
-        ]
+        test_cases = ["123.456.789-09", "987.654.321-00", "111.222.333-44"]
 
         for cpf in test_cases:
             assert re.match(cpf_pattern, cpf), f"CPF {cpf} não corresponde ao padrão"
@@ -313,8 +310,8 @@ class TestPIIRegexPatterns:
     def test_phone_regex_pattern(self):
         """Testar padrão regex para telefone brasileiro"""
         phone_patterns = [
-            r'\+55\s?\d{2}\s?\d{4,5}-?\d{4}',  # +55 11 98765-4321
-            r'\(\d{2}\)\s?\d{4,5}-?\d{4}',      # (11) 98765-4321
+            r"\+55\s?\d{2}\s?\d{4,5}-?\d{4}",  # +55 11 98765-4321
+            r"\(\d{2}\)\s?\d{4,5}-?\d{4}",  # (11) 98765-4321
         ]
 
         text = "Tel: +55 11 98765-4321 ou (11) 9876-5432"
@@ -327,13 +324,9 @@ class TestPIIRegexPatterns:
 
     def test_credit_card_regex_pattern(self):
         """Testar padrão regex para cartão de crédito"""
-        cc_pattern = r'\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b'
+        cc_pattern = r"\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b"
 
-        test_cases = [
-            "4532 1234 5678 9010",
-            "4532-1234-5678-9010",
-            "4532123456789010"
-        ]
+        test_cases = ["4532 1234 5678 9010", "4532-1234-5678-9010", "4532123456789010"]
 
         text = " ".join(test_cases)
         matches = re.findall(cc_pattern, text)
@@ -346,7 +339,7 @@ class TestPIIRegexPatterns:
         valid_cpf = "529.982.247-25"
 
         # Extrair apenas os números
-        cpf_numbers = [int(d) for d in re.findall(r'\d', valid_cpf)]
+        cpf_numbers = [int(d) for d in re.findall(r"\d", valid_cpf)]
 
         # Verificar que tem 11 dígitos
         assert len(cpf_numbers) == 11
@@ -367,7 +360,7 @@ class TestPIIRegexPatterns:
 
     def test_detect_multiple_emails_in_text(self):
         """Testar detecção de múltiplos emails em um texto"""
-        email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+        email_pattern = r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b"
 
         text = """
         Entre em contato com:

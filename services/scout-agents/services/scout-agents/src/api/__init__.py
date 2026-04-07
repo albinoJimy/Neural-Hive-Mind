@@ -2,4 +2,4 @@
 
 from .scout_api import ScoutAPI
 
-__all__ = ['ScoutAPI']
+__all__ = ["ScoutAPI"]

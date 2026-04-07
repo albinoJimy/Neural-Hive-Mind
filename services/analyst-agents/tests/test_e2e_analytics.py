@@ -44,7 +44,9 @@ async def mock_app_state():
             doc["status"] = InsightStatus.PENDING.value
             doc["created_at"] = datetime.now(timezone.utc)
             doc["expires_at"] = datetime.now(timezone.utc) + timedelta(days=90)
-            doc["metrics"] = InsightMetrics(processing_time_ms=0, confidence_score=0.0, data_points=0).model_dump()
+            doc["metrics"] = InsightMetrics(
+                processing_time_ms=0, confidence_score=0.0, data_points=0
+            ).model_dump()
             self.storage["insights"][doc["insight_id"]] = doc
             return InsightResponse(**doc)
 
@@ -55,23 +57,29 @@ async def mock_app_state():
             return None
 
         async def list(self, **kwargs):
-            limit = kwargs.get('limit', 50)
-            offset = kwargs.get('offset', 0)
+            limit = kwargs.get("limit", 50)
+            offset = kwargs.get("offset", 0)
             items = list(self.storage["insights"].values())
 
-            if kwargs.get('analysis_type'):
-                items = [i for i in items if i.get('analysis_type') == kwargs['analysis_type'].value]
-            if kwargs.get('source'):
-                items = [i for i in items if i.get('metadata', {}).get('source') == kwargs['source'].value]
-            if kwargs.get('tags'):
-                tags = kwargs['tags']
-                items = [i for i in items if any(t in i.get('tags', []) for t in tags)]
-            if kwargs.get('status'):
-                items = [i for i in items if i.get('status') == kwargs['status'].value]
+            if kwargs.get("analysis_type"):
+                items = [
+                    i for i in items if i.get("analysis_type") == kwargs["analysis_type"].value
+                ]
+            if kwargs.get("source"):
+                items = [
+                    i
+                    for i in items
+                    if i.get("metadata", {}).get("source") == kwargs["source"].value
+                ]
+            if kwargs.get("tags"):
+                tags = kwargs["tags"]
+                items = [i for i in items if any(t in i.get("tags", []) for t in tags)]
+            if kwargs.get("status"):
+                items = [i for i in items if i.get("status") == kwargs["status"].value]
 
             total = len(items)
-            items = sorted(items, key=lambda x: x.get('created_at', datetime.min), reverse=True)
-            items = items[offset:offset + limit]
+            items = sorted(items, key=lambda x: x.get("created_at", datetime.min), reverse=True)
+            items = items[offset : offset + limit]
 
             return [InsightResponse(**i) for i in items], total
 
@@ -95,16 +103,23 @@ async def mock_app_state():
             items = list(self.storage["insights"].values())
             insights_by_type = {}
             for item in items:
-                at = item.get('analysis_type', 'unknown')
+                at = item.get("analysis_type", "unknown")
                 insights_by_type[at] = insights_by_type.get(at, 0) + 1
 
-            recent_items = sorted(items, key=lambda x: x.get('created_at', datetime.min), reverse=True)[:5]
+            recent_items = sorted(
+                items, key=lambda x: x.get("created_at", datetime.min), reverse=True
+            )[:5]
             recent_responses = [InsightResponse(**i) for i in recent_items]
 
             return {
                 "insights_by_type": insights_by_type,
                 "anomalies_detected": 0,
-                "avg_processing_time_ms": sum(i.get("metrics", {}).get("processing_time_ms", 0) for i in items) / len(items) if items else 0,
+                "avg_processing_time_ms": sum(
+                    i.get("metrics", {}).get("processing_time_ms", 0) for i in items
+                )
+                / len(items)
+                if items
+                else 0,
                 "confidence_distribution": {"high": 0, "medium": 0, "low": 0},
                 "top_sources": [],
                 "recent_insights": recent_responses,
@@ -140,14 +155,17 @@ async def test_e2e_insight_lifecycle(mock_app_state):
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # Criar insight via API
-        response = await client.post("/api/v1/analytics/insights/query", json={
-            "analysis_type": "timeseries",
-            "target": {
-                "metric_name": "cpu_usage",
-                "time_range": {"start": "2024-01-01T00:00:00", "end": "2024-01-02T00:00:00"}
+        response = await client.post(
+            "/api/v1/analytics/insights/query",
+            json={
+                "analysis_type": "timeseries",
+                "target": {
+                    "metric_name": "cpu_usage",
+                    "time_range": {"start": "2024-01-01T00:00:00", "end": "2024-01-02T00:00:00"},
+                },
+                "parameters": {},
             },
-            "parameters": {}
-        })
+        )
 
         assert response.status_code == 200
         data = response.json()
@@ -179,6 +197,7 @@ async def test_e2e_insight_lifecycle(mock_app_state):
 async def test_e2e_timeseries_analysis(mock_app_state):
     """Teste E2E: Buscar série temporal → Detectar anomalias."""
     from urllib.parse import quote
+
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         start = quote((datetime.now(timezone.utc) - timedelta(hours=1)).isoformat())
@@ -211,20 +230,27 @@ async def test_e2e_dashboard_aggregation(mock_app_state):
 
     # Criar alguns insights de diferentes tipos
     for i in range(3):
-        insight = await repo.create(InsightCreate(
-            analysis_type=AnalysisType.TIMESERIES if i % 2 == 0 else AnalysisType.ANOMALY_DETECTION,
-            title=f"Dashboard Test {i}",
-            description="",
-            data={},
-            metadata=InsightMetadata(source=InsightSource.API),
-            tags=["dashboard-test"],
-        ))
+        insight = await repo.create(
+            InsightCreate(
+                analysis_type=AnalysisType.TIMESERIES
+                if i % 2 == 0
+                else AnalysisType.ANOMALY_DETECTION,
+                title=f"Dashboard Test {i}",
+                description="",
+                data={},
+                metadata=InsightMetadata(source=InsightSource.API),
+                tags=["dashboard-test"],
+            )
+        )
         await repo.update_status(insight.insight_id, InsightStatus.COMPLETED)
-        await repo.update_metrics(insight.insight_id, {
-            "processing_time_ms": 100 + i * 50,
-            "confidence_score": 0.8 + i * 0.05,
-            "data_points": 100,
-        })
+        await repo.update_metrics(
+            insight.insight_id,
+            {
+                "processing_time_ms": 100 + i * 50,
+                "confidence_score": 0.8 + i * 0.05,
+                "data_points": 100,
+            },
+        )
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -259,20 +285,25 @@ async def test_e2e_metrics_endpoint(mock_app_state):
     repo = mock_app_state
 
     # Criar insight com métricas
-    insight = await repo.create(InsightCreate(
-        analysis_type=AnalysisType.TIMESERIES,
-        title="Metrics Test",
-        description="",
-        data={},
-        metadata=InsightMetadata(source=InsightSource.API),
-        tags=["metrics"],
-    ))
+    insight = await repo.create(
+        InsightCreate(
+            analysis_type=AnalysisType.TIMESERIES,
+            title="Metrics Test",
+            description="",
+            data={},
+            metadata=InsightMetadata(source=InsightSource.API),
+            tags=["metrics"],
+        )
+    )
     await repo.update_status(insight.insight_id, InsightStatus.COMPLETED)
-    await repo.update_metrics(insight.insight_id, {
-        "processing_time_ms": 150,
-        "confidence_score": 0.85,
-        "data_points": 50,
-    })
+    await repo.update_metrics(
+        insight.insight_id,
+        {
+            "processing_time_ms": 150,
+            "confidence_score": 0.85,
+            "data_points": 50,
+        },
+    )
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -292,14 +323,20 @@ async def test_e2e_pagination_and_filters(mock_app_state):
 
     # Criar insights de diferentes tipos
     for i in range(5):
-        await repo.create(InsightCreate(
-            analysis_type=AnalysisType.TIMESERIES if i % 2 == 0 else AnalysisType.ANOMALY_DETECTION,
-            title=f"Filter Test {i}",
-            description="",
-            data={},
-            metadata=InsightMetadata(source=InsightSource.API if i % 3 != 0 else InsightSource.KAFKA),
-            tags=["test"] if i % 2 == 0 else ["production"],
-        ))
+        await repo.create(
+            InsightCreate(
+                analysis_type=AnalysisType.TIMESERIES
+                if i % 2 == 0
+                else AnalysisType.ANOMALY_DETECTION,
+                title=f"Filter Test {i}",
+                description="",
+                data={},
+                metadata=InsightMetadata(
+                    source=InsightSource.API if i % 3 != 0 else InsightSource.KAFKA
+                ),
+                tags=["test"] if i % 2 == 0 else ["production"],
+            )
+        )
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:

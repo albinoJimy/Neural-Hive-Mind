@@ -16,6 +16,7 @@ import grpc
 @dataclass
 class X509SVID:
     """Mock de X.509-SVID"""
+
     certificate: str
     private_key: str
     spiffe_id: str
@@ -26,6 +27,7 @@ class X509SVID:
 @dataclass
 class JWTSVID:
     """Mock de JWT-SVID"""
+
     token: str
     spiffe_id: str
     expiry: datetime
@@ -70,16 +72,16 @@ def mock_spiffe_manager():
     manager.fetch_x509_svid.return_value = X509SVID(
         certificate=TEST_CERT,
         private_key=TEST_PRIVATE_KEY,
-        spiffe_id='spiffe://neural-hive.local/ns/neural-hive-execution/sa/worker-agents',
+        spiffe_id="spiffe://neural-hive.local/ns/neural-hive-execution/sa/worker-agents",
         ca_bundle=TEST_CA_BUNDLE,
-        expires_at=datetime.now(timezone.utc) + timedelta(hours=24)
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=24),
     )
 
     # Configurar retorno padrao de JWT-SVID valido
     manager.fetch_jwt_svid.return_value = JWTSVID(
-        token='valid.jwt.token',
-        spiffe_id='spiffe://neural-hive.local/ns/neural-hive-execution/sa/worker-agents',
-        expiry=datetime.now(timezone.utc) + timedelta(hours=1)
+        token="valid.jwt.token",
+        spiffe_id="spiffe://neural-hive.local/ns/neural-hive-execution/sa/worker-agents",
+        expiry=datetime.now(timezone.utc) + timedelta(hours=1),
     )
 
     return manager
@@ -89,20 +91,20 @@ def mock_spiffe_manager():
 def mock_config():
     """Fixture que retorna configuracoes mockadas com SPIFFE habilitado"""
     config = MagicMock()
-    config.service_registry_host = 'service-registry.test.local'
+    config.service_registry_host = "service-registry.test.local"
     config.service_registry_port = 50051
     config.spiffe_enabled = True
     config.spiffe_enable_x509 = True
-    config.spiffe_socket_path = 'unix:///run/spire/sockets/agent.sock'
-    config.spiffe_trust_domain = 'neural-hive.local'
-    config.spiffe_jwt_audience = 'service-registry.neural-hive.local'
+    config.spiffe_socket_path = "unix:///run/spire/sockets/agent.sock"
+    config.spiffe_trust_domain = "neural-hive.local"
+    config.spiffe_jwt_audience = "service-registry.neural-hive.local"
     config.spiffe_jwt_ttl_seconds = 3600
-    config.environment = 'production'
-    config.agent_id = 'worker-1'
-    config.supported_task_types = ['BUILD', 'DEPLOY']
-    config.namespace = 'neural-hive-execution'
-    config.cluster = 'test-cluster'
-    config.service_version = '1.0.0'
+    config.environment = "production"
+    config.agent_id = "worker-1"
+    config.supported_task_types = ["BUILD", "DEPLOY"]
+    config.namespace = "neural-hive-execution"
+    config.cluster = "test-cluster"
+    config.service_version = "1.0.0"
     config.http_port = 8080
     config.grpc_port = 50052
     config.max_concurrent_tasks = 5
@@ -114,14 +116,17 @@ async def test_worker_agent_mtls_initialization(mock_spiffe_manager, mock_config
     """Testa inicializacao do Worker Agent com mTLS via X.509-SVID"""
     from src.clients.service_registry_client import ServiceRegistryClient
 
-    with patch('src.clients.service_registry_client.SECURITY_LIB_AVAILABLE', True), \
-         patch('src.clients.service_registry_client.SPIFFEManager') as MockSPIFFEManagerClass, \
-         patch('src.clients.service_registry_client.SPIFFEConfig'), \
-         patch('grpc.ssl_channel_credentials') as mock_ssl_creds, \
-         patch('grpc.aio.secure_channel') as mock_secure_channel, \
-         patch('src.clients.service_registry_client.instrument_grpc_channel') as mock_instrument, \
-         patch('src.clients.service_registry_client.service_registry_pb2_grpc') as mock_grpc:
-
+    with patch("src.clients.service_registry_client.SECURITY_LIB_AVAILABLE", True), patch(
+        "src.clients.service_registry_client.SPIFFEManager"
+    ) as MockSPIFFEManagerClass, patch("src.clients.service_registry_client.SPIFFEConfig"), patch(
+        "grpc.ssl_channel_credentials"
+    ) as mock_ssl_creds, patch(
+        "grpc.aio.secure_channel"
+    ) as mock_secure_channel, patch(
+        "src.clients.service_registry_client.instrument_grpc_channel"
+    ) as mock_instrument, patch(
+        "src.clients.service_registry_client.service_registry_pb2_grpc"
+    ) as mock_grpc:
         # Setup mocks
         MockSPIFFEManagerClass.return_value = mock_spiffe_manager
         mock_credentials = MagicMock()
@@ -144,14 +149,13 @@ async def test_worker_agent_mtls_initialization(mock_spiffe_manager, mock_config
         # Verificar que credenciais SSL foram criadas
         mock_ssl_creds.assert_called_once()
         call_kwargs = mock_ssl_creds.call_args.kwargs
-        assert call_kwargs['root_certificates'] == TEST_CA_BUNDLE.encode('utf-8')
-        assert call_kwargs['private_key'] == TEST_PRIVATE_KEY.encode('utf-8')
-        assert call_kwargs['certificate_chain'] == TEST_CERT.encode('utf-8')
+        assert call_kwargs["root_certificates"] == TEST_CA_BUNDLE.encode("utf-8")
+        assert call_kwargs["private_key"] == TEST_PRIVATE_KEY.encode("utf-8")
+        assert call_kwargs["certificate_chain"] == TEST_CERT.encode("utf-8")
 
         # Verificar que canal seguro foi criado
         mock_secure_channel.assert_called_once_with(
-            'service-registry.test.local:50051',
-            mock_credentials
+            "service-registry.test.local:50051", mock_credentials
         )
 
 
@@ -161,14 +165,17 @@ async def test_worker_agent_registration_with_jwt_metadata(mock_spiffe_manager, 
     from src.clients.service_registry_client import ServiceRegistryClient
     from neural_hive_integration.proto_stubs import service_registry_pb2
 
-    with patch('src.clients.service_registry_client.SECURITY_LIB_AVAILABLE', True), \
-         patch('src.clients.service_registry_client.SPIFFEManager') as MockSPIFFEManagerClass, \
-         patch('src.clients.service_registry_client.SPIFFEConfig'), \
-         patch('grpc.ssl_channel_credentials') as mock_ssl_creds, \
-         patch('grpc.aio.secure_channel') as mock_secure_channel, \
-         patch('src.clients.service_registry_client.instrument_grpc_channel') as mock_instrument, \
-         patch('src.clients.service_registry_client.service_registry_pb2_grpc') as mock_grpc:
-
+    with patch("src.clients.service_registry_client.SECURITY_LIB_AVAILABLE", True), patch(
+        "src.clients.service_registry_client.SPIFFEManager"
+    ) as MockSPIFFEManagerClass, patch("src.clients.service_registry_client.SPIFFEConfig"), patch(
+        "grpc.ssl_channel_credentials"
+    ) as mock_ssl_creds, patch(
+        "grpc.aio.secure_channel"
+    ) as mock_secure_channel, patch(
+        "src.clients.service_registry_client.instrument_grpc_channel"
+    ) as mock_instrument, patch(
+        "src.clients.service_registry_client.service_registry_pb2_grpc"
+    ) as mock_grpc:
         # Setup mocks
         MockSPIFFEManagerClass.return_value = mock_spiffe_manager
         mock_credentials = MagicMock()
@@ -180,8 +187,8 @@ async def test_worker_agent_registration_with_jwt_metadata(mock_spiffe_manager, 
 
         mock_stub = AsyncMock()
         mock_response = MagicMock()
-        mock_response.agent_id = 'worker-1'
-        mock_response.registration_token = 'token123'
+        mock_response.agent_id = "worker-1"
+        mock_response.registration_token = "token123"
         mock_response.registered_at = 1234567890
         mock_stub.Register = AsyncMock(return_value=mock_response)
         mock_grpc.ServiceRegistryStub.return_value = mock_stub
@@ -199,19 +206,19 @@ async def test_worker_agent_registration_with_jwt_metadata(mock_spiffe_manager, 
         # Verificar chamada RPC com metadata
         mock_stub.Register.assert_called_once()
         call_args = mock_stub.Register.call_args
-        metadata = call_args.kwargs.get('metadata', [])
+        metadata = call_args.kwargs.get("metadata", [])
 
         # Verificar que Authorization header esta presente
         auth_header = None
         for key, value in metadata:
-            if key == 'authorization':
+            if key == "authorization":
                 auth_header = value
                 break
 
         assert auth_header is not None, "JWT deve estar presente em metadata"
-        assert auth_header.startswith('Bearer ')
-        assert 'valid.jwt.token' in auth_header
-        assert agent_id == 'worker-1'
+        assert auth_header.startswith("Bearer ")
+        assert "valid.jwt.token" in auth_header
+        assert agent_id == "worker-1"
 
 
 @pytest.mark.asyncio
@@ -222,9 +229,9 @@ async def test_worker_agent_mtls_required_in_production(mock_config):
     # Desabilitar SPIFFE X.509
     mock_config.spiffe_enabled = True
     mock_config.spiffe_enable_x509 = False
-    mock_config.environment = 'production'
+    mock_config.environment = "production"
 
-    with patch('src.clients.service_registry_client.SECURITY_LIB_AVAILABLE', True):
+    with patch("src.clients.service_registry_client.SECURITY_LIB_AVAILABLE", True):
         client = ServiceRegistryClient(mock_config)
 
         # Deve falhar em producao sem mTLS
@@ -239,12 +246,13 @@ async def test_worker_agent_insecure_allowed_in_dev(mock_config):
 
     # Desabilitar SPIFFE em desenvolvimento
     mock_config.spiffe_enabled = False
-    mock_config.environment = 'development'
+    mock_config.environment = "development"
 
-    with patch('grpc.aio.insecure_channel') as mock_insecure_channel, \
-         patch('src.clients.service_registry_client.instrument_grpc_channel') as mock_instrument, \
-         patch('src.clients.service_registry_client.service_registry_pb2_grpc') as mock_grpc:
-
+    with patch("grpc.aio.insecure_channel") as mock_insecure_channel, patch(
+        "src.clients.service_registry_client.instrument_grpc_channel"
+    ) as mock_instrument, patch(
+        "src.clients.service_registry_client.service_registry_pb2_grpc"
+    ) as mock_grpc:
         mock_channel = AsyncMock()
         mock_insecure_channel.return_value = mock_channel
         mock_instrument.return_value = mock_channel
@@ -265,14 +273,17 @@ async def test_worker_agent_heartbeat_with_jwt_metadata(mock_spiffe_manager, moc
     from src.clients.service_registry_client import ServiceRegistryClient
     from neural_hive_integration.proto_stubs import service_registry_pb2
 
-    with patch('src.clients.service_registry_client.SECURITY_LIB_AVAILABLE', True), \
-         patch('src.clients.service_registry_client.SPIFFEManager') as MockSPIFFEManagerClass, \
-         patch('src.clients.service_registry_client.SPIFFEConfig'), \
-         patch('grpc.ssl_channel_credentials') as mock_ssl_creds, \
-         patch('grpc.aio.secure_channel') as mock_secure_channel, \
-         patch('src.clients.service_registry_client.instrument_grpc_channel') as mock_instrument, \
-         patch('src.clients.service_registry_client.service_registry_pb2_grpc') as mock_grpc:
-
+    with patch("src.clients.service_registry_client.SECURITY_LIB_AVAILABLE", True), patch(
+        "src.clients.service_registry_client.SPIFFEManager"
+    ) as MockSPIFFEManagerClass, patch("src.clients.service_registry_client.SPIFFEConfig"), patch(
+        "grpc.ssl_channel_credentials"
+    ) as mock_ssl_creds, patch(
+        "grpc.aio.secure_channel"
+    ) as mock_secure_channel, patch(
+        "src.clients.service_registry_client.instrument_grpc_channel"
+    ) as mock_instrument, patch(
+        "src.clients.service_registry_client.service_registry_pb2_grpc"
+    ) as mock_grpc:
         # Setup mocks
         MockSPIFFEManagerClass.return_value = mock_spiffe_manager
         mock_credentials = MagicMock()
@@ -294,18 +305,18 @@ async def test_worker_agent_heartbeat_with_jwt_metadata(mock_spiffe_manager, moc
 
         # Simular registro previo
         client._registered = True
-        client.agent_id = 'worker-1'
+        client.agent_id = "worker-1"
 
         # Resetar contador de chamadas JWT
         mock_spiffe_manager.fetch_jwt_svid.reset_mock()
 
         # Enviar heartbeat
         telemetry = {
-            'success_rate': 0.95,
-            'avg_duration_ms': 150,
-            'total_executions': 100,
-            'failed_executions': 5,
-            'timestamp': 1234567890.0
+            "success_rate": 0.95,
+            "avg_duration_ms": 150,
+            "total_executions": 100,
+            "failed_executions": 5,
+            "timestamp": 1234567890.0,
         }
         result = await client.heartbeat(telemetry)
 
@@ -315,12 +326,12 @@ async def test_worker_agent_heartbeat_with_jwt_metadata(mock_spiffe_manager, moc
         # Verificar chamada RPC com metadata
         mock_stub.Heartbeat.assert_called_once()
         call_args = mock_stub.Heartbeat.call_args
-        metadata = call_args.kwargs.get('metadata', [])
+        metadata = call_args.kwargs.get("metadata", [])
 
         # Verificar que Authorization header esta presente
         auth_header = None
         for key, value in metadata:
-            if key == 'authorization':
+            if key == "authorization":
                 auth_header = value
                 break
 
@@ -333,14 +344,17 @@ async def test_worker_agent_deregister_with_jwt_metadata(mock_spiffe_manager, mo
     """Testa deregister do Worker Agent com JWT-SVID em metadata"""
     from src.clients.service_registry_client import ServiceRegistryClient
 
-    with patch('src.clients.service_registry_client.SECURITY_LIB_AVAILABLE', True), \
-         patch('src.clients.service_registry_client.SPIFFEManager') as MockSPIFFEManagerClass, \
-         patch('src.clients.service_registry_client.SPIFFEConfig'), \
-         patch('grpc.ssl_channel_credentials') as mock_ssl_creds, \
-         patch('grpc.aio.secure_channel') as mock_secure_channel, \
-         patch('src.clients.service_registry_client.instrument_grpc_channel') as mock_instrument, \
-         patch('src.clients.service_registry_client.service_registry_pb2_grpc') as mock_grpc:
-
+    with patch("src.clients.service_registry_client.SECURITY_LIB_AVAILABLE", True), patch(
+        "src.clients.service_registry_client.SPIFFEManager"
+    ) as MockSPIFFEManagerClass, patch("src.clients.service_registry_client.SPIFFEConfig"), patch(
+        "grpc.ssl_channel_credentials"
+    ) as mock_ssl_creds, patch(
+        "grpc.aio.secure_channel"
+    ) as mock_secure_channel, patch(
+        "src.clients.service_registry_client.instrument_grpc_channel"
+    ) as mock_instrument, patch(
+        "src.clients.service_registry_client.service_registry_pb2_grpc"
+    ) as mock_grpc:
         # Setup mocks
         MockSPIFFEManagerClass.return_value = mock_spiffe_manager
         mock_credentials = MagicMock()
@@ -362,7 +376,7 @@ async def test_worker_agent_deregister_with_jwt_metadata(mock_spiffe_manager, mo
 
         # Simular registro previo
         client._registered = True
-        client.agent_id = 'worker-1'
+        client.agent_id = "worker-1"
 
         # Resetar contador de chamadas JWT
         mock_spiffe_manager.fetch_jwt_svid.reset_mock()
@@ -376,12 +390,12 @@ async def test_worker_agent_deregister_with_jwt_metadata(mock_spiffe_manager, mo
         # Verificar chamada RPC com metadata
         mock_stub.Deregister.assert_called_once()
         call_args = mock_stub.Deregister.call_args
-        metadata = call_args.kwargs.get('metadata', [])
+        metadata = call_args.kwargs.get("metadata", [])
 
         # Verificar que Authorization header esta presente
         auth_header = None
         for key, value in metadata:
-            if key == 'authorization':
+            if key == "authorization":
                 auth_header = value
                 break
 
@@ -395,19 +409,22 @@ async def test_jwt_svid_failure_continues_in_dev(mock_spiffe_manager, mock_confi
     from src.clients.service_registry_client import ServiceRegistryClient
 
     # Configurar ambiente de desenvolvimento
-    mock_config.environment = 'development'
+    mock_config.environment = "development"
 
     # Configurar JWT fetch para falhar
     mock_spiffe_manager.fetch_jwt_svid.side_effect = Exception("SPIRE agent unavailable")
 
-    with patch('src.clients.service_registry_client.SECURITY_LIB_AVAILABLE', True), \
-         patch('src.clients.service_registry_client.SPIFFEManager') as MockSPIFFEManagerClass, \
-         patch('src.clients.service_registry_client.SPIFFEConfig'), \
-         patch('grpc.ssl_channel_credentials') as mock_ssl_creds, \
-         patch('grpc.aio.secure_channel') as mock_secure_channel, \
-         patch('src.clients.service_registry_client.instrument_grpc_channel') as mock_instrument, \
-         patch('src.clients.service_registry_client.service_registry_pb2_grpc') as mock_grpc:
-
+    with patch("src.clients.service_registry_client.SECURITY_LIB_AVAILABLE", True), patch(
+        "src.clients.service_registry_client.SPIFFEManager"
+    ) as MockSPIFFEManagerClass, patch("src.clients.service_registry_client.SPIFFEConfig"), patch(
+        "grpc.ssl_channel_credentials"
+    ) as mock_ssl_creds, patch(
+        "grpc.aio.secure_channel"
+    ) as mock_secure_channel, patch(
+        "src.clients.service_registry_client.instrument_grpc_channel"
+    ) as mock_instrument, patch(
+        "src.clients.service_registry_client.service_registry_pb2_grpc"
+    ) as mock_grpc:
         # Setup mocks
         MockSPIFFEManagerClass.return_value = mock_spiffe_manager
         mock_credentials = MagicMock()
@@ -419,7 +436,7 @@ async def test_jwt_svid_failure_continues_in_dev(mock_spiffe_manager, mock_confi
 
         mock_stub = AsyncMock()
         mock_response = MagicMock()
-        mock_response.agent_id = 'worker-1'
+        mock_response.agent_id = "worker-1"
         mock_stub.Register = AsyncMock(return_value=mock_response)
         mock_grpc.ServiceRegistryStub.return_value = mock_stub
 
@@ -432,7 +449,7 @@ async def test_jwt_svid_failure_continues_in_dev(mock_spiffe_manager, mock_confi
 
         # Verificar que RPC foi chamado mesmo sem JWT
         mock_stub.Register.assert_called_once()
-        assert agent_id == 'worker-1'
+        assert agent_id == "worker-1"
 
 
 @pytest.mark.asyncio
@@ -441,19 +458,22 @@ async def test_jwt_svid_failure_raises_in_production(mock_spiffe_manager, mock_c
     from src.clients.service_registry_client import ServiceRegistryClient
 
     # Configurar ambiente de producao
-    mock_config.environment = 'production'
+    mock_config.environment = "production"
 
     # Configurar JWT fetch para falhar
     mock_spiffe_manager.fetch_jwt_svid.side_effect = Exception("SPIRE agent unavailable")
 
-    with patch('src.clients.service_registry_client.SECURITY_LIB_AVAILABLE', True), \
-         patch('src.clients.service_registry_client.SPIFFEManager') as MockSPIFFEManagerClass, \
-         patch('src.clients.service_registry_client.SPIFFEConfig'), \
-         patch('grpc.ssl_channel_credentials') as mock_ssl_creds, \
-         patch('grpc.aio.secure_channel') as mock_secure_channel, \
-         patch('src.clients.service_registry_client.instrument_grpc_channel') as mock_instrument, \
-         patch('src.clients.service_registry_client.service_registry_pb2_grpc') as mock_grpc:
-
+    with patch("src.clients.service_registry_client.SECURITY_LIB_AVAILABLE", True), patch(
+        "src.clients.service_registry_client.SPIFFEManager"
+    ) as MockSPIFFEManagerClass, patch("src.clients.service_registry_client.SPIFFEConfig"), patch(
+        "grpc.ssl_channel_credentials"
+    ) as mock_ssl_creds, patch(
+        "grpc.aio.secure_channel"
+    ) as mock_secure_channel, patch(
+        "src.clients.service_registry_client.instrument_grpc_channel"
+    ) as mock_instrument, patch(
+        "src.clients.service_registry_client.service_registry_pb2_grpc"
+    ) as mock_grpc:
         # Setup mocks
         MockSPIFFEManagerClass.return_value = mock_spiffe_manager
         mock_credentials = MagicMock()

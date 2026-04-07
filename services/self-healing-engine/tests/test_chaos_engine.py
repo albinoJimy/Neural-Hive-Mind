@@ -55,14 +55,9 @@ class TestChaosModels:
 
     def test_fault_injection_creation(self):
         """Testa criação de FaultInjection."""
-        target = TargetSelector(
-            namespace="test-ns",
-            service_name="test-service"
-        )
+        target = TargetSelector(namespace="test-ns", service_name="test-service")
         injection = FaultInjection(
-            fault_type=FaultType.POD_KILL,
-            target=target,
-            duration_seconds=60
+            fault_type=FaultType.POD_KILL, target=target, duration_seconds=60
         )
         assert injection.fault_type == FaultType.POD_KILL
         assert injection.target.namespace == "test-ns"
@@ -71,15 +66,12 @@ class TestChaosModels:
     def test_chaos_experiment_creation(self):
         """Testa criação de ChaosExperiment."""
         target = TargetSelector(namespace="default")
-        injection = FaultInjection(
-            fault_type=FaultType.POD_KILL,
-            target=target
-        )
+        injection = FaultInjection(fault_type=FaultType.POD_KILL, target=target)
         experiment = ChaosExperiment(
             name="Test Experiment",
             description="Test description",
             environment="staging",
-            fault_injections=[injection]
+            fault_injections=[injection],
         )
         assert experiment.name == "Test Experiment"
         assert experiment.status == ChaosExperimentStatus.PLANNED
@@ -87,19 +79,10 @@ class TestChaosModels:
 
     def test_chaos_experiment_request(self):
         """Testa ChaosExperimentRequest."""
-        target = TargetSelector(
-            namespace="default",
-            service_name="test-service"
-        )
-        injection = FaultInjection(
-            fault_type=FaultType.POD_KILL,
-            target=target
-        )
+        target = TargetSelector(namespace="default", service_name="test-service")
+        injection = FaultInjection(fault_type=FaultType.POD_KILL, target=target)
         request = ChaosExperimentRequest(
-            name="Test",
-            description="Test",
-            environment="staging",
-            fault_injections=[injection]
+            name="Test", description="Test", environment="staging", fault_injections=[injection]
         )
         assert request.fault_injections[0].target.service_name == "test-service"
 
@@ -139,7 +122,7 @@ class TestScenarioLibrary:
             name="Test Pod Failure",
             description="Test description",
             target_service="worker-agents",
-            target_namespace="neural-hive-execution"
+            target_namespace="neural-hive-execution",
         )
         experiment = self.library.pod_failure_scenario(config)
         assert experiment.name == "Pod Failure - worker-agents"
@@ -152,7 +135,7 @@ class TestScenarioLibrary:
             name="Test Network Partition",
             description="Test description",
             target_service="consensus-engine",
-            target_namespace="neural-hive-orchestration"
+            target_namespace="neural-hive-orchestration",
         )
         experiment = self.library.network_partition_scenario(config)
         assert experiment.name == "Network Partition - consensus-engine"
@@ -165,7 +148,7 @@ class TestScenarioLibrary:
             description="Test description",
             target_service="optimizer-agents",
             target_namespace="neural-hive-orchestration",
-            custom_parameters={"resource_type": "cpu"}
+            custom_parameters={"resource_type": "cpu"},
         )
         experiment = self.library.resource_exhaustion_scenario(config)
         assert experiment.fault_injections[0].fault_type == FaultType.CPU_STRESS
@@ -177,7 +160,7 @@ class TestScenarioLibrary:
             description="Test description",
             target_service="optimizer-agents",
             target_namespace="neural-hive-orchestration",
-            custom_parameters={"resource_type": "memory"}
+            custom_parameters={"resource_type": "memory"},
         )
         experiment = self.library.resource_exhaustion_scenario(config)
         assert experiment.fault_injections[0].fault_type == FaultType.MEMORY_STRESS
@@ -188,7 +171,7 @@ class TestScenarioLibrary:
             name="Test Cascading",
             description="Test description",
             target_service="gateway-intencoes",
-            target_namespace="neural-hive-execution"
+            target_namespace="neural-hive-execution",
         )
         experiment = self.library.cascading_failure_scenario(config)
         assert len(experiment.fault_injections) == 2
@@ -203,7 +186,7 @@ class TestScenarioLibrary:
             description="Test description",
             target_service="mcp-tool-catalog",
             target_namespace="neural-hive-mcp",
-            custom_parameters={"latency_ms": 3000}
+            custom_parameters={"latency_ms": 3000},
         )
         experiment = self.library.slow_dependency_scenario(config)
         assert experiment.fault_injections[0].fault_type == FaultType.HTTP_DELAY
@@ -214,7 +197,7 @@ class TestScenarioLibrary:
             name="Test",
             description="Test",
             target_service="test-service",
-            target_namespace="default"
+            target_namespace="default",
         )
         experiment = self.library.create_scenario("pod_failure", config)
         assert experiment is not None
@@ -225,7 +208,7 @@ class TestScenarioLibrary:
             name="Test",
             description="Test",
             target_service="test-service",
-            target_namespace="default"
+            target_namespace="default",
         )
         with pytest.raises(ValueError):
             self.library.create_scenario("invalid_scenario", config)
@@ -242,23 +225,18 @@ class TestScenarioLibrary:
 
     def test_custom_scenario(self):
         """Testa criação de cenário customizado."""
-        target = TargetSelector(
-            namespace="custom-ns",
-            service_name="custom-service"
-        )
+        target = TargetSelector(namespace="custom-ns", service_name="custom-service")
         injection = FaultInjection(
             fault_type=FaultType.HTTP_ERROR,
             target=target,
-            parameters=FaultParameters(http_status_code=503)
+            parameters=FaultParameters(http_status_code=503),
         )
-        criteria = ValidationCriteria(
-            max_recovery_time_seconds=120
-        )
+        criteria = ValidationCriteria(max_recovery_time_seconds=120)
         experiment = self.library.create_custom_scenario(
             name="Custom Scenario",
             description="Custom test",
             fault_injections=[injection],
-            validation_criteria=criteria
+            validation_criteria=criteria,
         )
         assert experiment.name == "Custom Scenario"
         assert experiment.metadata["scenario"] == "custom"
@@ -290,7 +268,7 @@ class TestChaosEngine:
             max_concurrent_experiments=3,
             default_timeout_seconds=600,
             require_opa_approval=False,
-            blast_radius_limit=5
+            blast_radius_limit=5,
         )
         return engine
 
@@ -328,7 +306,7 @@ class TestInjectionResult:
             injection_id="inj-123",
             fault_type=FaultType.POD_KILL,
             affected_resources=["pod-1", "pod-2"],
-            blast_radius=2
+            blast_radius=2,
         )
         assert result.success is True
         assert len(result.affected_resources) == 2
@@ -339,7 +317,7 @@ class TestInjectionResult:
             success=False,
             injection_id="inj-456",
             fault_type=FaultType.NETWORK_PARTITION,
-            error_message="Permission denied"
+            error_message="Permission denied",
         )
         assert result.success is False
         assert result.error_message == "Permission denied"
@@ -355,7 +333,7 @@ class TestValidationCriteria:
             min_availability_percent=95.0,
             max_error_rate_percent=10.0,
             max_latency_p95_ms=500,
-            required_playbook="restart-pod"
+            required_playbook="restart-pod",
         )
         assert criteria.max_recovery_time_seconds == 60
         assert criteria.min_availability_percent == 95.0
@@ -370,12 +348,9 @@ class TestValidationResult:
         result = ValidationResult(
             playbook_name="test-playbook",
             success=True,
-            criteria_met={
-                "recovery_time": True,
-                "availability": True
-            },
+            criteria_met={"recovery_time": True, "availability": True},
             recovery_time_seconds=45.0,
-            availability_percent=99.5
+            availability_percent=99.5,
         )
         assert result.success is True
         assert len(result.criteria_met) == 2
@@ -385,13 +360,10 @@ class TestValidationResult:
         result = ValidationResult(
             playbook_name="test-playbook",
             success=False,
-            criteria_met={
-                "recovery_time": False,
-                "availability": True
-            },
+            criteria_met={"recovery_time": False, "availability": True},
             recovery_time_seconds=180.0,
             availability_percent=98.0,
-            observations=["Tempo de recuperação excedeu limite"]
+            observations=["Tempo de recuperação excedeu limite"],
         )
         assert result.success is False
         assert result.criteria_met["recovery_time"] is False

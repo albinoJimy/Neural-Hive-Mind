@@ -268,9 +268,7 @@ class WorkerAgentSettings(BaseSettings):
         description="Endereço do servidor Vault",
     )
     vault_tls_verify: bool = Field(default=True, description="Verificar certificado TLS do Vault")
-    vault_ca_bundle: str | None = Field(
-        default=None, description="Caminho para CA bundle do Vault"
-    )
+    vault_ca_bundle: str | None = Field(default=None, description="Caminho para CA bundle do Vault")
     vault_kubernetes_role: str = Field(
         default="worker-agents", description="Role Kubernetes para autenticação Vault"
     )

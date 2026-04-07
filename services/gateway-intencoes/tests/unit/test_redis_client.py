@@ -14,7 +14,7 @@ from src.cache.redis_client import (
     CircuitBreaker,
     CircuitBreakerError,
     get_redis_client,
-    close_redis_client
+    close_redis_client,
 )
 
 
@@ -30,11 +30,13 @@ async def mock_redis_cluster():
     mock.set = AsyncMock(return_value=True)
     mock.pipeline = Mock()
     mock.keyslot = Mock()
-    mock.cluster_info = AsyncMock(return_value={
-        "node1": {"role": "master", "slots": [0, 5460]},
-        "node2": {"role": "master", "slots": [5461, 10922]},
-        "node3": {"role": "master", "slots": [10923, 16383]}
-    })
+    mock.cluster_info = AsyncMock(
+        return_value={
+            "node1": {"role": "master", "slots": [0, 5460]},
+            "node2": {"role": "master", "slots": [5461, 10922]},
+            "node3": {"role": "master", "slots": [10923, 16383]},
+        }
+    )
     mock.close = AsyncMock()
     return mock
 
@@ -42,7 +44,7 @@ async def mock_redis_cluster():
 @pytest.fixture
 async def redis_client(mock_redis_cluster):
     """Create RedisClient with mocked cluster connection"""
-    with patch('src.cache.redis_client.RedisCluster', return_value=mock_redis_cluster):
+    with patch("src.cache.redis_client.RedisCluster", return_value=mock_redis_cluster):
         client = RedisClient()
         client.redis = mock_redis_cluster
         yield client
@@ -235,7 +237,7 @@ class TestRedisClient:
         operations = [
             {"method": "get", "args": ["key1"]},
             {"method": "set", "args": ["key2", "value2"]},
-            {"method": "delete", "args": ["key3"]}
+            {"method": "delete", "args": ["key3"]},
         ]
 
         results = await redis_client.pipeline_operations(operations)
@@ -249,7 +251,11 @@ class TestRedisClient:
     async def test_pipeline_multi_slot(self, redis_client, mock_redis_cluster):
         """Test pipeline with operations across different slots"""
         # Mock keyslot to return different slots
-        mock_redis_cluster.keyslot.side_effect = [100, 200, 100]  # key1 and key3 in slot 100, key2 in slot 200
+        mock_redis_cluster.keyslot.side_effect = [
+            100,
+            200,
+            100,
+        ]  # key1 and key3 in slot 100, key2 in slot 200
 
         # Create separate mock pipelines for each slot
         mock_pipe1 = AsyncMock()
@@ -263,7 +269,7 @@ class TestRedisClient:
         operations = [
             {"method": "get", "args": ["key1"]},  # slot 100
             {"method": "set", "args": ["key2", "value2"]},  # slot 200
-            {"method": "delete", "args": ["key3"]}  # slot 100
+            {"method": "delete", "args": ["key3"]},  # slot 100
         ]
 
         results = await redis_client.pipeline_operations(operations)
@@ -290,7 +296,7 @@ class TestRedisClient:
         operations = [
             {"method": "get", "args": ["key1"]},
             {"method": "ping", "args": []},  # Keyless operation
-            {"method": "set", "args": ["key2", "value2"]}
+            {"method": "set", "args": ["key2", "value2"]},
         ]
 
         results = await redis_client.pipeline_operations(operations)
@@ -310,7 +316,7 @@ class TestRedisClient:
 
         operations = [
             {"method": "get", "args": ["key1"]},
-            {"method": "set", "args": ["key2", "value2"]}
+            {"method": "set", "args": ["key2", "value2"]},
         ]
 
         results = await redis_client.pipeline_operations(operations)
@@ -355,9 +361,7 @@ class TestRedisClient:
 
         async with redis_client.acquire_lock("test_lock", timeout=10):
             # Lock acquired
-            mock_redis_cluster.set.assert_called_with(
-                "test_lock", "locked", nx=True, ex=10
-            )
+            mock_redis_cluster.set.assert_called_with("test_lock", "locked", nx=True, ex=10)
 
         # Lock released
         mock_redis_cluster.delete.assert_called_with("test_lock")
@@ -412,13 +416,14 @@ class TestRedisClientSingleton:
     @pytest.mark.asyncio
     async def test_get_redis_client_singleton(self):
         """Test that get_redis_client returns the same instance"""
-        with patch('src.cache.redis_client.RedisClient') as MockRedisClient:
+        with patch("src.cache.redis_client.RedisClient") as MockRedisClient:
             mock_instance = Mock()
             mock_instance.initialize = AsyncMock()
             MockRedisClient.return_value = mock_instance
 
             # Reset global client
             import src.cache.redis_client
+
             src.cache.redis_client._redis_client = None
 
             client1 = await get_redis_client()
@@ -431,7 +436,7 @@ class TestRedisClientSingleton:
     @pytest.mark.asyncio
     async def test_close_redis_client(self):
         """Test closing the global Redis client"""
-        with patch('src.cache.redis_client.RedisClient') as MockRedisClient:
+        with patch("src.cache.redis_client.RedisClient") as MockRedisClient:
             mock_instance = Mock()
             mock_instance.initialize = AsyncMock()
             mock_instance.close = AsyncMock()
@@ -439,6 +444,7 @@ class TestRedisClientSingleton:
 
             # Reset and create client
             import src.cache.redis_client
+
             src.cache.redis_client._redis_client = None
 
             client = await get_redis_client()
@@ -461,8 +467,8 @@ async def test_initialization_with_settings(monkeypatch):
     mock_settings.redis_timeout = 5000
     mock_settings.redis_default_ttl = 300
 
-    with patch('src.cache.redis_client.get_settings', return_value=mock_settings):
-        with patch('src.cache.redis_client.RedisCluster') as MockRedisCluster:
+    with patch("src.cache.redis_client.get_settings", return_value=mock_settings):
+        with patch("src.cache.redis_client.RedisCluster") as MockRedisCluster:
             mock_cluster = AsyncMock()
             mock_cluster.ping = AsyncMock(return_value=True)
             MockRedisCluster.return_value = mock_cluster
@@ -494,12 +500,12 @@ async def test_initialization_with_ssl(monkeypatch):
     mock_settings.redis_timeout = 5000
     mock_settings.redis_default_ttl = 300
 
-    with patch('src.cache.redis_client.get_settings', return_value=mock_settings):
-        with patch('src.cache.redis_client.ssl.create_default_context') as mock_ssl:
+    with patch("src.cache.redis_client.get_settings", return_value=mock_settings):
+        with patch("src.cache.redis_client.ssl.create_default_context") as mock_ssl:
             mock_ssl_context = Mock()
             mock_ssl.return_value = mock_ssl_context
 
-            with patch('src.cache.redis_client.RedisCluster') as MockRedisCluster:
+            with patch("src.cache.redis_client.RedisCluster") as MockRedisCluster:
                 mock_cluster = AsyncMock()
                 mock_cluster.ping = AsyncMock(return_value=True)
                 MockRedisCluster.return_value = mock_cluster

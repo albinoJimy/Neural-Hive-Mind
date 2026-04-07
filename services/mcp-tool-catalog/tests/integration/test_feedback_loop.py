@@ -20,6 +20,7 @@ from src.models.tool_descriptor import ToolDescriptor, ToolCategory, Integration
 # Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def mock_mongodb():
     """Mock de cliente MongoDB."""
@@ -27,15 +28,17 @@ def mock_mongodb():
     collection = MagicMock()
 
     # Configurar async methods
-    collection.find_one = AsyncMock(return_value={
-        "tool_id": "pytest-001",
-        "reputation_score": 0.8,
-        "average_execution_time_ms": 5000,
-        "execution_count": 100,
-        "success_count": 90,
-        "failure_count": 10,
-        "is_healthy": True
-    })
+    collection.find_one = AsyncMock(
+        return_value={
+            "tool_id": "pytest-001",
+            "reputation_score": 0.8,
+            "average_execution_time_ms": 5000,
+            "execution_count": 100,
+            "success_count": 90,
+            "failure_count": 10,
+            "is_healthy": True,
+        }
+    )
     collection.update_one = AsyncMock()
     collection.find = MagicMock()
 
@@ -58,6 +61,7 @@ def mock_redis():
 def tool_registry_class():
     """Importa ToolRegistry para testes."""
     from src.services.tool_registry import ToolRegistry
+
     return ToolRegistry
 
 
@@ -75,13 +79,14 @@ def cli_tool():
         average_execution_time_ms=5000,
         integration_type=IntegrationType.CLI,
         authentication_method="NONE",
-        is_healthy=True
+        is_healthy=True,
     )
 
 
 # ============================================================================
 # Testes de Atualizacao de Reputacao
 # ============================================================================
+
 
 class TestReputationUpdate:
     """Testes de atualizacao de reputacao."""
@@ -97,7 +102,7 @@ class TestReputationUpdate:
             "reputation_score": 0.8,
             "execution_count": 100,
             "success_count": 80,
-            "failure_count": 20
+            "failure_count": 20,
         }
         collection.find_one = AsyncMock(return_value=initial_data)
 
@@ -111,6 +116,7 @@ class TestReputationUpdate:
 
         # Criar registry mock
         from unittest.mock import MagicMock
+
         registry = MagicMock()
         registry.collection = collection
         registry.cache = mock_redis
@@ -128,10 +134,10 @@ class TestReputationUpdate:
                 "$set": {
                     "reputation_score": new_reputation,
                     "execution_count": new_total,
-                    "success_count": new_success_count
+                    "success_count": new_success_count,
                 },
-                "$inc": {}
-            }
+                "$inc": {},
+            },
         )
 
         # Verificar
@@ -150,7 +156,7 @@ class TestReputationUpdate:
             "reputation_score": 0.8,
             "execution_count": 100,
             "success_count": 80,
-            "failure_count": 20
+            "failure_count": 20,
         }
         collection.find_one = AsyncMock(return_value=initial_data)
 
@@ -172,9 +178,9 @@ class TestReputationUpdate:
                 "$set": {
                     "reputation_score": new_reputation,
                     "execution_count": new_total,
-                    "failure_count": new_failure_count
+                    "failure_count": new_failure_count,
                 }
-            }
+            },
         )
 
         assert len(update_calls) == 1
@@ -193,7 +199,7 @@ class TestReputationUpdate:
             "reputation_score": 0.99,
             "execution_count": 1000,
             "success_count": 990,
-            "failure_count": 10
+            "failure_count": 10,
         }
 
         # Nova reputacao apos mais um sucesso
@@ -206,7 +212,7 @@ class TestReputationUpdate:
             "reputation_score": 0.1,
             "execution_count": 100,
             "success_count": 10,
-            "failure_count": 90
+            "failure_count": 90,
         }
 
         # Nova reputacao apos mais uma falha
@@ -217,6 +223,7 @@ class TestReputationUpdate:
 # ============================================================================
 # Testes de Tempo de Execucao
 # ============================================================================
+
 
 class TestExecutionTimeUpdate:
     """Testes de atualizacao de tempo de execucao."""
@@ -229,7 +236,7 @@ class TestExecutionTimeUpdate:
         initial_data = {
             "tool_id": "pytest-001",
             "average_execution_time_ms": 5000,
-            "execution_count": 100
+            "execution_count": 100,
         }
         collection.find_one = AsyncMock(return_value=initial_data)
 
@@ -247,12 +254,7 @@ class TestExecutionTimeUpdate:
 
         await collection.update_one(
             {"tool_id": "pytest-001"},
-            {
-                "$set": {
-                    "average_execution_time_ms": new_avg,
-                    "execution_count": 101
-                }
-            }
+            {"$set": {"average_execution_time_ms": new_avg, "execution_count": 101}},
         )
 
         assert len(update_calls) == 1
@@ -285,6 +287,7 @@ class TestExecutionTimeUpdate:
 # Testes de Status de Saude
 # ============================================================================
 
+
 class TestHealthStatus:
     """Testes de status de saude da ferramenta."""
 
@@ -299,7 +302,7 @@ class TestHealthStatus:
             "reputation_score": 0.3,
             "is_healthy": True,
             "consecutive_failures": 4,  # Limite e 5
-            "last_failure_time": "2024-01-01T00:00:00"
+            "last_failure_time": "2024-01-01T00:00:00",
         }
         collection.find_one = AsyncMock(return_value=initial_data)
 
@@ -320,12 +323,7 @@ class TestHealthStatus:
 
         await collection.update_one(
             {"tool_id": "failing-tool"},
-            {
-                "$set": {
-                    "is_healthy": is_healthy,
-                    "consecutive_failures": 5
-                }
-            }
+            {"$set": {"is_healthy": is_healthy, "consecutive_failures": 5}},
         )
 
         assert len(update_calls) == 1
@@ -343,7 +341,7 @@ class TestHealthStatus:
             "reputation_score": 0.5,
             "is_healthy": False,
             "consecutive_successes": 2,  # Limite para recovery e 3
-            "consecutive_failures": 0
+            "consecutive_failures": 0,
         }
         collection.find_one = AsyncMock(return_value=initial_data)
 
@@ -368,9 +366,9 @@ class TestHealthStatus:
                 "$set": {
                     "is_healthy": is_healthy,
                     "consecutive_successes": 3,
-                    "consecutive_failures": 0
+                    "consecutive_failures": 0,
                 }
-            }
+            },
         )
 
         assert len(update_calls) == 1
@@ -380,6 +378,7 @@ class TestHealthStatus:
 # ============================================================================
 # Testes de Propagacao de Feedback
 # ============================================================================
+
 
 class TestFeedbackPropagation:
     """Testes de propagacao de feedback para MongoDB e cache."""
@@ -393,7 +392,7 @@ class TestFeedbackPropagation:
             "tool_id": "pytest-001",
             "reputation_score": 0.8,
             "execution_count": 100,
-            "success_count": 80
+            "success_count": 80,
         }
         collection.find_one = AsyncMock(return_value=initial_data)
 
@@ -408,7 +407,7 @@ class TestFeedbackPropagation:
         # Simular feedback
         await collection.update_one(
             {"tool_id": "pytest-001"},
-            {"$set": {"reputation_score": 0.81}, "$inc": {"execution_count": 1}}
+            {"$set": {"reputation_score": 0.81}, "$inc": {"execution_count": 1}},
         )
 
         assert update_called is True
@@ -451,7 +450,7 @@ class TestFeedbackPropagation:
         cache_keys = [
             f"tool:{tool_id}:metadata",
             f"tool:{tool_id}:health",
-            f"selection:cache:{tool_id}:*"
+            f"selection:cache:{tool_id}:*",
         ]
 
         for key in cache_keys:
@@ -463,6 +462,7 @@ class TestFeedbackPropagation:
 # ============================================================================
 # Testes de Cenarios Integrados
 # ============================================================================
+
 
 class TestIntegratedFeedbackScenarios:
     """Testes de cenarios integrados de feedback."""
@@ -481,7 +481,7 @@ class TestIntegratedFeedbackScenarios:
             "success_count": 80,
             "consecutive_successes": 0,
             "consecutive_failures": 0,
-            "is_healthy": True
+            "is_healthy": True,
         }
         collection.find_one = AsyncMock(return_value=initial)
 
@@ -502,13 +502,10 @@ class TestIntegratedFeedbackScenarios:
             "execution_count": 101,
             "success_count": 81,
             "consecutive_successes": 1,
-            "consecutive_failures": 0
+            "consecutive_failures": 0,
         }
 
-        await collection.update_one(
-            {"tool_id": "pytest-001"},
-            {"$set": new_data}
-        )
+        await collection.update_one({"tool_id": "pytest-001"}, {"$set": new_data})
 
         # Invalidar cache
         await mock_redis.delete("tool:pytest-001:metadata")
@@ -531,7 +528,7 @@ class TestIntegratedFeedbackScenarios:
             "failure_count": 20,
             "consecutive_successes": 2,
             "consecutive_failures": 0,
-            "is_healthy": True
+            "is_healthy": True,
         }
         collection.find_one = AsyncMock(return_value=initial)
 
@@ -548,13 +545,10 @@ class TestIntegratedFeedbackScenarios:
             "execution_count": 51,
             "failure_count": 21,
             "consecutive_successes": 0,  # Reset
-            "consecutive_failures": 1
+            "consecutive_failures": 1,
         }
 
-        await collection.update_one(
-            {"tool_id": "failing-tool"},
-            {"$set": new_data}
-        )
+        await collection.update_one({"tool_id": "failing-tool"}, {"$set": new_data})
 
         # Verificacoes
         assert len(updates) == 1
@@ -571,7 +565,7 @@ class TestIntegratedFeedbackScenarios:
             "tool_id": "busy-tool",
             "reputation_score": 0.8,
             "execution_count": 100,
-            "success_count": 80
+            "success_count": 80,
         }
         collection.find_one = AsyncMock(return_value=initial)
 
@@ -586,8 +580,7 @@ class TestIntegratedFeedbackScenarios:
         # Simular 10 feedbacks rapidos
         for i in range(10):
             await collection.update_one(
-                {"tool_id": "busy-tool"},
-                {"$inc": {"execution_count": 1, "success_count": 1}}
+                {"tool_id": "busy-tool"}, {"$inc": {"execution_count": 1, "success_count": 1}}
             )
 
         assert update_count == 10

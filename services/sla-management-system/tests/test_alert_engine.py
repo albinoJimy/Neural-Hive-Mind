@@ -31,12 +31,14 @@ def mock_postgresql_client():
     client.list_slos = AsyncMock(return_value=[])
     client.save_alert = AsyncMock(return_value="alert-123")
     client.list_alerts = AsyncMock(return_value=[])
-    client.get_alert_statistics = AsyncMock(return_value={
-        "total_alerts": 0,
-        "alerts_by_severity": {},
-        "alerts_by_channel": {},
-        "recent_alerts_count": 0,
-    })
+    client.get_alert_statistics = AsyncMock(
+        return_value={
+            "total_alerts": 0,
+            "alerts_by_severity": {},
+            "alerts_by_channel": {},
+            "recent_alerts_count": 0,
+        }
+    )
     client.acknowledge_alert = AsyncMock(return_value=True)
     client.resolve_alert = AsyncMock(return_value=True)
     return client
@@ -269,7 +271,9 @@ class TestCooldown:
         )
 
         # Simular último alerta há 5 minutos
-        alert_engine._last_alert_times["test-rule"] = datetime.now(timezone.utc) - timedelta(minutes=5)
+        alert_engine._last_alert_times["test-rule"] = datetime.now(timezone.utc) - timedelta(
+            minutes=5
+        )
 
         # Verificar que está em cooldown
         in_cooldown = await alert_engine._is_in_cooldown("test-rule")
@@ -292,7 +296,9 @@ class TestCooldown:
         )
 
         # Simular último alerta há 31 minutos
-        alert_engine._last_alert_times["test-rule"] = datetime.now(timezone.utc) - timedelta(minutes=31)
+        alert_engine._last_alert_times["test-rule"] = datetime.now(timezone.utc) - timedelta(
+            minutes=31
+        )
 
         # Verificar que não está mais em cooldown
         in_cooldown = await alert_engine._is_in_cooldown("test-rule")
@@ -396,8 +402,7 @@ class TestAlertCRUD:
         alert_engine._create_default_rules()
 
         updated = await alert_engine.update_rule(
-            "budget-critical",
-            {"severity": AlertSeverity.EMERGENCY}
+            "budget-critical", {"severity": AlertSeverity.EMERGENCY}
         )
 
         assert updated is not None

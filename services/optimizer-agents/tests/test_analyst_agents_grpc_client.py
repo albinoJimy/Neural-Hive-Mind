@@ -71,7 +71,9 @@ async def test_request_causal_analysis_fallback_execute_analysis(settings):
         client.stub = mock_stub
 
         response = await client.request_causal_analysis(
-            target_component="api", degradation_metrics={"latency_p99": 500}, context={"env": "test"}
+            target_component="api",
+            degradation_metrics={"latency_p99": 500},
+            context={"env": "test"},
         )
 
         assert response is not None

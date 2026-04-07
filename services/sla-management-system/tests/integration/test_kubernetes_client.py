@@ -4,12 +4,7 @@ import pytest
 from unittest.mock import MagicMock, patch, AsyncMock
 from kubernetes.client.rest import ApiException
 
-from src.clients.kubernetes_client import (
-    KubernetesClient,
-    CRD_GROUP,
-    CRD_VERSION,
-    CRD_PLURAL
-)
+from src.clients.kubernetes_client import KubernetesClient, CRD_GROUP, CRD_VERSION, CRD_PLURAL
 
 
 @pytest.fixture
@@ -27,7 +22,7 @@ def sample_crd():
         "metadata": {
             "name": "gateway-latency-p99",
             "namespace": "neural-hive",
-            "uid": "test-uid-123"
+            "uid": "test-uid-123",
         },
         "spec": {
             "name": "Gateway P99 Latency",
@@ -40,13 +35,11 @@ def sample_crd():
             "sliQuery": {
                 "metricName": "http_request_duration_seconds",
                 "query": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))",
-                "aggregation": "avg"
+                "aggregation": "avg",
             },
-            "enabled": True
+            "enabled": True,
         },
-        "status": {
-            "synced": False
-        }
+        "status": {"synced": False},
     }
 
 
@@ -56,21 +49,15 @@ class TestKubernetesClientListSloDefinitions:
     """Testes de integracao para listagem de SLODefinitions."""
 
     @pytest.mark.asyncio
-    async def test_list_slo_definitions_returns_crds(
-        self,
-        mock_custom_objects_api,
-        sample_crd
-    ):
+    async def test_list_slo_definitions_returns_crds(self, mock_custom_objects_api, sample_crd):
         """Verifica que list_slo_definitions retorna CRDs do cluster."""
         # Configurar mock
-        mock_custom_objects_api.list_cluster_custom_object.return_value = {
-            "items": [sample_crd]
-        }
+        mock_custom_objects_api.list_cluster_custom_object.return_value = {"items": [sample_crd]}
 
         with patch("src.clients.kubernetes_client.config"):
             with patch(
                 "src.clients.kubernetes_client.client.CustomObjectsApi",
-                return_value=mock_custom_objects_api
+                return_value=mock_custom_objects_api,
             ):
                 k8s_client = KubernetesClient(in_cluster=False)
                 await k8s_client.connect()
@@ -85,26 +72,18 @@ class TestKubernetesClientListSloDefinitions:
 
                 # Verificar chamada correta
                 mock_custom_objects_api.list_cluster_custom_object.assert_called_once_with(
-                    group=CRD_GROUP,
-                    version=CRD_VERSION,
-                    plural=CRD_PLURAL
+                    group=CRD_GROUP, version=CRD_VERSION, plural=CRD_PLURAL
                 )
 
     @pytest.mark.asyncio
-    async def test_list_slo_definitions_with_namespace(
-        self,
-        mock_custom_objects_api,
-        sample_crd
-    ):
+    async def test_list_slo_definitions_with_namespace(self, mock_custom_objects_api, sample_crd):
         """Verifica listagem filtrada por namespace."""
-        mock_custom_objects_api.list_namespaced_custom_object.return_value = {
-            "items": [sample_crd]
-        }
+        mock_custom_objects_api.list_namespaced_custom_object.return_value = {"items": [sample_crd]}
 
         with patch("src.clients.kubernetes_client.config"):
             with patch(
                 "src.clients.kubernetes_client.client.CustomObjectsApi",
-                return_value=mock_custom_objects_api
+                return_value=mock_custom_objects_api,
             ):
                 k8s_client = KubernetesClient(in_cluster=False)
                 await k8s_client.connect()
@@ -113,27 +92,20 @@ class TestKubernetesClientListSloDefinitions:
 
                 assert len(crds) == 1
                 mock_custom_objects_api.list_namespaced_custom_object.assert_called_once_with(
-                    group=CRD_GROUP,
-                    version=CRD_VERSION,
-                    namespace="neural-hive",
-                    plural=CRD_PLURAL
+                    group=CRD_GROUP, version=CRD_VERSION, namespace="neural-hive", plural=CRD_PLURAL
                 )
 
     @pytest.mark.asyncio
-    async def test_list_slo_definitions_handles_api_error(
-        self,
-        mock_custom_objects_api
-    ):
+    async def test_list_slo_definitions_handles_api_error(self, mock_custom_objects_api):
         """Verifica tratamento de erro da API."""
         mock_custom_objects_api.list_cluster_custom_object.side_effect = ApiException(
-            status=500,
-            reason="Internal Server Error"
+            status=500, reason="Internal Server Error"
         )
 
         with patch("src.clients.kubernetes_client.config"):
             with patch(
                 "src.clients.kubernetes_client.client.CustomObjectsApi",
-                return_value=mock_custom_objects_api
+                return_value=mock_custom_objects_api,
             ):
                 k8s_client = KubernetesClient(in_cluster=False)
                 await k8s_client.connect()
@@ -150,11 +122,7 @@ class TestKubernetesClientUpdateSloStatus:
     """Testes de integracao para atualizacao de status."""
 
     @pytest.mark.asyncio
-    async def test_update_slo_status_success(
-        self,
-        mock_custom_objects_api,
-        sample_crd
-    ):
+    async def test_update_slo_status_success(self, mock_custom_objects_api, sample_crd):
         """Verifica atualizacao de status do CRD."""
         # get_namespaced_custom_object retorna CRD atual
         mock_custom_objects_api.get_namespaced_custom_object.return_value = sample_crd
@@ -167,7 +135,7 @@ class TestKubernetesClientUpdateSloStatus:
         with patch("src.clients.kubernetes_client.config"):
             with patch(
                 "src.clients.kubernetes_client.client.CustomObjectsApi",
-                return_value=mock_custom_objects_api
+                return_value=mock_custom_objects_api,
             ):
                 k8s_client = KubernetesClient(in_cluster=False)
                 await k8s_client.connect()
@@ -175,35 +143,29 @@ class TestKubernetesClientUpdateSloStatus:
                 result = await k8s_client.update_slo_status(
                     name="gateway-latency-p99",
                     namespace="neural-hive",
-                    status={"synced": True, "sloId": "uuid-123"}
+                    status={"synced": True, "sloId": "uuid-123"},
                 )
 
                 assert result is True
                 mock_custom_objects_api.patch_namespaced_custom_object_status.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_update_slo_status_not_found(
-        self,
-        mock_custom_objects_api
-    ):
+    async def test_update_slo_status_not_found(self, mock_custom_objects_api):
         """Verifica tratamento quando CRD nao existe."""
         mock_custom_objects_api.get_namespaced_custom_object.side_effect = ApiException(
-            status=404,
-            reason="Not Found"
+            status=404, reason="Not Found"
         )
 
         with patch("src.clients.kubernetes_client.config"):
             with patch(
                 "src.clients.kubernetes_client.client.CustomObjectsApi",
-                return_value=mock_custom_objects_api
+                return_value=mock_custom_objects_api,
             ):
                 k8s_client = KubernetesClient(in_cluster=False)
                 await k8s_client.connect()
 
                 result = await k8s_client.update_slo_status(
-                    name="non-existent",
-                    namespace="neural-hive",
-                    status={"synced": True}
+                    name="non-existent", namespace="neural-hive", status={"synced": True}
                 )
 
                 assert result is False
@@ -220,7 +182,7 @@ class TestKubernetesClientConnection:
         with patch("src.clients.kubernetes_client.config") as mock_config:
             with patch(
                 "src.clients.kubernetes_client.client.CustomObjectsApi",
-                return_value=mock_custom_objects_api
+                return_value=mock_custom_objects_api,
             ):
                 k8s_client = KubernetesClient(in_cluster=False)
                 await k8s_client.connect()
@@ -234,7 +196,7 @@ class TestKubernetesClientConnection:
         with patch("src.clients.kubernetes_client.config") as mock_config:
             with patch(
                 "src.clients.kubernetes_client.client.CustomObjectsApi",
-                return_value=mock_custom_objects_api
+                return_value=mock_custom_objects_api,
             ):
                 k8s_client = KubernetesClient(in_cluster=True)
                 await k8s_client.connect()

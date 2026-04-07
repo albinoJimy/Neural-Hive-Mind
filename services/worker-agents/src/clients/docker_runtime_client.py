@@ -30,10 +30,8 @@ class DockerTimeoutError(Exception):
     """Timeout aguardando execução no Docker."""
 
 
-
 class CommandNotAllowedError(Exception):
     """Comando não permitido para execução."""
-
 
 
 class DockerNetworkMode(StrEnum):

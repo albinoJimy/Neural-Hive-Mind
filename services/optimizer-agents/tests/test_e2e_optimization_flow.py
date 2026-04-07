@@ -53,17 +53,19 @@ def mock_mongodb_client():
     client.save_experiment = AsyncMock(return_value=True)
     client.save_optimization = AsyncMock(return_value=True)
     client.update_experiment_status = AsyncMock(return_value=True)
-    client.get_experiment = AsyncMock(return_value={
-        "experiment_id": "exp-e2e-123",
-        "status": "COMPLETED",
-        "target_component": "consensus-engine",
-        "baseline_metrics": {"latency_p95": 1000, "error_rate": 0.05},
-        "results": {
-            "treatment_metrics": {"latency_p95": 800, "error_rate": 0.03},
-            "improvement_percentage": 0.20,
-            "statistical_significance": True
+    client.get_experiment = AsyncMock(
+        return_value={
+            "experiment_id": "exp-e2e-123",
+            "status": "COMPLETED",
+            "target_component": "consensus-engine",
+            "baseline_metrics": {"latency_p95": 1000, "error_rate": 0.05},
+            "results": {
+                "treatment_metrics": {"latency_p95": 800, "error_rate": 0.03},
+                "improvement_percentage": 0.20,
+                "statistical_significance": True,
+            },
         }
-    })
+    )
     return client
 
 
@@ -73,10 +75,12 @@ def mock_redis_client():
     client = AsyncMock()
     client.lock_component = AsyncMock(return_value=True)
     client.unlock_component = AsyncMock(return_value=True)
-    client.get_experiment_metrics = AsyncMock(return_value={
-        "baseline": {"latency_p95": 1000, "error_rate": 0.05},
-        "treatment": {"latency_p95": 800, "error_rate": 0.03}
-    })
+    client.get_experiment_metrics = AsyncMock(
+        return_value={
+            "baseline": {"latency_p95": 1000, "error_rate": 0.05},
+            "treatment": {"latency_p95": 800, "error_rate": 0.03},
+        }
+    )
     return client
 
 
@@ -85,11 +89,13 @@ def mock_argo_client():
     """Mock do ArgoWorkflowsClient."""
     client = AsyncMock()
     client.submit_experiment_workflow = AsyncMock(return_value="workflow-e2e-123")
-    client.get_workflow_status = AsyncMock(return_value={
-        "status": "Succeeded",
-        "phase": "Succeeded",
-        "finishedAt": datetime.now(timezone.utc).isoformat()
-    })
+    client.get_workflow_status = AsyncMock(
+        return_value={
+            "status": "Succeeded",
+            "phase": "Succeeded",
+            "finishedAt": datetime.now(timezone.utc).isoformat(),
+        }
+    )
     return client
 
 
@@ -106,7 +112,7 @@ def experiment_manager(mock_settings, mock_argo_client, mock_mongodb_client, moc
         settings=mock_settings,
         argo_client=mock_argo_client,
         mongodb_client=mock_mongodb_client,
-        redis_client=mock_redis_client
+        redis_client=mock_redis_client,
     )
 
 
@@ -117,17 +123,12 @@ def sample_insight():
         "insight_id": "insight-e2e-1",
         "insight_type": "OPERATIONAL_BOTTLENECK",
         "priority": "HIGH",
-        "metrics": {
-            "latency_p95": 1200,
-            "error_rate": 0.06,
-            "throughput": 95,
-            "cpu_usage": 0.85
-        },
+        "metrics": {"latency_p95": 1200, "error_rate": 0.06, "throughput": 95, "cpu_usage": 0.85},
         "related_entities": [{"entity_id": "consensus-engine"}],
         "recommendations": [
             "Recalibrar pesos de consenso para priorizar velocidade",
-            "Ajustar SLO de latência para 1000ms"
-        ]
+            "Ajustar SLO de latência para 1000ms",
+        ],
     }
 
 
@@ -136,11 +137,7 @@ class TestE2EOptimizationFlow:
 
     @pytest.mark.asyncio
     async def test_full_optimization_flow_success(
-        self,
-        optimization_engine,
-        experiment_manager,
-        sample_insight,
-        mock_mongodb_client
+        self, optimization_engine, experiment_manager, sample_insight, mock_mongodb_client
     ):
         """
         Testa fluxo completo bem-sucedido:
@@ -193,11 +190,7 @@ class TestE2EOptimizationFlow:
 
     @pytest.mark.asyncio
     async def test_optimization_flow_with_degradation_rollback(
-        self,
-        optimization_engine,
-        experiment_manager,
-        sample_insight,
-        mock_redis_client
+        self, optimization_engine, experiment_manager, sample_insight, mock_redis_client
     ):
         """
         Testa fluxo com degradação detectada e rollback.
@@ -212,7 +205,7 @@ class TestE2EOptimizationFlow:
         # Simular degradação no experimento
         mock_redis_client.get_experiment_metrics.return_value = {
             "baseline": {"latency_p95": 1000, "error_rate": 0.05},
-            "treatment": {"latency_p95": 1500, "error_rate": 0.10}  # Pior!
+            "treatment": {"latency_p95": 1500, "error_rate": 0.10},  # Pior!
         }
 
         # Analisar resultados (deve detectar degradação)
@@ -250,7 +243,7 @@ class TestE2EOptimizationFlow:
         experiment_manager,
         sample_insight,
         mock_mongodb_client,
-        mock_redis_client
+        mock_redis_client,
     ):
         """
         Testa que o sistema aprende ao longo de múltiplas iterações.
@@ -287,11 +280,7 @@ class TestE2EOptimizationFlow:
 
     @pytest.mark.asyncio
     async def test_optimization_flow_handles_component_lock(
-        self,
-        optimization_engine,
-        experiment_manager,
-        sample_insight,
-        mock_redis_client
+        self, optimization_engine, experiment_manager, sample_insight, mock_redis_client
     ):
         """
         Testa que fluxo respeita locks de componentes.
@@ -310,15 +299,12 @@ class TestE2EOptimizationFlow:
 
     @pytest.mark.asyncio
     async def test_optimization_flow_validates_hypothesis_feasibility(
-        self,
-        optimization_engine,
-        experiment_manager,
-        sample_insight
+        self, optimization_engine, experiment_manager, sample_insight
     ):
         """
         Testa que hipóteses inviáveis são filtradas no fluxo.
         """
-        with patch.object(optimization_engine, 'generate_hypothesis') as mock_generate:
+        with patch.object(optimization_engine, "generate_hypothesis") as mock_generate:
             # Criar hipótese inviável
             mock_hypothesis = Mock()
             mock_hypothesis.validate_feasibility.return_value = False
@@ -332,11 +318,7 @@ class TestE2EOptimizationFlow:
 
     @pytest.mark.asyncio
     async def test_optimization_flow_persists_optimization_event(
-        self,
-        optimization_engine,
-        experiment_manager,
-        sample_insight,
-        mock_mongodb_client
+        self, optimization_engine, experiment_manager, sample_insight, mock_mongodb_client
     ):
         """
         Testa que evento de otimização é persistido no MongoDB.
@@ -368,10 +350,7 @@ class TestE2EEdgeCases:
     """Testes de casos extremos no fluxo E2E."""
 
     @pytest.mark.asyncio
-    async def test_insight_without_metrics_generates_no_hypotheses(
-        self,
-        optimization_engine
-    ):
+    async def test_insight_without_metrics_generates_no_hypotheses(self, optimization_engine):
         """Testa que insight sem métricas não gera hipóteses."""
         insight = {
             "insight_id": "insight-empty",
@@ -386,11 +365,7 @@ class TestE2EEdgeCases:
         assert len([h for h in hypotheses if h.validate_feasibility()]) == 0
 
     @pytest.mark.asyncio
-    async def test_experiment_timeout_triggers_abort(
-        self,
-        experiment_manager,
-        mock_argo_client
-    ):
+    async def test_experiment_timeout_triggers_abort(self, experiment_manager, mock_argo_client):
         """Testa que timeout de experimento aciona abort."""
         experiment_id = "exp-timeout"
 
@@ -401,9 +376,12 @@ class TestE2EEdgeCases:
         }
 
         # Monitorar (deve detectar timeout)
-        with patch.object(experiment_manager, 'monitor_experiment', return_value=mock_status):
+        with patch.object(experiment_manager, "monitor_experiment", return_value=mock_status):
             # Simular detecção de timeout no loop principal
-            if mock_status.get("elapsed_time", 0) > experiment_manager.settings.experiment_timeout_seconds:
+            if (
+                mock_status.get("elapsed_time", 0)
+                > experiment_manager.settings.experiment_timeout_seconds
+            ):
                 await experiment_manager.abort_experiment(experiment_id, reason="timeout")
 
         # Verificar que abort foi chamado
@@ -411,10 +389,7 @@ class TestE2EEdgeCases:
 
     @pytest.mark.asyncio
     async def test_multiple_insights_for_same_component_queued(
-        self,
-        optimization_engine,
-        experiment_manager,
-        mock_redis_client
+        self, optimization_engine, experiment_manager, mock_redis_client
     ):
         """
         Testa que múltiplos insights para o mesmo componente

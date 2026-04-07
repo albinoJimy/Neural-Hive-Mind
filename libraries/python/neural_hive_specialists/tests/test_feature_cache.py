@@ -363,6 +363,7 @@ class TestSerializeOntologyFeatures:
 
     def test_serialize_object_with_dict(self, feature_cache):
         """Testa serialização de objeto com __dict__."""
+
         class TestClass:
             def __init__(self):
                 self.data = "test_data"

@@ -24,5 +24,5 @@ Example usage:
 from .domain import UnifiedDomain
 from .mapper import DomainMapper
 
-__version__ = '1.0.0'
-__all__ = ['UnifiedDomain', 'DomainMapper']
+__version__ = "1.0.0"
+__all__ = ["UnifiedDomain", "DomainMapper"]

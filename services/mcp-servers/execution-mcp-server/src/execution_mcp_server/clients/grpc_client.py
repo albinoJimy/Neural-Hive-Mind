@@ -27,12 +27,7 @@ class ExecutionTicketClient:
     - Gerar tokens JWT
     """
 
-    def __init__(
-        self,
-        host: str | None = None,
-        port: int | None = None,
-        timeout_seconds: int = 30
-    ):
+    def __init__(self, host: str | None = None, port: int | None = None, timeout_seconds: int = 30):
         """
         Inicializa cliente gRPC.
 
@@ -88,11 +83,11 @@ class ExecutionTicketClient:
         intent_id: str | None = None,
         decision_id: str | None = None,  # noqa: ARG002
         dependencies: list[str] | None = None,
-        parameters: dict[str, Any] | None = None
+        parameters: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """
         Cria novo execution ticket via gRPC.
-        
+
         Args:
             plan_id: ID do plano cognitivo
             task_id: ID da tarefa
@@ -103,7 +98,7 @@ class ExecutionTicketClient:
             decision_id: ID da decisão
             dependencies: Lista de ticket_ids dependentes
             parameters: Parâmetros da tarefa
-            
+
         Returns:
             Dicionário com ticket criado
         """
@@ -122,37 +117,37 @@ class ExecutionTicketClient:
                 task_id=task_id,
                 task_type=task_type,
                 description=description,
-                priority=priority
+                priority=priority,
             )
 
             response = await asyncio.wait_for(
-                self._stub.CreateTicket(request, timeout=self._timeout),
-                timeout=self._timeout
+                self._stub.CreateTicket(request, timeout=self._timeout), timeout=self._timeout
             )
 
             return {
                 "ticket_id": response.ticket.ticket_id,
                 "status": response.ticket.status,
-                "created_at": response.ticket.created_at
+                "created_at": response.ticket.created_at,
             }
 
         except ImportError:
             logger.warning("grpc_proto_not_available", message="Using mock response")
             # Retornar mock quando protobuf não está disponível
             import uuid
+
             return {
                 "ticket_id": f"ticket-{uuid.uuid4().hex[:12]}",
                 "status": "PENDING",
-                "created_at": 0
+                "created_at": 0,
             }
 
     async def get_ticket(self, ticket_id: str) -> dict[str, Any] | None:
         """
         Busca ticket por ID via gRPC.
-        
+
         Args:
             ticket_id: ID do ticket
-            
+
         Returns:
             Dicionário com ticket ou None se não encontrado
         """
@@ -166,8 +161,7 @@ class ExecutionTicketClient:
 
             request = ticket_service_pb2.GetTicketRequest(ticket_id=ticket_id)
             response = await asyncio.wait_for(
-                self._stub.GetTicket(request, timeout=self._timeout),
-                timeout=self._timeout
+                self._stub.GetTicket(request, timeout=self._timeout), timeout=self._timeout
             )
 
             return {
@@ -176,7 +170,7 @@ class ExecutionTicketClient:
                 "task_type": response.ticket.task_type,
                 "status": response.ticket.status,
                 "priority": response.ticket.priority,
-                "created_at": response.ticket.created_at
+                "created_at": response.ticket.created_at,
             }
 
         except ImportError:
@@ -188,19 +182,16 @@ class ExecutionTicketClient:
             raise
 
     async def update_status(
-        self,
-        ticket_id: str,
-        status: str,
-        error_message: str | None = None
+        self, ticket_id: str, status: str, error_message: str | None = None
     ) -> dict[str, Any]:
         """
         Atualiza status do ticket via gRPC.
-        
+
         Args:
             ticket_id: ID do ticket
             status: Novo status
             error_message: Mensagem de erro (opcional)
-            
+
         Returns:
             Dicionário com ticket atualizado
         """
@@ -213,20 +204,14 @@ class ExecutionTicketClient:
                 self._stub = ticket_service_pb2_grpc.TicketServiceStub(self._channel)
 
             request = ticket_service_pb2.UpdateTicketStatusRequest(
-                ticket_id=ticket_id,
-                status=status,
-                error_message=error_message or ""
+                ticket_id=ticket_id, status=status, error_message=error_message or ""
             )
 
             response = await asyncio.wait_for(
-                self._stub.UpdateTicketStatus(request, timeout=self._timeout),
-                timeout=self._timeout
+                self._stub.UpdateTicketStatus(request, timeout=self._timeout), timeout=self._timeout
             )
 
-            return {
-                "ticket_id": response.ticket.ticket_id,
-                "status": response.ticket.status
-            }
+            return {"ticket_id": response.ticket.ticket_id, "status": response.ticket.status}
 
         except ImportError:
             logger.warning("grpc_proto_not_available")
@@ -238,10 +223,10 @@ class ExecutionTicketClient:
     async def generate_token(self, ticket_id: str) -> dict[str, Any] | None:
         """
         Gera token JWT para ticket via gRPC.
-        
+
         Args:
             ticket_id: ID do ticket
-            
+
         Returns:
             Dicionário com token ou None se falhar
         """
@@ -255,14 +240,13 @@ class ExecutionTicketClient:
 
             request = ticket_service_pb2.GenerateTokenRequest(ticket_id=ticket_id)
             response = await asyncio.wait_for(
-                self._stub.GenerateToken(request, timeout=self._timeout),
-                timeout=self._timeout
+                self._stub.GenerateToken(request, timeout=self._timeout), timeout=self._timeout
             )
 
             return {
                 "access_token": response.access_token,
                 "expires_at": response.expires_at,
-                "ticket_id": ticket_id
+                "ticket_id": ticket_id,
             }
 
         except ImportError:

@@ -327,9 +327,7 @@ class DescriptionQualityValidator:
         length_score, length_issues = self._score_length(description)
         diversity_score, diversity_issues = self._score_lexical_diversity(description)
         domain_score, domain_issues = self._score_domain_keywords(description, domain)
-        security_score, security_issues = self._score_security_keywords(
-            description, security_level
-        )
+        security_score, security_issues = self._score_security_keywords(description, security_level)
         qos_score, qos_issues = self._score_qos_keywords(description, qos)
 
         # Agregar issues
@@ -384,9 +382,7 @@ class DescriptionQualityValidator:
                 "security_score": round(security_score, 3),
                 "qos_score": round(qos_score, 3),
                 "word_count": len(description.split()),
-                "domain_keywords_found": self._count_domain_keywords(
-                    description, domain
-                ),
+                "domain_keywords_found": self._count_domain_keywords(description, domain),
             },
         }
 
@@ -437,10 +433,7 @@ class DescriptionQualityValidator:
 
             if result["issues"]:
                 all_issues.extend(
-                    [
-                        f"Task {task.get('task_id')}: {issue}"
-                        for issue in result["issues"]
-                    ]
+                    [f"Task {task.get('task_id')}: {issue}" for issue in result["issues"]]
                 )
 
             # Usar threshold mais baixo para tarefas individuais
@@ -476,9 +469,7 @@ class DescriptionQualityValidator:
 
         if word_count < 10:
             score = 0.0
-            issues.append(
-                f"Descrição muito curta ({word_count} palavras, mínimo 15 recomendado)"
-            )
+            issues.append(f"Descrição muito curta ({word_count} palavras, mínimo 15 recomendado)")
         elif word_count < self.OPTIMAL_MIN_WORDS:
             score = 0.5 * (word_count / self.OPTIMAL_MIN_WORDS)
             issues.append(f"Descrição precisa de mais detalhes ({word_count} palavras)")
@@ -603,9 +594,7 @@ class DescriptionQualityValidator:
         description_lower = description.lower()
         return sum(1 for kw in keywords if kw in description_lower)
 
-    def _score_security_keywords(
-        self, description: str, security_level: Optional[str]
-    ) -> tuple:
+    def _score_security_keywords(self, description: str, security_level: Optional[str]) -> tuple:
         """Score baseado em keywords de segurança para níveis sensíveis."""
         if not security_level:
             return 1.0, []  # Sem contexto de segurança, score máximo
@@ -623,14 +612,10 @@ class DescriptionQualityValidator:
                 score = 1.0
             elif found == 1:
                 score = 0.6
-                issues.append(
-                    f"Apenas 1 keyword de segurança para nível {security_level}"
-                )
+                issues.append(f"Apenas 1 keyword de segurança para nível {security_level}")
             else:
                 score = 0.2
-                issues.append(
-                    f"Faltam keywords de segurança para nível {security_level}"
-                )
+                issues.append(f"Faltam keywords de segurança para nível {security_level}")
         else:
             score = 1.0 if found > 0 else 0.8
 
@@ -676,23 +661,17 @@ class DescriptionQualityValidator:
             )
 
         if diversity_score < 0.6:
-            suggestions.append(
-                "Use vocabulário mais variado; evite repetir os mesmos termos"
-            )
+            suggestions.append("Use vocabulário mais variado; evite repetir os mesmos termos")
 
         if domain_score < 0.6:
             domain_kws = self.DOMAIN_KEYWORDS.get(domain, [])[:5]
             if domain_kws:
-                suggestions.append(
-                    f"Inclua keywords de domínio: {', '.join(domain_kws)}"
-                )
+                suggestions.append(f"Inclua keywords de domínio: {', '.join(domain_kws)}")
 
         if security_level in ["confidential", "restricted"]:
             security_kws = self.SECURITY_KEYWORDS.get(security_level, [])[:4]
             if security_kws and "encrypt" not in description.lower():
-                suggestions.append(
-                    f"Adicione contexto de segurança: {', '.join(security_kws)}"
-                )
+                suggestions.append(f"Adicione contexto de segurança: {', '.join(security_kws)}")
 
         if qos and qos in self.QOS_KEYWORDS:
             qos_kws = self.QOS_KEYWORDS[qos][:3]

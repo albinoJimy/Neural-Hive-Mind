@@ -97,20 +97,13 @@ class TestMetricsHelper:
         MetricsHelper.record_anomaly_resolved(repo_url=unique_repo, severity="medium")
 
         # Verifica contador de resolvidas
-        assert (
-            pipeline_anomalies_resolved.labels(repo_url=unique_repo)._value.get() == 1
-        )
+        assert pipeline_anomalies_resolved.labels(repo_url=unique_repo)._value.get() == 1
 
     def test_update_active_runs(self):
         """Testa atualização de execuções ativas."""
-        MetricsHelper.update_active_runs(
-            repo_url="https://github.com/org/repo3", count=3
-        )
+        MetricsHelper.update_active_runs(repo_url="https://github.com/org/repo3", count=3)
 
-        assert (
-            active_runs.labels(repo_url="https://github.com/org/repo3")._value.get()
-            == 3
-        )
+        assert active_runs.labels(repo_url="https://github.com/org/repo3")._value.get() == 3
 
     def test_update_queue_size(self):
         """Testa atualização do tamanho da fila."""
@@ -120,51 +113,26 @@ class TestMetricsHelper:
 
     def test_update_success_rate(self):
         """Testa atualização da taxa de sucesso."""
-        MetricsHelper.update_success_rate(
-            repo_url="https://github.com/org/repo4", rate=0.85
-        )
+        MetricsHelper.update_success_rate(repo_url="https://github.com/org/repo4", rate=0.85)
 
-        assert (
-            success_rate.labels(repo_url="https://github.com/org/repo4")._value.get()
-            == 0.85
-        )
+        assert success_rate.labels(repo_url="https://github.com/org/repo4")._value.get() == 0.85
 
     def test_update_average_duration(self):
         """Testa atualização da duração média."""
-        MetricsHelper.update_average_duration(
-            repo_url="https://github.com/org/repo5", duration=450
-        )
+        MetricsHelper.update_average_duration(repo_url="https://github.com/org/repo5", duration=450)
 
-        assert (
-            average_duration.labels(
-                repo_url="https://github.com/org/repo5"
-            )._value.get()
-            == 450
-        )
+        assert average_duration.labels(repo_url="https://github.com/org/repo5")._value.get() == 450
 
     def test_init_metrics_for_repo(self):
         """Testa inicialização de métricas para repositório."""
         init_metrics_for_repo(repo_url="https://github.com/test/init-repo")
 
         # Verifica que os gauges foram inicializados
+        assert success_rate.labels(repo_url="https://github.com/test/init-repo")._value.get() == 0
         assert (
-            success_rate.labels(
-                repo_url="https://github.com/test/init-repo"
-            )._value.get()
-            == 0
+            average_duration.labels(repo_url="https://github.com/test/init-repo")._value.get() == 0
         )
-        assert (
-            average_duration.labels(
-                repo_url="https://github.com/test/init-repo"
-            )._value.get()
-            == 0
-        )
-        assert (
-            active_runs.labels(
-                repo_url="https://github.com/test/init-repo"
-            )._value.get()
-            == 0
-        )
+        assert active_runs.labels(repo_url="https://github.com/test/init-repo")._value.get() == 0
 
 
 class TestMetricsMiddleware:

@@ -6,12 +6,7 @@ from datetime import datetime
 from pymongo.errors import DuplicateKeyError
 
 from src.services.approval_service import ApprovalService
-from src.models.approval import (
-    ApprovalRequest,
-    ApprovalDecision,
-    ApprovalStatus,
-    RevertResponse
-)
+from src.models.approval import ApprovalRequest, ApprovalDecision, ApprovalStatus, RevertResponse
 from src.config.settings import Settings
 
 
@@ -20,7 +15,7 @@ def mock_settings():
     """Mock Settings."""
     settings = Mock(spec=Settings)
     settings.enable_feedback_collection = True
-    settings.feedback_on_approval_failure_mode = 'log_and_continue'
+    settings.feedback_on_approval_failure_mode = "log_and_continue"
     settings.enable_active_learning = False
     settings.active_learning_min_information_value = 0.5
     settings.active_learning_enqueue_rate = 0.2
@@ -34,12 +29,9 @@ def mock_mongodb_client():
     client.save_approval_request = AsyncMock()
     client.get_approval_by_plan_id = AsyncMock()
     client.update_approval_status = AsyncMock()
-    client.get_approval_stats = AsyncMock(return_value={
-        "total": 100,
-        "pending": 10,
-        "approved": 80,
-        "rejected": 10
-    })
+    client.get_approval_stats = AsyncMock(
+        return_value={"total": 100, "pending": 10, "approved": 80, "rejected": 10}
+    )
     return client
 
 
@@ -66,14 +58,16 @@ def mock_metrics():
 def mock_ledger_client():
     """Mock CognitiveLedgerClient."""
     ledger = AsyncMock()
-    ledger.get_opinions_by_plan_id = AsyncMock(return_value=[
-        {
-            "opinion_id": "op-1",
-            "specialist_type": "business",
-            "recommendation": "approve",
-            "confidence_score": 0.8
-        }
-    ])
+    ledger.get_opinions_by_plan_id = AsyncMock(
+        return_value=[
+            {
+                "opinion_id": "op-1",
+                "specialist_type": "business",
+                "recommendation": "approve",
+                "confidence_score": 0.8,
+            }
+        ]
+    )
     return ledger
 
 
@@ -90,16 +84,12 @@ def mock_ml_predictor():
     """Mock MLPredictor."""
     predictor = AsyncMock()
     predictor.is_enabled = Mock(return_value=True)
-    predictor.predict_from_text = AsyncMock(return_value={
-        "decision": "approve",
-        "confidence": 0.75,
-        "model_version": "v8"
-    })
-    predictor.get_auto_decision = AsyncMock(return_value={
-        "auto_decision": "approve",
-        "confidence": 0.75,
-        "reason": "high_confidence"
-    })
+    predictor.predict_from_text = AsyncMock(
+        return_value={"decision": "approve", "confidence": 0.75, "model_version": "v8"}
+    )
+    predictor.get_auto_decision = AsyncMock(
+        return_value={"auto_decision": "approve", "confidence": 0.75, "reason": "high_confidence"}
+    )
     return predictor
 
 
@@ -111,7 +101,7 @@ def approval_service(
     mock_metrics,
     mock_ledger_client,
     mock_feedback_collector,
-    mock_ml_predictor
+    mock_ml_predictor,
 ):
     """Fixture para ApprovalService."""
     return ApprovalService(
@@ -121,7 +111,7 @@ def approval_service(
         metrics=mock_metrics,
         ledger_client=mock_ledger_client,
         feedback_collector=mock_feedback_collector,
-        ml_predictor=mock_ml_predictor
+        ml_predictor=mock_ml_predictor,
     )
 
 
@@ -135,7 +125,7 @@ def sample_approval_request():
         is_destructive=False,
         original_intent_text="Test intent for approval",
         submitted_by="user-123",
-        submitted_at=datetime.now()
+        submitted_at=datetime.now(),
     )
 
 
@@ -144,11 +134,7 @@ class TestProcessApprovalRequest:
 
     @pytest.mark.asyncio
     async def test_process_approval_request_success(
-        self,
-        approval_service,
-        sample_approval_request,
-        mock_mongodb_client,
-        mock_metrics
+        self, approval_service, sample_approval_request, mock_mongodb_client, mock_metrics
     ):
         """Testa processamento bem-sucedido de approval request."""
         result = await approval_service.process_approval_request(sample_approval_request)
@@ -159,10 +145,7 @@ class TestProcessApprovalRequest:
 
     @pytest.mark.asyncio
     async def test_process_approval_request_duplicate(
-        self,
-        approval_service,
-        sample_approval_request,
-        mock_mongodb_client
+        self, approval_service, sample_approval_request, mock_mongodb_client
     ):
         """Testa erro de duplicata ao processar approval request."""
         mock_mongodb_client.save_approval_request.side_effect = DuplicateKeyError("E11000")
@@ -172,9 +155,7 @@ class TestProcessApprovalRequest:
 
     @pytest.mark.asyncio
     async def test_process_approval_request_missing_fields(
-        self,
-        approval_service,
-        mock_mongodb_client
+        self, approval_service, mock_mongodb_client
     ):
         """Testa erro quando campos obrigatórios estão faltando."""
         invalid_request = ApprovalRequest(
@@ -183,7 +164,7 @@ class TestProcessApprovalRequest:
             risk_band="low",
             is_destructive=False,
             submitted_by="user-123",
-            submitted_at=datetime.now()
+            submitted_at=datetime.now(),
         )
 
         with pytest.raises(ValueError, match="plan_id e intent_id sao obrigatorios"):
@@ -197,10 +178,7 @@ class TestGetMLPrediction:
 
     @pytest.mark.asyncio
     async def test_get_ml_prediction_success(
-        self,
-        approval_service,
-        mock_mongodb_client,
-        mock_ml_predictor
+        self, approval_service, mock_mongodb_client, mock_ml_predictor
     ):
         """Testa obtenção de predição ML com sucesso."""
         mock_approval = Mock()
@@ -214,11 +192,7 @@ class TestGetMLPrediction:
         assert result["confidence"] == 0.75
 
     @pytest.mark.asyncio
-    async def test_get_ml_prediction_no_approval(
-        self,
-        approval_service,
-        mock_mongodb_client
-    ):
+    async def test_get_ml_prediction_no_approval(self, approval_service, mock_mongodb_client):
         """Testa quando approval não é encontrado."""
         mock_mongodb_client.get_approval_by_plan_id.return_value = None
 
@@ -227,11 +201,7 @@ class TestGetMLPrediction:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_get_ml_prediction_no_intent_text(
-        self,
-        approval_service,
-        mock_mongodb_client
-    ):
+    async def test_get_ml_prediction_no_intent_text(self, approval_service, mock_mongodb_client):
         """Testa quando approval não tem intent_text."""
         mock_approval = Mock()
         mock_approval.original_intent_text = None
@@ -243,11 +213,7 @@ class TestGetMLPrediction:
 
     @pytest.mark.asyncio
     async def test_get_ml_prediction_disabled(
-        self,
-        mock_settings,
-        mock_mongodb_client,
-        mock_response_producer,
-        mock_metrics
+        self, mock_settings, mock_mongodb_client, mock_response_producer, mock_metrics
     ):
         """Testa quando ML predictor está desabilitado."""
         mock_ml_predictor = AsyncMock()
@@ -258,7 +224,7 @@ class TestGetMLPrediction:
             mongodb_client=mock_mongodb_client,
             response_producer=mock_response_producer,
             metrics=mock_metrics,
-            ml_predictor=mock_ml_predictor
+            ml_predictor=mock_ml_predictor,
         )
 
         result = await service.get_ml_prediction("plan-123")
@@ -271,10 +237,7 @@ class TestGetAutoDecision:
 
     @pytest.mark.asyncio
     async def test_get_auto_decision_success(
-        self,
-        approval_service,
-        mock_mongodb_client,
-        mock_ml_predictor
+        self, approval_service, mock_mongodb_client, mock_ml_predictor
     ):
         """Testa obtenção de decisão automática com sucesso."""
         mock_approval = Mock()
@@ -289,11 +252,7 @@ class TestGetAutoDecision:
         assert result["confidence"] == 0.75
 
     @pytest.mark.asyncio
-    async def test_get_auto_decision_not_found(
-        self,
-        approval_service,
-        mock_mongodb_client
-    ):
+    async def test_get_auto_decision_not_found(self, approval_service, mock_mongodb_client):
         """Testa quando approval não é encontrado."""
         mock_mongodb_client.get_approval_by_plan_id.return_value = None
 
@@ -307,11 +266,7 @@ class TestSubmitFeedbackForPlan:
 
     @pytest.mark.asyncio
     async def test_submit_feedback_success(
-        self,
-        approval_service,
-        mock_mongodb_client,
-        mock_ledger_client,
-        mock_feedback_collector
+        self, approval_service, mock_mongodb_client, mock_ledger_client, mock_feedback_collector
     ):
         """Testa submissão de feedback com sucesso."""
         mock_approval = Mock()
@@ -323,18 +278,14 @@ class TestSubmitFeedbackForPlan:
             human_decision="approve",
             human_rating=0.8,
             user_id="user-123",
-            comments="Good decision"
+            comments="Good decision",
         )
 
         mock_feedback_collector.submit_feedback.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_submit_feedback_disabled(
-        self,
-        mock_settings,
-        mock_mongodb_client,
-        mock_response_producer,
-        mock_metrics
+        self, mock_settings, mock_mongodb_client, mock_response_producer, mock_metrics
     ):
         """Testa quando feedback collection está desabilitado."""
         mock_settings.enable_feedback_collection = False
@@ -343,23 +294,17 @@ class TestSubmitFeedbackForPlan:
             settings=mock_settings,
             mongodb_client=mock_mongodb_client,
             response_producer=mock_response_producer,
-            metrics=mock_metrics
+            metrics=mock_metrics,
         )
 
         # Não deve chamar ledger_client nem feedback_collector
         await service._submit_feedback_for_plan(
-            plan_id="plan-123",
-            human_decision="approve",
-            human_rating=0.8,
-            user_id="user-123"
+            plan_id="plan-123", human_decision="approve", human_rating=0.8, user_id="user-123"
         )
 
     @pytest.mark.asyncio
     async def test_submit_feedback_no_opinions(
-        self,
-        approval_service,
-        mock_mongodb_client,
-        mock_ledger_client
+        self, approval_service, mock_mongodb_client, mock_ledger_client
     ):
         """Testa quando não há opiniões para o plano."""
         mock_approval = Mock()
@@ -369,19 +314,12 @@ class TestSubmitFeedbackForPlan:
 
         # Não deve levantar erro, apenas retornar
         await approval_service._submit_feedback_for_plan(
-            plan_id="plan-123",
-            human_decision="approve",
-            human_rating=0.8,
-            user_id="user-123"
+            plan_id="plan-123", human_decision="approve", human_rating=0.8, user_id="user-123"
         )
 
     @pytest.mark.asyncio
     async def test_submit_feedback_from_active_learning(
-        self,
-        approval_service,
-        mock_mongodb_client,
-        mock_ledger_client,
-        mock_feedback_collector
+        self, approval_service, mock_mongodb_client, mock_ledger_client, mock_feedback_collector
     ):
         """Testa submissão de feedback marcado como active learning."""
         mock_approval = Mock()
@@ -393,40 +331,32 @@ class TestSubmitFeedbackForPlan:
             human_decision="approve",
             human_rating=0.8,
             user_id="user-123",
-            from_active_learning=True
+            from_active_learning=True,
         )
 
         # Verificar que balanced_dataset=True foi passado
         call_args = mock_feedback_collector.submit_feedback.call_args
-        assert call_args[0][0]['balanced_dataset'] is True
-        assert call_args[0][0]['collection_method'] == 'active_learning'
+        assert call_args[0][0]["balanced_dataset"] is True
+        assert call_args[0][0]["collection_method"] == "active_learning"
 
 
 class TestExtractDomainFromText:
     """Testes para _extract_domain_from_text."""
 
     @pytest.mark.asyncio
-    async def test_extract_domain_success(
-        self,
-        approval_service
-    ):
+    async def test_extract_domain_success(self, approval_service):
         """Testa extração de domínio com sucesso."""
-        with patch.object(approval_service, '_nlp_extractor') as mock_extractor:
-            mock_extractor.extract_features.return_value = {
-                'primary_domain': 'security'
-            }
+        with patch.object(approval_service, "_nlp_extractor") as mock_extractor:
+            mock_extractor.extract_features.return_value = {"primary_domain": "security"}
 
             result = approval_service._extract_domain_from_text(
                 "Enable authentication for all API endpoints"
             )
 
-            assert result == 'security'
+            assert result == "security"
 
     @pytest.mark.asyncio
-    async def test_extract_domain_no_text(
-        self,
-        approval_service
-    ):
+    async def test_extract_domain_no_text(self, approval_service):
         """Testa quando não há texto de intenção."""
         result = approval_service._extract_domain_from_text(None)
 
@@ -434,18 +364,14 @@ class TestExtractDomainFromText:
 
     @pytest.mark.asyncio
     async def test_extract_domain_no_extractor(
-        self,
-        mock_settings,
-        mock_mongodb_client,
-        mock_response_producer,
-        mock_metrics
+        self, mock_settings, mock_mongodb_client, mock_response_producer, mock_metrics
     ):
         """Testa quando NLP extractor não está disponível."""
         service = ApprovalService(
             settings=mock_settings,
             mongodb_client=mock_mongodb_client,
             response_producer=mock_response_producer,
-            metrics=mock_metrics
+            metrics=mock_metrics,
         )
         service._nlp_extractor = None
 
@@ -454,12 +380,9 @@ class TestExtractDomainFromText:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_extract_domain_extractor_error(
-        self,
-        approval_service
-    ):
+    async def test_extract_domain_extractor_error(self, approval_service):
         """Testa erro na extração de domínio."""
-        with patch.object(approval_service, '_nlp_extractor') as mock_extractor:
+        with patch.object(approval_service, "_nlp_extractor") as mock_extractor:
             mock_extractor.extract_features.side_effect = Exception("Extraction failed")
 
             result = approval_service._extract_domain_from_text("Test text")
@@ -474,32 +397,28 @@ class TestGetPriorityReason:
         """Testa razão com alto valor informacional e baixa confiança."""
         result = approval_service._get_priority_reason(0.8, 0.3)
 
-        assert 'valor informacional muito alto' in result
-        assert 'baixa confiança' in result
+        assert "valor informacional muito alto" in result
+        assert "baixa confiança" in result
 
     def test_get_priority_reason_moderate_value_moderate_confidence(self, approval_service):
         """Testa razão com valores moderados."""
         result = approval_service._get_priority_reason(0.6, 0.5)
 
-        assert 'valor informacional alto' in result
-        assert 'confiança moderada' in result
+        assert "valor informacional alto" in result
+        assert "confiança moderada" in result
 
     def test_get_priority_reason_default(self, approval_service):
         """Testa razão padrão quando valores são limítrofes."""
         result = approval_service._get_priority_reason(0.4, 0.7)
 
-        assert result == 'active learning'
+        assert result == "active learning"
 
 
 class TestMaybeEnqueueForActiveLearning:
     """Testes para _maybe_enqueue_for_active_learning."""
 
     @pytest.mark.asyncio
-    async def test_enqueue_disabled(
-        self,
-        approval_service,
-        sample_approval_request
-    ):
+    async def test_enqueue_disabled(self, approval_service, sample_approval_request):
         """Testa quando active learning está desabilitado."""
         approval_service.active_learning_enabled = False
 
@@ -508,11 +427,7 @@ class TestMaybeEnqueueForActiveLearning:
         # Não deve levantar erro
 
     @pytest.mark.asyncio
-    async def test_enqueue_high_information_value(
-        self,
-        approval_service,
-        sample_approval_request
-    ):
+    async def test_enqueue_high_information_value(self, approval_service, sample_approval_request):
         """Testa enfileiramento quando valor informacional é alto."""
         approval_service.active_learning_enabled = True
         approval_service.priority_queue = AsyncMock()
@@ -524,11 +439,7 @@ class TestMaybeEnqueueForActiveLearning:
         approval_service.priority_queue.enqueue_plan_for_review.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_enqueue_below_threshold(
-        self,
-        approval_service,
-        sample_approval_request
-    ):
+    async def test_enqueue_below_threshold(self, approval_service, sample_approval_request):
         """Testa quando valor informacional está abaixo do threshold."""
         approval_service.active_learning_enabled = True
         approval_service.learning_strategy = AsyncMock()
@@ -543,11 +454,7 @@ class TestGetApprovalStats:
     """Testes para get_approval_stats."""
 
     @pytest.mark.asyncio
-    async def test_get_approval_stats_success(
-        self,
-        approval_service,
-        mock_mongodb_client
-    ):
+    async def test_get_approval_stats_success(self, approval_service, mock_mongodb_client):
         """Testa obtenção de estatísticas com sucesso."""
         result = await approval_service.get_approval_stats()
 
@@ -568,7 +475,7 @@ class TestProcessApprovalDecision:
         mock_response_producer,
         mock_metrics,
         mock_feedback_collector,
-        mock_ledger_client
+        mock_ledger_client,
     ):
         """Testa processamento de decisão de aprovação."""
         decision = ApprovalDecision(
@@ -577,7 +484,7 @@ class TestProcessApprovalDecision:
             decided_by="user-123",
             decided_at=datetime.now(),
             reasoning="Good plan",
-            rating=0.8
+            rating=0.8,
         )
 
         mock_approval = Mock()
@@ -597,7 +504,7 @@ class TestProcessApprovalDecision:
         mock_mongodb_client,
         mock_response_producer,
         mock_metrics,
-        mock_feedback_collector
+        mock_feedback_collector,
     ):
         """Testa processamento de decisão de rejeição."""
         decision = ApprovalDecision(
@@ -606,7 +513,7 @@ class TestProcessApprovalDecision:
             decided_by="user-123",
             decided_at=datetime.now(),
             reasoning="Too risky",
-            rating=0.2
+            rating=0.2,
         )
 
         mock_approval = Mock()

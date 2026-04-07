@@ -13,16 +13,18 @@ def mock_k8s_client():
     client.namespace = "neural-hive"
 
     # Simulate pod state changes
-    _pods = [{
-        "metadata": {"name": "test-pod-abc123", "labels": {"app": "test-app"}},
-        "status": {"phase": "Running", "containerStatuses": [{"ready": True}]}
-    }]
+    _pods = [
+        {
+            "metadata": {"name": "test-pod-abc123", "labels": {"app": "test-app"}},
+            "status": {"phase": "Running", "containerStatuses": [{"ready": True}]},
+        }
+    ]
 
     async def delete_pod_impl(pod_name, namespace=None):
         """Simulate pod deletion - replace with new pod"""
         _pods[0] = {
             "metadata": {"name": "test-pod-xyz789", "labels": {"app": "test-app"}},
-            "status": {"phase": "Running", "containerStatuses": [{"ready": True}]}
+            "status": {"phase": "Running", "containerStatuses": [{"ready": True}]},
         }
         return True
 
@@ -62,16 +64,20 @@ def mock_chaosmesh_client():
     """Mock ChaosMesh client"""
     client = MagicMock()
     client.is_healthy = MagicMock(return_value=True)
-    client.create_pod_chaos = AsyncMock(return_value={
-        "success": True,
-        "experiment_name": "test-chaos",
-        "experiment_type": "PodChaos"
-    })
-    client.create_network_chaos = AsyncMock(return_value={
-        "success": True,
-        "experiment_name": "test-chaos",
-        "experiment_type": "NetworkChaos"
-    })
+    client.create_pod_chaos = AsyncMock(
+        return_value={
+            "success": True,
+            "experiment_name": "test-chaos",
+            "experiment_type": "PodChaos",
+        }
+    )
+    client.create_network_chaos = AsyncMock(
+        return_value={
+            "success": True,
+            "experiment_name": "test-chaos",
+            "experiment_type": "NetworkChaos",
+        }
+    )
     return client
 
 
@@ -80,23 +86,22 @@ def mock_script_executor():
     """Mock Script executor"""
     executor = MagicMock()
     executor.is_healthy = MagicMock(return_value=True)
-    executor.execute_script = AsyncMock(return_value={
-        "success": True,
-        "job_name": "guard-script-test",
-        "exit_code": 0,
-        "duration_seconds": 2.5,
-        "logs": "Script executed successfully"
-    })
+    executor.execute_script = AsyncMock(
+        return_value={
+            "success": True,
+            "job_name": "guard-script-test",
+            "exit_code": 0,
+            "duration_seconds": 2.5,
+            "logs": "Script executed successfully",
+        }
+    )
     return executor
 
 
 @pytest.fixture
 def remediation_coordinator(mock_k8s_client, mock_redis_client):
     """RemediationCoordinator with mocked dependencies"""
-    coordinator = RemediationCoordinator(
-        k8s_client=mock_k8s_client,
-        use_self_healing_engine=False
-    )
+    coordinator = RemediationCoordinator(k8s_client=mock_k8s_client, use_self_healing_engine=False)
     coordinator.redis_client = mock_redis_client
     return coordinator
 
@@ -172,7 +177,9 @@ class TestTriggerChaos:
         mock_chaosmesh_client.create_pod_chaos.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_trigger_chaos_network_delay(self, remediation_coordinator, mock_chaosmesh_client):
+    async def test_trigger_chaos_network_delay(
+        self, remediation_coordinator, mock_chaosmesh_client
+    ):
         """Test triggering network delay chaos"""
         remediation_coordinator.chaosmesh_client = mock_chaosmesh_client
         action = {"chaos_type": "network_delay", "latency": "100ms"}
@@ -217,10 +224,7 @@ class TestExecScript:
     async def test_exec_script_inline(self, remediation_coordinator, mock_script_executor):
         """Test executing inline script content"""
         remediation_coordinator.script_executor = mock_script_executor
-        action = {
-            "script": "custom-script",
-            "script_content": "#!/bin/sh\necho 'Hello World'"
-        }
+        action = {"script": "custom-script", "script_content": "#!/bin/sh\necho 'Hello World'"}
         incident = {"incident_id": "INC-001"}
 
         result = await remediation_coordinator._exec_script(action, incident)
@@ -240,7 +244,9 @@ class TestExecScript:
         assert result["details"]["simulated"] is True
 
     @pytest.mark.asyncio
-    async def test_exec_script_no_script_specified(self, remediation_coordinator, mock_script_executor):
+    async def test_exec_script_no_script_specified(
+        self, remediation_coordinator, mock_script_executor
+    ):
         """Test execution without script specified"""
         remediation_coordinator.script_executor = mock_script_executor
         action = {}
@@ -258,8 +264,7 @@ class TestGetPredefinedScript:
     def test_get_predefined_script_revoke_tokens(self, remediation_coordinator):
         """Test getting revoke_tokens.sh script"""
         script = remediation_coordinator._get_predefined_script(
-            "revoke_tokens.sh",
-            {"incident_id": "INC-001"}
+            "revoke_tokens.sh", {"incident_id": "INC-001"}
         )
 
         assert "#!/bin/sh" in script
@@ -269,8 +274,7 @@ class TestGetPredefinedScript:
     def test_get_predefined_script_unknown(self, remediation_coordinator):
         """Test getting unknown script"""
         script = remediation_coordinator._get_predefined_script(
-            "unknown_script.sh",
-            {"incident_id": "INC-001"}
+            "unknown_script.sh", {"incident_id": "INC-001"}
         )
 
         assert "Unknown script" in script
@@ -286,7 +290,7 @@ class TestRestartPod:
         action = {"selector": "app"}
         incident = {
             "incident_id": "INC-001",
-            "affected_resources": ["neural-hive/pod/test-pod-abc123"]
+            "affected_resources": ["neural-hive/pod/test-pod-abc123"],
         }
 
         result = await remediation_coordinator._restart_pod(action, incident)
@@ -299,10 +303,7 @@ class TestRestartPod:
     async def test_restart_pod_no_resources(self, remediation_coordinator):
         """Test pod restart with no resources"""
         action = {"selector": "app"}
-        incident = {
-            "incident_id": "INC-001",
-            "affected_resources": []
-        }
+        incident = {"incident_id": "INC-001", "affected_resources": []}
 
         result = await remediation_coordinator._restart_pod(action, incident)
 

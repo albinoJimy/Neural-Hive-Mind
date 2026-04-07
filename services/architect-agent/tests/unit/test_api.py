@@ -65,9 +65,7 @@ def test_create_architecture():
     plan_mock.plan_id = "arch-123"
     plan_mock.cognitive_plan_id = "cog-123"
     plan_mock.architecture_type = Mock(value="microservices")
-    plan_mock.components = [
-        Component(name="api", stack="python/fastapi", replicas=1, ha=False)
-    ]
+    plan_mock.components = [Component(name="api", stack="python/fastapi", replicas=1, ha=False)]
     plan_mock.patterns = [Pattern.REPOSITORY]
     plan_mock.rationale = "Test architecture"
     plan_mock.created_at = datetime.now(timezone.utc)

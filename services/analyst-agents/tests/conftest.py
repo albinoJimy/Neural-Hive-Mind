@@ -10,62 +10,64 @@ import os
 from unittest.mock import MagicMock
 
 # Set environment variables BEFORE any imports
-os.environ.setdefault('KAFKA_BOOTSTRAP_SERVERS', 'localhost:9092')
-os.environ.setdefault('MONGODB_URI', 'mongodb://localhost:27017')
-os.environ.setdefault('MONGODB_DATABASE', 'test_analyst_agents')
-os.environ.setdefault('REDIS_HOST', 'localhost')
-os.environ.setdefault('REDIS_PORT', '6379')
-os.environ.setdefault('NEO4J_URI', 'bolt://localhost:7687')
-os.environ.setdefault('NEO4J_USER', 'neo4j')
-os.environ.setdefault('NEO4J_PASSWORD', 'password')
-os.environ.setdefault('CLICKHOUSE_HOST', 'localhost')
-os.environ.setdefault('CLICKHOUSE_PORT', '8123')
-os.environ.setdefault('CLICKHOUSE_USER', 'default')
-os.environ.setdefault('CLICKHOUSE_PASSWORD', '')
-os.environ.setdefault('CLICKHOUSE_DATABASE', 'test')
-os.environ.setdefault('POSTGRESQL_HOST', 'localhost')
-os.environ.setdefault('POSTGRESQL_PORT', '5432')
-os.environ.setdefault('POSTGRESQL_USER', 'postgres')
-os.environ.setdefault('POSTGRESQL_PASSWORD', 'password')
-os.environ.setdefault('POSTGRESQL_DATABASE', 'test_analyst_agents')
-os.environ.setdefault('ELASTICSEARCH_HOSTS', '["http://localhost:9200"]')
-os.environ.setdefault('PROMETHEUS_URL', 'http://localhost:9090')
-os.environ.setdefault('QUEEN_AGENT_GRPC_HOST', 'localhost')
-os.environ.setdefault('QUEEN_AGENT_GRPC_PORT', '50051')
-os.environ.setdefault('SERVICE_REGISTRY_GRPC_HOST', 'localhost')
-os.environ.setdefault('SERVICE_REGISTRY_GRPC_PORT', '50052')
-os.environ.setdefault('FASTAPI_HOST', '0.0.0.0')
-os.environ.setdefault('FASTAPI_PORT', '8000')
-os.environ.setdefault('GRPC_ENABLED', 'false')
-os.environ.setdefault('CORS_ORIGINS', '["*","http://localhost","http://localhost:8000"]')
-os.environ.setdefault('SERVICE_VERSION', '0.1.0')
-os.environ.setdefault('OTEL_EXPORTER_OTLP_ENDPOINT', 'http://localhost:4317')
-os.environ.setdefault('ANALYTICS_MIN_CONFIDENCE', '0.5')
-os.environ.setdefault('ANALYTICS_WINDOW_SIZE_SECONDS', '300')
-os.environ.setdefault('REDIS_INSIGHTS_TTL', '3600')
-os.environ.setdefault('KAFKA_CONSUMER_GROUP', 'test-group')
-os.environ.setdefault('KAFKA_TOPICS_INSIGHTS', 'insights')
-os.environ.setdefault('KAFKA_TOPICS_TELEMETRY', 'telemetry')
-os.environ.setdefault('KAFKA_TOPICS_CONSENSUS', 'consensus')
-os.environ.setdefault('KAFKA_TOPICS_EXECUTION', 'execution')
-os.environ.setdefault('KAFKA_TOPICS_PHEROMONES', 'pheromones')
+os.environ.setdefault("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
+os.environ.setdefault("MONGODB_URI", "mongodb://localhost:27017")
+os.environ.setdefault("MONGODB_DATABASE", "test_analyst_agents")
+os.environ.setdefault("REDIS_HOST", "localhost")
+os.environ.setdefault("REDIS_PORT", "6379")
+os.environ.setdefault("NEO4J_URI", "bolt://localhost:7687")
+os.environ.setdefault("NEO4J_USER", "neo4j")
+os.environ.setdefault("NEO4J_PASSWORD", "password")
+os.environ.setdefault("CLICKHOUSE_HOST", "localhost")
+os.environ.setdefault("CLICKHOUSE_PORT", "8123")
+os.environ.setdefault("CLICKHOUSE_USER", "default")
+os.environ.setdefault("CLICKHOUSE_PASSWORD", "")
+os.environ.setdefault("CLICKHOUSE_DATABASE", "test")
+os.environ.setdefault("POSTGRESQL_HOST", "localhost")
+os.environ.setdefault("POSTGRESQL_PORT", "5432")
+os.environ.setdefault("POSTGRESQL_USER", "postgres")
+os.environ.setdefault("POSTGRESQL_PASSWORD", "password")
+os.environ.setdefault("POSTGRESQL_DATABASE", "test_analyst_agents")
+os.environ.setdefault("ELASTICSEARCH_HOSTS", '["http://localhost:9200"]')
+os.environ.setdefault("PROMETHEUS_URL", "http://localhost:9090")
+os.environ.setdefault("QUEEN_AGENT_GRPC_HOST", "localhost")
+os.environ.setdefault("QUEEN_AGENT_GRPC_PORT", "50051")
+os.environ.setdefault("SERVICE_REGISTRY_GRPC_HOST", "localhost")
+os.environ.setdefault("SERVICE_REGISTRY_GRPC_PORT", "50052")
+os.environ.setdefault("FASTAPI_HOST", "0.0.0.0")
+os.environ.setdefault("FASTAPI_PORT", "8000")
+os.environ.setdefault("GRPC_ENABLED", "false")
+os.environ.setdefault("CORS_ORIGINS", '["*","http://localhost","http://localhost:8000"]')
+os.environ.setdefault("SERVICE_VERSION", "0.1.0")
+os.environ.setdefault("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317")
+os.environ.setdefault("ANALYTICS_MIN_CONFIDENCE", "0.5")
+os.environ.setdefault("ANALYTICS_WINDOW_SIZE_SECONDS", "300")
+os.environ.setdefault("REDIS_INSIGHTS_TTL", "3600")
+os.environ.setdefault("KAFKA_CONSUMER_GROUP", "test-group")
+os.environ.setdefault("KAFKA_TOPICS_INSIGHTS", "insights")
+os.environ.setdefault("KAFKA_TOPICS_TELEMETRY", "telemetry")
+os.environ.setdefault("KAFKA_TOPICS_CONSENSUS", "consensus")
+os.environ.setdefault("KAFKA_TOPICS_EXECUTION", "execution")
+os.environ.setdefault("KAFKA_TOPICS_PHEROMONES", "pheromones")
 
 # Add src to path - use absolute path to avoid conflicts
-_src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src'))
+_src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src"))
 if _src_path not in sys.path:
     sys.path.insert(0, _src_path)
 
 # Mock problematic modules before importing
-sys.modules['elasticsearch'] = MagicMock()
-sys.modules['elasticsearch.helpers'] = MagicMock()
-sys.modules['clickhouse_driver'] = MagicMock()
-sys.modules['neo4j'] = MagicMock()
-sys.modules['prometheus_client'] = MagicMock()
-sys.modules['asyncpg'] = MagicMock()
+sys.modules["elasticsearch"] = MagicMock()
+sys.modules["elasticsearch.helpers"] = MagicMock()
+sys.modules["clickhouse_driver"] = MagicMock()
+sys.modules["neo4j"] = MagicMock()
+sys.modules["prometheus_client"] = MagicMock()
+sys.modules["asyncpg"] = MagicMock()
+
 
 # Create proper RpcError exception class for grpc
 class GrpcRpcError(Exception):
     """Mock grpc.RpcError for testing"""
+
     def __init__(self, code):
         super().__init__(f"gRPC error: {code}")
         self._code = code
@@ -73,8 +75,11 @@ class GrpcRpcError(Exception):
     def code(self):
         return self._code
 
+
 # Create StatusCode enum for grpc
 from enum import IntEnum
+
+
 class StatusCode(IntEnum):
     OK = 0
     CANCELLED = 1
@@ -94,6 +99,7 @@ class StatusCode(IntEnum):
     UNAVAILABLE = 14
     DATA_LOSS = 15
 
+
 # Mock grpc with __version__ attribute (>= 1.68.1 for protobuf compatibility)
 mock_grpc = MagicMock()
 mock_grpc.__version__ = "1.68.1"
@@ -109,10 +115,12 @@ mock_grpc.StatusCode = StatusCode
 
 # Mock grpc._utilities for version check
 mock_grpc_utilities = MagicMock()
-mock_grpc_utilities.first_version_is_lower = lambda v1, v2: False  # Always return False (version is OK)
-sys.modules['grpc._utilities'] = mock_grpc_utilities
+mock_grpc_utilities.first_version_is_lower = (
+    lambda v1, v2: False
+)  # Always return False (version is OK)
+sys.modules["grpc._utilities"] = mock_grpc_utilities
 
-sys.modules['grpc'] = mock_grpc
+sys.modules["grpc"] = mock_grpc
 
 mock_grpc_aio = MagicMock()
 mock_grpc_aio.__version__ = "1.68.1"
@@ -125,31 +133,31 @@ mock_grpc_aio.ChannelCredentials = MagicMock()
 mock_grpc_aio.LocalChannelCredentials = MagicMock()
 mock_grpc_aio.RpcError = GrpcRpcError
 mock_grpc_aio.StatusCode = StatusCode
-sys.modules['grpc.aio'] = mock_grpc_aio
+sys.modules["grpc.aio"] = mock_grpc_aio
 
-sys.modules['src.services.embedding_service'] = MagicMock()
-sys.modules['src.services.code_analyzer'] = MagicMock()
-sys.modules['src.clients.elasticsearch_client'] = MagicMock()
-sys.modules['src.clients.clickhouse_client'] = MagicMock()
-sys.modules['src.clients.neo4j_client'] = MagicMock()
-sys.modules['src.clients.prometheus_client'] = MagicMock()
+sys.modules["src.services.embedding_service"] = MagicMock()
+sys.modules["src.services.code_analyzer"] = MagicMock()
+sys.modules["src.clients.elasticsearch_client"] = MagicMock()
+sys.modules["src.clients.clickhouse_client"] = MagicMock()
+sys.modules["src.clients.neo4j_client"] = MagicMock()
+sys.modules["src.clients.prometheus_client"] = MagicMock()
 
 # Mock neural_hive_observability package
 mock_observability = MagicMock()
 mock_observability.init_observability = MagicMock()
 # instrument_grpc_channel deve retornar o channel que recebe
 mock_observability.instrument_grpc_channel = lambda channel, **kwargs: channel
-sys.modules['neural_hive_observability'] = mock_observability
-sys.modules['neural_hive_observability.health'] = MagicMock()
-sys.modules['neural_hive_observability.health_checks'] = MagicMock()
-sys.modules['neural_hive_observability.health_checks.clickhouse'] = MagicMock()
-sys.modules['neural_hive_observability.config'] = MagicMock()
+sys.modules["neural_hive_observability"] = mock_observability
+sys.modules["neural_hive_observability.health"] = MagicMock()
+sys.modules["neural_hive_observability.health_checks"] = MagicMock()
+sys.modules["neural_hive_observability.health_checks.clickhouse"] = MagicMock()
+sys.modules["neural_hive_observability.config"] = MagicMock()
 # Mock inject_grpc_context to return empty list
 mock_grpc_instrumentation = MagicMock()
 mock_grpc_instrumentation.inject_grpc_context = lambda: []
-sys.modules['neural_hive_observability.grpc_instrumentation'] = mock_grpc_instrumentation
-sys.modules['neural_hive_observability.context'] = MagicMock()
-sys.modules['neural_hive_observability.health_checks.clickhouse'] = MagicMock()
+sys.modules["neural_hive_observability.grpc_instrumentation"] = mock_grpc_instrumentation
+sys.modules["neural_hive_observability.context"] = MagicMock()
+sys.modules["neural_hive_observability.health_checks.clickhouse"] = MagicMock()
 
 from src.models.insight_extended import (
     InsightCreate,
@@ -164,8 +172,10 @@ from src.repositories.insight_repository import InsightRepository
 
 # Importar serviços diretamente
 import src.services.timeseries_analyzer as ts_module
+
 TimeSeriesAnalyzer = ts_module.TimeSeriesAnalyzer
 import src.services.mcp_integration as mcp_module
+
 MCPIntegration = mcp_module.MCPIntegration
 
 
@@ -194,6 +204,7 @@ async def mongodb_client():
 
         async def iterate():
             return []
+
         mock_cursor.__aiter__ = lambda self: self
         mock_cursor.__anext__ = lambda self: (_ for _ in ()).throw(StopAsyncIteration)
         return mock_cursor
@@ -210,6 +221,7 @@ async def mongodb_client():
     async def mock_aggregate(pipeline):
         async def iterate():
             return []
+
         mock_cursor = AsyncMock()
         mock_cursor.__aiter__ = lambda self: self
         mock_cursor.__anext__ = lambda self: (_ for _ in ()).throw(StopAsyncIteration)
@@ -249,7 +261,15 @@ async def insight_repository(mongodb_client, test_database):
     """Repositório de insights para testes com mock."""
     from unittest.mock import AsyncMock, MagicMock
     from datetime import datetime, timezone, timedelta
-    from src.models.insight_extended import InsightResponse, InsightCreate, InsightStatus, InsightMetrics, AnalysisType, InsightSource, InsightMetadata
+    from src.models.insight_extended import (
+        InsightResponse,
+        InsightCreate,
+        InsightStatus,
+        InsightMetrics,
+        AnalysisType,
+        InsightSource,
+        InsightMetadata,
+    )
     import uuid
 
     # In-memory storage para testes
@@ -266,12 +286,14 @@ async def insight_repository(mongodb_client, test_database):
             self._db[self.cache_collection] = MagicMock()
 
         async def create(self, insight: InsightCreate) -> InsightResponse:
-            doc = insight.model_dump() if hasattr(insight, 'model_dump') else insight.dict()
+            doc = insight.model_dump() if hasattr(insight, "model_dump") else insight.dict()
             doc["insight_id"] = str(uuid.uuid4())
             doc["status"] = InsightStatus.PENDING.value
             doc["created_at"] = datetime.now(timezone.utc)
             doc["expires_at"] = datetime.now(timezone.utc) + timedelta(days=90)
-            doc["metrics"] = InsightMetrics(processing_time_ms=0, confidence_score=0.0, data_points=0).model_dump()
+            doc["metrics"] = InsightMetrics(
+                processing_time_ms=0, confidence_score=0.0, data_points=0
+            ).model_dump()
             self.storage["insights"][doc["insight_id"]] = doc
             return InsightResponse(**doc)
 
@@ -282,26 +304,32 @@ async def insight_repository(mongodb_client, test_database):
             return None
 
         async def list(self, **kwargs):
-            limit = kwargs.get('limit', 50)
-            offset = kwargs.get('offset', 0)
+            limit = kwargs.get("limit", 50)
+            offset = kwargs.get("offset", 0)
 
             # Simple filtering
             items = list(self.storage["insights"].values())
 
             # Apply filters
-            if kwargs.get('analysis_type'):
-                items = [i for i in items if i.get('analysis_type') == kwargs['analysis_type'].value]
-            if kwargs.get('source'):
-                items = [i for i in items if i.get('metadata', {}).get('source') == kwargs['source'].value]
-            if kwargs.get('tags'):
-                tags = kwargs['tags']
-                items = [i for i in items if any(t in i.get('tags', []) for t in tags)]
-            if kwargs.get('status'):
-                items = [i for i in items if i.get('status') == kwargs['status'].value]
+            if kwargs.get("analysis_type"):
+                items = [
+                    i for i in items if i.get("analysis_type") == kwargs["analysis_type"].value
+                ]
+            if kwargs.get("source"):
+                items = [
+                    i
+                    for i in items
+                    if i.get("metadata", {}).get("source") == kwargs["source"].value
+                ]
+            if kwargs.get("tags"):
+                tags = kwargs["tags"]
+                items = [i for i in items if any(t in i.get("tags", []) for t in tags)]
+            if kwargs.get("status"):
+                items = [i for i in items if i.get("status") == kwargs["status"].value]
 
             total = len(items)
-            items = sorted(items, key=lambda x: x.get('created_at', datetime.min), reverse=True)
-            items = items[offset:offset + limit]
+            items = sorted(items, key=lambda x: x.get("created_at", datetime.min), reverse=True)
+            items = items[offset : offset + limit]
 
             return [InsightResponse(**i) for i in items], total
 
@@ -329,6 +357,7 @@ async def insight_repository(mongodb_client, test_database):
 
         async def cache_set(self, cache_key, metric_name, data, statistics):
             import copy
+
             doc = {
                 "cache_key": cache_key,
                 "metric_name": metric_name,
@@ -339,11 +368,13 @@ async def insight_repository(mongodb_client, test_database):
             }
             self.storage["cache"][cache_key] = doc
             from src.models.insight_extended import TimeSeriesCacheEntry
+
             return TimeSeriesCacheEntry(**doc)
 
         async def cache_get(self, cache_key):
             if cache_key in self.storage["cache"]:
                 from src.models.insight_extended import TimeSeriesCacheEntry
+
                 return TimeSeriesCacheEntry(**self.storage["cache"][cache_key])
             return None
 
@@ -358,7 +389,7 @@ async def insight_repository(mongodb_client, test_database):
 
             insights_by_type = {}
             for item in items:
-                at = item.get('analysis_type', 'unknown')
+                at = item.get("analysis_type", "unknown")
                 insights_by_type[at] = insights_by_type.get(at, 0) + 1
 
             return {
@@ -399,16 +430,14 @@ def sample_insight_create():
 def sample_timeseries_data():
     """Dados de série temporal de exemplo."""
     base_time = datetime.now(timezone.utc) - timedelta(hours=1)
-    return [
-        (base_time + timedelta(minutes=i * 5), 50.0 + i * 0.5)
-        for i in range(12)
-    ]
+    return [(base_time + timedelta(minutes=i * 5), 50.0 + i * 0.5) for i in range(12)]
 
 
 @pytest.fixture
 def sample_timeseries_with_anomalies():
     """Dados de série temporal com anomalias."""
     import random
+
     random.seed(42)
     base_time = datetime.now(timezone.utc) - timedelta(hours=1)
     data = []

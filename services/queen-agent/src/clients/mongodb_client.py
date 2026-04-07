@@ -190,7 +190,9 @@ class MongoDBClient:
             return await self.exceptions_collection.find_one({"exception_id": exception_id})
 
         except Exception as e:
-            logger.exception("exception_approval_get_failed", exception_id=exception_id, error=str(e))
+            logger.exception(
+                "exception_approval_get_failed", exception_id=exception_id, error=str(e)
+            )
             return None
 
     async def update_exception_status(self, exception_id: str, status: ApprovalStatus) -> bool:

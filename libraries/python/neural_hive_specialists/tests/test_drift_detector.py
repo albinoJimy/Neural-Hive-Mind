@@ -257,9 +257,7 @@ async def test_retraining_improves_model_metrics():
     }
 
     # Verifica melhoria
-    f1_improvement = (new_metrics["f1_score"] - old_metrics["f1_score"]) / old_metrics[
-        "f1_score"
-    ]
+    f1_improvement = (new_metrics["f1_score"] - old_metrics["f1_score"]) / old_metrics["f1_score"]
 
     assert f1_improvement > 0.1, f"Melhoria de F1 ({f1_improvement:.2%}) menor que 10%"
     assert new_metrics["f1_score"] > 0.65, "F1 apos retreinamento abaixo de 0.65"

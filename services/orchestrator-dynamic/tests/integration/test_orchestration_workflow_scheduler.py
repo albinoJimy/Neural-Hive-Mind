@@ -41,19 +41,19 @@ def mock_cognitive_plan() -> Dict[str, Any]:
                 "task_id": "task-1",
                 "description": "Process data",
                 "required_capabilities": ["python", "data-processing"],
-                "estimated_duration_ms": 1000
+                "estimated_duration_ms": 1000,
             },
             {
                 "task_id": "task-2",
                 "description": "Run ML inference",
                 "required_capabilities": ["python", "ml-inference"],
-                "estimated_duration_ms": 2000
-            }
+                "estimated_duration_ms": 2000,
+            },
         ],
         "execution_order": ["task-1", "task-2"],
         "risk_band": "high",
         "namespace": "default",
-        "security_level": "standard"
+        "security_level": "standard",
     }
 
 
@@ -65,10 +65,7 @@ def mock_consolidated_decision() -> Dict[str, Any]:
         "correlation_id": "corr-workflow-1",
         "trace_id": "trace-workflow-1",
         "timestamp": datetime.now(timezone.utc).isoformat(),
-        "selected_plan": {
-            "plan_id": "plan-workflow-1",
-            "confidence_score": 0.95
-        }
+        "selected_plan": {"plan_id": "plan-workflow-1", "confidence_score": 0.95},
     }
 
 
@@ -84,21 +81,23 @@ def mock_activity_dependencies():
     """Todas as dependências de activities."""
     # Service Registry
     registry_client = AsyncMock(spec=ServiceRegistryClient)
-    registry_client.discover_agents = AsyncMock(return_value=[
-        {
-            "agent_id": "worker-001",
-            "agent_type": "worker-agent",
-            "status": "HEALTHY",
-            "capabilities": ["python", "data-processing", "ml-inference"],
-            "telemetry": {
-                "success_rate": 0.95,
-                "avg_duration_ms": 800,
-                "total_executions": 100
-            },
-            "active_tasks": 2,
-            "max_concurrent_tasks": 10
-        }
-    ])
+    registry_client.discover_agents = AsyncMock(
+        return_value=[
+            {
+                "agent_id": "worker-001",
+                "agent_type": "worker-agent",
+                "status": "HEALTHY",
+                "capabilities": ["python", "data-processing", "ml-inference"],
+                "telemetry": {
+                    "success_rate": 0.95,
+                    "avg_duration_ms": 800,
+                    "total_executions": 100,
+                },
+                "active_tasks": 2,
+                "max_concurrent_tasks": 10,
+            }
+        ]
+    )
 
     # Config
     config = MagicMock(spec=OrchestratorSettings)
@@ -114,15 +113,13 @@ def mock_activity_dependencies():
     # Scheduler components
     priority_calculator = PriorityCalculator(config)
     resource_allocator = ResourceAllocator(
-        registry_client=registry_client,
-        config=config,
-        metrics=metrics
+        registry_client=registry_client, config=config, metrics=metrics
     )
     intelligent_scheduler = IntelligentScheduler(
         config=config,
         metrics=metrics,
         priority_calculator=priority_calculator,
-        resource_allocator=resource_allocator
+        resource_allocator=resource_allocator,
     )
 
     # PolicyValidator
@@ -135,17 +132,15 @@ def mock_activity_dependencies():
 
     # ML Predictor
     ml_predictor = AsyncMock()
-    ml_predictor.predict_and_enrich = AsyncMock(side_effect=lambda ticket: {
-        **ticket,
-        "predictions": {
-            "duration_ms": ticket.get("estimated_duration_ms", 1000) * 1.1,
-            "anomaly": {
-                "is_anomaly": False,
-                "anomaly_score": 0.12,
-                "anomaly_type": None
-            }
+    ml_predictor.predict_and_enrich = AsyncMock(
+        side_effect=lambda ticket: {
+            **ticket,
+            "predictions": {
+                "duration_ms": ticket.get("estimated_duration_ms", 1000) * 1.1,
+                "anomaly": {"is_anomaly": False, "anomaly_score": 0.12, "anomaly_type": None},
+            },
         }
-    })
+    )
 
     # Kafka Producer
     kafka_producer = AsyncMock()
@@ -163,7 +158,7 @@ def mock_activity_dependencies():
         "policy_validator": policy_validator,
         "config": config,
         "ml_predictor": ml_predictor,
-        "metrics": metrics
+        "metrics": metrics,
     }
 
 
@@ -171,15 +166,15 @@ class TestOrchestrationWorkflowScheduler:
     """Testes de integração workflow + scheduler."""
 
     @pytest.mark.asyncio
-    async def test_workflow_c3_allocate_resources_with_scheduler(
-        self, mock_activity_dependencies
-    ):
+    async def test_workflow_c3_allocate_resources_with_scheduler(self, mock_activity_dependencies):
         """Testa step C3 com scheduler real."""
         # Importar e injetar dependências
         from src.activities import ticket_generation
 
         # Injetar dependências no módulo
-        ticket_generation.intelligent_scheduler = mock_activity_dependencies["intelligent_scheduler"]
+        ticket_generation.intelligent_scheduler = mock_activity_dependencies[
+            "intelligent_scheduler"
+        ]
         ticket_generation.policy_validator = mock_activity_dependencies["policy_validator"]
         ticket_generation.ml_predictor = mock_activity_dependencies["ml_predictor"]
         ticket_generation.config = mock_activity_dependencies["config"]
@@ -192,17 +187,17 @@ class TestOrchestrationWorkflowScheduler:
             "qos": {
                 "delivery_mode": "EXACTLY_ONCE",
                 "consistency": "STRONG",
-                "durability": "PERSISTENT"
+                "durability": "PERSISTENT",
             },
             "sla": {
                 "deadline": (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(),
-                "timeout_ms": 3600000
+                "timeout_ms": 3600000,
             },
             "required_capabilities": ["python", "data-processing"],
             "namespace": "default",
             "security_level": "standard",
             "estimated_duration_ms": 1000,
-            "created_at": datetime.now(timezone.utc).isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
         # Executar activity
@@ -214,15 +209,14 @@ class TestOrchestrationWorkflowScheduler:
         assert result["allocation_metadata"]["agent_id"] == "worker-001"
 
     @pytest.mark.asyncio
-    async def test_workflow_c3_scheduler_timeout_fallback(
-        self, mock_activity_dependencies
-    ):
+    async def test_workflow_c3_scheduler_timeout_fallback(self, mock_activity_dependencies):
         """Testa fallback quando scheduler dá timeout."""
         # Criar registry client que demora muito
         slow_client = AsyncMock(spec=ServiceRegistryClient)
 
         async def slow_discovery(*args, **kwargs):
             import asyncio
+
             await asyncio.sleep(6)  # Excede timeout
             return []
 
@@ -234,19 +228,18 @@ class TestOrchestrationWorkflowScheduler:
 
         priority_calculator = PriorityCalculator(config)
         resource_allocator = ResourceAllocator(
-            registry_client=slow_client,
-            config=config,
-            metrics=metrics
+            registry_client=slow_client, config=config, metrics=metrics
         )
         slow_scheduler = IntelligentScheduler(
             config=config,
             metrics=metrics,
             priority_calculator=priority_calculator,
-            resource_allocator=resource_allocator
+            resource_allocator=resource_allocator,
         )
 
         # Injetar scheduler lento
         from src.activities import ticket_generation
+
         ticket_generation.intelligent_scheduler = slow_scheduler
         ticket_generation.policy_validator = mock_activity_dependencies["policy_validator"]
         ticket_generation.ml_predictor = mock_activity_dependencies["ml_predictor"]
@@ -263,7 +256,7 @@ class TestOrchestrationWorkflowScheduler:
             "namespace": "default",
             "security_level": "standard",
             "estimated_duration_ms": 1000,
-            "created_at": datetime.now(timezone.utc).isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
         # Executar activity (deve usar fallback)
@@ -281,7 +274,9 @@ class TestOrchestrationWorkflowScheduler:
         from src.activities import ticket_generation, plan_validation, result_consolidation
 
         # Injetar dependências
-        ticket_generation.intelligent_scheduler = mock_activity_dependencies["intelligent_scheduler"]
+        ticket_generation.intelligent_scheduler = mock_activity_dependencies[
+            "intelligent_scheduler"
+        ]
         ticket_generation.policy_validator = mock_activity_dependencies["policy_validator"]
         ticket_generation.ml_predictor = mock_activity_dependencies["ml_predictor"]
         ticket_generation.kafka_producer = mock_activity_dependencies["kafka_producer"]
@@ -301,17 +296,17 @@ class TestOrchestrationWorkflowScheduler:
                 "qos": {
                     "delivery_mode": "AT_LEAST_ONCE",
                     "consistency": "EVENTUAL",
-                    "durability": "PERSISTENT"
+                    "durability": "PERSISTENT",
                 },
                 "sla": {
                     "deadline": (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(),
-                    "timeout_ms": 3600000
+                    "timeout_ms": 3600000,
                 },
                 "required_capabilities": task["required_capabilities"],
                 "namespace": validated_plan["namespace"],
                 "security_level": validated_plan["security_level"],
                 "estimated_duration_ms": task["estimated_duration_ms"],
-                "created_at": datetime.now(timezone.utc).isoformat()
+                "created_at": datetime.now(timezone.utc).isoformat(),
             }
             tickets.append(ticket)
 
@@ -328,15 +323,15 @@ class TestOrchestrationWorkflowScheduler:
             assert ticket["allocation_metadata"]["allocation_method"] == "intelligent_scheduler"
 
     @pytest.mark.asyncio
-    async def test_workflow_multiple_tickets_parallel_allocation(
-        self, mock_activity_dependencies
-    ):
+    async def test_workflow_multiple_tickets_parallel_allocation(self, mock_activity_dependencies):
         """Testa alocação paralela de 5 tickets no workflow."""
         # Importar activity
         from src.activities import ticket_generation
 
         # Injetar dependências
-        ticket_generation.intelligent_scheduler = mock_activity_dependencies["intelligent_scheduler"]
+        ticket_generation.intelligent_scheduler = mock_activity_dependencies[
+            "intelligent_scheduler"
+        ]
         ticket_generation.policy_validator = mock_activity_dependencies["policy_validator"]
         ticket_generation.ml_predictor = mock_activity_dependencies["ml_predictor"]
         ticket_generation.config = mock_activity_dependencies["config"]
@@ -354,15 +349,14 @@ class TestOrchestrationWorkflowScheduler:
                 "namespace": "default",
                 "security_level": "standard",
                 "estimated_duration_ms": 1000,
-                "created_at": datetime.now(timezone.utc).isoformat()
+                "created_at": datetime.now(timezone.utc).isoformat(),
             }
             tickets.append(ticket)
 
         # Alocar em paralelo
         import asyncio
-        results = await asyncio.gather(*[
-            allocate_resources(ticket) for ticket in tickets
-        ])
+
+        results = await asyncio.gather(*[allocate_resources(ticket) for ticket in tickets])
 
         # Verificar todos alocados
         assert len(results) == 5
@@ -370,9 +364,7 @@ class TestOrchestrationWorkflowScheduler:
             assert "allocation_metadata" in result
 
     @pytest.mark.asyncio
-    async def test_workflow_c3_with_opa_rejection(
-        self, mock_activity_dependencies
-    ):
+    async def test_workflow_c3_with_opa_rejection(self, mock_activity_dependencies):
         """Testa step C3 do workflow quando OPA rejeita ticket."""
         from src.activities import ticket_generation
 
@@ -384,7 +376,7 @@ class TestOrchestrationWorkflowScheduler:
                 "policy": "sla_enforcement",
                 "rule": "timeout_insufficient",
                 "severity": "HIGH",
-                "message": "Timeout insuficiente para estimated_duration"
+                "message": "Timeout insuficiente para estimated_duration",
             }
         ]
         rejection_result.feature_flags = {"enable_intelligent_scheduler": True}
@@ -394,7 +386,9 @@ class TestOrchestrationWorkflowScheduler:
 
         # Injetar dependências com PolicyValidator que rejeita
         ticket_generation.policy_validator = policy_validator_reject
-        ticket_generation.intelligent_scheduler = mock_activity_dependencies["intelligent_scheduler"]
+        ticket_generation.intelligent_scheduler = mock_activity_dependencies[
+            "intelligent_scheduler"
+        ]
         ticket_generation.ml_predictor = mock_activity_dependencies["ml_predictor"]
         ticket_generation.config = mock_activity_dependencies["config"]
 
@@ -406,17 +400,17 @@ class TestOrchestrationWorkflowScheduler:
             "qos": {
                 "delivery_mode": "EXACTLY_ONCE",
                 "consistency": "STRONG",
-                "durability": "PERSISTENT"
+                "durability": "PERSISTENT",
             },
             "sla": {
                 "deadline": (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(),
-                "timeout_ms": 60000  # 1 min (muito curto para critical)
+                "timeout_ms": 60000,  # 1 min (muito curto para critical)
             },
             "required_capabilities": ["python"],
             "namespace": "default",
             "security_level": "standard",
             "estimated_duration_ms": 120000,  # 2 min
-            "created_at": datetime.now(timezone.utc).isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
         # Executar validação (simula início da activity)
@@ -431,9 +425,7 @@ class TestOrchestrationWorkflowScheduler:
         # Aqui apenas validamos que a rejeição foi detectada
 
     @pytest.mark.asyncio
-    async def test_workflow_c3_with_feature_flag_disabled(
-        self, mock_activity_dependencies
-    ):
+    async def test_workflow_c3_with_feature_flag_disabled(self, mock_activity_dependencies):
         """Testa step C3 do workflow quando feature flag está desabilitada."""
         from src.activities import ticket_generation
 
@@ -448,7 +440,9 @@ class TestOrchestrationWorkflowScheduler:
 
         # Injetar dependências
         ticket_generation.policy_validator = policy_validator_flag_off
-        ticket_generation.intelligent_scheduler = mock_activity_dependencies["intelligent_scheduler"]
+        ticket_generation.intelligent_scheduler = mock_activity_dependencies[
+            "intelligent_scheduler"
+        ]
         ticket_generation.ml_predictor = mock_activity_dependencies["ml_predictor"]
         ticket_generation.config = mock_activity_dependencies["config"]
 
@@ -463,7 +457,7 @@ class TestOrchestrationWorkflowScheduler:
             "namespace": "default",
             "security_level": "standard",
             "estimated_duration_ms": 1000,
-            "created_at": datetime.now(timezone.utc).isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
         # Executar validação
@@ -473,7 +467,7 @@ class TestOrchestrationWorkflowScheduler:
         feature_flags = validation_result.feature_flags
 
         # Simular lógica de allocate_resources respeitando feature flag
-        if not feature_flags.get('enable_intelligent_scheduler', True):
+        if not feature_flags.get("enable_intelligent_scheduler", True):
             # Fallback stub
             result = {
                 **ticket,
@@ -485,12 +479,14 @@ class TestOrchestrationWorkflowScheduler:
                     "agent_score": 0.5,
                     "composite_score": 0.5,
                     "allocation_method": "fallback_stub",
-                    "workers_evaluated": 0
-                }
+                    "workers_evaluated": 0,
+                },
             }
         else:
             # IntelligentScheduler
-            result = await mock_activity_dependencies["intelligent_scheduler"].schedule_ticket(ticket)
+            result = await mock_activity_dependencies["intelligent_scheduler"].schedule_ticket(
+                ticket
+            )
 
         # Verificar que fallback stub foi usado
         assert result["allocation_metadata"]["allocation_method"] == "fallback_stub"

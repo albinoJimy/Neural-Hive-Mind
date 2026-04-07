@@ -35,6 +35,7 @@ from neural_hive_specialists.evolution_hooks.feedback_consumer import (
 # Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def feedback_message_dict():
     """Mensagem de feedback de exemplo."""
@@ -48,27 +49,28 @@ def feedback_message_dict():
             "avg_dependency_count": 1.5,
             "has_conditional_deps": True,
             "estimated_duration_range": "medium",
-            "complexity_signature": "T-H-B-T-D-M"
+            "complexity_signature": "T-H-B-T-D-M",
         },
         "evaluation": {
             "confidence_score": 0.75,
             "risk_score": 0.25,
             "recommendation": "approve",
             "weights_used": DEFAULT_WEIGHTS.copy(),
-            "reasoning_factors": []
+            "reasoning_factors": [],
         },
         "feedback": {
             "outcome": "approve",
             "source": "human",
             "reasoning": "Approved after review",
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        }
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        },
     }
 
 
 @pytest.fixture
 def mock_kafka_message(feedback_message_dict):
     """Mock de mensagem Kafka."""
+
     class MockConsumerRecord:
         def __init__(self, value):
             self.value = value
@@ -92,21 +94,19 @@ async def pattern_registry_with_data(mongo_client):
         avg_dependency_count=1.5,
         has_conditional_deps=True,
         estimated_duration_range=DurationRange.MEDIUM,
-        complexity_signature="T-H-B-T-D-M"
+        complexity_signature="T-H-B-T-D-M",
     )
 
     evaluation = EvolutionEvaluation(
         confidence_score=0.75,
         risk_score=0.25,
         recommendation="approve",
-        weights_used=DEFAULT_WEIGHTS.copy()
+        weights_used=DEFAULT_WEIGHTS.copy(),
     )
 
     # Armazenar avaliação inicial
     pattern_id = await registry.store_evaluation(
-        plan_id="test-plan-123",
-        fingerprint=fingerprint,
-        evaluation=evaluation
+        plan_id="test-plan-123", fingerprint=fingerprint, evaluation=evaluation
     )
 
     yield registry, pattern_id
@@ -120,6 +120,7 @@ async def pattern_registry_with_data(mongo_client):
 # Testes de Inicialização
 # ============================================================================
 
+
 @pytest.mark.asyncio
 async def test_consumer_creation(mongo_client):
     """Testa criação do consumer."""
@@ -129,7 +130,7 @@ async def test_consumer_creation(mongo_client):
         bootstrap_servers="localhost:9092",
         topic="evolution.feedback.topic",
         group_id="evolution-feedback-group",
-        pattern_registry=registry
+        pattern_registry=registry,
     )
 
     assert consumer.bootstrap_servers == "localhost:9092"
@@ -151,7 +152,7 @@ async def test_consumer_factory(mongo_client):
         topic="evolution.feedback.topic",
         group_id="evolution-feedback-group",
         pattern_registry=registry,
-        max_poll_records=20
+        max_poll_records=20,
     )
 
     assert isinstance(consumer, EvolutionFeedbackConsumer)
@@ -162,6 +163,7 @@ async def test_consumer_factory(mongo_client):
 # Testes de Processamento de Mensagens
 # ============================================================================
 
+
 @pytest.mark.asyncio
 async def test_process_message_success(pattern_registry_with_data, feedback_message_dict):
     """Testa processamento bem-sucedido de mensagem."""
@@ -171,7 +173,7 @@ async def test_process_message_success(pattern_registry_with_data, feedback_mess
         bootstrap_servers="localhost:9092",
         topic="evolution.feedback.topic",
         group_id="evolution-feedback-group",
-        pattern_registry=registry
+        pattern_registry=registry,
     )
 
     # Processar mensagem
@@ -197,7 +199,7 @@ async def test_process_message_reject(pattern_registry_with_data):
         bootstrap_servers="localhost:9092",
         topic="evolution.feedback.topic",
         group_id="evolution-feedback-group",
-        pattern_registry=registry
+        pattern_registry=registry,
     )
 
     feedback_message_dict = {
@@ -210,21 +212,21 @@ async def test_process_message_reject(pattern_registry_with_data):
             "avg_dependency_count": 1.5,
             "has_conditional_deps": True,
             "estimated_duration_range": "medium",
-            "complexity_signature": "T-H-B-T-D-M"
+            "complexity_signature": "T-H-B-T-D-M",
         },
         "evaluation": {
             "confidence_score": 0.75,
             "risk_score": 0.25,
             "recommendation": "approve",
             "weights_used": DEFAULT_WEIGHTS.copy(),
-            "reasoning_factors": []
+            "reasoning_factors": [],
         },
         "feedback": {
             "outcome": "reject",
             "source": "human",
             "reasoning": "Security concerns",
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        }
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        },
     }
 
     success = await consumer.process_message(feedback_message_dict)
@@ -244,14 +246,11 @@ async def test_process_message_invalid_schema(mongo_client, pattern_registry_wit
         bootstrap_servers="localhost:9092",
         topic="evolution.feedback.topic",
         group_id="evolution-feedback-group",
-        pattern_registry=registry
+        pattern_registry=registry,
     )
 
     # Mensagem com schema inválido (falta campos obrigatórios)
-    invalid_message = {
-        "plan_id": "test-plan-123",
-        "falta_outros_campos": True
-    }
+    invalid_message = {"plan_id": "test-plan-123", "falta_outros_campos": True}
 
     with pytest.raises(Exception):  # ValidationError do Pydantic
         await consumer.process_message(invalid_message)
@@ -268,7 +267,7 @@ async def test_process_message_pattern_not_found(mongo_client):
         bootstrap_servers="localhost:9092",
         topic="evolution.feedback.topic",
         group_id="evolution-feedback-group",
-        pattern_registry=registry
+        pattern_registry=registry,
     )
 
     feedback_message_dict = {
@@ -281,21 +280,21 @@ async def test_process_message_pattern_not_found(mongo_client):
             "avg_dependency_count": 1.5,
             "has_conditional_deps": True,
             "estimated_duration_range": "medium",
-            "complexity_signature": "T-H-B-T-D-M"
+            "complexity_signature": "T-H-B-T-D-M",
         },
         "evaluation": {
             "confidence_score": 0.75,
             "risk_score": 0.25,
             "recommendation": "approve",
             "weights_used": DEFAULT_WEIGHTS.copy(),
-            "reasoning_factors": []
+            "reasoning_factors": [],
         },
         "feedback": {
             "outcome": "approve",
             "source": "human",
             "reasoning": "Approved after review",
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        }
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        },
     }
 
     success = await consumer.process_message(feedback_message_dict)
@@ -308,6 +307,7 @@ async def test_process_message_pattern_not_found(mongo_client):
 # Testes de Feedback com corrected_weights
 # ============================================================================
 
+
 @pytest.mark.asyncio
 async def test_process_message_with_corrected_weights(pattern_registry_with_data):
     """Testa processamento com pesos corrigidos."""
@@ -317,7 +317,7 @@ async def test_process_message_with_corrected_weights(pattern_registry_with_data
         bootstrap_servers="localhost:9092",
         topic="evolution.feedback.topic",
         group_id="evolution-feedback-group",
-        pattern_registry=registry
+        pattern_registry=registry,
     )
 
     corrected_weights = {
@@ -325,7 +325,7 @@ async def test_process_message_with_corrected_weights(pattern_registry_with_data
         "scalability": 0.20,
         "extensibility": 0.20,
         "modularity": 0.15,
-        "tech_debt_prevention": 0.15
+        "tech_debt_prevention": 0.15,
     }
 
     feedback_message_dict = {
@@ -338,22 +338,22 @@ async def test_process_message_with_corrected_weights(pattern_registry_with_data
             "avg_dependency_count": 1.5,
             "has_conditional_deps": True,
             "estimated_duration_range": "medium",
-            "complexity_signature": "T-H-B-T-D-M"
+            "complexity_signature": "T-H-B-T-D-M",
         },
         "evaluation": {
             "confidence_score": 0.75,
             "risk_score": 0.25,
             "recommendation": "approve",
             "weights_used": DEFAULT_WEIGHTS.copy(),
-            "reasoning_factors": []
+            "reasoning_factors": [],
         },
         "feedback": {
             "outcome": "approve",
             "source": "human",
             "reasoning": "Approved after review",
             "timestamp": datetime.now(timezone.utc).isoformat(),
-            "corrected_weights": corrected_weights
-        }
+            "corrected_weights": corrected_weights,
+        },
     }
 
     success = await consumer.process_message(feedback_message_dict)
@@ -368,6 +368,7 @@ async def test_process_message_with_corrected_weights(pattern_registry_with_data
 # Testes de Integração Kafka Mock
 # ============================================================================
 
+
 @pytest.mark.asyncio
 async def test_poll_with_timeout_no_messages(mongo_client):
     """Testa _poll_with_timeout quando não há mensagens."""
@@ -378,7 +379,7 @@ async def test_poll_with_timeout_no_messages(mongo_client):
         topic="evolution.feedback.topic",
         group_id="evolution-feedback-group",
         pattern_registry=registry,
-        poll_timeout_ms=100
+        poll_timeout_ms=100,
     )
 
     # Criar mock consumer que retorna vazio
@@ -402,7 +403,7 @@ async def test_poll_with_timeout_with_messages(mongo_client):
         bootstrap_servers="localhost:9092",
         topic="evolution.feedback.topic",
         group_id="evolution-feedback-group",
-        pattern_registry=registry
+        pattern_registry=registry,
     )
 
     # Criar mock de mensagem
@@ -430,8 +431,11 @@ async def test_poll_with_timeout_with_messages(mongo_client):
 # Testes do Loop de Consumo
 # ============================================================================
 
+
 @pytest.mark.asyncio
-async def test_consume_loop_processes_messages(pattern_registry_with_data, feedback_message_dict, mock_kafka_message):
+async def test_consume_loop_processes_messages(
+    pattern_registry_with_data, feedback_message_dict, mock_kafka_message
+):
     """Testa loop de consumo processando mensagens."""
     registry, pattern_id = pattern_registry_with_data
 
@@ -439,7 +443,7 @@ async def test_consume_loop_processes_messages(pattern_registry_with_data, feedb
         bootstrap_servers="localhost:9092",
         topic="evolution.feedback.topic",
         group_id="evolution-feedback-group",
-        pattern_registry=registry
+        pattern_registry=registry,
     )
 
     # Criar mock consumer
@@ -490,6 +494,7 @@ async def test_consume_loop_processes_messages(pattern_registry_with_data, feedb
 # Testes de Start/Stop
 # ============================================================================
 
+
 @pytest.mark.asyncio
 async def test_start_stop_lifecycle(mongo_client):
     """Testa ciclo de vida start/stop."""
@@ -499,7 +504,7 @@ async def test_start_stop_lifecycle(mongo_client):
         bootstrap_servers="localhost:9092",
         topic="evolution.feedback.topic",
         group_id="evolution-feedback-group",
-        pattern_registry=registry
+        pattern_registry=registry,
     )
 
     assert not consumer.is_running
@@ -526,7 +531,7 @@ async def test_start_when_already_running(mongo_client):
         bootstrap_servers="localhost:9092",
         topic="evolution.feedback.topic",
         group_id="evolution-feedback-group",
-        pattern_registry=registry
+        pattern_registry=registry,
     )
 
     with patch.object(consumer, "_create_consumer", new=AsyncMock()):
@@ -550,7 +555,7 @@ async def test_stop_when_not_running(mongo_client):
         bootstrap_servers="localhost:9092",
         topic="evolution.feedback.topic",
         group_id="evolution-feedback-group",
-        pattern_registry=registry
+        pattern_registry=registry,
     )
 
     assert not consumer.is_running
@@ -565,6 +570,7 @@ async def test_stop_when_not_running(mongo_client):
 # Testes de Múltiplas Mensagens
 # ============================================================================
 
+
 @pytest.mark.asyncio
 async def test_process_multiple_messages(pattern_registry_with_data):
     """Testa processamento de múltiplas mensagens."""
@@ -574,7 +580,7 @@ async def test_process_multiple_messages(pattern_registry_with_data):
         bootstrap_servers="localhost:9092",
         topic="evolution.feedback.topic",
         group_id="evolution-feedback-group",
-        pattern_registry=registry
+        pattern_registry=registry,
     )
 
     messages = [
@@ -588,21 +594,21 @@ async def test_process_multiple_messages(pattern_registry_with_data):
                 "avg_dependency_count": 1.5,
                 "has_conditional_deps": True,
                 "estimated_duration_range": "medium",
-                "complexity_signature": "T-H-B-T-D-M"
+                "complexity_signature": "T-H-B-T-D-M",
             },
             "evaluation": {
                 "confidence_score": 0.75,
                 "risk_score": 0.25,
                 "recommendation": "approve",
                 "weights_used": DEFAULT_WEIGHTS.copy(),
-                "reasoning_factors": []
+                "reasoning_factors": [],
             },
             "feedback": {
                 "outcome": "approve",
                 "source": "human",
                 "reasoning": "Approved",
-                "timestamp": datetime.now(timezone.utc).isoformat()
-            }
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            },
         },
         {
             "plan_id": "test-plan-123",
@@ -614,22 +620,22 @@ async def test_process_multiple_messages(pattern_registry_with_data):
                 "avg_dependency_count": 1.5,
                 "has_conditional_deps": True,
                 "estimated_duration_range": "medium",
-                "complexity_signature": "T-H-B-T-D-M"
+                "complexity_signature": "T-H-B-T-D-M",
             },
             "evaluation": {
                 "confidence_score": 0.60,
                 "risk_score": 0.40,
                 "recommendation": "review_required",
                 "weights_used": DEFAULT_WEIGHTS.copy(),
-                "reasoning_factors": []
+                "reasoning_factors": [],
             },
             "feedback": {
                 "outcome": "reject",
                 "source": "automated",
                 "reasoning": "Security scan failed",
-                "timestamp": datetime.now(timezone.utc).isoformat()
-            }
-        }
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            },
+        },
     ]
 
     for msg in messages:
@@ -645,6 +651,7 @@ async def test_process_multiple_messages(pattern_registry_with_data):
 # Testes de Fontes de Feedback
 # ============================================================================
 
+
 @pytest.mark.asyncio
 async def test_feedback_source_system(pattern_registry_with_data):
     """Testa feedback com source system."""
@@ -654,7 +661,7 @@ async def test_feedback_source_system(pattern_registry_with_data):
         bootstrap_servers="localhost:9092",
         topic="evolution.feedback.topic",
         group_id="evolution-feedback-group",
-        pattern_registry=registry
+        pattern_registry=registry,
     )
 
     feedback_message_dict = {
@@ -667,21 +674,21 @@ async def test_feedback_source_system(pattern_registry_with_data):
             "avg_dependency_count": 1.5,
             "has_conditional_deps": True,
             "estimated_duration_range": "medium",
-            "complexity_signature": "T-H-B-T-D-M"
+            "complexity_signature": "T-H-B-T-D-M",
         },
         "evaluation": {
             "confidence_score": 0.75,
             "risk_score": 0.25,
             "recommendation": "approve",
             "weights_used": DEFAULT_WEIGHTS.copy(),
-            "reasoning_factors": []
+            "reasoning_factors": [],
         },
         "feedback": {
             "outcome": "approve",
             "source": "system",
             "reasoning": "Auto-approved by policy",
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        }
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        },
     }
 
     success = await consumer.process_message(feedback_message_dict)
@@ -696,6 +703,7 @@ async def test_feedback_source_system(pattern_registry_with_data):
 # Testes de Erro
 # ============================================================================
 
+
 @pytest.mark.asyncio
 async def test_process_message_handles_exception(mongo_client):
     """Testa que exceções são tratadas e contabilizadas."""
@@ -705,13 +713,11 @@ async def test_process_message_handles_exception(mongo_client):
         bootstrap_servers="localhost:9092",
         topic="evolution.feedback.topic",
         group_id="evolution-feedback-group",
-        pattern_registry=registry
+        pattern_registry=registry,
     )
 
     # Mensagem que causa erro (schema inválido)
-    invalid_message = {
-        "invalid": "message"
-    }
+    invalid_message = {"invalid": "message"}
 
     with pytest.raises(Exception):
         await consumer.process_message(invalid_message)

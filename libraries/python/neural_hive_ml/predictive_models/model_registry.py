@@ -12,7 +12,9 @@ logger = logging.getLogger(__name__)
 class ModelRegistry:
     """Gerenciador centralizado de modelos MLflow."""
 
-    def __init__(self, tracking_uri: Optional[str] = None, experiment_prefix: str = "neural-hive-ml"):
+    def __init__(
+        self, tracking_uri: Optional[str] = None, experiment_prefix: str = "neural-hive-ml"
+    ):
         """
         Inicializa o registry de modelos.
 
@@ -32,7 +34,7 @@ class ModelRegistry:
         model_name: str,
         metrics: Dict[str, float],
         params: Dict[str, Any],
-        tags: Optional[Dict[str, str]] = None
+        tags: Optional[Dict[str, str]] = None,
     ) -> str:
         """
         Salva modelo no MLflow registry.
@@ -68,7 +70,7 @@ class ModelRegistry:
                 # Log tags
                 default_tags = {
                     "training_date": datetime.now().isoformat(),
-                    "model_type": model_name
+                    "model_type": model_name,
                 }
                 all_tags = {**default_tags, **(tags or {})}
                 for tag_name, tag_value in all_tags.items():
@@ -76,9 +78,7 @@ class ModelRegistry:
 
                 # Log model
                 model_info = mlflow.sklearn.log_model(
-                    model,
-                    artifact_path="model",
-                    registered_model_name=model_name
+                    model, artifact_path="model", registered_model_name=model_name
                 )
 
                 version = model_info.registered_model_version
@@ -89,11 +89,7 @@ class ModelRegistry:
             logger.error(f"Erro ao salvar modelo {model_name}: {e}")
             raise
 
-    def load_model(
-        self,
-        model_name: str,
-        stage: str = "Production"
-    ) -> Any:
+    def load_model(self, model_name: str, stage: str = "Production") -> Any:
         """
         Carrega modelo do MLflow registry.
 
@@ -114,12 +110,7 @@ class ModelRegistry:
             logger.warning(f"Erro ao carregar modelo {model_name} ({stage}): {e}")
             return None
 
-    def promote_model(
-        self,
-        model_name: str,
-        version: str,
-        stage: str = "Production"
-    ) -> None:
+    def promote_model(self, model_name: str, version: str, stage: str = "Production") -> None:
         """
         Promove modelo para estágio específico.
 
@@ -132,21 +123,16 @@ class ModelRegistry:
             # Archive current Production models
             if stage == "Production":
                 current_versions = self.client.get_latest_versions(
-                    model_name,
-                    stages=["Production"]
+                    model_name, stages=["Production"]
                 )
                 for current_version in current_versions:
                     self.client.transition_model_version_stage(
-                        name=model_name,
-                        version=current_version.version,
-                        stage="Archived"
+                        name=model_name, version=current_version.version, stage="Archived"
                     )
 
             # Promote new version
             self.client.transition_model_version_stage(
-                name=model_name,
-                version=version,
-                stage=stage
+                name=model_name, version=version, stage=stage
             )
 
             logger.info(f"Modelo {model_name} v{version} promovido para {stage}")
@@ -155,11 +141,7 @@ class ModelRegistry:
             logger.error(f"Erro ao promover modelo {model_name}: {e}")
             raise
 
-    def get_model_metadata(
-        self,
-        model_name: str,
-        stage: str = "Production"
-    ) -> Dict[str, Any]:
+    def get_model_metadata(self, model_name: str, stage: str = "Production") -> Dict[str, Any]:
         """
         Obtém metadados do modelo.
 
@@ -186,17 +168,14 @@ class ModelRegistry:
                 "last_updated_timestamp": version.last_updated_timestamp,
                 "metrics": run.data.metrics,
                 "params": run.data.params,
-                "tags": run.data.tags
+                "tags": run.data.tags,
             }
 
         except Exception as e:
             logger.error(f"Erro ao obter metadados de {model_name}: {e}")
             return {}
 
-    def list_models(
-        self,
-        filter_string: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+    def list_models(self, filter_string: Optional[str] = None) -> List[Dict[str, Any]]:
         """
         Lista modelos registrados.
 
@@ -207,9 +186,7 @@ class ModelRegistry:
             Lista de modelos com metadados
         """
         try:
-            models = self.client.search_registered_models(
-                filter_string=filter_string
-            )
+            models = self.client.search_registered_models(filter_string=filter_string)
 
             return [
                 {
@@ -218,12 +195,9 @@ class ModelRegistry:
                     "last_updated_timestamp": model.last_updated_timestamp,
                     "description": model.description,
                     "latest_versions": [
-                        {
-                            "version": v.version,
-                            "stage": v.current_stage
-                        }
+                        {"version": v.version, "stage": v.current_stage}
                         for v in model.latest_versions
-                    ]
+                    ],
                 }
                 for model in models
             ]
@@ -232,11 +206,7 @@ class ModelRegistry:
             logger.error(f"Erro ao listar modelos: {e}")
             return []
 
-    def archive_model(
-        self,
-        model_name: str,
-        version: str
-    ) -> None:
+    def archive_model(self, model_name: str, version: str) -> None:
         """
         Arquiva versão específica do modelo.
 
@@ -246,9 +216,7 @@ class ModelRegistry:
         """
         try:
             self.client.transition_model_version_stage(
-                name=model_name,
-                version=version,
-                stage="Archived"
+                name=model_name, version=version, stage="Archived"
             )
             logger.info(f"Modelo {model_name} v{version} arquivado")
 

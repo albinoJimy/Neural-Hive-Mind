@@ -52,7 +52,9 @@ async def init_mongodb():
     await db.slo_adjustments.create_index([("service", 1)])
     await db.slo_adjustments.create_index([("was_rolled_back", 1)])
     await db.slo_adjustments.create_index([("service", 1), ("adjusted_at", -1)])
-    print("  - Índices criados: (optimization_id, service) (unique), adjusted_at, service, was_rolled_back")
+    print(
+        "  - Índices criados: (optimization_id, service) (unique), adjusted_at, service, was_rolled_back"
+    )
 
     # Coleção: slo_violations (registro de violações de SLO)
     print("Criando índices para slo_violations...")
@@ -69,26 +71,30 @@ async def init_mongodb():
     await db.optimizations.create_index([("target_component", 1)])
     await db.optimizations.create_index([("applied_at", -1)])
     await db.optimizations.create_index([("approval_status", 1)])
-    print("  - Índices criados: optimization_id (unique), optimization_type, target_component, applied_at, approval_status")
+    print(
+        "  - Índices criados: optimization_id (unique), optimization_type, target_component, applied_at, approval_status"
+    )
 
     # Inserir dados iniciais de pesos padrão (se não existirem)
     existing_weights = await db.consensus_weights.find_one({"active": True})
     if not existing_weights:
         print("Inserindo pesos iniciais padrão...")
-        await db.consensus_weights.insert_one({
-            "optimization_id": "initial-default",
-            "weights": {
-                "technical": 0.20,
-                "safety": 0.20,
-                "business": 0.20,
-                "ethical": 0.20,
-                "legal": 0.20,
-            },
-            "previous_weights": {},
-            "justification": "Pesos iniciais padrão",
-            "last_updated_at": 0,
-            "active": True,
-        })
+        await db.consensus_weights.insert_one(
+            {
+                "optimization_id": "initial-default",
+                "weights": {
+                    "technical": 0.20,
+                    "safety": 0.20,
+                    "business": 0.20,
+                    "ethical": 0.20,
+                    "legal": 0.20,
+                },
+                "previous_weights": {},
+                "justification": "Pesos iniciais padrão",
+                "last_updated_at": 0,
+                "active": True,
+            }
+        )
         print("  - Pesos iniciais inseridos")
     else:
         print("  - Pesos já existem, pulando inserção inicial")

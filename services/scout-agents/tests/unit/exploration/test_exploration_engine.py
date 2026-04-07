@@ -87,6 +87,7 @@ class TestEngineStartStop:
 
         # Add mock signals to queue
         from src.models.scout_signal import ScoutSignal, SignalType, UnifiedDomain
+
         signal = ScoutSignal(
             scout_agent_id="test",
             correlation_id="test-001",
@@ -98,7 +99,7 @@ class TestEngineStartStop:
             curiosity_score=0.8,
             confidence=0.7,
             relevance_score=0.6,
-            risk_score=0.2
+            risk_score=0.2,
         )
         engine.signal_queue.append(signal)
 
@@ -128,7 +129,13 @@ class TestEventProcessing:
         await engine.start()
 
         # Mock detection to return signal
-        from src.models.scout_signal import ScoutSignal, SignalType, SignalSource, UnifiedDomain, ChannelType
+        from src.models.scout_signal import (
+            ScoutSignal,
+            SignalType,
+            SignalSource,
+            UnifiedDomain,
+            ChannelType,
+        )
 
         source = SignalSource(channel=ChannelType.CORE)
         mock_signal = ScoutSignal(
@@ -145,14 +152,14 @@ class TestEventProcessing:
             risk_score=0.2,
             description="Test signal",
             raw_data={},
-            features=[0.1, 0.2, 0.3]
+            features=[0.1, 0.2, 0.3],
         )
 
-        with patch.object(engine.detector, 'detect', return_value=mock_signal):
+        with patch.object(engine.detector, "detect", return_value=mock_signal):
             result = await engine.process_event(sample_raw_event, business_domain)
 
             # May return signal or be rate limited
-            assert result is None or hasattr(result, 'signal_id')
+            assert result is None or hasattr(result, "signal_id")
             assert engine.stats["processed"] == 1
 
     @pytest.mark.asyncio
@@ -161,7 +168,7 @@ class TestEventProcessing:
         engine = ExplorationEngine("scout-agent-001")
         await engine.start()
 
-        with patch.object(engine.detector, 'detect', return_value=None):
+        with patch.object(engine.detector, "detect", return_value=None):
             result = await engine.process_event(sample_raw_event, business_domain)
 
             assert result is None
@@ -173,7 +180,7 @@ class TestEventProcessing:
         engine = ExplorationEngine("scout-agent-001")
         await engine.start()
 
-        with patch.object(engine.detector, 'detect', side_effect=Exception("Test error")):
+        with patch.object(engine.detector, "detect", side_effect=Exception("Test error")):
             result = await engine.process_event(sample_raw_event, business_domain)
 
             assert result is None
@@ -250,7 +257,7 @@ class TestSignalPublishing:
             curiosity_score=0.8,
             confidence=0.7,
             relevance_score=0.6,
-            risk_score=0.2
+            risk_score=0.2,
         )
 
         result = await engine._publish_signal_internal(signal)
@@ -276,7 +283,7 @@ class TestSignalPublishing:
             curiosity_score=0.8,
             confidence=0.7,
             relevance_score=0.6,
-            risk_score=0.2
+            risk_score=0.2,
         )
 
         result = await engine._publish_signal_internal(signal)
@@ -302,7 +309,7 @@ class TestSignalPublishing:
             curiosity_score=0.8,
             confidence=0.7,
             relevance_score=0.6,
-            risk_score=0.2
+            risk_score=0.2,
         )
 
         result = await engine._publish_signal_internal(signal)
@@ -343,7 +350,7 @@ class TestQueueProcessing:
                 curiosity_score=0.8,
                 confidence=0.7,
                 relevance_score=0.6,
-                risk_score=0.2
+                risk_score=0.2,
             )
             engine.signal_queue.append(signal)
 
@@ -377,6 +384,7 @@ class TestStatistics:
 
         # Add to queue
         from src.models.scout_signal import ScoutSignal, SignalType, UnifiedDomain
+
         signal = ScoutSignal(
             scout_agent_id="test",
             correlation_id="test-001",
@@ -388,7 +396,7 @@ class TestStatistics:
             curiosity_score=0.8,
             confidence=0.7,
             relevance_score=0.6,
-            risk_score=0.2
+            risk_score=0.2,
         )
         engine.signal_queue.append(signal)
 
@@ -406,9 +414,7 @@ class TestFeedbackHandling:
         engine = ExplorationEngine("scout-agent-001")
 
         await engine.handle_feedback(
-            signal_id="signal-001",
-            validation_score=0.8,
-            domain=UnifiedDomain.BUSINESS
+            signal_id="signal-001", validation_score=0.8, domain=UnifiedDomain.BUSINESS
         )
 
         # Should not raise any errors
@@ -421,9 +427,7 @@ class TestFeedbackHandling:
         initial_prior = engine.detector.bayesian_filter.get_prior(UnifiedDomain.BUSINESS)
 
         await engine.handle_feedback(
-            signal_id="signal-002",
-            validation_score=0.9,
-            domain=UnifiedDomain.BUSINESS
+            signal_id="signal-002", validation_score=0.9, domain=UnifiedDomain.BUSINESS
         )
 
         # Prior should be updated
@@ -438,7 +442,7 @@ class TestFeedbackHandling:
             signal_id="signal-003",
             validation_score=0.7,
             domain=UnifiedDomain.TECHNICAL,
-            feature_mean=0.65
+            feature_mean=0.65,
         )
 
         # Should not raise any errors
@@ -447,12 +451,11 @@ class TestFeedbackHandling:
     async def test_handle_feedback_domain_retrieval(self):
         """Test feedback attempts domain retrieval if not provided."""
         engine = ExplorationEngine("scout-agent-001")
-        engine.memory_client.get_signal_redis = AsyncMock(return_value='{"exploration_domain": "BUSINESS"}')
-
-        await engine.handle_feedback(
-            signal_id="signal-004",
-            validation_score=0.6
+        engine.memory_client.get_signal_redis = AsyncMock(
+            return_value='{"exploration_domain": "BUSINESS"}'
         )
+
+        await engine.handle_feedback(signal_id="signal-004", validation_score=0.6)
 
         # Should attempt retrieval
 
@@ -576,6 +579,7 @@ class TestPriorityHandling:
 
         # Mock signal with high priority
         from src.models.scout_signal import ScoutSignal
+
         mock_signal = ScoutSignal(
             scout_agent_id="test",
             correlation_id="test-001",
@@ -587,14 +591,25 @@ class TestPriorityHandling:
             curiosity_score=0.9,
             confidence=0.8,
             relevance_score=0.7,
-            risk_score=0.9
+            risk_score=0.9,
         )
 
-        with patch.object(mock_signal, 'calculate_priority', return_value=0.8):
-            await engine.process_event(sample_raw_event := type('obj', (object,), {
-                'event_id': 'test', 'source': 'test', 'event_type': 'test',
-                'payload': {}, 'metadata': {}, 'extract_features': lambda: []
-            })(), UnifiedDomain.SECURITY)
+        with patch.object(mock_signal, "calculate_priority", return_value=0.8):
+            await engine.process_event(
+                sample_raw_event := type(
+                    "obj",
+                    (object,),
+                    {
+                        "event_id": "test",
+                        "source": "test",
+                        "event_type": "test",
+                        "payload": {},
+                        "metadata": {},
+                        "extract_features": lambda: [],
+                    },
+                )(),
+                UnifiedDomain.SECURITY,
+            )
 
         # High priority signal should be queued
         assert len(engine.signal_queue) > 0
@@ -610,7 +625,7 @@ class TestChannelTypes:
         await engine.start()
 
         # Should not raise any errors
-        with patch.object(engine.detector, 'detect', return_value=None):
+        with patch.object(engine.detector, "detect", return_value=None):
             await engine.process_event(sample_raw_event, business_domain, ChannelType.CORE)
 
     @pytest.mark.asyncio
@@ -620,7 +635,7 @@ class TestChannelTypes:
         await engine.start()
 
         # Should not raise any errors
-        with patch.object(engine.detector, 'detect', return_value=None):
+        with patch.object(engine.detector, "detect", return_value=None):
             await engine.process_event(sample_raw_event, business_domain, ChannelType.EXTENDED)
 
     @pytest.mark.asyncio
@@ -630,5 +645,5 @@ class TestChannelTypes:
         await engine.start()
 
         # Should not raise any errors
-        with patch.object(engine.detector, 'detect', return_value=None):
+        with patch.object(engine.detector, "detect", return_value=None):
             await engine.process_event(sample_raw_event, business_domain, ChannelType.EXPERIMENTAL)

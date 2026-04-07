@@ -38,14 +38,9 @@ class TestDestructiveIntentTriggersApprovalFlow:
     def intermediate_repr_destructive(self):
         """Representação intermediária com operação destrutiva"""
         return {
-            'id': 'intent-destructive-001',
-            'metadata': {
-                'priority': 'critical',
-                'security_level': 'restricted'
-            },
-            'historical_context': {
-                'similar_intents': []
-            }
+            "id": "intent-destructive-001",
+            "metadata": {"priority": "critical", "security_level": "restricted"},
+            "historical_context": {"similar_intents": []},
         }
 
     @pytest.fixture
@@ -53,66 +48,58 @@ class TestDestructiveIntentTriggersApprovalFlow:
         """Tasks com operação de delete"""
         return [
             TaskNode(
-                task_id='task-1',
-                task_type='query',
-                description='Buscar usuários inativos',
-                dependencies=[]
+                task_id="task-1",
+                task_type="query",
+                description="Buscar usuários inativos",
+                dependencies=[],
             ),
             TaskNode(
-                task_id='task-2',
-                task_type='delete',
-                description='Deletar todos os usuários inativos da produção',
-                dependencies=['task-1']
+                task_id="task-2",
+                task_type="delete",
+                description="Deletar todos os usuários inativos da produção",
+                dependencies=["task-1"],
             ),
             TaskNode(
-                task_id='task-3',
-                task_type='notify',
-                description='Notificar administradores',
-                dependencies=['task-2']
-            )
+                task_id="task-3",
+                task_type="notify",
+                description="Notificar administradores",
+                dependencies=["task-2"],
+            ),
         ]
 
     def test_destructive_intent_triggers_approval_flow(
-        self,
-        risk_scorer,
-        intermediate_repr_destructive,
-        tasks_with_delete
+        self, risk_scorer, intermediate_repr_destructive, tasks_with_delete
     ):
         """Intent com operação destrutiva deve triggerar fluxo de aprovação"""
         # Executar avaliação multi-domínio
         risk_score, risk_band, risk_factors, risk_matrix = risk_scorer.score_multi_domain(
-            intermediate_repr_destructive,
-            tasks_with_delete
+            intermediate_repr_destructive, tasks_with_delete
         )
 
         # Verificar que operação destrutiva foi detectada
-        assert risk_matrix['is_destructive'] is True
-        assert len(risk_matrix['destructive_tasks']) >= 1
-        assert 'task-2' in risk_matrix['destructive_tasks']
+        assert risk_matrix["is_destructive"] is True
+        assert len(risk_matrix["destructive_tasks"]) >= 1
+        assert "task-2" in risk_matrix["destructive_tasks"]
 
         # Verificar critérios de aprovação
         requires_approval = (
-            risk_score >= 0.7 or
-            risk_matrix['is_destructive'] or
-            risk_band in [RiskBand.HIGH, RiskBand.CRITICAL]
+            risk_score >= 0.7
+            or risk_matrix["is_destructive"]
+            or risk_band in [RiskBand.HIGH, RiskBand.CRITICAL]
         )
 
         assert requires_approval is True
 
     def test_destructive_severity_critical_for_production_delete(
-        self,
-        risk_scorer,
-        intermediate_repr_destructive,
-        tasks_with_delete
+        self, risk_scorer, intermediate_repr_destructive, tasks_with_delete
     ):
         """Delete em produção deve resultar em severity critical"""
         risk_score, risk_band, risk_factors, risk_matrix = risk_scorer.score_multi_domain(
-            intermediate_repr_destructive,
-            tasks_with_delete
+            intermediate_repr_destructive, tasks_with_delete
         )
 
         # A descrição contém 'produção' e 'deletar todos', indicadores de alto impacto
-        assert risk_matrix['destructive_severity'] == 'critical'
+        assert risk_matrix["destructive_severity"] == "critical"
 
 
 class TestHighRiskIntentTriggersApprovalFlow:
@@ -140,14 +127,9 @@ class TestHighRiskIntentTriggersApprovalFlow:
     def intermediate_repr_high_risk(self):
         """Representação intermediária de alto risco"""
         return {
-            'id': 'intent-high-risk-001',
-            'metadata': {
-                'priority': 'critical',
-                'security_level': 'confidential'
-            },
-            'historical_context': {
-                'similar_intents': []
-            }
+            "id": "intent-high-risk-001",
+            "metadata": {"priority": "critical", "security_level": "confidential"},
+            "historical_context": {"similar_intents": []},
         }
 
     @pytest.fixture
@@ -155,24 +137,20 @@ class TestHighRiskIntentTriggersApprovalFlow:
         """Tasks complexas mas não destrutivas"""
         return [
             TaskNode(
-                task_id=f'task-{i}',
-                task_type='transform',
-                description=f'Transformação complexa {i}',
-                dependencies=[f'task-{i-1}'] if i > 0 else []
+                task_id=f"task-{i}",
+                task_type="transform",
+                description=f"Transformação complexa {i}",
+                dependencies=[f"task-{i-1}"] if i > 0 else [],
             )
             for i in range(15)  # 15 tasks = very_high complexity
         ]
 
     def test_high_risk_intent_triggers_approval_flow(
-        self,
-        risk_scorer,
-        intermediate_repr_high_risk,
-        tasks_complex_non_destructive
+        self, risk_scorer, intermediate_repr_high_risk, tasks_complex_non_destructive
     ):
         """Intent com fatores de alto risco deve triggerar fluxo de aprovação"""
         risk_score, risk_band, risk_factors, risk_matrix = risk_scorer.score_multi_domain(
-            intermediate_repr_high_risk,
-            tasks_complex_non_destructive
+            intermediate_repr_high_risk, tasks_complex_non_destructive
         )
 
         # Verificar que risk_band é HIGH ou CRITICAL devido a priority=critical e security_level=confidential
@@ -180,9 +158,9 @@ class TestHighRiskIntentTriggersApprovalFlow:
 
         # Verificar critérios de aprovação
         requires_approval = (
-            risk_score >= 0.7 or
-            risk_matrix.get('is_destructive', False) or
-            risk_band in [RiskBand.HIGH, RiskBand.CRITICAL]
+            risk_score >= 0.7
+            or risk_matrix.get("is_destructive", False)
+            or risk_band in [RiskBand.HIGH, RiskBand.CRITICAL]
         )
 
         assert requires_approval is True
@@ -213,14 +191,9 @@ class TestLowRiskIntentBypassesApproval:
     def intermediate_repr_low_risk(self):
         """Representação intermediária de baixo risco"""
         return {
-            'id': 'intent-low-risk-001',
-            'metadata': {
-                'priority': 'low',
-                'security_level': 'public'
-            },
-            'historical_context': {
-                'similar_intents': []
-            }
+            "id": "intent-low-risk-001",
+            "metadata": {"priority": "low", "security_level": "public"},
+            "historical_context": {"similar_intents": []},
         }
 
     @pytest.fixture
@@ -228,40 +201,36 @@ class TestLowRiskIntentBypassesApproval:
         """Tasks simples e seguras"""
         return [
             TaskNode(
-                task_id='task-1',
-                task_type='query',
-                description='Buscar dados públicos',
-                dependencies=[]
+                task_id="task-1",
+                task_type="query",
+                description="Buscar dados públicos",
+                dependencies=[],
             ),
             TaskNode(
-                task_id='task-2',
-                task_type='transform',
-                description='Formatar resultado',
-                dependencies=['task-1']
-            )
+                task_id="task-2",
+                task_type="transform",
+                description="Formatar resultado",
+                dependencies=["task-1"],
+            ),
         ]
 
     def test_low_risk_intent_bypasses_approval(
-        self,
-        risk_scorer,
-        intermediate_repr_low_risk,
-        tasks_simple_safe
+        self, risk_scorer, intermediate_repr_low_risk, tasks_simple_safe
     ):
         """Intent de baixo risco deve bypassar fluxo de aprovação"""
         risk_score, risk_band, risk_factors, risk_matrix = risk_scorer.score_multi_domain(
-            intermediate_repr_low_risk,
-            tasks_simple_safe
+            intermediate_repr_low_risk, tasks_simple_safe
         )
 
         # Verificar que não é destrutivo
-        assert risk_matrix['is_destructive'] is False
-        assert risk_matrix['destructive_tasks'] == []
+        assert risk_matrix["is_destructive"] is False
+        assert risk_matrix["destructive_tasks"] == []
 
         # Verificar critérios de aprovação
         requires_approval = (
-            risk_score >= 0.7 or
-            risk_matrix['is_destructive'] or
-            risk_band in [RiskBand.HIGH, RiskBand.CRITICAL]
+            risk_score >= 0.7
+            or risk_matrix["is_destructive"]
+            or risk_band in [RiskBand.HIGH, RiskBand.CRITICAL]
         )
 
         # Para operações de baixo risco, não deve requerer aprovação
@@ -295,11 +264,8 @@ class TestRiskMatrixContainsDestructiveAnalysis:
     def intermediate_repr(self):
         """Representação intermediária básica"""
         return {
-            'id': 'intent-test-001',
-            'metadata': {
-                'priority': 'normal',
-                'security_level': 'internal'
-            }
+            "id": "intent-test-001",
+            "metadata": {"priority": "normal", "security_level": "internal"},
         }
 
     @pytest.fixture
@@ -307,65 +273,57 @@ class TestRiskMatrixContainsDestructiveAnalysis:
         """Tasks com múltiplas operações destrutivas"""
         return [
             TaskNode(
-                task_id='task-1',
-                task_type='delete',
-                description='Delete old records',
-                dependencies=[]
+                task_id="task-1",
+                task_type="delete",
+                description="Delete old records",
+                dependencies=[],
             ),
             TaskNode(
-                task_id='task-2',
-                task_type='drop',
-                description='Drop temporary table',
-                dependencies=['task-1']
+                task_id="task-2",
+                task_type="drop",
+                description="Drop temporary table",
+                dependencies=["task-1"],
             ),
             TaskNode(
-                task_id='task-3',
-                task_type='truncate',
-                description='Truncate staging table',
-                dependencies=['task-2']
-            )
+                task_id="task-3",
+                task_type="truncate",
+                description="Truncate staging table",
+                dependencies=["task-2"],
+            ),
         ]
 
     def test_risk_matrix_contains_destructive_fields(
-        self,
-        risk_scorer,
-        intermediate_repr,
-        tasks_with_multiple_destructive
+        self, risk_scorer, intermediate_repr, tasks_with_multiple_destructive
     ):
         """Verificar que risk_matrix contém todos os campos de análise destrutiva"""
         risk_score, risk_band, risk_factors, risk_matrix = risk_scorer.score_multi_domain(
-            intermediate_repr,
-            tasks_with_multiple_destructive
+            intermediate_repr, tasks_with_multiple_destructive
         )
 
         # Verificar campos obrigatórios de análise destrutiva
-        assert 'is_destructive' in risk_matrix
-        assert 'destructive_tasks' in risk_matrix
-        assert 'destructive_severity' in risk_matrix
-        assert 'destructive_count' in risk_matrix
+        assert "is_destructive" in risk_matrix
+        assert "destructive_tasks" in risk_matrix
+        assert "destructive_severity" in risk_matrix
+        assert "destructive_count" in risk_matrix
 
         # Verificar valores
-        assert risk_matrix['is_destructive'] is True
-        assert len(risk_matrix['destructive_tasks']) == 3
-        assert risk_matrix['destructive_count'] == 3
+        assert risk_matrix["is_destructive"] is True
+        assert len(risk_matrix["destructive_tasks"]) == 3
+        assert risk_matrix["destructive_count"] == 3
 
     def test_risk_matrix_contains_domain_assessments(
-        self,
-        risk_scorer,
-        intermediate_repr,
-        tasks_with_multiple_destructive
+        self, risk_scorer, intermediate_repr, tasks_with_multiple_destructive
     ):
         """Verificar que risk_matrix contém assessments por domínio"""
         risk_score, risk_band, risk_factors, risk_matrix = risk_scorer.score_multi_domain(
-            intermediate_repr,
-            tasks_with_multiple_destructive
+            intermediate_repr, tasks_with_multiple_destructive
         )
 
         # Verificar campos de RiskMatrix base
-        assert 'assessments' in risk_matrix
-        assert 'overall_score' in risk_matrix
-        assert 'overall_band' in risk_matrix
-        assert 'highest_risk_domain' in risk_matrix
+        assert "assessments" in risk_matrix
+        assert "overall_score" in risk_matrix
+        assert "overall_band" in risk_matrix
+        assert "highest_risk_domain" in risk_matrix
 
 
 class TestApprovalProducerIntegration:
@@ -375,46 +333,42 @@ class TestApprovalProducerIntegration:
     def mock_settings(self):
         """Settings mockado para producer"""
         settings = MagicMock()
-        settings.kafka_bootstrap_servers = 'localhost:9092'
-        settings.kafka_security_protocol = 'PLAINTEXT'
+        settings.kafka_bootstrap_servers = "localhost:9092"
+        settings.kafka_security_protocol = "PLAINTEXT"
         settings.kafka_enable_idempotence = True
-        settings.kafka_approval_topic = 'cognitive-plans-approval-requests'
+        settings.kafka_approval_topic = "cognitive-plans-approval-requests"
         settings.schema_registry_url = None
-        settings.environment = 'test'
+        settings.environment = "test"
         return settings
 
     @pytest.fixture
     def mock_cognitive_plan(self):
         """CognitivePlan mockado para teste"""
         plan = MagicMock()
-        plan.plan_id = 'plan-integration-001'
-        plan.intent_id = 'intent-integration-001'
-        plan.correlation_id = 'corr-integration-001'
-        plan.trace_id = 'trace-integration-001'
-        plan.span_id = 'span-integration-001'
+        plan.plan_id = "plan-integration-001"
+        plan.intent_id = "intent-integration-001"
+        plan.correlation_id = "corr-integration-001"
+        plan.trace_id = "trace-integration-001"
+        plan.span_id = "span-integration-001"
         plan.requires_approval = True
         plan.approval_status = ApprovalStatus.PENDING
         plan.risk_band = RiskBand.HIGH
         plan.is_destructive = True
         plan.risk_matrix = {
-            'is_destructive': True,
-            'destructive_severity': 'high',
-            'destructive_tasks': ['task-1'],
-            'destructive_count': 1
+            "is_destructive": True,
+            "destructive_severity": "high",
+            "destructive_tasks": ["task-1"],
+            "destructive_count": 1,
         }
-        plan.get_partition_key = MagicMock(return_value='business')
-        plan.to_avro_dict = MagicMock(return_value={
-            'plan_id': 'plan-integration-001',
-            'requires_approval': True
-        })
+        plan.get_partition_key = MagicMock(return_value="business")
+        plan.to_avro_dict = MagicMock(
+            return_value={"plan_id": "plan-integration-001", "requires_approval": True}
+        )
         return plan
 
-    @patch('src.producers.approval_producer.Producer')
+    @patch("src.producers.approval_producer.Producer")
     def test_approval_producer_sends_to_correct_topic(
-        self,
-        mock_producer_class,
-        mock_settings,
-        mock_cognitive_plan
+        self, mock_producer_class, mock_settings, mock_cognitive_plan
     ):
         """Verificar que approval producer envia para tópico correto"""
         from src.producers.approval_producer import KafkaApprovalProducer
@@ -428,27 +382,24 @@ class TestApprovalProducerIntegration:
         producer.producer = mock_producer
 
         # Verificar configuração
-        assert producer.settings.kafka_approval_topic == 'cognitive-plans-approval-requests'
+        assert producer.settings.kafka_approval_topic == "cognitive-plans-approval-requests"
 
-    @patch('src.producers.approval_producer.Producer')
+    @patch("src.producers.approval_producer.Producer")
     def test_approval_producer_includes_correct_headers(
-        self,
-        mock_producer_class,
-        mock_settings,
-        mock_cognitive_plan
+        self, mock_producer_class, mock_settings, mock_cognitive_plan
     ):
         """Verificar que headers incluem informações de aprovação"""
         from src.producers.approval_producer import KafkaApprovalProducer
 
         # Os headers esperados incluem:
         expected_headers = [
-            'plan-id',
-            'intent-id',
-            'risk-band',
-            'is-destructive',
-            'requires-approval',
-            'content-type',
-            'schema-version'
+            "plan-id",
+            "intent-id",
+            "risk-band",
+            "is-destructive",
+            "requires-approval",
+            "content-type",
+            "schema-version",
         ]
 
         # Verificar que headers estão definidos corretamente
@@ -463,58 +414,58 @@ class TestApprovalResponseFlowIntegration:
     def mock_settings(self):
         """Settings mockado para testes"""
         settings = MagicMock()
-        settings.kafka_bootstrap_servers = 'localhost:9092'
-        settings.kafka_consumer_group_id = 'semantic-translation-engine'
-        settings.kafka_auto_offset_reset = 'earliest'
+        settings.kafka_bootstrap_servers = "localhost:9092"
+        settings.kafka_consumer_group_id = "semantic-translation-engine"
+        settings.kafka_auto_offset_reset = "earliest"
         settings.kafka_session_timeout_ms = 30000
-        settings.kafka_security_protocol = 'PLAINTEXT'
-        settings.kafka_approval_responses_topic = 'cognitive-plans-approval-responses'
-        settings.kafka_plans_topic = 'plans.ready'
+        settings.kafka_security_protocol = "PLAINTEXT"
+        settings.kafka_approval_responses_topic = "cognitive-plans-approval-responses"
+        settings.kafka_plans_topic = "plans.ready"
         settings.kafka_enable_idempotence = True
         settings.schema_registry_url = None
-        settings.environment = 'test'
+        settings.environment = "test"
         return settings
 
     @pytest.fixture
     def sample_ledger_entry(self):
         """Entrada de ledger com plano pendente de aprovação"""
         return {
-            'plan_id': 'plan-e2e-001',
-            'intent_id': 'intent-e2e-001',
-            'version': '1.0.0',
-            'timestamp': datetime.now(timezone.utc),
-            'plan_data': {
-                'plan_id': 'plan-e2e-001',
-                'intent_id': 'intent-e2e-001',
-                'version': '1.0.0',
-                'approval_status': 'pending',
-                'risk_band': 'high',
-                'risk_score': 0.85,
-                'is_destructive': True,
-                'destructive_tasks': ['task-delete'],
-                'tasks': [
+            "plan_id": "plan-e2e-001",
+            "intent_id": "intent-e2e-001",
+            "version": "1.0.0",
+            "timestamp": datetime.now(timezone.utc),
+            "plan_data": {
+                "plan_id": "plan-e2e-001",
+                "intent_id": "intent-e2e-001",
+                "version": "1.0.0",
+                "approval_status": "pending",
+                "risk_band": "high",
+                "risk_score": 0.85,
+                "is_destructive": True,
+                "destructive_tasks": ["task-delete"],
+                "tasks": [
                     {
-                        'task_id': 'task-query',
-                        'task_type': 'query',
-                        'description': 'Buscar registros',
-                        'dependencies': []
+                        "task_id": "task-query",
+                        "task_type": "query",
+                        "description": "Buscar registros",
+                        "dependencies": [],
                     },
                     {
-                        'task_id': 'task-delete',
-                        'task_type': 'delete',
-                        'description': 'Deletar registros obsoletos',
-                        'dependencies': ['task-query']
-                    }
+                        "task_id": "task-delete",
+                        "task_type": "delete",
+                        "description": "Deletar registros obsoletos",
+                        "dependencies": ["task-query"],
+                    },
                 ],
-                'execution_order': ['task-query', 'task-delete'],
-                'complexity_score': 0.4,
-                'explainability_token': 'exp-e2e-001',
-                'reasoning_summary': 'Plano para remoção de dados obsoletos',
-                'original_domain': 'infrastructure',
-                'original_priority': 'high',
-                'original_security_level': 'confidential',
-                'requires_approval': True
-            }
+                "execution_order": ["task-query", "task-delete"],
+                "complexity_score": 0.4,
+                "explainability_token": "exp-e2e-001",
+                "reasoning_summary": "Plano para remoção de dados obsoletos",
+                "original_domain": "infrastructure",
+                "original_priority": "high",
+                "original_security_level": "confidential",
+                "requires_approval": True,
+            },
         }
 
     @pytest.mark.asyncio
@@ -540,41 +491,39 @@ class TestApprovalResponseFlowIntegration:
 
         # Simular resposta de aprovação
         approval_response = {
-            'plan_id': 'plan-e2e-001',
-            'intent_id': 'intent-e2e-001',
-            'decision': 'approved',
-            'approved_by': 'security-admin@company.com',
-            'approved_at': int(datetime.now(timezone.utc).timestamp() * 1000),
-            'rejection_reason': None
+            "plan_id": "plan-e2e-001",
+            "intent_id": "intent-e2e-001",
+            "decision": "approved",
+            "approved_by": "security-admin@company.com",
+            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "rejection_reason": None,
         }
 
         trace_context = {
-            'correlation_id': 'corr-e2e-001',
-            'trace_id': 'trace-e2e-001',
-            'span_id': 'span-e2e-001'
+            "correlation_id": "corr-e2e-001",
+            "trace_id": "trace-e2e-001",
+            "span_id": "span-e2e-001",
         }
 
         # Executar processamento
         await processor.process_approval_response(approval_response, trace_context)
 
         # Verificar que ledger foi consultado
-        mongodb_client.query_ledger.assert_called_once_with('plan-e2e-001')
+        mongodb_client.query_ledger.assert_called_once_with("plan-e2e-001")
 
         # Verificar que ledger foi atualizado
         mongodb_client.update_plan_approval_status.assert_called_once()
         update_call = mongodb_client.update_plan_approval_status.call_args
-        assert update_call.kwargs['plan_id'] == 'plan-e2e-001'
-        assert update_call.kwargs['approval_status'] == 'approved'
-        assert update_call.kwargs['approved_by'] == 'security-admin@company.com'
+        assert update_call.kwargs["plan_id"] == "plan-e2e-001"
+        assert update_call.kwargs["approval_status"] == "approved"
+        assert update_call.kwargs["approved_by"] == "security-admin@company.com"
 
         # Verificar que plano foi publicado
         plan_producer.send_plan.assert_called_once()
 
         # Verificar métricas
         metrics.record_approval_decision.assert_called_once_with(
-            decision='approved',
-            risk_band='high',
-            is_destructive=True
+            decision="approved", risk_band="high", is_destructive=True
         )
 
     @pytest.mark.asyncio
@@ -600,17 +549,15 @@ class TestApprovalResponseFlowIntegration:
 
         # Simular resposta de rejeição
         approval_response = {
-            'plan_id': 'plan-e2e-001',
-            'intent_id': 'intent-e2e-001',
-            'decision': 'rejected',
-            'approved_by': 'security-admin@company.com',
-            'approved_at': int(datetime.now(timezone.utc).timestamp() * 1000),
-            'rejection_reason': 'Operação de delete em produção requer análise adicional do DBA'
+            "plan_id": "plan-e2e-001",
+            "intent_id": "intent-e2e-001",
+            "decision": "rejected",
+            "approved_by": "security-admin@company.com",
+            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "rejection_reason": "Operação de delete em produção requer análise adicional do DBA",
         }
 
-        trace_context = {
-            'correlation_id': 'corr-e2e-001'
-        }
+        trace_context = {"correlation_id": "corr-e2e-001"}
 
         # Executar processamento
         await processor.process_approval_response(approval_response, trace_context)
@@ -618,17 +565,15 @@ class TestApprovalResponseFlowIntegration:
         # Verificar que ledger foi atualizado com motivo de rejeição
         mongodb_client.update_plan_approval_status.assert_called_once()
         update_call = mongodb_client.update_plan_approval_status.call_args
-        assert update_call.kwargs['approval_status'] == 'rejected'
-        assert 'DBA' in update_call.kwargs['rejection_reason']
+        assert update_call.kwargs["approval_status"] == "rejected"
+        assert "DBA" in update_call.kwargs["rejection_reason"]
 
         # Verificar que plano NÃO foi publicado
         plan_producer.send_plan.assert_not_called()
 
         # Verificar métricas de rejeição
         metrics.record_approval_decision.assert_called_once_with(
-            decision='rejected',
-            risk_band='high',
-            is_destructive=True
+            decision="rejected", risk_band="high", is_destructive=True
         )
 
     @pytest.mark.asyncio
@@ -659,19 +604,19 @@ class TestApprovalResponseFlowIntegration:
 
         # Simular mensagem Kafka
         approval_data = {
-            'plan_id': 'plan-e2e-001',
-            'intent_id': 'intent-e2e-001',
-            'decision': 'approved',
-            'approved_by': 'admin',
-            'approved_at': int(datetime.now(timezone.utc).timestamp() * 1000)
+            "plan_id": "plan-e2e-001",
+            "intent_id": "intent-e2e-001",
+            "decision": "approved",
+            "approved_by": "admin",
+            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
         }
 
         mock_msg = MagicMock()
         mock_msg.headers.return_value = [
-            ('content-type', b'application/json'),
-            ('correlation-id', b'corr-test')
+            ("content-type", b"application/json"),
+            ("correlation-id", b"corr-test"),
         ]
-        mock_msg.value.return_value = json.dumps(approval_data).encode('utf-8')
+        mock_msg.value.return_value = json.dumps(approval_data).encode("utf-8")
 
         # Deserializar mensagem
         deserialized = consumer._deserialize_message(mock_msg)
@@ -693,12 +638,12 @@ class TestApprovalResponseConsumerResilience:
     def mock_settings(self):
         """Settings mockado"""
         settings = MagicMock()
-        settings.kafka_bootstrap_servers = 'localhost:9092'
-        settings.kafka_consumer_group_id = 'semantic-translation-engine'
-        settings.kafka_auto_offset_reset = 'earliest'
+        settings.kafka_bootstrap_servers = "localhost:9092"
+        settings.kafka_consumer_group_id = "semantic-translation-engine"
+        settings.kafka_auto_offset_reset = "earliest"
         settings.kafka_session_timeout_ms = 30000
-        settings.kafka_security_protocol = 'PLAINTEXT'
-        settings.kafka_approval_responses_topic = 'cognitive-plans-approval-responses'
+        settings.kafka_security_protocol = "PLAINTEXT"
+        settings.kafka_approval_responses_topic = "cognitive-plans-approval-responses"
         settings.schema_registry_url = None
         return settings
 
@@ -708,7 +653,7 @@ class TestApprovalResponseConsumerResilience:
         from src.services.approval_processor import ApprovalProcessor
 
         mongodb_client = MagicMock()
-        mongodb_client.query_ledger = AsyncMock(side_effect=Exception('MongoDB connection lost'))
+        mongodb_client.query_ledger = AsyncMock(side_effect=Exception("MongoDB connection lost"))
 
         plan_producer = MagicMock()
         plan_producer.send_plan = AsyncMock()
@@ -719,11 +664,11 @@ class TestApprovalResponseConsumerResilience:
         processor = ApprovalProcessor(mongodb_client, plan_producer, metrics)
 
         approval_response = {
-            'plan_id': 'plan-fail',
-            'intent_id': 'intent-fail',
-            'decision': 'approved',
-            'approved_by': 'admin',
-            'approved_at': int(datetime.now(timezone.utc).timestamp() * 1000)
+            "plan_id": "plan-fail",
+            "intent_id": "intent-fail",
+            "decision": "approved",
+            "approved_by": "admin",
+            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
         }
 
         # Deve propagar exceção para retry do consumer
@@ -740,14 +685,14 @@ class TestApprovalResponseConsumerResilience:
 
         # Ledger entry com plan_data malformado
         malformed_entry = {
-            'plan_id': 'plan-malformed',
-            'timestamp': datetime.now(timezone.utc),
-            'plan_data': {
-                'approval_status': 'pending',
-                'risk_band': 'high',
-                'is_destructive': False
+            "plan_id": "plan-malformed",
+            "timestamp": datetime.now(timezone.utc),
+            "plan_data": {
+                "approval_status": "pending",
+                "risk_band": "high",
+                "is_destructive": False
                 # Missing required fields for CognitivePlan reconstruction
-            }
+            },
         }
 
         mongodb_client = MagicMock()
@@ -766,11 +711,11 @@ class TestApprovalResponseConsumerResilience:
         processor = ApprovalProcessor(mongodb_client, plan_producer, metrics)
 
         approval_response = {
-            'plan_id': 'plan-malformed',
-            'intent_id': 'intent-x',
-            'decision': 'approved',
-            'approved_by': 'admin',
-            'approved_at': int(datetime.now(timezone.utc).timestamp() * 1000)
+            "plan_id": "plan-malformed",
+            "intent_id": "intent-x",
+            "decision": "approved",
+            "approved_by": "admin",
+            "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
         }
 
         # Deve propagar erro de reconstrução do plano

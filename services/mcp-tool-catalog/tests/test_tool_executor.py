@@ -24,6 +24,7 @@ from src.adapters.base_adapter import ExecutionResult, AdapterError
 # Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def mock_settings():
     """Mock de configuracoes completas para ToolExecutor."""
@@ -52,7 +53,7 @@ def mock_settings_with_mcp():
     settings.MCP_SERVER_CIRCUIT_BREAKER_TIMEOUT_SECONDS = 60
     settings.MCP_SERVERS = {
         "trivy-001": "http://trivy-mcp-server:3000",
-        "sonarqube-001": "http://sonarqube-mcp-server:3000"
+        "sonarqube-001": "http://sonarqube-mcp-server:3000",
     }
     return settings
 
@@ -82,9 +83,11 @@ def mock_mcp_client():
     client.server_url = "http://test-mcp:3000"
     client.start = AsyncMock()
     client.stop = AsyncMock()
-    client.list_tools = AsyncMock(return_value=[
-        MagicMock(name="trivy-scan", description="Security scan"),
-    ])
+    client.list_tools = AsyncMock(
+        return_value=[
+            MagicMock(name="trivy-scan", description="Security scan"),
+        ]
+    )
     client.call_tool = AsyncMock()
     return client
 
@@ -102,9 +105,7 @@ def tool_executor_with_mcp(mock_settings_with_mcp, mock_metrics, mock_tool_regis
     """ToolExecutor com MCP servers configurados."""
     with patch("src.services.tool_executor.get_settings", return_value=mock_settings_with_mcp):
         executor = ToolExecutor(
-            settings=mock_settings_with_mcp,
-            metrics=mock_metrics,
-            tool_registry=mock_tool_registry
+            settings=mock_settings_with_mcp, metrics=mock_metrics, tool_registry=mock_tool_registry
         )
         return executor
 
@@ -124,10 +125,7 @@ def cli_tool():
         integration_type=IntegrationType.CLI,
         authentication_method="NONE",
         is_healthy=True,
-        metadata={
-            "cli_command": "pytest",
-            "homepage": "https://pytest.org"
-        }
+        metadata={"cli_command": "pytest", "homepage": "https://pytest.org"},
     )
 
 
@@ -147,7 +145,7 @@ def rest_tool():
         authentication_method="API_KEY",
         is_healthy=True,
         endpoint_url="http://sonarqube:9000/api/analysis",
-        metadata={"homepage": "https://sonarqube.org"}
+        metadata={"homepage": "https://sonarqube.org"},
     )
 
 
@@ -166,10 +164,7 @@ def container_tool():
         integration_type=IntegrationType.CONTAINER,
         authentication_method="NONE",
         is_healthy=True,
-        metadata={
-            "docker_image": "aquasec/trivy:latest",
-            "homepage": "https://trivy.dev"
-        }
+        metadata={"docker_image": "aquasec/trivy:latest", "homepage": "https://trivy.dev"},
     )
 
 
@@ -190,8 +185,8 @@ def mcp_tool():
         is_healthy=True,
         metadata={
             "docker_image": "aquasec/trivy:latest",
-            "mcp_server": "http://trivy-mcp-server:3000"
-        }
+            "mcp_server": "http://trivy-mcp-server:3000",
+        },
     )
 
 
@@ -204,7 +199,7 @@ def mock_execution_result():
         error=None,
         execution_time_ms=3500.0,
         exit_code=0,
-        metadata={"tests_passed": 42}
+        metadata={"tests_passed": 42},
     )
 
 
@@ -223,6 +218,7 @@ def mock_mcp_tool_call_response():
 # ============================================================================
 # Testes de Inicializacao
 # ============================================================================
+
 
 class TestToolExecutorInitialization:
     """Testes de inicializacao do ToolExecutor."""
@@ -255,6 +251,7 @@ class TestToolExecutorInitialization:
 # Testes de Lifecycle (start/stop)
 # ============================================================================
 
+
 class TestToolExecutorLifecycle:
     """Testes de lifecycle do ToolExecutor."""
 
@@ -271,10 +268,7 @@ class TestToolExecutorLifecycle:
         mock_client.start = AsyncMock()
         mock_client.list_tools = AsyncMock(return_value=[MagicMock()])
 
-        with patch(
-            "src.services.tool_executor.MCPServerClient",
-            return_value=mock_client
-        ):
+        with patch("src.services.tool_executor.MCPServerClient", return_value=mock_client):
             await tool_executor_with_mcp.start()
 
             # Verifica que clientes foram criados para cada server configurado
@@ -282,9 +276,7 @@ class TestToolExecutorLifecycle:
             assert mock_client.list_tools.call_count == 2
 
     @pytest.mark.asyncio
-    async def test_start_graceful_degradation_on_connection_failure(
-        self, tool_executor_with_mcp
-    ):
+    async def test_start_graceful_degradation_on_connection_failure(self, tool_executor_with_mcp):
         """Verifica que falha de conexao nao bloqueia startup."""
         from src.clients.mcp_exceptions import MCPTransportError
 
@@ -302,10 +294,7 @@ class TestToolExecutorLifecycle:
         mock_client.start = AsyncMock()
         mock_client.list_tools = AsyncMock(side_effect=mock_list_tools)
 
-        with patch(
-            "src.services.tool_executor.MCPServerClient",
-            return_value=mock_client
-        ):
+        with patch("src.services.tool_executor.MCPServerClient", return_value=mock_client):
             # Nao deve levantar excecao
             await tool_executor_with_mcp.start()
 
@@ -318,7 +307,7 @@ class TestToolExecutorLifecycle:
         # Simular clientes conectados
         tool_executor_with_mcp.mcp_clients = {
             "trivy-001": mock_mcp_client,
-            "sonarqube-001": mock_mcp_client
+            "sonarqube-001": mock_mcp_client,
         }
 
         await tool_executor_with_mcp.stop()
@@ -338,25 +327,21 @@ class TestToolExecutorLifecycle:
 # Testes de Roteamento Hibrido
 # ============================================================================
 
+
 class TestHybridRouting:
     """Testes de roteamento hibrido (MCP Server vs Adapter)."""
 
     @pytest.mark.asyncio
     async def test_execute_tool_via_mcp_success(
-        self, tool_executor_with_mcp, mcp_tool, mock_mcp_client,
-        mock_mcp_tool_call_response
+        self, tool_executor_with_mcp, mcp_tool, mock_mcp_client, mock_mcp_tool_call_response
     ):
         """Verifica execucao bem-sucedida via MCP Server."""
         # Configurar cliente MCP mockado
-        mock_mcp_client.call_tool = AsyncMock(
-            return_value=mock_mcp_tool_call_response
-        )
+        mock_mcp_client.call_tool = AsyncMock(return_value=mock_mcp_tool_call_response)
         tool_executor_with_mcp.mcp_clients = {"trivy-001": mock_mcp_client}
 
         result = await tool_executor_with_mcp.execute_tool(
-            tool=mcp_tool,
-            execution_params={"image": "nginx:latest"},
-            context={}
+            tool=mcp_tool, execution_params={"image": "nginx:latest"}, context={}
         )
 
         assert result.success is True
@@ -365,8 +350,7 @@ class TestHybridRouting:
 
         # Verifica que call_tool foi chamado
         mock_mcp_client.call_tool.assert_called_once_with(
-            tool_name="trivy",
-            arguments={"image": "nginx:latest"}
+            tool_name="trivy", arguments={"image": "nginx:latest"}
         )
 
     @pytest.mark.asyncio
@@ -374,20 +358,14 @@ class TestHybridRouting:
         self, tool_executor, cli_tool, mock_execution_result
     ):
         """Verifica execucao bem-sucedida via adapter local."""
-        with patch.object(
-            tool_executor.cli_adapter,
-            "execute",
-            return_value=mock_execution_result
-        ):
+        with patch.object(tool_executor.cli_adapter, "execute", return_value=mock_execution_result):
             with patch.object(
-                tool_executor.cli_adapter,
-                "validate_tool_availability",
-                return_value=True
+                tool_executor.cli_adapter, "validate_tool_availability", return_value=True
             ):
                 result = await tool_executor.execute_tool(
                     tool=cli_tool,
                     execution_params={"verbose": True},
-                    context={"working_dir": "/app"}
+                    context={"working_dir": "/app"},
                 )
 
                 assert result.success is True
@@ -402,9 +380,7 @@ class TestHybridRouting:
         from src.clients.mcp_exceptions import MCPTransportError
 
         # MCP falha
-        mock_mcp_client.call_tool = AsyncMock(
-            side_effect=MCPTransportError("Connection timeout")
-        )
+        mock_mcp_client.call_tool = AsyncMock(side_effect=MCPTransportError("Connection timeout"))
         tool_executor_with_mcp.mcp_clients = {"trivy-001": mock_mcp_client}
 
         # Adapter funciona
@@ -412,23 +388,19 @@ class TestHybridRouting:
             success=True,
             output="Container scan completed via adapter",
             execution_time_ms=5000.0,
-            exit_code=0
+            exit_code=0,
         )
 
         with patch.object(
-            tool_executor_with_mcp.container_adapter,
-            "execute",
-            return_value=mock_adapter_result
+            tool_executor_with_mcp.container_adapter, "execute", return_value=mock_adapter_result
         ):
             with patch.object(
                 tool_executor_with_mcp.container_adapter,
                 "validate_tool_availability",
-                return_value=True
+                return_value=True,
             ):
                 result = await tool_executor_with_mcp.execute_tool(
-                    tool=mcp_tool,
-                    execution_params={"image": "nginx:latest"},
-                    context={}
+                    tool=mcp_tool, execution_params={"image": "nginx:latest"}, context={}
                 )
 
                 assert result.success is True
@@ -453,14 +425,10 @@ class TestHybridRouting:
             average_execution_time_ms=1000,
             integration_type=IntegrationType.GRPC,  # Nao implementado
             authentication_method="NONE",
-            is_healthy=True
+            is_healthy=True,
         )
 
-        result = await tool_executor.execute_tool(
-            tool=grpc_tool,
-            execution_params={},
-            context={}
-        )
+        result = await tool_executor.execute_tool(tool=grpc_tool, execution_params={}, context={})
 
         assert result.success is False
         assert "No executor available" in result.error
@@ -471,26 +439,21 @@ class TestHybridRouting:
 # Testes de Execucao via Adapter
 # ============================================================================
 
+
 class TestAdapterExecution:
     """Testes de execucao via adapters locais."""
 
     @pytest.mark.asyncio
     async def test_execute_cli_tool(self, tool_executor, cli_tool, mock_execution_result):
         """Testa execucao de ferramenta CLI."""
-        with patch.object(
-            tool_executor.cli_adapter,
-            "execute",
-            return_value=mock_execution_result
-        ):
+        with patch.object(tool_executor.cli_adapter, "execute", return_value=mock_execution_result):
             with patch.object(
-                tool_executor.cli_adapter,
-                "validate_tool_availability",
-                return_value=True
+                tool_executor.cli_adapter, "validate_tool_availability", return_value=True
             ):
                 result = await tool_executor.execute_tool(
                     tool=cli_tool,
                     execution_params={"verbose": True},
-                    context={"working_dir": "/app"}
+                    context={"working_dir": "/app"},
                 )
 
                 assert result.success is True
@@ -504,23 +467,17 @@ class TestAdapterExecution:
             output='{"status": "completed", "issues": 0}',
             execution_time_ms=15000.0,
             exit_code=200,
-            metadata={"status_code": 200}
+            metadata={"status_code": 200},
         )
 
-        with patch.object(
-            tool_executor.rest_adapter,
-            "execute",
-            return_value=rest_result
-        ):
+        with patch.object(tool_executor.rest_adapter, "execute", return_value=rest_result):
             with patch.object(
-                tool_executor.rest_adapter,
-                "validate_tool_availability",
-                return_value=True
+                tool_executor.rest_adapter, "validate_tool_availability", return_value=True
             ):
                 result = await tool_executor.execute_tool(
                     tool=rest_tool,
                     execution_params={"project": "my-project"},
-                    context={"auth_token": "secret-token"}
+                    context={"auth_token": "secret-token"},
                 )
 
                 assert result.success is True
@@ -533,23 +490,17 @@ class TestAdapterExecution:
             success=True,
             output="Scan completed: 0 vulnerabilities",
             execution_time_ms=45000.0,
-            exit_code=0
+            exit_code=0,
         )
 
         with patch.object(
-            tool_executor.container_adapter,
-            "execute",
-            return_value=container_result
+            tool_executor.container_adapter, "execute", return_value=container_result
         ):
             with patch.object(
-                tool_executor.container_adapter,
-                "validate_tool_availability",
-                return_value=True
+                tool_executor.container_adapter, "validate_tool_availability", return_value=True
             ):
                 result = await tool_executor.execute_tool(
-                    tool=container_tool,
-                    execution_params={"image": "nginx:latest"},
-                    context={}
+                    tool=container_tool, execution_params={"image": "nginx:latest"}, context={}
                 )
 
                 assert result.success is True
@@ -559,19 +510,15 @@ class TestAdapterExecution:
     async def test_execute_tool_adapter_failure(self, tool_executor, cli_tool):
         """Testa tratamento de falha do adapter."""
         with patch.object(
-            tool_executor.cli_adapter,
-            "validate_tool_availability",
-            return_value=True
+            tool_executor.cli_adapter, "validate_tool_availability", return_value=True
         ):
             with patch.object(
                 tool_executor.cli_adapter,
                 "execute",
-                side_effect=Exception("Adapter execution failed")
+                side_effect=Exception("Adapter execution failed"),
             ):
                 result = await tool_executor.execute_tool(
-                    tool=cli_tool,
-                    execution_params={},
-                    context={}
+                    tool=cli_tool, execution_params={}, context={}
                 )
 
                 assert result.success is False
@@ -581,14 +528,10 @@ class TestAdapterExecution:
     async def test_execute_tool_not_available(self, tool_executor, cli_tool):
         """Testa quando ferramenta nao esta disponivel."""
         with patch.object(
-            tool_executor.cli_adapter,
-            "validate_tool_availability",
-            return_value=False
+            tool_executor.cli_adapter, "validate_tool_availability", return_value=False
         ):
             result = await tool_executor.execute_tool(
-                tool=cli_tool,
-                execution_params={},
-                context={}
+                tool=cli_tool, execution_params={}, context={}
             )
 
             assert result.success is False
@@ -599,25 +542,19 @@ class TestAdapterExecution:
 # Testes de Metricas
 # ============================================================================
 
+
 class TestMetricsRecording:
     """Testes de registro de metricas Prometheus."""
 
     @pytest.mark.asyncio
     async def test_record_execution_metrics_mcp(
-        self, tool_executor_with_mcp, mcp_tool, mock_mcp_client,
-        mock_mcp_tool_call_response
+        self, tool_executor_with_mcp, mcp_tool, mock_mcp_client, mock_mcp_tool_call_response
     ):
         """Verifica metricas registradas para execucao MCP."""
-        mock_mcp_client.call_tool = AsyncMock(
-            return_value=mock_mcp_tool_call_response
-        )
+        mock_mcp_client.call_tool = AsyncMock(return_value=mock_mcp_tool_call_response)
         tool_executor_with_mcp.mcp_clients = {"trivy-001": mock_mcp_client}
 
-        await tool_executor_with_mcp.execute_tool(
-            tool=mcp_tool,
-            execution_params={},
-            context={}
-        )
+        await tool_executor_with_mcp.execute_tool(tool=mcp_tool, execution_params={}, context={})
 
         # Verifica que metricas foram registradas
         tool_executor_with_mcp.metrics.record_tool_execution.assert_called()
@@ -633,19 +570,13 @@ class TestMetricsRecording:
     ):
         """Verifica metricas registradas para execucao via adapter."""
         with patch.object(
-            tool_executor_with_mcp.cli_adapter,
-            "execute",
-            return_value=mock_execution_result
+            tool_executor_with_mcp.cli_adapter, "execute", return_value=mock_execution_result
         ):
             with patch.object(
-                tool_executor_with_mcp.cli_adapter,
-                "validate_tool_availability",
-                return_value=True
+                tool_executor_with_mcp.cli_adapter, "validate_tool_availability", return_value=True
             ):
                 await tool_executor_with_mcp.execute_tool(
-                    tool=cli_tool,
-                    execution_params={},
-                    context={}
+                    tool=cli_tool, execution_params={}, context={}
                 )
 
                 # Verifica que metricas foram registradas
@@ -662,31 +593,23 @@ class TestMetricsRecording:
         """Verifica metricas registradas para fallback."""
         from src.clients.mcp_exceptions import MCPTransportError
 
-        mock_mcp_client.call_tool = AsyncMock(
-            side_effect=MCPTransportError("Timeout")
-        )
+        mock_mcp_client.call_tool = AsyncMock(side_effect=MCPTransportError("Timeout"))
         tool_executor_with_mcp.mcp_clients = {"trivy-001": mock_mcp_client}
 
         adapter_result = ExecutionResult(
-            success=True,
-            output="Success via adapter",
-            execution_time_ms=1000.0
+            success=True, output="Success via adapter", execution_time_ms=1000.0
         )
 
         with patch.object(
-            tool_executor_with_mcp.container_adapter,
-            "execute",
-            return_value=adapter_result
+            tool_executor_with_mcp.container_adapter, "execute", return_value=adapter_result
         ):
             with patch.object(
                 tool_executor_with_mcp.container_adapter,
                 "validate_tool_availability",
-                return_value=True
+                return_value=True,
             ):
                 await tool_executor_with_mcp.execute_tool(
-                    tool=mcp_tool,
-                    execution_params={},
-                    context={}
+                    tool=mcp_tool, execution_params={}, context={}
                 )
 
                 # Verifica que record_mcp_fallback foi chamado
@@ -701,6 +624,7 @@ class TestMetricsRecording:
 # Testes de Feedback Loop
 # ============================================================================
 
+
 class TestFeedbackLoop:
     """Testes de atualizacao de reputacao via feedback loop."""
 
@@ -710,19 +634,13 @@ class TestFeedbackLoop:
     ):
         """Verifica que feedback atualiza tool registry."""
         with patch.object(
-            tool_executor_with_mcp.cli_adapter,
-            "execute",
-            return_value=mock_execution_result
+            tool_executor_with_mcp.cli_adapter, "execute", return_value=mock_execution_result
         ):
             with patch.object(
-                tool_executor_with_mcp.cli_adapter,
-                "validate_tool_availability",
-                return_value=True
+                tool_executor_with_mcp.cli_adapter, "validate_tool_availability", return_value=True
             ):
                 await tool_executor_with_mcp.execute_tool(
-                    tool=cli_tool,
-                    execution_params={},
-                    context={}
+                    tool=cli_tool, execution_params={}, context={}
                 )
 
                 # Verifica que update_tool_metrics foi chamado
@@ -737,6 +655,7 @@ class TestFeedbackLoop:
 # Testes de Batch Execution
 # ============================================================================
 
+
 class TestBatchExecution:
     """Testes de execucao em batch."""
 
@@ -748,34 +667,28 @@ class TestBatchExecution:
         # Criar multiplas ferramentas
         tools = [cli_tool]
         for i in range(2, 4):
-            tools.append(ToolDescriptor(
-                tool_id=f"tool-{i:03d}",
-                tool_name=f"tool-{i}",
-                category=ToolCategory.ANALYSIS,
-                version="1.0.0",
-                capabilities=["test"],
-                reputation_score=0.7,
-                cost_score=0.2,
-                average_execution_time_ms=2000,
-                integration_type=IntegrationType.CLI,
-                authentication_method="NONE",
-                is_healthy=True
-            ))
+            tools.append(
+                ToolDescriptor(
+                    tool_id=f"tool-{i:03d}",
+                    tool_name=f"tool-{i}",
+                    category=ToolCategory.ANALYSIS,
+                    version="1.0.0",
+                    capabilities=["test"],
+                    reputation_score=0.7,
+                    cost_score=0.2,
+                    average_execution_time_ms=2000,
+                    integration_type=IntegrationType.CLI,
+                    authentication_method="NONE",
+                    is_healthy=True,
+                )
+            )
 
-        with patch.object(
-            tool_executor.cli_adapter,
-            "execute",
-            return_value=mock_execution_result
-        ):
+        with patch.object(tool_executor.cli_adapter, "execute", return_value=mock_execution_result):
             with patch.object(
-                tool_executor.cli_adapter,
-                "validate_tool_availability",
-                return_value=True
+                tool_executor.cli_adapter, "validate_tool_availability", return_value=True
             ):
                 results = await tool_executor.execute_tools_batch(
-                    tools=tools,
-                    execution_params={},
-                    context={}
+                    tools=tools, execution_params={}, context={}
                 )
 
                 assert len(results) == 3
@@ -783,32 +696,29 @@ class TestBatchExecution:
 
     @pytest.mark.asyncio
     async def test_execute_tools_batch_mixed_routes(
-        self, tool_executor_with_mcp, cli_tool, container_tool,
-        mock_mcp_client, mock_mcp_tool_call_response, mock_execution_result
+        self,
+        tool_executor_with_mcp,
+        cli_tool,
+        container_tool,
+        mock_mcp_client,
+        mock_mcp_tool_call_response,
+        mock_execution_result,
     ):
         """Testa batch com MCP + adapters."""
         # Configurar MCP para container_tool (trivy-001)
-        mock_mcp_client.call_tool = AsyncMock(
-            return_value=mock_mcp_tool_call_response
-        )
+        mock_mcp_client.call_tool = AsyncMock(return_value=mock_mcp_tool_call_response)
         tool_executor_with_mcp.mcp_clients = {"trivy-001": mock_mcp_client}
 
         tools = [cli_tool, container_tool]
 
         with patch.object(
-            tool_executor_with_mcp.cli_adapter,
-            "execute",
-            return_value=mock_execution_result
+            tool_executor_with_mcp.cli_adapter, "execute", return_value=mock_execution_result
         ):
             with patch.object(
-                tool_executor_with_mcp.cli_adapter,
-                "validate_tool_availability",
-                return_value=True
+                tool_executor_with_mcp.cli_adapter, "validate_tool_availability", return_value=True
             ):
                 results = await tool_executor_with_mcp.execute_tools_batch(
-                    tools=tools,
-                    execution_params={},
-                    context={}
+                    tools=tools, execution_params={}, context={}
                 )
 
                 assert len(results) == 2
@@ -818,24 +728,24 @@ class TestBatchExecution:
                 assert results["trivy-001"].metadata.get("execution_route") == "mcp"
 
     @pytest.mark.asyncio
-    async def test_execute_tools_batch_exception_handling(
-        self, tool_executor, cli_tool
-    ):
+    async def test_execute_tools_batch_exception_handling(self, tool_executor, cli_tool):
         """Testa que excecoes nao bloqueiam outras execucoes."""
         tools = [cli_tool]
-        tools.append(ToolDescriptor(
-            tool_id="failing-tool",
-            tool_name="failing",
-            category=ToolCategory.ANALYSIS,
-            version="1.0.0",
-            capabilities=["test"],
-            reputation_score=0.5,
-            cost_score=0.1,
-            average_execution_time_ms=1000,
-            integration_type=IntegrationType.CLI,
-            authentication_method="NONE",
-            is_healthy=True
-        ))
+        tools.append(
+            ToolDescriptor(
+                tool_id="failing-tool",
+                tool_name="failing",
+                category=ToolCategory.ANALYSIS,
+                version="1.0.0",
+                capabilities=["test"],
+                reputation_score=0.5,
+                cost_score=0.1,
+                average_execution_time_ms=1000,
+                integration_type=IntegrationType.CLI,
+                authentication_method="NONE",
+                is_healthy=True,
+            )
+        )
 
         call_count = 0
 
@@ -844,26 +754,14 @@ class TestBatchExecution:
             call_count += 1
             if call_count == 2:
                 raise Exception("Simulated failure")
-            return ExecutionResult(
-                success=True,
-                output="Success",
-                execution_time_ms=100.0
-            )
+            return ExecutionResult(success=True, output="Success", execution_time_ms=100.0)
 
-        with patch.object(
-            tool_executor.cli_adapter,
-            "execute",
-            side_effect=mock_execute
-        ):
+        with patch.object(tool_executor.cli_adapter, "execute", side_effect=mock_execute):
             with patch.object(
-                tool_executor.cli_adapter,
-                "validate_tool_availability",
-                return_value=True
+                tool_executor.cli_adapter, "validate_tool_availability", return_value=True
             ):
                 results = await tool_executor.execute_tools_batch(
-                    tools=tools,
-                    execution_params={},
-                    context={}
+                    tools=tools, execution_params={}, context={}
                 )
 
                 assert len(results) == 2
@@ -876,6 +774,7 @@ class TestBatchExecution:
 # ============================================================================
 # Testes de Build Command
 # ============================================================================
+
 
 class TestBuildCommand:
     """Testes de construcao de comando para diferentes integration_types."""
@@ -899,7 +798,7 @@ class TestBuildCommand:
             integration_type=IntegrationType.CLI,
             authentication_method="NONE",
             is_healthy=True,
-            metadata={"cli_command": "custom-cmd --flag"}
+            metadata={"cli_command": "custom-cmd --flag"},
         )
 
         command = tool_executor._build_command(tool, {})
@@ -929,7 +828,7 @@ class TestBuildCommand:
             integration_type=IntegrationType.CONTAINER,
             authentication_method="NONE",
             is_healthy=True,
-            metadata={}
+            metadata={},
         )
 
         command = tool_executor._build_command(tool, {})
@@ -939,6 +838,7 @@ class TestBuildCommand:
 # ============================================================================
 # Testes de Execucao via MCP
 # ============================================================================
+
 
 class TestMCPExecution:
     """Testes de execucao via MCP Server."""
@@ -960,9 +860,7 @@ class TestMCPExecution:
         tool_executor_with_mcp.mcp_clients = {"trivy-001": mock_mcp_client}
 
         result = await tool_executor_with_mcp.execute_tool(
-            tool=mcp_tool,
-            execution_params={},
-            context={}
+            tool=mcp_tool, execution_params={}, context={}
         )
 
         assert result.success is True
@@ -986,25 +884,19 @@ class TestMCPExecution:
 
         # Adapter como fallback
         adapter_result = ExecutionResult(
-            success=True,
-            output="Fallback success",
-            execution_time_ms=1000.0
+            success=True, output="Fallback success", execution_time_ms=1000.0
         )
 
         with patch.object(
-            tool_executor_with_mcp.container_adapter,
-            "execute",
-            return_value=adapter_result
+            tool_executor_with_mcp.container_adapter, "execute", return_value=adapter_result
         ):
             with patch.object(
                 tool_executor_with_mcp.container_adapter,
                 "validate_tool_availability",
-                return_value=True
+                return_value=True,
             ):
                 result = await tool_executor_with_mcp.execute_tool(
-                    tool=mcp_tool,
-                    execution_params={},
-                    context={}
+                    tool=mcp_tool, execution_params={}, context={}
                 )
 
                 # Deve usar adapter como fallback

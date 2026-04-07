@@ -24,6 +24,7 @@ from src.adapters.base_adapter import ExecutionResult
 # Event Loop
 # ============================================================================
 
+
 @pytest.fixture(scope="session")
 def event_loop():
     """Cria event loop para testes assincronos."""
@@ -35,6 +36,7 @@ def event_loop():
 # ============================================================================
 # Settings Fixtures
 # ============================================================================
+
 
 @pytest.fixture
 def mock_settings():
@@ -76,18 +78,14 @@ def mock_settings_with_mcp(mock_settings):
         "trivy-001": {
             "url": "http://trivy-mcp:3000",
             "timeout": 30,
-            "circuit_breaker_threshold": 5
+            "circuit_breaker_threshold": 5,
         },
         "sonarqube-001": {
             "url": "http://sonarqube-mcp:3000",
             "timeout": 30,
-            "circuit_breaker_threshold": 5
+            "circuit_breaker_threshold": 5,
         },
-        "snyk-001": {
-            "url": "http://snyk-mcp:3000",
-            "timeout": 30,
-            "circuit_breaker_threshold": 5
-        }
+        "snyk-001": {"url": "http://snyk-mcp:3000", "timeout": 30, "circuit_breaker_threshold": 5},
     }
     return mock_settings
 
@@ -95,6 +93,7 @@ def mock_settings_with_mcp(mock_settings):
 # ============================================================================
 # Tool Descriptor Fixtures
 # ============================================================================
+
 
 @pytest.fixture
 def cli_tool():
@@ -110,7 +109,7 @@ def cli_tool():
         average_execution_time_ms=5000,
         integration_type=IntegrationType.CLI,
         authentication_method="NONE",
-        output_format="text"
+        output_format="text",
     )
 
 
@@ -129,7 +128,7 @@ def rest_tool():
         integration_type=IntegrationType.REST_API,
         authentication_method="API_KEY",
         endpoint_url="http://sonarqube:9000/api/analyze",
-        output_format="json"
+        output_format="json",
     )
 
 
@@ -148,7 +147,7 @@ def container_tool():
         integration_type=IntegrationType.CONTAINER,
         authentication_method="NONE",
         output_format="json",
-        metadata={"docker_image": "aquasec/trivy:0.45.0"}
+        metadata={"docker_image": "aquasec/trivy:0.45.0"},
     )
 
 
@@ -169,8 +168,8 @@ def mcp_enabled_tool():
         output_format="json",
         metadata={
             "docker_image": "aquasec/trivy:0.45.0",
-            "mcp_server_url": "http://trivy-mcp:3000"
-        }
+            "mcp_server_url": "http://trivy-mcp:3000",
+        },
     )
 
 
@@ -189,7 +188,7 @@ def unhealthy_tool():
         integration_type=IntegrationType.CLI,
         authentication_method="NONE",
         output_format="text",
-        metadata={"is_healthy": False}
+        metadata={"is_healthy": False},
     )
 
 
@@ -198,25 +197,28 @@ def benchmark_tools() -> List[ToolDescriptor]:
     """Lista de 10 ferramentas para benchmark."""
     tools = []
     for i in range(10):
-        tools.append(ToolDescriptor(
-            tool_id=f"bench-tool-{i:03d}",
-            tool_name=f"benchmark-tool-{i}",
-            category=ToolCategory.ANALYSIS,
-            version="1.0.0",
-            capabilities=["benchmark", "testing"],
-            reputation_score=0.8,
-            cost_score=0.1,
-            average_execution_time_ms=1000,
-            integration_type=IntegrationType.CLI,
-            authentication_method="NONE",
-            output_format="json"
-        ))
+        tools.append(
+            ToolDescriptor(
+                tool_id=f"bench-tool-{i:03d}",
+                tool_name=f"benchmark-tool-{i}",
+                category=ToolCategory.ANALYSIS,
+                version="1.0.0",
+                capabilities=["benchmark", "testing"],
+                reputation_score=0.8,
+                cost_score=0.1,
+                average_execution_time_ms=1000,
+                integration_type=IntegrationType.CLI,
+                authentication_method="NONE",
+                output_format="json",
+            )
+        )
     return tools
 
 
 # ============================================================================
 # Execution Result Fixtures
 # ============================================================================
+
 
 @pytest.fixture
 def success_result():
@@ -226,7 +228,7 @@ def success_result():
         output="Test passed successfully",
         execution_time_ms=1500.0,
         exit_code=0,
-        metadata={"tests_run": 10, "tests_passed": 10}
+        metadata={"tests_run": 10, "tests_passed": 10},
     )
 
 
@@ -239,7 +241,7 @@ def failure_result():
         error="Command failed with exit code 1",
         execution_time_ms=500.0,
         exit_code=1,
-        metadata={}
+        metadata={},
     )
 
 
@@ -252,7 +254,7 @@ def timeout_result():
         error="Execution timed out after 300 seconds",
         execution_time_ms=300000.0,
         exit_code=-1,
-        metadata={"timed_out": True}
+        metadata={"timed_out": True},
     )
 
 
@@ -260,16 +262,14 @@ def timeout_result():
 def fast_result():
     """ExecutionResult rapido para testes de performance."""
     return ExecutionResult(
-        success=True,
-        output="Quick execution",
-        execution_time_ms=10.0,
-        exit_code=0
+        success=True, output="Quick execution", execution_time_ms=10.0, exit_code=0
     )
 
 
 # ============================================================================
 # Mock Adapter Fixtures
 # ============================================================================
+
 
 @pytest.fixture
 def mock_cli_adapter(success_result):
@@ -308,32 +308,39 @@ def mock_container_adapter(success_result):
 # Mock MCP Client Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def mock_mcp_client():
     """Mock de MCPServerClient."""
     client = AsyncMock()
-    client.initialize = AsyncMock(return_value={
-        "protocolVersion": "2024-11-05",
-        "serverInfo": {"name": "mock-mcp", "version": "1.0.0"},
-        "capabilities": {"tools": {"listChanged": True}}
-    })
-    client.list_tools = AsyncMock(return_value={
-        "tools": [
-            {
-                "name": "trivy-scan",
-                "description": "Scan for vulnerabilities",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {"target": {"type": "string"}},
-                    "required": ["target"]
+    client.initialize = AsyncMock(
+        return_value={
+            "protocolVersion": "2024-11-05",
+            "serverInfo": {"name": "mock-mcp", "version": "1.0.0"},
+            "capabilities": {"tools": {"listChanged": True}},
+        }
+    )
+    client.list_tools = AsyncMock(
+        return_value={
+            "tools": [
+                {
+                    "name": "trivy-scan",
+                    "description": "Scan for vulnerabilities",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {"target": {"type": "string"}},
+                        "required": ["target"],
+                    },
                 }
-            }
-        ]
-    })
-    client.call_tool = AsyncMock(return_value={
-        "content": [{"type": "text", "text": '{"vulnerabilities": []}'}],
-        "isError": False
-    })
+            ]
+        }
+    )
+    client.call_tool = AsyncMock(
+        return_value={
+            "content": [{"type": "text", "text": '{"vulnerabilities": []}'}],
+            "isError": False,
+        }
+    )
     client.is_connected = True
     client.close = AsyncMock()
     return client
@@ -354,6 +361,7 @@ def mock_mcp_client_failing():
 # ============================================================================
 # Mock Metrics Fixtures
 # ============================================================================
+
 
 @pytest.fixture
 def mock_metrics():
@@ -379,15 +387,18 @@ def mock_metrics():
 # Mock Tool Registry Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def mock_tool_registry(cli_tool, rest_tool, container_tool):
     """Mock de ToolRegistry com ferramentas pre-carregadas."""
     registry = AsyncMock()
-    registry.get_tool = AsyncMock(side_effect=lambda tool_id: {
-        "pytest-001": cli_tool,
-        "sonarqube-001": rest_tool,
-        "trivy-001": container_tool
-    }.get(tool_id))
+    registry.get_tool = AsyncMock(
+        side_effect=lambda tool_id: {
+            "pytest-001": cli_tool,
+            "sonarqube-001": rest_tool,
+            "trivy-001": container_tool,
+        }.get(tool_id)
+    )
     registry.get_tools_by_category = AsyncMock(return_value=[cli_tool, rest_tool])
     registry.get_all_tools = AsyncMock(return_value=[cli_tool, rest_tool, container_tool])
     registry.update_tool = AsyncMock()
@@ -399,6 +410,7 @@ def mock_tool_registry(cli_tool, rest_tool, container_tool):
 # ============================================================================
 # MongoDB Fixtures
 # ============================================================================
+
 
 @pytest.fixture
 def mock_mongodb_client():
@@ -449,6 +461,7 @@ def mock_redis_client():
 # Kafka Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def mock_kafka_producer():
     """Mock de produtor Kafka."""
@@ -472,6 +485,7 @@ def mock_kafka_consumer():
 # ============================================================================
 # HTTP/AIOHTTP Fixtures
 # ============================================================================
+
 
 @pytest.fixture
 def mock_aiohttp_session():
@@ -501,6 +515,7 @@ def mock_aiohttp_session():
 # Cache Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def mock_cache():
     """Mock de cache em memoria."""
@@ -529,6 +544,7 @@ def mock_cache():
 # Context Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def execution_context() -> Dict[str, Any]:
     """Contexto de execucao padrao."""
@@ -537,16 +553,11 @@ def execution_context() -> Dict[str, Any]:
         "user_id": "test-user",
         "correlation_id": "test-correlation-001",
         "timestamp": "2024-01-15T10:00:00Z",
-        "environment": "test"
+        "environment": "test",
     }
 
 
 @pytest.fixture
 def execution_params() -> Dict[str, Any]:
     """Parametros de execucao padrao."""
-    return {
-        "target": ".",
-        "output_format": "json",
-        "verbose": True,
-        "timeout": 300
-    }
+    return {"target": ".", "output_format": "json", "verbose": True, "timeout": 300}

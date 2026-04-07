@@ -16,16 +16,11 @@ async def test_chaos_pod_injection():
     mock_core_v1 = MagicMock()
 
     injector = PodInjector(core_v1=mock_core_v1)
-    injector.inject = MagicMock(return_value={
-        "success": True,
-        "action": "delete_pod",
-        "pod": "test-pod"
-    })
-
-    result = await injector.inject(
-        pod_name="test-pod",
-        namespace="default"
+    injector.inject = MagicMock(
+        return_value={"success": True, "action": "delete_pod", "pod": "test-pod"}
     )
+
+    result = await injector.inject(pod_name="test-pod", namespace="default")
 
     assert result["success"] is True
     assert result["action"] == "delete_pod"
@@ -39,17 +34,17 @@ async def test_chaos_network_injection():
     mock_core_v1 = MagicMock()
 
     injector = NetworkInjector(core_v1=mock_core_v1)
-    injector.inject = MagicMock(return_value={
-        "success": True,
-        "action": "network_delay",
-        "delay_ms": 1000,
-        "loss_percent": 10
-    })
+    injector.inject = MagicMock(
+        return_value={
+            "success": True,
+            "action": "network_delay",
+            "delay_ms": 1000,
+            "loss_percent": 10,
+        }
+    )
 
     result = await injector.inject(
-        target_service="test-service",
-        namespace="default",
-        delay_ms=1000
+        target_service="test-service", namespace="default", delay_ms=1000
     )
 
     assert result["success"] is True
@@ -64,18 +59,16 @@ async def test_chaos_resource_injection():
     mock_core_v1 = MagicMock()
 
     injector = ResourceInjector(core_v1=mock_core_v1)
-    injector.inject = MagicMock(return_value={
-        "success": True,
-        "action": "resource_stress",
-        "cpu_percent": 80,
-        "memory_mb": 512
-    })
-
-    result = await injector.inject(
-        target_pod="test-pod",
-        namespace="default",
-        cpu_percent=80
+    injector.inject = MagicMock(
+        return_value={
+            "success": True,
+            "action": "resource_stress",
+            "cpu_percent": 80,
+            "memory_mb": 512,
+        }
     )
+
+    result = await injector.inject(target_pod="test-pod", namespace="default", cpu_percent=80)
 
     assert result["success"] is True
     assert result["cpu_percent"] == 80
@@ -87,16 +80,11 @@ async def test_chaos_application_injection():
     from src.chaos.injectors.application_injector import ApplicationInjector
 
     injector = ApplicationInjector()
-    injector.inject = MagicMock(return_value={
-        "success": True,
-        "action": "application_error",
-        "error_type": "exception"
-    })
-
-    result = await injector.inject(
-        target_service="test-service",
-        error_type="exception"
+    injector.inject = MagicMock(
+        return_value={"success": True, "action": "application_error", "error_type": "exception"}
     )
+
+    result = await injector.inject(target_service="test-service", error_type="exception")
 
     assert result["success"] is True
 
@@ -112,29 +100,22 @@ async def test_chaos_experiment_execution():
     mock_service_registry = MagicMock()
     mock_opa = MagicMock()
 
-    target = TargetSelector(
-        namespace="default",
-        service_name="test-service"
-    )
+    target = TargetSelector(namespace="default", service_name="test-service")
 
-    injection = FaultInjection(
-        fault_type=FaultType.POD_KILL,
-        target=target,
-        duration_seconds=60
-    )
+    injection = FaultInjection(fault_type=FaultType.POD_KILL, target=target, duration_seconds=60)
 
     experiment = ChaosExperiment(
         name="Test experiment",
         description="Test chaos experiment",
         environment="staging",
-        fault_injections=[injection]
+        fault_injections=[injection],
     )
 
     engine = ChaosEngine(
         k8s_in_cluster=False,
         playbook_executor=mock_playbook_executor,
         service_registry_client=mock_service_registry,
-        opa_client=mock_opa
+        opa_client=mock_opa,
     )
 
     result = await engine.execute_experiment(experiment.id, executed_by="test")
@@ -159,13 +140,11 @@ async def test_chaos_recovery_validation():
         service_registry_client=mock_service_registry,
         execution_ticket_client=mock_ets,
         orchestrator_client=mock_orchestrator,
-        opa_client=mock_opa
+        opa_client=mock_opa,
     )
 
     result = await executor.execute_playbook(
-        "test_recovery",
-        context={"pod_name": "test-pod"},
-        timeout_seconds=30
+        "test_recovery", context={"pod_name": "test-pod"}, timeout_seconds=30
     )
 
     assert result is not None
@@ -192,15 +171,9 @@ async def test_chaos_game_day_runner():
     mock_executor = MagicMock()
     mock_chaos = MagicMock()
 
-    runner = GameDayRunner(
-        playbook_executor=mock_executor,
-        chaos_engine=mock_chaos
-    )
+    runner = GameDayRunner(playbook_executor=mock_executor, chaos_engine=mock_chaos)
 
-    result = await runner.run_game_day(
-        name="test-gameday",
-        scenarios=["pod_kill", "network_delay"]
-    )
+    result = await runner.run_game_day(name="test-gameday", scenarios=["pod_kill", "network_delay"])
 
     assert result is not None
 
@@ -211,21 +184,15 @@ async def test_chaos_with_opa_approval():
     from src.services.playbook_executor import PlaybookExecutor
 
     mock_opa = AsyncMock()
-    mock_opa.evaluate_policy = AsyncMock(return_value={
-        "result": {"violations": []}
-    })
+    mock_opa.evaluate_policy = AsyncMock(return_value={"result": {"violations": []}})
 
     executor = PlaybookExecutor(
-        playbooks_dir="/tmp/playbooks",
-        k8s_in_cluster=False,
-        opa_client=mock_opa,
-        opa_enabled=True
+        playbooks_dir="/tmp/playbooks", k8s_in_cluster=False, opa_client=mock_opa, opa_enabled=True
     )
 
     # Acao que requer OPA
     allowed = await executor._validate_action_with_opa(
-        {"type": "reallocate_ticket"},
-        {"ticket_id": "test-123"}
+        {"type": "reallocate_ticket"}, {"ticket_id": "test-123"}
     )
 
     assert allowed is True
@@ -237,23 +204,20 @@ async def test_chaos_opa_denied():
     from src.services.playbook_executor import PlaybookExecutor
 
     mock_opa = AsyncMock()
-    mock_opa.evaluate_policy = AsyncMock(return_value={
-        "result": {
-            "violations": ["Rate limit exceeded"]
-        }
-    })
+    mock_opa.evaluate_policy = AsyncMock(
+        return_value={"result": {"violations": ["Rate limit exceeded"]}}
+    )
 
     executor = PlaybookExecutor(
         playbooks_dir="/tmp/playbooks",
         k8s_in_cluster=False,
         opa_client=mock_opa,
         opa_enabled=True,
-        opa_fail_open=False
+        opa_fail_open=False,
     )
 
     allowed = await executor._validate_action_with_opa(
-        {"type": "reallocate_ticket"},
-        {"ticket_id": "test-123"}
+        {"type": "reallocate_ticket"}, {"ticket_id": "test-123"}
     )
 
     assert allowed is False
@@ -264,11 +228,7 @@ async def test_chaos_circuit_breaker():
     """Circuit breaker deve abrir após falhas."""
     from src.services.circuit_breaker import CircuitBreaker, CircuitBreakerOpenError
 
-    breaker = CircuitBreaker(
-        service_name="test-service",
-        failure_threshold=3,
-        timeout_seconds=60
-    )
+    breaker = CircuitBreaker(service_name="test-service", failure_threshold=3, timeout_seconds=60)
 
     # Registrar falhas para abrir circuit breaker
     for _ in range(3):

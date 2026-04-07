@@ -47,35 +47,21 @@ class FeedbackDocument(BaseModel):
         default_factory=lambda: f"feedback-{uuid.uuid4().hex[:12]}",
         description="ID único do feedback",
     )
-    schema_version: str = Field(
-        default="2.0.0", description="Versão do schema de feedback"
-    )
-    opinion_id: str = Field(
-        ..., description="ID da opinião avaliada (FK para cognitive_ledger)"
-    )
+    schema_version: str = Field(default="2.0.0", description="Versão do schema de feedback")
+    opinion_id: str = Field(..., description="ID da opinião avaliada (FK para cognitive_ledger)")
     plan_id: str = Field(..., description="ID do plano cognitivo (denormalizado)")
-    specialist_type: str = Field(
-        ..., description="Tipo do especialista (denormalizado)"
-    )
-    human_rating: float = Field(
-        ..., ge=0.0, le=1.0, description="Rating de concordância (0.0-1.0)"
-    )
+    specialist_type: str = Field(..., description="Tipo do especialista (denormalizado)")
+    human_rating: float = Field(..., ge=0.0, le=1.0, description="Rating de concordância (0.0-1.0)")
     human_recommendation: str = Field(
         ..., description="Recomendação do revisor (approve, reject, review_required)"
     )
     feedback_notes: str = Field(default="", description="Notas textuais do revisor")
-    submitted_by: str = Field(
-        ..., description="Identificador do revisor (email, user_id)"
-    )
+    submitted_by: str = Field(..., description="Identificador do revisor (email, user_id)")
     submitted_at: datetime = Field(
         default_factory=datetime.utcnow, description="Timestamp de submissão"
     )
-    feedback_source: str = Field(
-        default="human_expert", description="Fonte do feedback"
-    )
-    metadata: Dict[str, Any] = Field(
-        default_factory=dict, description="Metadados adicionais"
-    )
+    feedback_source: str = Field(default="human_expert", description="Fonte do feedback")
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="Metadados adicionais")
 
     # NOVOS CAMPOS v2.0.0 - Enriquecimento para ML
     intent_raw_text: Optional[str] = Field(
@@ -98,12 +84,8 @@ class FeedbackDocument(BaseModel):
         default_factory=list,
         description="Fatores de raciocínio do especialista (nome, peso, score)",
     )
-    intent_id: Optional[str] = Field(
-        None, description="ID da intenção original (para correlação)"
-    )
-    trace_id: Optional[str] = Field(
-        None, description="Trace ID para rastreamento distribuído"
-    )
+    intent_id: Optional[str] = Field(None, description="ID da intenção original (para correlação)")
+    trace_id: Optional[str] = Field(None, description="Trace ID para rastreamento distribuído")
     balanced_dataset: bool = Field(
         default=False,
         description="Indica se este feedback faz parte de dataset balanceado",
@@ -140,9 +122,7 @@ class FeedbackCollector:
     - Integrar com AuditLogger para rastreamento
     """
 
-    def __init__(
-        self, config: SpecialistConfig, audit_logger: Optional[AuditLogger] = None
-    ):
+    def __init__(self, config: SpecialistConfig, audit_logger: Optional[AuditLogger] = None):
         """
         Inicializa FeedbackCollector.
 
@@ -158,9 +138,7 @@ class FeedbackCollector:
         self._opinions_collection = None
 
         # Circuit breaker para MongoDB usando pybreaker
-        self.breaker = pybreaker.CircuitBreaker(
-            fail_max=5, reset_timeout=60, name="feedback_mongo"
-        )
+        self.breaker = pybreaker.CircuitBreaker(fail_max=5, reset_timeout=60, name="feedback_mongo")
 
         # Inicializar conexão
         self._connect()
@@ -178,9 +156,7 @@ class FeedbackCollector:
             self._client = MongoClient(self.config.mongodb_uri)
             self._db = self._client[self.config.mongodb_database]
             self._collection = self._db[self.config.feedback_mongodb_collection]
-            self._opinions_collection = self._db[
-                self.config.mongodb_opinions_collection
-            ]
+            self._opinions_collection = self._db[self.config.mongodb_opinions_collection]
 
             # Test connection
             self._client.admin.command("ping")
@@ -241,9 +217,7 @@ class FeedbackCollector:
             True se opinião existe, False caso contrário
         """
         try:
-            result = self._opinions_collection.find_one(
-                {"opinion_id": opinion_id}, {"_id": 1}
-            )
+            result = self._opinions_collection.find_one({"opinion_id": opinion_id}, {"_id": 1})
             return result is not None
         except Exception as e:
             logger.error(
@@ -283,12 +257,8 @@ class FeedbackCollector:
         except ValueError:
             raise
         except Exception as e:
-            logger.error(
-                "Error retrieving opinion metadata", opinion_id=opinion_id, error=str(e)
-            )
-            raise ValueError(
-                f"Erro ao buscar metadados da opinião {opinion_id}: {str(e)}"
-            )
+            logger.error("Error retrieving opinion metadata", opinion_id=opinion_id, error=str(e))
+            raise ValueError(f"Erro ao buscar metadados da opinião {opinion_id}: {str(e)}")
 
     def enrich_feedback_from_opinion(
         self, opinion_id: str, feedback_data: Dict[str, Any]
@@ -326,9 +296,7 @@ class FeedbackCollector:
             )
 
             if not opinion:
-                logger.warning(
-                    "Opinion not found for enrichment", opinion_id=opinion_id
-                )
+                logger.warning("Opinion not found for enrichment", opinion_id=opinion_id)
                 return feedback_data
 
             # Extrair dados da opinião
@@ -339,42 +307,28 @@ class FeedbackCollector:
                 "opinion_recommendation" not in feedback_data
                 or feedback_data.get("opinion_recommendation") is None
             ):
-                feedback_data["opinion_recommendation"] = opinion_data.get(
-                    "recommendation"
-                )
+                feedback_data["opinion_recommendation"] = opinion_data.get("recommendation")
 
             if (
                 "opinion_confidence" not in feedback_data
                 or feedback_data.get("opinion_confidence") is None
             ):
-                feedback_data["opinion_confidence"] = opinion_data.get(
-                    "confidence_score"
-                )
+                feedback_data["opinion_confidence"] = opinion_data.get("confidence_score")
 
-            if (
-                "opinion_risk" not in feedback_data
-                or feedback_data.get("opinion_risk") is None
-            ):
+            if "opinion_risk" not in feedback_data or feedback_data.get("opinion_risk") is None:
                 feedback_data["opinion_risk"] = opinion_data.get("risk_score")
 
             if "reasoning_factors" not in feedback_data or not feedback_data.get(
                 "reasoning_factors"
             ):
-                feedback_data["reasoning_factors"] = opinion_data.get(
-                    "reasoning_factors", []
-                )
+                feedback_data["reasoning_factors"] = opinion_data.get("reasoning_factors", [])
 
             if "cognitive_plan_snapshot" not in feedback_data or not feedback_data.get(
                 "cognitive_plan_snapshot"
             ):
-                feedback_data["cognitive_plan_snapshot"] = opinion.get(
-                    "cognitive_plan", {}
-                )
+                feedback_data["cognitive_plan_snapshot"] = opinion.get("cognitive_plan", {})
 
-            if (
-                "intent_id" not in feedback_data
-                or feedback_data.get("intent_id") is None
-            ):
+            if "intent_id" not in feedback_data or feedback_data.get("intent_id") is None:
                 feedback_data["intent_id"] = opinion.get("intent_id")
 
             if "trace_id" not in feedback_data or feedback_data.get("trace_id") is None:
@@ -474,9 +428,7 @@ class FeedbackCollector:
         try:
             feedback_doc = FeedbackDocument(**feedback_data)
         except Exception as e:
-            logger.error(
-                "Feedback validation failed", feedback_data=feedback_data, error=str(e)
-            )
+            logger.error("Feedback validation failed", feedback_data=feedback_data, error=str(e))
             raise ValueError(f"Validação de feedback falhou: {str(e)}")
 
         # Validar rating range
@@ -720,9 +672,7 @@ class FeedbackCollector:
             )
             raise
 
-    def get_feedback_statistics(
-        self, specialist_type: str, window_days: int
-    ) -> Dict[str, Any]:
+    def get_feedback_statistics(self, specialist_type: str, window_days: int) -> Dict[str, Any]:
         """
         Calcula estatísticas de feedback.
 

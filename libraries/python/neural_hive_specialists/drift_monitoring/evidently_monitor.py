@@ -55,9 +55,7 @@ class EvidentlyMonitor:
         else:
             logger.warning("No reference dataset configured")
 
-    def log_features(
-        self, features: Dict[str, Any], timestamp: Optional[datetime] = None
-    ):
+    def log_features(self, features: Dict[str, Any], timestamp: Optional[datetime] = None):
         """
         Registra features de uma avaliação.
 
@@ -209,9 +207,7 @@ class EvidentlyMonitor:
         self.reference_data = new_reference
         logger.info("Reference data updated", shape=new_reference.shape)
 
-    def get_drift_score(
-        self, reference_data: List[float], current_data: List[float]
-    ) -> float:
+    def get_drift_score(self, reference_data: List[float], current_data: List[float]) -> float:
         """
         Calcula PSI (Population Stability Index) entre duas distribuições.
 

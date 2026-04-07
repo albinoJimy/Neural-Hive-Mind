@@ -17,7 +17,7 @@ from unittest.mock import Mock, AsyncMock
 from uuid import uuid4
 
 # Adicionar src ao path para importacao
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../src"))
 
 from grpc_server.registry_servicer import ServiceRegistryServicer
 from models.agent import AgentType, AgentStatus, AgentInfo, AgentTelemetry
@@ -31,7 +31,7 @@ def create_mock_agent(
     success_rate: float = 0.95,
     namespace: str = "default",
     cluster: str = "local",
-    version: str = "1.0.0"
+    version: str = "1.0.0",
 ) -> AgentInfo:
     """Helper para criar AgentInfo de teste"""
     return AgentInfo(
@@ -44,11 +44,11 @@ def create_mock_agent(
             success_rate=success_rate,
             avg_duration_ms=100,
             total_executions=50,
-            failed_executions=int(50 * (1 - success_rate))
+            failed_executions=int(50 * (1 - success_rate)),
         ),
         namespace=namespace,
         cluster=cluster,
-        version=version
+        version=version,
     )
 
 
@@ -82,10 +82,7 @@ class TestDiscoverAgentsRPC:
         return context
 
     def create_discover_request(
-        self,
-        capabilities: list = None,
-        filters: dict = None,
-        max_results: int = 5
+        self, capabilities: list = None, filters: dict = None, max_results: int = 5
     ):
         """Helper para criar DiscoverRequest"""
         request = Mock()
@@ -104,19 +101,13 @@ class TestDiscoverAgentsRPC:
         agent2 = create_mock_agent(capabilities=["python", "terraform"])
         mock_matching_engine.match_agents.return_value = [agent1, agent2]
 
-        request = self.create_discover_request(
-            capabilities=["python"],
-            max_results=5
-        )
+        request = self.create_discover_request(capabilities=["python"], max_results=5)
 
         response = await servicer.DiscoverAgents(request, mock_context)
 
         # Verificar que match_agents foi chamado corretamente
         mock_matching_engine.match_agents.assert_called_once_with(
-            capabilities_required=["python"],
-            filters=None,
-            max_results=5,
-            agent_type=None
+            capabilities_required=["python"], filters=None, max_results=5, agent_type=None
         )
 
         # Verificar resposta
@@ -132,10 +123,7 @@ class TestDiscoverAgentsRPC:
         agent1 = create_mock_agent(capabilities=["python", "terraform"])
         mock_matching_engine.match_agents.return_value = [agent1]
 
-        request = self.create_discover_request(
-            capabilities=["python", "terraform"],
-            max_results=5
-        )
+        request = self.create_discover_request(capabilities=["python", "terraform"], max_results=5)
 
         response = await servicer.DiscoverAgents(request, mock_context)
 
@@ -143,7 +131,7 @@ class TestDiscoverAgentsRPC:
             capabilities_required=["python", "terraform"],
             filters=None,
             max_results=5,
-            agent_type=None
+            agent_type=None,
         )
 
         assert len(response.agents) == 1
@@ -151,19 +139,13 @@ class TestDiscoverAgentsRPC:
         assert "terraform" in response.agents[0].capabilities
 
     @pytest.mark.asyncio
-    async def test_discover_agents_with_filters(
-        self, servicer, mock_context, mock_matching_engine
-    ):
+    async def test_discover_agents_with_filters(self, servicer, mock_context, mock_matching_engine):
         """Testa descoberta com filtros de namespace/cluster"""
-        agent1 = create_mock_agent(
-            capabilities=["python"],
-            namespace="production"
-        )
+        agent1 = create_mock_agent(capabilities=["python"], namespace="production")
         mock_matching_engine.match_agents.return_value = [agent1]
 
         request = self.create_discover_request(
-            capabilities=["python"],
-            filters={"namespace": "production"}
+            capabilities=["python"], filters={"namespace": "production"}
         )
 
         response = await servicer.DiscoverAgents(request, mock_context)
@@ -172,7 +154,7 @@ class TestDiscoverAgentsRPC:
             capabilities_required=["python"],
             filters={"namespace": "production"},
             max_results=5,
-            agent_type=None
+            agent_type=None,
         )
 
         assert len(response.agents) == 1
@@ -187,18 +169,12 @@ class TestDiscoverAgentsRPC:
         agents = [create_mock_agent(capabilities=["python"]) for _ in range(3)]
         mock_matching_engine.match_agents.return_value = agents
 
-        request = self.create_discover_request(
-            capabilities=["python"],
-            max_results=3
-        )
+        request = self.create_discover_request(capabilities=["python"], max_results=3)
 
         response = await servicer.DiscoverAgents(request, mock_context)
 
         mock_matching_engine.match_agents.assert_called_once_with(
-            capabilities_required=["python"],
-            filters=None,
-            max_results=3,
-            agent_type=None
+            capabilities_required=["python"], filters=None, max_results=3, agent_type=None
         )
 
         assert len(response.agents) == 3
@@ -214,9 +190,7 @@ class TestDiscoverAgentsRPC:
         agent_low = create_mock_agent(capabilities=["python"], success_rate=0.50)
 
         # MatchingEngine retorna ordenado (melhor primeiro)
-        mock_matching_engine.match_agents.return_value = [
-            agent_high, agent_medium, agent_low
-        ]
+        mock_matching_engine.match_agents.return_value = [agent_high, agent_medium, agent_low]
 
         request = self.create_discover_request(capabilities=["python"])
 
@@ -225,19 +199,19 @@ class TestDiscoverAgentsRPC:
         assert response.ranked is True
         assert len(response.agents) == 3
         # Verificar ordenacao por success_rate (proxy de score)
-        assert response.agents[0].telemetry.success_rate >= response.agents[1].telemetry.success_rate
-        assert response.agents[1].telemetry.success_rate >= response.agents[2].telemetry.success_rate
+        assert (
+            response.agents[0].telemetry.success_rate >= response.agents[1].telemetry.success_rate
+        )
+        assert (
+            response.agents[1].telemetry.success_rate >= response.agents[2].telemetry.success_rate
+        )
 
     @pytest.mark.asyncio
-    async def test_discover_agents_no_match(
-        self, servicer, mock_context, mock_matching_engine
-    ):
+    async def test_discover_agents_no_match(self, servicer, mock_context, mock_matching_engine):
         """Testa que retorna lista vazia quando nenhum agente match"""
         mock_matching_engine.match_agents.return_value = []
 
-        request = self.create_discover_request(
-            capabilities=["nonexistent_capability"]
-        )
+        request = self.create_discover_request(capabilities=["nonexistent_capability"])
 
         response = await servicer.DiscoverAgents(request, mock_context)
 
@@ -263,7 +237,7 @@ class TestDiscoverAgentsRPC:
             capabilities_required=["python"],
             filters=None,
             max_results=5,  # Default
-            agent_type=None
+            agent_type=None,
         )
 
     @pytest.mark.asyncio
@@ -273,10 +247,7 @@ class TestDiscoverAgentsRPC:
         """Testa que filtros vazios sao tratados como None"""
         mock_matching_engine.match_agents.return_value = []
 
-        request = self.create_discover_request(
-            capabilities=["python"],
-            filters={}
-        )
+        request = self.create_discover_request(capabilities=["python"], filters={})
 
         await servicer.DiscoverAgents(request, mock_context)
 
@@ -284,7 +255,7 @@ class TestDiscoverAgentsRPC:
             capabilities_required=["python"],
             filters=None,  # Dicionario vazio convertido para None
             max_results=5,
-            agent_type=None
+            agent_type=None,
         )
 
     @pytest.mark.asyncio

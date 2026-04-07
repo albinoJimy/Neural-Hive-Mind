@@ -60,11 +60,13 @@ def mock_vault_client():
     mock_client.token_expiry = datetime.now(timezone.utc) + timedelta(seconds=3600)
     mock_client.initialize = AsyncMock()
     mock_client.renew_token = AsyncMock(return_value=True)
-    mock_client.get_database_credentials = AsyncMock(return_value={
-        "username": "v-kubernet-temporal-orchestrator-abc123",
-        "password": "A1b2C3d4E5f6G7h8",
-        "ttl": 3600
-    })
+    mock_client.get_database_credentials = AsyncMock(
+        return_value={
+            "username": "v-kubernet-temporal-orchestrator-abc123",
+            "password": "A1b2C3d4E5f6G7h8",
+            "ttl": 3600,
+        }
+    )
     mock_client.read_secret = AsyncMock(return_value={"uri": "mongodb://vault:27017"})
     mock_client.close = AsyncMock()
     return mock_client
@@ -91,8 +93,8 @@ async def test_vault_token_renewal_success(mock_config, mock_vault_client):
     4. Token é renovado com sucesso
     5. Novo TTL é registrado
     """
-    with patch('src.clients.vault_integration.VaultClient', return_value=mock_vault_client):
-        with patch('src.clients.vault_integration.SPIFFEManager') as mock_spiffe:
+    with patch("src.clients.vault_integration.VaultClient", return_value=mock_vault_client):
+        with patch("src.clients.vault_integration.SPIFFEManager") as mock_spiffe:
             from src.clients.vault_integration import OrchestratorVaultClient
 
             # Criar cliente
@@ -104,7 +106,9 @@ async def test_vault_token_renewal_success(mock_config, mock_vault_client):
 
             # Simular token próximo da expiração (20% do TTL restante = threshold)
             original_expiry = mock_vault_client.token_expiry
-            mock_vault_client.token_expiry = datetime.now(timezone.utc) + timedelta(seconds=720)  # 20% de 3600
+            mock_vault_client.token_expiry = datetime.now(timezone.utc) + timedelta(
+                seconds=720
+            )  # 20% de 3600
 
             # Chamar método de renovação diretamente
             await vault_client._renew_vault_token_if_needed()
@@ -126,8 +130,8 @@ async def test_postgres_credential_rotation(mock_config, mock_vault_client):
     2. Credenciais são armazenadas em cache
     3. Quando TTL atinge threshold (80% consumido), novas credenciais são obtidas
     """
-    with patch('src.clients.vault_integration.VaultClient', return_value=mock_vault_client):
-        with patch('src.clients.vault_integration.SPIFFEManager'):
+    with patch("src.clients.vault_integration.VaultClient", return_value=mock_vault_client):
+        with patch("src.clients.vault_integration.SPIFFEManager"):
             from src.clients.vault_integration import OrchestratorVaultClient
 
             vault_client = OrchestratorVaultClient(mock_config)
@@ -135,8 +139,8 @@ async def test_postgres_credential_rotation(mock_config, mock_vault_client):
 
             # Primeira chamada: deve buscar do Vault e cachear
             creds1 = await vault_client.get_postgres_credentials()
-            assert creds1['username'] == "v-kubernet-temporal-orchestrator-abc123"
-            assert creds1['ttl'] == 3600
+            assert creds1["username"] == "v-kubernet-temporal-orchestrator-abc123"
+            assert creds1["ttl"] == 3600
             assert vault_client._postgres_credentials is not None
             assert vault_client._postgres_credentials_expiry is not None
 
@@ -144,17 +148,22 @@ async def test_postgres_credential_rotation(mock_config, mock_vault_client):
             mock_vault_client.get_database_credentials.return_value = {
                 "username": "v-kubernet-temporal-orchestrator-xyz789",
                 "password": "Z9y8X7w6V5u4T3s2",
-                "ttl": 3600
+                "ttl": 3600,
             }
 
             # Simular TTL baixo (20% restante = threshold)
-            vault_client._postgres_credentials_expiry = datetime.now(timezone.utc) + timedelta(seconds=720)  # 20% de 3600
+            vault_client._postgres_credentials_expiry = datetime.now(timezone.utc) + timedelta(
+                seconds=720
+            )  # 20% de 3600
 
             # Chamar renovação
             await vault_client._renew_postgres_credentials_if_needed()
 
             # Verificar que novas credenciais foram obtidas
-            assert vault_client._postgres_credentials['username'] == "v-kubernet-temporal-orchestrator-xyz789"
+            assert (
+                vault_client._postgres_credentials["username"]
+                == "v-kubernet-temporal-orchestrator-xyz789"
+            )
 
             await vault_client.close()
 
@@ -164,8 +173,8 @@ async def test_credential_renewal_task_interval_calculation(mock_config, mock_va
     """
     Testa cálculo de intervalo de renovação baseado em TTLs.
     """
-    with patch('src.clients.vault_integration.VaultClient', return_value=mock_vault_client):
-        with patch('src.clients.vault_integration.SPIFFEManager'):
+    with patch("src.clients.vault_integration.VaultClient", return_value=mock_vault_client):
+        with patch("src.clients.vault_integration.SPIFFEManager"):
             from src.clients.vault_integration import OrchestratorVaultClient
 
             vault_client = OrchestratorVaultClient(mock_config)
@@ -173,7 +182,9 @@ async def test_credential_renewal_task_interval_calculation(mock_config, mock_va
 
             # Configurar TTLs
             mock_vault_client.token_expiry = datetime.now(timezone.utc) + timedelta(seconds=3600)
-            vault_client._postgres_credentials_expiry = datetime.now(timezone.utc) + timedelta(seconds=1800)
+            vault_client._postgres_credentials_expiry = datetime.now(timezone.utc) + timedelta(
+                seconds=1800
+            )
 
             # Calcular intervalo
             interval = await vault_client._calculate_next_check_interval()
@@ -192,8 +203,8 @@ async def test_renewal_task_cancellation_on_close(mock_config, mock_vault_client
     """
     Testa que tarefa de renovação é cancelada corretamente ao fechar cliente.
     """
-    with patch('src.clients.vault_integration.VaultClient', return_value=mock_vault_client):
-        with patch('src.clients.vault_integration.SPIFFEManager'):
+    with patch("src.clients.vault_integration.VaultClient", return_value=mock_vault_client):
+        with patch("src.clients.vault_integration.SPIFFEManager"):
             from src.clients.vault_integration import OrchestratorVaultClient
 
             vault_client = OrchestratorVaultClient(mock_config)
@@ -229,8 +240,8 @@ async def test_fail_open_on_vault_unavailable(mock_config):
     mock_vault_client_failing = AsyncMock()
     mock_vault_client_failing.initialize = AsyncMock(side_effect=Exception("Connection refused"))
 
-    with patch('src.clients.vault_integration.VaultClient', return_value=mock_vault_client_failing):
-        with patch('src.clients.vault_integration.SPIFFEManager'):
+    with patch("src.clients.vault_integration.VaultClient", return_value=mock_vault_client_failing):
+        with patch("src.clients.vault_integration.SPIFFEManager"):
             from src.clients.vault_integration import OrchestratorVaultClient
 
             vault_client = OrchestratorVaultClient(mock_config)
@@ -240,9 +251,9 @@ async def test_fail_open_on_vault_unavailable(mock_config):
 
             # Deve retornar credenciais de fallback (configuração)
             postgres_creds = await vault_client.get_postgres_credentials()
-            assert postgres_creds['username'] == mock_config.postgres_user
-            assert postgres_creds['password'] == mock_config.postgres_password
-            assert postgres_creds['ttl'] == 0
+            assert postgres_creds["username"] == mock_config.postgres_user
+            assert postgres_creds["password"] == mock_config.postgres_password
+            assert postgres_creds["ttl"] == 0
 
             mongo_uri = await vault_client.get_mongodb_uri()
             assert mongo_uri == mock_config.mongodb_uri
@@ -266,8 +277,8 @@ async def test_fail_closed_on_vault_unavailable(mock_config):
     mock_vault_client_failing = AsyncMock()
     mock_vault_client_failing.initialize = AsyncMock(side_effect=Exception("Connection refused"))
 
-    with patch('src.clients.vault_integration.VaultClient', return_value=mock_vault_client_failing):
-        with patch('src.clients.vault_integration.SPIFFEManager'):
+    with patch("src.clients.vault_integration.VaultClient", return_value=mock_vault_client_failing):
+        with patch("src.clients.vault_integration.SPIFFEManager"):
             from src.clients.vault_integration import OrchestratorVaultClient
             from neural_hive_security import VaultConnectionError, VaultAuthenticationError
 
@@ -286,8 +297,8 @@ async def test_postgres_credentials_expired_immediate_renewal(mock_config, mock_
     """
     Testa renovação imediata quando credenciais PostgreSQL expiram.
     """
-    with patch('src.clients.vault_integration.VaultClient', return_value=mock_vault_client):
-        with patch('src.clients.vault_integration.SPIFFEManager'):
+    with patch("src.clients.vault_integration.VaultClient", return_value=mock_vault_client):
+        with patch("src.clients.vault_integration.SPIFFEManager"):
             from src.clients.vault_integration import OrchestratorVaultClient
 
             vault_client = OrchestratorVaultClient(mock_config)
@@ -297,22 +308,24 @@ async def test_postgres_credentials_expired_immediate_renewal(mock_config, mock_
             vault_client._postgres_credentials = {
                 "username": "old_user",
                 "password": "old_pass",
-                "ttl": 3600
+                "ttl": 3600,
             }
-            vault_client._postgres_credentials_expiry = datetime.now(timezone.utc) - timedelta(seconds=10)  # Expirado
+            vault_client._postgres_credentials_expiry = datetime.now(timezone.utc) - timedelta(
+                seconds=10
+            )  # Expirado
 
             # Configurar mock para retornar novas credenciais
             mock_vault_client.get_database_credentials.return_value = {
                 "username": "new_user",
                 "password": "new_pass",
-                "ttl": 3600
+                "ttl": 3600,
             }
 
             # Chamar renovação
             await vault_client._renew_postgres_credentials_if_needed()
 
             # Verificar que novas credenciais foram obtidas
-            assert vault_client._postgres_credentials['username'] == "new_user"
+            assert vault_client._postgres_credentials["username"] == "new_user"
             assert mock_vault_client.get_database_credentials.called
 
             await vault_client.close()

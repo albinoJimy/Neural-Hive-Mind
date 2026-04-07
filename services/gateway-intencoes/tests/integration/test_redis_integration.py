@@ -14,6 +14,7 @@ pytest_plugins = []
 
 try:
     from testcontainers.redis import RedisContainer
+
     TESTCONTAINERS_AVAILABLE = True
 except ImportError:
     TESTCONTAINERS_AVAILABLE = False
@@ -33,7 +34,9 @@ class TestRedisClusterIntegration:
         # Note: For a real cluster test, we'd need multiple Redis nodes
         # This is a simplified single-node test
         with RedisContainer("redis:7-alpine") as redis:
-            redis.with_command("redis-server --port 7000 --cluster-enabled yes --cluster-config-file nodes.conf --cluster-node-timeout 5000 --appendonly yes")
+            redis.with_command(
+                "redis-server --port 7000 --cluster-enabled yes --cluster-config-file nodes.conf --cluster-node-timeout 5000 --appendonly yes"
+            )
             yield redis
 
     @pytest.fixture(scope="class")
@@ -44,14 +47,16 @@ class TestRedisClusterIntegration:
         from unittest.mock import patch, Mock
 
         test_settings = Mock()
-        test_settings.redis_cluster_nodes = f"localhost:{redis_cluster_container.get_exposed_port(7000)}"
+        test_settings.redis_cluster_nodes = (
+            f"localhost:{redis_cluster_container.get_exposed_port(7000)}"
+        )
         test_settings.redis_password = None
         test_settings.redis_ca_cert_path = None
         test_settings.redis_max_connections = 10
         test_settings.redis_timeout = 5000
         test_settings.redis_default_ttl = 300
 
-        with patch('src.cache.redis_client.get_settings', return_value=test_settings):
+        with patch("src.cache.redis_client.get_settings", return_value=test_settings):
             client = RedisClient()
             await client.initialize()
             yield client
@@ -95,7 +100,7 @@ class TestRedisClusterIntegration:
             "boolean": True,
             "null": None,
             "array": [1, 2, 3],
-            "nested": {"key": "value"}
+            "nested": {"key": "value"},
         }
 
         # Store complex object
@@ -134,11 +139,15 @@ class TestRedisClusterIntegration:
         # Use keys with same hash tag to ensure same slot
         operations = [
             {"method": "set", "args": ["{user:123}:name", "John"], "kwargs": {"ex": 60}},
-            {"method": "set", "args": ["{user:123}:email", "john@example.com"], "kwargs": {"ex": 60}},
+            {
+                "method": "set",
+                "args": ["{user:123}:email", "john@example.com"],
+                "kwargs": {"ex": 60},
+            },
             {"method": "get", "args": ["{user:123}:name"]},
             {"method": "get", "args": ["{user:123}:email"]},
             {"method": "exists", "args": ["{user:123}:name"]},
-            {"method": "delete", "args": ["{user:123}:email"]}
+            {"method": "delete", "args": ["{user:123}:email"]},
         ]
 
         results = await client.pipeline_operations(operations)
@@ -171,7 +180,7 @@ class TestRedisClusterIntegration:
             {"method": "get", "args": ["pipeline_test_2"]},
             {"method": "set", "args": ["pipeline_test_3", "value3"], "kwargs": {"ex": 60}},
             {"method": "exists", "args": ["pipeline_test_1"]},
-            {"method": "exists", "args": ["nonexistent_key"]}
+            {"method": "exists", "args": ["nonexistent_key"]},
         ]
 
         results = await client.pipeline_operations(operations)
@@ -267,7 +276,7 @@ class TestRedisClusterIntegration:
         operations = [
             {"method": "get", "args": ["valid_key"]},
             {"method": "invalid_operation", "args": ["test"]},  # This should fail
-            {"method": "set", "args": ["another_key", "value"], "kwargs": {"ex": 60}}
+            {"method": "set", "args": ["another_key", "value"], "kwargs": {"ex": 60}},
         ]
 
         # The pipeline should handle errors gracefully
@@ -313,7 +322,7 @@ class TestRedisClusterIntegration:
         large_object = {
             "data": ["item_" + str(i) for i in range(1000)],
             "metadata": {f"key_{i}": f"value_{i}" for i in range(100)},
-            "description": "This is a test object with a lot of data " * 100
+            "description": "This is a test object with a lot of data " * 100,
         }
 
         # Store large object
@@ -332,36 +341,24 @@ class TestRedisClusterIntegration:
         client = redis_client_integration
 
         # Test keys with hash tags (should go to same slot)
-        hash_tag_keys = [
-            "{user:123}:profile",
-            "{user:123}:settings",
-            "{user:123}:preferences"
-        ]
+        hash_tag_keys = ["{user:123}:profile", "{user:123}:settings", "{user:123}:preferences"]
 
         # Test regular keys (may go to different slots)
-        regular_keys = [
-            "user:456:profile",
-            "user:456:settings",
-            "user:456:preferences"
-        ]
+        regular_keys = ["user:456:profile", "user:456:settings", "user:456:preferences"]
 
         # Set all keys
         for key in hash_tag_keys + regular_keys:
             await client.set(key, f"value_for_{key}", ttl=120)
 
         # Pipeline operations with hash tag keys should work efficiently
-        hash_tag_ops = [
-            {"method": "get", "args": [key]} for key in hash_tag_keys
-        ]
+        hash_tag_ops = [{"method": "get", "args": [key]} for key in hash_tag_keys]
 
         hash_tag_results = await client.pipeline_operations(hash_tag_ops)
         assert len(hash_tag_results) == 3
         assert all(result.startswith("value_for_") for result in hash_tag_results)
 
         # Pipeline operations with regular keys should also work
-        regular_ops = [
-            {"method": "get", "args": [key]} for key in regular_keys
-        ]
+        regular_ops = [{"method": "get", "args": [key]} for key in regular_keys]
 
         regular_results = await client.pipeline_operations(regular_ops)
         assert len(regular_results) == 3
@@ -379,14 +376,16 @@ class TestRedisFailureScenarios:
         from unittest.mock import patch, Mock
 
         test_settings = Mock()
-        test_settings.redis_cluster_nodes = f"localhost:{redis_cluster_container.get_exposed_port(7000)}"
+        test_settings.redis_cluster_nodes = (
+            f"localhost:{redis_cluster_container.get_exposed_port(7000)}"
+        )
         test_settings.redis_password = None
         test_settings.redis_ca_cert_path = None
         test_settings.redis_max_connections = 10
         test_settings.redis_timeout = 100  # Very short timeout
         test_settings.redis_default_ttl = 300
 
-        with patch('src.cache.redis_client.get_settings', return_value=test_settings):
+        with patch("src.cache.redis_client.get_settings", return_value=test_settings):
             client = RedisClient()
             client.circuit_breaker.failure_threshold = 2  # Lower threshold for testing
             client.circuit_breaker.recovery_timeout = 0.5  # Shorter recovery time

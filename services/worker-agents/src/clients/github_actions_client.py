@@ -31,7 +31,6 @@ class GitHubActionsTimeoutError(Exception):
     """Timeout aguardando workflow do GitHub Actions."""
 
 
-
 @dataclass
 class WorkflowRunStatus:
     """Representa status resumido de um workflow GitHub Actions."""

@@ -17,6 +17,7 @@ from neural_hive_domain import UnifiedDomain
 # Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def bayesian_filter():
     """Instância de BayesianFilter para testes."""
@@ -31,12 +32,8 @@ def event_with_features():
         source="test-source",
         event_type="test",
         timestamp=datetime.now(timezone.utc),
-        payload={
-            "metric1": 100,
-            "metric2": 200,
-            "metric3": 150
-        },
-        metadata={"trace_id": "trace-001"}
+        payload={"metric1": 100, "metric2": 200, "metric3": 150},
+        metadata={"trace_id": "trace-001"},
     )
 
 
@@ -48,17 +45,15 @@ def event_without_features():
         source="test-source",
         event_type="test",
         timestamp=datetime.now(timezone.utc),
-        payload={
-            "message": "test message",
-            "status": "active"
-        },
-        metadata={"trace_id": "trace-002"}
+        payload={"message": "test message", "status": "active"},
+        metadata={"trace_id": "trace-002"},
     )
 
 
 # ============================================================================
 # Testes de Inicialização
 # ============================================================================
+
 
 class TestBayesianFilterInitialization:
     """Testes de inicialização do BayesianFilter."""
@@ -84,19 +79,24 @@ class TestBayesianFilterInitialization:
 # Testes de Filtragem
 # ============================================================================
 
+
 class TestBayesianFiltering:
     """Testes do método de filtragem principal."""
 
     def test_filter_returns_false_when_no_features(self, bayesian_filter, event_without_features):
         """Testa que eventos sem features são filtrados."""
-        with patch.object(event_without_features, 'extract_features', return_value=[]):
-            should_process, posterior = bayesian_filter.filter(event_without_features, UnifiedDomain.BUSINESS)
+        with patch.object(event_without_features, "extract_features", return_value=[]):
+            should_process, posterior = bayesian_filter.filter(
+                event_without_features, UnifiedDomain.BUSINESS
+            )
             assert should_process is False
             assert posterior == 0.0
 
     def test_filter_with_valid_features(self, bayesian_filter, event_with_features):
         """Testa filtragem com features válidas."""
-        should_process, posterior = bayesian_filter.filter(event_with_features, UnifiedDomain.BUSINESS)
+        should_process, posterior = bayesian_filter.filter(
+            event_with_features, UnifiedDomain.BUSINESS
+        )
         # Com prior uniforme, deve processar
         assert isinstance(should_process, bool)
         assert isinstance(posterior, float)
@@ -104,7 +104,9 @@ class TestBayesianFiltering:
 
     def test_filter_posterior_calculation(self, bayesian_filter, event_with_features):
         """Testa cálculo de posterior."""
-        should_process, posterior = bayesian_filter.filter(event_with_features, UnifiedDomain.BUSINESS)
+        should_process, posterior = bayesian_filter.filter(
+            event_with_features, UnifiedDomain.BUSINESS
+        )
         # Prior uniforme = 0.5, likelihood deve afetar posterior
         assert 0.0 <= posterior <= 1.0
 
@@ -122,7 +124,9 @@ class TestBayesianFiltering:
         bayesian_filter.update_prior(UnifiedDomain.BUSINESS, True)
         bayesian_filter.update_prior(UnifiedDomain.BUSINESS, True)
 
-        should_process, posterior = bayesian_filter.filter(event_with_features, UnifiedDomain.BUSINESS)
+        should_process, posterior = bayesian_filter.filter(
+            event_with_features, UnifiedDomain.BUSINESS
+        )
         # Com 3 updates positivos, prior aumenta
         if posterior >= 0.4:
             assert should_process is True
@@ -131,6 +135,7 @@ class TestBayesianFiltering:
 # ============================================================================
 # Testes de Cálculo de Likelihood
 # ============================================================================
+
 
 class TestLikelihoodCalculation:
     """Testes de cálculo de likelihood."""
@@ -174,6 +179,7 @@ class TestLikelihoodCalculation:
 # ============================================================================
 # Testes de Atualização de Prior
 # ============================================================================
+
 
 class TestPriorUpdate:
     """Testes de atualização de prior."""
@@ -233,6 +239,7 @@ class TestPriorUpdate:
 # Testes de Atualização de Likelihood
 # ============================================================================
 
+
 class TestLikelihoodUpdate:
     """Testes de atualização de likelihood."""
 
@@ -283,6 +290,7 @@ class TestLikelihoodUpdate:
 # Testes de Estatísticas de Posterior
 # ============================================================================
 
+
 class TestPosteriorStats:
     """Testes de estatísticas de posterior."""
 
@@ -290,15 +298,15 @@ class TestPosteriorStats:
         """Testa estatísticas com prior uniforme."""
         stats = bayesian_filter.get_posterior_stats(UnifiedDomain.BUSINESS)
 
-        assert 'mean' in stats
-        assert 'variance' in stats
-        assert 'ci_lower' in stats
-        assert 'ci_upper' in stats
-        assert 'samples' in stats
+        assert "mean" in stats
+        assert "variance" in stats
+        assert "ci_lower" in stats
+        assert "ci_upper" in stats
+        assert "samples" in stats
 
         # Beta(1,1) tem mean = 0.5
-        assert stats['mean'] == 0.5
-        assert stats['samples'] == 0  # alpha + beta - 2 = 0
+        assert stats["mean"] == 0.5
+        assert stats["samples"] == 0  # alpha + beta - 2 = 0
 
     def test_get_posterior_stats_after_updates(self, bayesian_filter):
         """Testa estatísticas após atualizações."""
@@ -311,9 +319,9 @@ class TestPosteriorStats:
         stats = bayesian_filter.get_posterior_stats(UnifiedDomain.TECHNICAL)
 
         # alpha=6, beta=3, samples=7
-        assert stats['samples'] == 7
+        assert stats["samples"] == 7
         # mean = 6/(6+3) = 0.667
-        assert abs(stats['mean'] - 0.667) < 0.01
+        assert abs(stats["mean"] - 0.667) < 0.01
 
     def test_get_posterior_stats_confidence_interval(self, bayesian_filter):
         """Testa intervalo de confiança."""
@@ -324,21 +332,22 @@ class TestPosteriorStats:
         stats = bayesian_filter.get_posterior_stats(UnifiedDomain.SECURITY)
 
         # CI deve existir e lower < upper
-        assert stats['ci_lower'] < stats['ci_upper']
+        assert stats["ci_lower"] < stats["ci_upper"]
         # Para alpha alto, CI deve estar acima de 0.5
-        assert stats['ci_lower'] > 0.3
+        assert stats["ci_lower"] > 0.3
 
     def test_get_posterior_stats_variance(self, bayesian_filter):
         """Testa cálculo de variância."""
         stats = bayesian_filter.get_posterior_stats(UnifiedDomain.BUSINESS)
 
-        assert stats['variance'] > 0
-        assert stats['variance'] < 1  # Para Beta(1,1), variance = 1/12
+        assert stats["variance"] > 0
+        assert stats["variance"] < 1  # Para Beta(1,1), variance = 1/12
 
 
 # ============================================================================
 # Testes de Integração
 # ============================================================================
+
 
 class TestBayesianFilterIntegration:
     """Testes de integração do fluxo completo."""
@@ -346,14 +355,18 @@ class TestBayesianFilterIntegration:
     def test_full_learning_cycle(self, bayesian_filter, event_with_features):
         """Testa ciclo completo de aprendizado."""
         # Fase inicial: baixa confiança
-        should_process1, posterior1 = bayesian_filter.filter(event_with_features, UnifiedDomain.BUSINESS)
+        should_process1, posterior1 = bayesian_filter.filter(
+            event_with_features, UnifiedDomain.BUSINESS
+        )
 
         # Aprender que sinais deste domínio são válidos
         for _ in range(5):
             bayesian_filter.update_prior(UnifiedDomain.BUSINESS, True)
 
         # Fase posterior: maior confiança
-        should_process2, posterior2 = bayesian_filter.filter(event_with_features, UnifiedDomain.BUSINESS)
+        should_process2, posterior2 = bayesian_filter.filter(
+            event_with_features, UnifiedDomain.BUSINESS
+        )
 
         # Posterior deve aumentar
         assert posterior2 >= posterior1 or posterior1 == posterior2
@@ -381,15 +394,19 @@ class TestBayesianFilterIntegration:
         stats = bayesian_filter.get_posterior_stats(UnifiedDomain.INFRASTRUCTURE)
 
         # Média deve convergir para ~0.8
-        assert abs(stats['mean'] - 0.8) < 0.1
+        assert abs(stats["mean"] - 0.8) < 0.1
         # Variância deve ser baixa
-        assert stats['variance'] < 0.01
+        assert stats["variance"] < 0.01
 
     def test_filter_error_handling(self, bayesian_filter, event_with_features):
         """Testa tratamento de erro na filtragem."""
         # Forçar erro em extract_features
-        with patch.object(event_with_features, 'extract_features', side_effect=Exception("Test error")):
-            should_process, posterior = bayesian_filter.filter(event_with_features, UnifiedDomain.BUSINESS)
+        with patch.object(
+            event_with_features, "extract_features", side_effect=Exception("Test error")
+        ):
+            should_process, posterior = bayesian_filter.filter(
+                event_with_features, UnifiedDomain.BUSINESS
+            )
             # Em caso de erro, deve retornar defaults
             assert should_process is True  # Default: processar
             assert posterior == 0.5
@@ -398,6 +415,7 @@ class TestBayesianFilterIntegration:
 # ============================================================================
 # Testes de Domínios Específicos
 # ============================================================================
+
 
 class TestDomainSpecificBehavior:
     """Testes de comportamento específico por domínio."""
@@ -411,7 +429,7 @@ class TestDomainSpecificBehavior:
             bayesian_filter.update_prior(UnifiedDomain.BUSINESS, False)
 
         stats = bayesian_filter.get_posterior_stats(UnifiedDomain.BUSINESS)
-        assert stats['mean'] > 0.6
+        assert stats["mean"] > 0.6
 
     def test_security_domain_conservative(self, bayesian_filter, event_with_features):
         """Testa que SECURITY é mais conservador."""
@@ -423,7 +441,7 @@ class TestDomainSpecificBehavior:
 
         stats = bayesian_filter.get_posterior_stats(UnifiedDomain.SECURITY)
         # Mean deve ser próximo de 0.5
-        assert abs(stats['mean'] - 0.5) < 0.2
+        assert abs(stats["mean"] - 0.5) < 0.2
 
     def test_multiple_domains_independent_learning(self, bayesian_filter):
         """Testa que múltiplos domínios aprendem independentemente."""
@@ -441,4 +459,4 @@ class TestDomainSpecificBehavior:
         security_stats = bayesian_filter.get_posterior_stats(UnifiedDomain.SECURITY)
 
         # BUSINESS deve ter média maior que SECURITY
-        assert business_stats['mean'] > security_stats['mean']
+        assert business_stats["mean"] > security_stats["mean"]

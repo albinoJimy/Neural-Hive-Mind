@@ -39,7 +39,7 @@ class TestContextManagerValidation:
     def test_context_manager_raises_value_error_when_service_name_is_none(self):
         """Teste 3: Verificar que service_name=None lança ValueError."""
         # Criar config mock que passa a validação de tipo mas tem service_name None
-        with patch.object(ObservabilityConfig, '__post_init__', lambda self: None):
+        with patch.object(ObservabilityConfig, "__post_init__", lambda self: None):
             config = ObservabilityConfig(service_name=None)
 
         with pytest.raises(ValueError) as exc_info:
@@ -49,7 +49,7 @@ class TestContextManagerValidation:
 
     def test_context_manager_raises_value_error_when_service_name_is_empty_string(self):
         """Teste 4: Verificar que service_name='' lança ValueError."""
-        with patch.object(ObservabilityConfig, '__post_init__', lambda self: None):
+        with patch.object(ObservabilityConfig, "__post_init__", lambda self: None):
             config = ObservabilityConfig(service_name="")
 
         with pytest.raises(ValueError) as exc_info:
@@ -59,7 +59,7 @@ class TestContextManagerValidation:
 
     def test_context_manager_raises_value_error_when_service_name_is_whitespace(self):
         """Teste 5: Verificar que service_name='   ' lança ValueError."""
-        with patch.object(ObservabilityConfig, '__post_init__', lambda self: None):
+        with patch.object(ObservabilityConfig, "__post_init__", lambda self: None):
             config = ObservabilityConfig(service_name="   ")
 
         with pytest.raises(ValueError) as exc_info:
@@ -70,8 +70,7 @@ class TestContextManagerValidation:
     def test_context_manager_initializes_successfully_with_valid_config(self):
         """Teste 6: Verificar inicialização bem-sucedida com config válido."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         context_manager = ContextManager(config)
@@ -86,8 +85,7 @@ class TestContextManagerDefensiveProgramming:
     def test_inject_http_headers_does_not_raise_attribute_error(self):
         """Teste 7: Verificar que inject_http_headers não lança AttributeError."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
         context_manager = ContextManager(config)
 
@@ -102,13 +100,12 @@ class TestContextManagerDefensiveProgramming:
     def test_inject_http_headers_with_missing_service_name_attribute(self):
         """Teste 8: Verificar comportamento quando service_name está ausente."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
         context_manager = ContextManager(config)
 
         # Simular config sem service_name após inicialização (edge case)
-        with patch.object(context_manager, 'config', None):
+        with patch.object(context_manager, "config", None):
             # inject_http_headers usa hasattr/getattr defensivamente
             # mas config=None ainda causa problema no get_current_correlation
             # Então testamos com config que tem atributos faltando
@@ -121,9 +118,7 @@ class TestContextManagerDefensiveProgramming:
 
     def test_inject_kafka_headers_returns_headers_unchanged_when_config_is_none(self):
         """Teste 9: Verificar que inject_kafka_headers retorna headers sem modificação quando config é None."""
-        config = ObservabilityConfig(
-            service_name="test-service"
-        )
+        config = ObservabilityConfig(service_name="test-service")
         context_manager = ContextManager(config)
 
         # Forçar config=None após inicialização para testar comportamento defensivo
@@ -138,8 +133,7 @@ class TestContextManagerDefensiveProgramming:
     def test_inject_kafka_headers_works_with_valid_config(self):
         """Teste 10: Verificar que inject_kafka_headers funciona com config válido."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
         context_manager = ContextManager(config)
 
@@ -159,8 +153,7 @@ class TestContextManagerIntegration:
 
         # Inicializar observabilidade
         init_observability(
-            service_name="integration-test-service",
-            prometheus_port=0  # Não iniciar servidor HTTP
+            service_name="integration-test-service", prometheus_port=0  # Não iniciar servidor HTTP
         )
 
         # Obter config (sempre disponível após init)
@@ -181,8 +174,7 @@ class TestContextManagerIntegration:
     def test_context_manager_logging_on_successful_initialization(self, caplog):
         """Teste 12: Verificar logs de debug na inicialização bem-sucedida."""
         config = ObservabilityConfig(
-            service_name="logging-test-service",
-            neural_hive_component="logging-test-component"
+            service_name="logging-test-service", neural_hive_component="logging-test-component"
         )
 
         with caplog.at_level(logging.DEBUG, logger="neural_hive_observability.context"):
@@ -224,8 +216,7 @@ class TestContextManagerCorrelation:
         context_manager = ContextManager(config)
 
         with context_manager.correlation_context(
-            intent_id="test-intent-123",
-            plan_id="test-plan-456"
+            intent_id="test-intent-123", plan_id="test-plan-456"
         ) as ctx:
             correlation = ctx.get_current_correlation()
             # Verificar que correlation é um dict (pode estar vazio dependendo do contexto OpenTelemetry)

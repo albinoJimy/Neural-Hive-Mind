@@ -158,9 +158,7 @@ def _detect_code_duplication(base_path: Path) -> list[dict[str, Any]]:
     return duplicates[:10]  # Limitar a 10 sugestões
 
 
-def analyze_performance(
-    path: str = ".", service: str = "", duration: str = "1h"
-) -> dict[str, Any]:
+def analyze_performance(path: str = ".", service: str = "", duration: str = "1h") -> dict[str, Any]:
     """
     Analisa métricas de performance de um serviço.
 
@@ -172,9 +170,7 @@ def analyze_performance(
     Returns:
         Dicionário com métricas de performance
     """
-    logger.info(
-        "analyze_performance_called", path=path, service=service, duration=duration
-    )
+    logger.info("analyze_performance_called", path=path, service=service, duration=duration)
 
     metrics_path = Path(path)
 
@@ -245,15 +241,11 @@ def analyze_performance(
         "metrics": metrics_data,
         "bottlenecks": bottlenecks,
         "trend": trend,
-        "recommendations": _generate_performance_recommendations(
-            metrics_data, bottlenecks
-        ),
+        "recommendations": _generate_performance_recommendations(metrics_data, bottlenecks),
     }
 
 
-def _generate_performance_recommendations(
-    metrics: dict, bottlenecks: list
-) -> list[str]:
+def _generate_performance_recommendations(metrics: dict, bottlenecks: list) -> list[str]:
     """Gera recomendações baseado em métricas."""
     recommendations = []
 
@@ -364,15 +356,11 @@ def _extract_index_suggestions(query: dict, collection: str, suggestions: list) 
         elif isinstance(value, (str, int, float, bool)):
             # Campo de igualdade - candidato a índice
             if key != "_id":
-                suggestions.append(
-                    {"keys": {key: 1}, "description": f"Índice simples em {key}"}
-                )
+                suggestions.append({"keys": {key: 1}, "description": f"Índice simples em {key}"})
         elif isinstance(value, list):
             # Operador $in - bom candidato
             if len(value) > 1:
-                suggestions.append(
-                    {"keys": {key: 1}, "description": f"Índice para $in em {key}"}
-                )
+                suggestions.append({"keys": {key: 1}, "description": f"Índice para $in em {key}"})
 
 
 def _has_scan_operation(query: dict, depth: int = 0) -> bool:

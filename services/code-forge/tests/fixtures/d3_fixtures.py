@@ -23,16 +23,25 @@ from pytest_mock import MockerFixture
 def d3_build_ticket():
     """Ticket BUILD conforme especificação D3."""
     from src.models.execution_ticket import (
-        ExecutionTicket, TaskType, TicketStatus, Priority, RiskBand,
-        SLA, QoS, SecurityLevel, DeliveryMode, Consistency, Durability
+        ExecutionTicket,
+        TaskType,
+        TicketStatus,
+        Priority,
+        RiskBand,
+        SLA,
+        QoS,
+        SecurityLevel,
+        DeliveryMode,
+        Consistency,
+        Durability,
     )
 
     ticket_id = str(uuid.uuid4())
     return ExecutionTicket(
         ticket_id=ticket_id,
-        plan_id='plan-test-d3',
-        intent_id='intent-test-d3',
-        decision_id='decision-test-d3',
+        plan_id="plan-test-d3",
+        intent_id="intent-test-d3",
+        decision_id="decision-test-d3",
         correlation_id=str(uuid.uuid4()),
         trace_id=str(uuid.uuid4()),
         span_id=str(uuid.uuid4()),
@@ -41,27 +50,27 @@ def d3_build_ticket():
         priority=Priority.NORMAL,
         risk_band=RiskBand.MEDIUM,
         parameters={
-            'artifact_id': 'myapp-api',
-            'branch': 'feature/oauth2',
-            'commit_sha': 'abc123def456',
-            'build_args': {'dockerfile': 'Dockerfile.prod'},
-            'env': {'NODE_ENV': 'production'},
-            'timeout_seconds': 7200,
-            'poll_interval_seconds': 60
+            "artifact_id": "myapp-api",
+            "branch": "feature/oauth2",
+            "commit_sha": "abc123def456",
+            "build_args": {"dockerfile": "Dockerfile.prod"},
+            "env": {"NODE_ENV": "production"},
+            "timeout_seconds": 7200,
+            "poll_interval_seconds": 60,
         },
         sla=SLA(
             deadline=datetime.now() + timedelta(hours=4),
             timeout_ms=14400000,  # 4 horas
-            max_retries=3
+            max_retries=3,
         ),
         qos=QoS(
             delivery_mode=DeliveryMode.AT_LEAST_ONCE,
             consistency=Consistency.EVENTUAL,
-            durability=Durability.PERSISTENT
+            durability=Durability.PERSISTENT,
         ),
         security_level=SecurityLevel.INTERNAL,
         dependencies=[],
-        created_at=datetime.now()
+        created_at=datetime.now(),
     )
 
 
@@ -69,16 +78,25 @@ def d3_build_ticket():
 def d3_build_ticket_with_container():
     """Ticket BUILD com parâmetros para geração de container."""
     from src.models.execution_ticket import (
-        ExecutionTicket, TaskType, TicketStatus, Priority, RiskBand,
-        SLA, QoS, SecurityLevel, DeliveryMode, Consistency, Durability
+        ExecutionTicket,
+        TaskType,
+        TicketStatus,
+        Priority,
+        RiskBand,
+        SLA,
+        QoS,
+        SecurityLevel,
+        DeliveryMode,
+        Consistency,
+        Durability,
     )
 
     ticket_id = str(uuid.uuid4())
     return ExecutionTicket(
         ticket_id=ticket_id,
-        plan_id='plan-test-d3-container',
-        intent_id='intent-test-d3-container',
-        decision_id='decision-test-d3-container',
+        plan_id="plan-test-d3-container",
+        intent_id="intent-test-d3-container",
+        decision_id="decision-test-d3-container",
         correlation_id=str(uuid.uuid4()),
         trace_id=str(uuid.uuid4()),
         span_id=str(uuid.uuid4()),
@@ -87,30 +105,30 @@ def d3_build_ticket_with_container():
         priority=Priority.HIGH,
         risk_band=RiskBand.LOW,
         parameters={
-            'artifact_type': 'MICROSERVICE',
-            'language': 'python',
-            'service_name': 'myapp-api',
-            'container_image': 'ghcr.io/neural-hive/myapp-api:latest',
-            'dockerfile': 'Dockerfile.prod',
-            'build_context': '/app/build',
-            'registry_url': 'ghcr.io/neural-hive',
-            'generate_sbom': True,
-            'sign_artifact': True,
-            'timeout_seconds': 3600
+            "artifact_type": "MICROSERVICE",
+            "language": "python",
+            "service_name": "myapp-api",
+            "container_image": "ghcr.io/neural-hive/myapp-api:latest",
+            "dockerfile": "Dockerfile.prod",
+            "build_context": "/app/build",
+            "registry_url": "ghcr.io/neural-hive",
+            "generate_sbom": True,
+            "sign_artifact": True,
+            "timeout_seconds": 3600,
         },
         sla=SLA(
             deadline=datetime.now() + timedelta(hours=2),
             timeout_ms=7200000,  # 2 horas
-            max_retries=3
+            max_retries=3,
         ),
         qos=QoS(
             delivery_mode=DeliveryMode.AT_LEAST_ONCE,
             consistency=Consistency.EVENTUAL,
-            durability=Durability.PERSISTENT
+            durability=Durability.PERSISTENT,
         ),
         security_level=SecurityLevel.INTERNAL,
         dependencies=[],
-        created_at=datetime.now()
+        created_at=datetime.now(),
     )
 
 
@@ -118,16 +136,25 @@ def d3_build_ticket_with_container():
 def d3_build_ticket_with_sbom():
     """Ticket BUILD com parâmetros para geração de SBOM."""
     from src.models.execution_ticket import (
-        ExecutionTicket, TaskType, TicketStatus, Priority, RiskBand,
-        SLA, QoS, SecurityLevel, DeliveryMode, Consistency, Durability
+        ExecutionTicket,
+        TaskType,
+        TicketStatus,
+        Priority,
+        RiskBand,
+        SLA,
+        QoS,
+        SecurityLevel,
+        DeliveryMode,
+        Consistency,
+        Durability,
     )
 
     ticket_id = str(uuid.uuid4())
     return ExecutionTicket(
         ticket_id=ticket_id,
-        plan_id='plan-test-d3-sbom',
-        intent_id='intent-test-d3-sbom',
-        decision_id='decision-test-d3-sbom',
+        plan_id="plan-test-d3-sbom",
+        intent_id="intent-test-d3-sbom",
+        decision_id="decision-test-d3-sbom",
         correlation_id=str(uuid.uuid4()),
         trace_id=str(uuid.uuid4()),
         span_id=str(uuid.uuid4()),
@@ -136,26 +163,26 @@ def d3_build_ticket_with_sbom():
         priority=Priority.NORMAL,
         risk_band=RiskBand.MEDIUM,
         parameters={
-            'artifact_type': 'LIBRARY',
-            'language': 'python',
-            'service_name': 'my-lib',
-            'sbom_format': 'SPDX',
-            'sbom_version': '2.3',
-            'sbom_output_uri': 'gs://artifacts/myapp/sbom.spdx.json'
+            "artifact_type": "LIBRARY",
+            "language": "python",
+            "service_name": "my-lib",
+            "sbom_format": "SPDX",
+            "sbom_version": "2.3",
+            "sbom_output_uri": "gs://artifacts/myapp/sbom.spdx.json",
         },
         sla=SLA(
             deadline=datetime.now() + timedelta(hours=1),
             timeout_ms=3600000,  # 1 hora
-            max_retries=3
+            max_retries=3,
         ),
         qos=QoS(
             delivery_mode=DeliveryMode.AT_LEAST_ONCE,
             consistency=Consistency.EVENTUAL,
-            durability=Durability.PERSISTENT
+            durability=Durability.PERSISTENT,
         ),
         security_level=SecurityLevel.INTERNAL,
         dependencies=[],
-        created_at=datetime.now()
+        created_at=datetime.now(),
     )
 
 
@@ -174,10 +201,7 @@ def d3_pipeline_context(d3_build_ticket):
         ticket=d3_build_ticket,
         trace_id=d3_build_ticket.trace_id,
         span_id=d3_build_ticket.span_id,
-        metadata={
-            'test_mode': 'd3',
-            'artifact_type': 'CONTAINER'
-        }
+        metadata={"test_mode": "d3", "artifact_type": "CONTAINER"},
     )
 
 
@@ -185,8 +209,11 @@ def d3_pipeline_context(d3_build_ticket):
 def d3_pipeline_context_with_artifacts(d3_pipeline_context):
     """PipelineContext com artefatos D3 gerados."""
     from src.models.artifact import (
-        CodeForgeArtifact, GenerationMethod,
-        ValidationResult, ValidationType, ValidationStatus
+        CodeForgeArtifact,
+        GenerationMethod,
+        ValidationResult,
+        ValidationType,
+        ValidationStatus,
     )
     from src.types.artifact_types import ArtifactCategory
 
@@ -200,19 +227,19 @@ def d3_pipeline_context_with_artifacts(d3_pipeline_context):
         trace_id=d3_pipeline_context.trace_id,
         span_id=d3_pipeline_context.span_id,
         artifact_type=ArtifactCategory.CONTAINER,
-        language='python',
-        template_id='microservice-python-v1',
+        language="python",
+        template_id="microservice-python-v1",
         confidence_score=0.95,
         generation_method=GenerationMethod.TEMPLATE,
-        content_uri='ghcr.io/neural-hive/myapp-api:latest',
-        content_hash='sha256:abc123def456',
-        sbom_uri='s3://code-forge/sboms/myapp-api.spdx.json',
-        signature='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+        content_uri="ghcr.io/neural-hive/myapp-api:latest",
+        content_hash="sha256:abc123def456",
+        sbom_uri="s3://code-forge/sboms/myapp-api.spdx.json",
+        signature="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
         validation_results=[
             ValidationResult(
                 validation_type=ValidationType.SECURITY_SCAN,
-                tool_name='Trivy',
-                tool_version='0.50.0',
+                tool_name="Trivy",
+                tool_version="0.50.0",
                 status=ValidationStatus.PASSED,
                 score=0.95,
                 issues_count=0,
@@ -221,15 +248,15 @@ def d3_pipeline_context_with_artifacts(d3_pipeline_context):
                 medium_issues=0,
                 low_issues=0,
                 executed_at=datetime.now(),
-                duration_ms=2000
+                duration_ms=2000,
             )
         ],
         metadata={
-            'image_size_bytes': '123456789',
-            'registry': 'ghcr.io',
-            'digest': 'sha256:abc123def456'
+            "image_size_bytes": "123456789",
+            "registry": "ghcr.io",
+            "digest": "sha256:abc123def456",
         },
-        created_at=datetime.now()
+        created_at=datetime.now(),
     )
 
     # Artefato MANIFEST
@@ -242,18 +269,15 @@ def d3_pipeline_context_with_artifacts(d3_pipeline_context):
         trace_id=d3_pipeline_context.trace_id,
         span_id=d3_pipeline_context.span_id,
         artifact_type=ArtifactCategory.IAC,
-        language='yaml',
-        template_id='kubernetes-deployment-v1',
+        language="yaml",
+        template_id="kubernetes-deployment-v1",
         confidence_score=0.90,
         generation_method=GenerationMethod.TEMPLATE,
-        content_uri='s3://code-forge/manifests/myapp-api-deployment.yaml',
-        content_hash='sha256:manifest123',
+        content_uri="s3://code-forge/manifests/myapp-api-deployment.yaml",
+        content_hash="sha256:manifest123",
         validation_results=[],
-        metadata={
-            'k8s_version': '1.28',
-            'namespace': 'production'
-        },
-        created_at=datetime.now()
+        metadata={"k8s_version": "1.28", "namespace": "production"},
+        created_at=datetime.now(),
     )
 
     d3_pipeline_context.add_artifact(container_artifact)
@@ -299,18 +323,15 @@ def mock_d3_kafka_consumer():
     # Simular consumo de ticket BUILD
     async def _consume_ticket():
         return {
-            'ticket_id': str(uuid.uuid4()),
-            'task_type': 'BUILD',
-            'parameters': {
-                'artifact_id': 'myapp-api',
-                'branch': 'feature/test'
-            }
+            "ticket_id": str(uuid.uuid4()),
+            "task_type": "BUILD",
+            "parameters": {"artifact_id": "myapp-api", "branch": "feature/test"},
         }
 
     consumer.consume_ticket = AsyncMock(side_effect=_consume_ticket)
-    consumer.consume_topic = AsyncMock(return_value=[
-        {'ticket_id': 'test-ticket', 'task_type': 'BUILD'}
-    ])
+    consumer.consume_topic = AsyncMock(
+        return_value=[{"ticket_id": "test-ticket", "task_type": "BUILD"}]
+    )
     consumer.commit_offset = AsyncMock(return_value=True)
 
     return consumer
@@ -327,26 +348,25 @@ def mock_d3_template_selector():
     selector = AsyncMock()
 
     async def _select(context):
-        from src.models.template import (
-            Template, TemplateMetadata, TemplateType
-        )
+        from src.models.template import Template, TemplateMetadata, TemplateType
         from src.types.artifact_types import CodeLanguage
+
         context.selected_template = Template(
-            template_id='microservice-python-v1',
+            template_id="microservice-python-v1",
             metadata=TemplateMetadata(
-                name='Python Microservice',
-                version='1.0.0',
-                description='Template base para microservico Python',
-                author='Neural Hive Team',
-                tags=['microservice', 'python', 'fastapi'],
+                name="Python Microservice",
+                version="1.0.0",
+                description="Template base para microservico Python",
+                author="Neural Hive Team",
+                tags=["microservice", "python", "fastapi"],
                 language=CodeLanguage.PYTHON,
-                type=TemplateType.MICROSERVICE
+                type=TemplateType.MICROSERVICE,
             ),
             parameters=[],
-            content_path='/app/templates/microservice-python',
-            examples={}
+            content_path="/app/templates/microservice-python",
+            examples={},
         )
-        context.metadata['template_selected'] = 'microservice-python-v1'
+        context.metadata["template_selected"] = "microservice-python-v1"
 
     selector.select = AsyncMock(side_effect=_select)
     return selector
@@ -358,9 +378,9 @@ def mock_d3_code_composer():
     composer = AsyncMock()
 
     async def _compose(context):
-        context.metadata['code_composed'] = 'true'
-        context.code_workspace_path = '/tmp/workspace/test'
-        context.metadata['files_generated'] = '5'
+        context.metadata["code_composed"] = "true"
+        context.code_workspace_path = "/tmp/workspace/test"
+        context.metadata["files_generated"] = "5"
 
     composer.compose = AsyncMock(side_effect=_compose)
     return composer
@@ -372,13 +392,12 @@ def mock_d3_validator():
     validator = AsyncMock()
 
     async def _validate(context):
-        from src.models.artifact import (
-            ValidationResult, ValidationType, ValidationStatus
-        )
+        from src.models.artifact import ValidationResult, ValidationType, ValidationStatus
+
         validation = ValidationResult(
             validation_type=ValidationType.SAST,
-            tool_name='SonarQube',
-            tool_version='10.0.0',
+            tool_name="SonarQube",
+            tool_version="10.0.0",
             status=ValidationStatus.PASSED,
             score=0.95,
             issues_count=0,
@@ -387,10 +406,10 @@ def mock_d3_validator():
             medium_issues=0,
             low_issues=0,
             executed_at=datetime.now(),
-            duration_ms=5000
+            duration_ms=5000,
         )
         context.add_validation(validation)
-        context.metadata['validation_passed'] = 'true'
+        context.metadata["validation_passed"] = "true"
 
     validator.validate = AsyncMock(side_effect=_validate)
     return validator
@@ -402,9 +421,9 @@ def mock_d3_test_runner():
     runner = AsyncMock()
 
     async def _run_tests(context):
-        context.metadata['tests_run'] = '10'
-        context.metadata['tests_passed'] = '10'
-        context.metadata['tests_failed'] = '0'
+        context.metadata["tests_run"] = "10"
+        context.metadata["tests_passed"] = "10"
+        context.metadata["tests_failed"] = "0"
 
     runner.run_tests = AsyncMock(side_effect=_run_tests)
     return runner
@@ -416,9 +435,7 @@ def mock_d3_packager():
     packager = AsyncMock()
 
     async def _package(context):
-        from src.models.artifact import (
-            CodeForgeArtifact, GenerationMethod
-        )
+        from src.models.artifact import CodeForgeArtifact, GenerationMethod
         from src.types.artifact_types import ArtifactCategory
 
         # Criar artefato CONTAINER
@@ -431,23 +448,20 @@ def mock_d3_packager():
             trace_id=context.trace_id,
             span_id=context.span_id,
             artifact_type=ArtifactCategory.CONTAINER,
-            language='python',
+            language="python",
             confidence_score=0.95,
             generation_method=GenerationMethod.TEMPLATE,
-            content_uri='ghcr.io/neural-hive/myapp-api:latest',
-            content_hash='sha256:abc123',
-            sbom_uri='s3://sboms/test.spdx.json',
-            signature='test-signature',
-            metadata={
-                'image_size_bytes': '123456789',
-                'digest': 'sha256:abc123'
-            },
-            created_at=datetime.now()
+            content_uri="ghcr.io/neural-hive/myapp-api:latest",
+            content_hash="sha256:abc123",
+            sbom_uri="s3://sboms/test.spdx.json",
+            signature="test-signature",
+            metadata={"image_size_bytes": "123456789", "digest": "sha256:abc123"},
+            created_at=datetime.now(),
         )
         context.add_artifact(container)
-        context.metadata['container_built'] = 'true'
-        context.metadata['sbom_generated'] = 'true'
-        context.metadata['artifact_signed'] = 'true'
+        context.metadata["container_built"] = "true"
+        context.metadata["sbom_generated"] = "true"
+        context.metadata["artifact_signed"] = "true"
 
     packager.package = AsyncMock(side_effect=_package)
     return packager
@@ -459,7 +473,7 @@ def mock_d3_approval_gate():
     gate = AsyncMock()
 
     async def _check_approval(context):
-        context.metadata['approval_status'] = 'AUTO_APPROVED'
+        context.metadata["approval_status"] = "AUTO_APPROVED"
         return True
 
     gate.check_approval = AsyncMock(side_effect=_check_approval)
@@ -483,15 +497,27 @@ def mock_d3_pipeline_engine(
     mock_ticket_client,
     mock_postgres_client,
     mock_mongodb_client,
-    request
+    request,
 ):
     """Mock completo do PipelineEngine para testes D3."""
     from src.services.pipeline_engine import PipelineEngine
 
     # Try to get fixtures from conftest, use defaults if not available
-    ticket_client = request.getfixturevalue('mock_ticket_client') if 'mock_ticket_client' in request.fixturenames else mock_ticket_client
-    postgres_client = request.getfixturevalue('mock_postgres_client') if 'mock_postgres_client' in request.fixturenames else mock_postgres_client
-    mongodb_client = request.getfixturevalue('mock_mongodb_client') if 'mock_mongodb_client' in request.fixturenames else mock_mongodb_client
+    ticket_client = (
+        request.getfixturevalue("mock_ticket_client")
+        if "mock_ticket_client" in request.fixturenames
+        else mock_ticket_client
+    )
+    postgres_client = (
+        request.getfixturevalue("mock_postgres_client")
+        if "mock_postgres_client" in request.fixturenames
+        else mock_postgres_client
+    )
+    mongodb_client = (
+        request.getfixturevalue("mock_mongodb_client")
+        if "mock_mongodb_client" in request.fixturenames
+        else mock_mongodb_client
+    )
 
     engine = PipelineEngine(
         template_selector=mock_d3_template_selector,
@@ -508,7 +534,7 @@ def mock_d3_pipeline_engine(
         pipeline_timeout=60,
         auto_approval_threshold=0.0,  # Auto-aprovação em testes
         min_quality_score=0.0,
-        metrics=None
+        metrics=None,
     )
 
     return engine
@@ -532,7 +558,9 @@ def mock_d3_metrics():
     metrics.build_duration_seconds.labels = MagicMock(return_value=MagicMock(observe=MagicMock()))
 
     metrics.build_artifacts_generated_total = MagicMock()
-    metrics.build_artifacts_generated_total.labels = MagicMock(return_value=MagicMock(inc=MagicMock()))
+    metrics.build_artifacts_generated_total.labels = MagicMock(
+        return_value=MagicMock(inc=MagicMock())
+    )
 
     metrics.build_failures_total = MagicMock()
     metrics.build_failures_total.labels = MagicMock(return_value=MagicMock(inc=MagicMock()))
@@ -542,14 +570,18 @@ def mock_d3_metrics():
     metrics.code_forge_api_calls_total.labels = MagicMock(return_value=MagicMock(inc=MagicMock()))
 
     metrics.code_forge_api_duration_seconds = MagicMock()
-    metrics.code_forge_api_duration_seconds.labels = MagicMock(return_value=MagicMock(observe=MagicMock()))
+    metrics.code_forge_api_duration_seconds.labels = MagicMock(
+        return_value=MagicMock(observe=MagicMock())
+    )
 
     # Métricas de pipeline
     metrics.pipelines_total = MagicMock()
     metrics.pipelines_total.labels = MagicMock(return_value=MagicMock(inc=MagicMock()))
 
     metrics.pipeline_duration_seconds = MagicMock()
-    metrics.pipeline_duration_seconds.labels = MagicMock(return_value=MagicMock(observe=MagicMock()))
+    metrics.pipeline_duration_seconds.labels = MagicMock(
+        return_value=MagicMock(observe=MagicMock())
+    )
 
     # Métricas de stage
     metrics.stage_duration_seconds = MagicMock()
@@ -570,8 +602,13 @@ def mock_d3_metrics():
 def d3_expected_pipeline_result():
     """Resultado esperado de um pipeline D3 bem-sucedido."""
     from src.models.artifact import (
-        PipelineResult, PipelineStatus, PipelineStage, StageStatus,
-        CodeForgeArtifact, ArtifactCategory, GenerationMethod
+        PipelineResult,
+        PipelineStatus,
+        PipelineStage,
+        StageStatus,
+        CodeForgeArtifact,
+        ArtifactCategory,
+        GenerationMethod,
     )
 
     pipeline_id = str(uuid.uuid4())
@@ -580,9 +617,9 @@ def d3_expected_pipeline_result():
     return PipelineResult(
         pipeline_id=pipeline_id,
         ticket_id=ticket_id,
-        plan_id='plan-test-d3',
-        intent_id='intent-test-d3',
-        decision_id='decision-test-d3',
+        plan_id="plan-test-d3",
+        intent_id="intent-test-d3",
+        decision_id="decision-test-d3",
         correlation_id=str(uuid.uuid4()),
         trace_id=str(uuid.uuid4()),
         span_id=str(uuid.uuid4()),
@@ -591,65 +628,65 @@ def d3_expected_pipeline_result():
             CodeForgeArtifact(
                 artifact_id=str(uuid.uuid4()),
                 ticket_id=ticket_id,
-                plan_id='plan-test-d3',
-                intent_id='intent-test-d3',
+                plan_id="plan-test-d3",
+                intent_id="intent-test-d3",
                 correlation_id=str(uuid.uuid4()),
                 trace_id=str(uuid.uuid4()),
                 span_id=str(uuid.uuid4()),
                 artifact_type=ArtifactCategory.CONTAINER,
-                language='python',
+                language="python",
                 confidence_score=0.95,
                 generation_method=GenerationMethod.TEMPLATE,
-                content_uri='ghcr.io/neural-hive/myapp-api:latest',
-                content_hash='sha256:abc123',
-                sbom_uri='s3://sboms/test.spdx.json',
-                signature='test-signature',
-                created_at=datetime.now()
+                content_uri="ghcr.io/neural-hive/myapp-api:latest",
+                content_hash="sha256:abc123",
+                sbom_uri="s3://sboms/test.spdx.json",
+                signature="test-signature",
+                created_at=datetime.now(),
             )
         ],
         pipeline_stages=[
             PipelineStage(
-                stage_name='template_selection',
+                stage_name="template_selection",
                 status=StageStatus.COMPLETED,
                 started_at=datetime.now(),
                 completed_at=datetime.now(),
-                duration_ms=100
+                duration_ms=100,
             ),
             PipelineStage(
-                stage_name='code_composition',
+                stage_name="code_composition",
                 status=StageStatus.COMPLETED,
                 started_at=datetime.now(),
                 completed_at=datetime.now(),
-                duration_ms=500
+                duration_ms=500,
             ),
             PipelineStage(
-                stage_name='validation',
+                stage_name="validation",
                 status=StageStatus.COMPLETED,
                 started_at=datetime.now(),
                 completed_at=datetime.now(),
-                duration_ms=5000
+                duration_ms=5000,
             ),
             PipelineStage(
-                stage_name='testing',
+                stage_name="testing",
                 status=StageStatus.COMPLETED,
                 started_at=datetime.now(),
                 completed_at=datetime.now(),
-                duration_ms=10000
+                duration_ms=10000,
             ),
             PipelineStage(
-                stage_name='packaging',
+                stage_name="packaging",
                 status=StageStatus.COMPLETED,
                 started_at=datetime.now(),
                 completed_at=datetime.now(),
-                duration_ms=15000
+                duration_ms=15000,
             ),
             PipelineStage(
-                stage_name='approval_gate',
+                stage_name="approval_gate",
                 status=StageStatus.COMPLETED,
                 started_at=datetime.now(),
                 completed_at=datetime.now(),
-                duration_ms=100
-            )
+                duration_ms=100,
+            ),
         ],
         total_duration_ms=30700,
         approval_required=False,
@@ -657,7 +694,7 @@ def d3_expected_pipeline_result():
         error_message=None,
         created_at=datetime.now(),
         completed_at=datetime.now(),
-        metadata={}
+        metadata={},
     )
 
 
@@ -670,19 +707,16 @@ def d3_expected_pipeline_result():
 def mock_d3_mongodb_artifact():
     """Mock de artefato salvo no MongoDB para testes D3."""
     return {
-        '_id': str(uuid.uuid4()),
-        'artifact_id': str(uuid.uuid4()),
-        'ticket_id': str(uuid.uuid4()),
-        'artifact_type': 'CONTAINER',
-        'content_uri': 'ghcr.io/neural-hive/myapp-api:latest',
-        'content_hash': 'sha256:abc123',
-        'sbom_uri': 's3://sboms/test.spdx.json',
-        'signature': 'test-signature',
-        'created_at': datetime.now().isoformat(),
-        'metadata': {
-            'image_size_bytes': '123456789',
-            'digest': 'sha256:abc123'
-        }
+        "_id": str(uuid.uuid4()),
+        "artifact_id": str(uuid.uuid4()),
+        "ticket_id": str(uuid.uuid4()),
+        "artifact_type": "CONTAINER",
+        "content_uri": "ghcr.io/neural-hive/myapp-api:latest",
+        "content_hash": "sha256:abc123",
+        "sbom_uri": "s3://sboms/test.spdx.json",
+        "signature": "test-signature",
+        "created_at": datetime.now().isoformat(),
+        "metadata": {"image_size_bytes": "123456789", "digest": "sha256:abc123"},
     }
 
 
@@ -690,14 +724,14 @@ def mock_d3_mongodb_artifact():
 def mock_d3_postgres_pipeline():
     """Mock de pipeline salvo no PostgreSQL para testes D3."""
     return {
-        'pipeline_id': str(uuid.uuid4()),
-        'ticket_id': str(uuid.uuid4()),
-        'plan_id': 'plan-test-d3',
-        'intent_id': 'intent-test-d3',
-        'status': 'COMPLETED',
-        'total_duration_ms': 30700,
-        'approval_required': False,
-        'artifacts_count': 2,
-        'created_at': datetime.now(),
-        'completed_at': datetime.now()
+        "pipeline_id": str(uuid.uuid4()),
+        "ticket_id": str(uuid.uuid4()),
+        "plan_id": "plan-test-d3",
+        "intent_id": "intent-test-d3",
+        "status": "COMPLETED",
+        "total_duration_ms": 30700,
+        "approval_required": False,
+        "artifacts_count": 2,
+        "created_at": datetime.now(),
+        "completed_at": datetime.now(),
     }

@@ -59,8 +59,8 @@ class TestFullPipelineFlow:
 
         # Create mock Code Forge client for build
         mock_code_forge = create_mock_code_forge_client(
-            pipeline_id='pipeline-e2e-123',
-            status='completed',
+            pipeline_id="pipeline-e2e-123",
+            status="completed",
         )
 
         # Step 1: BUILD
@@ -72,19 +72,19 @@ class TestFullPipelineFlow:
         )
 
         build_ticket = ExecutorTestHelper.create_build_ticket(
-            artifact_id='e2e-app',
-            branch='main',
-            commit_sha='e2e123abc',
+            artifact_id="e2e-app",
+            branch="main",
+            commit_sha="e2e123abc",
         )
 
         build_result = await build_executor.execute(build_ticket)
         ResultValidator.assert_success(build_result)
 
         # Extract build artifacts for deploy
-        build_output = build_result.get('output', {})
+        build_output = build_result.get("output", {})
         artifact_info = {
-            'pipeline_id': build_output.get('pipeline_id', 'pipeline-e2e-123'),
-            'artifact_id': build_output.get('artifact_id', 'e2e-app'),
+            "pipeline_id": build_output.get("pipeline_id", "pipeline-e2e-123"),
+            "artifact_id": build_output.get("artifact_id", "e2e-app"),
         }
 
         # Step 2: DEPLOY (using build output)
@@ -95,17 +95,17 @@ class TestFullPipelineFlow:
         )
 
         deploy_ticket = ExecutorTestHelper.create_deploy_ticket(
-            namespace='e2e-test',
-            deployment_name='e2e-app',
+            namespace="e2e-test",
+            deployment_name="e2e-app",
             image=f"registry/e2e-app:{artifact_info['pipeline_id']}",
             replicas=2,
-            build_pipeline_id=artifact_info['pipeline_id'],
+            build_pipeline_id=artifact_info["pipeline_id"],
         )
 
         deploy_result = await deploy_executor.execute(deploy_ticket)
         ResultValidator.assert_success(deploy_result)
 
-        deploy_output = deploy_result.get('output', {})
+        deploy_output = deploy_result.get("output", {})
 
         # Step 3: TEST (integration tests against deployment)
         test_executor = TestExecutor(
@@ -116,10 +116,10 @@ class TestFullPipelineFlow:
 
         test_ticket = ExecutorTestHelper.create_test_ticket(
             test_command='echo "E2E tests passed"',
-            test_suite='integration',
-            working_dir='/tmp',
-            deployment_id=deploy_output.get('deployment_id', 'deploy-e2e'),
-            target_namespace='e2e-test',
+            test_suite="integration",
+            working_dir="/tmp",
+            deployment_id=deploy_output.get("deployment_id", "deploy-e2e"),
+            target_namespace="e2e-test",
         )
 
         test_result = await test_executor.execute(test_ticket)
@@ -133,12 +133,12 @@ class TestFullPipelineFlow:
         )
 
         validate_ticket = ExecutorTestHelper.create_validate_ticket(
-            validation_type='policy',
-            policy_path='policy/deployment/allow',
+            validation_type="policy",
+            policy_path="policy/deployment/allow",
             input_data={
-                'namespace': 'e2e-test',
-                'deployment': 'e2e-app',
-                'image': f"registry/e2e-app:{artifact_info['pipeline_id']}",
+                "namespace": "e2e-test",
+                "deployment": "e2e-app",
+                "image": f"registry/e2e-app:{artifact_info['pipeline_id']}",
             },
         )
 
@@ -146,10 +146,10 @@ class TestFullPipelineFlow:
         ResultValidator.assert_success(validate_result)
 
         # Verify all stages completed
-        assert build_result['success']
-        assert deploy_result['success']
-        assert test_result['success']
-        assert validate_result['success']
+        assert build_result["success"]
+        assert deploy_result["success"]
+        assert test_result["success"]
+        assert validate_result["success"]
 
     @pytest.mark.asyncio
     async def test_build_deploy_flow_with_rollback_on_test_failure(
@@ -172,7 +172,7 @@ class TestFullPipelineFlow:
         from executors.test_executor import TestExecutor
 
         # Build
-        mock_code_forge = create_mock_code_forge_client(status='completed')
+        mock_code_forge = create_mock_code_forge_client(status="completed")
         build_executor = BuildExecutor(
             config=worker_config,
             vault_client=mock_vault_client,
@@ -181,7 +181,7 @@ class TestFullPipelineFlow:
         )
 
         build_result = await build_executor.execute(
-            ExecutorTestHelper.create_build_ticket(artifact_id='rollback-test-app')
+            ExecutorTestHelper.create_build_ticket(artifact_id="rollback-test-app")
         )
         ResultValidator.assert_success(build_result)
 
@@ -194,8 +194,8 @@ class TestFullPipelineFlow:
 
         deploy_result = await deploy_executor.execute(
             ExecutorTestHelper.create_deploy_ticket(
-                deployment_name='rollback-test-app',
-                namespace='rollback-test',
+                deployment_name="rollback-test-app",
+                namespace="rollback-test",
             )
         )
         ResultValidator.assert_success(deploy_result)
@@ -210,8 +210,8 @@ class TestFullPipelineFlow:
         # Use a command that will fail
         test_ticket = ExecutorTestHelper.create_test_ticket(
             test_command='python -c "exit(1)"',
-            test_suite='smoke',
-            working_dir='/tmp',
+            test_suite="smoke",
+            working_dir="/tmp",
         )
 
         test_result = await test_executor.execute(test_ticket)
@@ -221,7 +221,10 @@ class TestFullPipelineFlow:
 
         # In a real scenario, we would trigger rollback
         # For this test, we verify the failure is properly captured
-        assert test_result.get('output', {}).get('tests_passed') is False or test_result['success'] is False
+        assert (
+            test_result.get("output", {}).get("tests_passed") is False
+            or test_result["success"] is False
+        )
 
 
 class TestParallelExecutorExecution:
@@ -250,17 +253,17 @@ class TestParallelExecutorExecution:
         # Create multiple validation tickets
         tickets = [
             ExecutorTestHelper.create_validate_ticket(
-                validation_type='policy',
-                policy_path='policy/allow',
-                input_data={'user': 'test', 'action': 'read'},
+                validation_type="policy",
+                policy_path="policy/allow",
+                input_data={"user": "test", "action": "read"},
             ),
             ExecutorTestHelper.create_validate_ticket(
-                validation_type='sast',
-                working_dir='/tmp',
+                validation_type="sast",
+                working_dir="/tmp",
             ),
             ExecutorTestHelper.create_validate_ticket(
-                validation_type='iac',
-                working_dir='/tmp',
+                validation_type="iac",
+                working_dir="/tmp",
             ),
         ]
 
@@ -274,11 +277,8 @@ class TestParallelExecutorExecution:
         assert len(results) == 3
 
         # At least some should succeed (simulation mode)
-        successful = sum(
-            1 for r in results
-            if isinstance(r, dict) and r.get('success') is True
-        )
-        assert successful >= 1, f'Expected at least 1 success, got results: {results}'
+        successful = sum(1 for r in results if isinstance(r, dict) and r.get("success") is True)
+        assert successful >= 1, f"Expected at least 1 success, got results: {results}"
 
     @pytest.mark.asyncio
     async def test_parallel_build_execution(
@@ -295,13 +295,13 @@ class TestParallelExecutorExecution:
         from executors.build_executor import BuildExecutor
 
         # Track which builds complete
-        build_ids = ['service-a', 'service-b', 'service-c']
+        build_ids = ["service-a", "service-b", "service-c"]
 
         async def create_build_with_delay(artifact_id: str, delay: float):
             """Create a build with simulated delay."""
             mock_client = create_mock_code_forge_client(
-                pipeline_id=f'pipeline-{artifact_id}',
-                status='completed',
+                pipeline_id=f"pipeline-{artifact_id}",
+                status="completed",
             )
 
             executor = BuildExecutor(
@@ -318,8 +318,7 @@ class TestParallelExecutorExecution:
 
         # Execute all builds in parallel
         tasks = [
-            create_build_with_delay(build_id, delay=0.1 * i)
-            for i, build_id in enumerate(build_ids)
+            create_build_with_delay(build_id, delay=0.1 * i) for i, build_id in enumerate(build_ids)
         ]
 
         results = await asyncio.gather(*tasks)
@@ -351,20 +350,18 @@ class TestParallelExecutorExecution:
             metrics=mock_metrics,
         )
 
-        test_suites = ['unit', 'integration', 'e2e']
+        test_suites = ["unit", "integration", "e2e"]
         tickets = [
             ExecutorTestHelper.create_test_ticket(
                 test_command='echo "Running tests"',
                 test_suite=suite,
-                working_dir='/tmp',
+                working_dir="/tmp",
             )
             for suite in test_suites
         ]
 
         # Execute all test suites in parallel
-        results = await asyncio.gather(
-            *[test_executor.execute(ticket) for ticket in tickets]
-        )
+        results = await asyncio.gather(*[test_executor.execute(ticket) for ticket in tickets])
 
         # All should succeed
         assert len(results) == len(test_suites)
@@ -390,17 +387,17 @@ class TestExecutorDependencyChains:
         from executors.build_executor import BuildExecutor
 
         builds = [
-            ('base-lib', None),
-            ('service-a', 'base-lib'),
-            ('service-b', 'service-a'),
+            ("base-lib", None),
+            ("service-a", "base-lib"),
+            ("service-b", "service-a"),
         ]
 
         build_results: Dict[str, Any] = {}
 
         for artifact_id, depends_on in builds:
             mock_client = create_mock_code_forge_client(
-                pipeline_id=f'pipeline-{artifact_id}',
-                status='completed',
+                pipeline_id=f"pipeline-{artifact_id}",
+                status="completed",
             )
 
             executor = BuildExecutor(
@@ -410,17 +407,19 @@ class TestExecutorDependencyChains:
                 metrics=mock_metrics,
             )
 
-            params: Dict[str, Any] = {'artifact_id': artifact_id}
+            params: Dict[str, Any] = {"artifact_id": artifact_id}
             if depends_on:
                 # Include dependency info
-                params['depends_on'] = depends_on
-                params['dependency_pipeline_id'] = build_results.get(depends_on, {}).get('pipeline_id')
+                params["depends_on"] = depends_on
+                params["dependency_pipeline_id"] = build_results.get(depends_on, {}).get(
+                    "pipeline_id"
+                )
 
-            ticket = ExecutorTestHelper.create_ticket('BUILD', params)
+            ticket = ExecutorTestHelper.create_ticket("BUILD", params)
             result = await executor.execute(ticket)
 
             ResultValidator.assert_success(result)
-            build_results[artifact_id] = result.get('output', {})
+            build_results[artifact_id] = result.get("output", {})
 
         # Verify all builds completed in order
         assert len(build_results) == len(builds)
@@ -450,19 +449,21 @@ class TestExecutorDependencyChains:
         )
 
         validate_ticket = ExecutorTestHelper.create_validate_ticket(
-            validation_type='policy',
-            policy_path='policy/deployment/allow',
+            validation_type="policy",
+            policy_path="policy/deployment/allow",
             input_data={
-                'namespace': 'production',
-                'image': 'app:v1.0',
-                'replicas': 3,
+                "namespace": "production",
+                "image": "app:v1.0",
+                "replicas": 3,
             },
         )
 
         validate_result = await validate_executor.execute(validate_ticket)
 
         # Check if validation passed before deploying
-        if validate_result.get('success') and validate_result.get('output', {}).get('validation_passed', False):
+        if validate_result.get("success") and validate_result.get("output", {}).get(
+            "validation_passed", False
+        ):
             # Proceed with deployment
             deploy_executor = DeployExecutor(
                 config=worker_config,
@@ -471,9 +472,9 @@ class TestExecutorDependencyChains:
             )
 
             deploy_ticket = ExecutorTestHelper.create_deploy_ticket(
-                namespace='production',
-                deployment_name='app',
-                image='app:v1.0',
+                namespace="production",
+                deployment_name="app",
+                image="app:v1.0",
                 replicas=3,
             )
 
@@ -481,7 +482,10 @@ class TestExecutorDependencyChains:
             ResultValidator.assert_success(deploy_result)
         else:
             # Validation blocked deployment (also acceptable outcome)
-            assert validate_result.get('success') or validate_result.get('output', {}).get('validation_passed') is not None
+            assert (
+                validate_result.get("success")
+                or validate_result.get("output", {}).get("validation_passed") is not None
+            )
 
 
 class TestErrorHandlingAndRecovery:
@@ -499,20 +503,20 @@ class TestErrorHandlingAndRecovery:
         """
         from executors.build_executor import BuildExecutor
 
-        call_count = {'value': 0}
+        call_count = {"value": 0}
 
         async def transient_failure(artifact_id):
-            call_count['value'] += 1
-            if call_count['value'] < 2:
-                raise ConnectionError('Network timeout')
-            return 'pipeline-recovered'
+            call_count["value"] += 1
+            if call_count["value"] < 2:
+                raise ConnectionError("Network timeout")
+            return "pipeline-recovered"
 
         mock_client = AsyncMock()
         mock_client.trigger_pipeline = AsyncMock(side_effect=transient_failure)
         mock_client.wait_for_pipeline_completion = AsyncMock(
             return_value=create_pipeline_status(
-                pipeline_id='pipeline-recovered',
-                status='completed',
+                pipeline_id="pipeline-recovered",
+                status="completed",
             )
         )
 
@@ -528,12 +532,12 @@ class TestErrorHandlingAndRecovery:
             metrics=mock_metrics,
         )
 
-        ticket = ExecutorTestHelper.create_build_ticket(artifact_id='retry-test')
+        ticket = ExecutorTestHelper.create_build_ticket(artifact_id="retry-test")
         result = await executor.execute(ticket)
 
         # Should succeed after retry
         ResultValidator.assert_success(result)
-        assert call_count['value'] >= 2
+        assert call_count["value"] >= 2
 
     @pytest.mark.asyncio
     async def test_executor_graceful_degradation(
@@ -561,16 +565,16 @@ class TestErrorHandlingAndRecovery:
         )
 
         ticket = ExecutorTestHelper.create_validate_ticket(
-            validation_type='policy',
-            policy_path='policy/allow',
-            input_data={'test': 'data'},
+            validation_type="policy",
+            policy_path="policy/allow",
+            input_data={"test": "data"},
         )
 
         result = await validate_executor.execute(ticket)
 
         # Should still complete (either with simulation or graceful handling)
-        assert 'success' in result
-        assert 'output' in result
+        assert "success" in result
+        assert "output" in result
 
     @pytest.mark.asyncio
     async def test_pipeline_continues_on_non_critical_failure(
@@ -589,7 +593,7 @@ class TestErrorHandlingAndRecovery:
         from executors.deploy_executor import DeployExecutor
 
         # Build succeeds
-        mock_code_forge = create_mock_code_forge_client(status='completed')
+        mock_code_forge = create_mock_code_forge_client(status="completed")
         build_executor = BuildExecutor(
             config=worker_config,
             vault_client=mock_vault_client,
@@ -598,7 +602,7 @@ class TestErrorHandlingAndRecovery:
         )
 
         build_result = await build_executor.execute(
-            ExecutorTestHelper.create_build_ticket(artifact_id='resilient-app')
+            ExecutorTestHelper.create_build_ticket(artifact_id="resilient-app")
         )
         ResultValidator.assert_success(build_result)
 
@@ -611,13 +615,13 @@ class TestErrorHandlingAndRecovery:
 
         validate_result = await validate_executor.execute(
             ExecutorTestHelper.create_validate_ticket(
-                validation_type='sast',
-                working_dir='/tmp',
+                validation_type="sast",
+                working_dir="/tmp",
             )
         )
 
         # Record validation result but don't block
-        validation_warning = not validate_result.get('success', False)
+        validation_warning = not validate_result.get("success", False)
 
         # Deploy regardless of non-critical validation
         deploy_executor = DeployExecutor(
@@ -628,8 +632,8 @@ class TestErrorHandlingAndRecovery:
 
         deploy_result = await deploy_executor.execute(
             ExecutorTestHelper.create_deploy_ticket(
-                deployment_name='resilient-app',
-                namespace='staging',
+                deployment_name="resilient-app",
+                namespace="staging",
             )
         )
 
@@ -664,7 +668,7 @@ class TestMetricsCollectionAcrossFlows:
         mock_metrics.reset_mock()
 
         # Build
-        mock_code_forge = create_mock_code_forge_client(status='completed')
+        mock_code_forge = create_mock_code_forge_client(status="completed")
         build_executor = BuildExecutor(
             config=worker_config,
             vault_client=mock_vault_client,
@@ -699,9 +703,9 @@ class TestMetricsCollectionAcrossFlows:
         )
         await validate_executor.execute(
             ExecutorTestHelper.create_validate_ticket(
-                validation_type='policy',
-                policy_path='policy/allow',
-                input_data={'test': True},
+                validation_type="policy",
+                policy_path="policy/allow",
+                input_data={"test": True},
             )
         )
 
@@ -730,7 +734,7 @@ class TestMetricsCollectionAcrossFlows:
         """
         from executors.build_executor import BuildExecutor
 
-        mock_code_forge = create_mock_code_forge_client(status='completed')
+        mock_code_forge = create_mock_code_forge_client(status="completed")
         executor = BuildExecutor(
             config=worker_config,
             vault_client=mock_vault_client,
@@ -745,8 +749,8 @@ class TestMetricsCollectionAcrossFlows:
 
         # Check that duration metrics were recorded
         # The actual implementation should call observe() on duration histograms
-        metadata = result.get('metadata', {})
-        assert 'duration_seconds' in metadata or mock_metrics.build_duration_seconds.labels.called
+        metadata = result.get("metadata", {})
+        assert "duration_seconds" in metadata or mock_metrics.build_duration_seconds.labels.called
 
 
 class TestSimulationVsRealMode:
@@ -774,9 +778,7 @@ class TestSimulationVsRealMode:
             code_forge_client=None,
             metrics=mock_metrics,
         )
-        build_result = await build_executor.execute(
-            ExecutorTestHelper.create_build_ticket()
-        )
+        build_result = await build_executor.execute(ExecutorTestHelper.create_build_ticket())
         ResultValidator.assert_success(build_result)
         ResultValidator.assert_simulated(build_result, expected=True)
 
@@ -786,9 +788,7 @@ class TestSimulationVsRealMode:
             vault_client=mock_vault_client,
             metrics=mock_metrics,
         )
-        deploy_result = await deploy_executor.execute(
-            ExecutorTestHelper.create_deploy_ticket()
-        )
+        deploy_result = await deploy_executor.execute(ExecutorTestHelper.create_deploy_ticket())
         ResultValidator.assert_success(deploy_result)
         ResultValidator.assert_simulated(deploy_result, expected=True)
 
@@ -836,26 +836,26 @@ class TestSimulationVsRealMode:
         )
 
         ticket = ExecutorTestHelper.create_build_ticket(
-            artifact_id='sim-test-artifact',
-            branch='develop',
-            commit_sha='sim123abc',
+            artifact_id="sim-test-artifact",
+            branch="develop",
+            commit_sha="sim123abc",
         )
 
         result = await executor.execute(ticket)
 
         # Verify structure
-        assert 'success' in result
-        assert 'output' in result
-        assert 'metadata' in result
-        assert 'logs' in result
+        assert "success" in result
+        assert "output" in result
+        assert "metadata" in result
+        assert "logs" in result
 
         # Verify simulation-specific outputs
-        output = result['output']
-        assert 'build_id' in output or 'artifact_url' in output
+        output = result["output"]
+        assert "build_id" in output or "artifact_url" in output
 
-        metadata = result['metadata']
-        assert metadata.get('simulated') is True
-        assert 'executor' in metadata
+        metadata = result["metadata"]
+        assert metadata.get("simulated") is True
+        assert "executor" in metadata
 
 
 @pytest.mark.real_integration
@@ -879,9 +879,9 @@ class TestRealIntegrationFlows:
         from executors.build_executor import BuildExecutor
         from neural_hive_integration.clients.code_forge_client import CodeForgeClient
 
-        code_forge_url = os.getenv('CODE_FORGE_URL')
+        code_forge_url = os.getenv("CODE_FORGE_URL")
         if not code_forge_url:
-            pytest.skip('CODE_FORGE_URL not configured')
+            pytest.skip("CODE_FORGE_URL not configured")
 
         real_client = CodeForgeClient(base_url=code_forge_url, timeout=120)
 
@@ -894,15 +894,15 @@ class TestRealIntegrationFlows:
             )
 
             ticket = ExecutorTestHelper.create_build_ticket(
-                artifact_id='real-integration-test',
-                branch='main',
+                artifact_id="real-integration-test",
+                branch="main",
             )
 
             result = await executor.execute(ticket)
 
             # Should either succeed or fail gracefully
-            assert 'success' in result
-            assert 'output' in result
+            assert "success" in result
+            assert "output" in result
 
         finally:
             await real_client.close()
@@ -918,11 +918,11 @@ class TestRealIntegrationFlows:
         """Test deployment execution with real ArgoCD service."""
         from executors.deploy_executor import DeployExecutor
 
-        argocd_url = os.getenv('ARGOCD_URL')
-        argocd_token = os.getenv('ARGOCD_TOKEN')
+        argocd_url = os.getenv("ARGOCD_URL")
+        argocd_token = os.getenv("ARGOCD_TOKEN")
 
         if not argocd_url or not argocd_token:
-            pytest.skip('ArgoCD configuration not available')
+            pytest.skip("ArgoCD configuration not available")
 
         worker_config.argocd_enabled = True
         worker_config.argocd_url = argocd_url
@@ -935,16 +935,16 @@ class TestRealIntegrationFlows:
         )
 
         ticket = ExecutorTestHelper.create_deploy_ticket(
-            namespace='test-integration',
-            deployment_name='test-app',
-            image='nginx:latest',
+            namespace="test-integration",
+            deployment_name="test-app",
+            image="nginx:latest",
         )
 
         result = await executor.execute(ticket)
 
         # Should either succeed or fail gracefully
-        assert 'success' in result
-        assert 'output' in result
+        assert "success" in result
+        assert "output" in result
 
     @pytest.mark.asyncio
     @pytest.mark.opa
@@ -957,9 +957,9 @@ class TestRealIntegrationFlows:
         """Test policy validation with real OPA service."""
         from executors.validate_executor import ValidateExecutor
 
-        opa_url = os.getenv('OPA_URL')
+        opa_url = os.getenv("OPA_URL")
         if not opa_url:
-            pytest.skip('OPA_URL not configured')
+            pytest.skip("OPA_URL not configured")
 
         worker_config.opa_enabled = True
         worker_config.opa_url = opa_url
@@ -971,17 +971,17 @@ class TestRealIntegrationFlows:
         )
 
         ticket = ExecutorTestHelper.create_validate_ticket(
-            validation_type='policy',
-            policy_path='authz/allow',
+            validation_type="policy",
+            policy_path="authz/allow",
             input_data={
-                'user': 'test-user',
-                'action': 'read',
-                'resource': 'document',
+                "user": "test-user",
+                "action": "read",
+                "resource": "document",
             },
         )
 
         result = await executor.execute(ticket)
 
         # Should either succeed or fail gracefully
-        assert 'success' in result
-        assert 'output' in result
+        assert "success" in result
+        assert "output" in result

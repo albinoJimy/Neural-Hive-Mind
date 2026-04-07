@@ -61,7 +61,9 @@ class ObservabilityConfig:
     def __post_init__(self):
         """Pós-processamento da configuração."""
         # Validar service_name obrigatório
-        if not self.service_name or (isinstance(self.service_name, str) and not self.service_name.strip()):
+        if not self.service_name or (
+            isinstance(self.service_name, str) and not self.service_name.strip()
+        ):
             raise ValueError(
                 "service_name é obrigatório e não pode ser None ou vazio. "
                 "Certifique-se de passar um service_name válido para init_observability()."

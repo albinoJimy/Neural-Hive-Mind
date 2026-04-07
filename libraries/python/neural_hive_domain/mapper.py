@@ -13,21 +13,23 @@ from .domain import UnifiedDomain
 logger = structlog.get_logger(__name__)
 
 # Valid sources for domain normalization
-VALID_SOURCES = frozenset({'intent_envelope', 'scout_signal', 'risk_scoring', 'ontology'})
+VALID_SOURCES = frozenset({"intent_envelope", "scout_signal", "risk_scoring", "ontology"})
 
 # Valid pheromone layers
-VALID_LAYERS = frozenset({'strategic', 'exploration', 'consensus', 'specialist'})
+VALID_LAYERS = frozenset({"strategic", "exploration", "consensus", "specialist"})
 
 # Valid pheromone types
-VALID_PHEROMONE_TYPES = frozenset({
-    'SUCCESS',
-    'FAILURE',
-    'WARNING',
-    'ANOMALY_POSITIVE',
-    'ANOMALY_NEGATIVE',
-    'CONFIDENCE',
-    'RISK',
-})
+VALID_PHEROMONE_TYPES = frozenset(
+    {
+        "SUCCESS",
+        "FAILURE",
+        "WARNING",
+        "ANOMALY_POSITIVE",
+        "ANOMALY_NEGATIVE",
+        "CONFIDENCE",
+        "RISK",
+    }
+)
 
 
 class DomainMapper:
@@ -41,32 +43,32 @@ class DomainMapper:
 
     # Mapping from lowercase normalized domain strings to UnifiedDomain
     _domain_mappings: dict[str, UnifiedDomain] = {
-        'business': UnifiedDomain.BUSINESS,
-        'technical': UnifiedDomain.TECHNICAL,
-        'security': UnifiedDomain.SECURITY,
-        'infrastructure': UnifiedDomain.INFRASTRUCTURE,
-        'behavior': UnifiedDomain.BEHAVIOR,
-        'operational': UnifiedDomain.OPERATIONAL,
-        'compliance': UnifiedDomain.COMPLIANCE,
+        "business": UnifiedDomain.BUSINESS,
+        "technical": UnifiedDomain.TECHNICAL,
+        "security": UnifiedDomain.SECURITY,
+        "infrastructure": UnifiedDomain.INFRASTRUCTURE,
+        "behavior": UnifiedDomain.BEHAVIOR,
+        "operational": UnifiedDomain.OPERATIONAL,
+        "compliance": UnifiedDomain.COMPLIANCE,
         # WORKAROUND: 'general' aparece em algumas mensagens Avro devido a
         # inconsistência na deserialização. Mapeado para BUSINESS como fallback.
         # TODO: Investigar causa raiz do domínio 'general' na deserialização Avro
-        'general': UnifiedDomain.BUSINESS,
-        'unknown': UnifiedDomain.BUSINESS,
+        "general": UnifiedDomain.BUSINESS,
+        "unknown": UnifiedDomain.BUSINESS,
     }
 
     # Mapping from ontology domain names to UnifiedDomain
     _ontology_mappings: dict[str, UnifiedDomain] = {
-        'security-analysis': UnifiedDomain.SECURITY,
-        'architecture-review': UnifiedDomain.TECHNICAL,
-        'performance-optimization': UnifiedDomain.OPERATIONAL,
-        'code-quality': UnifiedDomain.TECHNICAL,
-        'code-review': UnifiedDomain.TECHNICAL,
-        'dependency-analysis': UnifiedDomain.SECURITY,
-        'infrastructure-review': UnifiedDomain.INFRASTRUCTURE,
-        'compliance-check': UnifiedDomain.COMPLIANCE,
-        'business-analysis': UnifiedDomain.BUSINESS,
-        'behavior-analysis': UnifiedDomain.BEHAVIOR,
+        "security-analysis": UnifiedDomain.SECURITY,
+        "architecture-review": UnifiedDomain.TECHNICAL,
+        "performance-optimization": UnifiedDomain.OPERATIONAL,
+        "code-quality": UnifiedDomain.TECHNICAL,
+        "code-review": UnifiedDomain.TECHNICAL,
+        "dependency-analysis": UnifiedDomain.SECURITY,
+        "infrastructure-review": UnifiedDomain.INFRASTRUCTURE,
+        "compliance-check": UnifiedDomain.COMPLIANCE,
+        "business-analysis": UnifiedDomain.BUSINESS,
+        "behavior-analysis": UnifiedDomain.BEHAVIOR,
     }
 
     @classmethod
@@ -91,29 +93,27 @@ class DomainMapper:
             ValueError: If the domain string is not recognized or source is invalid.
         """
         if source not in VALID_SOURCES:
-            raise ValueError(
-                f"Invalid source '{source}'. Must be one of: {sorted(VALID_SOURCES)}"
-            )
+            raise ValueError(f"Invalid source '{source}'. Must be one of: {sorted(VALID_SOURCES)}")
 
         # Handle ontology sources separately
-        if source == 'ontology':
+        if source == "ontology":
             return cls.from_ontology(domain)
 
         # Normalize to lowercase for matching
         normalized = domain.lower().strip()
 
         # Handle kebab-case by converting to underscore
-        normalized = normalized.replace('-', '_')
+        normalized = normalized.replace("-", "_")
 
         # Remove common suffixes that might be appended
-        normalized = normalized.replace('_domain', '')
+        normalized = normalized.replace("_domain", "")
 
         if normalized in cls._domain_mappings:
             return cls._domain_mappings[normalized]
 
         # Log warning for ambiguous mappings
         logger.warning(
-            'domain_normalization_fallback',
+            "domain_normalization_fallback",
             original_domain=domain,
             normalized=normalized,
             source=source,
@@ -157,14 +157,10 @@ class DomainMapper:
             ValueError: If domain is not a UnifiedDomain, or layer/type is invalid.
         """
         if not isinstance(domain, UnifiedDomain):
-            raise ValueError(
-                f"domain must be a UnifiedDomain enum, got {type(domain).__name__}"
-            )
+            raise ValueError(f"domain must be a UnifiedDomain enum, got {type(domain).__name__}")
 
         if layer not in VALID_LAYERS:
-            raise ValueError(
-                f"Invalid layer '{layer}'. Must be one of: {sorted(VALID_LAYERS)}"
-            )
+            raise ValueError(f"Invalid layer '{layer}'. Must be one of: {sorted(VALID_LAYERS)}")
 
         # Normaliza para uppercase para validação case-insensitive
         normalized_type = pheromone_type.upper()
@@ -176,12 +172,12 @@ class DomainMapper:
             )
 
         # Build the key parts (usa tipo normalizado para consistência)
-        key_parts = ['pheromone', layer, domain.value, normalized_type]
+        key_parts = ["pheromone", layer, domain.value, normalized_type]
 
         if id is not None:
             key_parts.append(id)
 
-        return ':'.join(key_parts)
+        return ":".join(key_parts)
 
     @classmethod
     def from_ontology(cls, ontology_domain: str) -> UnifiedDomain:
@@ -205,11 +201,11 @@ class DomainMapper:
             return cls._ontology_mappings[normalized]
 
         # Try direct mapping as fallback
-        simple_normalized = normalized.replace('-', '_').replace('_', '')
+        simple_normalized = normalized.replace("-", "_").replace("_", "")
         for key, value in cls._domain_mappings.items():
-            if key.replace('_', '') == simple_normalized:
+            if key.replace("_", "") == simple_normalized:
                 logger.warning(
-                    'ontology_domain_fallback_mapping',
+                    "ontology_domain_fallback_mapping",
                     original=ontology_domain,
                     mapped_to=value.value,
                 )

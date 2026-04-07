@@ -23,6 +23,7 @@ from src.adapters.base_adapter import ExecutionResult
 # Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def mock_settings():
     """Mock de configuracoes para testes de performance."""
@@ -50,19 +51,21 @@ def benchmark_tools():
     """Lista de 10 ferramentas para benchmark."""
     tools = []
     for i in range(10):
-        tools.append(ToolDescriptor(
-            tool_id=f"tool-{i:03d}",
-            tool_name=f"benchmark-tool-{i}",
-            category=ToolCategory.ANALYSIS,
-            version="1.0.0",
-            capabilities=["benchmark"],
-            reputation_score=0.8,
-            cost_score=0.1,
-            average_execution_time_ms=1000,
-            integration_type=IntegrationType.CLI,
-            authentication_method="NONE",
-            is_healthy=True
-        ))
+        tools.append(
+            ToolDescriptor(
+                tool_id=f"tool-{i:03d}",
+                tool_name=f"benchmark-tool-{i}",
+                category=ToolCategory.ANALYSIS,
+                version="1.0.0",
+                capabilities=["benchmark"],
+                reputation_score=0.8,
+                cost_score=0.1,
+                average_execution_time_ms=1000,
+                integration_type=IntegrationType.CLI,
+                authentication_method="NONE",
+                is_healthy=True,
+            )
+        )
     return tools
 
 
@@ -80,7 +83,7 @@ def cli_tool():
         average_execution_time_ms=100,
         integration_type=IntegrationType.CLI,
         authentication_method="NONE",
-        is_healthy=True
+        is_healthy=True,
     )
 
 
@@ -88,16 +91,14 @@ def cli_tool():
 def fast_execution_result():
     """ExecutionResult rapido para benchmark."""
     return ExecutionResult(
-        success=True,
-        output="Fast execution completed",
-        execution_time_ms=10.0,
-        exit_code=0
+        success=True, output="Fast execution completed", execution_time_ms=10.0, exit_code=0
     )
 
 
 # ============================================================================
 # Testes de Latencia
 # ============================================================================
+
 
 class TestLatency:
     """Testes de latencia de execucao."""
@@ -107,22 +108,14 @@ class TestLatency:
         self, tool_executor, cli_tool, fast_execution_result
     ):
         """Verifica latencia < 100ms para execucao individual (mock)."""
-        with patch.object(
-            tool_executor.cli_adapter,
-            "execute",
-            return_value=fast_execution_result
-        ):
+        with patch.object(tool_executor.cli_adapter, "execute", return_value=fast_execution_result):
             with patch.object(
-                tool_executor.cli_adapter,
-                "validate_tool_availability",
-                return_value=True
+                tool_executor.cli_adapter, "validate_tool_availability", return_value=True
             ):
                 start = time.perf_counter()
 
                 result = await tool_executor.execute_tool(
-                    tool=cli_tool,
-                    execution_params={},
-                    context={}
+                    tool=cli_tool, execution_params={}, context={}
                 )
 
                 elapsed_ms = (time.perf_counter() - start) * 1000
@@ -135,22 +128,14 @@ class TestLatency:
         self, tool_executor, benchmark_tools, fast_execution_result
     ):
         """Verifica latencia < 500ms para batch de 10 ferramentas."""
-        with patch.object(
-            tool_executor.cli_adapter,
-            "execute",
-            return_value=fast_execution_result
-        ):
+        with patch.object(tool_executor.cli_adapter, "execute", return_value=fast_execution_result):
             with patch.object(
-                tool_executor.cli_adapter,
-                "validate_tool_availability",
-                return_value=True
+                tool_executor.cli_adapter, "validate_tool_availability", return_value=True
             ):
                 start = time.perf_counter()
 
                 results = await tool_executor.execute_tools_batch(
-                    tools=benchmark_tools,
-                    execution_params={},
-                    context={}
+                    tools=benchmark_tools, execution_params={}, context={}
                 )
 
                 elapsed_ms = (time.perf_counter() - start) * 1000
@@ -164,31 +149,20 @@ class TestLatency:
         self, tool_executor, benchmark_tools
     ):
         """Verifica que execucao paralela e mais rapida que sequencial."""
+
         # Simular execucao com delay
         async def slow_execute(*args, **kwargs):
             await asyncio.sleep(0.05)  # 50ms por execucao
-            return ExecutionResult(
-                success=True,
-                output="Slow execution",
-                execution_time_ms=50.0
-            )
+            return ExecutionResult(success=True, output="Slow execution", execution_time_ms=50.0)
 
-        with patch.object(
-            tool_executor.cli_adapter,
-            "execute",
-            side_effect=slow_execute
-        ):
+        with patch.object(tool_executor.cli_adapter, "execute", side_effect=slow_execute):
             with patch.object(
-                tool_executor.cli_adapter,
-                "validate_tool_availability",
-                return_value=True
+                tool_executor.cli_adapter, "validate_tool_availability", return_value=True
             ):
                 start = time.perf_counter()
 
                 results = await tool_executor.execute_tools_batch(
-                    tools=benchmark_tools,
-                    execution_params={},
-                    context={}
+                    tools=benchmark_tools, execution_params={}, context={}
                 )
 
                 elapsed_ms = (time.perf_counter() - start) * 1000
@@ -207,6 +181,7 @@ class TestLatency:
 # Testes de Throughput
 # ============================================================================
 
+
 class TestThroughput:
     """Testes de throughput."""
 
@@ -215,24 +190,16 @@ class TestThroughput:
         self, tool_executor, cli_tool, fast_execution_result
     ):
         """Testa 50 execucoes concorrentes."""
-        with patch.object(
-            tool_executor.cli_adapter,
-            "execute",
-            return_value=fast_execution_result
-        ):
+        with patch.object(tool_executor.cli_adapter, "execute", return_value=fast_execution_result):
             with patch.object(
-                tool_executor.cli_adapter,
-                "validate_tool_availability",
-                return_value=True
+                tool_executor.cli_adapter, "validate_tool_availability", return_value=True
             ):
                 start = time.perf_counter()
 
                 # Criar 50 tasks concorrentes
                 tasks = [
                     tool_executor.execute_tool(
-                        tool=cli_tool,
-                        execution_params={"iteration": i},
-                        context={}
+                        tool=cli_tool, execution_params={"iteration": i}, context={}
                     )
                     for i in range(50)
                 ]
@@ -244,9 +211,9 @@ class TestThroughput:
 
                 assert len(results) == 50
                 assert all(r.success for r in results)
-                assert throughput > 100, (
-                    f"Throughput {throughput:.1f} exec/s abaixo do minimo 100 exec/s"
-                )
+                assert (
+                    throughput > 100
+                ), f"Throughput {throughput:.1f} exec/s abaixo do minimo 100 exec/s"
 
     @pytest.mark.asyncio
     async def test_batch_execution_parallelism(self, mock_settings):
@@ -272,11 +239,7 @@ class TestThroughput:
                 async with lock:
                     concurrent_count -= 1
 
-                return ExecutionResult(
-                    success=True,
-                    output="Success",
-                    execution_time_ms=100.0
-                )
+                return ExecutionResult(success=True, output="Success", execution_time_ms=100.0)
 
             tools = [
                 ToolDescriptor(
@@ -290,36 +253,25 @@ class TestThroughput:
                     average_execution_time_ms=100,
                     integration_type=IntegrationType.CLI,
                     authentication_method="NONE",
-                    is_healthy=True
+                    is_healthy=True,
                 )
                 for i in range(10)
             ]
 
-            with patch.object(
-                executor.cli_adapter,
-                "execute",
-                side_effect=counting_execute
-            ):
+            with patch.object(executor.cli_adapter, "execute", side_effect=counting_execute):
                 with patch.object(
-                    executor.cli_adapter,
-                    "validate_tool_availability",
-                    return_value=True
+                    executor.cli_adapter, "validate_tool_availability", return_value=True
                 ):
-                    await executor.execute_tools_batch(
-                        tools=tools,
-                        execution_params={},
-                        context={}
-                    )
+                    await executor.execute_tools_batch(tools=tools, execution_params={}, context={})
 
                     # Maximo concorrente deve respeitar o limite
-                    assert max_concurrent <= 5, (
-                        f"Max concurrent {max_concurrent} excede limite 5"
-                    )
+                    assert max_concurrent <= 5, f"Max concurrent {max_concurrent} excede limite 5"
 
 
 # ============================================================================
 # Testes de Carga
 # ============================================================================
+
 
 class TestLoad:
     """Testes de carga."""
@@ -331,23 +283,15 @@ class TestLoad:
         """Testa 100 requisicoes sequenciais sem degradacao."""
         latencies = []
 
-        with patch.object(
-            tool_executor.cli_adapter,
-            "execute",
-            return_value=fast_execution_result
-        ):
+        with patch.object(tool_executor.cli_adapter, "execute", return_value=fast_execution_result):
             with patch.object(
-                tool_executor.cli_adapter,
-                "validate_tool_availability",
-                return_value=True
+                tool_executor.cli_adapter, "validate_tool_availability", return_value=True
             ):
                 for i in range(100):
                     start = time.perf_counter()
 
                     result = await tool_executor.execute_tool(
-                        tool=cli_tool,
-                        execution_params={"iteration": i},
-                        context={}
+                        tool=cli_tool, execution_params={"iteration": i}, context={}
                     )
 
                     elapsed_ms = (time.perf_counter() - start) * 1000
@@ -374,24 +318,17 @@ class TestLoad:
 
         # Executar coleta de lixo antes do teste
         import gc
+
         gc.collect()
 
-        with patch.object(
-            tool_executor.cli_adapter,
-            "execute",
-            return_value=fast_execution_result
-        ):
+        with patch.object(tool_executor.cli_adapter, "execute", return_value=fast_execution_result):
             with patch.object(
-                tool_executor.cli_adapter,
-                "validate_tool_availability",
-                return_value=True
+                tool_executor.cli_adapter, "validate_tool_availability", return_value=True
             ):
                 # Executar 10 batches
                 for batch in range(10):
                     results = await tool_executor.execute_tools_batch(
-                        tools=benchmark_tools,
-                        execution_params={"batch": batch},
-                        context={}
+                        tools=benchmark_tools, execution_params={"batch": batch}, context={}
                     )
                     assert len(results) == 10
 
@@ -406,13 +343,12 @@ class TestLoad:
 # Testes de Timeout sob Carga
 # ============================================================================
 
+
 class TestTimeoutUnderLoad:
     """Testes de timeout sob carga."""
 
     @pytest.mark.asyncio
-    async def test_timeout_does_not_block_other_executions(
-        self, tool_executor, benchmark_tools
-    ):
+    async def test_timeout_does_not_block_other_executions(self, tool_executor, benchmark_tools):
         """Verifica que timeout de uma execucao nao bloqueia outras."""
         call_count = 0
 
@@ -424,21 +360,11 @@ class TestTimeoutUnderLoad:
             if call_count == 1:
                 await asyncio.sleep(5)  # Muito lento
 
-            return ExecutionResult(
-                success=True,
-                output="Success",
-                execution_time_ms=10.0
-            )
+            return ExecutionResult(success=True, output="Success", execution_time_ms=10.0)
 
-        with patch.object(
-            tool_executor.cli_adapter,
-            "execute",
-            side_effect=mixed_execute
-        ):
+        with patch.object(tool_executor.cli_adapter, "execute", side_effect=mixed_execute):
             with patch.object(
-                tool_executor.cli_adapter,
-                "validate_tool_availability",
-                return_value=True
+                tool_executor.cli_adapter, "validate_tool_availability", return_value=True
             ):
                 start = time.perf_counter()
 
@@ -448,9 +374,9 @@ class TestTimeoutUnderLoad:
                         tool_executor.execute_tools_batch(
                             tools=benchmark_tools[:3],  # Apenas 3 para teste rapido
                             execution_params={},
-                            context={}
+                            context={},
                         ),
-                        timeout=10.0
+                        timeout=10.0,
                     )
 
                     elapsed_ms = (time.perf_counter() - start) * 1000
@@ -467,42 +393,27 @@ class TestTimeoutUnderLoad:
 # Benchmarks (requerem pytest-benchmark)
 # ============================================================================
 
+
 class TestBenchmarks:
     """Benchmarks com pytest-benchmark (opcional)."""
 
     @pytest.mark.asyncio
-    async def test_single_execution_benchmark(
-        self, tool_executor, cli_tool, fast_execution_result
-    ):
+    async def test_single_execution_benchmark(self, tool_executor, cli_tool, fast_execution_result):
         """Benchmark de execucao individual."""
-        with patch.object(
-            tool_executor.cli_adapter,
-            "execute",
-            return_value=fast_execution_result
-        ):
+        with patch.object(tool_executor.cli_adapter, "execute", return_value=fast_execution_result):
             with patch.object(
-                tool_executor.cli_adapter,
-                "validate_tool_availability",
-                return_value=True
+                tool_executor.cli_adapter, "validate_tool_availability", return_value=True
             ):
                 # Warmup
                 for _ in range(10):
-                    await tool_executor.execute_tool(
-                        tool=cli_tool,
-                        execution_params={},
-                        context={}
-                    )
+                    await tool_executor.execute_tool(tool=cli_tool, execution_params={}, context={})
 
                 # Benchmark
                 iterations = 100
                 start = time.perf_counter()
 
                 for _ in range(iterations):
-                    await tool_executor.execute_tool(
-                        tool=cli_tool,
-                        execution_params={},
-                        context={}
-                    )
+                    await tool_executor.execute_tool(tool=cli_tool, execution_params={}, context={})
 
                 elapsed_ms = (time.perf_counter() - start) * 1000
                 avg_latency = elapsed_ms / iterations
@@ -520,22 +431,14 @@ class TestBenchmarks:
         self, tool_executor, benchmark_tools, fast_execution_result
     ):
         """Benchmark de execucao em batch."""
-        with patch.object(
-            tool_executor.cli_adapter,
-            "execute",
-            return_value=fast_execution_result
-        ):
+        with patch.object(tool_executor.cli_adapter, "execute", return_value=fast_execution_result):
             with patch.object(
-                tool_executor.cli_adapter,
-                "validate_tool_availability",
-                return_value=True
+                tool_executor.cli_adapter, "validate_tool_availability", return_value=True
             ):
                 # Warmup
                 for _ in range(5):
                     await tool_executor.execute_tools_batch(
-                        tools=benchmark_tools,
-                        execution_params={},
-                        context={}
+                        tools=benchmark_tools, execution_params={}, context={}
                     )
 
                 # Benchmark
@@ -544,9 +447,7 @@ class TestBenchmarks:
 
                 for _ in range(iterations):
                     await tool_executor.execute_tools_batch(
-                        tools=benchmark_tools,
-                        execution_params={},
-                        context={}
+                        tools=benchmark_tools, execution_params={}, context={}
                     )
 
                 elapsed_ms = (time.perf_counter() - start) * 1000

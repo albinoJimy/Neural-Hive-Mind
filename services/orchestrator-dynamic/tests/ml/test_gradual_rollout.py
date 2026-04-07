@@ -19,7 +19,7 @@ from src.ml.model_promotion import (
     PromotionRequest,
     PromotionConfig,
     PromotionStage,
-    PromotionResult
+    PromotionResult,
 )
 
 
@@ -53,23 +53,19 @@ class TestGradualRollout:
         """Model registry mock."""
         registry = AsyncMock()
         registry.load_model = AsyncMock(return_value=MagicMock())
-        registry.get_model_metadata = AsyncMock(return_value={'metrics': {'mae_percentage': 10.0}})
+        registry.get_model_metadata = AsyncMock(return_value={"metrics": {"mae_percentage": 10.0}})
         registry.promote_model = AsyncMock()
         registry.enrich_model_metadata = AsyncMock()
-        registry.rollback_model = AsyncMock(return_value={'success': True})
+        registry.rollback_model = AsyncMock(return_value={"success": True})
         return registry
 
     @pytest.fixture
     def mock_continuous_validator(self):
         """Continuous validator mock."""
         validator = MagicMock()
-        validator.get_current_metrics = MagicMock(return_value={
-            '24h': {
-                'mae': 500,
-                'mae_pct': 10.0,
-                'sample_count': 100
-            }
-        })
+        validator.get_current_metrics = MagicMock(
+            return_value={"24h": {"mae": 500, "mae_pct": 10.0, "sample_count": 100}}
+        )
         return validator
 
     @pytest.fixture
@@ -94,14 +90,21 @@ class TestGradualRollout:
         return metrics
 
     @pytest.fixture
-    def promotion_manager(self, mock_config, mock_model_registry, mock_continuous_validator, mock_mongodb, mock_metrics):
+    def promotion_manager(
+        self,
+        mock_config,
+        mock_model_registry,
+        mock_continuous_validator,
+        mock_mongodb,
+        mock_metrics,
+    ):
         """Cria ModelPromotionManager para testes."""
         manager = ModelPromotionManager(
             config=mock_config,
             model_registry=mock_model_registry,
             continuous_validator=mock_continuous_validator,
             mongodb_client=mock_mongodb,
-            metrics=mock_metrics
+            metrics=mock_metrics,
         )
         return manager
 
@@ -118,15 +121,14 @@ class TestGradualRollout:
                 rollout_stages=[0.25, 0.50, 1.0],
                 checkpoint_duration_minutes=0.001,  # 0.06 segundos
                 checkpoint_mae_threshold_pct=20.0,
-                auto_rollback_enabled=True
-            )
+                auto_rollback_enabled=True,
+            ),
         )
 
         # Mock métricas estáveis
-        promotion_manager._collect_current_metrics = AsyncMock(return_value={
-            'mae_pct': 10.0,
-            'sample_count': 100
-        })
+        promotion_manager._collect_current_metrics = AsyncMock(
+            return_value={"mae_pct": 10.0, "sample_count": 100}
+        )
 
         promotion_manager._execute_full_rollout = AsyncMock()
 
@@ -136,7 +138,7 @@ class TestGradualRollout:
         # Assert
         assert result is True
         assert promotion_manager._execute_full_rollout.called
-        assert 'rollout_baseline' in request.metrics
+        assert "rollout_baseline" in request.metrics
         mock_metrics.set_rollout_stage.assert_called()
         mock_metrics.set_rollout_traffic_pct.assert_called()
 
@@ -153,13 +155,13 @@ class TestGradualRollout:
                 rollout_stages=[0.25, 0.50, 1.0],
                 checkpoint_duration_minutes=0.001,
                 auto_rollback_enabled=True,
-                checkpoint_mae_threshold_pct=20.0
-            )
+                checkpoint_mae_threshold_pct=20.0,
+            ),
         )
 
         # Mock métricas: baseline OK, checkpoint degradado (50% increase > 20% threshold)
-        baseline_metrics = {'mae_pct': 10.0, 'sample_count': 100}
-        degraded_metrics = {'mae_pct': 15.0, 'sample_count': 100}  # 50% increase
+        baseline_metrics = {"mae_pct": 10.0, "sample_count": 100}
+        degraded_metrics = {"mae_pct": 15.0, "sample_count": 100}  # 50% increase
 
         promotion_manager._collect_current_metrics = AsyncMock(
             side_effect=[baseline_metrics, degraded_metrics]
@@ -184,18 +186,18 @@ class TestGradualRollout:
             request_id="test_promo_3",
             model_name="duration_predictor",
             source_version="v2.0",
-            config=PromotionConfig(checkpoint_mae_threshold_pct=20.0)
+            config=PromotionConfig(checkpoint_mae_threshold_pct=20.0),
         )
 
-        baseline_metrics = {'mae_pct': 10.0, 'sample_count': 100}
-        checkpoint_metrics = {'mae_pct': 13.0, 'sample_count': 100}  # 30% increase
+        baseline_metrics = {"mae_pct": 10.0, "sample_count": 100}
+        checkpoint_metrics = {"mae_pct": 13.0, "sample_count": 100}  # 30% increase
 
         # Act
         degradation = await promotion_manager._check_rollout_degradation(
             request=request,
             baseline_metrics=baseline_metrics,
             checkpoint_metrics=checkpoint_metrics,
-            stage_name="stage_1"
+            stage_name="stage_1",
         )
 
         # Assert
@@ -209,18 +211,18 @@ class TestGradualRollout:
             request_id="test_promo_4",
             model_name="duration_predictor",
             source_version="v2.0",
-            config=PromotionConfig(checkpoint_mae_threshold_pct=20.0)
+            config=PromotionConfig(checkpoint_mae_threshold_pct=20.0),
         )
 
-        baseline_metrics = {'mae_pct': 10.0, 'sample_count': 100}
-        checkpoint_metrics = {'mae_pct': 10.5, 'sample_count': 100}  # 5% increase
+        baseline_metrics = {"mae_pct": 10.0, "sample_count": 100}
+        checkpoint_metrics = {"mae_pct": 10.5, "sample_count": 100}  # 5% increase
 
         # Act
         degradation = await promotion_manager._check_rollout_degradation(
             request=request,
             baseline_metrics=baseline_metrics,
             checkpoint_metrics=checkpoint_metrics,
-            stage_name="stage_1"
+            stage_name="stage_1",
         )
 
         # Assert
@@ -235,20 +237,23 @@ class TestGradualRollout:
             model_name="duration_predictor",
             source_version="v2.0",
             config=PromotionConfig(
-                checkpoint_mae_threshold_pct=20.0,
-                checkpoint_error_rate_threshold=0.001  # 0.1%
-            )
+                checkpoint_mae_threshold_pct=20.0, checkpoint_error_rate_threshold=0.001  # 0.1%
+            ),
         )
 
-        baseline_metrics = {'mae_pct': 10.0, 'sample_count': 100}
-        checkpoint_metrics = {'mae_pct': 10.0, 'sample_count': 100, 'error_rate': 0.01}  # 1% error rate
+        baseline_metrics = {"mae_pct": 10.0, "sample_count": 100}
+        checkpoint_metrics = {
+            "mae_pct": 10.0,
+            "sample_count": 100,
+            "error_rate": 0.01,
+        }  # 1% error rate
 
         # Act
         degradation = await promotion_manager._check_rollout_degradation(
             request=request,
             baseline_metrics=baseline_metrics,
             checkpoint_metrics=checkpoint_metrics,
-            stage_name="stage_1"
+            stage_name="stage_1",
         )
 
         # Assert
@@ -262,18 +267,21 @@ class TestGradualRollout:
             request_id="test_promo_6",
             model_name="duration_predictor",
             source_version="v2.0",
-            config=PromotionConfig(checkpoint_mae_threshold_pct=20.0)
+            config=PromotionConfig(checkpoint_mae_threshold_pct=20.0),
         )
 
-        baseline_metrics = {'mae_pct': 10.0, 'sample_count': 100}
-        checkpoint_metrics = {'mae_pct': 50.0, 'sample_count': 5}  # Muita degradação mas poucas amostras
+        baseline_metrics = {"mae_pct": 10.0, "sample_count": 100}
+        checkpoint_metrics = {
+            "mae_pct": 50.0,
+            "sample_count": 5,
+        }  # Muita degradação mas poucas amostras
 
         # Act
         degradation = await promotion_manager._check_rollout_degradation(
             request=request,
             baseline_metrics=baseline_metrics,
             checkpoint_metrics=checkpoint_metrics,
-            stage_name="stage_1"
+            stage_name="stage_1",
         )
 
         # Assert
@@ -287,15 +295,12 @@ class TestGradualRollout:
             request_id="test_promo_7",
             model_name="duration_predictor",
             source_version="v2.0",
-            config=PromotionConfig(checkpoint_mae_threshold_pct=20.0)
+            config=PromotionConfig(checkpoint_mae_threshold_pct=20.0),
         )
 
         # Act
         degradation = await promotion_manager._check_rollout_degradation(
-            request=request,
-            baseline_metrics={},
-            checkpoint_metrics={},
-            stage_name="stage_1"
+            request=request, baseline_metrics={}, checkpoint_metrics={}, stage_name="stage_1"
         )
 
         # Assert
@@ -310,10 +315,8 @@ class TestGradualRollout:
             model_name="duration_predictor",
             source_version="v2.0",
             config=PromotionConfig(
-                gradual_rollout_enabled=False,
-                shadow_mode_enabled=False,
-                canary_enabled=False
-            )
+                gradual_rollout_enabled=False, shadow_mode_enabled=False, canary_enabled=False
+            ),
         )
 
         # Mock validation to pass
@@ -340,15 +343,14 @@ class TestGradualRollout:
                 gradual_rollout_enabled=True,
                 rollout_stages=[0.25, 0.50, 0.75, 1.0],
                 checkpoint_duration_minutes=0.001,
-                checkpoint_mae_threshold_pct=50.0  # Alto threshold para garantir sucesso
-            )
+                checkpoint_mae_threshold_pct=50.0,  # Alto threshold para garantir sucesso
+            ),
         )
 
         # Mock métricas estáveis
-        promotion_manager._collect_current_metrics = AsyncMock(return_value={
-            'mae_pct': 10.0,
-            'sample_count': 100
-        })
+        promotion_manager._collect_current_metrics = AsyncMock(
+            return_value={"mae_pct": 10.0, "sample_count": 100}
+        )
 
         promotion_manager._execute_full_rollout = AsyncMock()
 
@@ -377,14 +379,13 @@ class TestGradualRollout:
             config=PromotionConfig(
                 gradual_rollout_enabled=True,
                 rollout_stages=[0.50, 1.0],
-                checkpoint_duration_minutes=0.001
-            )
+                checkpoint_duration_minutes=0.001,
+            ),
         )
 
-        promotion_manager._collect_current_metrics = AsyncMock(return_value={
-            'mae_pct': 10.0,
-            'sample_count': 100
-        })
+        promotion_manager._collect_current_metrics = AsyncMock(
+            return_value={"mae_pct": 10.0, "sample_count": 100}
+        )
 
         promotion_manager._execute_full_rollout = AsyncMock()
 
@@ -409,13 +410,13 @@ class TestGradualRollout:
                 rollout_stages=[0.25, 0.50, 1.0],
                 checkpoint_duration_minutes=0.001,
                 auto_rollback_enabled=True,
-                checkpoint_mae_threshold_pct=10.0  # Baixo threshold
-            )
+                checkpoint_mae_threshold_pct=10.0,  # Baixo threshold
+            ),
         )
 
         # Mock métricas que causam rollback
-        baseline_metrics = {'mae_pct': 10.0, 'sample_count': 100}
-        degraded_metrics = {'mae_pct': 15.0, 'sample_count': 100}
+        baseline_metrics = {"mae_pct": 10.0, "sample_count": 100}
+        degraded_metrics = {"mae_pct": 15.0, "sample_count": 100}
 
         promotion_manager._collect_current_metrics = AsyncMock(
             side_effect=[baseline_metrics, degraded_metrics]
@@ -445,13 +446,17 @@ class TestGradualRollout:
                 checkpoint_duration_minutes=0.001,
                 auto_rollback_enabled=True,
                 checkpoint_mae_threshold_pct=50.0,  # Alto threshold MAE para não triggar
-                checkpoint_error_rate_threshold=0.001  # 0.1% threshold
-            )
+                checkpoint_error_rate_threshold=0.001,  # 0.1% threshold
+            ),
         )
 
         # Mock métricas: baseline OK, checkpoint com error_rate elevado
-        baseline_metrics = {'mae_pct': 10.0, 'sample_count': 100, 'error_rate': 0.0}
-        high_error_rate_metrics = {'mae_pct': 10.0, 'sample_count': 100, 'error_rate': 0.01}  # 1% > 0.1%
+        baseline_metrics = {"mae_pct": 10.0, "sample_count": 100, "error_rate": 0.0}
+        high_error_rate_metrics = {
+            "mae_pct": 10.0,
+            "sample_count": 100,
+            "error_rate": 0.01,
+        }  # 1% > 0.1%
 
         promotion_manager._collect_current_metrics = AsyncMock(
             side_effect=[baseline_metrics, high_error_rate_metrics]
@@ -469,35 +474,39 @@ class TestGradualRollout:
         mock_metrics.record_rollout_degradation.assert_called()
 
     @pytest.mark.asyncio
-    async def test_collect_current_metrics_returns_error_rate(self, mock_config, mock_model_registry, mock_mongodb, mock_metrics):
+    async def test_collect_current_metrics_returns_error_rate(
+        self, mock_config, mock_model_registry, mock_mongodb, mock_metrics
+    ):
         """Testa que _collect_current_metrics retorna error_rate do continuous_validator."""
         # Arrange - criar validator que retorna error_rate
         validator_with_error_rate = MagicMock()
-        validator_with_error_rate.get_current_metrics = MagicMock(return_value={
-            '24h': {
-                'mae': 500,
-                'mae_pct': 10.0,
-                'sample_count': 100,
-                'error_rate': 0.005  # 0.5% error rate
+        validator_with_error_rate.get_current_metrics = MagicMock(
+            return_value={
+                "24h": {
+                    "mae": 500,
+                    "mae_pct": 10.0,
+                    "sample_count": 100,
+                    "error_rate": 0.005,  # 0.5% error rate
+                }
             }
-        })
+        )
 
         manager = ModelPromotionManager(
             config=mock_config,
             model_registry=mock_model_registry,
             continuous_validator=validator_with_error_rate,
             mongodb_client=mock_mongodb,
-            metrics=mock_metrics
+            metrics=mock_metrics,
         )
 
         # Act
         metrics = await manager._collect_current_metrics("duration_predictor")
 
         # Assert
-        assert 'error_rate' in metrics
-        assert metrics['error_rate'] == 0.005
-        assert metrics['mae_pct'] == 10.0
-        assert metrics['sample_count'] == 100
+        assert "error_rate" in metrics
+        assert metrics["error_rate"] == 0.005
+        assert metrics["mae_pct"] == 10.0
+        assert metrics["sample_count"] == 100
 
 
 class TestPromotionConfigGradualRollout:
@@ -520,7 +529,7 @@ class TestPromotionConfigGradualRollout:
             rollout_stages=[0.10, 0.25, 0.50, 0.75, 1.0],
             checkpoint_duration_minutes=60,
             checkpoint_mae_threshold_pct=30.0,
-            checkpoint_error_rate_threshold=0.005
+            checkpoint_error_rate_threshold=0.005,
         )
 
         assert config.gradual_rollout_enabled is False

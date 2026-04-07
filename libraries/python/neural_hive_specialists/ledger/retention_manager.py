@@ -112,9 +112,7 @@ class RetentionManager:
     def mongo_client(self) -> MongoClient:
         """Lazy initialization do cliente MongoDB."""
         if self._mongo_client is None:
-            self._mongo_client = MongoClient(
-                self.mongodb_uri, serverSelectionTimeoutMS=5000
-            )
+            self._mongo_client = MongoClient(self.mongodb_uri, serverSelectionTimeoutMS=5000)
         return self._mongo_client
 
     @property
@@ -222,9 +220,7 @@ class RetentionManager:
             query: Dict[str, Any] = {"evaluated_at": {"$lt": cutoff_date}}
 
             if policy.apply_to_recommendations:
-                query["opinion.recommendation"] = {
-                    "$in": policy.apply_to_recommendations
-                }
+                query["opinion.recommendation"] = {"$in": policy.apply_to_recommendations}
 
             documents = self.collection.find(query)
 
@@ -258,9 +254,7 @@ class RetentionManager:
             logger.info("Policy applied", policy=policy.name, **stats)
 
         except PyMongoError as e:
-            logger.error(
-                "Failed to apply retention policy", policy=policy.name, error=str(e)
-            )
+            logger.error("Failed to apply retention policy", policy=policy.name, error=str(e))
             stats["errors"] += 1
 
         return stats
@@ -290,9 +284,7 @@ class RetentionManager:
                                 pii_metadata,
                             ) = self.pii_detector.anonymize_text(value)
                             if pii_metadata:
-                                self._set_nested_value(
-                                    document, field_path, anonymized_text
-                                )
+                                self._set_nested_value(document, field_path, anonymized_text)
                                 masked_fields.append(field_path)
                                 logger.debug(
                                     "PII detected and anonymized in field",
@@ -326,17 +318,13 @@ class RetentionManager:
                     if field in document and document[field]:
                         try:
                             # Se já foi mascarado, criptografar o valor mascarado
-                            encrypted_value = self.field_encryptor.encrypt_field(
-                                document[field]
-                            )
+                            encrypted_value = self.field_encryptor.encrypt_field(document[field])
                             document[field] = encrypted_value
                             if field not in masked_fields:
                                 masked_fields.append(f"{field}_encrypted")
                             logger.debug("Field encrypted", field=field)
                         except Exception as e:
-                            logger.warning(
-                                "Failed to encrypt field", field=field, error=str(e)
-                            )
+                            logger.warning("Failed to encrypt field", field=field, error=str(e))
 
             # Adicionar metadados de mascaramento
             document["masked_fields"] = masked_fields
@@ -352,8 +340,7 @@ class RetentionManager:
                 {
                     "$set": {
                         **{
-                            field: self._get_nested_value(document, field)
-                            or document.get(field)
+                            field: self._get_nested_value(document, field) or document.get(field)
                             for field in masked_fields
                             if field in document or "." in field
                         },
@@ -398,9 +385,7 @@ class RetentionManager:
         hash_value = hashlib.sha256(value.encode("utf-8")).hexdigest()
         return f"MASKED_{hash_value[:8]}"
 
-    def delete_by_correlation_id(
-        self, correlation_id: str, reason: str = "user_request"
-    ) -> int:
+    def delete_by_correlation_id(self, correlation_id: str, reason: str = "user_request") -> int:
         """
         Deleta todos os documentos de uma correlation_id (direito ao esquecimento).
 
@@ -473,9 +458,7 @@ class RetentionManager:
             return count
 
         except Exception as e:
-            logger.error(
-                "Failed to audit deletion", correlation_id=correlation_id, error=str(e)
-            )
+            logger.error("Failed to audit deletion", correlation_id=correlation_id, error=str(e))
             return 0
 
     def export_user_data(
@@ -528,9 +511,7 @@ class RetentionManager:
         """
         try:
             total_documents = self.collection.count_documents({})
-            masked_documents = self.collection.count_documents(
-                {"masked_fields": {"$exists": True}}
-            )
+            masked_documents = self.collection.count_documents({"masked_fields": {"$exists": True}})
 
             # Contar documentos por política
             policy_stats = {}
@@ -539,9 +520,7 @@ class RetentionManager:
                 query: Dict[str, Any] = {"evaluated_at": {"$lt": cutoff_date}}
 
                 if policy.apply_to_recommendations:
-                    query["opinion.recommendation"] = {
-                        "$in": policy.apply_to_recommendations
-                    }
+                    query["opinion.recommendation"] = {"$in": policy.apply_to_recommendations}
 
                 expired_count = self.collection.count_documents(query)
 

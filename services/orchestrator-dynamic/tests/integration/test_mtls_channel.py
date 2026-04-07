@@ -15,10 +15,12 @@ import grpc
 from grpc import aio
 import structlog
 
+
 # Mock das classes SPIFFE antes de importar o cliente
 @dataclass
 class JWTSVID:
     """Mock de JWT-SVID"""
+
     token: str
     spiffe_id: str
     expiry: datetime
@@ -27,6 +29,7 @@ class JWTSVID:
 @dataclass
 class X509SVID:
     """Mock de X.509-SVID"""
+
     certificate: str
     private_key: str
     spiffe_id: str
@@ -72,9 +75,9 @@ def mock_spiffe_manager():
     manager.fetch_x509_svid.return_value = X509SVID(
         certificate=TEST_CERT,
         private_key=TEST_PRIVATE_KEY,
-        spiffe_id='spiffe://neural-hive.local/ns/neural-hive-orchestration/sa/orchestrator-dynamic',
+        spiffe_id="spiffe://neural-hive.local/ns/neural-hive-orchestration/sa/orchestrator-dynamic",
         ca_bundle=TEST_CA_BUNDLE,
-        expires_at=datetime.now(timezone.utc) + timedelta(hours=24)
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=24),
     )
 
     return manager
@@ -86,12 +89,12 @@ def mock_settings():
     from src.config.settings import OrchestratorSettings
 
     settings = MagicMock(spec=OrchestratorSettings)
-    settings.service_registry_host = 'service-registry.test.local'
+    settings.service_registry_host = "service-registry.test.local"
     settings.service_registry_port = 50051
     settings.service_registry_timeout_seconds = 3
     settings.spiffe_enabled = True
     settings.spiffe_enable_x509 = True  # mTLS habilitado
-    settings.spiffe_jwt_audience = 'service-registry.neural-hive.local'
+    settings.spiffe_jwt_audience = "service-registry.neural-hive.local"
 
     return settings
 
@@ -103,11 +106,11 @@ async def test_x509_svid_fetch_and_secure_channel(mock_spiffe_manager, mock_sett
     """
     from src.clients.service_registry_client import ServiceRegistryClient
 
-    with patch('src.clients.service_registry_client.service_registry_pb2') as mock_pb2, \
-         patch('src.clients.service_registry_client.service_registry_pb2_grpc') as mock_grpc, \
-         patch('grpc.ssl_channel_credentials') as mock_ssl_creds, \
-         patch('grpc.aio.secure_channel') as mock_secure_channel:
-
+    with patch("src.clients.service_registry_client.service_registry_pb2") as mock_pb2, patch(
+        "src.clients.service_registry_client.service_registry_pb2_grpc"
+    ) as mock_grpc, patch("grpc.ssl_channel_credentials") as mock_ssl_creds, patch(
+        "grpc.aio.secure_channel"
+    ) as mock_secure_channel:
         # Setup mocks
         mock_pb2.DiscoverRequest = MagicMock(return_value=MagicMock())
         mock_stub = AsyncMock()
@@ -132,18 +135,21 @@ async def test_x509_svid_fetch_and_secure_channel(mock_spiffe_manager, mock_sett
         call_args = mock_ssl_creds.call_args
         kwargs = call_args.kwargs
 
-        assert kwargs['root_certificates'] == TEST_CA_BUNDLE.encode('utf-8')
-        assert kwargs['private_key'] == TEST_PRIVATE_KEY.encode('utf-8')
-        assert kwargs['certificate_chain'] == TEST_CERT.encode('utf-8')
+        assert kwargs["root_certificates"] == TEST_CA_BUNDLE.encode("utf-8")
+        assert kwargs["private_key"] == TEST_PRIVATE_KEY.encode("utf-8")
+        assert kwargs["certificate_chain"] == TEST_CERT.encode("utf-8")
 
         # Verificar que secure_channel foi chamado
         mock_secure_channel.assert_called_once_with(
-            'service-registry.test.local:50051',
-            mock_credentials
+            "service-registry.test.local:50051", mock_credentials
         )
 
         # Verificar log
-        assert any('mtls_channel_configured' in record.msg for record in caplog.records if hasattr(record, 'msg'))
+        assert any(
+            "mtls_channel_configured" in record.msg
+            for record in caplog.records
+            if hasattr(record, "msg")
+        )
 
 
 @pytest.mark.asyncio
@@ -153,11 +159,11 @@ async def test_mtls_handshake_success(mock_spiffe_manager, mock_settings):
     """
     from src.clients.service_registry_client import ServiceRegistryClient
 
-    with patch('src.clients.service_registry_client.service_registry_pb2') as mock_pb2, \
-         patch('src.clients.service_registry_client.service_registry_pb2_grpc') as mock_grpc, \
-         patch('grpc.ssl_channel_credentials') as mock_ssl_creds, \
-         patch('grpc.aio.secure_channel') as mock_secure_channel:
-
+    with patch("src.clients.service_registry_client.service_registry_pb2") as mock_pb2, patch(
+        "src.clients.service_registry_client.service_registry_pb2_grpc"
+    ) as mock_grpc, patch("grpc.ssl_channel_credentials") as mock_ssl_creds, patch(
+        "grpc.aio.secure_channel"
+    ) as mock_secure_channel:
         # Setup mocks
         mock_pb2.DiscoverRequest = MagicMock(return_value=MagicMock())
         mock_stub = AsyncMock()
@@ -165,17 +171,17 @@ async def test_mtls_handshake_success(mock_spiffe_manager, mock_settings):
         # Mock de resposta bem-sucedida
         mock_response = MagicMock()
         mock_agent = MagicMock()
-        mock_agent.agent_id = 'worker-1'
+        mock_agent.agent_id = "worker-1"
         mock_agent.agent_type = 1  # WORKER
-        mock_agent.capabilities = ['code_generation']
-        mock_agent.namespace = 'production'
-        mock_agent.cluster = 'us-east-1'
-        mock_agent.version = '1.0.0'
-        mock_agent.schema_version = 'v1'
+        mock_agent.capabilities = ["code_generation"]
+        mock_agent.namespace = "production"
+        mock_agent.cluster = "us-east-1"
+        mock_agent.version = "1.0.0"
+        mock_agent.schema_version = "v1"
         mock_agent.metadata = {}
         mock_agent.status = 1  # HEALTHY
-        mock_agent.registered_at = '2024-01-01T00:00:00Z'
-        mock_agent.last_seen = '2024-01-01T12:00:00Z'
+        mock_agent.registered_at = "2024-01-01T00:00:00Z"
+        mock_agent.last_seen = "2024-01-01T12:00:00Z"
         mock_agent.telemetry = None
 
         mock_response.agents = [mock_agent]
@@ -195,15 +201,13 @@ async def test_mtls_handshake_success(mock_spiffe_manager, mock_settings):
 
         # Chamar discover_agents
         agents = await client.discover_agents(
-            capabilities=['code_generation'],
-            filters={},
-            max_results=5
+            capabilities=["code_generation"], filters={}, max_results=5
         )
 
         # Verificar resposta
         assert len(agents) == 1
-        assert agents[0]['agent_id'] == 'worker-1'
-        assert agents[0]['capabilities'] == ['code_generation']
+        assert agents[0]["agent_id"] == "worker-1"
+        assert agents[0]["capabilities"] == ["code_generation"]
 
 
 @pytest.mark.asyncio
@@ -217,16 +221,16 @@ async def test_mtls_handshake_failure_invalid_cert(mock_spiffe_manager, mock_set
     mock_spiffe_manager.fetch_x509_svid.return_value = X509SVID(
         certificate=TEST_CERT,
         private_key=TEST_PRIVATE_KEY,
-        spiffe_id='spiffe://neural-hive.local/ns/neural-hive-orchestration/sa/orchestrator-dynamic',
-        ca_bundle='-----BEGIN CERTIFICATE-----\nINVALID_CA\n-----END CERTIFICATE-----',
-        expires_at=datetime.now(timezone.utc) + timedelta(hours=24)
+        spiffe_id="spiffe://neural-hive.local/ns/neural-hive-orchestration/sa/orchestrator-dynamic",
+        ca_bundle="-----BEGIN CERTIFICATE-----\nINVALID_CA\n-----END CERTIFICATE-----",
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=24),
     )
 
-    with patch('src.clients.service_registry_client.service_registry_pb2') as mock_pb2, \
-         patch('src.clients.service_registry_client.service_registry_pb2_grpc') as mock_grpc, \
-         patch('grpc.ssl_channel_credentials') as mock_ssl_creds, \
-         patch('grpc.aio.secure_channel') as mock_secure_channel:
-
+    with patch("src.clients.service_registry_client.service_registry_pb2") as mock_pb2, patch(
+        "src.clients.service_registry_client.service_registry_pb2_grpc"
+    ) as mock_grpc, patch("grpc.ssl_channel_credentials") as mock_ssl_creds, patch(
+        "grpc.aio.secure_channel"
+    ) as mock_secure_channel:
         # Setup mocks
         mock_pb2.DiscoverRequest = MagicMock(return_value=MagicMock())
         mock_stub = AsyncMock()
@@ -234,9 +238,9 @@ async def test_mtls_handshake_failure_invalid_cert(mock_spiffe_manager, mock_set
         # Simular erro SSL no handshake
         ssl_error = grpc.RpcError()
         ssl_error._code = grpc.StatusCode.UNAVAILABLE
-        ssl_error._details = 'SSL handshake failed: certificate verification failed'
+        ssl_error._details = "SSL handshake failed: certificate verification failed"
         ssl_error.code = lambda: grpc.StatusCode.UNAVAILABLE
-        ssl_error.details = lambda: 'SSL handshake failed: certificate verification failed'
+        ssl_error.details = lambda: "SSL handshake failed: certificate verification failed"
 
         mock_stub.DiscoverAgents.side_effect = ssl_error
         mock_grpc.ServiceRegistryStub.return_value = mock_stub
@@ -255,14 +259,12 @@ async def test_mtls_handshake_failure_invalid_cert(mock_spiffe_manager, mock_set
         # Esperar RpcError em chamada gRPC
         with pytest.raises(grpc.RpcError) as exc_info:
             await client.discover_agents(
-                capabilities=['code_generation'],
-                filters={},
-                max_results=5
+                capabilities=["code_generation"], filters={}, max_results=5
             )
 
         # Verificar erro SSL
         assert exc_info.value.code() == grpc.StatusCode.UNAVAILABLE
-        assert 'SSL' in exc_info.value.details() or 'certificate' in exc_info.value.details()
+        assert "SSL" in exc_info.value.details() or "certificate" in exc_info.value.details()
 
 
 @pytest.mark.asyncio
@@ -276,28 +278,28 @@ async def test_x509_svid_refresh_on_expiry(mock_spiffe_manager, mock_settings):
     initial_svid = X509SVID(
         certificate=TEST_CERT,
         private_key=TEST_PRIVATE_KEY,
-        spiffe_id='spiffe://neural-hive.local/ns/neural-hive-orchestration/sa/orchestrator-dynamic',
+        spiffe_id="spiffe://neural-hive.local/ns/neural-hive-orchestration/sa/orchestrator-dynamic",
         ca_bundle=TEST_CA_BUNDLE,
-        expires_at=datetime.now(timezone.utc) + timedelta(seconds=300)
+        expires_at=datetime.now(timezone.utc) + timedelta(seconds=300),
     )
 
     # SVID renovado
     renewed_svid = X509SVID(
-        certificate=TEST_CERT + '\n# renewed',
+        certificate=TEST_CERT + "\n# renewed",
         private_key=TEST_PRIVATE_KEY,
-        spiffe_id='spiffe://neural-hive.local/ns/neural-hive-orchestration/sa/orchestrator-dynamic',
+        spiffe_id="spiffe://neural-hive.local/ns/neural-hive-orchestration/sa/orchestrator-dynamic",
         ca_bundle=TEST_CA_BUNDLE,
-        expires_at=datetime.now(timezone.utc) + timedelta(seconds=540)  # Novo TTL após renovação
+        expires_at=datetime.now(timezone.utc) + timedelta(seconds=540),  # Novo TTL após renovação
     )
 
     # Configurar mock para retornar SVIDs diferentes em chamadas subsequentes
     mock_spiffe_manager.fetch_x509_svid.side_effect = [initial_svid, renewed_svid]
 
-    with patch('src.clients.service_registry_client.service_registry_pb2') as mock_pb2, \
-         patch('src.clients.service_registry_client.service_registry_pb2_grpc') as mock_grpc, \
-         patch('grpc.ssl_channel_credentials') as mock_ssl_creds, \
-         patch('grpc.aio.secure_channel') as mock_secure_channel:
-
+    with patch("src.clients.service_registry_client.service_registry_pb2") as mock_pb2, patch(
+        "src.clients.service_registry_client.service_registry_pb2_grpc"
+    ) as mock_grpc, patch("grpc.ssl_channel_credentials") as mock_ssl_creds, patch(
+        "grpc.aio.secure_channel"
+    ) as mock_secure_channel:
         # Setup mocks
         mock_pb2.DiscoverRequest = MagicMock(return_value=MagicMock())
         mock_stub = AsyncMock()
@@ -346,11 +348,11 @@ async def test_fallback_insecure_when_x509_disabled(mock_spiffe_manager, mock_se
     # Desabilitar X.509 (apenas JWT)
     mock_settings.spiffe_enable_x509 = False
 
-    with patch('src.clients.service_registry_client.service_registry_pb2') as mock_pb2, \
-         patch('src.clients.service_registry_client.service_registry_pb2_grpc') as mock_grpc, \
-         patch('grpc.aio.insecure_channel') as mock_insecure_channel, \
-         patch('grpc.aio.secure_channel') as mock_secure_channel:
-
+    with patch("src.clients.service_registry_client.service_registry_pb2") as mock_pb2, patch(
+        "src.clients.service_registry_client.service_registry_pb2_grpc"
+    ) as mock_grpc, patch("grpc.aio.insecure_channel") as mock_insecure_channel, patch(
+        "grpc.aio.secure_channel"
+    ) as mock_secure_channel:
         # Setup mocks
         mock_pb2.DiscoverRequest = MagicMock(return_value=MagicMock())
         mock_stub = AsyncMock()
@@ -365,7 +367,7 @@ async def test_fallback_insecure_when_x509_disabled(mock_spiffe_manager, mock_se
         await client.initialize()
 
         # Verificar que insecure_channel foi usado
-        mock_insecure_channel.assert_called_once_with('service-registry.test.local:50051')
+        mock_insecure_channel.assert_called_once_with("service-registry.test.local:50051")
 
         # Verificar que secure_channel NÃO foi chamado
         mock_secure_channel.assert_not_called()
@@ -383,28 +385,28 @@ async def test_channel_recreation_on_cert_renewal(mock_spiffe_manager, mock_sett
 
     # SVIDs com certificados diferentes
     svid_v1 = X509SVID(
-        certificate=TEST_CERT + '\n# version 1',
+        certificate=TEST_CERT + "\n# version 1",
         private_key=TEST_PRIVATE_KEY,
-        spiffe_id='spiffe://neural-hive.local/ns/neural-hive-orchestration/sa/orchestrator-dynamic',
+        spiffe_id="spiffe://neural-hive.local/ns/neural-hive-orchestration/sa/orchestrator-dynamic",
         ca_bundle=TEST_CA_BUNDLE,
-        expires_at=datetime.now(timezone.utc) + timedelta(hours=24)
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=24),
     )
 
     svid_v2 = X509SVID(
-        certificate=TEST_CERT + '\n# version 2',
+        certificate=TEST_CERT + "\n# version 2",
         private_key=TEST_PRIVATE_KEY,
-        spiffe_id='spiffe://neural-hive.local/ns/neural-hive-orchestration/sa/orchestrator-dynamic',
+        spiffe_id="spiffe://neural-hive.local/ns/neural-hive-orchestration/sa/orchestrator-dynamic",
         ca_bundle=TEST_CA_BUNDLE,
-        expires_at=datetime.now(timezone.utc) + timedelta(hours=48)
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=48),
     )
 
     mock_spiffe_manager.fetch_x509_svid.side_effect = [svid_v1, svid_v2]
 
-    with patch('src.clients.service_registry_client.service_registry_pb2') as mock_pb2, \
-         patch('src.clients.service_registry_client.service_registry_pb2_grpc') as mock_grpc, \
-         patch('grpc.ssl_channel_credentials') as mock_ssl_creds, \
-         patch('grpc.aio.secure_channel') as mock_secure_channel:
-
+    with patch("src.clients.service_registry_client.service_registry_pb2") as mock_pb2, patch(
+        "src.clients.service_registry_client.service_registry_pb2_grpc"
+    ) as mock_grpc, patch("grpc.ssl_channel_credentials") as mock_ssl_creds, patch(
+        "grpc.aio.secure_channel"
+    ) as mock_secure_channel:
         # Setup mocks
         mock_pb2.DiscoverRequest = MagicMock(return_value=MagicMock())
         mock_stub = AsyncMock()
@@ -437,8 +439,8 @@ async def test_channel_recreation_on_cert_renewal(mock_spiffe_manager, mock_sett
         second_call_creds = mock_ssl_creds.call_args_list[1]
 
         # Certificados devem ser diferentes (v1 vs v2)
-        first_cert = first_call_creds.kwargs['certificate_chain']
-        second_cert = second_call_creds.kwargs['certificate_chain']
+        first_cert = first_call_creds.kwargs["certificate_chain"]
+        second_cert = second_call_creds.kwargs["certificate_chain"]
 
         assert first_cert != second_cert, "Certificados devem ser diferentes após renovação"
 
@@ -452,16 +454,16 @@ async def test_mtls_with_jwt_combined(mock_spiffe_manager, mock_settings):
 
     # Configurar JWT-SVID
     mock_spiffe_manager.fetch_jwt_svid.return_value = JWTSVID(
-        token='valid.jwt.token',
-        spiffe_id='spiffe://neural-hive.local/ns/neural-hive-orchestration/sa/orchestrator-dynamic',
-        expiry=datetime.now(timezone.utc) + timedelta(hours=1)
+        token="valid.jwt.token",
+        spiffe_id="spiffe://neural-hive.local/ns/neural-hive-orchestration/sa/orchestrator-dynamic",
+        expiry=datetime.now(timezone.utc) + timedelta(hours=1),
     )
 
-    with patch('src.clients.service_registry_client.service_registry_pb2') as mock_pb2, \
-         patch('src.clients.service_registry_client.service_registry_pb2_grpc') as mock_grpc, \
-         patch('grpc.ssl_channel_credentials') as mock_ssl_creds, \
-         patch('grpc.aio.secure_channel') as mock_secure_channel:
-
+    with patch("src.clients.service_registry_client.service_registry_pb2") as mock_pb2, patch(
+        "src.clients.service_registry_client.service_registry_pb2_grpc"
+    ) as mock_grpc, patch("grpc.ssl_channel_credentials") as mock_ssl_creds, patch(
+        "grpc.aio.secure_channel"
+    ) as mock_secure_channel:
         # Setup mocks
         mock_pb2.DiscoverRequest = MagicMock(return_value=MagicMock())
         mock_stub = AsyncMock()
@@ -482,11 +484,7 @@ async def test_mtls_with_jwt_combined(mock_spiffe_manager, mock_settings):
         await client.initialize()
 
         # Chamar discover_agents
-        await client.discover_agents(
-            capabilities=['code_generation'],
-            filters={},
-            max_results=5
-        )
+        await client.discover_agents(capabilities=["code_generation"], filters={}, max_results=5)
 
         # Verificar que AMBOS foram usados:
         # 1. secure_channel (mTLS)
@@ -494,17 +492,17 @@ async def test_mtls_with_jwt_combined(mock_spiffe_manager, mock_settings):
 
         # 2. JWT metadata
         call_args = mock_stub.DiscoverAgents.call_args
-        metadata = call_args.kwargs.get('metadata')
+        metadata = call_args.kwargs.get("metadata")
 
         assert metadata is not None
         auth_header = None
         for key, value in metadata:
-            if key == 'authorization':
+            if key == "authorization":
                 auth_header = value
                 break
 
         assert auth_header is not None, "JWT deve estar presente em metadata"
-        assert auth_header.startswith('Bearer ')
+        assert auth_header.startswith("Bearer ")
 
 
 @pytest.mark.asyncio
@@ -518,16 +516,16 @@ async def test_x509_svid_expiry_logging(mock_spiffe_manager, mock_settings, capl
     mock_spiffe_manager.fetch_x509_svid.return_value = X509SVID(
         certificate=TEST_CERT,
         private_key=TEST_PRIVATE_KEY,
-        spiffe_id='spiffe://neural-hive.local/ns/neural-hive-orchestration/sa/orchestrator-dynamic',
+        spiffe_id="spiffe://neural-hive.local/ns/neural-hive-orchestration/sa/orchestrator-dynamic",
         ca_bundle=TEST_CA_BUNDLE,
-        expires_at=expires_at
+        expires_at=expires_at,
     )
 
-    with patch('src.clients.service_registry_client.service_registry_pb2') as mock_pb2, \
-         patch('src.clients.service_registry_client.service_registry_pb2_grpc') as mock_grpc, \
-         patch('grpc.ssl_channel_credentials') as mock_ssl_creds, \
-         patch('grpc.aio.secure_channel') as mock_secure_channel:
-
+    with patch("src.clients.service_registry_client.service_registry_pb2") as mock_pb2, patch(
+        "src.clients.service_registry_client.service_registry_pb2_grpc"
+    ) as mock_grpc, patch("grpc.ssl_channel_credentials") as mock_ssl_creds, patch(
+        "grpc.aio.secure_channel"
+    ) as mock_secure_channel:
         # Setup mocks
         mock_pb2.DiscoverRequest = MagicMock(return_value=MagicMock())
         mock_stub = AsyncMock()
@@ -547,7 +545,7 @@ async def test_x509_svid_expiry_logging(mock_spiffe_manager, mock_settings, capl
         # Verificar que log contém informações de expiração
         log_found = False
         for record in caplog.records:
-            if hasattr(record, 'msg') and 'mtls_channel_configured' in record.msg:
+            if hasattr(record, "msg") and "mtls_channel_configured" in record.msg:
                 log_found = True
                 # Verificar que expires_at está presente nos campos do log
                 break

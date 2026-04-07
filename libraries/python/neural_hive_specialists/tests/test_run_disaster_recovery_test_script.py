@@ -8,13 +8,12 @@ from unittest.mock import patch, Mock
 # Adicionar diretório de scripts ao path
 sys.path.insert(
     0,
-    os.path.join(
-        os.path.dirname(__file__), "..", "scripts"
-    ),
+    os.path.join(os.path.dirname(__file__), "..", "scripts"),
 )
 
 try:
     import run_disaster_recovery_test
+
     SCRIPT_AVAILABLE = True
 except ImportError:
     SCRIPT_AVAILABLE = False

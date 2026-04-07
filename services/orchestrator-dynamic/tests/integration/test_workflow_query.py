@@ -11,7 +11,7 @@ from httpx import AsyncClient
 @pytest.fixture
 def mock_app_state():
     """Mock do app_state para testes."""
-    with patch('src.main.app_state') as mock_state:
+    with patch("src.main.app_state") as mock_state:
         yield mock_state
 
 
@@ -19,6 +19,7 @@ def mock_app_state():
 def client():
     """Cliente de teste FastAPI."""
     from src.main import app
+
     return TestClient(app)
 
 
@@ -32,22 +33,24 @@ class TestWorkflowQueryEndpoint:
 
         # Mock Temporal client
         mock_handle = AsyncMock()
-        mock_handle.query = AsyncMock(return_value=[
-            {
-                "ticket_id": "ticket-001",
-                "plan_id": "plan-456",
-                "task_id": "task-1",
-                "task_type": "BUILD",
-                "status": "PENDING",
-            },
-            {
-                "ticket_id": "ticket-002",
-                "plan_id": "plan-456",
-                "task_id": "task-2",
-                "task_type": "DEPLOY",
-                "status": "PENDING",
-            },
-        ])
+        mock_handle.query = AsyncMock(
+            return_value=[
+                {
+                    "ticket_id": "ticket-001",
+                    "plan_id": "plan-456",
+                    "task_id": "task-1",
+                    "task_type": "BUILD",
+                    "status": "PENDING",
+                },
+                {
+                    "ticket_id": "ticket-002",
+                    "plan_id": "plan-456",
+                    "task_id": "task-2",
+                    "task_type": "DEPLOY",
+                    "status": "PENDING",
+                },
+            ]
+        )
 
         mock_temporal = MagicMock()
         mock_temporal.get_workflow_handle = MagicMock(return_value=mock_handle)
@@ -56,8 +59,7 @@ class TestWorkflowQueryEndpoint:
 
         async with AsyncClient(app=app, base_url="http://test") as ac:
             response = await ac.post(
-                "/api/v1/workflows/workflow-123/query",
-                json={"query_name": "get_tickets"}
+                "/api/v1/workflows/workflow-123/query", json={"query_name": "get_tickets"}
             )
 
         assert response.status_code == 200
@@ -73,12 +75,14 @@ class TestWorkflowQueryEndpoint:
         from src.main import app
 
         mock_handle = AsyncMock()
-        mock_handle.query = AsyncMock(return_value={
-            "status": "generating_tickets",
-            "tickets_generated": 5,
-            "workflow_result": {},
-            "sla_warnings": [],
-        })
+        mock_handle.query = AsyncMock(
+            return_value={
+                "status": "generating_tickets",
+                "tickets_generated": 5,
+                "workflow_result": {},
+                "sla_warnings": [],
+            }
+        )
 
         mock_temporal = MagicMock()
         mock_temporal.get_workflow_handle = MagicMock(return_value=mock_handle)
@@ -86,8 +90,7 @@ class TestWorkflowQueryEndpoint:
 
         async with AsyncClient(app=app, base_url="http://test") as ac:
             response = await ac.post(
-                "/api/v1/workflows/workflow-123/query",
-                json={"query_name": "get_status"}
+                "/api/v1/workflows/workflow-123/query", json={"query_name": "get_status"}
             )
 
         assert response.status_code == 200
@@ -104,8 +107,7 @@ class TestWorkflowQueryEndpoint:
 
         async with AsyncClient(app=app, base_url="http://test") as ac:
             response = await ac.post(
-                "/api/v1/workflows/workflow-123/query",
-                json={"query_name": "get_tickets"}
+                "/api/v1/workflows/workflow-123/query", json={"query_name": "get_tickets"}
             )
 
         assert response.status_code == 503
@@ -125,8 +127,7 @@ class TestWorkflowQueryEndpoint:
 
         async with AsyncClient(app=app, base_url="http://test") as ac:
             response = await ac.post(
-                "/api/v1/workflows/nonexistent-workflow/query",
-                json={"query_name": "get_tickets"}
+                "/api/v1/workflows/nonexistent-workflow/query", json={"query_name": "get_tickets"}
             )
 
         assert response.status_code == 404
@@ -146,8 +147,7 @@ class TestWorkflowQueryEndpoint:
 
         async with AsyncClient(app=app, base_url="http://test") as ac:
             response = await ac.post(
-                "/api/v1/workflows/workflow-123/query",
-                json={"query_name": "invalid_query"}
+                "/api/v1/workflows/workflow-123/query", json={"query_name": "invalid_query"}
             )
 
         assert response.status_code == 500
@@ -158,19 +158,16 @@ class TestWorkflowQueryEndpoint:
         """Testa cache hit para queries de tickets."""
         from src.main import app
 
-        cached_tickets = [
-            {"ticket_id": "cached-ticket-001", "status": "PENDING"}
-        ]
+        cached_tickets = [{"ticket_id": "cached-ticket-001", "status": "PENDING"}]
 
         mock_app_state.temporal_client = MagicMock()
 
-        with patch('src.main.get_cached_tickets_by_workflow', new_callable=AsyncMock) as mock_cache:
+        with patch("src.main.get_cached_tickets_by_workflow", new_callable=AsyncMock) as mock_cache:
             mock_cache.return_value = cached_tickets
 
             async with AsyncClient(app=app, base_url="http://test") as ac:
                 response = await ac.post(
-                    "/api/v1/workflows/workflow-123/query",
-                    json={"query_name": "get_tickets"}
+                    "/api/v1/workflows/workflow-123/query", json={"query_name": "get_tickets"}
                 )
 
         assert response.status_code == 200
@@ -191,10 +188,7 @@ class TestWorkflowQueryValidation:
         mock_app_state.temporal_client = MagicMock()
 
         async with AsyncClient(app=app, base_url="http://test") as ac:
-            response = await ac.post(
-                "/api/v1/workflows/workflow-123/query",
-                json={}
-            )
+            response = await ac.post("/api/v1/workflows/workflow-123/query", json={})
 
         assert response.status_code == 422  # Validation error
 
@@ -213,10 +207,7 @@ class TestWorkflowQueryValidation:
         async with AsyncClient(app=app, base_url="http://test") as ac:
             response = await ac.post(
                 "/api/v1/workflows/workflow-123/query",
-                json={
-                    "query_name": "custom_query",
-                    "args": ["arg1", "arg2"]
-                }
+                json={"query_name": "custom_query", "args": ["arg1", "arg2"]},
             )
 
         assert response.status_code == 200

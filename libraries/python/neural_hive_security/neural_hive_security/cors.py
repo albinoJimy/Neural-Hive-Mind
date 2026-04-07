@@ -53,9 +53,7 @@ class CORSConfig:
 
     @classmethod
     def get_origins_for_environment(
-        cls,
-        environment: str,
-        is_public_api: bool = False
+        cls, environment: str, is_public_api: bool = False
     ) -> List[str]:
         """
         Retorna origens CORS permitidas para o ambiente.
@@ -88,7 +86,9 @@ class CORSConfig:
             return cls.DEV_ORIGINS
         elif env in ("staging", "stage") or env.startswith("staging") or env.startswith("stage"):
             return cls.STAGING_ORIGINS
-        elif env in ("prod", "production") or env.startswith("prod") or env.startswith("production"):
+        elif (
+            env in ("prod", "production") or env.startswith("prod") or env.startswith("production")
+        ):
             return cls.PROD_ORIGINS
         else:
             # Default para dev em caso de ambiente desconhecido
@@ -155,15 +155,11 @@ class CORSConfig:
                 f"Environment: {environment}. "
                 f"This allows any origin to access your API. Consider using specific origins.",
                 UserWarning,
-                stacklevel=2
+                stacklevel=2,
             )
 
     @classmethod
-    def get_cors_middleware_config(
-        cls,
-        environment: str,
-        is_public_api: bool = False
-    ) -> dict:
+    def get_cors_middleware_config(cls, environment: str, is_public_api: bool = False) -> dict:
         """
         Retorna configuração completa para CORSMiddleware do FastAPI.
 

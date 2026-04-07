@@ -11,6 +11,7 @@ import os
 try:
     from testcontainers.kafka import KafkaContainer
     from testcontainers.compose import DockerCompose
+
     TESTCONTAINERS_AVAILABLE = True
 except ImportError:
     TESTCONTAINERS_AVAILABLE = False
@@ -28,14 +29,12 @@ class TestKafkaEOS:
     def kafka_cluster(self):
         """Fixture para cluster Kafka com testcontainers"""
         # Use docker-compose para Kafka + Schema Registry
-        compose_file_path = os.path.join(
-            os.path.dirname(__file__), "..", "docker-compose.test.yml"
-        )
+        compose_file_path = os.path.join(os.path.dirname(__file__), "..", "docker-compose.test.yml")
 
         compose = DockerCompose(
             filepath=os.path.dirname(compose_file_path),
             compose_file_name="docker-compose.test.yml",
-            pull=True
+            pull=True,
         )
 
         compose.start()
@@ -47,10 +46,7 @@ class TestKafkaEOS:
         bootstrap_servers = f"localhost:{kafka_port}"
         schema_registry_url = f"http://localhost:{schema_registry_port}"
 
-        yield {
-            "bootstrap_servers": bootstrap_servers,
-            "schema_registry_url": schema_registry_url
-        }
+        yield {"bootstrap_servers": bootstrap_servers, "schema_registry_url": schema_registry_url}
 
         compose.stop()
 
@@ -59,11 +55,11 @@ class TestKafkaEOS:
         """Fixture para producer Kafka configurado"""
         producer = KafkaIntentProducer(
             bootstrap_servers=kafka_cluster["bootstrap_servers"],
-            schema_registry_url=kafka_cluster["schema_registry_url"]
+            schema_registry_url=kafka_cluster["schema_registry_url"],
         )
 
         # Mock do schema loading
-        with patch('builtins.open') as mock_open:
+        with patch("builtins.open") as mock_open:
             mock_open.return_value.__enter__.return_value.read.return_value = """
             {
               "type": "record",
@@ -147,13 +143,13 @@ class TestKafkaEOS:
             for i in range(num_producers):
                 producer = KafkaIntentProducer(
                     bootstrap_servers=kafka_cluster["bootstrap_servers"],
-                    schema_registry_url=kafka_cluster["schema_registry_url"]
+                    schema_registry_url=kafka_cluster["schema_registry_url"],
                 )
 
                 # Override transactional ID to ensure uniqueness
                 producer._transactional_id = f"test-producer-{i}-{uuid.uuid4()}"
 
-                with patch('builtins.open') as mock_open:
+                with patch("builtins.open") as mock_open:
                     mock_open.return_value.__enter__.return_value.read.return_value = """
                     {
                       "type": "record",
@@ -192,10 +188,10 @@ class TestKafkaEOS:
         """Teste de recuperação do producer após falha"""
         producer = KafkaIntentProducer(
             bootstrap_servers=kafka_cluster["bootstrap_servers"],
-            schema_registry_url=kafka_cluster["schema_registry_url"]
+            schema_registry_url=kafka_cluster["schema_registry_url"],
         )
 
-        with patch('builtins.open') as mock_open:
+        with patch("builtins.open") as mock_open:
             mock_open.return_value.__enter__.return_value.read.return_value = """
             {
               "type": "record",
@@ -222,7 +218,7 @@ class TestKafkaEOS:
                 await producer.send_intent(intent2)
 
             # Reinitialize producer
-            with patch('builtins.open') as mock_open:
+            with patch("builtins.open") as mock_open:
                 mock_open.return_value.__enter__.return_value.read.return_value = """
                 {
                   "type": "record",
@@ -246,18 +242,15 @@ class TestKafkaEOS:
     async def test_stable_transactional_id_generation(self, kafka_cluster):
         """Teste da geração estável de transactional ID"""
         # Test with environment variables
-        with patch.dict(os.environ, {
-            'HOSTNAME': 'test-pod-123',
-            'POD_UID': 'uid-456'
-        }):
+        with patch.dict(os.environ, {"HOSTNAME": "test-pod-123", "POD_UID": "uid-456"}):
             producer1 = KafkaIntentProducer(
                 bootstrap_servers=kafka_cluster["bootstrap_servers"],
-                schema_registry_url=kafka_cluster["schema_registry_url"]
+                schema_registry_url=kafka_cluster["schema_registry_url"],
             )
 
             producer2 = KafkaIntentProducer(
                 bootstrap_servers=kafka_cluster["bootstrap_servers"],
-                schema_registry_url=kafka_cluster["schema_registry_url"]
+                schema_registry_url=kafka_cluster["schema_registry_url"],
             )
 
             # Both producers should generate the same transactional ID
@@ -281,11 +274,7 @@ class TestKafkaEOS:
         return IntentEnvelope(
             id=intent_id,
             correlation_id=f"correlation-{intent_id}",
-            actor={
-                "id": "test-user",
-                "actor_type": "human",
-                "name": "Test User"
-            },
+            actor={"id": "test-user", "actor_type": "human", "name": "Test User"},
             intent={
                 "text": f"Test intent {intent_id}",
                 "domain": "business",
@@ -293,14 +282,11 @@ class TestKafkaEOS:
                 "original_language": "pt-BR",
                 "processed_text": f"test intent {intent_id}",
                 "entities": [],
-                "keywords": ["test"]
+                "keywords": ["test"],
             },
             confidence=0.9,
-            context={
-                "userId": "test-user",
-                "sessionId": "test-session"
-            },
-            timestamp=datetime.now(timezone.utc)
+            context={"userId": "test-user", "sessionId": "test-session"},
+            timestamp=datetime.now(timezone.utc),
         )
 
 

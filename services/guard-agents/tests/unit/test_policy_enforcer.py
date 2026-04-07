@@ -10,11 +10,9 @@ def mock_k8s_client():
     client = MagicMock()
     client.namespace = "neural-hive"
     client.patch_pod_labels = AsyncMock(return_value=True)
-    client.apply_network_policy = AsyncMock(return_value={
-        "success": True,
-        "action": "created",
-        "policy_name": "test-policy"
-    })
+    client.apply_network_policy = AsyncMock(
+        return_value={"success": True, "action": "created", "policy_name": "test-policy"}
+    )
     return client
 
 
@@ -22,14 +20,12 @@ def mock_k8s_client():
 def mock_keycloak_client():
     """Mock Keycloak client"""
     client = MagicMock()
-    client.revoke_user_sessions = AsyncMock(return_value={
-        "success": True,
-        "timestamp": "2025-01-01T00:00:00Z"
-    })
-    client.disable_user = AsyncMock(return_value={
-        "success": True,
-        "timestamp": "2025-01-01T00:00:00Z"
-    })
+    client.revoke_user_sessions = AsyncMock(
+        return_value={"success": True, "timestamp": "2025-01-01T00:00:00Z"}
+    )
+    client.disable_user = AsyncMock(
+        return_value={"success": True, "timestamp": "2025-01-01T00:00:00Z"}
+    )
     return client
 
 
@@ -50,7 +46,7 @@ def policy_enforcer(mock_k8s_client, mock_keycloak_client, mock_mongodb_client):
         keycloak_client=mock_keycloak_client,
         mongodb_client=mock_mongodb_client,
         opa_enabled=False,
-        istio_enabled=False
+        istio_enabled=False,
     )
 
 
@@ -62,7 +58,7 @@ class TestQuarantineResource:
         """Test successful quarantine of resources"""
         incident = {
             "incident_id": "INC-001",
-            "affected_resources": ["neural-hive/pod/test-pod-1", "neural-hive/pod/test-pod-2"]
+            "affected_resources": ["neural-hive/pod/test-pod-1", "neural-hive/pod/test-pod-2"],
         }
         plan = {"target": "isolate"}
 
@@ -78,10 +74,7 @@ class TestQuarantineResource:
     @pytest.mark.asyncio
     async def test_quarantine_resource_no_resources(self, policy_enforcer):
         """Test quarantine with no resources"""
-        incident = {
-            "incident_id": "INC-001",
-            "affected_resources": []
-        }
+        incident = {"incident_id": "INC-001", "affected_resources": []}
         plan = {}
 
         result = await policy_enforcer._quarantine_resource(incident, plan)
@@ -93,10 +86,7 @@ class TestQuarantineResource:
     async def test_quarantine_resource_k8s_not_available(self, policy_enforcer):
         """Test quarantine when K8s client is not available"""
         policy_enforcer.k8s = None
-        incident = {
-            "incident_id": "INC-001",
-            "affected_resources": ["test-pod"]
-        }
+        incident = {"incident_id": "INC-001", "affected_resources": ["test-pod"]}
         plan = {}
 
         result = await policy_enforcer._quarantine_resource(incident, plan)
@@ -109,10 +99,7 @@ class TestQuarantineResource:
         """Test quarantine when labeling fails"""
         mock_k8s_client.patch_pod_labels = AsyncMock(return_value=False)
 
-        incident = {
-            "incident_id": "INC-001",
-            "affected_resources": ["neural-hive/pod/test-pod"]
-        }
+        incident = {"incident_id": "INC-001", "affected_resources": ["neural-hive/pod/test-pod"]}
         plan = {}
 
         result = await policy_enforcer._quarantine_resource(incident, plan)
@@ -155,10 +142,7 @@ class TestRevokeAccess:
     @pytest.mark.asyncio
     async def test_revoke_access_success(self, policy_enforcer, mock_keycloak_client):
         """Test successful access revocation"""
-        incident = {
-            "incident_id": "INC-001",
-            "anomaly": {"details": {"user_id": "user-123"}}
-        }
+        incident = {"incident_id": "INC-001", "anomaly": {"details": {"user_id": "user-123"}}}
         plan = {}
 
         result = await policy_enforcer._revoke_access(incident, plan)
@@ -171,15 +155,11 @@ class TestRevokeAccess:
     @pytest.mark.asyncio
     async def test_revoke_access_fallback_to_disable(self, policy_enforcer, mock_keycloak_client):
         """Test fallback to disabling user when session revoke fails"""
-        mock_keycloak_client.revoke_user_sessions = AsyncMock(return_value={
-            "success": False,
-            "reason": "Session not found"
-        })
+        mock_keycloak_client.revoke_user_sessions = AsyncMock(
+            return_value={"success": False, "reason": "Session not found"}
+        )
 
-        incident = {
-            "incident_id": "INC-001",
-            "anomaly": {"details": {"user_id": "user-123"}}
-        }
+        incident = {"incident_id": "INC-001", "anomaly": {"details": {"user_id": "user-123"}}}
         plan = {}
 
         result = await policy_enforcer._revoke_access(incident, plan)
@@ -191,10 +171,7 @@ class TestRevokeAccess:
     @pytest.mark.asyncio
     async def test_revoke_access_no_user_id(self, policy_enforcer):
         """Test revoke access without user ID"""
-        incident = {
-            "incident_id": "INC-001",
-            "anomaly": {"details": {}}
-        }
+        incident = {"incident_id": "INC-001", "anomaly": {"details": {}}}
         plan = {}
 
         result = await policy_enforcer._revoke_access(incident, plan)
@@ -207,10 +184,7 @@ class TestRevokeAccess:
         """Test revoke access when Keycloak is not available"""
         policy_enforcer.keycloak_client = None
 
-        incident = {
-            "incident_id": "INC-001",
-            "anomaly": {"details": {"user_id": "user-123"}}
-        }
+        incident = {"incident_id": "INC-001", "anomaly": {"details": {"user_id": "user-123"}}}
         plan = {}
 
         result = await policy_enforcer._revoke_access(incident, plan)

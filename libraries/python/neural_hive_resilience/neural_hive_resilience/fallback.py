@@ -254,10 +254,7 @@ class FallbackChain:
         functions = [primary_func] + [f.func for f in self.fallbacks]
         names = ["primary"] + [f.name for f in self.fallbacks]
 
-        tasks = [
-            asyncio.create_task(func(*args, **kwargs))
-            for func in functions
-        ]
+        tasks = [asyncio.create_task(func(*args, **kwargs)) for func in functions]
 
         done, pending = await asyncio.wait(
             tasks,
@@ -306,10 +303,7 @@ class FallbackChain:
         functions = [primary_func] + [f.func for f in self.fallbacks]
         names = ["primary"] + [f.name for f in self.fallbacks]
 
-        tasks = [
-            asyncio.create_task(func(*args, **kwargs))
-            for func in functions
-        ]
+        tasks = [asyncio.create_task(func(*args, **kwargs)) for func in functions]
 
         results = []
         errors = []
@@ -465,8 +459,6 @@ def with_fallback(
 
             return wrapper
         else:
-            raise TypeError(
-                f"@fallback decorator só suporta funções assíncronas"
-            )
+            raise TypeError(f"@fallback decorator só suporta funções assíncronas")
 
     return decorator

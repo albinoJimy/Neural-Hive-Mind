@@ -1,6 +1,7 @@
 import asyncio
 import uuid
 from datetime import datetime, timezone
+
 UTC = timezone.utc  # type: ignore
 from typing import Any
 
@@ -654,7 +655,6 @@ class ExecutionEngine:
 
                 # Executar com timeout
                 return await asyncio.wait_for(executor.execute(ticket), timeout=timeout_seconds)
-
 
             except TimeoutError:
                 last_error = f"Timeout after {timeout_seconds}s"

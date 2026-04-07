@@ -1,16 +1,13 @@
 """Testes para detecção de padrões multi-linguagem."""
 import pytest
 from enum import Enum
-from src.discovery.multilanguage import (
-    MultiLanguagePatternDiscovery,
-    PatternLanguage,
-    PatternMatch
-)
+from src.discovery.multilanguage import MultiLanguagePatternDiscovery, PatternLanguage, PatternMatch
 
 
 # ========================================================================
 # Fixtures
 # ========================================================================
+
 
 @pytest.fixture
 def multilang_discovery():
@@ -21,6 +18,7 @@ def multilang_discovery():
 # ========================================================================
 # TypeScript Pattern Tests
 # ========================================================================
+
 
 class TestTypeScriptPatterns:
     """Testes para detecção de padrões em TypeScript."""
@@ -50,12 +48,10 @@ class TestTypeScriptPatterns:
         }
         """
         patterns = multilang_discovery.discover_patterns(
-            code,
-            "user.repository.ts",
-            PatternLanguage.TYPESCRIPT
+            code, "user.repository.ts", PatternLanguage.TYPESCRIPT
         )
 
-        repository_patterns = [p for p in patterns if p.name == 'repository']
+        repository_patterns = [p for p in patterns if p.name == "repository"]
         assert len(repository_patterns) > 0
         assert repository_patterns[0].confidence >= 0.5
 
@@ -77,12 +73,10 @@ class TestTypeScriptPatterns:
         }
         """
         patterns = multilang_discovery.discover_patterns(
-            code,
-            "database.ts",
-            PatternLanguage.TYPESCRIPT
+            code, "database.ts", PatternLanguage.TYPESCRIPT
         )
 
-        singleton_patterns = [p for p in patterns if p.name == 'singleton']
+        singleton_patterns = [p for p in patterns if p.name == "singleton"]
         assert len(singleton_patterns) > 0
         assert singleton_patterns[0].confidence >= 0.5
 
@@ -113,12 +107,10 @@ class TestTypeScriptPatterns:
         }
         """
         patterns = multilang_discovery.discover_patterns(
-            code,
-            "subject.ts",
-            PatternLanguage.TYPESCRIPT
+            code, "subject.ts", PatternLanguage.TYPESCRIPT
         )
 
-        observer_patterns = [p for p in patterns if p.name == 'observer']
+        observer_patterns = [p for p in patterns if p.name == "observer"]
         assert len(observer_patterns) > 0
 
     def test_typescript_factory_pattern(self, multilang_discovery):
@@ -151,12 +143,10 @@ class TestTypeScriptPatterns:
         }
         """
         patterns = multilang_discovery.discover_patterns(
-            code,
-            "payment.factory.ts",
-            PatternLanguage.TYPESCRIPT
+            code, "payment.factory.ts", PatternLanguage.TYPESCRIPT
         )
 
-        factory_patterns = [p for p in patterns if p.name == 'factory']
+        factory_patterns = [p for p in patterns if p.name == "factory"]
         assert len(factory_patterns) > 0
 
     def test_typescript_decorator_pattern(self, multilang_discovery):
@@ -187,18 +177,17 @@ class TestTypeScriptPatterns:
         }
         """
         patterns = multilang_discovery.discover_patterns(
-            code,
-            "decorator.ts",
-            PatternLanguage.TYPESCRIPT
+            code, "decorator.ts", PatternLanguage.TYPESCRIPT
         )
 
-        decorator_patterns = [p for p in patterns if p.name == 'decorator']
+        decorator_patterns = [p for p in patterns if p.name == "decorator"]
         assert len(decorator_patterns) > 0
 
 
 # ========================================================================
 # JavaScript Pattern Tests
 # ========================================================================
+
 
 class TestJavaScriptPatterns:
     """Testes para detecção de padrões em JavaScript."""
@@ -224,12 +213,10 @@ class TestJavaScriptPatterns:
         module.exports = UserService;
         """
         patterns = multilang_discovery.discover_patterns(
-            code,
-            "user.service.js",
-            PatternLanguage.JAVASCRIPT
+            code, "user.service.js", PatternLanguage.JAVASCRIPT
         )
 
-        service_patterns = [p for p in patterns if p.name == 'service']
+        service_patterns = [p for p in patterns if p.name == "service"]
         assert len(service_patterns) > 0
 
     def test_javascript_strategy_pattern(self, multilang_discovery):
@@ -266,12 +253,10 @@ class TestJavaScriptPatterns:
         }
         """
         patterns = multilang_discovery.discover_patterns(
-            code,
-            "sort.strategy.js",
-            PatternLanguage.JAVASCRIPT
+            code, "sort.strategy.js", PatternLanguage.JAVASCRIPT
         )
 
-        strategy_patterns = [p for p in patterns if p.name == 'strategy']
+        strategy_patterns = [p for p in patterns if p.name == "strategy"]
         assert len(strategy_patterns) > 0
 
     def test_javascript_builder_pattern(self, multilang_discovery):
@@ -305,18 +290,17 @@ class TestJavaScriptPatterns:
         }
         """
         patterns = multilang_discovery.discover_patterns(
-            code,
-            "user.builder.js",
-            PatternLanguage.JAVASCRIPT
+            code, "user.builder.js", PatternLanguage.JAVASCRIPT
         )
 
-        builder_patterns = [p for p in patterns if p.name == 'builder']
+        builder_patterns = [p for p in patterns if p.name == "builder"]
         assert len(builder_patterns) > 0
 
 
 # ========================================================================
 # YAML Pattern Tests
 # ========================================================================
+
 
 class TestYAMLPatterns:
     """Testes para detecção de padrões em YAML."""
@@ -347,9 +331,7 @@ class TestYAMLPatterns:
                 - containerPort: 80
         """
         patterns = multilang_discovery.discover_patterns(
-            code,
-            "deployment.yaml",
-            PatternLanguage.YAML
+            code, "deployment.yaml", PatternLanguage.YAML
         )
 
         # Deve detectar estrutura de configuração Kubernetes
@@ -373,9 +355,7 @@ class TestYAMLPatterns:
             image: redis:alpine
         """
         patterns = multilang_discovery.discover_patterns(
-            code,
-            "docker-compose.yml",
-            PatternLanguage.YAML
+            code, "docker-compose.yml", PatternLanguage.YAML
         )
 
         # Deve detectar estrutura de orquestração
@@ -397,9 +377,7 @@ class TestYAMLPatterns:
                 run: pytest
         """
         patterns = multilang_discovery.discover_patterns(
-            code,
-            ".github/workflows/ci.yml",
-            PatternLanguage.YAML
+            code, ".github/workflows/ci.yml", PatternLanguage.YAML
         )
 
         assert len(patterns) >= 1
@@ -408,6 +386,7 @@ class TestYAMLPatterns:
 # ========================================================================
 # JSON Pattern Tests
 # ========================================================================
+
 
 class TestJSONPatterns:
     """Testes para detecção de padrões em JSON."""
@@ -434,11 +413,7 @@ class TestJSONPatterns:
             }
         }
         """
-        patterns = multilang_discovery.discover_patterns(
-            code,
-            "users.json",
-            PatternLanguage.JSON
-        )
+        patterns = multilang_discovery.discover_patterns(code, "users.json", PatternLanguage.JSON)
 
         # Deve detectar estrutura de dados
         assert len(patterns) >= 1
@@ -462,11 +437,7 @@ class TestJSONPatterns:
             }
         }
         """
-        patterns = multilang_discovery.discover_patterns(
-            code,
-            "config.json",
-            PatternLanguage.JSON
-        )
+        patterns = multilang_discovery.discover_patterns(code, "config.json", PatternLanguage.JSON)
 
         assert len(patterns) >= 1
 
@@ -474,6 +445,7 @@ class TestJSONPatterns:
 # ========================================================================
 # Cross-Language Tests
 # ========================================================================
+
 
 class TestCrossLanguagePatterns:
     """Testes de padrões consistente entre linguagens."""
@@ -513,14 +485,15 @@ class UserRepository {
         )
 
         # Todas devem detectar repository
-        assert any(p.name == 'repository' for p in python_patterns)
-        assert any(p.name == 'repository' for p in ts_patterns)
-        assert any(p.name == 'repository' for p in js_patterns)
+        assert any(p.name == "repository" for p in python_patterns)
+        assert any(p.name == "repository" for p in ts_patterns)
+        assert any(p.name == "repository" for p in js_patterns)
 
 
 # ========================================================================
 # Confidence Scoring Tests
 # ========================================================================
+
 
 class TestConfidenceScoring:
     """Testes de pontuação de confiança."""
@@ -573,6 +546,7 @@ class TestConfidenceScoring:
 # Language Detection Tests
 # ========================================================================
 
+
 class TestLanguageDetection:
     """Testes de detecção automática de linguagem."""
 
@@ -601,16 +575,13 @@ class TestLanguageDetection:
 # Edge Cases Tests
 # ========================================================================
 
+
 class TestEdgeCases:
     """Testes de casos extremos."""
 
     def test_empty_code_returns_empty_patterns(self, multilang_discovery):
         """Código vazio retorna lista vazia."""
-        patterns = multilang_discovery.discover_patterns(
-            "",
-            "empty.ts",
-            PatternLanguage.TYPESCRIPT
-        )
+        patterns = multilang_discovery.discover_patterns("", "empty.ts", PatternLanguage.TYPESCRIPT)
 
         assert len(patterns) == 0
 
@@ -623,9 +594,7 @@ class TestEdgeCases:
         """
 
         patterns = multilang_discovery.discover_patterns(
-            code,
-            "simple.js",
-            PatternLanguage.JAVASCRIPT
+            code, "simple.js", PatternLanguage.JAVASCRIPT
         )
 
         # Pode retornar padrões com baixa confiança ou nenhum
@@ -635,21 +604,14 @@ class TestEdgeCases:
     def test_very_long_code(self, multilang_discovery):
         """Lida com código muito longo."""
         # Gerar código longo
-        methods = "\n".join([
-            f"    method{i}() {{ return {i}; }}"
-            for i in range(100)
-        ])
+        methods = "\n".join([f"    method{i}() {{ return {i}; }}" for i in range(100)])
         code = f"""
         class BigClass {{
             {methods}
         }}
         """
 
-        patterns = multilang_discovery.discover_patterns(
-            code,
-            "big.ts",
-            PatternLanguage.TYPESCRIPT
-        )
+        patterns = multilang_discovery.discover_patterns(code, "big.ts", PatternLanguage.TYPESCRIPT)
 
         # Não deve quebrar
         assert isinstance(patterns, list)

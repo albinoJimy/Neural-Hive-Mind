@@ -25,9 +25,7 @@ class TestContainerBuilder:
             # Mock do docker build
             mock_process = AsyncMock()
             mock_process.returncode = 0
-            mock_process.communicate = AsyncMock(
-                return_value=(b"Successfully built abc123", b"")
-            )
+            mock_process.communicate = AsyncMock(return_value=(b"Successfully built abc123", b""))
             mock_subprocess.return_value = mock_process
 
             # Mock dos metodos auxiliares
@@ -52,9 +50,7 @@ class TestContainerBuilder:
         with patch("asyncio.create_subprocess_exec") as mock_subprocess:
             mock_process = AsyncMock()
             mock_process.returncode = 1
-            mock_process.communicate = AsyncMock(
-                return_value=(b"", b"Build failed: error")
-            )
+            mock_process.communicate = AsyncMock(return_value=(b"", b"Build failed: error"))
 
             mock_subprocess.return_value = mock_process
 
@@ -225,6 +221,7 @@ class TestContainerBuilder:
         call_count = {"count": 0}
 
         with patch("asyncio.create_subprocess_exec") as mock_subprocess:
+
             async def mock_exec(*args, **kwargs):
                 call_count["count"] += 1
                 mock_proc = AsyncMock()
@@ -235,9 +232,7 @@ class TestContainerBuilder:
                 elif "tag" in args:
                     mock_proc.communicate = AsyncMock(return_value=(b"", b""))
                 elif "push" in args:
-                    mock_proc.communicate = AsyncMock(
-                        return_value=(b"digest: sha256:xyz789", b"")
-                    )
+                    mock_proc.communicate = AsyncMock(return_value=(b"digest: sha256:xyz789", b""))
                 elif "inspect" in args:
                     mock_proc.communicate = AsyncMock(
                         return_value=(b"ghcr.io/test/app@sha256:xyz789", b"")
@@ -287,7 +282,7 @@ class TestContainerBuilder:
         assert builder._parse_size("1024B") == 1024
         assert builder._parse_size("1KB") == 1024
         assert builder._parse_size("10MB") == 10 * 1024 * 1024
-        assert builder._parse_size("1.5GB") == int(1.5 * 1024 ** 3)
+        assert builder._parse_size("1.5GB") == int(1.5 * 1024**3)
 
     def test_build_result_default_values(self):
         """Testa valores padrao de BuildResult."""
@@ -327,9 +322,7 @@ class TestContainerBuilder:
         with patch("asyncio.create_subprocess_exec") as mock_subprocess:
             mock_proc = AsyncMock()
             mock_proc.returncode = 1
-            mock_proc.communicate = AsyncMock(
-                return_value=(b"", b"Error")
-            )
+            mock_proc.communicate = AsyncMock(return_value=(b"", b"Error"))
 
             mock_subprocess.return_value = mock_proc
 
@@ -344,9 +337,7 @@ class TestContainerBuilder:
         with patch("asyncio.create_subprocess_exec") as mock_subprocess:
             mock_proc = AsyncMock()
             mock_proc.returncode = 0
-            mock_proc.communicate = AsyncMock(
-                return_value=(b"123456789", b"")
-            )
+            mock_proc.communicate = AsyncMock(return_value=(b"123456789", b""))
 
             mock_subprocess.return_value = mock_proc
 
@@ -362,9 +353,7 @@ class TestContainerBuilder:
             mock_proc = AsyncMock()
             mock_proc.returncode = 0
             # Simula tamanho em bytes direto
-            mock_proc.communicate = AsyncMock(
-                return_value=(b"123456789", b"")
-            )
+            mock_proc.communicate = AsyncMock(return_value=(b"123456789", b""))
 
             mock_subprocess.return_value = mock_proc
 
@@ -379,9 +368,7 @@ class TestContainerBuilder:
         with patch("asyncio.create_subprocess_exec") as mock_subprocess:
             mock_proc = AsyncMock()
             mock_proc.returncode = 1
-            mock_proc.communicate = AsyncMock(
-                return_value=(b"", b"Error")
-            )
+            mock_proc.communicate = AsyncMock(return_value=(b"", b"Error"))
 
             mock_subprocess.return_value = mock_proc
 

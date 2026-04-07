@@ -23,14 +23,14 @@ from .neural_hive_observability import kafka_instrumentation as _kafka_module
 
 # Registrar aliases no sys.modules para permitir imports como:
 # from neural_hive_observability.context import extract_context_from_metadata
-sys.modules['neural_hive_observability.context'] = _context_module
-sys.modules['neural_hive_observability.config'] = _config_module
-sys.modules['neural_hive_observability.tracing'] = _tracing_module
-sys.modules['neural_hive_observability.metrics'] = _metrics_module
-sys.modules['neural_hive_observability.logging'] = _logging_module
-sys.modules['neural_hive_observability.health'] = _health_module
-sys.modules['neural_hive_observability.grpc_instrumentation'] = _grpc_module
-sys.modules['neural_hive_observability.kafka_instrumentation'] = _kafka_module
+sys.modules["neural_hive_observability.context"] = _context_module
+sys.modules["neural_hive_observability.config"] = _config_module
+sys.modules["neural_hive_observability.tracing"] = _tracing_module
+sys.modules["neural_hive_observability.metrics"] = _metrics_module
+sys.modules["neural_hive_observability.logging"] = _logging_module
+sys.modules["neural_hive_observability.health"] = _health_module
+sys.modules["neural_hive_observability.grpc_instrumentation"] = _grpc_module
+sys.modules["neural_hive_observability.kafka_instrumentation"] = _kafka_module
 
 # Expor como atributos do módulo também
 context = _context_module

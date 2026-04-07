@@ -99,9 +99,7 @@ class TestFeedbackAPI:
 
         assert response.status_code == 422  # Validation error
 
-    def test_submit_feedback_invalid_recommendation(
-        self, test_client, valid_feedback_request
-    ):
+    def test_submit_feedback_invalid_recommendation(self, test_client, valid_feedback_request):
         """Teste com recomendação inválida."""
         valid_feedback_request["human_recommendation"] = "invalid"
 
@@ -132,9 +130,7 @@ class TestFeedbackAPI:
 
         assert response.status_code == 422  # Validation error
 
-    def test_get_feedback_by_opinion_success(
-        self, test_client, mock_feedback_collector
-    ):
+    def test_get_feedback_by_opinion_success(self, test_client, mock_feedback_collector):
         """Teste de busca de feedbacks por opinião."""
         from neural_hive_specialists.feedback import FeedbackDocument
         from datetime import datetime, timezone
@@ -216,17 +212,13 @@ class TestFeedbackAPIAuthentication:
         """Cliente com autenticação."""
         return TestClient(auth_app)
 
-    def test_submit_feedback_requires_authentication(
-        self, auth_client, valid_feedback_request
-    ):
+    def test_submit_feedback_requires_authentication(self, auth_client, valid_feedback_request):
         """Teste que autenticação é requerida."""
         response = auth_client.post("/api/v1/feedback", json=valid_feedback_request)
 
         assert response.status_code == 401
 
-    def test_submit_feedback_with_valid_token(
-        self, auth_client, valid_feedback_request
-    ):
+    def test_submit_feedback_with_valid_token(self, auth_client, valid_feedback_request):
         """Teste com token JWT válido."""
         import jwt
         from datetime import datetime, timedelta
@@ -237,9 +229,7 @@ class TestFeedbackAPIAuthentication:
             "role": "human_expert",
             "exp": datetime.now(timezone.utc) + timedelta(hours=1),
         }
-        token = jwt.encode(
-            payload, "test-secret-key-minimum-32-chars-long", algorithm="HS256"
-        )
+        token = jwt.encode(payload, "test-secret-key-minimum-32-chars-long", algorithm="HS256")
 
         headers = {"Authorization": f"Bearer {token}"}
         response = auth_client.post(
@@ -250,9 +240,7 @@ class TestFeedbackAPIAuthentication:
         # mas não deve ser 401
         assert response.status_code != 401
 
-    def test_audit_log_missing_token(
-        self, auth_client, auth_app, valid_feedback_request
-    ):
+    def test_audit_log_missing_token(self, auth_client, auth_app, valid_feedback_request):
         """Teste que falta de token é auditada."""
         audit_logger = auth_app.state.audit_logger
 
@@ -267,9 +255,7 @@ class TestFeedbackAPIAuthentication:
         assert call_args[1]["details"]["reason"] == "missing_token"
         assert call_args[1]["details"]["status_code"] == 401
 
-    def test_audit_log_invalid_token(
-        self, auth_client, auth_app, valid_feedback_request
-    ):
+    def test_audit_log_invalid_token(self, auth_client, auth_app, valid_feedback_request):
         """Teste que token inválido é auditado."""
         audit_logger = auth_app.state.audit_logger
 
@@ -287,9 +273,7 @@ class TestFeedbackAPIAuthentication:
         assert call_args[1]["details"]["reason"] == "invalid_token"
         assert call_args[1]["details"]["status_code"] == 401
 
-    def test_audit_log_unauthorized_role(
-        self, auth_client, auth_app, valid_feedback_request
-    ):
+    def test_audit_log_unauthorized_role(self, auth_client, auth_app, valid_feedback_request):
         """Teste que role não autorizado é auditado."""
         import jwt
         from datetime import datetime, timedelta
@@ -302,9 +286,7 @@ class TestFeedbackAPIAuthentication:
             "role": "unauthorized_role",
             "exp": datetime.now(timezone.utc) + timedelta(hours=1),
         }
-        token = jwt.encode(
-            payload, "test-secret-key-minimum-32-chars-long", algorithm="HS256"
-        )
+        token = jwt.encode(payload, "test-secret-key-minimum-32-chars-long", algorithm="HS256")
 
         headers = {"Authorization": f"Bearer {token}"}
         response = auth_client.post(
@@ -322,9 +304,7 @@ class TestFeedbackAPIAuthentication:
         assert call_args[1]["details"]["role"] == "unauthorized_role"
         assert call_args[1]["details"]["status_code"] == 403
 
-    def test_audit_log_expired_token(
-        self, auth_client, auth_app, valid_feedback_request
-    ):
+    def test_audit_log_expired_token(self, auth_client, auth_app, valid_feedback_request):
         """Teste que token expirado é auditado."""
         import jwt
         from datetime import datetime, timedelta
@@ -337,9 +317,7 @@ class TestFeedbackAPIAuthentication:
             "role": "human_expert",
             "exp": datetime.now(timezone.utc) - timedelta(hours=1),  # Expirado há 1 hora
         }
-        token = jwt.encode(
-            payload, "test-secret-key-minimum-32-chars-long", algorithm="HS256"
-        )
+        token = jwt.encode(payload, "test-secret-key-minimum-32-chars-long", algorithm="HS256")
 
         headers = {"Authorization": f"Bearer {token}"}
         response = auth_client.post(

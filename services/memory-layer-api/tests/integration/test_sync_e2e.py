@@ -22,21 +22,22 @@ from src.jobs.sync_mongodb_to_clickhouse import MongoToClickHouseSync
 
 class MockSettings:
     """Mock de configurações para testes E2E"""
+
     def __init__(self):
-        self.mongodb_context_collection = 'operational_context'
-        self.mongodb_lineage_collection = 'data_lineage'
-        self.mongodb_quality_collection = 'data_quality_metrics'
+        self.mongodb_context_collection = "operational_context"
+        self.mongodb_lineage_collection = "data_lineage"
+        self.mongodb_quality_collection = "data_quality_metrics"
         self.mongodb_retention_days = 30
         self.clickhouse_retention_months = 18
         self.redis_default_ttl = 300
         self.redis_max_ttl = 900
         self.enable_realtime_sync = True
         self.enable_cache = True
-        self.kafka_bootstrap_servers = 'localhost:9092'
-        self.kafka_sync_topic = 'memory.sync.events'
-        self.kafka_dlq_topic = 'memory.sync.events.dlq'
-        self.kafka_consumer_group = 'test-consumer'
-        self.kafka_security_protocol = 'PLAINTEXT'
+        self.kafka_bootstrap_servers = "localhost:9092"
+        self.kafka_sync_topic = "memory.sync.events"
+        self.kafka_dlq_topic = "memory.sync.events.dlq"
+        self.kafka_consumer_group = "test-consumer"
+        self.kafka_security_protocol = "PLAINTEXT"
         self.kafka_sasl_username = None
         self.kafka_sasl_password = None
         self.batch_size = 100
@@ -62,7 +63,7 @@ def mock_redis():
 def mock_mongodb():
     """Mock do cliente MongoDB"""
     mongodb = AsyncMock()
-    mongodb.insert_one = AsyncMock(return_value='test-id')
+    mongodb.insert_one = AsyncMock(return_value="test-id")
     mongodb.find_one = AsyncMock(return_value=None)
     mongodb.find = AsyncMock(return_value=[])
     mongodb.delete_many = AsyncMock(return_value=5)
@@ -83,7 +84,7 @@ def mock_neo4j():
 def mock_clickhouse():
     """Mock do cliente ClickHouse"""
     clickhouse = MagicMock()
-    clickhouse.database = 'neural_hive'
+    clickhouse.database = "neural_hive"
     clickhouse.insert_batch = AsyncMock(return_value=True)
     clickhouse.client = MagicMock()
     clickhouse.client.query = MagicMock(return_value=MagicMock(result_rows=[[0]]))
@@ -96,12 +97,7 @@ class TestRealtimeSyncE2E:
 
     @pytest.mark.asyncio
     async def test_realtime_sync_mongodb_to_clickhouse(
-        self,
-        settings,
-        mock_redis,
-        mock_mongodb,
-        mock_neo4j,
-        mock_clickhouse
+        self, settings, mock_redis, mock_mongodb, mock_neo4j, mock_clickhouse
     ):
         """
         Testa fluxo completo: save() → Kafka → consumer → ClickHouse.
@@ -117,9 +113,11 @@ class TestRealtimeSyncE2E:
 
         # Mock producer que captura eventos
         mock_producer = AsyncMock()
+
         async def capture_event(event):
             published_events.append(event)
             return True
+
         mock_producer.publish_sync_event = capture_event
         mock_producer.is_running = True
 
@@ -130,32 +128,30 @@ class TestRealtimeSyncE2E:
             mock_neo4j,
             mock_clickhouse,
             settings,
-            kafka_producer=mock_producer
+            kafka_producer=mock_producer,
         )
 
         # Step 1: Salvar dados
         test_data = {
-            'entity_id': str(uuid.uuid4()),
-            'data_type': 'context',
-            'content': 'test content for E2E',
-            'metadata': {'source': 'e2e_test'}
+            "entity_id": str(uuid.uuid4()),
+            "data_type": "context",
+            "content": "test content for E2E",
+            "metadata": {"source": "e2e_test"},
         }
-        entity_id = await client.save(test_data, 'context')
+        entity_id = await client.save(test_data, "context")
 
         # Step 2: Verificar evento publicado
         assert len(published_events) == 1
         event = published_events[0]
-        assert event['entity_id'] == entity_id
-        assert event['data_type'] == 'context'
-        assert event['operation'] == 'INSERT'
+        assert event["entity_id"] == entity_id
+        assert event["data_type"] == "context"
+        assert event["operation"] == "INSERT"
 
         # Step 3 & 4: Simular consumer processando evento
         consumer = SyncEventConsumer(settings, mock_clickhouse)
 
         # Garante que ClickHouse retorna 0 (registro não existe)
-        mock_clickhouse.client.query = MagicMock(
-            return_value=MagicMock(result_rows=[[0]])
-        )
+        mock_clickhouse.client.query = MagicMock(return_value=MagicMock(result_rows=[[0]]))
 
         await consumer._process_event(event)
 
@@ -167,12 +163,7 @@ class TestRealtimeSyncE2E:
         assert call_args is not None
 
     @pytest.mark.asyncio
-    async def test_batch_sync_job(
-        self,
-        settings,
-        mock_mongodb,
-        mock_clickhouse
-    ):
+    async def test_batch_sync_job(self, settings, mock_mongodb, mock_clickhouse):
         """
         Testa job de sincronização batch.
 
@@ -184,12 +175,12 @@ class TestRealtimeSyncE2E:
         # Mock MongoDB com documentos de teste
         test_documents = [
             {
-                '_id': f'mongo-id-{i}',
-                'entity_id': f'entity-{i}',
-                'data_type': 'context',
-                'created_at': datetime.now(timezone.utc) - timedelta(hours=i),
-                'content': f'test content {i}',
-                'metadata': {'batch': True}
+                "_id": f"mongo-id-{i}",
+                "entity_id": f"entity-{i}",
+                "data_type": "context",
+                "created_at": datetime.now(timezone.utc) - timedelta(hours=i),
+                "content": f"test content {i}",
+                "metadata": {"batch": True},
             }
             for i in range(5)
         ]
@@ -201,20 +192,13 @@ class TestRealtimeSyncE2E:
         sync_job.clickhouse_client = mock_clickhouse
 
         # Executa sync
-        await sync_job.sync_collection(
-            'operational_context',
-            'operational_context_history'
-        )
+        await sync_job.sync_collection("operational_context", "operational_context_history")
 
         # Verifica que insert_batch foi chamado
         assert mock_clickhouse.insert_batch.call_count >= 1
 
     @pytest.mark.asyncio
-    async def test_idempotency_prevents_duplicates(
-        self,
-        settings,
-        mock_clickhouse
-    ):
+    async def test_idempotency_prevents_duplicates(self, settings, mock_clickhouse):
         """
         Testa que eventos duplicados são ignorados.
 
@@ -226,40 +210,32 @@ class TestRealtimeSyncE2E:
         consumer = SyncEventConsumer(settings, mock_clickhouse)
 
         event = {
-            'event_id': str(uuid.uuid4()),
-            'entity_id': 'test-entity-idempotent',
-            'data_type': 'context',
-            'operation': 'INSERT',
-            'collection': 'operational_context',
-            'timestamp': int(datetime.now(timezone.utc).timestamp() * 1000),
-            'data': json.dumps({'content': 'idempotency test'}),
-            'metadata': None
+            "event_id": str(uuid.uuid4()),
+            "entity_id": "test-entity-idempotent",
+            "data_type": "context",
+            "operation": "INSERT",
+            "collection": "operational_context",
+            "timestamp": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "data": json.dumps({"content": "idempotency test"}),
+            "metadata": None,
         }
 
         # Primeira execução - registro não existe
-        mock_clickhouse.client.query = MagicMock(
-            return_value=MagicMock(result_rows=[[0]])
-        )
+        mock_clickhouse.client.query = MagicMock(return_value=MagicMock(result_rows=[[0]]))
         await consumer._process_event(event)
 
         # Verifica primeira inserção
         assert mock_clickhouse.insert_batch.call_count == 1
 
         # Segunda execução - registro já existe
-        mock_clickhouse.client.query = MagicMock(
-            return_value=MagicMock(result_rows=[[1]])
-        )
+        mock_clickhouse.client.query = MagicMock(return_value=MagicMock(result_rows=[[1]]))
         await consumer._process_event(event)
 
         # insert_batch não deve ter sido chamado novamente
         assert mock_clickhouse.insert_batch.call_count == 1
 
     @pytest.mark.asyncio
-    async def test_dlq_on_failure(
-        self,
-        settings,
-        mock_clickhouse
-    ):
+    async def test_dlq_on_failure(self, settings, mock_clickhouse):
         """
         Testa envio para DLQ em caso de falha.
 
@@ -271,28 +247,27 @@ class TestRealtimeSyncE2E:
         mock_clickhouse.insert_batch = AsyncMock(
             side_effect=Exception("ClickHouse connection failed")
         )
-        mock_clickhouse.client.query = MagicMock(
-            return_value=MagicMock(result_rows=[[0]])
-        )
+        mock_clickhouse.client.query = MagicMock(return_value=MagicMock(result_rows=[[0]]))
 
         consumer = SyncEventConsumer(settings, mock_clickhouse)
 
         # Mock do método de envio para DLQ
         dlq_events = []
+
         async def mock_send_to_dlq(event, error):
-            dlq_events.append({'event': event, 'error': str(error)})
+            dlq_events.append({"event": event, "error": str(error)})
 
         consumer._send_to_dlq = mock_send_to_dlq
 
         event = {
-            'event_id': str(uuid.uuid4()),
-            'entity_id': 'test-entity-dlq',
-            'data_type': 'context',
-            'operation': 'INSERT',
-            'collection': 'operational_context',
-            'timestamp': int(datetime.now(timezone.utc).timestamp() * 1000),
-            'data': json.dumps({'content': 'dlq test'}),
-            'metadata': None
+            "event_id": str(uuid.uuid4()),
+            "entity_id": "test-entity-dlq",
+            "data_type": "context",
+            "operation": "INSERT",
+            "collection": "operational_context",
+            "timestamp": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "data": json.dumps({"content": "dlq test"}),
+            "metadata": None,
         }
 
         # Processa evento (deve falhar e ir para DLQ)
@@ -315,17 +290,14 @@ class TestAvroSerializationE2E:
         Testa que dados serializados com Avro são deserializados corretamente.
         """
         event = {
-            'event_id': str(uuid.uuid4()),
-            'entity_id': 'test-entity-avro',
-            'data_type': 'context',
-            'operation': 'INSERT',
-            'collection': 'operational_context',
-            'timestamp': int(datetime.now(timezone.utc).timestamp() * 1000),
-            'data': json.dumps({
-                'content': 'test content',
-                'nested': {'key': 'value'}
-            }),
-            'metadata': json.dumps({'source': 'avro_test'})
+            "event_id": str(uuid.uuid4()),
+            "entity_id": "test-entity-avro",
+            "data_type": "context",
+            "operation": "INSERT",
+            "collection": "operational_context",
+            "timestamp": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "data": json.dumps({"content": "test content", "nested": {"key": "value"}}),
+            "metadata": json.dumps({"source": "avro_test"}),
         }
 
         # Prepara evento no formato Avro
@@ -341,18 +313,14 @@ class TestAvroSerializationE2E:
         else:
             # Se schema não disponível, testa preparação do evento
             assert prepared_event is not None
-            assert prepared_event['event_id'] == event['event_id']
+            assert prepared_event["event_id"] == event["event_id"]
 
 
 class TestTimestampConsistency:
     """Testes de consistência de timestamps"""
 
     @pytest.mark.asyncio
-    async def test_timestamp_preserved_mongodb_to_clickhouse(
-        self,
-        settings,
-        mock_clickhouse
-    ):
+    async def test_timestamp_preserved_mongodb_to_clickhouse(self, settings, mock_clickhouse):
         """
         Valida que timestamps são preservados na sincronização.
         """
@@ -362,19 +330,17 @@ class TestTimestampConsistency:
         test_timestamp = int(datetime(2024, 6, 15, 10, 30, 0).timestamp() * 1000)
 
         event = {
-            'event_id': str(uuid.uuid4()),
-            'entity_id': 'test-entity-timestamp',
-            'data_type': 'context',
-            'operation': 'INSERT',
-            'collection': 'operational_context',
-            'timestamp': test_timestamp,
-            'data': json.dumps({'content': 'timestamp test'}),
-            'metadata': None
+            "event_id": str(uuid.uuid4()),
+            "entity_id": "test-entity-timestamp",
+            "data_type": "context",
+            "operation": "INSERT",
+            "collection": "operational_context",
+            "timestamp": test_timestamp,
+            "data": json.dumps({"content": "timestamp test"}),
+            "metadata": None,
         }
 
-        mock_clickhouse.client.query = MagicMock(
-            return_value=MagicMock(result_rows=[[0]])
-        )
+        mock_clickhouse.client.query = MagicMock(return_value=MagicMock(result_rows=[[0]]))
 
         await consumer._process_event(event)
 
@@ -391,42 +357,37 @@ class TestTimestampConsistency:
 
         # Documento com datetime UTC
         document = {
-            '_id': 'mongo-id-tz',
-            'entity_id': 'test-entity-tz',
-            'data_type': 'context',
-            'created_at': datetime.now(timezone.utc),
-            'content': 'timezone test',
-            'metadata': {}
+            "_id": "mongo-id-tz",
+            "entity_id": "test-entity-tz",
+            "data_type": "context",
+            "created_at": datetime.now(timezone.utc),
+            "content": "timezone test",
+            "metadata": {},
         }
 
-        row = sync_job._prepare_row(document, 'operational_context_history')
+        row = sync_job._prepare_row(document, "operational_context_history")
 
         # Timestamp deve estar em UTC
-        assert row[2] == document['created_at']
+        assert row[2] == document["created_at"]
 
 
 class TestLargeBatchProcessing:
     """Testes de processamento de lotes grandes"""
 
     @pytest.mark.asyncio
-    async def test_large_batch_10k_documents(
-        self,
-        settings,
-        mock_mongodb,
-        mock_clickhouse
-    ):
+    async def test_large_batch_10k_documents(self, settings, mock_mongodb, mock_clickhouse):
         """
         Simula 10k documentos e valida batch processing.
         """
         # Gera 10k documentos mock
         test_documents = [
             {
-                '_id': f'mongo-id-{i}',
-                'entity_id': f'entity-{i}',
-                'data_type': 'context',
-                'created_at': datetime.now(timezone.utc) - timedelta(minutes=i),
-                'content': f'content {i}',
-                'metadata': {}
+                "_id": f"mongo-id-{i}",
+                "entity_id": f"entity-{i}",
+                "data_type": "context",
+                "created_at": datetime.now(timezone.utc) - timedelta(minutes=i),
+                "content": f"content {i}",
+                "metadata": {},
             }
             for i in range(10000)
         ]
@@ -434,11 +395,11 @@ class TestLargeBatchProcessing:
         # MongoDB retorna em batches de 1000
         batch_size = 1000
         batches = [
-            test_documents[i:i+batch_size]
-            for i in range(0, len(test_documents), batch_size)
+            test_documents[i : i + batch_size] for i in range(0, len(test_documents), batch_size)
         ]
 
         batch_index = [0]
+
         async def mock_find(**kwargs):
             if batch_index[0] < len(batches):
                 result = batches[batch_index[0]]
@@ -454,10 +415,7 @@ class TestLargeBatchProcessing:
         sync_job.batch_size = batch_size
 
         # Processa primeiro batch
-        await sync_job.sync_collection(
-            'operational_context',
-            'operational_context_history'
-        )
+        await sync_job.sync_collection("operational_context", "operational_context_history")
 
         # Verifica que insert_batch foi chamado
         assert mock_clickhouse.insert_batch.call_count >= 1
@@ -467,11 +425,7 @@ class TestRetentionPolicyEnforcement:
     """Testes de enforcement de políticas de retenção"""
 
     @pytest.mark.asyncio
-    async def test_retention_removes_old_data(
-        self,
-        settings,
-        mock_mongodb
-    ):
+    async def test_retention_removes_old_data(self, settings, mock_mongodb):
         """
         Valida que dados antigos são removidos.
         """
@@ -479,19 +433,17 @@ class TestRetentionPolicyEnforcement:
 
         mock_clickhouse = MagicMock()
         mock_clickhouse.client = MagicMock()
-        mock_clickhouse.client.query = MagicMock(
-            return_value=MagicMock(result_rows=[[100]])
-        )
+        mock_clickhouse.client.query = MagicMock(return_value=MagicMock(result_rows=[[100]]))
         mock_clickhouse.client.command = MagicMock()
 
         mock_neo4j = AsyncMock()
-        mock_neo4j.run_query = AsyncMock(return_value=[{'deleted': 50}])
+        mock_neo4j.run_query = AsyncMock(return_value=[{"deleted": 50}])
 
         manager = RetentionPolicyManager(
             settings,
             mongodb_client=mock_mongodb,
             clickhouse_client=mock_clickhouse,
-            neo4j_client=mock_neo4j
+            neo4j_client=mock_neo4j,
         )
 
         # Executa cleanup (não dry-run)

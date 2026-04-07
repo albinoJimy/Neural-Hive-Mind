@@ -57,9 +57,7 @@ class TestPatternMatcher:
             evaluation = EvolutionEvaluation(
                 confidence_score=0.7, risk_score=0.3, recommendation="approve"
             )
-            await matcher.registry.store_evaluation(
-                f"plan-{i}", fingerprint, evaluation
-            )
+            await matcher.registry.store_evaluation(f"plan-{i}", fingerprint, evaluation)
 
         # Buscar
         search_fingerprint = Fingerprint(
@@ -90,9 +88,7 @@ class TestPatternMatcher:
             evaluation = EvolutionEvaluation(
                 confidence_score=0.7, risk_score=0.3, recommendation="approve"
             )
-            await matcher.registry.store_evaluation(
-                f"plan-{i}", fingerprint, evaluation
-            )
+            await matcher.registry.store_evaluation(f"plan-{i}", fingerprint, evaluation)
 
         search_fingerprint = Fingerprint(
             domain="business",

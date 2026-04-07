@@ -14,11 +14,14 @@ import os
 import sys
 
 # Reutilizar fixtures e helpers de test_discover_e2e.py
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../src"))
 
 from .test_discover_e2e import (
-    MockEtcdClient, MockPheromoneClient,
-    create_grpc_server, create_grpc_channel, get_free_port
+    MockEtcdClient,
+    MockPheromoneClient,
+    create_grpc_server,
+    create_grpc_channel,
+    get_free_port,
 )
 
 from proto import service_registry_pb2, service_registry_pb2_grpc
@@ -74,7 +77,7 @@ class TestWatchAgentsE2E:
                             metadata={"worker": str(i)},
                             namespace="default",
                             cluster="local",
-                            version="1.0.0"
+                            version="1.0.0",
                         )
                     )
 
@@ -105,7 +108,7 @@ class TestWatchAgentsE2E:
                         metadata={},
                         namespace="default",
                         cluster="local",
-                        version="1.0.0"
+                        version="1.0.0",
                     )
                 )
                 agent_id = register_response.agent_id
@@ -122,7 +125,10 @@ class TestWatchAgentsE2E:
                         watch_started.set()
                         async for event in stub.WatchAgents(request):
                             events.append(event)
-                            if event.event_type == service_registry_pb2.AgentChangeEvent.DEREGISTERED:
+                            if (
+                                event.event_type
+                                == service_registry_pb2.AgentChangeEvent.DEREGISTERED
+                            ):
                                 break
                     except grpc.aio.AioRpcError as e:
                         if e.code() != grpc.StatusCode.CANCELLED:
@@ -133,9 +139,7 @@ class TestWatchAgentsE2E:
                 await asyncio.sleep(0.1)
 
                 # Deregistrar agent
-                await stub.Deregister(
-                    service_registry_pb2.DeregisterRequest(agent_id=agent_id)
-                )
+                await stub.Deregister(service_registry_pb2.DeregisterRequest(agent_id=agent_id))
 
                 # Aguardar evento
                 try:
@@ -144,7 +148,11 @@ class TestWatchAgentsE2E:
                     watch.cancel()
 
                 # Validar evento de deregistro
-                deregister_events = [e for e in events if e.event_type == service_registry_pb2.AgentChangeEvent.DEREGISTERED]
+                deregister_events = [
+                    e
+                    for e in events
+                    if e.event_type == service_registry_pb2.AgentChangeEvent.DEREGISTERED
+                ]
                 assert len(deregister_events) == 1
                 assert deregister_events[0].agent.agent_id == agent_id
 
@@ -185,7 +193,7 @@ class TestWatchAgentsE2E:
                             metadata={},
                             namespace="default",
                             cluster="local",
-                            version="1.0.0"
+                            version="1.0.0",
                         )
                     )
 
@@ -196,7 +204,7 @@ class TestWatchAgentsE2E:
                         metadata={},
                         namespace="default",
                         cluster="local",
-                        version="1.0.0"
+                        version="1.0.0",
                     )
                 )
 
@@ -216,7 +224,7 @@ class TestWatchAgentsE2E:
     async def test_watch_handles_client_disconnect(self, etcd_client, pheromone_client):
         """Testa que watch lida com desconexão do cliente"""
         async with create_grpc_server(etcd_client, pheromone_client) as (server, port):
-            channel = grpc.aio.insecure_channel(f'localhost:{port}')
+            channel = grpc.aio.insecure_channel(f"localhost:{port}")
             stub = service_registry_pb2_grpc.ServiceRegistryStub(channel)
 
             # Iniciar watch
@@ -258,7 +266,7 @@ class TestWatchAgentsE2E:
                         metadata={},
                         namespace="default",
                         cluster="local",
-                        version="1.0.0"
+                        version="1.0.0",
                     )
                 )
                 agent_id = register_response.agent_id
@@ -294,8 +302,8 @@ class TestWatchAgentsE2E:
                             success_rate=0.95,
                             avg_duration_ms=100,
                             total_executions=50,
-                            failed_executions=2
-                        )
+                            failed_executions=2,
+                        ),
                     )
                 )
 
@@ -306,7 +314,11 @@ class TestWatchAgentsE2E:
                     watch.cancel()
 
                 # Validar que evento UPDATED foi recebido
-                update_events = [e for e in events if e.event_type == service_registry_pb2.AgentChangeEvent.UPDATED]
+                update_events = [
+                    e
+                    for e in events
+                    if e.event_type == service_registry_pb2.AgentChangeEvent.UPDATED
+                ]
                 assert len(update_events) >= 1
 
     @pytest.mark.asyncio
@@ -343,7 +355,7 @@ class TestWatchAgentsE2E:
                         metadata={},
                         namespace="default",
                         cluster="local",
-                        version="1.0.0"
+                        version="1.0.0",
                     )
                 )
 
@@ -354,7 +366,7 @@ class TestWatchAgentsE2E:
                         metadata={},
                         namespace="default",
                         cluster="local",
-                        version="1.0.0"
+                        version="1.0.0",
                     )
                 )
 
@@ -365,7 +377,7 @@ class TestWatchAgentsE2E:
                         metadata={},
                         namespace="default",
                         cluster="local",
-                        version="1.0.0"
+                        version="1.0.0",
                     )
                 )
 

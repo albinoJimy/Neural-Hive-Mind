@@ -85,9 +85,7 @@ class TestLIMEExplainerWithRandomForest:
         assert "error" not in result_1000
 
         # Mais amostras geralmente = mais features explicadas
-        assert len(result_1000["feature_importances"]) >= len(
-            result_100["feature_importances"]
-        )
+        assert len(result_1000["feature_importances"]) >= len(result_100["feature_importances"])
 
     def test_explain_with_timeout(self, sample_data):
         """Testa timeout de LIME."""
@@ -145,9 +143,7 @@ class TestLIMEExplainerWithRandomForest:
         result = explainer.explain(model, features, feature_names)
 
         # Extrair apenas positivas
-        positive_features = explainer.get_top_features(
-            result, top_n=5, positive_only=True
-        )
+        positive_features = explainer.get_top_features(result, top_n=5, positive_only=True)
 
         for feature in positive_features:
             assert feature["contribution"] == "positive"
@@ -200,9 +196,7 @@ class TestLIMEExplainerEdgeCases:
         explainer = LIMEExplainer(config)
 
         features = X.iloc[0].to_dict()
-        training_data = explainer._generate_training_data(
-            features, feature_names, num_samples=100
-        )
+        training_data = explainer._generate_training_data(features, feature_names, num_samples=100)
 
         assert training_data.shape == (100, len(feature_names))
         # Valores devem ser perturbações dos originais

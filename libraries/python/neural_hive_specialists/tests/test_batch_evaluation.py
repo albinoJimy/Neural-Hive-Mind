@@ -87,8 +87,14 @@ def specialist(specialist_config):
         patch("neural_hive_specialists.base_specialist.OpinionCache"),
         patch("neural_hive_specialists.base_specialist.FeatureCache"),
         patch("neural_hive_specialists.base_specialist.FeatureExtractor"),
-        patch("neural_hive_specialists.base_specialist.SemanticPipeline", return_value=semantic_pipeline_mock),
-        patch("neural_hive_specialists.base_specialist.ExplainabilityGenerator", return_value=explainability_mock),
+        patch(
+            "neural_hive_specialists.base_specialist.SemanticPipeline",
+            return_value=semantic_pipeline_mock,
+        ),
+        patch(
+            "neural_hive_specialists.base_specialist.ExplainabilityGenerator",
+            return_value=explainability_mock,
+        ),
     ]
     for p in patches:
         p.start()

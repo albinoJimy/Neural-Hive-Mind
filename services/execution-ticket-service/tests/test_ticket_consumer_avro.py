@@ -129,7 +129,9 @@ def avro_producer(settings):
 
 
 @pytest.mark.asyncio
-async def test_consumer_deserializes_avro_ticket(monkeypatch, avro_producer, sample_ticket, settings):
+async def test_consumer_deserializes_avro_ticket(
+    monkeypatch, avro_producer, sample_ticket, settings
+):
     metrics = _build_metrics()
     consumer = TicketConsumer(settings, metrics)
     await consumer.start()
@@ -174,7 +176,10 @@ async def test_consumer_persists_to_postgres(monkeypatch, sample_ticket, setting
 
     monkeypatch.setattr("src.consumers.ticket_consumer.get_postgres_client", _fake_postgres_client)
     monkeypatch.setattr("src.consumers.ticket_consumer.get_mongodb_client", _fake_mongo_client)
-    monkeypatch.setattr("src.consumers.ticket_consumer.generate_token", lambda *args, **kwargs: SimpleNamespace(expires_at=0))
+    monkeypatch.setattr(
+        "src.consumers.ticket_consumer.generate_token",
+        lambda *args, **kwargs: SimpleNamespace(expires_at=0),
+    )
 
     ticket_model = ExecutionTicket.from_avro_dict(sample_ticket)
     await consumer._process_ticket(ticket_model)
@@ -202,7 +207,10 @@ async def test_consumer_commits_offset_after_success(monkeypatch, sample_ticket,
     metrics = _build_metrics()
     consumer = TicketConsumer(settings, metrics)
     registry, serializer = _schema_components(settings.kafka_schema_registry_url)
-    consumer.avro_deserializer = AvroDeserializer(registry, (ROOT.parent / "schemas" / "execution-ticket" / "execution-ticket.avsc").read_text())
+    consumer.avro_deserializer = AvroDeserializer(
+        registry,
+        (ROOT.parent / "schemas" / "execution-ticket" / "execution-ticket.avsc").read_text(),
+    )
 
     message_value = serializer(
         sample_ticket,

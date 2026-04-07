@@ -75,9 +75,7 @@ class PIIDetector:
 
             # Criar NLP engine provider
             try:
-                nlp_engine = NlpEngineProvider(
-                    nlp_configuration=nlp_configuration
-                ).create_engine()
+                nlp_engine = NlpEngineProvider(nlp_configuration=nlp_configuration).create_engine()
 
                 # Inicializar engines Presidio com NLP engine configurado
                 self.analyzer = AnalyzerEngine(
@@ -129,20 +127,13 @@ class PIIDetector:
             return []
 
         # Validar e fazer fallback de idioma se não suportado
-        if (
-            hasattr(self, "supported_languages")
-            and language not in self.supported_languages
-        ):
+        if hasattr(self, "supported_languages") and language not in self.supported_languages:
             logger.warning(
                 "Idioma não suportado - usando fallback para 'en'",
                 requested_language=language,
                 supported_languages=self.supported_languages,
             )
-            language = (
-                "en"
-                if "en" in self.supported_languages
-                else self.supported_languages[0]
-            )
+            language = "en" if "en" in self.supported_languages else self.supported_languages[0]
 
         try:
             results = self.analyzer.analyze(
@@ -191,20 +182,13 @@ class PIIDetector:
             return text, []
 
         # Validar e fazer fallback de idioma se não suportado
-        if (
-            hasattr(self, "supported_languages")
-            and language not in self.supported_languages
-        ):
+        if hasattr(self, "supported_languages") and language not in self.supported_languages:
             logger.warning(
                 "Idioma não suportado - usando fallback para 'en'",
                 requested_language=language,
                 supported_languages=self.supported_languages,
             )
-            language = (
-                "en"
-                if "en" in self.supported_languages
-                else self.supported_languages[0]
-            )
+            language = "en" if "en" in self.supported_languages else self.supported_languages[0]
 
         try:
             # Detectar PII
@@ -244,9 +228,7 @@ class PIIDetector:
             return anonymized_result.text, metadata
 
         except Exception as e:
-            logger.error(
-                "Erro ao anonimizar texto - retornando texto original", error=str(e)
-            )
+            logger.error("Erro ao anonimizar texto - retornando texto original", error=str(e))
             return text, []
 
     def anonymize_dict(
@@ -360,6 +342,7 @@ class PIIDetector:
 
 # === VERSÃO LITE (sem Presidio) ===
 
+
 class PIIDetectorLite:
     """
     Versão leve de detecção de PII sem dependência do Presidio.
@@ -418,13 +401,15 @@ class PIIDetectorLite:
         # Converter para formato compatível
         detected = []
         for entity in result.entities:
-            detected.append({
-                "entity_type": entity.type.value,
-                "start": entity.start,
-                "end": entity.end,
-                "score": entity.confidence,
-                "value": entity.value,
-            })
+            detected.append(
+                {
+                    "entity_type": entity.type.value,
+                    "start": entity.start,
+                    "end": entity.end,
+                    "score": entity.confidence,
+                    "value": entity.value,
+                }
+            )
 
         return detected
 

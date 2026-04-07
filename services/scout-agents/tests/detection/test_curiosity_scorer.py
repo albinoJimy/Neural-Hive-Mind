@@ -17,6 +17,7 @@ from neural_hive_domain import UnifiedDomain
 # Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def curiosity_scorer():
     """Instância de CuriosityScorer para testes."""
@@ -31,14 +32,8 @@ def event_with_numeric_features():
         source="analytics",
         event_type="metric",
         timestamp=datetime.now(timezone.utc),
-        payload={
-            "cpu": 75.5,
-            "memory": 60.2,
-            "disk": 45.8,
-            "network": 100.0,
-            "requests": 1000
-        },
-        metadata={"trace_id": "trace-001"}
+        payload={"cpu": 75.5, "memory": 60.2, "disk": 45.8, "network": 100.0, "requests": 1000},
+        metadata={"trace_id": "trace-001"},
     )
 
 
@@ -52,7 +47,7 @@ def event_with_high_variance():
         event_type="reading",
         timestamp=datetime.now(timezone.utc),
         payload={"values": values, "mean": np.mean(values)},
-        metadata={"trace_id": "trace-variance"}
+        metadata={"trace_id": "trace-variance"},
     )
 
 
@@ -65,13 +60,14 @@ def novel_event():
         event_type="new-event-type",
         timestamp=datetime.now(timezone.utc),
         payload={"novel_metric": 999.99},
-        metadata={"trace_id": "trace-novel"}
+        metadata={"trace_id": "trace-novel"},
     )
 
 
 # ============================================================================
 # Testes de Inicialização
 # ============================================================================
+
 
 class TestCuriosityScorerInitialization:
     """Testes de inicialização do CuriosityScorer."""
@@ -80,10 +76,10 @@ class TestCuriosityScorerInitialization:
         """Testa que todos os domínios têm pesos configurados."""
         for domain in UnifiedDomain:
             assert domain.value in curiosity_scorer.weights
-            assert 'novelty' in curiosity_scorer.weights[domain.value]
-            assert 'relevance' in curiosity_scorer.weights[domain.value]
-            assert 'information_gain' in curiosity_scorer.weights[domain.value]
-            assert 'uncertainty' in curiosity_scorer.weights[domain.value]
+            assert "novelty" in curiosity_scorer.weights[domain.value]
+            assert "relevance" in curiosity_scorer.weights[domain.value]
+            assert "information_gain" in curiosity_scorer.weights[domain.value]
+            assert "uncertainty" in curiosity_scorer.weights[domain.value]
 
     def test_initialization_weights_sum_to_one(self, curiosity_scorer):
         """Testa que pesos somam 1.0."""
@@ -99,22 +95,27 @@ class TestCuriosityScorerInitialization:
     def test_initialization_validation_stats(self, curiosity_scorer):
         """Testa que estatísticas de validação são inicializadas."""
         for domain in UnifiedDomain:
-            assert 'validated' in curiosity_scorer.validation_stats[domain.value]
-            assert 'rejected' in curiosity_scorer.validation_stats[domain.value]
-            assert curiosity_scorer.validation_stats[domain.value]['validated'] == 0
-            assert curiosity_scorer.validation_stats[domain.value]['rejected'] == 0
+            assert "validated" in curiosity_scorer.validation_stats[domain.value]
+            assert "rejected" in curiosity_scorer.validation_stats[domain.value]
+            assert curiosity_scorer.validation_stats[domain.value]["validated"] == 0
+            assert curiosity_scorer.validation_stats[domain.value]["rejected"] == 0
 
 
 # ============================================================================
 # Testes de Cálculo de Score de Curiosidade
 # ============================================================================
 
+
 class TestCuriosityScoreCalculation:
     """Testes do cálculo principal de curiosidade."""
 
-    def test_calculate_score_returns_valid_range(self, curiosity_scorer, event_with_numeric_features):
+    def test_calculate_score_returns_valid_range(
+        self, curiosity_scorer, event_with_numeric_features
+    ):
         """Testa que score está em [0, 1]."""
-        score = curiosity_scorer.calculate_score(event_with_numeric_features, UnifiedDomain.BUSINESS)
+        score = curiosity_scorer.calculate_score(
+            event_with_numeric_features, UnifiedDomain.BUSINESS
+        )
         assert 0.0 <= score <= 1.0
 
     def test_calculate_score_stores_features(self, curiosity_scorer, event_with_numeric_features):
@@ -123,15 +124,16 @@ class TestCuriosityScoreCalculation:
 
         curiosity_scorer.calculate_score(event_with_numeric_features, UnifiedDomain.BUSINESS)
 
-        assert len(curiosity_scorer.historical_features[UnifiedDomain.BUSINESS.value]) == initial_count + 1
+        assert (
+            len(curiosity_scorer.historical_features[UnifiedDomain.BUSINESS.value])
+            == initial_count + 1
+        )
 
     def test_calculate_score_with_context(self, curiosity_scorer, event_with_numeric_features):
         """Testa cálculo com contexto adicional."""
         context = {"source": "test", "priority": "high"}
         score = curiosity_scorer.calculate_score(
-            event_with_numeric_features,
-            UnifiedDomain.TECHNICAL,
-            context=context
+            event_with_numeric_features, UnifiedDomain.TECHNICAL, context=context
         )
         assert 0.0 <= score <= 1.0
 
@@ -143,7 +145,7 @@ class TestCuriosityScoreCalculation:
             event_type="test",
             timestamp=datetime.now(timezone.utc),
             payload={"value": 1},
-            metadata={}
+            metadata={},
         )
 
         # Adicionar mais de 1000 eventos
@@ -156,8 +158,12 @@ class TestCuriosityScoreCalculation:
 
     def test_calculate_score_error_handling(self, curiosity_scorer, event_with_numeric_features):
         """Testa tratamento de erro no cálculo."""
-        with patch.object(event_with_numeric_features, 'extract_features', side_effect=Exception("Test error")):
-            score = curiosity_scorer.calculate_score(event_with_numeric_features, UnifiedDomain.BUSINESS)
+        with patch.object(
+            event_with_numeric_features, "extract_features", side_effect=Exception("Test error")
+        ):
+            score = curiosity_scorer.calculate_score(
+                event_with_numeric_features, UnifiedDomain.BUSINESS
+            )
             # Deve retornar default
             assert score == 0.5
 
@@ -165,6 +171,7 @@ class TestCuriosityScoreCalculation:
 # ============================================================================
 # Testes de Cálculo de Novidade
 # ============================================================================
+
 
 class TestNoveltyCalculation:
     """Testes de cálculo de novidade."""
@@ -214,24 +221,27 @@ class TestNoveltyCalculation:
 # Testes de Cálculo de Relevância
 # ============================================================================
 
+
 class TestRelevanceCalculation:
     """Testes de cálculo de relevância."""
 
-    def test_calculate_relevance_business_domain(self, curiosity_scorer, event_with_numeric_features):
+    def test_calculate_relevance_business_domain(
+        self, curiosity_scorer, event_with_numeric_features
+    ):
         """Testa relevância para domínio BUSINESS."""
         relevance = curiosity_scorer.calculate_relevance(
-            event_with_numeric_features,
-            UnifiedDomain.BUSINESS
+            event_with_numeric_features, UnifiedDomain.BUSINESS
         )
         assert 0.0 <= relevance <= 1.0
         # BUSINESS tem alta relevância base
         assert relevance >= 0.8
 
-    def test_calculate_relevance_security_domain(self, curiosity_scorer, event_with_numeric_features):
+    def test_calculate_relevance_security_domain(
+        self, curiosity_scorer, event_with_numeric_features
+    ):
         """Testa relevância para domínio SECURITY."""
         relevance = curiosity_scorer.calculate_relevance(
-            event_with_numeric_features,
-            UnifiedDomain.SECURITY
+            event_with_numeric_features, UnifiedDomain.SECURITY
         )
         # SECURITY tem a mais alta relevância base
         assert relevance >= 0.9
@@ -244,7 +254,7 @@ class TestRelevanceCalculation:
             event_type="user_action",
             timestamp=datetime.now(timezone.utc),
             payload={"action": "click"},
-            metadata={}
+            metadata={},
         )
         relevance = curiosity_scorer.calculate_relevance(event, UnifiedDomain.BUSINESS)
         # Deve ter boost de 0.1
@@ -258,7 +268,7 @@ class TestRelevanceCalculation:
             event_type="metric",
             timestamp=datetime.now(timezone.utc),
             payload={"value": 100},
-            metadata={}
+            metadata={},
         )
         relevance = curiosity_scorer.calculate_relevance(event, UnifiedDomain.INFRASTRUCTURE)
         # Deve ter boost
@@ -278,7 +288,7 @@ class TestRelevanceCalculation:
             event_type="user_action",
             timestamp=datetime.now(timezone.utc),
             payload={"action": "purchase"},
-            metadata={}
+            metadata={},
         )
         relevance = curiosity_scorer.calculate_relevance(event, UnifiedDomain.SECURITY)
         # Mesmo com boosts, não deve exceder 1.0
@@ -288,6 +298,7 @@ class TestRelevanceCalculation:
 # ============================================================================
 # Testes de Cálculo de Ganho de Informação
 # ============================================================================
+
 
 class TestInformationGainCalculation:
     """Testes de cálculo de ganho de informação."""
@@ -315,7 +326,7 @@ class TestInformationGainCalculation:
     def test_calculate_information_gain_error_handling(self, curiosity_scorer):
         """Testa tratamento de erro."""
         # Forçar erro
-        with patch.object(np, 'var', side_effect=Exception("Test error")):
+        with patch.object(np, "var", side_effect=Exception("Test error")):
             features = np.array([1.0, 2.0])
             gain = curiosity_scorer.calculate_information_gain(features, UnifiedDomain.BUSINESS)
             # Deve retornar default
@@ -325,6 +336,7 @@ class TestInformationGainCalculation:
 # ============================================================================
 # Testes de Cálculo de Incerteza
 # ============================================================================
+
 
 class TestUncertaintyCalculation:
     """Testes de cálculo de incerteza."""
@@ -362,24 +374,35 @@ class TestUncertaintyCalculation:
 # Testes de Adaptação de Pesos
 # ============================================================================
 
+
 class TestWeightAdaptation:
     """Testes de adaptação de pesos."""
 
     def test_adapt_weights_valid_signal(self, curiosity_scorer):
         """Testa adaptação com sinal válido."""
-        initial_validated = curiosity_scorer.validation_stats[UnifiedDomain.BUSINESS.value]['validated']
+        initial_validated = curiosity_scorer.validation_stats[UnifiedDomain.BUSINESS.value][
+            "validated"
+        ]
 
         curiosity_scorer.adapt_weights(UnifiedDomain.BUSINESS, 0.8)
 
-        assert curiosity_scorer.validation_stats[UnifiedDomain.BUSINESS.value]['validated'] == initial_validated + 1
+        assert (
+            curiosity_scorer.validation_stats[UnifiedDomain.BUSINESS.value]["validated"]
+            == initial_validated + 1
+        )
 
     def test_adapt_weights_rejected_signal(self, curiosity_scorer):
         """Testa adaptação com sinal rejeitado."""
-        initial_rejected = curiosity_scorer.validation_stats[UnifiedDomain.TECHNICAL.value]['rejected']
+        initial_rejected = curiosity_scorer.validation_stats[UnifiedDomain.TECHNICAL.value][
+            "rejected"
+        ]
 
         curiosity_scorer.adapt_weights(UnifiedDomain.TECHNICAL, 0.3)
 
-        assert curiosity_scorer.validation_stats[UnifiedDomain.TECHNICAL.value]['rejected'] == initial_rejected + 1
+        assert (
+            curiosity_scorer.validation_stats[UnifiedDomain.TECHNICAL.value]["rejected"]
+            == initial_rejected + 1
+        )
 
     def test_adapt_weights_adjusts_at_threshold(self, curiosity_scorer):
         """Testa ajuste de pesos no threshold (50 amostras)."""
@@ -388,9 +411,13 @@ class TestWeightAdaptation:
             curiosity_scorer.adapt_weights(UnifiedDomain.SECURITY, 0.8)
 
         # 50ª deve disparar ajuste
-        initial_novelty = curiosity_scorer.weights[UnifiedDomain.SECURITY.value]['novelty']
+        initial_novelty = curiosity_scorer.weights[UnifiedDomain.SECURITY.value]["novelty"]
 
-        with patch.object(curiosity_scorer, 'get_score_distribution', return_value={'validation_rate': 0.9, 'total_samples': 50}):
+        with patch.object(
+            curiosity_scorer,
+            "get_score_distribution",
+            return_value={"validation_rate": 0.9, "total_samples": 50},
+        ):
             curiosity_scorer.adapt_weights(UnifiedDomain.SECURITY, 0.8)
 
             # Pesos devem ser ajustados
@@ -404,13 +431,14 @@ class TestWeightAdaptation:
             curiosity_scorer.adapt_weights(UnifiedDomain.INFRASTRUCTURE, feedback)
 
         # Peso de novelty deve aumentar
-        novelty_weight = curiosity_scorer.weights[UnifiedDomain.INFRASTRUCTURE.value]['novelty']
+        novelty_weight = curiosity_scorer.weights[UnifiedDomain.INFRASTRUCTURE.value]["novelty"]
         assert novelty_weight >= 0.4  # Deve ter aumentado do base 0.4
 
 
 # ============================================================================
 # Testes de Distribuição de Scores
 # ============================================================================
+
 
 class TestScoreDistribution:
     """Testes de distribuição de scores."""
@@ -419,11 +447,11 @@ class TestScoreDistribution:
         """Testa distribuição sem amostras."""
         stats = curiosity_scorer.get_score_distribution(UnifiedDomain.BUSINESS)
 
-        assert 'validation_rate' in stats
-        assert 'total_samples' in stats
-        assert 'weights' in stats
-        assert stats['validation_rate'] == 0.0
-        assert stats['total_samples'] == 0
+        assert "validation_rate" in stats
+        assert "total_samples" in stats
+        assert "weights" in stats
+        assert stats["validation_rate"] == 0.0
+        assert stats["total_samples"] == 0
 
     def test_get_score_distribution_with_samples(self, curiosity_scorer):
         """Testa distribuição com amostras."""
@@ -434,32 +462,37 @@ class TestScoreDistribution:
 
         stats = curiosity_scorer.get_score_distribution(UnifiedDomain.TECHNICAL)
 
-        assert stats['total_samples'] == 15
+        assert stats["total_samples"] == 15
         # 10 de 15 validados = 0.667
-        assert abs(stats['validation_rate'] - 0.667) < 0.01
+        assert abs(stats["validation_rate"] - 0.667) < 0.01
 
     def test_get_score_distribution_includes_weights(self, curiosity_scorer):
         """Testa que distribuição inclui pesos atuais."""
         stats = curiosity_scorer.get_score_distribution(UnifiedDomain.SECURITY)
 
-        assert 'weights' in stats
-        assert 'novelty' in stats['weights']
-        assert 'relevance' in stats['weights']
+        assert "weights" in stats
+        assert "novelty" in stats["weights"]
+        assert "relevance" in stats["weights"]
 
 
 # ============================================================================
 # Testes de Integração
 # ============================================================================
 
+
 class TestCuriosityScorerIntegration:
     """Testes de integração do fluxo completo."""
 
     def test_full_scoring_cycle(self, curiosity_scorer, event_with_numeric_features):
         """Testa ciclo completo de scoring."""
-        score1 = curiosity_scorer.calculate_score(event_with_numeric_features, UnifiedDomain.BUSINESS)
+        score1 = curiosity_scorer.calculate_score(
+            event_with_numeric_features, UnifiedDomain.BUSINESS
+        )
 
         # Evento similar deve ter novidade menor
-        score2 = curiosity_scorer.calculate_score(event_with_numeric_features, UnifiedDomain.BUSINESS)
+        score2 = curiosity_scorer.calculate_score(
+            event_with_numeric_features, UnifiedDomain.BUSINESS
+        )
 
         # Scores devem estar em range válido
         assert 0.0 <= score1 <= 1.0
@@ -493,6 +526,7 @@ class TestCuriosityScorerIntegration:
 # Testes de Casos Extremos
 # ============================================================================
 
+
 class TestEdgeCases:
     """Testes de casos extremos."""
 
@@ -504,7 +538,7 @@ class TestEdgeCases:
             event_type="test",
             timestamp=datetime.now(timezone.utc),
             payload={"value": 1e308, "another": -1e308},
-            metadata={}
+            metadata={},
         )
         score = curiosity_scorer.calculate_score(event, UnifiedDomain.BUSINESS)
         # Não deve crashar
@@ -515,7 +549,9 @@ class TestEdgeCases:
         # Adicionar muitas features
         for i in range(500):
             features = np.array([float(i % 100)])
-            curiosity_scorer.historical_features[UnifiedDomain.INFRASTRUCTURE.value].append(features)
+            curiosity_scorer.historical_features[UnifiedDomain.INFRASTRUCTURE.value].append(
+                features
+            )
 
         # Deve usar apenas últimas 100
         test_features = np.array([50.0])
@@ -523,11 +559,15 @@ class TestEdgeCases:
         # Não deve crashar
         assert 0.0 <= novelty <= 1.0
 
-    def test_calculate_score_domain_not_in_weights(self, curiosity_scorer, event_with_numeric_features):
+    def test_calculate_score_domain_not_in_weights(
+        self, curiosity_scorer, event_with_numeric_features
+    ):
         """Testa comportamento quando domínio não está em pesos."""
         # Remover domínio dos pesos
         del curiosity_scorer.weights[UnifiedDomain.BEHAVIOR.value]
 
         # Deve criar weights default
-        score = curiosity_scorer.calculate_score(event_with_numeric_features, UnifiedDomain.BEHAVIOR)
+        score = curiosity_scorer.calculate_score(
+            event_with_numeric_features, UnifiedDomain.BEHAVIOR
+        )
         assert 0.0 <= score <= 1.0

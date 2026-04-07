@@ -13,6 +13,7 @@ from neural_hive_domain import UnifiedDomain
 
 class RiskFactor(BaseModel):
     """Fator individual de risco."""
+
     name: str
     score: float = Field(ge=0.0, le=1.0)
     weight: float = Field(ge=0.0, le=1.0)
@@ -22,19 +23,21 @@ class RiskFactor(BaseModel):
 
 class RiskAssessment(BaseModel):
     """Avaliação de risco completa."""
+
     model_config = ConfigDict(use_enum_values=False)
 
-    score: float = Field(ge=0.0, le=1.0, description='Score de risco agregado')
-    band: RiskBand = Field(description='Classificação de risco')
-    domain: UnifiedDomain = Field(description='Domínio de avaliação')
-    factors: Dict[str, float] = Field(description='Fatores individuais')
-    reasoning: str = Field(description='Justificativa da avaliação')
+    score: float = Field(ge=0.0, le=1.0, description="Score de risco agregado")
+    band: RiskBand = Field(description="Classificação de risco")
+    domain: UnifiedDomain = Field(description="Domínio de avaliação")
+    factors: Dict[str, float] = Field(description="Fatores individuais")
+    reasoning: str = Field(description="Justificativa da avaliação")
     assessed_at: datetime = Field(default_factory=datetime.utcnow)
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
 
 class RiskMatrix(BaseModel):
     """Matriz de risco multi-domínio."""
+
     model_config = ConfigDict(use_enum_values=False)
 
     entity_id: str

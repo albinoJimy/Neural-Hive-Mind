@@ -58,9 +58,7 @@ def monitor_running_triggers(
 
         stats["checked"] = len(running_triggers)
 
-        logger.info(
-            "Starting monitoring of retraining runs", total_running=stats["checked"]
-        )
+        logger.info("Starting monitoring of retraining runs", total_running=stats["checked"])
 
         for trigger in running_triggers:
             trigger_id = trigger.get("trigger_id")
@@ -222,9 +220,7 @@ def monitor_running_triggers(
 
 def main():
     """Função principal do script."""
-    parser = argparse.ArgumentParser(
-        description="Monitora runs MLflow de re-treinamento"
-    )
+    parser = argparse.ArgumentParser(description="Monitora runs MLflow de re-treinamento")
     parser.add_argument(
         "--mongodb-uri",
         default="mongodb://localhost:27017",

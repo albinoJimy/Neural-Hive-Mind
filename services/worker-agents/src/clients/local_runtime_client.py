@@ -30,7 +30,6 @@ class LocalTimeoutError(Exception):
     """Timeout aguardando execução local."""
 
 
-
 class CommandNotAllowedError(Exception):
     """Comando não permitido para execução."""
 
@@ -379,7 +378,9 @@ class LocalRuntimeClient:
                 raise
 
             except Exception as e:
-                self.logger.exception("local_execution_failed", command=request.command, error=str(e))
+                self.logger.exception(
+                    "local_execution_failed", command=request.command, error=str(e)
+                )
                 if metrics and hasattr(metrics, "local_executions_total"):
                     metrics.local_executions_total.labels(status="failed").inc()
                 raise LocalExecutionError(f"Erro na execução local: {e}")

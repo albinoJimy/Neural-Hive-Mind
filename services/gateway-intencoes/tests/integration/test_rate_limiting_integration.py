@@ -37,8 +37,8 @@ class TestRateLimitingIntegration:
             redis_client=redis_client,
             enabled=True,
             default_limit=10,  # Limite baixo para testes
-            burst_size=2,      # Permite 2 requisicoes extras como burst
-            fail_open=True
+            burst_size=2,  # Permite 2 requisicoes extras como burst
+            fail_open=True,
         )
 
     @pytest.mark.asyncio
@@ -92,10 +92,7 @@ class TestRateLimitingIntegration:
         user_id = f"test_user_concurrent_{int(time.time() * 1000)}"
 
         # Fazer 20 requisicoes concorrentes
-        tasks = [
-            rate_limiter.check_rate_limit(user_id=user_id)
-            for _ in range(20)
-        ]
+        tasks = [rate_limiter.check_rate_limit(user_id=user_id) for _ in range(20)]
 
         results = await asyncio.gather(*tasks)
 
@@ -133,19 +130,13 @@ class TestRateLimitingIntegration:
 
         # Fazer 15 requisicoes (dentro do limite do tenant premium)
         for i in range(15):
-            result = await rate_limiter.check_rate_limit(
-                user_id=user_id,
-                tenant_id=tenant_id
-            )
+            result = await rate_limiter.check_rate_limit(user_id=user_id, tenant_id=tenant_id)
             assert result.allowed is True, f"Request {i+1} should be allowed for premium tenant"
             assert result.limit == 15  # Tenant limit
 
         # Requisicoes 16 e 17 ainda permitidas (burst de 2)
         for i in range(2):
-            result = await rate_limiter.check_rate_limit(
-                user_id=user_id,
-                tenant_id=tenant_id
-            )
+            result = await rate_limiter.check_rate_limit(user_id=user_id, tenant_id=tenant_id)
             assert result.allowed is True, f"Burst request {i+1} should be allowed"
 
     @pytest.mark.asyncio
@@ -202,7 +193,7 @@ class TestRateLimitingIntegration:
                 enabled=True,
                 default_limit=5,
                 burst_size=0,  # Sem burst
-                fail_open=True
+                fail_open=True,
             )
 
             user_id = f"test_user_no_burst_{int(time.time() * 1000)}"
@@ -248,11 +239,7 @@ class TestRateLimitingSlidingWindowBehavior:
         from middleware.rate_limiter import RateLimiter
 
         limiter = RateLimiter(
-            redis_client=redis_client,
-            enabled=True,
-            default_limit=5,
-            burst_size=0,
-            fail_open=True
+            redis_client=redis_client, enabled=True, default_limit=5, burst_size=0, fail_open=True
         )
 
         user_id = f"test_sliding_continuous_{int(time.time() * 1000)}"
@@ -276,11 +263,7 @@ class TestRateLimitingSlidingWindowBehavior:
         from middleware.rate_limiter import RateLimiter
 
         limiter = RateLimiter(
-            redis_client=redis_client,
-            enabled=True,
-            default_limit=3,
-            burst_size=0,
-            fail_open=True
+            redis_client=redis_client, enabled=True, default_limit=3, burst_size=0, fail_open=True
         )
 
         user_id = f"test_retry_after_{int(time.time() * 1000)}"

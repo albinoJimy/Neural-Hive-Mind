@@ -25,7 +25,7 @@ class NeuralHiveError(Exception):
         message: str,
         code: str = "NHM_UNKNOWN_ERROR",
         details: Optional[Dict[str, Any]] = None,
-        http_status: int = 500
+        http_status: int = 500,
     ):
         self.message = message
         self.code = code
@@ -44,7 +44,7 @@ class NeuralHiveError(Exception):
             "error": self.code,
             "message": self.message,
             "details": self.details,
-            "http_status": self.http_status
+            "http_status": self.http_status,
         }
 
     def __str__(self) -> str:
@@ -81,6 +81,7 @@ class ErrorContext:
         trace_id: ID do trace distribuído para correlação
         timestamp: Timestamp do erro
     """
+
     service: str
     component: str
     operation: str
@@ -94,5 +95,5 @@ class ErrorContext:
             "component": self.component,
             "operation": self.operation,
             "trace_id": self.trace_id,
-            "timestamp": self.timestamp
+            "timestamp": self.timestamp,
         }

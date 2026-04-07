@@ -84,6 +84,7 @@ from .fallback import (
     ConditionalFallback,
     with_fallback,
 )
+
 # Alias para compatibilidade
 fallback = with_fallback
 
@@ -140,6 +141,7 @@ from .exceptions import (
 # Re-exportar CircuitBreakerError do pybreaker para compatibilidade
 try:
     from pybreaker import CircuitBreakerError as PyBreakerCircuitBreakerError
+
     CircuitBreakerError = PyBreakerCircuitBreakerError
 except ImportError:
     pass

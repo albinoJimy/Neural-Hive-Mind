@@ -118,9 +118,7 @@ class TestBatchEvaluator:
         await batch_evaluator.evaluate_batch(sample_plans)
 
         # Verificar que extract_features foi chamado para cada plano
-        assert mock_specialist.feature_extractor.extract_features.call_count >= len(
-            sample_plans
-        )
+        assert mock_specialist.feature_extractor.extract_features.call_count >= len(sample_plans)
 
     @pytest.mark.asyncio
     async def test_batch_fallback_on_prediction_failure(
@@ -136,9 +134,7 @@ class TestBatchEvaluator:
         assert len(results) == len(sample_plans)
 
     @pytest.mark.asyncio
-    async def test_batch_with_feature_cache(
-        self, batch_evaluator, sample_plans, mock_specialist
-    ):
+    async def test_batch_with_feature_cache(self, batch_evaluator, sample_plans, mock_specialist):
         """Testa batch com feature cache habilitado."""
         # Configurar cache mock
         mock_cache = MagicMock()
@@ -243,9 +239,7 @@ class TestBatchEvaluatorPerformance:
         import time
         from neural_hive_specialists.batch_evaluator import BatchEvaluator
 
-        evaluator = BatchEvaluator(
-            specialist=mock_specialist_slow, batch_size=32, max_workers=8
-        )
+        evaluator = BatchEvaluator(specialist=mock_specialist_slow, batch_size=32, max_workers=8)
 
         plans = [{"plan_id": f"plan-{i}", "tasks": []} for i in range(20)]
 

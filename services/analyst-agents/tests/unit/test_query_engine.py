@@ -21,7 +21,7 @@ def mock_clients():
         "elasticsearch": AsyncMock(),
         "prometheus": AsyncMock(),
         "redis": AsyncMock(),
-        "postgresql": AsyncMock()
+        "postgresql": AsyncMock(),
     }
 
 
@@ -37,7 +37,7 @@ def query_engine(mock_clients):
         prometheus_client=mock_clients["prometheus"],
         redis_client=mock_clients["redis"],
         postgresql_client=mock_clients["postgresql"],
-        data_fusion_engine=DataFusionEngine()
+        data_fusion_engine=DataFusionEngine(),
     )
 
 
@@ -63,7 +63,7 @@ class TestGenerateQueryKey:
         query_spec = {
             "sources": ["clickhouse", "mongodb"],
             "time_window": {"start": "2024-01-01", "end": "2024-01-31"},
-            "filters": {"status": "active"}
+            "filters": {"status": "active"},
         }
 
         result = query_engine._generate_query_key(query_spec)
@@ -110,14 +110,12 @@ class TestQueryMultiSource:
     @pytest.mark.asyncio
     async def test_query_multi_source_cache_miss(self, query_engine):
         """Testa query com cache miss."""
-        query_spec = {
-            "sources": ["clickhouse"],
-            "use_cache": True,
-            "enable_fusion": False
-        }
+        query_spec = {"sources": ["clickhouse"], "use_cache": True, "enable_fusion": False}
 
         query_engine.redis.get_cached_query_result = AsyncMock(return_value=None)
-        query_engine._query_clickhouse = AsyncMock(return_value={"source": "clickhouse", "data": [1, 2, 3]})
+        query_engine._query_clickhouse = AsyncMock(
+            return_value={"source": "clickhouse", "data": [1, 2, 3]}
+        )
 
         result = await query_engine.query_multi_source(query_spec)
 
@@ -130,7 +128,7 @@ class TestQueryMultiSource:
         query_spec = {
             "sources": ["clickhouse", "postgresql"],
             "use_cache": False,
-            "enable_fusion": True
+            "enable_fusion": True,
         }
 
         query_engine.redis.get_cached_query_result = AsyncMock(return_value=None)
@@ -145,10 +143,7 @@ class TestQueryMultiSource:
     @pytest.mark.asyncio
     async def test_query_multi_source_error_handling(self, query_engine):
         """Testa tratamento de erros."""
-        query_spec = {
-            "sources": ["clickhouse"],
-            "use_cache": False
-        }
+        query_spec = {"sources": ["clickhouse"], "use_cache": False}
 
         query_engine.redis.get_cached_query_result = AsyncMock(return_value=None)
         query_engine._query_clickhouse = AsyncMock(side_effect=Exception("Connection error"))
@@ -166,7 +161,7 @@ class TestQueryClickHouse:
         """Testa consulta ClickHouse bem-sucedida."""
         query_spec = {
             "time_window": {"start": "2024-01-01", "end": "2024-01-31"},
-            "metrics": ["cpu_usage"]
+            "metrics": ["cpu_usage"],
         }
 
         query_engine.clickhouse.get_execution_statistics = AsyncMock(
@@ -199,11 +194,7 @@ class TestQueryPostgreSQL:
     @pytest.mark.asyncio
     async def test_query_postgresql_insights(self, query_engine):
         """Testa consulta de insights."""
-        query_spec = {
-            "query_type": "insights",
-            "filters": {"analyst_id": "analyst-1"},
-            "limit": 10
-        }
+        query_spec = {"query_type": "insights", "filters": {"analyst_id": "analyst-1"}, "limit": 10}
 
         query_engine.postgresql.get_insights = AsyncMock(
             return_value=[{"id": "1", "title": "Insight 1"}]
@@ -217,11 +208,7 @@ class TestQueryPostgreSQL:
     @pytest.mark.asyncio
     async def test_query_postgresql_actions(self, query_engine):
         """Testa consulta de ações."""
-        query_spec = {
-            "query_type": "actions",
-            "filters": {"analyst_id": "analyst-1"},
-            "limit": 10
-        }
+        query_spec = {"query_type": "actions", "filters": {"analyst_id": "analyst-1"}, "limit": 10}
 
         query_engine.postgresql.get_analyst_actions = AsyncMock(
             return_value=[{"action": "approve"}]
@@ -250,7 +237,7 @@ class TestConsolidateResults:
         """Testa consolidação com todos os resultados bem-sucedidos."""
         results = {
             "clickhouse": {"source": "clickhouse", "data": [1, 2, 3]},
-            "postgresql": {"source": "postgresql", "data": [4, 5]}
+            "postgresql": {"source": "postgresql", "data": [4, 5]},
         }
 
         consolidated = query_engine.consolidate_results(results)
@@ -262,7 +249,7 @@ class TestConsolidateResults:
         """Testa consolidação com exceções."""
         results = {
             "clickhouse": Exception("Connection failed"),
-            "postgresql": {"source": "postgresql", "data": []}
+            "postgresql": {"source": "postgresql", "data": []},
         }
 
         consolidated = query_engine.consolidate_results(results)
@@ -299,10 +286,7 @@ class TestCorrelateMetrics:
     @pytest.mark.asyncio
     async def test_correlate_metrics_success(self, query_engine):
         """Testa cálculo de correlação."""
-        query_spec = {
-            "sources": ["clickhouse", "postgresql"],
-            "use_cache": False
-        }
+        query_spec = {"sources": ["clickhouse", "postgresql"], "use_cache": False}
 
         query_engine._query_clickhouse = AsyncMock(
             return_value={"source": "clickhouse", "data": {"cpu": [10, 20], "memory": [30, 40]}}
@@ -311,11 +295,7 @@ class TestCorrelateMetrics:
             return_value={"source": "postgresql", "data": {"cpu": [15, 25], "memory": [35, 45]}}
         )
 
-        result = await query_engine.correlate_metrics(
-            ["clickhouse", "postgresql"],
-            "cpu",
-            "memory"
-        )
+        result = await query_engine.correlate_metrics(["clickhouse", "postgresql"], "cpu", "memory")
 
         # Deve retornar um valor entre -1 e 1
         if result is not None:
@@ -326,14 +306,8 @@ class TestCorrelateMetrics:
         """Testa correlação com erro."""
         query_spec = {"sources": ["clickhouse"]}
 
-        query_engine._query_clickhouse = AsyncMock(
-            side_effect=Exception("Query error")
-        )
+        query_engine._query_clickhouse = AsyncMock(side_effect=Exception("Query error"))
 
-        result = await query_engine.correlate_metrics(
-            ["clickhouse"],
-            "cpu",
-            "memory"
-        )
+        result = await query_engine.correlate_metrics(["clickhouse"], "cpu", "memory")
 
         assert result is None

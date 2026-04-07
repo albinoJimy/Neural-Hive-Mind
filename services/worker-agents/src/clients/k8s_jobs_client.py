@@ -31,7 +31,6 @@ class K8sJobTimeoutError(Exception):
     """Timeout aguardando Job Kubernetes."""
 
 
-
 class RestartPolicy(StrEnum):
     """Políticas de restart para containers."""
 

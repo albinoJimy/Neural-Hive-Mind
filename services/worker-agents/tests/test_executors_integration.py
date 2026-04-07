@@ -69,7 +69,12 @@ async def test_build_with_code_forge_integration():
     executor = BuildExecutor(SimpleNamespace())
     executor.code_forge_client = StubCF()
 
-    ticket = {"ticket_id": "b-int-1", "task_id": "task", "task_type": "BUILD", "parameters": {"artifact_id": "a1"}}
+    ticket = {
+        "ticket_id": "b-int-1",
+        "task_id": "task",
+        "task_type": "BUILD",
+        "parameters": {"artifact_id": "a1"},
+    }
     result = await executor.execute(ticket)
 
     assert result["success"] is True
@@ -86,7 +91,12 @@ async def test_build_fallback_on_code_forge_error():
     executor = BuildExecutor(SimpleNamespace())
     executor.code_forge_client = ErrorCF()
 
-    ticket = {"ticket_id": "b-int-2", "task_id": "task", "task_type": "BUILD", "parameters": {"artifact_id": "a2"}}
+    ticket = {
+        "ticket_id": "b-int-2",
+        "task_id": "task",
+        "task_type": "BUILD",
+        "parameters": {"artifact_id": "a2"},
+    }
     result = await executor.execute(ticket)
 
     assert result["metadata"]["simulated"] is True
@@ -105,7 +115,12 @@ async def test_build_fallback_on_code_forge_timeout():
     executor = BuildExecutor(SimpleNamespace())
     executor.code_forge_client = TimeoutCF()
 
-    ticket = {"ticket_id": "b-int-3", "task_id": "task", "task_type": "BUILD", "parameters": {"artifact_id": "a3"}}
+    ticket = {
+        "ticket_id": "b-int-3",
+        "task_id": "task",
+        "task_type": "BUILD",
+        "parameters": {"artifact_id": "a3"},
+    }
     result = await executor.execute(ticket)
 
     assert result["metadata"]["simulated"] is True
@@ -155,7 +170,12 @@ class _StubAsyncClient:
 @pytest.mark.asyncio
 async def test_deploy_with_argocd_integration(monkeypatch, config_with_all_integrations):
     healthy_resp = _StubResponse({"status": {"health": {"status": "Healthy"}}})
-    monkeypatch.setattr("clients.argocd_client.httpx.AsyncClient", lambda timeout=30: _StubAsyncClient(post_response=_StubResponse(), get_responses=[healthy_resp]))
+    monkeypatch.setattr(
+        "clients.argocd_client.httpx.AsyncClient",
+        lambda timeout=30: _StubAsyncClient(
+            post_response=_StubResponse(), get_responses=[healthy_resp]
+        ),
+    )
 
     async def no_sleep(_):
         return None
@@ -163,7 +183,12 @@ async def test_deploy_with_argocd_integration(monkeypatch, config_with_all_integ
     monkeypatch.setattr("executors.deploy_executor.asyncio.sleep", no_sleep)
 
     executor = DeployExecutor(config_with_all_integrations)
-    ticket = {"ticket_id": "d-int-1", "task_id": "task", "task_type": "DEPLOY", "parameters": {"deployment_name": "app"}}
+    ticket = {
+        "ticket_id": "d-int-1",
+        "task_id": "task",
+        "task_type": "DEPLOY",
+        "parameters": {"deployment_name": "app"},
+    }
     result = await executor.execute(ticket)
 
     assert result["success"] is True
@@ -177,7 +202,10 @@ async def test_deploy_with_argocd_polling(monkeypatch, config_with_all_integrati
         _StubResponse({"status": {"health": {"status": "Progressing"}}}),
         _StubResponse({"status": {"health": {"status": "Healthy"}}}),
     ]
-    monkeypatch.setattr("clients.argocd_client.httpx.AsyncClient", lambda timeout=30: _StubAsyncClient(post_response=_StubResponse(), get_responses=responses))
+    monkeypatch.setattr(
+        "clients.argocd_client.httpx.AsyncClient",
+        lambda timeout=30: _StubAsyncClient(post_response=_StubResponse(), get_responses=responses),
+    )
 
     async def no_sleep(_):
         return None
@@ -185,7 +213,12 @@ async def test_deploy_with_argocd_polling(monkeypatch, config_with_all_integrati
     monkeypatch.setattr("executors.deploy_executor.asyncio.sleep", no_sleep)
 
     executor = DeployExecutor(config_with_all_integrations)
-    ticket = {"ticket_id": "d-int-2", "task_id": "task", "task_type": "DEPLOY", "parameters": {"deployment_name": "app"}}
+    ticket = {
+        "ticket_id": "d-int-2",
+        "task_id": "task",
+        "task_type": "DEPLOY",
+        "parameters": {"deployment_name": "app"},
+    }
     result = await executor.execute(ticket)
 
     assert result["success"] is True
@@ -207,7 +240,7 @@ async def test_deploy_fallback_on_argocd_disabled(config_with_fallbacks):
 async def test_deploy_fallback_on_argocd_error(monkeypatch, config_with_all_integrations):
     monkeypatch.setattr(
         "clients.argocd_client.httpx.AsyncClient",
-        lambda timeout=30: _StubAsyncClient(raise_on_post=RuntimeError("post failed"))
+        lambda timeout=30: _StubAsyncClient(raise_on_post=RuntimeError("post failed")),
     )
 
     executor = DeployExecutor(config_with_all_integrations)
@@ -223,11 +256,16 @@ async def test_validate_with_opa_policy(monkeypatch, config_with_all_integration
     payload = {"result": {"allow": True, "violations": []}}
     monkeypatch.setattr(
         "clients.opa_client.httpx.AsyncClient",
-        lambda timeout=30: _StubAsyncClient(post_response=_StubResponse(payload))
+        lambda timeout=30: _StubAsyncClient(post_response=_StubResponse(payload)),
     )
 
     executor = ValidateExecutor(config_with_all_integrations)
-    ticket = {"ticket_id": "v-int-1", "task_id": "task", "task_type": "VALIDATE", "parameters": {"validation_type": "policy"}}
+    ticket = {
+        "ticket_id": "v-int-1",
+        "task_id": "task",
+        "task_type": "VALIDATE",
+        "parameters": {"validation_type": "policy"},
+    }
     result = await executor.execute(ticket)
 
     assert result["success"] is True
@@ -240,11 +278,16 @@ async def test_validate_with_opa_violations(monkeypatch, config_with_all_integra
     payload = {"result": {"allow": False, "violations": ["deny"]}}
     monkeypatch.setattr(
         "clients.opa_client.httpx.AsyncClient",
-        lambda timeout=30: _StubAsyncClient(post_response=_StubResponse(payload))
+        lambda timeout=30: _StubAsyncClient(post_response=_StubResponse(payload)),
     )
 
     executor = ValidateExecutor(config_with_all_integrations)
-    ticket = {"ticket_id": "v-int-2", "task_id": "task", "task_type": "VALIDATE", "parameters": {"validation_type": "policy"}}
+    ticket = {
+        "ticket_id": "v-int-2",
+        "task_id": "task",
+        "task_type": "VALIDATE",
+        "parameters": {"validation_type": "policy"},
+    }
     result = await executor.execute(ticket)
 
     assert result["success"] is False
@@ -262,7 +305,12 @@ async def test_validate_with_trivy_sast(monkeypatch, tmp_path, config_with_all_i
     monkeypatch.setattr("executors.validate_executor.subprocess.run", fake_run)
 
     executor = ValidateExecutor(config_with_all_integrations)
-    ticket = {"ticket_id": "v-int-3", "task_id": "task", "task_type": "VALIDATE", "parameters": {"validation_type": "sast", "working_dir": str(tmp_path)}}
+    ticket = {
+        "ticket_id": "v-int-3",
+        "task_id": "task",
+        "task_type": "VALIDATE",
+        "parameters": {"validation_type": "sast", "working_dir": str(tmp_path)},
+    }
     result = await executor.execute(ticket)
 
     assert result["success"] is True
@@ -273,7 +321,12 @@ async def test_validate_with_trivy_sast(monkeypatch, tmp_path, config_with_all_i
 @pytest.mark.asyncio
 async def test_validate_fallback_on_opa_disabled(config_with_fallbacks):
     executor = ValidateExecutor(config_with_fallbacks)
-    ticket = {"ticket_id": "v-int-4", "task_id": "task", "task_type": "VALIDATE", "parameters": {"validation_type": "policy"}}
+    ticket = {
+        "ticket_id": "v-int-4",
+        "task_id": "task",
+        "task_type": "VALIDATE",
+        "parameters": {"validation_type": "policy"},
+    }
     result = await executor.execute(ticket)
 
     assert result["metadata"]["simulated"] is True
@@ -288,7 +341,12 @@ async def test_validate_fallback_on_trivy_timeout(monkeypatch, config_with_all_i
     monkeypatch.setattr("executors.validate_executor.subprocess.run", raise_timeout)
 
     executor = ValidateExecutor(config_with_all_integrations)
-    ticket = {"ticket_id": "v-int-5", "task_id": "task", "task_type": "VALIDATE", "parameters": {"validation_type": "sast"}}
+    ticket = {
+        "ticket_id": "v-int-5",
+        "task_id": "task",
+        "task_type": "VALIDATE",
+        "parameters": {"validation_type": "sast"},
+    }
     result = await executor.execute(ticket)
 
     assert result["success"] is True
@@ -313,7 +371,11 @@ async def test_execute_with_allowed_command(monkeypatch, tmp_path, config_with_a
         "ticket_id": "t-int-1",
         "task_id": "task",
         "task_type": "TEST",
-        "parameters": {"test_command": "pytest", "working_dir": str(tmp_path), "report_path": "report.json"},
+        "parameters": {
+            "test_command": "pytest",
+            "working_dir": str(tmp_path),
+            "report_path": "report.json",
+        },
     }
     result = await executor.execute(ticket)
 
@@ -334,7 +396,11 @@ async def test_execute_with_disallowed_command(monkeypatch, config_with_all_inte
         "ticket_id": "t-int-2",
         "task_id": "task",
         "task_type": "TEST",
-        "parameters": {"test_command": "rm -rf /", "working_dir": ".", "report_path": "report.json"},
+        "parameters": {
+            "test_command": "rm -rf /",
+            "working_dir": ".",
+            "report_path": "report.json",
+        },
     }
     result = await executor.execute(ticket)
 
@@ -357,7 +423,11 @@ async def test_execute_with_report_parsing(monkeypatch, tmp_path, config_with_al
         "ticket_id": "t-int-3",
         "task_id": "task",
         "task_type": "TEST",
-        "parameters": {"test_command": "pytest", "working_dir": str(tmp_path), "report_path": "report.json"},
+        "parameters": {
+            "test_command": "pytest",
+            "working_dir": str(tmp_path),
+            "report_path": "report.json",
+        },
     }
     result = await executor.execute(ticket)
 
@@ -408,6 +478,7 @@ def test_configmap_renders_all_variables():
 
 def _helm_available():
     from shutil import which
+
     return which("helm") is not None
 
 

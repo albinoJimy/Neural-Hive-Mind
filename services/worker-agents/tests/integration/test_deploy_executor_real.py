@@ -34,12 +34,12 @@ class TestDeployExecutorWithMockArgoCD:
         from executors.deploy_executor import DeployExecutor
 
         # Create mock ArgoCD server
-        mock_server = MockArgoCDServer(base_health_status='Healthy')
+        mock_server = MockArgoCDServer(base_health_status="Healthy")
 
         # Enable ArgoCD in config
         worker_config.argocd_enabled = True
-        worker_config.argocd_url = 'http://argocd-mock:8080'
-        worker_config.argocd_token = 'test-token'
+        worker_config.argocd_url = "http://argocd-mock:8080"
+        worker_config.argocd_token = "test-token"
 
         executor = DeployExecutor(
             config=worker_config,
@@ -48,18 +48,18 @@ class TestDeployExecutorWithMockArgoCD:
         )
 
         # Patch httpx.AsyncClient to use mock transport
-        with patch.object(httpx, 'AsyncClient') as mock_client_class:
+        with patch.object(httpx, "AsyncClient") as mock_client_class:
             mock_client = mock_server.get_client()
             mock_client_class.return_value.__aenter__ = AsyncMock(return_value=mock_client)
             mock_client_class.return_value.__aexit__ = AsyncMock(return_value=None)
 
             ticket = ExecutorTestHelper.create_deploy_ticket(
-                namespace='test-ns',
-                deployment_name='test-app',
-                image='myapp:v1.0',
+                namespace="test-ns",
+                deployment_name="test-app",
+                image="myapp:v1.0",
                 replicas=2,
-                repo_url='https://github.com/test/repo',
-                chart_path='charts/app',
+                repo_url="https://github.com/test/repo",
+                chart_path="charts/app",
             )
 
             result = await executor.execute(ticket)
@@ -67,9 +67,9 @@ class TestDeployExecutorWithMockArgoCD:
         # Validate result
         ResultValidator.assert_success(result)
         ResultValidator.assert_simulated(result, expected=False)
-        ResultValidator.assert_has_output(result, 'deployment_id', 'status', 'namespace')
-        ResultValidator.assert_output_value(result, 'deployment_id', 'test-app')
-        ResultValidator.assert_output_value(result, 'namespace', 'test-ns')
+        ResultValidator.assert_has_output(result, "deployment_id", "status", "namespace")
+        ResultValidator.assert_output_value(result, "deployment_id", "test-app")
+        ResultValidator.assert_output_value(result, "namespace", "test-ns")
         ResultValidator.assert_has_logs(result, min_count=2)
 
     @pytest.mark.asyncio
@@ -80,11 +80,11 @@ class TestDeployExecutorWithMockArgoCD:
         from executors.deploy_executor import DeployExecutor
 
         # Create mock ArgoCD server that never becomes healthy
-        mock_server = MockArgoCDServer(base_health_status='Progressing')
+        mock_server = MockArgoCDServer(base_health_status="Progressing")
 
         worker_config.argocd_enabled = True
-        worker_config.argocd_url = 'http://argocd-mock:8080'
-        worker_config.argocd_token = 'test-token'
+        worker_config.argocd_url = "http://argocd-mock:8080"
+        worker_config.argocd_token = "test-token"
 
         executor = DeployExecutor(
             config=worker_config,
@@ -92,13 +92,13 @@ class TestDeployExecutorWithMockArgoCD:
             metrics=mock_metrics,
         )
 
-        with patch.object(httpx, 'AsyncClient') as mock_client_class:
+        with patch.object(httpx, "AsyncClient") as mock_client_class:
             mock_client = mock_server.get_client()
             mock_client_class.return_value.__aenter__ = AsyncMock(return_value=mock_client)
             mock_client_class.return_value.__aexit__ = AsyncMock(return_value=None)
 
             ticket = ExecutorTestHelper.create_deploy_ticket(
-                deployment_name='timeout-app',
+                deployment_name="timeout-app",
                 timeout_seconds=2,  # Short timeout
                 poll_interval=0.5,
             )
@@ -108,7 +108,7 @@ class TestDeployExecutorWithMockArgoCD:
         # Should timeout and return failure
         ResultValidator.assert_failure(result)
         ResultValidator.assert_simulated(result, expected=False)
-        ResultValidator.assert_output_value(result, 'status', 'timeout')
+        ResultValidator.assert_output_value(result, "status", "timeout")
 
     @pytest.mark.asyncio
     async def test_deploy_executor_argocd_auth_error(
@@ -118,8 +118,8 @@ class TestDeployExecutorWithMockArgoCD:
         from executors.deploy_executor import DeployExecutor
 
         worker_config.argocd_enabled = True
-        worker_config.argocd_url = 'http://argocd-mock:8080'
-        worker_config.argocd_token = 'invalid-token'
+        worker_config.argocd_url = "http://argocd-mock:8080"
+        worker_config.argocd_token = "invalid-token"
 
         executor = DeployExecutor(
             config=worker_config,
@@ -135,18 +135,22 @@ class TestDeployExecutorWithMockArgoCD:
             )
             response.raise_for_status()
 
-        with patch.object(httpx.AsyncClient, 'post', side_effect=httpx.HTTPStatusError(
-            'Unauthorized',
-            request=MagicMock(),
-            response=httpx.Response(status_code=401),
-        )):
+        with patch.object(
+            httpx.AsyncClient,
+            "post",
+            side_effect=httpx.HTTPStatusError(
+                "Unauthorized",
+                request=MagicMock(),
+                response=httpx.Response(status_code=401),
+            ),
+        ):
             ticket = ExecutorTestHelper.create_deploy_ticket()
 
             result = await executor.execute(ticket)
 
         # Should fail with error status
         ResultValidator.assert_failure(result)
-        ResultValidator.assert_output_value(result, 'status', 'error')
+        ResultValidator.assert_output_value(result, "status", "error")
 
     @pytest.mark.asyncio
     async def test_deploy_executor_argocd_connection_error(
@@ -156,8 +160,8 @@ class TestDeployExecutorWithMockArgoCD:
         from executors.deploy_executor import DeployExecutor
 
         worker_config.argocd_enabled = True
-        worker_config.argocd_url = 'http://argocd-unreachable:8080'
-        worker_config.argocd_token = 'test-token'
+        worker_config.argocd_url = "http://argocd-unreachable:8080"
+        worker_config.argocd_token = "test-token"
 
         executor = DeployExecutor(
             config=worker_config,
@@ -166,7 +170,9 @@ class TestDeployExecutorWithMockArgoCD:
         )
 
         # Mock connection error
-        with patch.object(httpx.AsyncClient, 'post', side_effect=httpx.ConnectError('Connection refused')):
+        with patch.object(
+            httpx.AsyncClient, "post", side_effect=httpx.ConnectError("Connection refused")
+        ):
             ticket = ExecutorTestHelper.create_deploy_ticket()
 
             result = await executor.execute(ticket)
@@ -193,8 +199,8 @@ class TestDeployExecutorSimulation:
         )
 
         ticket = ExecutorTestHelper.create_deploy_ticket(
-            namespace='test-ns',
-            deployment_name='simulated-app',
+            namespace="test-ns",
+            deployment_name="simulated-app",
         )
 
         result = await executor.execute(ticket)
@@ -202,9 +208,9 @@ class TestDeployExecutorSimulation:
         # Simulation should succeed
         ResultValidator.assert_success(result)
         ResultValidator.assert_simulated(result, expected=True)
-        ResultValidator.assert_has_output(result, 'deployment_id', 'status', 'namespace')
-        ResultValidator.assert_output_value(result, 'status', 'deployed')
-        ResultValidator.assert_log_contains(result, 'simulated')
+        ResultValidator.assert_has_output(result, "deployment_id", "status", "namespace")
+        ResultValidator.assert_output_value(result, "status", "deployed")
+        ResultValidator.assert_log_contains(result, "simulated")
 
     @pytest.mark.asyncio
     async def test_deploy_executor_fallback_simulation(
@@ -248,8 +254,8 @@ class TestDeployExecutorSimulation:
         result = await executor.execute(ticket)
 
         # Verify metrics were recorded
-        mock_metrics.deploy_tasks_executed_total.labels.assert_called_with(status='success')
-        mock_metrics.deploy_duration_seconds.labels.assert_called_with(stage='simulated')
+        mock_metrics.deploy_tasks_executed_total.labels.assert_called_with(status="success")
+        mock_metrics.deploy_duration_seconds.labels.assert_called_with(stage="simulated")
 
 
 class TestDeployExecutorValidation:
@@ -261,15 +267,15 @@ class TestDeployExecutorValidation:
         from executors.base_executor import ValidationError
 
         ticket = {
-            'task_id': 'task-123',
-            'task_type': 'DEPLOY',
-            'parameters': {},
+            "task_id": "task-123",
+            "task_type": "DEPLOY",
+            "parameters": {},
         }
 
         with pytest.raises(ValidationError) as exc_info:
             await deploy_executor.execute(ticket)
 
-        assert 'ticket_id' in str(exc_info.value)
+        assert "ticket_id" in str(exc_info.value)
 
     @pytest.mark.asyncio
     async def test_deploy_executor_wrong_task_type(self, deploy_executor):
@@ -277,16 +283,16 @@ class TestDeployExecutorValidation:
         from executors.base_executor import ValidationError
 
         ticket = {
-            'ticket_id': 'ticket-123',
-            'task_id': 'task-123',
-            'task_type': 'BUILD',  # Wrong type
-            'parameters': {},
+            "ticket_id": "ticket-123",
+            "task_id": "task-123",
+            "task_type": "BUILD",  # Wrong type
+            "parameters": {},
         }
 
         with pytest.raises(ValidationError) as exc_info:
             await deploy_executor.execute(ticket)
 
-        assert 'task type mismatch' in str(exc_info.value).lower()
+        assert "task type mismatch" in str(exc_info.value).lower()
 
 
 class TestDeployExecutorWithMockHTTPTransport:
@@ -307,32 +313,32 @@ class TestDeployExecutorWithMockHTTPTransport:
             path = request.url.path
 
             # POST /api/v1/applications - create
-            if request.method == 'POST' and path == '/api/v1/applications':
+            if request.method == "POST" and path == "/api/v1/applications":
                 return httpx.Response(
                     status_code=201,
-                    json={'metadata': {'name': 'mock-app'}},
+                    json={"metadata": {"name": "mock-app"}},
                 )
 
             # GET /api/v1/applications/{name} - status
-            if request.method == 'GET' and path.startswith('/api/v1/applications/'):
+            if request.method == "GET" and path.startswith("/api/v1/applications/"):
                 return httpx.Response(
                     status_code=200,
                     json={
-                        'metadata': {'name': 'mock-app'},
-                        'status': {
-                            'health': {'status': 'Healthy'},
-                            'sync': {'status': 'Synced'},
+                        "metadata": {"name": "mock-app"},
+                        "status": {
+                            "health": {"status": "Healthy"},
+                            "sync": {"status": "Synced"},
                         },
                     },
                 )
 
-            return httpx.Response(status_code=404, json={'error': 'Not found'})
+            return httpx.Response(status_code=404, json={"error": "Not found"})
 
         transport = httpx.MockTransport(handle_request)
 
         worker_config.argocd_enabled = True
-        worker_config.argocd_url = 'http://mock-argocd:8080'
-        worker_config.argocd_token = 'test-token'
+        worker_config.argocd_url = "http://mock-argocd:8080"
+        worker_config.argocd_token = "test-token"
 
         executor = DeployExecutor(
             config=worker_config,
@@ -344,13 +350,13 @@ class TestDeployExecutorWithMockHTTPTransport:
         original_init = httpx.AsyncClient.__init__
 
         def patched_init(self, *args, **kwargs):
-            kwargs['transport'] = transport
-            kwargs.pop('timeout', None)
+            kwargs["transport"] = transport
+            kwargs.pop("timeout", None)
             return original_init(self, *args, **kwargs)
 
-        with patch.object(httpx.AsyncClient, '__init__', patched_init):
+        with patch.object(httpx.AsyncClient, "__init__", patched_init):
             ticket = ExecutorTestHelper.create_deploy_ticket(
-                deployment_name='mock-app',
+                deployment_name="mock-app",
             )
 
             result = await executor.execute(ticket)
@@ -360,7 +366,7 @@ class TestDeployExecutorWithMockHTTPTransport:
         ResultValidator.assert_simulated(result, expected=False)
 
         # Verify requests were made
-        assert len(requests_made) >= 2, 'Expected at least POST and GET requests'
+        assert len(requests_made) >= 2, "Expected at least POST and GET requests"
 
 
 @pytest.mark.real_integration
@@ -375,11 +381,11 @@ class TestDeployExecutorRealArgoCD:
         """Test with real ArgoCD (requires ARGOCD_URL and ARGOCD_TOKEN env vars)."""
         from executors.deploy_executor import DeployExecutor
 
-        argocd_url = os.getenv('ARGOCD_URL')
-        argocd_token = os.getenv('ARGOCD_TOKEN')
+        argocd_url = os.getenv("ARGOCD_URL")
+        argocd_token = os.getenv("ARGOCD_TOKEN")
 
         if not argocd_url or not argocd_token:
-            pytest.skip('ARGOCD_URL and ARGOCD_TOKEN not configured')
+            pytest.skip("ARGOCD_URL and ARGOCD_TOKEN not configured")
 
         worker_config.argocd_enabled = True
         worker_config.argocd_url = argocd_url
@@ -393,31 +399,32 @@ class TestDeployExecutorRealArgoCD:
 
         # Create a test application with unique name
         import uuid
-        test_app_name = f'test-integration-{uuid.uuid4().hex[:8]}'
+
+        test_app_name = f"test-integration-{uuid.uuid4().hex[:8]}"
 
         try:
             ticket = ExecutorTestHelper.create_deploy_ticket(
                 deployment_name=test_app_name,
-                namespace='default',
-                repo_url='https://github.com/argoproj/argocd-example-apps',
-                chart_path='guestbook',
+                namespace="default",
+                repo_url="https://github.com/argoproj/argocd-example-apps",
+                chart_path="guestbook",
                 timeout_seconds=120,
             )
 
             result = await executor.execute(ticket)
 
             # With real service, expect either success or graceful failure
-            assert 'success' in result
-            assert 'output' in result
-            assert 'metadata' in result
+            assert "success" in result
+            assert "output" in result
+            assert "metadata" in result
 
         finally:
             # Cleanup: delete test application
             try:
                 async with httpx.AsyncClient() as client:
                     await client.delete(
-                        f'{argocd_url}/api/v1/applications/{test_app_name}',
-                        headers={'Authorization': f'Bearer {argocd_token}'},
+                        f"{argocd_url}/api/v1/applications/{test_app_name}",
+                        headers={"Authorization": f"Bearer {argocd_token}"},
                     )
             except Exception:
                 pass  # Cleanup failure is not critical

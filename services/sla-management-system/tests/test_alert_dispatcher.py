@@ -131,8 +131,7 @@ class TestDispatchToSlack:
 
         with patch.object(alert_dispatcher.session, "post", return_value=mock_response):
             result = await alert_dispatcher._dispatch_to_slack(
-                sample_alert,
-                {"webhook_url": "https://hooks.slack.com/test"}
+                sample_alert, {"webhook_url": "https://hooks.slack.com/test"}
             )
 
         assert result.success is True
@@ -147,10 +146,7 @@ class TestDispatchToSlack:
 
         alert_dispatcher.slack_webhook_url = None
 
-        result = await alert_dispatcher._dispatch_to_slack(
-            sample_alert,
-            {"webhook_url": None}
-        )
+        result = await alert_dispatcher._dispatch_to_slack(sample_alert, {"webhook_url": None})
 
         assert result.success is False
         assert "No webhook URL configured" in result.error_message
@@ -163,7 +159,7 @@ class TestDispatchToSlack:
         sample_alert.details = {
             "budget_remaining": 15.0,
             "burn_rate": 1.5,
-            "time_until_exhausted": "2h 30m"
+            "time_until_exhausted": "2h 30m",
         }
 
         mock_response = MagicMock()
@@ -172,8 +168,7 @@ class TestDispatchToSlack:
 
         with patch.object(alert_dispatcher.session, "post", return_value=mock_response):
             result = await alert_dispatcher._dispatch_to_slack(
-                sample_alert,
-                {"webhook_url": "https://hooks.slack.com/test"}
+                sample_alert, {"webhook_url": "https://hooks.slack.com/test"}
             )
 
         assert result.success is True
@@ -189,8 +184,7 @@ class TestDispatchToSlack:
 
         with patch.object(alert_dispatcher.session, "post", return_value=mock_response):
             result = await alert_dispatcher._dispatch_to_slack(
-                sample_alert,
-                {"webhook_url": "https://hooks.slack.com/test"}
+                sample_alert, {"webhook_url": "https://hooks.slack.com/test"}
             )
 
         assert result.success is False
@@ -211,8 +205,7 @@ class TestDispatchToPagerDuty:
 
         with patch.object(alert_dispatcher.session, "post", return_value=mock_response):
             result = await alert_dispatcher._dispatch_to_pagerduty(
-                sample_alert,
-                {"routing_key": "test-pd-key"}
+                sample_alert, {"routing_key": "test-pd-key"}
             )
 
         assert result.success is True
@@ -226,10 +219,7 @@ class TestDispatchToPagerDuty:
 
         alert_dispatcher.pagerduty_routing_key = None
 
-        result = await alert_dispatcher._dispatch_to_pagerduty(
-            sample_alert,
-            {"routing_key": None}
-        )
+        result = await alert_dispatcher._dispatch_to_pagerduty(sample_alert, {"routing_key": None})
 
         assert result.success is False
         assert "No routing key configured" in result.error_message
@@ -245,10 +235,11 @@ class TestDispatchToPagerDuty:
         mock_response.status_code = 202
         mock_response.raise_for_status = MagicMock()
 
-        with patch.object(alert_dispatcher.session, "post", return_value=mock_response) as mock_post:
+        with patch.object(
+            alert_dispatcher.session, "post", return_value=mock_response
+        ) as mock_post:
             await alert_dispatcher._dispatch_to_pagerduty(
-                sample_alert,
-                {"routing_key": "test-pd-key"}
+                sample_alert, {"routing_key": "test-pd-key"}
             )
 
             # Verificar que severity foi mapeada corretamente
@@ -264,8 +255,7 @@ class TestDispatchToEmail:
     async def test_dispatch_to_email_success(self, alert_dispatcher, sample_alert):
         """Testa despacho bem-sucedido por email."""
         result = await alert_dispatcher._dispatch_to_email(
-            sample_alert,
-            {"to": ["recipient@test.com"]}
+            sample_alert, {"to": ["recipient@test.com"]}
         )
 
         # Email é simulado, então deve retornar sucesso
@@ -275,10 +265,7 @@ class TestDispatchToEmail:
     @pytest.mark.asyncio
     async def test_dispatch_to_email_no_recipients(self, alert_dispatcher, sample_alert):
         """Testa despacho por email sem destinatários."""
-        result = await alert_dispatcher._dispatch_to_email(
-            sample_alert,
-            {"to": []}
-        )
+        result = await alert_dispatcher._dispatch_to_email(sample_alert, {"to": []})
 
         assert result.success is False
         assert "No recipients configured" in result.error_message
@@ -287,8 +274,7 @@ class TestDispatchToEmail:
     async def test_dispatch_to_email_multiple_recipients(self, alert_dispatcher, sample_alert):
         """Testa despacho por email com múltiplos destinatários."""
         result = await alert_dispatcher._dispatch_to_email(
-            sample_alert,
-            {"to": ["recipient1@test.com", "recipient2@test.com"]}
+            sample_alert, {"to": ["recipient1@test.com", "recipient2@test.com"]}
         )
 
         assert result.success is True
@@ -308,8 +294,7 @@ class TestDispatchToWebhook:
 
         with patch.object(alert_dispatcher.session, "post", return_value=mock_response):
             result = await alert_dispatcher._dispatch_to_webhook(
-                sample_alert,
-                {"url": "https://webhook.test.com/endpoint"}
+                sample_alert, {"url": "https://webhook.test.com/endpoint"}
             )
 
         assert result.success is True
@@ -318,10 +303,7 @@ class TestDispatchToWebhook:
     @pytest.mark.asyncio
     async def test_dispatch_to_webhook_no_url(self, alert_dispatcher, sample_alert):
         """Testa despacho para webhook sem URL."""
-        result = await alert_dispatcher._dispatch_to_webhook(
-            sample_alert,
-            {"url": None}
-        )
+        result = await alert_dispatcher._dispatch_to_webhook(sample_alert, {"url": None})
 
         assert result.success is False
         assert "No webhook URL configured" in result.error_message
@@ -337,8 +319,7 @@ class TestDispatchToWebhook:
 
         with patch.object(alert_dispatcher.session, "put", return_value=mock_response):
             result = await alert_dispatcher._dispatch_to_webhook(
-                sample_alert,
-                {"url": "https://webhook.test.com/endpoint", "method": "PUT"}
+                sample_alert, {"url": "https://webhook.test.com/endpoint", "method": "PUT"}
             )
 
         assert result.success is True
@@ -352,13 +333,15 @@ class TestDispatchToWebhook:
         mock_response.status_code = 200
         mock_response.raise_for_status = MagicMock()
 
-        with patch.object(alert_dispatcher.session, "post", return_value=mock_response) as mock_post:
+        with patch.object(
+            alert_dispatcher.session, "post", return_value=mock_response
+        ) as mock_post:
             await alert_dispatcher._dispatch_to_webhook(
                 sample_alert,
                 {
                     "url": "https://webhook.test.com/endpoint",
-                    "headers": {"Authorization": "Bearer token123", "X-Custom": "value"}
-                }
+                    "headers": {"Authorization": "Bearer token123", "X-Custom": "value"},
+                },
             )
 
             # Verificar que headers foram passados
@@ -380,8 +363,7 @@ class TestDispatchToAlertmanager:
 
         with patch.object(alert_dispatcher.session, "post", return_value=mock_response):
             result = await alert_dispatcher._dispatch_to_alertmanager(
-                sample_alert,
-                {"url": "http://alertmanager:9093"}
+                sample_alert, {"url": "http://alertmanager:9093"}
             )
 
         assert result.success is True
@@ -390,10 +372,7 @@ class TestDispatchToAlertmanager:
     @pytest.mark.asyncio
     async def test_dispatch_to_alertmanager_no_url(self, alert_dispatcher, sample_alert):
         """Testa despacho para Alertmanager sem URL."""
-        result = await alert_dispatcher._dispatch_to_alertmanager(
-            sample_alert,
-            {"url": None}
-        )
+        result = await alert_dispatcher._dispatch_to_alertmanager(sample_alert, {"url": None})
 
         assert result.success is False
         assert "No Alertmanager URL configured" in result.error_message
@@ -407,10 +386,11 @@ class TestDispatchToAlertmanager:
         mock_response.status_code = 200
         mock_response.raise_for_status = MagicMock()
 
-        with patch.object(alert_dispatcher.session, "post", return_value=mock_response) as mock_post:
+        with patch.object(
+            alert_dispatcher.session, "post", return_value=mock_response
+        ) as mock_post:
             await alert_dispatcher._dispatch_to_alertmanager(
-                sample_alert,
-                {"url": "http://alertmanager:9093"}
+                sample_alert, {"url": "http://alertmanager:9093"}
             )
 
             # Verificar URL e payload
@@ -444,8 +424,8 @@ class TestDispatchMultiChannel:
                 [AlertChannel.SLACK, AlertChannel.WEBHOOK],
                 {
                     "slack": {"webhook_url": "https://hooks.slack.com/test"},
-                    "webhook": {"url": "https://webhook.test.com/endpoint"}
-                }
+                    "webhook": {"url": "https://webhook.test.com/endpoint"},
+                },
             )
 
         assert len(results) == 2
@@ -475,8 +455,8 @@ class TestDispatchMultiChannel:
                 [AlertChannel.SLACK, AlertChannel.WEBHOOK],
                 {
                     "slack": {"webhook_url": "https://hooks.slack.com/test"},
-                    "webhook": {"url": "https://webhook.test.com/endpoint"}
-                }
+                    "webhook": {"url": "https://webhook.test.com/endpoint"},
+                },
             )
 
         assert len(results) == 2
@@ -508,8 +488,8 @@ class TestDispatchMultiChannel:
                     "pagerduty": {"routing_key": "test-pd-key"},
                     "email": {"to": ["recipient@test.com"]},
                     "webhook": {"url": "https://webhook.test.com/endpoint"},
-                    "alertmanager": {"url": "http://alertmanager:9093"}
-                }
+                    "alertmanager": {"url": "http://alertmanager:9093"},
+                },
             )
 
         assert len(results) == 5

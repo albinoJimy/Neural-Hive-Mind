@@ -12,9 +12,7 @@ import os
 @pytest.fixture(autouse=True)
 def mock_env_vars():
     """Mock variaveis de ambiente para os testes."""
-    env_vars = {
-        'KAFKA_BOOTSTRAP_SERVERS': 'localhost:9092'
-    }
+    env_vars = {"KAFKA_BOOTSTRAP_SERVERS": "localhost:9092"}
 
     # Salvar valores originais
     original_values = {k: os.environ.get(k) for k in env_vars.keys()}
@@ -111,10 +109,9 @@ async def test_list_scenarios_success():
 
     mock_engine = MagicMock()
     mock_engine.list_scenarios = MagicMock(return_value=["pod_kill", "network_delay", "high_cpu"])
-    mock_engine.get_scenario_info = MagicMock(side_effect=lambda name: {
-        "description": f"Scenario {name}",
-        "severity": "medium"
-    })
+    mock_engine.get_scenario_info = MagicMock(
+        side_effect=lambda name: {"description": f"Scenario {name}", "severity": "medium"}
+    )
 
     request = MagicMock()
     request.app.state.chaos_engine = mock_engine
@@ -147,11 +144,13 @@ async def test_get_scenario_info():
     from src.api.chaos import get_scenario
 
     mock_engine = MagicMock()
-    mock_engine.get_scenario_info = MagicMock(return_value={
-        "description": "Kill pods to test resilience",
-        "severity": "high",
-        "parameters": {"namespace": "default"}
-    })
+    mock_engine.get_scenario_info = MagicMock(
+        return_value={
+            "description": "Kill pods to test resilience",
+            "severity": "high",
+            "parameters": {"namespace": "default"},
+        }
+    )
 
     response = await get_scenario("pod_kill", chaos_engine=mock_engine)
 
@@ -197,30 +196,27 @@ async def test_list_active_experiments():
 async def test_create_experiment(mock_env_vars):
     """Criar experimento deve retornar response com experiment_id."""
     from src.api.chaos import create_experiment
-    from src.chaos.chaos_models import ChaosExperimentRequest, FaultInjection, FaultType, TargetSelector
+    from src.chaos.chaos_models import (
+        ChaosExperimentRequest,
+        FaultInjection,
+        FaultType,
+        TargetSelector,
+    )
 
     mock_engine = AsyncMock()
-    mock_engine.create_experiment = AsyncMock(return_value=MagicMock(
-        experiment_id="exp-123",
-        status="created"
-    ))
-
-    target = TargetSelector(
-        namespace="default",
-        service_name="test-service"
+    mock_engine.create_experiment = AsyncMock(
+        return_value=MagicMock(experiment_id="exp-123", status="created")
     )
 
-    injection = FaultInjection(
-        fault_type=FaultType.POD_KILL,
-        target=target,
-        duration_seconds=60
-    )
+    target = TargetSelector(namespace="default", service_name="test-service")
+
+    injection = FaultInjection(fault_type=FaultType.POD_KILL, target=target, duration_seconds=60)
 
     request = ChaosExperimentRequest(
         name="Test experiment",
         description="Test description",
         environment="staging",
-        fault_injections=[injection]
+        fault_injections=[injection],
     )
 
     response = await create_experiment(request, chaos_engine=mock_engine)
@@ -235,16 +231,12 @@ async def test_execute_scenario():
     from src.api.chaos import execute_scenario, ScenarioRequest
 
     mock_engine = AsyncMock()
-    mock_engine.execute_scenario = AsyncMock(return_value=MagicMock(
-        experiment_id="exp-123",
-        status="completed",
-        successful=True
-    ))
+    mock_engine.execute_scenario = AsyncMock(
+        return_value=MagicMock(experiment_id="exp-123", status="completed", successful=True)
+    )
 
     request = ScenarioRequest(
-        scenario_name="pod_kill",
-        target_service="test-service",
-        target_namespace="default"
+        scenario_name="pod_kill", target_service="test-service", target_namespace="default"
     )
 
     response = await execute_scenario(request, chaos_engine=mock_engine)
@@ -273,14 +265,12 @@ async def test_validate_playbook():
     from src.api.chaos import validate_playbook, PlaybookValidationRequest
 
     mock_engine = AsyncMock()
-    mock_engine.validate_playbook = AsyncMock(return_value=MagicMock(
-        valid=True,
-        recovery_time_seconds=30
-    ))
+    mock_engine.validate_playbook = AsyncMock(
+        return_value=MagicMock(valid=True, recovery_time_seconds=30)
+    )
 
     request = PlaybookValidationRequest(
-        playbook_name="test-playbook",
-        target_service="test-service"
+        playbook_name="test-playbook", target_service="test-service"
     )
 
     response = await validate_playbook(request, chaos_engine=mock_engine)

@@ -43,7 +43,7 @@ class TestValidateExecutorWithMockOPA:
         mock_server = MockOPAServer(default_allow=True)
 
         worker_config.opa_enabled = True
-        worker_config.opa_url = 'http://opa-mock:8181'
+        worker_config.opa_url = "http://opa-mock:8181"
 
         executor = ValidateExecutor(
             config=worker_config,
@@ -52,15 +52,15 @@ class TestValidateExecutorWithMockOPA:
         )
 
         # Patch httpx.AsyncClient to use mock transport
-        with patch.object(httpx, 'AsyncClient') as mock_client_class:
+        with patch.object(httpx, "AsyncClient") as mock_client_class:
             mock_client = mock_server.get_client()
             mock_client_class.return_value.__aenter__ = AsyncMock(return_value=mock_client)
             mock_client_class.return_value.__aexit__ = AsyncMock(return_value=None)
 
             ticket = ExecutorTestHelper.create_validate_ticket(
-                validation_type='policy',
-                policy_path='policy/allow',
-                input_data={'user': 'admin', 'action': 'read'},
+                validation_type="policy",
+                policy_path="policy/allow",
+                input_data={"user": "admin", "action": "read"},
             )
 
             result = await executor.execute(ticket)
@@ -68,9 +68,11 @@ class TestValidateExecutorWithMockOPA:
         # Validate result
         ResultValidator.assert_success(result)
         ResultValidator.assert_simulated(result, expected=False)
-        ResultValidator.assert_has_output(result, 'validation_passed', 'violations', 'validation_type')
-        ResultValidator.assert_output_value(result, 'validation_passed', True)
-        ResultValidator.assert_output_value(result, 'validation_type', 'policy')
+        ResultValidator.assert_has_output(
+            result, "validation_passed", "violations", "validation_type"
+        )
+        ResultValidator.assert_output_value(result, "validation_passed", True)
+        ResultValidator.assert_output_value(result, "validation_type", "policy")
 
     @pytest.mark.asyncio
     async def test_validate_executor_opa_policy_deny(
@@ -83,7 +85,7 @@ class TestValidateExecutorWithMockOPA:
         mock_server = MockOPAServer(default_allow=False)
 
         worker_config.opa_enabled = True
-        worker_config.opa_url = 'http://opa-mock:8181'
+        worker_config.opa_url = "http://opa-mock:8181"
 
         executor = ValidateExecutor(
             config=worker_config,
@@ -91,15 +93,15 @@ class TestValidateExecutorWithMockOPA:
             metrics=mock_metrics,
         )
 
-        with patch.object(httpx, 'AsyncClient') as mock_client_class:
+        with patch.object(httpx, "AsyncClient") as mock_client_class:
             mock_client = mock_server.get_client()
             mock_client_class.return_value.__aenter__ = AsyncMock(return_value=mock_client)
             mock_client_class.return_value.__aexit__ = AsyncMock(return_value=None)
 
             ticket = ExecutorTestHelper.create_validate_ticket(
-                validation_type='policy',
-                policy_path='policy/allow',
-                input_data={'user': 'guest', 'action': 'delete'},
+                validation_type="policy",
+                policy_path="policy/allow",
+                input_data={"user": "guest", "action": "delete"},
             )
 
             result = await executor.execute(ticket)
@@ -107,8 +109,8 @@ class TestValidateExecutorWithMockOPA:
         # Should fail with violations
         ResultValidator.assert_failure(result)
         ResultValidator.assert_simulated(result, expected=False)
-        ResultValidator.assert_output_value(result, 'validation_passed', False)
-        assert len(result['output']['violations']) > 0
+        ResultValidator.assert_output_value(result, "validation_passed", False)
+        assert len(result["output"]["violations"]) > 0
 
     @pytest.mark.asyncio
     async def test_validate_executor_opa_custom_policy(
@@ -122,17 +124,19 @@ class TestValidateExecutorWithMockOPA:
 
         def custom_policy(input_data: dict) -> dict:
             # Allow only admin users
-            if input_data.get('user') == 'admin':
-                return {'allow': True, 'violations': []}
+            if input_data.get("user") == "admin":
+                return {"allow": True, "violations": []}
             return {
-                'allow': False,
-                'violations': [{'message': 'Access denied for non-admin user', 'rule': 'admin_only'}],
+                "allow": False,
+                "violations": [
+                    {"message": "Access denied for non-admin user", "rule": "admin_only"}
+                ],
             }
 
-        mock_server.add_policy('authz/admin', custom_policy)
+        mock_server.add_policy("authz/admin", custom_policy)
 
         worker_config.opa_enabled = True
-        worker_config.opa_url = 'http://opa-mock:8181'
+        worker_config.opa_url = "http://opa-mock:8181"
 
         executor = ValidateExecutor(
             config=worker_config,
@@ -140,22 +144,22 @@ class TestValidateExecutorWithMockOPA:
             metrics=mock_metrics,
         )
 
-        with patch.object(httpx, 'AsyncClient') as mock_client_class:
+        with patch.object(httpx, "AsyncClient") as mock_client_class:
             mock_client = mock_server.get_client()
             mock_client_class.return_value.__aenter__ = AsyncMock(return_value=mock_client)
             mock_client_class.return_value.__aexit__ = AsyncMock(return_value=None)
 
             # Test with non-admin user
             ticket = ExecutorTestHelper.create_validate_ticket(
-                validation_type='policy',
-                policy_path='authz/admin',
-                input_data={'user': 'guest'},
+                validation_type="policy",
+                policy_path="authz/admin",
+                input_data={"user": "guest"},
             )
 
             result = await executor.execute(ticket)
 
         ResultValidator.assert_failure(result)
-        ResultValidator.assert_log_contains(result, 'OPA')
+        ResultValidator.assert_log_contains(result, "OPA")
 
     @pytest.mark.asyncio
     async def test_validate_executor_opa_connection_error(
@@ -165,7 +169,7 @@ class TestValidateExecutorWithMockOPA:
         from executors.validate_executor import ValidateExecutor
 
         worker_config.opa_enabled = True
-        worker_config.opa_url = 'http://opa-unreachable:8181'
+        worker_config.opa_url = "http://opa-unreachable:8181"
 
         executor = ValidateExecutor(
             config=worker_config,
@@ -174,10 +178,12 @@ class TestValidateExecutorWithMockOPA:
         )
 
         # Mock connection error
-        with patch.object(httpx.AsyncClient, 'post', side_effect=httpx.ConnectError('Connection refused')):
+        with patch.object(
+            httpx.AsyncClient, "post", side_effect=httpx.ConnectError("Connection refused")
+        ):
             ticket = ExecutorTestHelper.create_validate_ticket(
-                validation_type='policy',
-                policy_path='policy/allow',
+                validation_type="policy",
+                policy_path="policy/allow",
             )
 
             result = await executor.execute(ticket)
@@ -209,25 +215,27 @@ class TestValidateExecutorWithMockTrivy:
         # Mock Trivy subprocess
         mock_result = MagicMock()
         mock_result.returncode = 0
-        mock_result.stdout = json.dumps({
-            'Results': [
-                {'Vulnerabilities': []},
-            ],
-        })
-        mock_result.stderr = ''
+        mock_result.stdout = json.dumps(
+            {
+                "Results": [
+                    {"Vulnerabilities": []},
+                ],
+            }
+        )
+        mock_result.stderr = ""
 
-        with patch('subprocess.run', return_value=mock_result):
+        with patch("subprocess.run", return_value=mock_result):
             ticket = ExecutorTestHelper.create_validate_ticket(
-                validation_type='sast',
-                working_dir='/tmp',
+                validation_type="sast",
+                working_dir="/tmp",
             )
 
             result = await executor.execute(ticket)
 
         ResultValidator.assert_success(result)
         ResultValidator.assert_simulated(result, expected=False)
-        ResultValidator.assert_output_value(result, 'validation_passed', True)
-        assert len(result['output']['violations']) == 0
+        ResultValidator.assert_output_value(result, "validation_passed", True)
+        assert len(result["output"]["violations"]) == 0
 
     @pytest.mark.asyncio
     async def test_validate_executor_trivy_critical_findings(
@@ -247,22 +255,32 @@ class TestValidateExecutorWithMockTrivy:
         # Mock Trivy with critical vulnerabilities
         mock_result = MagicMock()
         mock_result.returncode = 0
-        mock_result.stdout = json.dumps({
-            'Results': [
-                {
-                    'Vulnerabilities': [
-                        {'VulnerabilityID': 'CVE-2024-1234', 'Severity': 'CRITICAL', 'Title': 'RCE Vulnerability'},
-                        {'VulnerabilityID': 'CVE-2024-5678', 'Severity': 'HIGH', 'Title': 'XSS Vulnerability'},
-                    ],
-                },
-            ],
-        })
-        mock_result.stderr = ''
+        mock_result.stdout = json.dumps(
+            {
+                "Results": [
+                    {
+                        "Vulnerabilities": [
+                            {
+                                "VulnerabilityID": "CVE-2024-1234",
+                                "Severity": "CRITICAL",
+                                "Title": "RCE Vulnerability",
+                            },
+                            {
+                                "VulnerabilityID": "CVE-2024-5678",
+                                "Severity": "HIGH",
+                                "Title": "XSS Vulnerability",
+                            },
+                        ],
+                    },
+                ],
+            }
+        )
+        mock_result.stderr = ""
 
-        with patch('subprocess.run', return_value=mock_result):
+        with patch("subprocess.run", return_value=mock_result):
             ticket = ExecutorTestHelper.create_validate_ticket(
-                validation_type='sast',
-                working_dir='/tmp',
+                validation_type="sast",
+                working_dir="/tmp",
             )
 
             result = await executor.execute(ticket)
@@ -270,8 +288,8 @@ class TestValidateExecutorWithMockTrivy:
         # Should fail due to critical findings
         ResultValidator.assert_failure(result)
         ResultValidator.assert_simulated(result, expected=False)
-        ResultValidator.assert_output_value(result, 'validation_passed', False)
-        assert len(result['output']['violations']) == 1  # Only CRITICAL
+        ResultValidator.assert_output_value(result, "validation_passed", False)
+        assert len(result["output"]["violations"]) == 1  # Only CRITICAL
 
     @pytest.mark.asyncio
     async def test_validate_executor_trivy_timeout(
@@ -289,10 +307,10 @@ class TestValidateExecutorWithMockTrivy:
             metrics=mock_metrics,
         )
 
-        with patch('subprocess.run', side_effect=subprocess.TimeoutExpired('trivy', 1)):
+        with patch("subprocess.run", side_effect=subprocess.TimeoutExpired("trivy", 1)):
             ticket = ExecutorTestHelper.create_validate_ticket(
-                validation_type='sast',
-                working_dir='/tmp',
+                validation_type="sast",
+                working_dir="/tmp",
             )
 
             result = await executor.execute(ticket)
@@ -313,8 +331,8 @@ class TestValidateExecutorWithMockSonarQube:
         from executors.validate_executor import ValidateExecutor
 
         worker_config.sonarqube_enabled = True
-        worker_config.sonarqube_url = 'http://sonarqube:9000'
-        worker_config.sonarqube_token = 'test-token'
+        worker_config.sonarqube_url = "http://sonarqube:9000"
+        worker_config.sonarqube_token = "test-token"
 
         mock_client = create_mock_sonarqube_client(passed=True, issues=[])
 
@@ -326,16 +344,16 @@ class TestValidateExecutorWithMockSonarQube:
         executor.sonarqube_client = mock_client
 
         ticket = ExecutorTestHelper.create_validate_ticket(
-            validation_type='sonarqube',
-            project_key='test-project',
-            working_dir='/tmp/src',
+            validation_type="sonarqube",
+            project_key="test-project",
+            working_dir="/tmp/src",
         )
 
         result = await executor.execute(ticket)
 
         ResultValidator.assert_success(result)
         ResultValidator.assert_simulated(result, expected=False)
-        ResultValidator.assert_output_value(result, 'validation_type', 'sonarqube')
+        ResultValidator.assert_output_value(result, "validation_type", "sonarqube")
 
     @pytest.mark.asyncio
     async def test_validate_executor_sonarqube_with_issues(
@@ -345,14 +363,14 @@ class TestValidateExecutorWithMockSonarQube:
         from executors.validate_executor import ValidateExecutor
 
         worker_config.sonarqube_enabled = True
-        worker_config.sonarqube_url = 'http://sonarqube:9000'
-        worker_config.sonarqube_token = 'test-token'
+        worker_config.sonarqube_url = "http://sonarqube:9000"
+        worker_config.sonarqube_token = "test-token"
 
         mock_client = create_mock_sonarqube_client(
             passed=False,
             issues=[
-                {'key': 'issue1', 'severity': 'CRITICAL', 'message': 'SQL Injection'},
-                {'key': 'issue2', 'severity': 'MAJOR', 'message': 'XSS vulnerability'},
+                {"key": "issue1", "severity": "CRITICAL", "message": "SQL Injection"},
+                {"key": "issue2", "severity": "MAJOR", "message": "XSS vulnerability"},
             ],
         )
 
@@ -364,8 +382,8 @@ class TestValidateExecutorWithMockSonarQube:
         executor.sonarqube_client = mock_client
 
         ticket = ExecutorTestHelper.create_validate_ticket(
-            validation_type='sonarqube',
-            project_key='test-project',
+            validation_type="sonarqube",
+            project_key="test-project",
         )
 
         result = await executor.execute(ticket)
@@ -385,7 +403,7 @@ class TestValidateExecutorWithMockSnyk:
         from executors.validate_executor import ValidateExecutor
 
         worker_config.snyk_enabled = True
-        worker_config.snyk_token = 'test-token'
+        worker_config.snyk_token = "test-token"
 
         mock_client = create_mock_snyk_client(passed=True, vulnerabilities=[])
 
@@ -397,15 +415,15 @@ class TestValidateExecutorWithMockSnyk:
         executor.snyk_client = mock_client
 
         ticket = ExecutorTestHelper.create_validate_ticket(
-            validation_type='snyk',
-            manifest_path='/tmp/package.json',
+            validation_type="snyk",
+            manifest_path="/tmp/package.json",
         )
 
         result = await executor.execute(ticket)
 
         ResultValidator.assert_success(result)
         ResultValidator.assert_simulated(result, expected=False)
-        ResultValidator.assert_output_value(result, 'validation_type', 'snyk')
+        ResultValidator.assert_output_value(result, "validation_type", "snyk")
 
     @pytest.mark.asyncio
     async def test_validate_executor_snyk_with_vulnerabilities(
@@ -415,12 +433,12 @@ class TestValidateExecutorWithMockSnyk:
         from executors.validate_executor import ValidateExecutor
 
         worker_config.snyk_enabled = True
-        worker_config.snyk_token = 'test-token'
+        worker_config.snyk_token = "test-token"
 
         mock_client = create_mock_snyk_client(
             passed=False,
             vulnerabilities=[
-                {'id': 'SNYK-JS-1234', 'severity': 'high', 'title': 'Prototype Pollution'},
+                {"id": "SNYK-JS-1234", "severity": "high", "title": "Prototype Pollution"},
             ],
         )
 
@@ -432,8 +450,8 @@ class TestValidateExecutorWithMockSnyk:
         executor.snyk_client = mock_client
 
         ticket = ExecutorTestHelper.create_validate_ticket(
-            validation_type='snyk',
-            manifest_path='/tmp/package.json',
+            validation_type="snyk",
+            manifest_path="/tmp/package.json",
         )
 
         result = await executor.execute(ticket)
@@ -464,15 +482,15 @@ class TestValidateExecutorWithMockCheckov:
         executor.checkov_client = mock_client
 
         ticket = ExecutorTestHelper.create_validate_ticket(
-            validation_type='iac',
-            working_dir='/tmp/terraform',
+            validation_type="iac",
+            working_dir="/tmp/terraform",
         )
 
         result = await executor.execute(ticket)
 
         ResultValidator.assert_success(result)
         ResultValidator.assert_simulated(result, expected=False)
-        ResultValidator.assert_output_value(result, 'validation_type', 'iac')
+        ResultValidator.assert_output_value(result, "validation_type", "iac")
 
     @pytest.mark.asyncio
     async def test_validate_executor_checkov_with_findings(
@@ -486,8 +504,8 @@ class TestValidateExecutorWithMockCheckov:
         mock_client = create_mock_checkov_client(
             passed=False,
             findings=[
-                {'check_id': 'CKV_AWS_21', 'severity': 'HIGH', 'resource': 's3_bucket.public'},
-                {'check_id': 'CKV_AWS_19', 'severity': 'MEDIUM', 'resource': 's3_bucket.logs'},
+                {"check_id": "CKV_AWS_21", "severity": "HIGH", "resource": "s3_bucket.public"},
+                {"check_id": "CKV_AWS_19", "severity": "MEDIUM", "resource": "s3_bucket.logs"},
             ],
         )
 
@@ -499,8 +517,8 @@ class TestValidateExecutorWithMockCheckov:
         executor.checkov_client = mock_client
 
         ticket = ExecutorTestHelper.create_validate_ticket(
-            validation_type='iac',
-            working_dir='/tmp/terraform',
+            validation_type="iac",
+            working_dir="/tmp/terraform",
         )
 
         result = await executor.execute(ticket)
@@ -526,15 +544,17 @@ class TestValidateExecutorSimulation:
         )
 
         ticket = ExecutorTestHelper.create_validate_ticket(
-            validation_type='policy',
+            validation_type="policy",
         )
 
         result = await executor.execute(ticket)
 
         ResultValidator.assert_success(result)
         ResultValidator.assert_simulated(result, expected=True)
-        ResultValidator.assert_has_output(result, 'validation_passed', 'violations', 'validation_type')
-        ResultValidator.assert_log_contains(result, 'simulated')
+        ResultValidator.assert_has_output(
+            result, "validation_passed", "violations", "validation_type"
+        )
+        ResultValidator.assert_log_contains(result, "simulated")
 
     @pytest.mark.asyncio
     async def test_validate_executor_fallback_simulation(
@@ -573,15 +593,15 @@ class TestValidateExecutorValidation:
         from executors.base_executor import ValidationError
 
         ticket = {
-            'task_id': 'task-123',
-            'task_type': 'VALIDATE',
-            'parameters': {},
+            "task_id": "task-123",
+            "task_type": "VALIDATE",
+            "parameters": {},
         }
 
         with pytest.raises(ValidationError) as exc_info:
             await validate_executor.execute(ticket)
 
-        assert 'ticket_id' in str(exc_info.value)
+        assert "ticket_id" in str(exc_info.value)
 
     @pytest.mark.asyncio
     async def test_validate_executor_wrong_task_type(self, validate_executor):
@@ -589,16 +609,16 @@ class TestValidateExecutorValidation:
         from executors.base_executor import ValidationError
 
         ticket = {
-            'ticket_id': 'ticket-123',
-            'task_id': 'task-123',
-            'task_type': 'BUILD',  # Wrong type
-            'parameters': {},
+            "ticket_id": "ticket-123",
+            "task_id": "task-123",
+            "task_type": "BUILD",  # Wrong type
+            "parameters": {},
         }
 
         with pytest.raises(ValidationError) as exc_info:
             await validate_executor.execute(ticket)
 
-        assert 'task type mismatch' in str(exc_info.value).lower()
+        assert "task type mismatch" in str(exc_info.value).lower()
 
 
 @pytest.mark.real_integration
@@ -613,9 +633,9 @@ class TestValidateExecutorRealOPA:
         """Test with real OPA (requires OPA_URL env var)."""
         from executors.validate_executor import ValidateExecutor
 
-        opa_url = os.getenv('OPA_URL')
+        opa_url = os.getenv("OPA_URL")
         if not opa_url:
-            pytest.skip('OPA_URL not configured')
+            pytest.skip("OPA_URL not configured")
 
         worker_config.opa_enabled = True
         worker_config.opa_url = opa_url
@@ -627,17 +647,17 @@ class TestValidateExecutorRealOPA:
         )
 
         ticket = ExecutorTestHelper.create_validate_ticket(
-            validation_type='policy',
-            policy_path='system/health',
+            validation_type="policy",
+            policy_path="system/health",
             input_data={},
         )
 
         result = await executor.execute(ticket)
 
         # With real service, expect either success or graceful failure
-        assert 'success' in result
-        assert 'output' in result
-        assert 'metadata' in result
+        assert "success" in result
+        assert "output" in result
+        assert "metadata" in result
 
 
 @pytest.mark.real_integration
@@ -653,8 +673,8 @@ class TestValidateExecutorRealTrivy:
         from executors.validate_executor import ValidateExecutor
         import shutil
 
-        if not shutil.which('trivy'):
-            pytest.skip('Trivy not installed')
+        if not shutil.which("trivy"):
+            pytest.skip("Trivy not installed")
 
         worker_config.trivy_enabled = True
         worker_config.trivy_timeout_seconds = 120
@@ -666,16 +686,16 @@ class TestValidateExecutorRealTrivy:
         )
 
         ticket = ExecutorTestHelper.create_validate_ticket(
-            validation_type='sast',
-            working_dir='/tmp',
+            validation_type="sast",
+            working_dir="/tmp",
         )
 
         result = await executor.execute(ticket)
 
         # With real Trivy, expect either success or proper failure
-        assert 'success' in result
-        assert 'output' in result
-        assert 'metadata' in result
+        assert "success" in result
+        assert "output" in result
+        assert "metadata" in result
 
 
 @pytest.mark.real_integration
@@ -690,17 +710,18 @@ class TestValidateExecutorRealSonarQube:
         """Test with real SonarQube (requires SONARQUBE_URL and SONARQUBE_TOKEN)."""
         from executors.validate_executor import ValidateExecutor
 
-        sonarqube_url = os.getenv('SONARQUBE_URL')
-        sonarqube_token = os.getenv('SONARQUBE_TOKEN')
+        sonarqube_url = os.getenv("SONARQUBE_URL")
+        sonarqube_token = os.getenv("SONARQUBE_TOKEN")
 
         if not sonarqube_url or not sonarqube_token:
-            pytest.skip('SONARQUBE_URL and SONARQUBE_TOKEN not configured')
+            pytest.skip("SONARQUBE_URL and SONARQUBE_TOKEN not configured")
 
         worker_config.sonarqube_enabled = True
         worker_config.sonarqube_url = sonarqube_url
         worker_config.sonarqube_token = sonarqube_token
 
         from clients.sonarqube_client import SonarQubeClient
+
         real_client = SonarQubeClient(sonarqube_url, sonarqube_token)
 
         executor = ValidateExecutor(
@@ -711,11 +732,11 @@ class TestValidateExecutorRealSonarQube:
         executor.sonarqube_client = real_client
 
         ticket = ExecutorTestHelper.create_validate_ticket(
-            validation_type='sonarqube',
-            project_key='test-project',
+            validation_type="sonarqube",
+            project_key="test-project",
         )
 
         result = await executor.execute(ticket)
 
-        assert 'success' in result
-        assert 'output' in result
+        assert "success" in result
+        assert "output" in result

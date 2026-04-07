@@ -30,46 +30,41 @@ class TestLLMClientInitialization:
         client = LLMClient()
 
         assert client.provider == LLMProvider.LOCAL
-        assert client.model_name == 'gpt-4'
-        assert 'ollama' in client.endpoint_url
+        assert client.model_name == "gpt-4"
+        assert "ollama" in client.endpoint_url
 
     def test_client_openai_config(self):
         """Deve configurar para OpenAI."""
         from src.clients.llm_client import LLMClient, LLMProvider
 
         client = LLMClient(
-            provider=LLMProvider.OPENAI,
-            api_key='test-key',
-            model_name='gpt-4-turbo'
+            provider=LLMProvider.OPENAI, api_key="test-key", model_name="gpt-4-turbo"
         )
 
         assert client.provider == LLMProvider.OPENAI
-        assert client.api_key == 'test-key'
-        assert 'openai.com' in client.endpoint_url
+        assert client.api_key == "test-key"
+        assert "openai.com" in client.endpoint_url
 
     def test_client_anthropic_config(self):
         """Deve configurar para Anthropic."""
         from src.clients.llm_client import LLMClient, LLMProvider
 
         client = LLMClient(
-            provider=LLMProvider.ANTHROPIC,
-            api_key='test-key',
-            model_name='claude-3-opus'
+            provider=LLMProvider.ANTHROPIC, api_key="test-key", model_name="claude-3-opus"
         )
 
         assert client.provider == LLMProvider.ANTHROPIC
-        assert 'anthropic.com' in client.endpoint_url
+        assert "anthropic.com" in client.endpoint_url
 
     def test_client_custom_endpoint(self):
         """Deve aceitar endpoint customizado."""
         from src.clients.llm_client import LLMClient, LLMProvider
 
         client = LLMClient(
-            provider=LLMProvider.LOCAL,
-            endpoint_url='http://custom-ollama:11434/api'
+            provider=LLMProvider.LOCAL, endpoint_url="http://custom-ollama:11434/api"
         )
 
-        assert client.endpoint_url == 'http://custom-ollama:11434/api'
+        assert client.endpoint_url == "http://custom-ollama:11434/api"
 
 
 class TestLLMClientOllama:
@@ -80,26 +75,22 @@ class TestLLMClientOllama:
         """Deve gerar codigo via Ollama com sucesso."""
         from src.clients.llm_client import LLMClient, LLMProvider
 
-        client = LLMClient(provider=LLMProvider.LOCAL, model_name='codellama')
+        client = LLMClient(provider=LLMProvider.LOCAL, model_name="codellama")
         client.client = AsyncMock()
 
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_response.json.return_value = {
-            'response': 'def hello():\n    print("Hello")'
-        }
+        mock_response.json.return_value = {"response": 'def hello():\n    print("Hello")'}
         mock_response.raise_for_status = MagicMock()
         client.client.post = AsyncMock(return_value=mock_response)
 
         result = await client.generate_code(
-            prompt='Generate a hello function',
-            constraints={'language': 'python'},
-            temperature=0.2
+            prompt="Generate a hello function", constraints={"language": "python"}, temperature=0.2
         )
 
         assert result is not None
-        assert 'code' in result
-        assert 'hello' in result['code']
+        assert "code" in result
+        assert "hello" in result["code"]
 
     @pytest.mark.asyncio
     async def test_generate_via_ollama_error(self):
@@ -108,11 +99,10 @@ class TestLLMClientOllama:
 
         client = LLMClient(provider=LLMProvider.LOCAL)
         client.client = AsyncMock()
-        client.client.post = AsyncMock(side_effect=httpx.HTTPError('Connection refused'))
+        client.client.post = AsyncMock(side_effect=httpx.HTTPError("Connection refused"))
 
         result = await client.generate_code(
-            prompt='Generate code',
-            constraints={'language': 'python'}
+            prompt="Generate code", constraints={"language": "python"}
         )
 
         assert result is None
@@ -127,15 +117,15 @@ class TestLLMClientOllama:
 
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_response.json.return_value = {'response': 'code'}
+        mock_response.json.return_value = {"response": "code"}
         mock_response.raise_for_status = MagicMock()
         client.client.post = AsyncMock(return_value=mock_response)
 
         # Deve funcionar mas ignorar streaming
         result = await client.generate_code(
-            prompt='Generate code',
-            constraints={'language': 'python'},
-            stream=True  # Solicitado mas nao suportado
+            prompt="Generate code",
+            constraints={"language": "python"},
+            stream=True,  # Solicitado mas nao suportado
         )
 
         assert result is not None
@@ -149,32 +139,24 @@ class TestLLMClientOpenAI:
         """Deve gerar codigo via OpenAI com sucesso."""
         from src.clients.llm_client import LLMClient, LLMProvider
 
-        client = LLMClient(
-            provider=LLMProvider.OPENAI,
-            api_key='test-key',
-            model_name='gpt-4'
-        )
+        client = LLMClient(provider=LLMProvider.OPENAI, api_key="test-key", model_name="gpt-4")
 
         # Mock do SDK OpenAI
         mock_openai_client = AsyncMock()
         mock_response = MagicMock()
-        mock_response.choices = [
-            MagicMock(message=MagicMock(content='def hello():\n    pass'))
-        ]
+        mock_response.choices = [MagicMock(message=MagicMock(content="def hello():\n    pass"))]
         mock_response.usage = MagicMock(prompt_tokens=50, completion_tokens=20)
         mock_openai_client.chat.completions.create = AsyncMock(return_value=mock_response)
         client._openai_client = mock_openai_client
 
         result = await client._call_openai_sdk(
-            system_prompt='You are a coder',
-            user_prompt='Generate hello function',
-            temperature=0.2
+            system_prompt="You are a coder", user_prompt="Generate hello function", temperature=0.2
         )
 
         assert result is not None
-        assert 'code' in result
-        assert result['prompt_tokens'] == 50
-        assert result['completion_tokens'] == 20
+        assert "code" in result
+        assert result["prompt_tokens"] == 50
+        assert result["completion_tokens"] == 20
 
     @pytest.mark.asyncio
     async def test_openai_missing_api_key(self):
@@ -184,9 +166,7 @@ class TestLLMClientOpenAI:
         client = LLMClient(provider=LLMProvider.OPENAI, api_key=None)
 
         result = await client._call_openai_sdk(
-            system_prompt='Test',
-            user_prompt='Test',
-            temperature=0.2
+            system_prompt="Test", user_prompt="Test", temperature=0.2
         )
 
         assert result is None
@@ -201,29 +181,25 @@ class TestLLMClientAnthropic:
         from src.clients.llm_client import LLMClient, LLMProvider
 
         client = LLMClient(
-            provider=LLMProvider.ANTHROPIC,
-            api_key='test-key',
-            model_name='claude-3-opus'
+            provider=LLMProvider.ANTHROPIC, api_key="test-key", model_name="claude-3-opus"
         )
 
         # Mock do SDK Anthropic
         mock_anthropic_client = AsyncMock()
         mock_message = MagicMock()
-        mock_message.content = [MagicMock(text='def hello():\n    pass')]
+        mock_message.content = [MagicMock(text="def hello():\n    pass")]
         mock_message.usage = MagicMock(input_tokens=40, output_tokens=15)
         mock_anthropic_client.messages.create = AsyncMock(return_value=mock_message)
         client._anthropic_client = mock_anthropic_client
 
         result = await client._call_anthropic_sdk(
-            system_prompt='You are a coder',
-            user_prompt='Generate hello function',
-            temperature=0.2
+            system_prompt="You are a coder", user_prompt="Generate hello function", temperature=0.2
         )
 
         assert result is not None
-        assert 'code' in result
-        assert result['prompt_tokens'] == 40
-        assert result['completion_tokens'] == 15
+        assert "code" in result
+        assert result["prompt_tokens"] == 40
+        assert result["completion_tokens"] == 15
 
     @pytest.mark.asyncio
     async def test_anthropic_missing_api_key(self):
@@ -233,9 +209,7 @@ class TestLLMClientAnthropic:
         client = LLMClient(provider=LLMProvider.ANTHROPIC, api_key=None)
 
         result = await client._call_anthropic_sdk(
-            system_prompt='Test',
-            user_prompt='Test',
-            temperature=0.2
+            system_prompt="Test", user_prompt="Test", temperature=0.2
         )
 
         assert result is None
@@ -250,10 +224,10 @@ class TestLLMClientCodeExtraction:
 
         client = LLMClient()
 
-        response = {'code': 'def hello():\n    pass'}
+        response = {"code": "def hello():\n    pass"}
         result = client._extract_code_from_response(response)
 
-        assert result == 'def hello():\n    pass'
+        assert result == "def hello():\n    pass"
 
     def test_extract_code_with_markdown(self):
         """Deve remover markdown code blocks."""
@@ -261,11 +235,11 @@ class TestLLMClientCodeExtraction:
 
         client = LLMClient()
 
-        response = {'code': '```python\ndef hello():\n    pass\n```'}
+        response = {"code": "```python\ndef hello():\n    pass\n```"}
         result = client._extract_code_from_response(response)
 
-        assert result == 'def hello():\n    pass'
-        assert '```' not in result
+        assert result == "def hello():\n    pass"
+        assert "```" not in result
 
     def test_extract_code_empty(self):
         """Deve retornar vazio para resposta vazia."""
@@ -273,10 +247,10 @@ class TestLLMClientCodeExtraction:
 
         client = LLMClient()
 
-        response = {'code': ''}
+        response = {"code": ""}
         result = client._extract_code_from_response(response)
 
-        assert result == ''
+        assert result == ""
 
 
 class TestLLMClientConfidenceCalculation:
@@ -290,8 +264,7 @@ class TestLLMClientConfidenceCalculation:
         client = LLMClient()
 
         confidence = await client.calculate_confidence(
-            code='x = 1',
-            constraints={'language': 'python'}
+            code="x = 1", constraints={"language": "python"}
         )
 
         assert confidence >= 0.5
@@ -316,8 +289,7 @@ def hello(name: str) -> str:
 '''
 
         confidence = await client.calculate_confidence(
-            code=code,
-            constraints={'language': 'python'}
+            code=code, constraints={"language": "python"}
         )
 
         assert confidence >= 0.8
@@ -329,10 +301,7 @@ def hello(name: str) -> str:
 
         client = LLMClient()
 
-        confidence = await client.calculate_confidence(
-            code='',
-            constraints={'language': 'python'}
-        )
+        confidence = await client.calculate_confidence(code="", constraints={"language": "python"})
 
         assert confidence == 0.0
 
@@ -346,16 +315,18 @@ class TestLLMClientSystemPrompt:
 
         client = LLMClient()
 
-        prompt = client._build_system_prompt({
-            'language': 'python',
-            'framework': 'fastapi',
-            'patterns': ['repository', 'service_layer']
-        })
+        prompt = client._build_system_prompt(
+            {
+                "language": "python",
+                "framework": "fastapi",
+                "patterns": ["repository", "service_layer"],
+            }
+        )
 
-        assert 'python' in prompt.lower()
-        assert 'fastapi' in prompt.lower()
-        assert 'repository' in prompt
-        assert 'service_layer' in prompt
+        assert "python" in prompt.lower()
+        assert "fastapi" in prompt.lower()
+        assert "repository" in prompt
+        assert "service_layer" in prompt
 
     def test_build_system_prompt_defaults(self):
         """Deve usar defaults quando nao especificado."""
@@ -365,8 +336,8 @@ class TestLLMClientSystemPrompt:
 
         prompt = client._build_system_prompt({})
 
-        assert 'python' in prompt.lower()
-        assert 'Standard patterns' in prompt
+        assert "python" in prompt.lower()
+        assert "Standard patterns" in prompt
 
 
 class TestLLMClientValidation:
@@ -379,10 +350,7 @@ class TestLLMClientValidation:
 
         client = LLMClient()
 
-        is_valid = await client.validate_code(
-            code='def hello():\n    pass',
-            language='python'
-        )
+        is_valid = await client.validate_code(code="def hello():\n    pass", language="python")
 
         assert is_valid is True
 
@@ -393,10 +361,7 @@ class TestLLMClientValidation:
 
         client = LLMClient()
 
-        is_valid = await client.validate_code(
-            code='x=1',
-            language='python'
-        )
+        is_valid = await client.validate_code(code="x=1", language="python")
 
         assert is_valid is False
 
@@ -407,10 +372,7 @@ class TestLLMClientValidation:
 
         client = LLMClient()
 
-        is_valid = await client.validate_code(
-            code='',
-            language='python'
-        )
+        is_valid = await client.validate_code(code="", language="python")
 
         assert is_valid is False
 

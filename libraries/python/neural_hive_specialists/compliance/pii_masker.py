@@ -135,10 +135,7 @@ class PIIMasker:
         # Remove overlapping entities (keep longer matches)
         filtered_entities = []
         for entity in entities_sorted:
-            if not any(
-                e.start < entity.end and e.end > entity.start
-                for e in filtered_entities
-            ):
+            if not any(e.start < entity.end and e.end > entity.start for e in filtered_entities):
                 filtered_entities.append(entity)
         entities_sorted = filtered_entities
 
@@ -151,15 +148,11 @@ class PIIMasker:
             entity.masked_value = masked_value
 
             # Substituir no texto
-            masked_text = (
-                masked_text[: entity.start] + masked_value + masked_text[entity.end :]
-            )
+            masked_text = masked_text[: entity.start] + masked_value + masked_text[entity.end :]
 
             # Estatísticas
             stats["total"] += 1
-            stats["by_type"][entity.type.value] = (
-                stats["by_type"].get(entity.type.value, 0) + 1
-            )
+            stats["by_type"][entity.type.value] = stats["by_type"].get(entity.type.value, 0) + 1
 
         return MaskResult(text=masked_text, entities=entities_sorted, metadata=stats)
 
@@ -247,9 +240,7 @@ class PIIMasker:
         type_config = self.type_strategies.get(entity.type, {})
         # Se strategy explicitamente passada, usar ela; senão usar do tipo
         if strategy == MaskStrategy.PARTIAL:
-            entity_strategy = MaskStrategy(
-                type_config.get("strategy", MaskStrategy.PARTIAL.value)
-            )
+            entity_strategy = MaskStrategy(type_config.get("strategy", MaskStrategy.PARTIAL.value))
         else:
             entity_strategy = strategy
 
@@ -283,9 +274,7 @@ class PIIMasker:
                 middle = self.mask_char * (length - show_first - show_last)
                 return first + middle + last
 
-    def _mask_preserving_format(
-        self, value: str, show_first: int, show_last: int
-    ) -> str:
+    def _mask_preserving_format(self, value: str, show_first: int, show_last: int) -> str:
         """Mascara preservando caracteres especiais."""
         # Preservar formato: manter não-alfanuméricos
         result = []

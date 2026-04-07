@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 
 # Add src to path
-sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from services.quality_scorer import ExplanationQualityScorer
 
@@ -32,16 +32,20 @@ class TestCompletenessScore:
         scorer = ExplanationQualityScorer()
 
         explanation = {
-            'consensus_process': {
-                'method': 'bayesian',
-                'num_specialists': 5,
-                'seniority_distribution': {'senior': 2, 'expert': 1}
+            "consensus_process": {
+                "method": "bayesian",
+                "num_specialists": 5,
+                "seniority_distribution": {"senior": 2, "expert": 1},
             },
-            'specialist_opinions': [
-                {'specialist_type': 'business', 'confidence': 0.85, 'reasoning': 'Bom alinhamento'},
-                {'specialist_type': 'technical', 'confidence': 0.90, 'reasoning': 'Arquitetura sólida'}
+            "specialist_opinions": [
+                {"specialist_type": "business", "confidence": 0.85, "reasoning": "Bom alinhamento"},
+                {
+                    "specialist_type": "technical",
+                    "confidence": 0.90,
+                    "reasoning": "Arquitetura sólida",
+                },
             ],
-            'final_decision': {'decision': 'approve', 'rationale': 'Alta confiança'}
+            "final_decision": {"decision": "approve", "rationale": "Alta confiança"},
         }
 
         score = scorer.score_completeness(explanation)
@@ -53,9 +57,7 @@ class TestCompletenessScore:
         scorer = ExplanationQualityScorer()
 
         # Explicação realmente mínima - sem o campo 'decision' que é obrigatório
-        explanation = {
-            'final_decision': {}  # Vazio, sem campos obrigatórios
-        }
+        explanation = {"final_decision": {}}  # Vazio, sem campos obrigatórios
 
         score = scorer.score_completeness(explanation)
 
@@ -79,10 +81,10 @@ class TestClarityScore:
 
         # Explicação com textos claros e específicos
         explanation = {
-            'reasoning_summary': 'Decisão aprovada com confiança 0.85 devido ao alinhamento com objetivos de negócio e arquitetura escalável.',
-            'specialist_opinions': [
-                {'reasoning': 'A solução utiliza microserviços para escalabilidade.'}
-            ]
+            "reasoning_summary": "Decisão aprovada com confiança 0.85 devido ao alinhamento com objetivos de negócio e arquitetura escalável.",
+            "specialist_opinions": [
+                {"reasoning": "A solução utiliza microserviços para escalabilidade."}
+            ],
         }
 
         score = scorer.score_clarity(explanation)
@@ -93,12 +95,7 @@ class TestClarityScore:
         """Testa que explicação vaga tem score baixo."""
         scorer = ExplanationQualityScorer()
 
-        explanation = {
-            'reasoning_summary': 'Ok.',
-            'specialist_opinions': [
-                {'reasoning': 'Sim.'}
-            ]
-        }
+        explanation = {"reasoning_summary": "Ok.", "specialist_opinions": [{"reasoning": "Sim."}]}
 
         score = scorer.score_clarity(explanation)
 
@@ -109,7 +106,7 @@ class TestClarityScore:
         scorer = ExplanationQualityScorer()
 
         explanation = {
-            'reasoning_summary': 'A solução implementa paralelização assíncrona com event-sourcing eventual consistency via CQRS pattern.'
+            "reasoning_summary": "A solução implementa paralelização assíncrona com event-sourcing eventual consistency via CQRS pattern."
         }
 
         score = scorer.score_clarity(explanation)
@@ -126,11 +123,11 @@ class TestSpecificityScore:
         scorer = ExplanationQualityScorer()
 
         explanation = {
-            'specialist_opinions': [
+            "specialist_opinions": [
                 {
-                    'reasoning': 'O tempo de resposta médio é 150ms com p95 de 300ms.',
-                    'confidence': 0.85,
-                    'risk_score': 0.15
+                    "reasoning": "O tempo de resposta médio é 150ms com p95 de 300ms.",
+                    "confidence": 0.85,
+                    "risk_score": 0.15,
                 }
             ]
         }
@@ -144,12 +141,7 @@ class TestSpecificityScore:
         scorer = ExplanationQualityScorer()
 
         explanation = {
-            'specialist_opinions': [
-                {
-                    'reasoning': 'A solução é boa.',
-                    'confidence': 0.8
-                }
-            ]
+            "specialist_opinions": [{"reasoning": "A solução é boa.", "confidence": 0.8}]
         }
 
         score = scorer.score_specificity(explanation)
@@ -161,12 +153,10 @@ class TestSpecificityScore:
         scorer = ExplanationQualityScorer()
 
         with_numbers = {
-            'reasoning_summary': 'A confiança é 0.85 com risco de 0.15. Tempo de processamento: 150ms.'
+            "reasoning_summary": "A confiança é 0.85 com risco de 0.15. Tempo de processamento: 150ms."
         }
 
-        without_numbers = {
-            'reasoning_summary': 'A confiança é alta com risco baixo. Tempo rápido.'
-        }
+        without_numbers = {"reasoning_summary": "A confiança é alta com risco baixo. Tempo rápido."}
 
         score_with = scorer.score_specificity(with_numbers)
         score_without = scorer.score_specificity(without_numbers)
@@ -181,11 +171,7 @@ class TestAggregatedScore:
         """Testa que score agregado é média ponderada."""
         scorer = ExplanationQualityScorer()
 
-        scores = {
-            'completeness': 0.8,
-            'clarity': 0.7,
-            'specificity': 0.6
-        }
+        scores = {"completeness": 0.8, "clarity": 0.7, "specificity": 0.6}
 
         overall = scorer.calculate_overall_score(scores)
 
@@ -196,11 +182,7 @@ class TestAggregatedScore:
         """Testa score agregado quando um componente é zero."""
         scorer = ExplanationQualityScorer()
 
-        scores = {
-            'completeness': 0.0,
-            'clarity': 0.8,
-            'specificity': 0.8
-        }
+        scores = {"completeness": 0.0, "clarity": 0.8, "specificity": 0.8}
 
         overall = scorer.calculate_overall_score(scores)
 
@@ -211,11 +193,7 @@ class TestAggregatedScore:
         """Testa que completude tem peso maior no cálculo."""
         scorer = ExplanationQualityScorer()
 
-        scores = {
-            'completeness': 0.9,
-            'clarity': 0.5,
-            'specificity': 0.5
-        }
+        scores = {"completeness": 0.9, "clarity": 0.5, "specificity": 0.5}
 
         overall = scorer.calculate_overall_score(scores)
 
@@ -236,7 +214,7 @@ class TestMongoDBIntegration:
         mongo.db = MagicMock()
         collection = MagicMock()
         collection.update_one = MagicMock()
-        mongo.db['explanation_quality'] = collection
+        mongo.db["explanation_quality"] = collection
         return mongo
 
     def test_save_quality_scores_to_mongodb(self, mock_mongodb):
@@ -245,17 +223,12 @@ class TestMongoDBIntegration:
         scorer.mongodb = mock_mongodb
 
         explanation_id = "exp-123"
-        scores = {
-            'completeness': 0.8,
-            'clarity': 0.7,
-            'specificity': 0.6,
-            'overall': 0.72
-        }
+        scores = {"completeness": 0.8, "clarity": 0.7, "specificity": 0.6, "overall": 0.72}
 
         scorer.save_scores(explanation_id, scores)
 
         # Verificar que update_one foi chamado
-        mock_mongodb.db['explanation_quality'].update_one.assert_called_once()
+        mock_mongodb.db["explanation_quality"].update_one.assert_called_once()
 
     def test_save_includes_timestamp(self, mock_mongodb):
         """Testa que salvamento inclui timestamp."""
@@ -264,14 +237,14 @@ class TestMongoDBIntegration:
 
         from datetime import datetime
 
-        scores = {'completeness': 0.8}
+        scores = {"completeness": 0.8}
         scorer.save_scores("exp-123", scores)
 
         # Verificar argumentos da chamada
-        call_args = mock_mongodb.db['explanation_quality'].update_one.call_args
-        update_data = call_args[0][1]['$set']
+        call_args = mock_mongodb.db["explanation_quality"].update_one.call_args
+        update_data = call_args[0][1]["$set"]
 
-        assert 'timestamp' in update_data or 'created_at' in update_data
+        assert "timestamp" in update_data or "created_at" in update_data
 
 
 class TestFullScoringPipeline:
@@ -282,34 +255,35 @@ class TestFullScoringPipeline:
         scorer = ExplanationQualityScorer()
 
         explanation = {
-            'consensus_process': {
-                'method': 'bayesian',
-                'num_specialists': 3
-            },
-            'specialist_opinions': [
-                {'specialist_type': 'business', 'confidence': 0.85, 'reasoning': 'Bom ROI'},
-                {'specialist_type': 'technical', 'confidence': 0.90, 'reasoning': 'Arquitetura escalável com 150ms'}
+            "consensus_process": {"method": "bayesian", "num_specialists": 3},
+            "specialist_opinions": [
+                {"specialist_type": "business", "confidence": 0.85, "reasoning": "Bom ROI"},
+                {
+                    "specialist_type": "technical",
+                    "confidence": 0.90,
+                    "reasoning": "Arquitetura escalável com 150ms",
+                },
             ],
-            'final_decision': {'decision': 'approve'},
-            'reasoning_summary': 'Aprovado com confiança 0.875 devido ao alinhamento com objetivos.'
+            "final_decision": {"decision": "approve"},
+            "reasoning_summary": "Aprovado com confiança 0.875 devido ao alinhamento com objetivos.",
         }
 
         result = scorer.score_explanation(explanation)
 
-        assert 'completeness' in result
-        assert 'clarity' in result
-        assert 'specificity' in result
-        assert 'overall' in result
-        assert 0.0 <= result['overall'] <= 1.0
+        assert "completeness" in result
+        assert "clarity" in result
+        assert "specificity" in result
+        assert "overall" in result
+        assert 0.0 <= result["overall"] <= 1.0
 
     def test_score_explanation_accepts_optional_weights(self):
         """Testa que scoring aceita pesos customizados."""
         scorer = ExplanationQualityScorer()
 
-        explanation = {'final_decision': {'decision': 'approve'}}
-        weights = {'completeness': 0.5, 'clarity': 0.3, 'specificity': 0.2}
+        explanation = {"final_decision": {"decision": "approve"}}
+        weights = {"completeness": 0.5, "clarity": 0.3, "specificity": 0.2}
 
         result = scorer.score_explanation(explanation, weights=weights)
 
-        assert 'overall' in result
-        assert 0.0 <= result['overall'] <= 1.0
+        assert "overall" in result
+        assert 0.0 <= result["overall"] <= 1.0

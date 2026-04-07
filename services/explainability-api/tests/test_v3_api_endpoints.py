@@ -23,12 +23,14 @@ from pydantic import BaseModel, Field
 # Definir modelos localmente para evitar import circular
 class HierarchicalBreakdownResponse(BaseModel):
     """Response para breakdown hierárquico."""
+
     decision_id: str
     hierarchical_breakdown: Dict[str, Any]
 
 
 class IndividualContributionsResponse(BaseModel):
     """Response para contribuições individuais."""
+
     decision_id: str
     individual_contributions: List[Dict[str, Any]]
     total_specialists: int
@@ -36,6 +38,7 @@ class IndividualContributionsResponse(BaseModel):
 
 class CounterfactualsResponse(BaseModel):
     """Response para análise contrafactual."""
+
     decision_id: str
     counterfactuals: List[Dict[str, Any]]
     sensitivity_score: float
@@ -43,12 +46,14 @@ class CounterfactualsResponse(BaseModel):
 
 class TemporalAnalysisResponse(BaseModel):
     """Response para análise temporal."""
+
     decision_id: str
     temporal_analysis: Dict[str, Any]
 
 
 class FullExplanationResponse(BaseModel):
     """Response para explicação completa."""
+
     decision_id: str
     hierarchical_breakdown: Dict[str, Any]
     individual_contributions: List[Dict[str, Any]]
@@ -56,6 +61,7 @@ class FullExplanationResponse(BaseModel):
 
 class BatchExplanationRequest(BaseModel):
     """Request para explicação em lote."""
+
     decision_ids: List[str] = Field(..., min_length=1, max_length=10)
     include_counterfactuals: bool = False
     include_temporal: bool = False
@@ -63,12 +69,14 @@ class BatchExplanationRequest(BaseModel):
 
 class BatchExplanationResponse(BaseModel):
     """Response para explicação em lote."""
+
     explanations: List[Dict[str, Any]]
     failed_ids: List[str]
     summary: Dict[str, Any]
 
 
 # ========== FIXTURES ==========
+
 
 @pytest.fixture
 def sample_votes() -> List[Dict[str, Any]]:
@@ -233,15 +241,11 @@ class TestV3ExplanationServiceGetFullExplanation:
         assert "individual_contributions" in result
 
     @pytest.mark.asyncio
-    async def test_get_full_explanation_with_counterfactuals(
-        self, mock_mongo_client
-    ):
+    async def test_get_full_explanation_with_counterfactuals(self, mock_mongo_client):
         """Testa explicação completa com contrafactuais."""
         service = V3ExplanationService(mock_mongo_client)
 
-        result = await service.get_full_explanation(
-            "decision-456", include_counterfactuals=True
-        )
+        result = await service.get_full_explanation("decision-456", include_counterfactuals=True)
 
         assert result is not None
         assert "counterfactuals" in result
@@ -263,9 +267,7 @@ class TestV3ExplanationServiceGetFullExplanation:
 
         service.temporal_tracker.get_seniority_changes = mock_get_seniority
 
-        result = await service.get_full_explanation(
-            "decision-456", include_temporal=True
-        )
+        result = await service.get_full_explanation("decision-456", include_temporal=True)
 
         assert result is not None
         assert "temporal_analysis" in result
@@ -298,9 +300,7 @@ class TestV3ExplanationServiceGetHierarchicalBreakdown:
         assert "consensus_strength" in result["hierarchical_breakdown"]
 
     @pytest.mark.asyncio
-    async def test_get_hierarchical_breakdown_not_found(
-        self, mock_mongo_client_not_found
-    ):
+    async def test_get_hierarchical_breakdown_not_found(self, mock_mongo_client_not_found):
         """Testa breakdown quando decisão não existe."""
         service = V3ExplanationService(mock_mongo_client_not_found)
 
@@ -326,9 +326,7 @@ class TestV3ExplanationServiceGetIndividualContributions:
         assert isinstance(result["individual_contributions"], list)
 
     @pytest.mark.asyncio
-    async def test_get_individual_contributions_not_found(
-        self, mock_mongo_client_not_found
-    ):
+    async def test_get_individual_contributions_not_found(self, mock_mongo_client_not_found):
         """Testa contribuições quando decisão não existe."""
         service = V3ExplanationService(mock_mongo_client_not_found)
 
@@ -453,9 +451,7 @@ class TestV3ExplanationServiceGetBatchExplanations:
 
         mock_mongo_client.consensus_decisions.find_one = mock_find_one
 
-        result = await service.get_batch_explanations(
-            ["decision-456", "nonexistent"]
-        )
+        result = await service.get_batch_explanations(["decision-456", "nonexistent"])
 
         assert result is not None
         assert len(result["explanations"]) == 1
@@ -514,9 +510,7 @@ class TestCounterfactualsResponse:
         """Testa resposta válida."""
         data = {
             "decision_id": "dec-123",
-            "counterfactuals": [
-                {"scenario": "flip_expert_vote", "flipped_decision": "reject"}
-            ],
+            "counterfactuals": [{"scenario": "flip_expert_vote", "flipped_decision": "reject"}],
             "sensitivity_score": 0.75,
         }
         response = CounterfactualsResponse(**data)
@@ -584,12 +578,14 @@ class TestBatchExplanationRequest:
     def test_invalid_decision_ids_empty(self):
         """Testa validação de lista vazia."""
         from pydantic import ValidationError
+
         with pytest.raises(ValidationError):
             BatchExplanationRequest(decision_ids=[])
 
     def test_invalid_decision_ids_too_many(self):
         """Testa validação de lista muito grande."""
         from pydantic import ValidationError
+
         with pytest.raises(ValidationError):
             BatchExplanationRequest(decision_ids=[f"dec-{i}" for i in range(11)])
 
@@ -618,11 +614,13 @@ class TestRouterEndpoints:
     def test_router_has_correct_prefix(self):
         """Testa que router tem prefixo correto."""
         from src.api.routes.v3 import router
+
         assert router.prefix == "/api/v3"
 
     def test_router_has_tags(self):
         """Testa que router tem tags."""
         from src.api.routes.v3 import router
+
         assert "v3" in router.tags
 
 

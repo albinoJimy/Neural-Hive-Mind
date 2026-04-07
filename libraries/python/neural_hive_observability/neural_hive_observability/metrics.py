@@ -8,8 +8,13 @@ com labels neural_hive_component, neural_hive_layer, domain, channel, status.
 import logging
 from typing import Optional, Dict, List
 from prometheus_client import (
-    Counter, Histogram, Gauge, Info,
-    start_http_server, CollectorRegistry, REGISTRY
+    Counter,
+    Histogram,
+    Gauge,
+    Info,
+    start_http_server,
+    CollectorRegistry,
+    REGISTRY,
 )
 
 from .config import ObservabilityConfig
@@ -20,7 +25,7 @@ logger = logging.getLogger(__name__)
 class NeuralHiveMetrics:
     """Conjunto padronizado de métricas do Neural Hive-Mind."""
 
-    _instance: Optional['NeuralHiveMetrics'] = None
+    _instance: Optional["NeuralHiveMetrics"] = None
     _registry: Optional[CollectorRegistry] = None
 
     def __new__(cls, config: ObservabilityConfig, registry: Optional[CollectorRegistry] = None):
@@ -63,24 +68,24 @@ class NeuralHiveMetrics:
         """Inicializa métricas de serviço."""
         # Info sobre o serviço
         self.service_info = Info(
-            "neural_hive_service",
-            "Informações do serviço Neural Hive-Mind",
-            registry=self.registry
+            "neural_hive_service", "Informações do serviço Neural Hive-Mind", registry=self.registry
         )
-        self.service_info.info({
-            "service_name": self.config.service_name,
-            "version": self.config.service_version,
-            "component": self.config.neural_hive_component,
-            "layer": self.config.neural_hive_layer,
-            "domain": self.config.neural_hive_domain or "unknown"
-        })
+        self.service_info.info(
+            {
+                "service_name": self.config.service_name,
+                "version": self.config.service_version,
+                "component": self.config.neural_hive_component,
+                "layer": self.config.neural_hive_layer,
+                "domain": self.config.neural_hive_domain or "unknown",
+            }
+        )
 
         # Startup counter
         self.service_startup_total = Counter(
             "neural_hive_service_startup_total",
             "Total de inicializações do serviço",
             self._common_labels,
-            registry=self.registry
+            registry=self.registry,
         )
 
     def _init_request_metrics(self):
@@ -90,7 +95,7 @@ class NeuralHiveMetrics:
             "neural_hive_requests_total",
             "Total de requisições processadas",
             self._common_labels + ["channel", "status"],
-            registry=self.registry
+            registry=self.registry,
         )
 
         # Duração de requisições (Fluxo A - Captura)
@@ -101,7 +106,7 @@ class NeuralHiveMetrics:
             "Duração da captura de intenções",
             self._common_labels + ["channel"],
             buckets=[0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0],
-            registry=self.registry
+            registry=self.registry,
         )
 
         # Duração de geração de planos (Fluxo B)
@@ -110,7 +115,7 @@ class NeuralHiveMetrics:
             "Duração da geração de planos",
             self._common_labels + ["channel"],
             buckets=[0.5, 1.0, 2.0, 5.0, 10.0, 30.0, 60.0],
-            registry=self.registry
+            registry=self.registry,
         )
 
         # Duração de orquestração (Fluxo C)
@@ -119,7 +124,7 @@ class NeuralHiveMetrics:
             "Duração da orquestração de planos",
             self._common_labels + ["channel"],
             buckets=[1.0, 5.0, 10.0, 30.0, 60.0, 300.0, 600.0],
-            registry=self.registry
+            registry=self.registry,
         )
 
     def _init_intent_metrics(self):
@@ -129,7 +134,7 @@ class NeuralHiveMetrics:
             "neural_hive_intentions_processed_total",
             "Total de intenções processadas",
             self._common_labels + ["channel", "status"],
-            registry=self.registry
+            registry=self.registry,
         )
 
         # Distribuição de confiança
@@ -138,7 +143,7 @@ class NeuralHiveMetrics:
             "Distribuição de confiança das intenções",
             self._common_labels + ["channel"],
             buckets=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
-            registry=self.registry
+            registry=self.registry,
         )
 
         # Intenções com baixa confiança
@@ -146,7 +151,7 @@ class NeuralHiveMetrics:
             "neural_hive_low_confidence_routed_total",
             "Intenções roteadas devido à baixa confiança",
             self._common_labels + ["channel", "route_target"],
-            registry=self.registry
+            registry=self.registry,
         )
 
     def _init_plan_metrics(self):
@@ -156,7 +161,7 @@ class NeuralHiveMetrics:
             "neural_hive_plans_generated_total",
             "Total de planos gerados",
             self._common_labels + ["channel", "status"],
-            registry=self.registry
+            registry=self.registry,
         )
 
         # Duração de execução de planos
@@ -165,7 +170,7 @@ class NeuralHiveMetrics:
             "Duração da execução de planos",
             self._common_labels + ["channel", "plan_type"],
             buckets=[1.0, 5.0, 10.0, 30.0, 60.0, 300.0, 600.0, 1800.0],
-            registry=self.registry
+            registry=self.registry,
         )
 
         # Sucesso na execução de planos
@@ -173,7 +178,7 @@ class NeuralHiveMetrics:
             "neural_hive_plan_execution_success_rate",
             "Taxa de sucesso na execução de planos",
             self._common_labels + ["channel"],
-            registry=self.registry
+            registry=self.registry,
         )
 
     def _init_infrastructure_metrics(self):
@@ -183,7 +188,7 @@ class NeuralHiveMetrics:
             "neural_hive_active_connections_total",
             "Conexões ativas do serviço",
             self._common_labels + ["connection_type"],
-            registry=self.registry
+            registry=self.registry,
         )
 
         # Uso de memória
@@ -191,7 +196,7 @@ class NeuralHiveMetrics:
             "neural_hive_memory_usage_bytes",
             "Uso de memória do processo",
             self._common_labels,
-            registry=self.registry
+            registry=self.registry,
         )
 
         # Health status
@@ -199,7 +204,7 @@ class NeuralHiveMetrics:
             "neural_hive_health_status",
             "Status de saúde do serviço (1=healthy, 0=unhealthy)",
             self._common_labels + ["check_name"],
-            registry=self.registry
+            registry=self.registry,
         )
 
     def _init_tracing_export_metrics(self):
@@ -209,7 +214,7 @@ class NeuralHiveMetrics:
             "neural_hive_span_export_failures_total",
             "Total de falhas no export de spans",
             self._common_labels + ["error_type", "endpoint"],
-            registry=self.registry
+            registry=self.registry,
         )
 
         # Contador de exports bem-sucedidos
@@ -217,7 +222,7 @@ class NeuralHiveMetrics:
             "neural_hive_span_export_success_total",
             "Total de exports de spans bem-sucedidos",
             self._common_labels + ["endpoint"],
-            registry=self.registry
+            registry=self.registry,
         )
 
         # Histograma de duração de export
@@ -226,7 +231,7 @@ class NeuralHiveMetrics:
             "Duração do export de spans em segundos",
             self._common_labels + ["endpoint", "result"],
             buckets=[0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0],
-            registry=self.registry
+            registry=self.registry,
         )
 
         # Gauge para tamanho da fila de spans pendentes
@@ -234,7 +239,7 @@ class NeuralHiveMetrics:
             "neural_hive_span_export_queue_size",
             "Tamanho atual da fila de spans pendentes para export",
             self._common_labels,
-            registry=self.registry
+            registry=self.registry,
         )
 
     def _init_slo_metrics(self):
@@ -244,7 +249,7 @@ class NeuralHiveMetrics:
             "neural_hive_slo_availability_ratio",
             "Taxa de disponibilidade para SLO (0.0-1.0)",
             self._common_labels + ["slo_name"],
-            registry=self.registry
+            registry=self.registry,
         )
 
         # Latency SLO
@@ -252,7 +257,7 @@ class NeuralHiveMetrics:
             "neural_hive_slo_latency_percentile_seconds",
             "Percentil de latência para SLO",
             self._common_labels + ["slo_name", "percentile"],
-            registry=self.registry
+            registry=self.registry,
         )
 
         # Error budget
@@ -260,7 +265,7 @@ class NeuralHiveMetrics:
             "neural_hive_slo_error_budget_remaining_ratio",
             "Error budget restante para SLO (0.0-1.0)",
             self._common_labels + ["slo_name"],
-            registry=self.registry
+            registry=self.registry,
         )
 
         # Error budget burn rate
@@ -268,7 +273,7 @@ class NeuralHiveMetrics:
             "neural_hive_slo_error_budget_burn_rate",
             "Taxa de queima do error budget",
             self._common_labels + ["slo_name", "window"],
-            registry=self.registry
+            registry=self.registry,
         )
 
         # Cache performance metrics
@@ -276,21 +281,21 @@ class NeuralHiveMetrics:
             "neural_hive_cache_hits_total",
             "Total de cache hits",
             self._common_labels + ["cache_name"],
-            registry=self.registry
+            registry=self.registry,
         )
 
         self.cache_misses_total = Counter(
             "neural_hive_cache_misses_total",
             "Total de cache misses",
             self._common_labels + ["cache_name"],
-            registry=self.registry
+            registry=self.registry,
         )
 
         self.cache_evictions_total = Counter(
             "neural_hive_cache_evictions_total",
             "Total de evicções de cache",
             self._common_labels + ["cache_name"],
-            registry=self.registry
+            registry=self.registry,
         )
 
         # Queue depth metrics
@@ -298,23 +303,27 @@ class NeuralHiveMetrics:
             "neural_hive_queue_depth",
             "Profundidade atual da fila",
             self._common_labels + ["queue_name"],
-            registry=self.registry
+            registry=self.registry,
         )
 
         self.queue_processing_lag_seconds = Gauge(
             "neural_hive_queue_processing_lag_seconds",
             "Lag de processamento da fila em segundos",
             self._common_labels + ["queue_name"],
-            registry=self.registry
+            registry=self.registry,
         )
 
     def increment_requests(self, channel: str = "unknown", status: str = "success"):
         """Incrementa contador de requisições."""
-        self.neural_hive_requests_total.labels(
-            *self._common_label_values, channel, status
-        ).inc()
+        self.neural_hive_requests_total.labels(*self._common_label_values, channel, status).inc()
 
-    def observe_with_exemplar(self, metric, value: float, labels: List[str], exemplar_data: Optional[Dict[str, str]] = None):
+    def observe_with_exemplar(
+        self,
+        metric,
+        value: float,
+        labels: List[str],
+        exemplar_data: Optional[Dict[str, str]] = None,
+    ):
         """
         Observa métrica com suporte a exemplars para correlação.
 
@@ -338,7 +347,13 @@ class NeuralHiveMetrics:
         # Observação padrão sem exemplar
         histogram.observe(value)
 
-    def observe_captura_duration(self, duration: float, channel: str = "unknown", trace_id: Optional[str] = None, span_id: Optional[str] = None):
+    def observe_captura_duration(
+        self,
+        duration: float,
+        channel: str = "unknown",
+        trace_id: Optional[str] = None,
+        span_id: Optional[str] = None,
+    ):
         """
         Observa duração de captura de intenção com exemplar para correlação.
 
@@ -360,10 +375,16 @@ class NeuralHiveMetrics:
             self.neural_hive_captura_duration_seconds,
             duration,
             labels,
-            exemplar_data if exemplar_data else None
+            exemplar_data if exemplar_data else None,
         )
 
-    def observe_geracao_duration(self, duration: float, channel: str = "unknown", trace_id: Optional[str] = None, span_id: Optional[str] = None):
+    def observe_geracao_duration(
+        self,
+        duration: float,
+        channel: str = "unknown",
+        trace_id: Optional[str] = None,
+        span_id: Optional[str] = None,
+    ):
         """Observa duração de geração de planos com exemplar."""
         labels = [*self._common_label_values, channel]
         exemplar_data = {}
@@ -377,10 +398,16 @@ class NeuralHiveMetrics:
             self.neural_hive_geracao_duration_seconds,
             duration,
             labels,
-            exemplar_data if exemplar_data else None
+            exemplar_data if exemplar_data else None,
         )
 
-    def observe_orquestracao_duration(self, duration: float, channel: str = "unknown", trace_id: Optional[str] = None, span_id: Optional[str] = None):
+    def observe_orquestracao_duration(
+        self,
+        duration: float,
+        channel: str = "unknown",
+        trace_id: Optional[str] = None,
+        span_id: Optional[str] = None,
+    ):
         """Observa duração de orquestração com exemplar."""
         labels = [*self._common_label_values, channel]
         exemplar_data = {}
@@ -394,22 +421,22 @@ class NeuralHiveMetrics:
             self.neural_hive_orquestracao_duration_seconds,
             duration,
             labels,
-            exemplar_data if exemplar_data else None
+            exemplar_data if exemplar_data else None,
         )
 
     def increment_intentions(self, channel: str = "unknown", status: str = "success"):
         """Incrementa contador de intenções."""
-        self.intentions_processed_total.labels(
-            *self._common_label_values, channel, status
-        ).inc()
+        self.intentions_processed_total.labels(*self._common_label_values, channel, status).inc()
 
     def observe_intent_confidence(self, confidence: float, channel: str = "unknown"):
         """Observa confiança de intenção."""
-        self.intent_confidence_histogram.labels(
-            *self._common_label_values, channel
-        ).observe(confidence)
+        self.intent_confidence_histogram.labels(*self._common_label_values, channel).observe(
+            confidence
+        )
 
-    def increment_low_confidence_routed(self, channel: str = "unknown", route_target: str = "human"):
+    def increment_low_confidence_routed(
+        self, channel: str = "unknown", route_target: str = "human"
+    ):
         """Incrementa contador de baixa confiança."""
         self.low_confidence_routed_total.labels(
             *self._common_label_values, channel, route_target
@@ -417,11 +444,11 @@ class NeuralHiveMetrics:
 
     def increment_plans(self, channel: str = "unknown", status: str = "success"):
         """Incrementa contador de planos."""
-        self.plans_generated_total.labels(
-            *self._common_label_values, channel, status
-        ).inc()
+        self.plans_generated_total.labels(*self._common_label_values, channel, status).inc()
 
-    def observe_plan_execution(self, duration: float, channel: str = "unknown", plan_type: str = "unknown"):
+    def observe_plan_execution(
+        self, duration: float, channel: str = "unknown", plan_type: str = "unknown"
+    ):
         """Observa duração de execução de plano."""
         self.plan_execution_duration_seconds.labels(
             *self._common_label_values, channel, plan_type
@@ -429,9 +456,9 @@ class NeuralHiveMetrics:
 
     def set_health_status(self, check_name: str, is_healthy: bool):
         """Define status de health check."""
-        self.health_status.labels(
-            *self._common_label_values, check_name
-        ).set(1.0 if is_healthy else 0.0)
+        self.health_status.labels(*self._common_label_values, check_name).set(
+            1.0 if is_healthy else 0.0
+        )
 
     def update_memory_usage(self, bytes_used: int):
         """Atualiza uso de memória."""
@@ -439,66 +466,56 @@ class NeuralHiveMetrics:
 
     def set_active_connections(self, connection_type: str, count: int):
         """Define número de conexões ativas."""
-        self.active_connections.labels(
-            *self._common_label_values, connection_type
-        ).set(count)
+        self.active_connections.labels(*self._common_label_values, connection_type).set(count)
 
     # SLO-specific methods
     def set_slo_availability(self, slo_name: str, availability_ratio: float):
         """Define taxa de disponibilidade para SLO."""
-        self.slo_availability_ratio.labels(
-            *self._common_label_values, slo_name
-        ).set(availability_ratio)
+        self.slo_availability_ratio.labels(*self._common_label_values, slo_name).set(
+            availability_ratio
+        )
 
     def set_slo_latency_percentile(self, slo_name: str, percentile: str, latency_seconds: float):
         """Define percentil de latência para SLO."""
-        self.slo_latency_percentile.labels(
-            *self._common_label_values, slo_name, percentile
-        ).set(latency_seconds)
+        self.slo_latency_percentile.labels(*self._common_label_values, slo_name, percentile).set(
+            latency_seconds
+        )
 
     def set_slo_error_budget_remaining(self, slo_name: str, remaining_ratio: float):
         """Define error budget restante para SLO."""
-        self.slo_error_budget_remaining.labels(
-            *self._common_label_values, slo_name
-        ).set(remaining_ratio)
+        self.slo_error_budget_remaining.labels(*self._common_label_values, slo_name).set(
+            remaining_ratio
+        )
 
     def set_slo_error_budget_burn_rate(self, slo_name: str, window: str, burn_rate: float):
         """Define taxa de queima do error budget."""
-        self.slo_error_budget_burn_rate.labels(
-            *self._common_label_values, slo_name, window
-        ).set(burn_rate)
+        self.slo_error_budget_burn_rate.labels(*self._common_label_values, slo_name, window).set(
+            burn_rate
+        )
 
     # Cache metrics methods
     def increment_cache_hits(self, cache_name: str):
         """Incrementa contador de cache hits."""
-        self.cache_hits_total.labels(
-            *self._common_label_values, cache_name
-        ).inc()
+        self.cache_hits_total.labels(*self._common_label_values, cache_name).inc()
 
     def increment_cache_misses(self, cache_name: str):
         """Incrementa contador de cache misses."""
-        self.cache_misses_total.labels(
-            *self._common_label_values, cache_name
-        ).inc()
+        self.cache_misses_total.labels(*self._common_label_values, cache_name).inc()
 
     def increment_cache_evictions(self, cache_name: str):
         """Incrementa contador de evicções de cache."""
-        self.cache_evictions_total.labels(
-            *self._common_label_values, cache_name
-        ).inc()
+        self.cache_evictions_total.labels(*self._common_label_values, cache_name).inc()
 
     # Queue metrics methods
     def set_queue_depth(self, queue_name: str, depth: int):
         """Define profundidade da fila."""
-        self.queue_depth.labels(
-            *self._common_label_values, queue_name
-        ).set(depth)
+        self.queue_depth.labels(*self._common_label_values, queue_name).set(depth)
 
     def set_queue_processing_lag(self, queue_name: str, lag_seconds: float):
         """Define lag de processamento da fila."""
-        self.queue_processing_lag_seconds.labels(
-            *self._common_label_values, queue_name
-        ).set(lag_seconds)
+        self.queue_processing_lag_seconds.labels(*self._common_label_values, queue_name).set(
+            lag_seconds
+        )
 
     def calculate_cache_hit_rate(self, cache_name: str) -> float:
         """Calcula taxa de hit do cache baseada nos contadores."""
@@ -506,8 +523,8 @@ class NeuralHiveMetrics:
             hits_metric = self.cache_hits_total.labels(*self._common_label_values, cache_name)
             misses_metric = self.cache_misses_total.labels(*self._common_label_values, cache_name)
 
-            hits = hits_metric._value._value if hasattr(hits_metric, '_value') else 0
-            misses = misses_metric._value._value if hasattr(misses_metric, '_value') else 0
+            hits = hits_metric._value._value if hasattr(hits_metric, "_value") else 0
+            misses = misses_metric._value._value if hasattr(misses_metric, "_value") else 0
 
             total = hits + misses
             return hits / total if total > 0 else 0.0
@@ -523,9 +540,7 @@ class NeuralHiveMetrics:
 
     def increment_span_export_success(self, endpoint: str):
         """Incrementa contador de exports de spans bem-sucedidos."""
-        self.span_export_success_total.labels(
-            *self._common_label_values, endpoint
-        ).inc()
+        self.span_export_success_total.labels(*self._common_label_values, endpoint).inc()
 
     def observe_span_export_duration(self, duration: float, endpoint: str, result: str):
         """Observa duração de export de spans."""

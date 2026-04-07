@@ -33,8 +33,7 @@ class OptimizerMCPServerSettings(BaseSettings):
     def CORS_ORIGINS(self) -> List[str]:
         """CORS origins dinâmicas por ambiente."""
         return CORSConfig.get_origins_for_environment(
-            self.environment,
-            is_public_api=self.is_public_api
+            self.environment, is_public_api=self.is_public_api
         )
 
 

@@ -6,6 +6,7 @@ e queries especializadas.
 """
 import asyncio
 from datetime import datetime, timezone
+
 UTC = timezone.utc  # type: ignore
 
 import structlog

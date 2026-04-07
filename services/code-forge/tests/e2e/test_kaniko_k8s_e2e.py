@@ -21,11 +21,7 @@ import tempfile
 import os
 from pathlib import Path
 
-from src.services.container_builder import (
-    ContainerBuilder,
-    BuilderType,
-    BuildResult
-)
+from src.services.container_builder import ContainerBuilder, BuilderType, BuildResult
 
 
 @pytest.mark.e2e
@@ -70,15 +66,16 @@ class TestKanikoK8sReal:
         with tempfile.TemporaryDirectory() as tmpdir:
             dockerfile_path = os.path.join(tmpdir, "Dockerfile")
             with open(dockerfile_path, "w") as f:
-                f.write("""FROM alpine:3.19
+                f.write(
+                    """FROM alpine:3.19
 RUN echo "Kaniko E2E Test" > /tmp/test.txt
 CMD cat /tmp/test.txt
-""")
+"""
+                )
 
             # Criar builder Kaniko
             builder = ContainerBuilder(
-                builder_type=BuilderType.KANIKO,
-                timeout_seconds=600  # 10 minutos para build real
+                builder_type=BuilderType.KANIKO, timeout_seconds=600  # 10 minutos para build real
             )
 
             # Executar build (vai falhar se registry não configurado,
@@ -97,7 +94,9 @@ CMD cat /tmp/test.txt
             if result.success:
                 print(f"✅ Build sucesso! Digest: {result.image_digest}")
             else:
-                print(f"⚠️ Build falhou (esperado se registry não configurado): {result.error_message}")
+                print(
+                    f"⚠️ Build falhou (esperado se registry não configurado): {result.error_message}"
+                )
 
             # Para builds de teste, podemos aceitar falha de registry
             # desde que o pod tenha sido criado
@@ -153,11 +152,11 @@ INFO0018[0010] Pushed image with digest sha256:1234567890abcdef1234567890abcdef1
         builder = ContainerBuilder(builder_type=BuilderType.KANIKO)
 
         # Testar que o método _build_with_kaniko existe e tem a assinatura correta
-        assert hasattr(builder, '_build_with_kaniko')
+        assert hasattr(builder, "_build_with_kaniko")
         assert callable(builder._build_with_kaniko)
 
         # Validar método de parsing
-        assert hasattr(builder, '_parse_kaniko_digest')
+        assert hasattr(builder, "_parse_kaniko_digest")
         assert callable(builder._parse_kaniko_digest)
 
         print("✅ Métodos Kaniko validados")
@@ -173,7 +172,7 @@ class TestKanikoIntegration:
         from src.services.dockerfile_generator import (
             DockerfileGenerator,
             CodeLanguage,
-            ArtifactCategory
+            ArtifactCategory,
         )
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -209,7 +208,7 @@ class TestKanikoIntegration:
             image_digest="sha256:abc123def456",
             image_tag="test:v1",
             duration_seconds=120.5,
-            build_logs=["INFO Build started", "INFO Build complete"]
+            build_logs=["INFO Build started", "INFO Build complete"],
         )
 
         assert result_success.success is True
@@ -223,7 +222,7 @@ class TestKanikoIntegration:
             success=False,
             error_message="Build failed: step 5 error",
             duration_seconds=45.0,
-            build_logs=["INFO Build started", "ERROR Step 5 failed"]
+            build_logs=["INFO Build started", "ERROR Step 5 failed"],
         )
 
         assert result_failure.success is False

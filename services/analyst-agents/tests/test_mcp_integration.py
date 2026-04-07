@@ -11,7 +11,7 @@ mock_httpx = MagicMock()
 mock_httpx.AsyncClient = MagicMock
 mock_httpx.HTTPError = Exception
 mock_httpx.TimeoutException = Exception
-sys.modules['httpx'] = mock_httpx
+sys.modules["httpx"] = mock_httpx
 
 from src.services.mcp_integration import (
     MCPIntegration,
@@ -63,7 +63,7 @@ async def test_initialize():
     """Testar inicialização do cliente."""
     integration = MCPIntegration(timeout=5.0)
 
-    with patch('src.services.mcp_integration.httpx.AsyncClient') as mock_client_class:
+    with patch("src.services.mcp_integration.httpx.AsyncClient") as mock_client_class:
         mock_instance = AsyncMock()
         mock_instance.aclose = AsyncMock()
         mock_client_class.return_value = mock_instance
@@ -99,13 +99,11 @@ async def test_close():
 @pytest.mark.asyncio
 async def test_scout_list_files_success(mcp_client):
     """Testar list_files com sucesso."""
+
     async def mock_post(url, json=None, **kwargs):
         return create_mock_response(
             status_code=200,
-            json_data={
-                "status": "success",
-                "data": {"files": [{"path": "test.py", "size": 1024}]}
-            }
+            json_data={"status": "success", "data": {"files": [{"path": "test.py", "size": 1024}]}},
         )
 
     mcp_client._client.post = mock_post
@@ -132,6 +130,7 @@ async def test_scout_list_files_error():
 
     # tenacity RetryError包裹了MCPIntegrationError
     from tenacity import RetryError
+
     with pytest.raises((MCPIntegrationError, RetryError)):
         await integration.scout_list_files()
 
@@ -139,13 +138,14 @@ async def test_scout_list_files_error():
 @pytest.mark.asyncio
 async def test_scout_search_code_success(mcp_client):
     """Testar search_code com sucesso."""
+
     async def mock_post(url, json=None, **kwargs):
         return create_mock_response(
             status_code=200,
             json_data={
                 "status": "success",
-                "data": {"matches": [{"file": "test.py", "line": 10, "code": "def test()"}]}
-            }
+                "data": {"matches": [{"file": "test.py", "line": 10, "code": "def test()"}]},
+            },
         )
 
     mcp_client._client.post = mock_post
@@ -159,13 +159,14 @@ async def test_scout_search_code_success(mcp_client):
 @pytest.mark.asyncio
 async def test_scout_analyze_structure_success(mcp_client):
     """Testar analyze_structure com sucesso."""
+
     async def mock_post(url, json=None, **kwargs):
         return create_mock_response(
             status_code=200,
             json_data={
                 "status": "success",
-                "data": {"structure": {"modules": ["module1", "module2"]}}
-            }
+                "data": {"structure": {"modules": ["module1", "module2"]}},
+            },
         )
 
     mcp_client._client.post = mock_post
@@ -184,13 +185,14 @@ async def test_scout_analyze_structure_success(mcp_client):
 @pytest.mark.asyncio
 async def test_optimizer_analyze_performance_success(mcp_client):
     """Testar analyze_performance com sucesso."""
+
     async def mock_post(url, json=None, **kwargs):
         return create_mock_response(
             status_code=200,
             json_data={
                 "status": "success",
-                "data": {"complexity": "O(n)", "suggestions": ["Use list comprehension"]}
-            }
+                "data": {"complexity": "O(n)", "suggestions": ["Use list comprehension"]},
+            },
         )
 
     mcp_client._client.post = mock_post
@@ -204,13 +206,14 @@ async def test_optimizer_analyze_performance_success(mcp_client):
 @pytest.mark.asyncio
 async def test_optimizer_suggest_refactors_success(mcp_client):
     """Testar suggest_refactors com sucesso."""
+
     async def mock_post(url, json=None, **kwargs):
         return create_mock_response(
             status_code=200,
             json_data={
                 "status": "success",
-                "data": {"suggestions": [{"type": "simplify", "description": "Use built-in"}]}
-            }
+                "data": {"suggestions": [{"type": "simplify", "description": "Use built-in"}]},
+            },
         )
 
     mcp_client._client.post = mock_post
@@ -224,13 +227,14 @@ async def test_optimizer_suggest_refactors_success(mcp_client):
 @pytest.mark.asyncio
 async def test_optimizer_optimize_queries_success(mcp_client):
     """Testar optimize_queries com sucesso."""
+
     async def mock_post(url, json=None, **kwargs):
         return create_mock_response(
             status_code=200,
             json_data={
                 "status": "success",
-                "data": {"optimized": [{"query": "SELECT * FROM t", "improvement": "Add index"}]}
-            }
+                "data": {"optimized": [{"query": "SELECT * FROM t", "improvement": "Add index"}]},
+            },
         )
 
     mcp_client._client.post = mock_post
@@ -255,12 +259,12 @@ async def test_execute_aggregated_analysis_code_discovery(mcp_client):
         if call_count[0] == 1:
             return create_mock_response(
                 status_code=200,
-                json_data={"status": "success", "data": {"files": [{"path": "test.py"}]}}
+                json_data={"status": "success", "data": {"files": [{"path": "test.py"}]}},
             )
         else:
             return create_mock_response(
                 status_code=200,
-                json_data={"status": "success", "data": {"structure": {"dirs": ["src"]}}}
+                json_data={"status": "success", "data": {"structure": {"dirs": ["src"]}}},
             )
 
     mcp_client._client.post = mock_post
@@ -285,13 +289,12 @@ async def test_execute_aggregated_analysis_performance_optimization(mcp_client):
         call_count[0] += 1
         if call_count[0] == 1:
             return create_mock_response(
-                status_code=200,
-                json_data={"status": "success", "data": {"complexity": "O(n)"}}
+                status_code=200, json_data={"status": "success", "data": {"complexity": "O(n)"}}
             )
         else:
             return create_mock_response(
                 status_code=200,
-                json_data={"status": "success", "data": {"suggestions": [{"type": "optimize"}]}}
+                json_data={"status": "success", "data": {"suggestions": [{"type": "optimize"}]}},
             )
 
     mcp_client._client.post = mock_post
@@ -316,21 +319,18 @@ async def test_execute_aggregated_analysis_with_errors(mcp_client):
         if call_count[0] == 1:
             # Primeira call retorna status error
             return create_mock_response(
-                status_code=200,
-                json_data={"status": "error", "error": "timeout"}
+                status_code=200, json_data={"status": "error", "error": "timeout"}
             )
         else:
             # Segunda succeeds
             return create_mock_response(
-                status_code=200,
-                json_data={"status": "success", "data": {"structure": {}}}
+                status_code=200, json_data={"status": "success", "data": {"structure": {}}}
             )
 
     mcp_client._client.post = mock_post
 
     result = await mcp_client.execute_aggregated_analysis(
-        analysis_type="code_discovery",
-        params={"path": "."}
+        analysis_type="code_discovery", params={"path": "."}
     )
 
     # Deve ter errors mas continuar com outros tools
@@ -341,10 +341,7 @@ async def test_execute_aggregated_analysis_with_errors(mcp_client):
 @pytest.mark.asyncio
 async def test_execute_aggregated_analysis_unknown_type(mcp_client):
     """Testar análise agregada com tipo desconhecido."""
-    result = await mcp_client.execute_aggregated_analysis(
-        analysis_type="unknown_type",
-        params={}
-    )
+    result = await mcp_client.execute_aggregated_analysis(analysis_type="unknown_type", params={})
 
     assert result["analysis_type"] == "unknown_type"
     assert len(result["tools_used"]) == 0
@@ -358,6 +355,7 @@ async def test_execute_aggregated_analysis_unknown_type(mcp_client):
 @pytest.mark.asyncio
 async def test_health_check_all_up(mcp_client):
     """Testar health check com todos servidores ativos."""
+
     async def mock_get(url, **kwargs):
         mock_r = MagicMock()
         mock_r.status_code = 200
@@ -374,6 +372,7 @@ async def test_health_check_all_up(mcp_client):
 @pytest.mark.asyncio
 async def test_health_check_all_down(mcp_client):
     """Testar health check com servidores inativos."""
+
     async def mock_get(url, **kwargs):
         raise Exception("Connection refused")
 
@@ -414,10 +413,7 @@ async def test_retry_on_failure():
         state["count"] += 1
         if state["count"] < 2:
             raise Exception("Temporary error")
-        return create_mock_response(
-            status_code=200,
-            json_data={"status": "success", "data": {}}
-        )
+        return create_mock_response(status_code=200, json_data={"status": "success", "data": {}})
 
     integration._client.post = failing_post
 
@@ -435,12 +431,13 @@ async def test_retry_on_failure():
 @pytest.mark.asyncio
 async def test_scout_list_files_with_pattern(mcp_client):
     """Testar scout_list_files com pattern."""
+
     async def mock_post(url, json=None, **kwargs):
         # Verificar payload
         assert json.get("pattern") == "*.py"
         return create_mock_response(
             status_code=200,
-            json_data={"status": "success", "data": {"files": [{"path": "main.py"}]}}
+            json_data={"status": "success", "data": {"files": [{"path": "main.py"}]}},
         )
 
     mcp_client._client.post = mock_post
@@ -453,20 +450,17 @@ async def test_scout_list_files_with_pattern(mcp_client):
 @pytest.mark.asyncio
 async def test_scout_search_code_with_file_pattern(mcp_client):
     """Testar scout_search_code com file_pattern."""
+
     async def mock_post(url, json=None, **kwargs):
         # Verificar payload
         assert json.get("file_pattern") == "test_*.py"
         return create_mock_response(
-            status_code=200,
-            json_data={"status": "success", "data": {"matches": []}}
+            status_code=200, json_data={"status": "success", "data": {"matches": []}}
         )
 
     mcp_client._client.post = mock_post
 
-    result = await mcp_client.scout_search_code(
-        query="test",
-        file_pattern="test_*.py"
-    )
+    result = await mcp_client.scout_search_code(query="test", file_pattern="test_*.py")
 
     assert result == []
 
@@ -475,8 +469,7 @@ async def test_scout_search_code_with_file_pattern(mcp_client):
 async def test_performance_optimization_without_code(mcp_client):
     """Testar performance_optimization sem código fornecido."""
     result = await mcp_client.execute_aggregated_analysis(
-        analysis_type="performance_optimization",
-        params={}  # sem "code"
+        analysis_type="performance_optimization", params={}  # sem "code"
     )
 
     # Não deve usar nenhuma tool (não há código para analisar)
@@ -486,10 +479,10 @@ async def test_performance_optimization_without_code(mcp_client):
 @pytest.mark.asyncio
 async def test_scout_list_files_error_response(mcp_client):
     """Testar scout_list_files com response de erro."""
+
     async def mock_post(url, json=None, **kwargs):
         return create_mock_response(
-            status_code=200,
-            json_data={"status": "error", "error": "invalid path"}
+            status_code=200, json_data={"status": "error", "error": "invalid path"}
         )
 
     mcp_client._client.post = mock_post
@@ -501,10 +494,10 @@ async def test_scout_list_files_error_response(mcp_client):
 @pytest.mark.asyncio
 async def test_optimizer_suggest_refactors_empty(mcp_client):
     """Testar suggest_refactors sem sugestões."""
+
     async def mock_post(url, json=None, **kwargs):
         return create_mock_response(
-            status_code=200,
-            json_data={"status": "success", "data": {"suggestions": []}}
+            status_code=200, json_data={"status": "success", "data": {"suggestions": []}}
         )
 
     mcp_client._client.post = mock_post

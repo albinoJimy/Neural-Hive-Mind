@@ -22,12 +22,9 @@ class TestRateLimiter:
     def rate_limiter(self, mock_redis):
         """Fixture do rate limiter"""
         from middleware.rate_limiter import RateLimiter
+
         return RateLimiter(
-            redis_client=mock_redis,
-            enabled=True,
-            default_limit=100,
-            burst_size=20,
-            fail_open=True
+            redis_client=mock_redis, enabled=True, default_limit=100, burst_size=20, fail_open=True
         )
 
     @pytest.mark.asyncio
@@ -36,10 +33,7 @@ class TestRateLimiter:
         # zcard returns 50 (within limit of 100 + 20 burst = 120)
         mock_redis.pipeline_operations.return_value = [0, 1, 50, True]
 
-        result = await rate_limiter.check_rate_limit(
-            user_id="user123",
-            tenant_id="tenant1"
-        )
+        result = await rate_limiter.check_rate_limit(user_id="user123", tenant_id="tenant1")
 
         assert result.allowed is True
         assert result.limit == 100  # Reports base limit
@@ -51,10 +45,7 @@ class TestRateLimiter:
         # zcard returns 121 (above limit of 100 + 20 burst = 120)
         mock_redis.pipeline_operations.return_value = [0, 1, 121, True]
 
-        result = await rate_limiter.check_rate_limit(
-            user_id="user123",
-            tenant_id="tenant1"
-        )
+        result = await rate_limiter.check_rate_limit(user_id="user123", tenant_id="tenant1")
 
         assert result.allowed is False
         assert result.remaining == 0
@@ -66,10 +57,7 @@ class TestRateLimiter:
         # zcard returns 110 (above base limit 100 but within burst allowance 100+20=120)
         mock_redis.pipeline_operations.return_value = [0, 1, 110, True]
 
-        result = await rate_limiter.check_rate_limit(
-            user_id="user123",
-            tenant_id="tenant1"
-        )
+        result = await rate_limiter.check_rate_limit(user_id="user123", tenant_id="tenant1")
 
         assert result.allowed is True
         assert result.limit == 100  # Reports base limit to user
@@ -80,10 +68,7 @@ class TestRateLimiter:
         # zcard returns 120 (exactly at limit of 100 + 20 burst)
         mock_redis.pipeline_operations.return_value = [0, 1, 120, True]
 
-        result = await rate_limiter.check_rate_limit(
-            user_id="user123",
-            tenant_id="tenant1"
-        )
+        result = await rate_limiter.check_rate_limit(user_id="user123", tenant_id="tenant1")
 
         assert result.allowed is True
         assert result.remaining == 0
@@ -95,10 +80,7 @@ class TestRateLimiter:
         # zcard returns 250 (within tenant limit 500 + 20 burst = 520)
         mock_redis.pipeline_operations.return_value = [0, 1, 250, True]
 
-        result = await rate_limiter.check_rate_limit(
-            user_id="user123",
-            tenant_id="premium-tenant"
-        )
+        result = await rate_limiter.check_rate_limit(user_id="user123", tenant_id="premium-tenant")
 
         assert result.allowed is True
         assert result.limit == 500
@@ -110,10 +92,7 @@ class TestRateLimiter:
         # zcard returns 500 (within user limit 1000 + 20 burst = 1020)
         mock_redis.pipeline_operations.return_value = [0, 1, 500, True]
 
-        result = await rate_limiter.check_rate_limit(
-            user_id="admin-user",
-            tenant_id="tenant1"
-        )
+        result = await rate_limiter.check_rate_limit(user_id="admin-user", tenant_id="tenant1")
 
         assert result.allowed is True
         assert result.limit == 1000
@@ -126,10 +105,7 @@ class TestRateLimiter:
         # zcard returns 1500 (within user limit 2000 + 20 burst = 2020)
         mock_redis.pipeline_operations.return_value = [0, 1, 1500, True]
 
-        result = await rate_limiter.check_rate_limit(
-            user_id="special-user",
-            tenant_id="tenant1"
-        )
+        result = await rate_limiter.check_rate_limit(user_id="special-user", tenant_id="tenant1")
 
         assert result.allowed is True
         assert result.limit == 2000
@@ -139,10 +115,7 @@ class TestRateLimiter:
         """Testar fail-open quando Redis falha"""
         mock_redis.pipeline_operations.side_effect = Exception("Redis connection failed")
 
-        result = await rate_limiter.check_rate_limit(
-            user_id="user123",
-            tenant_id="tenant1"
-        )
+        result = await rate_limiter.check_rate_limit(user_id="user123", tenant_id="tenant1")
 
         # Deve permitir requisicao mesmo com erro (fail-open)
         assert result.allowed is True
@@ -157,15 +130,12 @@ class TestRateLimiter:
             enabled=True,
             default_limit=100,
             burst_size=20,
-            fail_open=False  # fail-closed
+            fail_open=False,  # fail-closed
         )
 
         mock_redis.pipeline_operations.side_effect = Exception("Redis connection failed")
 
-        result = await limiter.check_rate_limit(
-            user_id="user123",
-            tenant_id="tenant1"
-        )
+        result = await limiter.check_rate_limit(user_id="user123", tenant_id="tenant1")
 
         # Deve bloquear requisicao com erro (fail-closed)
         assert result.allowed is False
@@ -176,16 +146,10 @@ class TestRateLimiter:
         from middleware.rate_limiter import RateLimiter
 
         limiter = RateLimiter(
-            redis_client=mock_redis,
-            enabled=False,
-            default_limit=100,
-            burst_size=20
+            redis_client=mock_redis, enabled=False, default_limit=100, burst_size=20
         )
 
-        result = await limiter.check_rate_limit(
-            user_id="user123",
-            tenant_id="tenant1"
-        )
+        result = await limiter.check_rate_limit(user_id="user123", tenant_id="tenant1")
 
         assert result.allowed is True
         # Redis nao deve ser chamado
@@ -197,10 +161,7 @@ class TestRateLimiter:
         # zcard returns 100 (at base limit, but allowed due to burst)
         mock_redis.pipeline_operations.return_value = [0, 1, 100, True]
 
-        result = await rate_limiter.check_rate_limit(
-            user_id="user123",
-            tenant_id="tenant1"
-        )
+        result = await rate_limiter.check_rate_limit(user_id="user123", tenant_id="tenant1")
 
         assert result.allowed is True
         assert result.remaining == 0  # Remaining based on base limit
@@ -210,10 +171,7 @@ class TestRateLimiter:
         """Testar que resultado inclui tempo de reset"""
         mock_redis.pipeline_operations.return_value = [0, 1, 50, True]
 
-        result = await rate_limiter.check_rate_limit(
-            user_id="user123",
-            tenant_id="tenant1"
-        )
+        result = await rate_limiter.check_rate_limit(user_id="user123", tenant_id="tenant1")
 
         # Reset time should be approximately 60 seconds from now
         current_time = int(time.time())
@@ -225,10 +183,7 @@ class TestRateLimiter:
         """Testar que operacoes Redis corretas sao chamadas para sliding window"""
         mock_redis.pipeline_operations.return_value = [0, 1, 50, True]
 
-        await rate_limiter.check_rate_limit(
-            user_id="test_user",
-            tenant_id="tenant1"
-        )
+        await rate_limiter.check_rate_limit(user_id="test_user", tenant_id="tenant1")
 
         # Verificar que pipeline_operations foi chamado
         mock_redis.pipeline_operations.assert_called_once()
@@ -261,16 +216,13 @@ class TestRateLimiter:
             enabled=True,
             default_limit=100,
             burst_size=0,  # No burst
-            fail_open=True
+            fail_open=True,
         )
 
         # zcard returns 101 (above limit with no burst)
         mock_redis.pipeline_operations.return_value = [0, 1, 101, True]
 
-        result = await limiter.check_rate_limit(
-            user_id="user123",
-            tenant_id="tenant1"
-        )
+        result = await limiter.check_rate_limit(user_id="user123", tenant_id="tenant1")
 
         assert result.allowed is False
 
@@ -284,16 +236,13 @@ class TestRateLimiter:
             enabled=True,
             default_limit=100,
             burst_size=500,  # Large burst
-            fail_open=True
+            fail_open=True,
         )
 
         # zcard returns 550 (within 100 + 500 = 600)
         mock_redis.pipeline_operations.return_value = [0, 1, 550, True]
 
-        result = await limiter.check_rate_limit(
-            user_id="user123",
-            tenant_id="tenant1"
-        )
+        result = await limiter.check_rate_limit(user_id="user123", tenant_id="tenant1")
 
         assert result.allowed is True
         assert result.limit == 100  # Reports base limit
@@ -335,10 +284,7 @@ class TestRateLimiter:
         """Testar rate limit sem tenant_id"""
         mock_redis.pipeline_operations.return_value = [0, 1, 50, True]
 
-        result = await rate_limiter.check_rate_limit(
-            user_id="user123",
-            tenant_id=None
-        )
+        result = await rate_limiter.check_rate_limit(user_id="user123", tenant_id=None)
 
         assert result.allowed is True
         assert result.limit == 100  # Usa limite default
@@ -349,10 +295,7 @@ class TestRateLimiter:
         # zcard returns 121 (above effective limit)
         mock_redis.pipeline_operations.return_value = [0, 1, 121, True]
 
-        result = await rate_limiter.check_rate_limit(
-            user_id="user123",
-            tenant_id="tenant1"
-        )
+        result = await rate_limiter.check_rate_limit(user_id="user123", tenant_id="tenant1")
 
         assert result.allowed is False
         # retry_after deve ser aproximadamente 60 segundos (tamanho da janela)
@@ -369,7 +312,7 @@ class TestRateLimiterSingleton:
             get_rate_limiter,
             set_rate_limiter,
             close_rate_limiter,
-            RateLimiter
+            RateLimiter,
         )
 
         # Limpar estado anterior
@@ -406,17 +349,13 @@ class TestRateLimiterMetrics:
         from middleware.rate_limiter import RateLimiter
 
         limiter = RateLimiter(
-            redis_client=mock_redis,
-            enabled=True,
-            default_limit=100,
-            burst_size=20,
-            fail_open=True
+            redis_client=mock_redis, enabled=True, default_limit=100, burst_size=20, fail_open=True
         )
 
         # Verificar que metricas tem label user_id
-        assert 'user_id' in limiter.rate_limit_exceeded_counter._labelnames
-        assert 'user_id' in limiter.rate_limit_current_usage._labelnames
-        assert 'user_id' in limiter.rate_limit_requests_total._labelnames
+        assert "user_id" in limiter.rate_limit_exceeded_counter._labelnames
+        assert "user_id" in limiter.rate_limit_current_usage._labelnames
+        assert "user_id" in limiter.rate_limit_requests_total._labelnames
 
     @pytest.mark.asyncio
     async def test_metrics_recorded_on_allowed_request(self, mock_redis):
@@ -424,19 +363,12 @@ class TestRateLimiterMetrics:
         from middleware.rate_limiter import RateLimiter
 
         limiter = RateLimiter(
-            redis_client=mock_redis,
-            enabled=True,
-            default_limit=100,
-            burst_size=20,
-            fail_open=True
+            redis_client=mock_redis, enabled=True, default_limit=100, burst_size=20, fail_open=True
         )
 
         mock_redis.pipeline_operations.return_value = [0, 1, 50, True]
 
-        result = await limiter.check_rate_limit(
-            user_id="test_user",
-            tenant_id="test_tenant"
-        )
+        result = await limiter.check_rate_limit(user_id="test_user", tenant_id="test_tenant")
 
         assert result.allowed is True
         # Metricas devem ser registradas (verificamos que nao lancou excecao)
@@ -447,20 +379,13 @@ class TestRateLimiterMetrics:
         from middleware.rate_limiter import RateLimiter
 
         limiter = RateLimiter(
-            redis_client=mock_redis,
-            enabled=True,
-            default_limit=100,
-            burst_size=20,
-            fail_open=True
+            redis_client=mock_redis, enabled=True, default_limit=100, burst_size=20, fail_open=True
         )
 
         # Exceed the limit
         mock_redis.pipeline_operations.return_value = [0, 1, 121, True]
 
-        result = await limiter.check_rate_limit(
-            user_id="test_user",
-            tenant_id="test_tenant"
-        )
+        result = await limiter.check_rate_limit(user_id="test_user", tenant_id="test_tenant")
 
         assert result.allowed is False
         # Metricas de exceeded devem ser incrementadas
@@ -471,10 +396,7 @@ class TestRateLimiterMetrics:
         # Primeira requisição
         mock_redis.pipeline_operations.return_value = [0, 1, 50, True]
 
-        result1 = await rate_limiter.check_rate_limit(
-            user_id="user123",
-            tenant_id="tenant1"
-        )
+        result1 = await rate_limiter.check_rate_limit(user_id="user123", tenant_id="tenant1")
 
         assert result1.allowed is True
         assert result1.remaining == 50
@@ -485,10 +407,7 @@ class TestRateLimiterMetrics:
         # Segunda requisição com count aumentado
         mock_redis.pipeline_operations.return_value = [0, 1, 51, True]
 
-        result2 = await rate_limiter.check_rate_limit(
-            user_id="user123",
-            tenant_id="tenant1"
-        )
+        result2 = await rate_limiter.check_rate_limit(user_id="user123", tenant_id="tenant1")
 
         assert result2.remaining == 49
 
@@ -498,10 +417,7 @@ class TestRateLimiterMetrics:
         # Simular erro de conexão Redis
         mock_redis.pipeline_operations.side_effect = ConnectionError("Redis connection failed")
 
-        result = await rate_limiter.check_rate_limit(
-            user_id="user123",
-            tenant_id="tenant1"
-        )
+        result = await rate_limiter.check_rate_limit(user_id="user123", tenant_id="tenant1")
 
         # Com fail_open=True, deve permitir
         assert result.allowed is True
@@ -516,15 +432,12 @@ class TestRateLimiterMetrics:
             enabled=True,
             default_limit=100,
             burst_size=20,
-            fail_open=False  # Bloquear em caso de erro
+            fail_open=False,  # Bloquear em caso de erro
         )
 
         mock_redis.pipeline_operations.side_effect = ConnectionError("Redis down")
 
-        result = await limiter.check_rate_limit(
-            user_id="user123",
-            tenant_id="tenant1"
-        )
+        result = await limiter.check_rate_limit(user_id="user123", tenant_id="tenant1")
 
         # Com fail_open=False, deve bloquear
         assert result.allowed is False
@@ -534,18 +447,13 @@ class TestRateLimiterMetrics:
     async def test_endpoint_specific_rate_limiting(self, rate_limiter, mock_redis):
         """Testar rate limiting específico por endpoint"""
         # Endpoint custoso tem limite menor
-        rate_limiter.endpoint_limits = {
-            "/api/v1/intentions/process": 50,
-            "/api/v1/admin": 10
-        }
+        rate_limiter.endpoint_limits = {"/api/v1/intentions/process": 50, "/api/v1/admin": 10}
 
         # Usar limite específico do endpoint
         mock_redis.pipeline_operations.return_value = [0, 1, 5, True]
 
         result = await rate_limiter.check_rate_limit(
-            user_id="user123",
-            tenant_id="tenant1",
-            endpoint="/api/v1/intentions/process"
+            user_id="user123", tenant_id="tenant1", endpoint="/api/v1/intentions/process"
         )
 
         assert result.allowed is True

@@ -12,6 +12,6 @@ from .clickhouse import ClickHouseSchemaHealthCheck
 from .otel import OTELPipelineHealthCheck
 
 __all__ = [
-    'ClickHouseSchemaHealthCheck',
-    'OTELPipelineHealthCheck',
+    "ClickHouseSchemaHealthCheck",
+    "OTELPipelineHealthCheck",
 ]

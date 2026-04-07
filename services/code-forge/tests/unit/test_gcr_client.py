@@ -25,7 +25,7 @@ def temp_service_account_key(tmp_path):
         "auth_uri": "https://accounts.google.com/o/oauth2/auth",
         "token_uri": "https://oauth2.googleapis.com/token",
         "access_token": "ya29.test-token-12345",
-        "expires_in": 3600
+        "expires_in": 3600,
     }
     key_file = tmp_path / "service-account.json"
     key_file.write_text(json.dumps(key_data))
@@ -46,7 +46,7 @@ from src.clients.gcr_client import (
     get_gcr_credentials,
     detect_gcr_registry,
     extract_gcr_project,
-    GCR_TOKEN_DEFAULT_TTL
+    GCR_TOKEN_DEFAULT_TTL,
 )
 
 
@@ -62,7 +62,7 @@ class TestGCRToken:
             access_token="test-token",
             token_type="oauth2_access_token",
             expires_at=expires_at,
-            obtained_at=obtained_at
+            obtained_at=obtained_at,
         )
 
         assert token.access_token == "test-token"
@@ -76,7 +76,7 @@ class TestGCRToken:
             access_token="test-token",
             token_type="oauth2_access_token",
             expires_at=past,
-            obtained_at=datetime.now(timezone.utc)
+            obtained_at=datetime.now(timezone.utc),
         )
 
         assert token.is_expired() is True
@@ -89,7 +89,7 @@ class TestGCRToken:
             access_token="test-token",
             token_type="oauth2_access_token",
             expires_at=future,
-            obtained_at=datetime.now(timezone.utc)
+            obtained_at=datetime.now(timezone.utc),
         )
 
         assert token.is_expired() is False
@@ -102,7 +102,7 @@ class TestGCRToken:
             access_token="test-token",
             token_type="oauth2_access_token",
             expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
-            obtained_at=old_time
+            obtained_at=old_time,
         )
 
         # TTL de 1 hora, token tem 2 horas
@@ -116,7 +116,7 @@ class TestGCRToken:
             access_token="test-token",
             token_type="oauth2_access_token",
             expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
-            obtained_at=recent
+            obtained_at=recent,
         )
 
         # TTL de 1 hora, token acabou de ser criado
@@ -128,7 +128,7 @@ class TestGCRToken:
             access_token="test-token-abc123",
             token_type="oauth2_access_token",
             expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
-            obtained_at=datetime.now(timezone.utc)
+            obtained_at=datetime.now(timezone.utc),
         )
 
         credentials = token.get_credentials()
@@ -156,7 +156,7 @@ class TestGCRClientInitialization:
             use_workload_identity=False,
             service_account_key_path="/path/to/key.json",
             service_account_email="test@test-project.iam.gserviceaccount.com",
-            token_ttl=7200
+            token_ttl=7200,
         )
 
         assert client.registry == "eu.gcr.io"
@@ -181,7 +181,9 @@ class TestGetWorkloadIdentityToken:
         token_path = mock_k8s_token_file
 
         with patch("builtins.open", create=True) as mock_open:
-            mock_open.return_value.__enter__.return_value.read.return_value = "mock-k8s-service-account-token"
+            mock_open.return_value.__enter__.return_value.read.return_value = (
+                "mock-k8s-service-account-token"
+            )
 
             # Patch do path do token
             with patch.object(Path, "exists", return_value=True):
@@ -229,7 +231,7 @@ class TestGetServiceAccountToken:
         """Testa obtenção de token via service account key."""
         client = GCRClient(
             service_account_key_path=temp_service_account_key,
-            service_account_email="test@test-project.iam.gserviceaccount.com"
+            service_account_email="test@test-project.iam.gserviceaccount.com",
         )
 
         token = client._get_service_account_token()
@@ -292,7 +294,7 @@ class TestGetGCRToken:
             access_token="cached-token",
             token_type="oauth2_access_token",
             expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
-            obtained_at=datetime.now(timezone.utc)
+            obtained_at=datetime.now(timezone.utc),
         )
         client._cached_token = cached_token
 
@@ -315,8 +317,7 @@ class TestGetGCRToken:
     def test_get_gcr_token_fallback_to_service_account(self, temp_service_account_key, monkeypatch):
         """Testa fallback para service account key."""
         client = GCRClient(
-            use_workload_identity=True,
-            service_account_key_path=temp_service_account_key
+            use_workload_identity=True, service_account_key_path=temp_service_account_key
         )
         client._cached_token = None
 
@@ -329,10 +330,7 @@ class TestGetGCRToken:
 
     def test_get_gcr_token_no_auth_available(self):
         """Testa erro quando nenhum método de auth está disponível."""
-        client = GCRClient(
-            use_workload_identity=False,
-            service_account_key_path=None
-        )
+        client = GCRClient(use_workload_identity=False, service_account_key_path=None)
         client._cached_token = None
 
         with pytest.raises(Exception) as exc_info:
@@ -358,19 +356,22 @@ class TestGetGCRCredentials:
 class TestIsGCRRegistry:
     """Testes para detecção de registry GCR."""
 
-    @pytest.mark.parametrize("image_uri,expected", [
-        ("gcr.io/project/image:tag", True),
-        ("gcr.io/project/image", True),
-        ("us.gcr.io/project/image:tag", True),
-        ("eu.gcr.io/project/image:tag", True),
-        ("asia.gcr.io/project/image:tag", True),
-        ("asia-east1.gcr.io/project/image:tag", True),
-        ("st.gcr.io/project/image:tag", True),
-        ("docker.io/library/nginx", False),
-        ("ghcr.io/user/repo", False),
-        ("registry.gitlab.com/project/image", False),
-        ("127.0.0.1:5000/image", False),
-    ])
+    @pytest.mark.parametrize(
+        "image_uri,expected",
+        [
+            ("gcr.io/project/image:tag", True),
+            ("gcr.io/project/image", True),
+            ("us.gcr.io/project/image:tag", True),
+            ("eu.gcr.io/project/image:tag", True),
+            ("asia.gcr.io/project/image:tag", True),
+            ("asia-east1.gcr.io/project/image:tag", True),
+            ("st.gcr.io/project/image:tag", True),
+            ("docker.io/library/nginx", False),
+            ("ghcr.io/user/repo", False),
+            ("registry.gitlab.com/project/image", False),
+            ("127.0.0.1:5000/image", False),
+        ],
+    )
     def test_is_gcr_registry(self, image_uri, expected):
         """Testa detecção de registry GCR."""
         client = GCRClient()
@@ -407,29 +408,20 @@ class TestGetFullImageURI:
         """Testa URI com tag."""
         client = GCRClient()
         uri = client.get_full_image_uri(
-            project_id="my-project",
-            image_name="my-image",
-            tag="v1.0.0"
+            project_id="my-project", image_name="my-image", tag="v1.0.0"
         )
         assert uri == "gcr.io/my-project/my-image:v1.0.0"
 
     def test_get_full_image_uri_default_tag(self):
         """Testa URI com tag padrão (latest)."""
         client = GCRClient()
-        uri = client.get_full_image_uri(
-            project_id="my-project",
-            image_name="my-image"
-        )
+        uri = client.get_full_image_uri(project_id="my-project", image_name="my-image")
         assert uri == "gcr.io/my-project/my-image:latest"
 
     def test_get_full_image_uri_custom_registry(self):
         """Testa URI com registry customizado."""
         client = GCRClient(registry="eu.gcr.io")
-        uri = client.get_full_image_uri(
-            project_id="my-project",
-            image_name="my-image",
-            tag="v2.0"
-        )
+        uri = client.get_full_image_uri(project_id="my-project", image_name="my-image", tag="v2.0")
         assert uri == "eu.gcr.io/my-project/my-image:v2.0"
 
 
@@ -446,7 +438,7 @@ class TestRefreshIfNeeded:
             access_token="old-token",
             token_type="oauth2_access_token",
             expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
-            obtained_at=old_time
+            obtained_at=old_time,
         )
 
         monkeypatch.setenv("GCR_TOKEN", "new-refreshed-token")
@@ -466,7 +458,7 @@ class TestRefreshIfNeeded:
             access_token="current-token",
             token_type="oauth2_access_token",
             expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
-            obtained_at=recent
+            obtained_at=recent,
         )
 
         refreshed = client.refresh_if_needed()

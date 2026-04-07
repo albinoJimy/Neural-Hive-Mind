@@ -13,7 +13,7 @@ from src.models.approval import (
     ApprovalResponse,
     ApprovalStats,
     RiskBand,
-    ApprovalStatus
+    ApprovalStatus,
 )
 
 
@@ -21,44 +21,44 @@ from src.models.approval import (
 def mock_settings():
     """Mock Settings object"""
     settings = MagicMock(spec=Settings)
-    settings.environment = 'test'
+    settings.environment = "test"
     settings.debug = True
-    settings.log_level = 'DEBUG'
-    settings.service_name = 'approval-service'
-    settings.service_version = '1.0.0'
+    settings.log_level = "DEBUG"
+    settings.service_name = "approval-service"
+    settings.service_version = "1.0.0"
 
     # Kafka settings
-    settings.kafka_bootstrap_servers = 'localhost:9092'
-    settings.kafka_consumer_group_id = 'approval-service-test'
-    settings.kafka_approval_requests_topic = 'cognitive-plans-approval-requests'
-    settings.kafka_approval_responses_topic = 'cognitive-plans-approval-responses'
-    settings.kafka_auto_offset_reset = 'earliest'
+    settings.kafka_bootstrap_servers = "localhost:9092"
+    settings.kafka_consumer_group_id = "approval-service-test"
+    settings.kafka_approval_requests_topic = "cognitive-plans-approval-requests"
+    settings.kafka_approval_responses_topic = "cognitive-plans-approval-responses"
+    settings.kafka_auto_offset_reset = "earliest"
     settings.kafka_enable_auto_commit = False
     settings.kafka_session_timeout_ms = 30000
     settings.kafka_max_poll_interval_ms = 300000
     settings.kafka_enable_idempotence = True
     settings.kafka_transactional_id = None
-    settings.kafka_security_protocol = 'PLAINTEXT'
+    settings.kafka_security_protocol = "PLAINTEXT"
     settings.kafka_sasl_mechanism = None
     settings.kafka_sasl_username = None
     settings.kafka_sasl_password = None
     settings.schema_registry_url = None
 
     # MongoDB settings
-    settings.mongodb_uri = 'mongodb://localhost:27017'
-    settings.mongodb_database = 'neural_hive_test'
-    settings.mongodb_collection = 'plan_approvals_test'
+    settings.mongodb_uri = "mongodb://localhost:27017"
+    settings.mongodb_database = "neural_hive_test"
+    settings.mongodb_collection = "plan_approvals_test"
     settings.mongodb_max_pool_size = 10
     settings.mongodb_timeout_ms = 5000
 
     # Keycloak settings
-    settings.keycloak_url = 'http://localhost:8080'
-    settings.keycloak_realm = 'neural-hive'
-    settings.keycloak_client_id = 'approval-service'
-    settings.admin_role_name = 'neural-hive-admin'
+    settings.keycloak_url = "http://localhost:8080"
+    settings.keycloak_realm = "neural-hive"
+    settings.keycloak_client_id = "approval-service"
+    settings.admin_role_name = "neural-hive-admin"
 
     # Observability settings
-    settings.otel_endpoint = 'http://localhost:4317'
+    settings.otel_endpoint = "http://localhost:4317"
     settings.otel_tls_verify = False
     settings.prometheus_port = 8000
     settings.jaeger_sampling_rate = 1.0
@@ -68,11 +68,11 @@ def mock_settings():
 
     # Feedback Collection
     settings.enable_feedback_collection = True
-    settings.feedback_mongodb_collection = 'specialist_feedback_test'
-    settings.mongodb_opinions_collection = 'specialist_opinions_test'
+    settings.feedback_mongodb_collection = "specialist_feedback_test"
+    settings.mongodb_opinions_collection = "specialist_opinions_test"
     settings.feedback_rating_min = 0.0
     settings.feedback_rating_max = 1.0
-    settings.feedback_on_approval_failure_mode = 'log_and_continue'
+    settings.feedback_on_approval_failure_mode = "log_and_continue"
 
     return settings
 
@@ -81,25 +81,21 @@ def mock_settings():
 def sample_cognitive_plan():
     """Plano cognitivo de exemplo para testes"""
     return {
-        'plan_id': 'plan-001',
-        'intent_id': 'intent-001',
-        'risk_score': 0.85,
-        'risk_band': 'high',
-        'is_destructive': True,
-        'destructive_tasks': ['task-2', 'task-3'],
-        'risk_matrix': {
-            'business': 0.7,
-            'security': 0.9,
-            'operational': 0.6
-        },
-        'requires_approval': True,
-        'approval_status': 'pending',
-        'tasks': [
-            {'task_id': 'task-1', 'type': 'query', 'description': 'Buscar dados'},
-            {'task_id': 'task-2', 'type': 'delete', 'description': 'Remover registros antigos'},
-            {'task_id': 'task-3', 'type': 'truncate', 'description': 'Limpar tabela temporaria'}
+        "plan_id": "plan-001",
+        "intent_id": "intent-001",
+        "risk_score": 0.85,
+        "risk_band": "high",
+        "is_destructive": True,
+        "destructive_tasks": ["task-2", "task-3"],
+        "risk_matrix": {"business": 0.7, "security": 0.9, "operational": 0.6},
+        "requires_approval": True,
+        "approval_status": "pending",
+        "tasks": [
+            {"task_id": "task-1", "type": "query", "description": "Buscar dados"},
+            {"task_id": "task-2", "type": "delete", "description": "Remover registros antigos"},
+            {"task_id": "task-3", "type": "truncate", "description": "Limpar tabela temporaria"},
         ],
-        'created_at': datetime.now(timezone.utc).isoformat()
+        "created_at": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -107,17 +103,17 @@ def sample_cognitive_plan():
 def sample_approval_request(sample_cognitive_plan):
     """ApprovalRequest de exemplo para testes"""
     return ApprovalRequest(
-        approval_id='approval-001',
-        plan_id=sample_cognitive_plan['plan_id'],
-        intent_id=sample_cognitive_plan['intent_id'],
-        risk_score=sample_cognitive_plan['risk_score'],
+        approval_id="approval-001",
+        plan_id=sample_cognitive_plan["plan_id"],
+        intent_id=sample_cognitive_plan["intent_id"],
+        risk_score=sample_cognitive_plan["risk_score"],
         risk_band=RiskBand.HIGH,
-        is_destructive=sample_cognitive_plan['is_destructive'],
-        destructive_tasks=sample_cognitive_plan['destructive_tasks'],
-        risk_matrix=sample_cognitive_plan['risk_matrix'],
+        is_destructive=sample_cognitive_plan["is_destructive"],
+        destructive_tasks=sample_cognitive_plan["destructive_tasks"],
+        risk_matrix=sample_cognitive_plan["risk_matrix"],
         status=ApprovalStatus.PENDING,
         requested_at=datetime.now(timezone.utc),
-        cognitive_plan=sample_cognitive_plan
+        cognitive_plan=sample_cognitive_plan,
     )
 
 
@@ -125,11 +121,11 @@ def sample_approval_request(sample_cognitive_plan):
 def sample_approval_decision():
     """ApprovalDecision de exemplo para testes"""
     return ApprovalDecision(
-        plan_id='plan-001',
-        decision='approved',
-        approved_by='admin@example.com',
+        plan_id="plan-001",
+        decision="approved",
+        approved_by="admin@example.com",
         approved_at=datetime.now(timezone.utc),
-        comments='Aprovado apos revisao manual'
+        comments="Aprovado apos revisao manual",
     )
 
 
@@ -137,12 +133,12 @@ def sample_approval_decision():
 def sample_approval_response():
     """ApprovalResponse de exemplo para testes"""
     return ApprovalResponse(
-        plan_id='plan-001',
-        intent_id='intent-001',
-        decision='approved',
-        approved_by='admin@example.com',
+        plan_id="plan-001",
+        intent_id="intent-001",
+        decision="approved",
+        approved_by="admin@example.com",
         approved_at=datetime.now(timezone.utc),
-        cognitive_plan={'plan_id': 'plan-001'}
+        cognitive_plan={"plan_id": "plan-001"},
     )
 
 
@@ -152,17 +148,19 @@ def mock_mongodb_client():
     client = MagicMock()
     client.initialize = AsyncMock()
     client.close = AsyncMock()
-    client.save_approval_request = AsyncMock(return_value='approval-001')
+    client.save_approval_request = AsyncMock(return_value="approval-001")
     client.get_approval_by_plan_id = AsyncMock()
     client.get_pending_approvals = AsyncMock(return_value=[])
     client.update_approval_decision = AsyncMock(return_value=True)
-    client.get_approval_stats = AsyncMock(return_value=ApprovalStats(
-        pending_count=5,
-        approved_count=100,
-        rejected_count=10,
-        avg_approval_time_seconds=120.5,
-        by_risk_band={'high': 3, 'critical': 2}
-    ))
+    client.get_approval_stats = AsyncMock(
+        return_value=ApprovalStats(
+            pending_count=5,
+            approved_count=100,
+            rejected_count=10,
+            avg_approval_time_seconds=120.5,
+            by_risk_band={"high": 3, "critical": 2},
+        )
+    )
     return client
 
 
@@ -193,11 +191,11 @@ def mock_metrics():
 def admin_user():
     """Usuario admin autenticado para testes"""
     return {
-        'user_id': 'user-001',
-        'email': 'admin@example.com',
-        'name': 'Admin User',
-        'preferred_username': 'admin',
-        'roles': ['neural-hive-admin', 'user']
+        "user_id": "user-001",
+        "email": "admin@example.com",
+        "name": "Admin User",
+        "preferred_username": "admin",
+        "roles": ["neural-hive-admin", "user"],
     }
 
 
@@ -205,11 +203,11 @@ def admin_user():
 def non_admin_user():
     """Usuario nao-admin para testes de autorizacao"""
     return {
-        'user_id': 'user-002',
-        'email': 'user@example.com',
-        'name': 'Regular User',
-        'preferred_username': 'regular',
-        'roles': ['user']
+        "user_id": "user-002",
+        "email": "user@example.com",
+        "name": "Regular User",
+        "preferred_username": "regular",
+        "roles": ["user"],
     }
 
 
@@ -217,7 +215,7 @@ def non_admin_user():
 def mock_feedback_collector():
     """Mock FeedbackCollector"""
     collector = MagicMock()
-    collector.submit_feedback = MagicMock(return_value='feedback-001')
+    collector.submit_feedback = MagicMock(return_value="feedback-001")
     collector.close = MagicMock()
     return collector
 
@@ -228,22 +226,24 @@ def mock_ledger_client():
     client = MagicMock()
     client.initialize = AsyncMock()
     client.close = AsyncMock()
-    client.get_opinions_by_plan_id = AsyncMock(return_value=[
-        {
-            'opinion_id': 'opinion-001',
-            'specialist_type': 'technical',
-            'plan_id': 'plan-001',
-            'recommendation': 'approve',
-            'confidence_score': 0.85
-        },
-        {
-            'opinion_id': 'opinion-002',
-            'specialist_type': 'security',
-            'plan_id': 'plan-001',
-            'recommendation': 'review_required',
-            'confidence_score': 0.72
-        }
-    ])
+    client.get_opinions_by_plan_id = AsyncMock(
+        return_value=[
+            {
+                "opinion_id": "opinion-001",
+                "specialist_type": "technical",
+                "plan_id": "plan-001",
+                "recommendation": "approve",
+                "confidence_score": 0.85,
+            },
+            {
+                "opinion_id": "opinion-002",
+                "specialist_type": "security",
+                "plan_id": "plan-001",
+                "recommendation": "review_required",
+                "confidence_score": 0.72,
+            },
+        ]
+    )
     return client
 
 
@@ -252,17 +252,17 @@ def sample_opinions():
     """Lista de opinioes de exemplo do ledger cognitivo"""
     return [
         {
-            'opinion_id': 'opinion-001',
-            'specialist_type': 'technical',
-            'plan_id': 'plan-001',
-            'recommendation': 'approve',
-            'confidence_score': 0.85
+            "opinion_id": "opinion-001",
+            "specialist_type": "technical",
+            "plan_id": "plan-001",
+            "recommendation": "approve",
+            "confidence_score": 0.85,
         },
         {
-            'opinion_id': 'opinion-002',
-            'specialist_type': 'security',
-            'plan_id': 'plan-001',
-            'recommendation': 'review_required',
-            'confidence_score': 0.72
-        }
+            "opinion_id": "opinion-002",
+            "specialist_type": "security",
+            "plan_id": "plan-001",
+            "recommendation": "review_required",
+            "confidence_score": 0.72,
+        },
     ]

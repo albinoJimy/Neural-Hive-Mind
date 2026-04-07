@@ -18,7 +18,7 @@ class TestJavaScriptParserBasic:
 
     def test_parse_simple_class(self, js_parser):
         """Testa parsing de classe simples."""
-        code = '''
+        code = """
 class UserService {
     constructor(name) {
         this.name = name;
@@ -27,30 +27,30 @@ class UserService {
         return this.name;
     }
 }
-'''
+"""
         result = js_parser.parse(code, "user_service.js")
 
         assert result is not None
-        assert len(result['classes']) == 1
-        assert result['classes'][0]['name'] == 'UserService'
+        assert len(result["classes"]) == 1
+        assert result["classes"][0]["name"] == "UserService"
 
     def test_parse_function(self, js_parser):
         """Testa parsing de função."""
-        code = '''
+        code = """
 function calculateSum(a, b) {
     return a + b;
 }
 
 const multiply = (x, y) => x * y;
-'''
+"""
         result = js_parser.parse(code, "math.js")
 
         assert result is not None
-        assert len(result['functions']) >= 2
+        assert len(result["functions"]) >= 2
 
     def test_parse_async_function(self, js_parser):
         """Testa parsing de função async."""
-        code = '''
+        code = """
 async function fetchData(url) {
     const response = await fetch(url);
     return response.json();
@@ -61,60 +61,60 @@ class DataProvider {
         return await db.users.findById(id);
     }
 }
-'''
+"""
         result = js_parser.parse(code, "api.js")
 
         assert result is not None
-        async_funcs = [f for f in result['functions'] if f.get('is_async')]
+        async_funcs = [f for f in result["functions"] if f.get("is_async")]
         assert len(async_funcs) >= 1
 
     def test_parse_imports_es6(self, js_parser):
         """Testa extração de imports ES6."""
-        code = '''
+        code = """
 import { Injectable } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { User } from '../entities/user.entity';
 import * as fs from 'fs';
 import express, { Request, Response } from 'express';
-'''
+"""
         result = js_parser.parse(code, "service.js")
 
         assert result is not None
-        imports = result['imports']
+        imports = result["imports"]
         assert len(imports) > 0
 
     def test_parse_require_commonjs(self, js_parser):
         """Testa extração de require CommonJS."""
-        code = '''
+        code = """
 const express = require('express');
 const fs = require('fs');
 const { Router } = require('express');
 const UserController = require('./controllers/user');
-'''
+"""
         result = js_parser.parse(code, "app.js")
 
         assert result is not None
-        imports = result.get('commonjs_imports', [])
+        imports = result.get("commonjs_imports", [])
         assert len(imports) >= 3
 
     def test_parse_arrow_functions(self, js_parser):
         """Testa parsing de arrow functions."""
-        code = '''
+        code = """
 const add = (a, b) => a + b;
 const greet = name => {
     console.log(`Hello ${name}`);
     return name;
 };
 const numbers = [1, 2, 3].map(n => n * 2);
-'''
+"""
         result = js_parser.parse(code, "arrows.js")
 
         assert result is not None
-        assert len(result['functions']) >= 2
+        assert len(result["functions"]) >= 2
 
     def test_parse_prototype_inheritance(self, js_parser):
         """Testa parsing de herança via prototype."""
-        code = '''
+        code = """
 function Animal(name) {
     this.name = name;
 }
@@ -133,7 +133,7 @@ Dog.prototype.constructor = Dog;
 Dog.prototype.bark = function() {
     console.log(this.name + ' barks');
 };
-'''
+"""
         result = js_parser.parse(code, "prototype.js")
 
         assert result is not None
@@ -141,7 +141,7 @@ Dog.prototype.bark = function() {
 
     def test_parse_class_inheritance(self, js_parser):
         """Testa parsing de herança de classes."""
-        code = '''
+        code = """
 class Animal {
     constructor(name) {
         this.name = name;
@@ -163,31 +163,31 @@ class Dog extends Animal {
         return 'Woof!';
     }
 }
-'''
+"""
         result = js_parser.parse(code, "classes.js")
 
         assert result is not None
-        assert len(result['classes']) == 2
-        assert result['classes'][1]['name'] == 'Dog'
-        assert result['classes'][1].get('extends') == 'Animal'
+        assert len(result["classes"]) == 2
+        assert result["classes"][1]["name"] == "Dog"
+        assert result["classes"][1].get("extends") == "Animal"
 
     def test_parse_destructuring(self, js_parser):
         """Testa parsing de destructuring."""
-        code = '''
+        code = """
 const { name, age } = user;
 const [first, second] = array;
 function process({ id, data }) {
     return id;
 }
-'''
+"""
         result = js_parser.parse(code, "destructuring.js")
 
         assert result is not None
-        assert len(result['functions']) >= 1
+        assert len(result["functions"]) >= 1
 
     def test_parse_spread_operator(self, js_parser):
         """Testa parsing de spread operator."""
-        code = '''
+        code = """
 const arr = [1, 2, 3];
 const newArr = [...arr, 4, 5];
 
@@ -197,22 +197,22 @@ const newObj = { ...obj, c: 3 };
 function sum(...args) {
     return args.reduce((a, b) => a + b, 0);
 }
-'''
+"""
         result = js_parser.parse(code, "spread.js")
 
         assert result is not None
-        assert len(result['functions']) >= 1
+        assert len(result["functions"]) >= 1
 
     def test_parse_template_literals(self, js_parser):
         """Testa parsing de template literals."""
-        code = '''
+        code = """
 const name = 'World';
 const greeting = `Hello ${name}!`;
 
 function greet(name) {
     return `Welcome, ${name}!`;
 }
-'''
+"""
         result = js_parser.parse(code, "templates.js")
 
         assert result is not None
@@ -223,23 +223,23 @@ class TestJavaScriptParserErrorHandling:
 
     def test_parse_syntax_error(self, js_parser):
         """Testa parsing de código com erro de sintaxe."""
-        invalid_code = '''
+        invalid_code = """
 class UserService {
     constructor(name {
         this.name = name;
     }
 }
-'''
+"""
         result = js_parser.parse(invalid_code, "invalid.js")
 
-        assert result is None or result.get('has_errors') == True
+        assert result is None or result.get("has_errors") == True
 
     def test_parse_empty_code(self, js_parser):
         """Testa parsing de código vazio."""
         result = js_parser.parse("", "empty.js")
 
         assert result is not None
-        assert len(result['classes']) == 0
+        assert len(result["classes"]) == 0
 
 
 class TestJavaScriptParserComplexity:
@@ -247,7 +247,7 @@ class TestJavaScriptParserComplexity:
 
     def test_calculate_complexity_with_conditionals(self, js_parser):
         """Testa complexidade com condicionais."""
-        code = '''
+        code = """
 function complexLogic(x) {
     if (x < 0) {
         return "negative";
@@ -257,16 +257,16 @@ function complexLogic(x) {
         return "zero";
     }
 }
-'''
+"""
         result = js_parser.parse(code, "logic.js")
 
         assert result is not None
-        complexity = result.get('complexity', 1)
+        complexity = result.get("complexity", 1)
         assert complexity > 1
 
     def test_calculate_complexity_with_switch(self, js_parser):
         """Testa complexidade com switch."""
-        code = '''
+        code = """
 function getType(value) {
     switch (typeof value) {
         case 'string':
@@ -279,16 +279,16 @@ function getType(value) {
             return 'other';
     }
 }
-'''
+"""
         result = js_parser.parse(code, "switch.js")
 
         assert result is not None
-        complexity = result.get('complexity', 1)
+        complexity = result.get("complexity", 1)
         # Switch deve aumentar complexidade
 
     def test_calculate_complexity_with_try_catch(self, js_parser):
         """Testa complexidade com try-catch."""
-        code = '''
+        code = """
 function safeOperation() {
     try {
         return riskyOperation();
@@ -299,11 +299,11 @@ function safeOperation() {
         cleanup();
     }
 }
-'''
+"""
         result = js_parser.parse(code, "safe.js")
 
         assert result is not None
-        complexity = result.get('complexity', 1)
+        complexity = result.get("complexity", 1)
         # Try-catch deve aumentar complexidade
         assert complexity > 1
 
@@ -313,35 +313,35 @@ class TestJavaScriptParserModernFeatures:
 
     def test_parse_optional_chaining(self, js_parser):
         """Testa parsing de optional chaining."""
-        code = '''
+        code = """
 const name = user?.profile?.name;
 const data = response?.data?.items;
 
 function getValue(obj, key) {
     return obj?.[key];
 }
-'''
+"""
         result = js_parser.parse(code, "optional.js")
 
         assert result is not None
 
     def test_parse_nullish_coalescing(self, js_parser):
         """Testa parsing de nullish coalescing."""
-        code = '''
+        code = """
 const name = userName ?? 'Anonymous';
 const count = items?.length ?? 0;
 
 function getConfig(config) {
     return config ?? getDefaultConfig();
 }
-'''
+"""
         result = js_parser.parse(code, "nullish.js")
 
         assert result is not None
 
     def test_parse_private_class_fields(self, js_parser):
         """Testa parsing de campos privados de classe."""
-        code = '''
+        code = """
 class UserService {
     #repo;
     #cache = new Map();
@@ -359,15 +359,15 @@ class UserService {
         return user;
     }
 }
-'''
+"""
         result = js_parser.parse(code, "private.js")
 
         assert result is not None
-        assert len(result['classes']) == 1
+        assert len(result["classes"]) == 1
 
     def test_parse_static_class_members(self, js_parser):
         """Testa parsing de membros estáticos."""
-        code = '''
+        code = """
 class MathUtils {
     static PI = 3.14159;
 
@@ -377,8 +377,8 @@ class MathUtils {
 
     static #privateStatic = 'private';
 }
-'''
+"""
         result = js_parser.parse(code, "static.js")
 
         assert result is not None
-        assert len(result['classes']) == 1
+        assert len(result["classes"]) == 1

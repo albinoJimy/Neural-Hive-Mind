@@ -23,16 +23,16 @@ from src.activities.ticket_generation import (
     generate_execution_tickets,
     allocate_resources,
     publish_ticket_to_kafka,
-    set_activity_dependencies
+    set_activity_dependencies,
 )
 
 
 @pytest.fixture
 def mock_activity_info():
     """Mock activity.info() para contexto de workflow."""
-    with patch('src.activities.ticket_generation.activity') as mock_activity:
+    with patch("src.activities.ticket_generation.activity") as mock_activity:
         mock_info = MagicMock()
-        mock_info.workflow_id = 'test-workflow-123'
+        mock_info.workflow_id = "test-workflow-123"
         mock_activity.info.return_value = mock_info
         mock_activity.logger = MagicMock()
         yield mock_activity
@@ -42,24 +42,24 @@ def mock_activity_info():
 def simple_plan():
     """Criar plano cognitivo simples com uma task."""
     return {
-        'plan_id': 'plan-001',
-        'intent_id': 'intent-001',
-        'tasks': [
+        "plan_id": "plan-001",
+        "intent_id": "intent-001",
+        "tasks": [
             {
-                'task_id': 'task-1',
-                'task_type': 'EXECUTE',
-                'description': 'Executar tarefa simples',
-                'dependencies': [],
-                'estimated_duration_ms': 60000,
-                'parameters': {'key': 'value'},
-                'required_capabilities': ['python']
+                "task_id": "task-1",
+                "task_type": "EXECUTE",
+                "description": "Executar tarefa simples",
+                "dependencies": [],
+                "estimated_duration_ms": 60000,
+                "parameters": {"key": "value"},
+                "required_capabilities": ["python"],
             }
         ],
-        'execution_order': ['task-1'],
-        'risk_score': 0.3,
-        'risk_band': 'low',
-        'priority': 'NORMAL',
-        'security_level': 'INTERNAL'
+        "execution_order": ["task-1"],
+        "risk_score": 0.3,
+        "risk_band": "low",
+        "priority": "NORMAL",
+        "security_level": "INTERNAL",
     }
 
 
@@ -67,18 +67,22 @@ def simple_plan():
 def complex_plan():
     """Criar plano cognitivo com múltiplas tasks e dependências."""
     return {
-        'plan_id': 'plan-002',
-        'intent_id': 'intent-002',
-        'tasks': [
-            {'task_id': 'task-1', 'dependencies': [], 'estimated_duration_ms': 30000},
-            {'task_id': 'task-2', 'dependencies': ['task-1'], 'estimated_duration_ms': 45000},
-            {'task_id': 'task-3', 'dependencies': ['task-1'], 'estimated_duration_ms': 60000},
-            {'task_id': 'task-4', 'dependencies': ['task-2', 'task-3'], 'estimated_duration_ms': 90000}
+        "plan_id": "plan-002",
+        "intent_id": "intent-002",
+        "tasks": [
+            {"task_id": "task-1", "dependencies": [], "estimated_duration_ms": 30000},
+            {"task_id": "task-2", "dependencies": ["task-1"], "estimated_duration_ms": 45000},
+            {"task_id": "task-3", "dependencies": ["task-1"], "estimated_duration_ms": 60000},
+            {
+                "task_id": "task-4",
+                "dependencies": ["task-2", "task-3"],
+                "estimated_duration_ms": 90000,
+            },
         ],
-        'execution_order': ['task-1', 'task-2', 'task-3', 'task-4'],
-        'risk_score': 0.7,
-        'risk_band': 'high',
-        'priority': 'HIGH'
+        "execution_order": ["task-1", "task-2", "task-3", "task-4"],
+        "risk_score": 0.7,
+        "risk_band": "high",
+        "priority": "HIGH",
     }
 
 
@@ -86,10 +90,10 @@ def complex_plan():
 def consolidated_decision():
     """Criar decisão consolidada mock."""
     return {
-        'decision_id': 'decision-001',
-        'correlation_id': 'corr-001',
-        'trace_id': 'trace-001',
-        'span_id': 'span-001'
+        "decision_id": "decision-001",
+        "correlation_id": "corr-001",
+        "trace_id": "trace-001",
+        "span_id": "span-001",
     }
 
 
@@ -98,10 +102,10 @@ def mock_kafka_producer():
     """Criar mock de Kafka producer."""
     producer = AsyncMock()
     producer.publish_ticket.return_value = {
-        'topic': 'execution.tickets',
-        'partition': 0,
-        'offset': 123,
-        'timestamp': int(datetime.now().timestamp() * 1000)
+        "topic": "execution.tickets",
+        "partition": 0,
+        "offset": 123,
+        "timestamp": int(datetime.now().timestamp() * 1000),
     }
     return producer
 
@@ -120,15 +124,15 @@ def mock_intelligent_scheduler():
     scheduler = AsyncMock()
 
     async def schedule_ticket_mock(ticket):
-        ticket['allocation_metadata'] = {
-            'allocated_at': int(datetime.now().timestamp() * 1000),
-            'agent_id': 'worker-agent-001',
-            'agent_type': 'worker-agent',
-            'priority_score': 0.8,
-            'agent_score': 0.9,
-            'composite_score': 0.85,
-            'allocation_method': 'intelligent_scheduler',
-            'workers_evaluated': 5
+        ticket["allocation_metadata"] = {
+            "allocated_at": int(datetime.now().timestamp() * 1000),
+            "agent_id": "worker-agent-001",
+            "agent_type": "worker-agent",
+            "priority_score": 0.8,
+            "agent_score": 0.9,
+            "composite_score": 0.85,
+            "allocation_method": "intelligent_scheduler",
+            "workers_evaluated": 5,
         }
         return ticket
 
@@ -144,7 +148,7 @@ def mock_policy_validator():
     result.valid = True
     result.violations = []
     result.warnings = []
-    result.policy_decisions = {'feature_flags': {'enable_intelligent_scheduler': True}}
+    result.policy_decisions = {"feature_flags": {"enable_intelligent_scheduler": True}}
     result.evaluated_at = datetime.now()
     validator.validate_execution_ticket.return_value = result
     validator.validate_resource_allocation.return_value = result
@@ -157,7 +161,7 @@ def mock_config():
     config = MagicMock()
     config.opa_enabled = True
     config.opa_fail_open = True
-    config.environment = 'development'
+    config.environment = "development"
     config.scheduler_fallback_stub_enabled = True
     config.MONGODB_FAIL_OPEN_EXECUTION_TICKETS = False
     return config
@@ -169,7 +173,7 @@ def mock_config_production():
     config = MagicMock()
     config.opa_enabled = True
     config.opa_fail_open = False
-    config.environment = 'production'
+    config.environment = "production"
     config.scheduler_fallback_stub_enabled = False  # Produção não permite fallback
     config.MONGODB_FAIL_OPEN_EXECUTION_TICKETS = False
     return config
@@ -183,92 +187,82 @@ class TestGenerateExecutionTickets:
         self, mock_activity_info, simple_plan, consolidated_decision
     ):
         """Plano simples deve gerar exatamente um ticket."""
-        set_activity_dependencies(
-            kafka_producer=None, mongodb_client=None
-        )
+        set_activity_dependencies(kafka_producer=None, mongodb_client=None)
 
         tickets = await generate_execution_tickets(simple_plan, consolidated_decision)
 
         assert len(tickets) == 1
-        assert tickets[0]['plan_id'] == 'plan-001'
-        assert tickets[0]['task_id'] == 'task-1'
-        assert tickets[0]['status'] == 'PENDING'
+        assert tickets[0]["plan_id"] == "plan-001"
+        assert tickets[0]["task_id"] == "task-1"
+        assert tickets[0]["status"] == "PENDING"
 
     @pytest.mark.asyncio
     async def test_complex_plan_maps_dependencies_correctly(
         self, mock_activity_info, complex_plan, consolidated_decision
     ):
         """Plano complexo deve mapear dependências de task_id para ticket_id."""
-        set_activity_dependencies(
-            kafka_producer=None, mongodb_client=None
-        )
+        set_activity_dependencies(kafka_producer=None, mongodb_client=None)
 
         tickets = await generate_execution_tickets(complex_plan, consolidated_decision)
 
         assert len(tickets) == 4
 
         # Construir mapa de task_id para ticket_id
-        task_to_ticket = {t['task_id']: t['ticket_id'] for t in tickets}
+        task_to_ticket = {t["task_id"]: t["ticket_id"] for t in tickets}
 
         # task-4 deve ter dependências de task-2 e task-3 (como ticket_ids)
-        task_4_ticket = next(t for t in tickets if t['task_id'] == 'task-4')
-        expected_deps = [task_to_ticket['task-2'], task_to_ticket['task-3']]
-        assert set(task_4_ticket['dependencies']) == set(expected_deps)
+        task_4_ticket = next(t for t in tickets if t["task_id"] == "task-4")
+        expected_deps = [task_to_ticket["task-2"], task_to_ticket["task-3"]]
+        assert set(task_4_ticket["dependencies"]) == set(expected_deps)
 
     @pytest.mark.asyncio
-    async def test_sla_calculation_critical_risk(
-        self, mock_activity_info, consolidated_decision
-    ):
+    async def test_sla_calculation_critical_risk(self, mock_activity_info, consolidated_decision):
         """risk_band 'critical' deve ter max_retries=5."""
         critical_plan = {
-            'plan_id': 'plan-critical',
-            'intent_id': 'intent-critical',
-            'tasks': [{'task_id': 'task-1', 'dependencies': [], 'estimated_duration_ms': 60000}],
-            'execution_order': ['task-1'],
-            'risk_band': 'critical'
+            "plan_id": "plan-critical",
+            "intent_id": "intent-critical",
+            "tasks": [{"task_id": "task-1", "dependencies": [], "estimated_duration_ms": 60000}],
+            "execution_order": ["task-1"],
+            "risk_band": "critical",
         }
         set_activity_dependencies(kafka_producer=None, mongodb_client=None)
 
         tickets = await generate_execution_tickets(critical_plan, consolidated_decision)
 
-        assert tickets[0]['sla']['max_retries'] == 5
+        assert tickets[0]["sla"]["max_retries"] == 5
 
     @pytest.mark.asyncio
-    async def test_sla_calculation_high_risk(
-        self, mock_activity_info, consolidated_decision
-    ):
+    async def test_sla_calculation_high_risk(self, mock_activity_info, consolidated_decision):
         """risk_band 'high' deve ter max_retries=3."""
         high_plan = {
-            'plan_id': 'plan-high',
-            'intent_id': 'intent-high',
-            'tasks': [{'task_id': 'task-1', 'dependencies': [], 'estimated_duration_ms': 60000}],
-            'execution_order': ['task-1'],
-            'risk_band': 'high'
+            "plan_id": "plan-high",
+            "intent_id": "intent-high",
+            "tasks": [{"task_id": "task-1", "dependencies": [], "estimated_duration_ms": 60000}],
+            "execution_order": ["task-1"],
+            "risk_band": "high",
         }
         set_activity_dependencies(kafka_producer=None, mongodb_client=None)
 
         tickets = await generate_execution_tickets(high_plan, consolidated_decision)
 
-        assert tickets[0]['sla']['max_retries'] == 3
+        assert tickets[0]["sla"]["max_retries"] == 3
 
     @pytest.mark.asyncio
-    async def test_qos_critical_uses_exactly_once(
-        self, mock_activity_info, consolidated_decision
-    ):
+    async def test_qos_critical_uses_exactly_once(self, mock_activity_info, consolidated_decision):
         """risk_band 'critical' deve usar delivery_mode EXACTLY_ONCE e consistency STRONG."""
         critical_plan = {
-            'plan_id': 'plan-critical',
-            'intent_id': 'intent-critical',
-            'tasks': [{'task_id': 'task-1', 'dependencies': []}],
-            'execution_order': ['task-1'],
-            'risk_band': 'critical'
+            "plan_id": "plan-critical",
+            "intent_id": "intent-critical",
+            "tasks": [{"task_id": "task-1", "dependencies": []}],
+            "execution_order": ["task-1"],
+            "risk_band": "critical",
         }
         set_activity_dependencies(kafka_producer=None, mongodb_client=None)
 
         tickets = await generate_execution_tickets(critical_plan, consolidated_decision)
 
-        assert tickets[0]['qos']['delivery_mode'] == 'EXACTLY_ONCE'
-        assert tickets[0]['qos']['consistency'] == 'STRONG'
+        assert tickets[0]["qos"]["delivery_mode"] == "EXACTLY_ONCE"
+        assert tickets[0]["qos"]["consistency"] == "STRONG"
 
     @pytest.mark.asyncio
     async def test_qos_low_uses_at_least_once(
@@ -279,8 +273,8 @@ class TestGenerateExecutionTickets:
 
         tickets = await generate_execution_tickets(simple_plan, consolidated_decision)
 
-        assert tickets[0]['qos']['delivery_mode'] == 'AT_LEAST_ONCE'
-        assert tickets[0]['qos']['consistency'] == 'EVENTUAL'
+        assert tickets[0]["qos"]["delivery_mode"] == "AT_LEAST_ONCE"
+        assert tickets[0]["qos"]["consistency"] == "EVENTUAL"
 
 
 class TestAllocateResources:
@@ -291,52 +285,44 @@ class TestAllocateResources:
         self, mock_activity_info, mock_intelligent_scheduler
     ):
         """Alocação com Intelligent Scheduler deve adicionar allocation_metadata."""
-        ticket = {
-            'ticket_id': str(uuid.uuid4()),
-            'risk_band': 'medium',
-            'status': 'PENDING'
-        }
+        ticket = {"ticket_id": str(uuid.uuid4()), "risk_band": "medium", "status": "PENDING"}
         set_activity_dependencies(
             kafka_producer=None,
             mongodb_client=None,
             intelligent_scheduler=mock_intelligent_scheduler,
             policy_validator=None,
-            config=None
+            config=None,
         )
 
         result = await allocate_resources(ticket)
 
-        assert 'allocation_metadata' in result
-        assert result['allocation_metadata']['allocation_method'] == 'intelligent_scheduler'
-        assert result['allocation_metadata']['agent_id'] == 'worker-agent-001'
+        assert "allocation_metadata" in result
+        assert result["allocation_metadata"]["allocation_method"] == "intelligent_scheduler"
+        assert result["allocation_metadata"]["agent_id"] == "worker-agent-001"
 
     @pytest.mark.asyncio
     async def test_allocate_fallback_stub_when_scheduler_unavailable_dev(
         self, mock_activity_info, mock_config
     ):
         """Sem scheduler em desenvolvimento, deve usar alocação stub com fallback."""
-        ticket = {
-            'ticket_id': str(uuid.uuid4()),
-            'risk_band': 'medium',
-            'status': 'PENDING'
-        }
+        ticket = {"ticket_id": str(uuid.uuid4()), "risk_band": "medium", "status": "PENDING"}
         # Config de development permite fallback stub
         mock_config.scheduler_fallback_stub_enabled = True
-        mock_config.environment = 'development'
+        mock_config.environment = "development"
 
         set_activity_dependencies(
             kafka_producer=None,
             mongodb_client=None,
             intelligent_scheduler=None,  # Sem scheduler
             policy_validator=None,
-            config=mock_config
+            config=mock_config,
         )
 
         result = await allocate_resources(ticket)
 
-        assert 'allocation_metadata' in result
-        assert result['allocation_metadata']['allocation_method'] == 'fallback_stub'
-        assert result['allocation_metadata']['agent_id'] == 'worker-agent-pool'
+        assert "allocation_metadata" in result
+        assert result["allocation_metadata"]["allocation_method"] == "fallback_stub"
+        assert result["allocation_metadata"]["agent_id"] == "worker-agent-pool"
 
     @pytest.mark.asyncio
     async def test_allocate_propagates_exception_when_scheduler_fails_in_production(
@@ -345,24 +331,20 @@ class TestAllocateResources:
         """Em produção, falha no scheduler deve propagar exceção."""
         # Mock scheduler que lança exceção
         failing_scheduler = AsyncMock()
-        failing_scheduler.schedule_ticket.side_effect = RuntimeError('Service Registry unavailable')
+        failing_scheduler.schedule_ticket.side_effect = RuntimeError("Service Registry unavailable")
 
-        ticket = {
-            'ticket_id': str(uuid.uuid4()),
-            'risk_band': 'critical',
-            'status': 'PENDING'
-        }
+        ticket = {"ticket_id": str(uuid.uuid4()), "risk_band": "critical", "status": "PENDING"}
 
         set_activity_dependencies(
             kafka_producer=None,
             mongodb_client=None,
             intelligent_scheduler=failing_scheduler,
             policy_validator=None,
-            config=mock_config_production
+            config=mock_config_production,
         )
 
         # Em produção, deve propagar a exceção
-        with pytest.raises(RuntimeError, match='Intelligent Scheduler falhou'):
+        with pytest.raises(RuntimeError, match="Intelligent Scheduler falhou"):
             await allocate_resources(ticket)
 
     @pytest.mark.asyncio
@@ -372,67 +354,57 @@ class TestAllocateResources:
         """Em desenvolvimento, falha no scheduler deve usar fallback stub com warning."""
         # Mock scheduler que lança exceção
         failing_scheduler = AsyncMock()
-        failing_scheduler.schedule_ticket.side_effect = RuntimeError('Service Registry unavailable')
+        failing_scheduler.schedule_ticket.side_effect = RuntimeError("Service Registry unavailable")
 
-        ticket = {
-            'ticket_id': str(uuid.uuid4()),
-            'risk_band': 'medium',
-            'status': 'PENDING'
-        }
+        ticket = {"ticket_id": str(uuid.uuid4()), "risk_band": "medium", "status": "PENDING"}
 
         # Config de development permite fallback stub
         mock_config.scheduler_fallback_stub_enabled = True
-        mock_config.environment = 'development'
+        mock_config.environment = "development"
 
         set_activity_dependencies(
             kafka_producer=None,
             mongodb_client=None,
             intelligent_scheduler=failing_scheduler,
             policy_validator=None,
-            config=mock_config
+            config=mock_config,
         )
 
         result = await allocate_resources(ticket)
 
         # Em desenvolvimento, deve usar fallback stub
-        assert 'allocation_metadata' in result
-        assert result['allocation_metadata']['allocation_method'] == 'fallback_stub'
-        assert result['allocation_metadata']['agent_id'] == 'worker-agent-pool'
+        assert "allocation_metadata" in result
+        assert result["allocation_metadata"]["allocation_method"] == "fallback_stub"
+        assert result["allocation_metadata"]["agent_id"] == "worker-agent-pool"
 
     @pytest.mark.asyncio
     async def test_allocate_with_opa_validation(
         self, mock_activity_info, mock_policy_validator, mock_config
     ):
         """Validação OPA deve ser executada antes da alocação."""
-        ticket = {
-            'ticket_id': str(uuid.uuid4()),
-            'risk_band': 'medium',
-            'status': 'PENDING'
-        }
+        ticket = {"ticket_id": str(uuid.uuid4()), "risk_band": "medium", "status": "PENDING"}
         set_activity_dependencies(
             kafka_producer=None,
             mongodb_client=None,
             intelligent_scheduler=None,
             policy_validator=mock_policy_validator,
-            config=mock_config
+            config=mock_config,
         )
 
         result = await allocate_resources(ticket)
 
         mock_policy_validator.validate_execution_ticket.assert_called_once()
-        assert 'metadata' in result
-        assert 'policy_decisions' in result['metadata']
+        assert "metadata" in result
+        assert "policy_decisions" in result["metadata"]
 
     @pytest.mark.asyncio
-    async def test_allocate_rejects_on_opa_violation(
-        self, mock_activity_info, mock_config
-    ):
+    async def test_allocate_rejects_on_opa_violation(self, mock_activity_info, mock_config):
         """Violação de política OPA deve rejeitar alocação."""
         mock_validator = AsyncMock()
         violation = MagicMock()
-        violation.policy_name = 'security-policy'
-        violation.rule = 'deny-high-risk'
-        violation.message = 'High risk not allowed'
+        violation.policy_name = "security-policy"
+        violation.rule = "deny-high-risk"
+        violation.message = "High risk not allowed"
 
         result_obj = MagicMock()
         result_obj.valid = False
@@ -441,20 +413,16 @@ class TestAllocateResources:
         result_obj.policy_decisions = {}
         mock_validator.validate_execution_ticket.return_value = result_obj
 
-        ticket = {
-            'ticket_id': str(uuid.uuid4()),
-            'risk_band': 'critical',
-            'status': 'PENDING'
-        }
+        ticket = {"ticket_id": str(uuid.uuid4()), "risk_band": "critical", "status": "PENDING"}
         set_activity_dependencies(
             kafka_producer=None,
             mongodb_client=None,
             intelligent_scheduler=None,
             policy_validator=mock_validator,
-            config=mock_config
+            config=mock_config,
         )
 
-        with pytest.raises(RuntimeError, match='rejeitado por políticas'):
+        with pytest.raises(RuntimeError, match="rejeitado por políticas"):
             await allocate_resources(ticket)
 
 
@@ -466,7 +434,7 @@ class TestPublishTicketToKafka:
         """Config mock para testes de publish_ticket_to_kafka."""
         config = MagicMock()
         config.MONGODB_FAIL_OPEN_EXECUTION_TICKETS = False
-        config.environment = 'production'
+        config.environment = "production"
         config.scheduler_fallback_stub_enabled = False
         return config
 
@@ -476,32 +444,34 @@ class TestPublishTicketToKafka:
     ):
         """Ticket válido deve ser publicado no Kafka."""
         ticket = {
-            'ticket_id': str(uuid.uuid4()),
-            'plan_id': 'plan-001',
-            'status': 'PENDING',
-            'allocation_metadata': {'agent_id': 'worker-001'}
+            "ticket_id": str(uuid.uuid4()),
+            "plan_id": "plan-001",
+            "status": "PENDING",
+            "allocation_metadata": {"agent_id": "worker-001"},
         }
         set_activity_dependencies(
             kafka_producer=mock_kafka_producer,
             mongodb_client=mock_mongodb_client,
-            config=mock_config_publish
+            config=mock_config_publish,
         )
 
         result = await publish_ticket_to_kafka(ticket)
 
-        assert result['published'] is True
-        assert result['ticket_id'] == ticket['ticket_id']
-        assert 'kafka_offset' in result
+        assert result["published"] is True
+        assert result["ticket_id"] == ticket["ticket_id"]
+        assert "kafka_offset" in result
         mock_kafka_producer.publish_ticket.assert_called_once()
         mock_mongodb_client.save_execution_ticket.assert_called_once()
 
         # Verificar que o ticket foi publicado com status PENDING
         published_ticket = mock_kafka_producer.publish_ticket.call_args[0][0]
-        assert published_ticket['status'] == 'PENDING', "Ticket deve ser publicado com status PENDING"
+        assert (
+            published_ticket["status"] == "PENDING"
+        ), "Ticket deve ser publicado com status PENDING"
 
         # Verificar que o ticket foi persistido com status PENDING
         saved_ticket = mock_mongodb_client.save_execution_ticket.call_args[0][0]
-        assert saved_ticket['status'] == 'PENDING', "Ticket deve ser persistido com status PENDING"
+        assert saved_ticket["status"] == "PENDING", "Ticket deve ser persistido com status PENDING"
 
     @pytest.mark.asyncio
     async def test_rejected_ticket_not_published(
@@ -509,26 +479,26 @@ class TestPublishTicketToKafka:
     ):
         """Ticket rejeitado não deve ser publicado no Kafka."""
         ticket = {
-            'ticket_id': str(uuid.uuid4()),
-            'plan_id': 'plan-001',
-            'status': 'rejected',
-            'allocation_metadata': None,
-            'rejection_metadata': {
-                'rejection_reason': 'policy_violation',
-                'rejection_message': 'Security policy violated'
-            }
+            "ticket_id": str(uuid.uuid4()),
+            "plan_id": "plan-001",
+            "status": "rejected",
+            "allocation_metadata": None,
+            "rejection_metadata": {
+                "rejection_reason": "policy_violation",
+                "rejection_message": "Security policy violated",
+            },
         }
         set_activity_dependencies(
             kafka_producer=mock_kafka_producer,
             mongodb_client=mock_mongodb_client,
-            config=mock_config_publish
+            config=mock_config_publish,
         )
 
         result = await publish_ticket_to_kafka(ticket)
 
-        assert result['published'] is False
-        assert result['rejected'] is True
-        assert result['rejection_reason'] == 'policy_violation'
+        assert result["published"] is False
+        assert result["rejected"] is True
+        assert result["rejection_reason"] == "policy_violation"
         mock_kafka_producer.publish_ticket.assert_not_called()
 
     @pytest.mark.asyncio
@@ -537,15 +507,15 @@ class TestPublishTicketToKafka:
     ):
         """Ticket publicado deve ser persistido no MongoDB."""
         ticket = {
-            'ticket_id': str(uuid.uuid4()),
-            'plan_id': 'plan-001',
-            'status': 'PENDING',
-            'allocation_metadata': {'agent_id': 'worker-001'}
+            "ticket_id": str(uuid.uuid4()),
+            "plan_id": "plan-001",
+            "status": "PENDING",
+            "allocation_metadata": {"agent_id": "worker-001"},
         }
         set_activity_dependencies(
             kafka_producer=mock_kafka_producer,
             mongodb_client=mock_mongodb_client,
-            config=mock_config_publish
+            config=mock_config_publish,
         )
 
         await publish_ticket_to_kafka(ticket)
@@ -554,24 +524,24 @@ class TestPublishTicketToKafka:
 
         # Verificar que o ticket persistido mantém status PENDING
         saved_ticket = mock_mongodb_client.save_execution_ticket.call_args[0][0]
-        assert saved_ticket['status'] == 'PENDING'
+        assert saved_ticket["status"] == "PENDING"
 
     @pytest.mark.asyncio
-    async def test_publish_raises_when_kafka_unavailable(self, mock_activity_info, mock_config_publish):
+    async def test_publish_raises_when_kafka_unavailable(
+        self, mock_activity_info, mock_config_publish
+    ):
         """Publicação deve falhar quando Kafka producer não disponível."""
         ticket = {
-            'ticket_id': str(uuid.uuid4()),
-            'plan_id': 'plan-001',
-            'status': 'PENDING',
-            'allocation_metadata': {'agent_id': 'worker-001'}
+            "ticket_id": str(uuid.uuid4()),
+            "plan_id": "plan-001",
+            "status": "PENDING",
+            "allocation_metadata": {"agent_id": "worker-001"},
         }
         set_activity_dependencies(
-            kafka_producer=None,  # Sem producer
-            mongodb_client=None,
-            config=mock_config_publish
+            kafka_producer=None, mongodb_client=None, config=mock_config_publish  # Sem producer
         )
 
-        with pytest.raises(RuntimeError, match='Kafka producer'):
+        with pytest.raises(RuntimeError, match="Kafka producer"):
             await publish_ticket_to_kafka(ticket)
 
     @pytest.mark.asyncio
@@ -580,29 +550,29 @@ class TestPublishTicketToKafka:
     ):
         """Ticket com status PENDING deve manter o status após publicação."""
         ticket = {
-            'ticket_id': str(uuid.uuid4()),
-            'plan_id': 'plan-001',
-            'status': 'PENDING',
-            'allocation_metadata': {'agent_id': 'worker-001'}
+            "ticket_id": str(uuid.uuid4()),
+            "plan_id": "plan-001",
+            "status": "PENDING",
+            "allocation_metadata": {"agent_id": "worker-001"},
         }
         set_activity_dependencies(
             kafka_producer=mock_kafka_producer,
             mongodb_client=mock_mongodb_client,
-            config=mock_config_publish
+            config=mock_config_publish,
         )
 
         result = await publish_ticket_to_kafka(ticket)
 
         # Verificar que o status não foi alterado para RUNNING
-        assert result['ticket']['status'] == 'PENDING'
+        assert result["ticket"]["status"] == "PENDING"
 
         # Verificar que o ticket publicado no Kafka tem status PENDING
         published_ticket = mock_kafka_producer.publish_ticket.call_args[0][0]
-        assert published_ticket['status'] == 'PENDING'
+        assert published_ticket["status"] == "PENDING"
 
         # Verificar que o ticket persistido no MongoDB tem status PENDING
         saved_ticket = mock_mongodb_client.save_execution_ticket.call_args[0][0]
-        assert saved_ticket['status'] == 'PENDING'
+        assert saved_ticket["status"] == "PENDING"
 
     @pytest.mark.asyncio
     async def test_publish_rejects_fallback_stub_ticket(
@@ -610,28 +580,28 @@ class TestPublishTicketToKafka:
     ):
         """Ticket com allocation_method=fallback_stub não deve ser publicado no Kafka."""
         ticket = {
-            'ticket_id': str(uuid.uuid4()),
-            'plan_id': 'plan-001',
-            'status': 'PENDING',
-            'allocation_metadata': {
-                'agent_id': 'worker-agent-pool',
-                'allocation_method': 'fallback_stub'
-            }
+            "ticket_id": str(uuid.uuid4()),
+            "plan_id": "plan-001",
+            "status": "PENDING",
+            "allocation_metadata": {
+                "agent_id": "worker-agent-pool",
+                "allocation_method": "fallback_stub",
+            },
         }
         mock_config_publish.scheduler_fallback_stub_enabled = False
-        mock_config_publish.environment = 'production'
+        mock_config_publish.environment = "production"
 
         set_activity_dependencies(
             kafka_producer=mock_kafka_producer,
             mongodb_client=mock_mongodb_client,
-            config=mock_config_publish
+            config=mock_config_publish,
         )
 
         result = await publish_ticket_to_kafka(ticket)
 
-        assert result['published'] is False
-        assert result['rejected'] is True
-        assert result['rejection_reason'] == 'fallback_stub_not_allowed'
+        assert result["published"] is False
+        assert result["rejected"] is True
+        assert result["rejection_reason"] == "fallback_stub_not_allowed"
         # Kafka producer não deve ser chamado para tickets fallback_stub
         mock_kafka_producer.publish_ticket.assert_not_called()
         # MongoDB deve persistir o ticket para auditoria
@@ -643,38 +613,36 @@ class TestPublishTicketToKafka:
     ):
         """Ticket fallback_stub deve ser persistido no MongoDB com status rejected."""
         ticket = {
-            'ticket_id': str(uuid.uuid4()),
-            'plan_id': 'plan-001',
-            'status': 'PENDING',
-            'allocation_metadata': {
-                'agent_id': 'worker-agent-pool',
-                'allocation_method': 'fallback_stub'
-            }
+            "ticket_id": str(uuid.uuid4()),
+            "plan_id": "plan-001",
+            "status": "PENDING",
+            "allocation_metadata": {
+                "agent_id": "worker-agent-pool",
+                "allocation_method": "fallback_stub",
+            },
         }
         mock_config_publish.scheduler_fallback_stub_enabled = False
-        mock_config_publish.environment = 'production'
+        mock_config_publish.environment = "production"
 
         set_activity_dependencies(
             kafka_producer=mock_kafka_producer,
             mongodb_client=mock_mongodb_client,
-            config=mock_config_publish
+            config=mock_config_publish,
         )
 
         result = await publish_ticket_to_kafka(ticket)
 
         # Verificar que o ticket foi persistido com status rejected
         saved_ticket = mock_mongodb_client.save_execution_ticket.call_args[0][0]
-        assert saved_ticket['status'] == 'rejected'
-        assert saved_ticket['rejection_metadata']['rejection_reason'] == 'fallback_stub_not_allowed'
+        assert saved_ticket["status"] == "rejected"
+        assert saved_ticket["rejection_metadata"]["rejection_reason"] == "fallback_stub_not_allowed"
 
 
 class TestSLATimeoutConfiguration:
     """Testes para configuração de timeout de SLA."""
 
     @pytest.mark.asyncio
-    async def test_timeout_uses_configured_minimum(
-        self, mock_activity_info, consolidated_decision
-    ):
+    async def test_timeout_uses_configured_minimum(self, mock_activity_info, consolidated_decision):
         """Timeout deve respeitar o mínimo configurado."""
         # Configurar mock com valores customizados
         mock_cfg = MagicMock()
@@ -682,27 +650,25 @@ class TestSLATimeoutConfiguration:
         mock_cfg.sla_ticket_timeout_buffer_multiplier = 3.0
 
         plan = {
-            'plan_id': 'plan-timeout-test',
-            'intent_id': 'intent-timeout-test',
-            'tasks': [{
-                'task_id': 'task-1',
-                'dependencies': [],
-                'estimated_duration_ms': 10000  # 10s (menor que mínimo)
-            }],
-            'execution_order': ['task-1'],
-            'risk_band': 'medium'
+            "plan_id": "plan-timeout-test",
+            "intent_id": "intent-timeout-test",
+            "tasks": [
+                {
+                    "task_id": "task-1",
+                    "dependencies": [],
+                    "estimated_duration_ms": 10000,  # 10s (menor que mínimo)
+                }
+            ],
+            "execution_order": ["task-1"],
+            "risk_band": "medium",
         }
 
-        set_activity_dependencies(
-            kafka_producer=None,
-            mongodb_client=None,
-            config=mock_cfg
-        )
+        set_activity_dependencies(kafka_producer=None, mongodb_client=None, config=mock_cfg)
 
         tickets = await generate_execution_tickets(plan, consolidated_decision)
 
         # Timeout deve ser o mínimo configurado (90s), não 10s * 3.0 = 30s
-        assert tickets[0]['sla']['timeout_ms'] == 90000
+        assert tickets[0]["sla"]["timeout_ms"] == 90000
 
     @pytest.mark.asyncio
     async def test_timeout_uses_configured_multiplier(
@@ -714,27 +680,21 @@ class TestSLATimeoutConfiguration:
         mock_cfg.sla_ticket_timeout_buffer_multiplier = 4.0  # 4x buffer
 
         plan = {
-            'plan_id': 'plan-multiplier-test',
-            'intent_id': 'intent-multiplier-test',
-            'tasks': [{
-                'task_id': 'task-1',
-                'dependencies': [],
-                'estimated_duration_ms': 30000  # 30s
-            }],
-            'execution_order': ['task-1'],
-            'risk_band': 'medium'
+            "plan_id": "plan-multiplier-test",
+            "intent_id": "intent-multiplier-test",
+            "tasks": [
+                {"task_id": "task-1", "dependencies": [], "estimated_duration_ms": 30000}  # 30s
+            ],
+            "execution_order": ["task-1"],
+            "risk_band": "medium",
         }
 
-        set_activity_dependencies(
-            kafka_producer=None,
-            mongodb_client=None,
-            config=mock_cfg
-        )
+        set_activity_dependencies(kafka_producer=None, mongodb_client=None, config=mock_cfg)
 
         tickets = await generate_execution_tickets(plan, consolidated_decision)
 
         # Timeout deve ser 30s * 4.0 = 120s (maior que mínimo de 60s)
-        assert tickets[0]['sla']['timeout_ms'] == 120000
+        assert tickets[0]["sla"]["timeout_ms"] == 120000
 
     @pytest.mark.asyncio
     async def test_timeout_defaults_when_config_unavailable(
@@ -742,27 +702,23 @@ class TestSLATimeoutConfiguration:
     ):
         """Timeout deve usar defaults quando config não disponível."""
         plan = {
-            'plan_id': 'plan-default-test',
-            'intent_id': 'intent-default-test',
-            'tasks': [{
-                'task_id': 'task-1',
-                'dependencies': [],
-                'estimated_duration_ms': 10000  # 10s
-            }],
-            'execution_order': ['task-1'],
-            'risk_band': 'medium'
+            "plan_id": "plan-default-test",
+            "intent_id": "intent-default-test",
+            "tasks": [
+                {"task_id": "task-1", "dependencies": [], "estimated_duration_ms": 10000}  # 10s
+            ],
+            "execution_order": ["task-1"],
+            "risk_band": "medium",
         }
 
         set_activity_dependencies(
-            kafka_producer=None,
-            mongodb_client=None,
-            config=None  # Sem config
+            kafka_producer=None, mongodb_client=None, config=None  # Sem config
         )
 
         tickets = await generate_execution_tickets(plan, consolidated_decision)
 
         # Deve usar defaults: max(60000, 10000 * 3.0) = 60000
-        assert tickets[0]['sla']['timeout_ms'] == 60000
+        assert tickets[0]["sla"]["timeout_ms"] == 60000
 
 
 class TestSLATimeoutFormulaValidation:
@@ -778,91 +734,67 @@ class TestSLATimeoutFormulaValidation:
         mock_cfg.sla_ticket_timeout_buffer_multiplier = 3.0
 
         plan = {
-            'plan_id': 'plan-short',
-            'intent_id': 'intent-short',
-            'tasks': [{
-                'task_id': 'task-1',
-                'dependencies': [],
-                'estimated_duration_ms': 1  # 1ms
-            }],
-            'execution_order': ['task-1'],
-            'risk_band': 'low'
+            "plan_id": "plan-short",
+            "intent_id": "intent-short",
+            "tasks": [{"task_id": "task-1", "dependencies": [], "estimated_duration_ms": 1}],  # 1ms
+            "execution_order": ["task-1"],
+            "risk_band": "low",
         }
 
-        set_activity_dependencies(
-            kafka_producer=None,
-            mongodb_client=None,
-            config=mock_cfg
-        )
+        set_activity_dependencies(kafka_producer=None, mongodb_client=None, config=mock_cfg)
 
         tickets = await generate_execution_tickets(plan, consolidated_decision)
 
         # Fórmula: max(60000, 1 * 3.0) = max(60000, 3) = 60000
-        assert tickets[0]['sla']['timeout_ms'] == 60000
+        assert tickets[0]["sla"]["timeout_ms"] == 60000
 
     @pytest.mark.asyncio
-    async def test_timeout_formula_at_threshold(
-        self, mock_activity_info, consolidated_decision
-    ):
+    async def test_timeout_formula_at_threshold(self, mock_activity_info, consolidated_decision):
         """Duração exatamente no threshold (20s) deve usar timeout mínimo."""
         mock_cfg = MagicMock()
         mock_cfg.sla_ticket_min_timeout_ms = 60000
         mock_cfg.sla_ticket_timeout_buffer_multiplier = 3.0
 
         plan = {
-            'plan_id': 'plan-threshold',
-            'intent_id': 'intent-threshold',
-            'tasks': [{
-                'task_id': 'task-1',
-                'dependencies': [],
-                'estimated_duration_ms': 20000  # 20s
-            }],
-            'execution_order': ['task-1'],
-            'risk_band': 'medium'
+            "plan_id": "plan-threshold",
+            "intent_id": "intent-threshold",
+            "tasks": [
+                {"task_id": "task-1", "dependencies": [], "estimated_duration_ms": 20000}  # 20s
+            ],
+            "execution_order": ["task-1"],
+            "risk_band": "medium",
         }
 
-        set_activity_dependencies(
-            kafka_producer=None,
-            mongodb_client=None,
-            config=mock_cfg
-        )
+        set_activity_dependencies(kafka_producer=None, mongodb_client=None, config=mock_cfg)
 
         tickets = await generate_execution_tickets(plan, consolidated_decision)
 
         # Fórmula: max(60000, 20000 * 3.0) = max(60000, 60000) = 60000
-        assert tickets[0]['sla']['timeout_ms'] == 60000
+        assert tickets[0]["sla"]["timeout_ms"] == 60000
 
     @pytest.mark.asyncio
-    async def test_timeout_formula_above_threshold(
-        self, mock_activity_info, consolidated_decision
-    ):
+    async def test_timeout_formula_above_threshold(self, mock_activity_info, consolidated_decision):
         """Duração acima do threshold deve usar multiplicador."""
         mock_cfg = MagicMock()
         mock_cfg.sla_ticket_min_timeout_ms = 60000
         mock_cfg.sla_ticket_timeout_buffer_multiplier = 3.0
 
         plan = {
-            'plan_id': 'plan-above',
-            'intent_id': 'intent-above',
-            'tasks': [{
-                'task_id': 'task-1',
-                'dependencies': [],
-                'estimated_duration_ms': 50000  # 50s
-            }],
-            'execution_order': ['task-1'],
-            'risk_band': 'high'
+            "plan_id": "plan-above",
+            "intent_id": "intent-above",
+            "tasks": [
+                {"task_id": "task-1", "dependencies": [], "estimated_duration_ms": 50000}  # 50s
+            ],
+            "execution_order": ["task-1"],
+            "risk_band": "high",
         }
 
-        set_activity_dependencies(
-            kafka_producer=None,
-            mongodb_client=None,
-            config=mock_cfg
-        )
+        set_activity_dependencies(kafka_producer=None, mongodb_client=None, config=mock_cfg)
 
         tickets = await generate_execution_tickets(plan, consolidated_decision)
 
         # Fórmula: max(60000, 50000 * 3.0) = max(60000, 150000) = 150000
-        assert tickets[0]['sla']['timeout_ms'] == 150000
+        assert tickets[0]["sla"]["timeout_ms"] == 150000
 
     @pytest.mark.asyncio
     async def test_timeout_formula_with_large_duration(
@@ -874,27 +806,25 @@ class TestSLATimeoutFormulaValidation:
         mock_cfg.sla_ticket_timeout_buffer_multiplier = 3.0
 
         plan = {
-            'plan_id': 'plan-large',
-            'intent_id': 'intent-large',
-            'tasks': [{
-                'task_id': 'task-1',
-                'dependencies': [],
-                'estimated_duration_ms': 600000  # 10 minutos
-            }],
-            'execution_order': ['task-1'],
-            'risk_band': 'critical'
+            "plan_id": "plan-large",
+            "intent_id": "intent-large",
+            "tasks": [
+                {
+                    "task_id": "task-1",
+                    "dependencies": [],
+                    "estimated_duration_ms": 600000,  # 10 minutos
+                }
+            ],
+            "execution_order": ["task-1"],
+            "risk_band": "critical",
         }
 
-        set_activity_dependencies(
-            kafka_producer=None,
-            mongodb_client=None,
-            config=mock_cfg
-        )
+        set_activity_dependencies(kafka_producer=None, mongodb_client=None, config=mock_cfg)
 
         tickets = await generate_execution_tickets(plan, consolidated_decision)
 
         # Fórmula: max(60000, 600000 * 3.0) = max(60000, 1800000) = 1800000 (30 min)
-        assert tickets[0]['sla']['timeout_ms'] == 1800000
+        assert tickets[0]["sla"]["timeout_ms"] == 1800000
 
     @pytest.mark.asyncio
     async def test_timeout_never_below_minimum_with_various_configs(
@@ -919,26 +849,20 @@ class TestSLATimeoutFormulaValidation:
             mock_cfg.sla_ticket_timeout_buffer_multiplier = multiplier
 
             plan = {
-                'plan_id': f'plan-{estimated}',
-                'intent_id': f'intent-{estimated}',
-                'tasks': [{
-                    'task_id': 'task-1',
-                    'dependencies': [],
-                    'estimated_duration_ms': estimated
-                }],
-                'execution_order': ['task-1'],
-                'risk_band': 'medium'
+                "plan_id": f"plan-{estimated}",
+                "intent_id": f"intent-{estimated}",
+                "tasks": [
+                    {"task_id": "task-1", "dependencies": [], "estimated_duration_ms": estimated}
+                ],
+                "execution_order": ["task-1"],
+                "risk_band": "medium",
             }
 
-            set_activity_dependencies(
-                kafka_producer=None,
-                mongodb_client=None,
-                config=mock_cfg
-            )
+            set_activity_dependencies(kafka_producer=None, mongodb_client=None, config=mock_cfg)
 
             tickets = await generate_execution_tickets(plan, consolidated_decision)
 
-            assert tickets[0]['sla']['timeout_ms'] == expected, (
+            assert tickets[0]["sla"]["timeout_ms"] == expected, (
                 f"Falhou para min={min_timeout}, mult={multiplier}, est={estimated}: "
                 f"esperado {expected}, obtido {tickets[0]['sla']['timeout_ms']}"
             )
@@ -955,7 +879,7 @@ class TestSLATimeoutFormulaValidation:
             (2.0, 60000),  # 30s * 2.0 = 60s = 60s → 60s
             (2.5, 75000),  # 30s * 2.5 = 75s > 60s → 75s
             (3.0, 90000),  # 30s * 3.0 = 90s > 60s → 90s
-            (4.0, 120000), # 30s * 4.0 = 120s > 60s → 120s
+            (4.0, 120000),  # 30s * 4.0 = 120s > 60s → 120s
         ]
 
         for multiplier, expected_timeout in test_cases:
@@ -964,26 +888,24 @@ class TestSLATimeoutFormulaValidation:
             mock_cfg.sla_ticket_timeout_buffer_multiplier = multiplier
 
             plan = {
-                'plan_id': f'plan-mult-{multiplier}',
-                'intent_id': f'intent-mult-{multiplier}',
-                'tasks': [{
-                    'task_id': 'task-1',
-                    'dependencies': [],
-                    'estimated_duration_ms': estimated_duration
-                }],
-                'execution_order': ['task-1'],
-                'risk_band': 'medium'
+                "plan_id": f"plan-mult-{multiplier}",
+                "intent_id": f"intent-mult-{multiplier}",
+                "tasks": [
+                    {
+                        "task_id": "task-1",
+                        "dependencies": [],
+                        "estimated_duration_ms": estimated_duration,
+                    }
+                ],
+                "execution_order": ["task-1"],
+                "risk_band": "medium",
             }
 
-            set_activity_dependencies(
-                kafka_producer=None,
-                mongodb_client=None,
-                config=mock_cfg
-            )
+            set_activity_dependencies(kafka_producer=None, mongodb_client=None, config=mock_cfg)
 
             tickets = await generate_execution_tickets(plan, consolidated_decision)
 
-            assert tickets[0]['sla']['timeout_ms'] == expected_timeout, (
+            assert tickets[0]["sla"]["timeout_ms"] == expected_timeout, (
                 f"Multiplicador {multiplier}: esperado {expected_timeout}ms, "
                 f"obtido {tickets[0]['sla']['timeout_ms']}ms"
             )
@@ -998,27 +920,23 @@ class TestMongoDBPersistenceFailOpen:
     ):
         """publish_ticket_to_kafka deve propagar erros quando fail-open=False."""
         mock_mongodb = AsyncMock()
-        mock_mongodb.save_execution_ticket = AsyncMock(
-            side_effect=PyMongoError('Database error')
-        )
+        mock_mongodb.save_execution_ticket = AsyncMock(side_effect=PyMongoError("Database error"))
 
         mock_cfg = MagicMock()
         mock_cfg.MONGODB_FAIL_OPEN_EXECUTION_TICKETS = False
 
         ticket = {
-            'ticket_id': str(uuid.uuid4()),
-            'plan_id': 'plan-001',
-            'status': 'PENDING',
-            'allocation_metadata': {'agent_id': 'worker-001'}
+            "ticket_id": str(uuid.uuid4()),
+            "plan_id": "plan-001",
+            "status": "PENDING",
+            "allocation_metadata": {"agent_id": "worker-001"},
         }
 
         set_activity_dependencies(
-            kafka_producer=mock_kafka_producer,
-            mongodb_client=mock_mongodb,
-            config=mock_cfg
+            kafka_producer=mock_kafka_producer, mongodb_client=mock_mongodb, config=mock_cfg
         )
 
-        with pytest.raises(RuntimeError, match='Falha crítica na persistência'):
+        with pytest.raises(RuntimeError, match="Falha crítica na persistência"):
             await publish_ticket_to_kafka(ticket)
 
     @pytest.mark.asyncio
@@ -1027,31 +945,27 @@ class TestMongoDBPersistenceFailOpen:
     ):
         """publish_ticket_to_kafka deve continuar quando fail-open=True."""
         mock_mongodb = AsyncMock()
-        mock_mongodb.save_execution_ticket = AsyncMock(
-            side_effect=PyMongoError('Database error')
-        )
+        mock_mongodb.save_execution_ticket = AsyncMock(side_effect=PyMongoError("Database error"))
 
         mock_cfg = MagicMock()
         mock_cfg.MONGODB_FAIL_OPEN_EXECUTION_TICKETS = True
 
         ticket = {
-            'ticket_id': str(uuid.uuid4()),
-            'plan_id': 'plan-001',
-            'status': 'PENDING',
-            'allocation_metadata': {'agent_id': 'worker-001'}
+            "ticket_id": str(uuid.uuid4()),
+            "plan_id": "plan-001",
+            "status": "PENDING",
+            "allocation_metadata": {"agent_id": "worker-001"},
         }
 
         set_activity_dependencies(
-            kafka_producer=mock_kafka_producer,
-            mongodb_client=mock_mongodb,
-            config=mock_cfg
+            kafka_producer=mock_kafka_producer, mongodb_client=mock_mongodb, config=mock_cfg
         )
 
         result = await publish_ticket_to_kafka(ticket)
 
         # Deve continuar com publicação mesmo com erro de persistência
-        assert result['published'] is True
-        assert result['ticket_id'] == ticket['ticket_id']
+        assert result["published"] is True
+        assert result["ticket_id"] == ticket["ticket_id"]
         mock_kafka_producer.publish_ticket.assert_called_once()
 
     @pytest.mark.asyncio
@@ -1061,28 +975,26 @@ class TestMongoDBPersistenceFailOpen:
         """Circuit breaker aberto deve propagar RuntimeError para retry do Temporal."""
         mock_mongodb = AsyncMock()
         mock_mongodb.save_execution_ticket = AsyncMock(
-            side_effect=CircuitBreakerError('Circuit breaker is open')
+            side_effect=CircuitBreakerError("Circuit breaker is open")
         )
 
         mock_cfg = MagicMock()
         mock_cfg.MONGODB_FAIL_OPEN_EXECUTION_TICKETS = False
 
         ticket = {
-            'ticket_id': str(uuid.uuid4()),
-            'plan_id': 'plan-001',
-            'status': 'PENDING',
-            'allocation_metadata': {'agent_id': 'worker-001'}
+            "ticket_id": str(uuid.uuid4()),
+            "plan_id": "plan-001",
+            "status": "PENDING",
+            "allocation_metadata": {"agent_id": "worker-001"},
         }
 
         set_activity_dependencies(
-            kafka_producer=mock_kafka_producer,
-            mongodb_client=mock_mongodb,
-            config=mock_cfg
+            kafka_producer=mock_kafka_producer, mongodb_client=mock_mongodb, config=mock_cfg
         )
 
         # Circuit breaker aberto indica problema sistêmico - deve propagar RuntimeError
         # para que o Temporal possa fazer retry quando o circuit breaker fechar
-        with pytest.raises(RuntimeError, match='Circuit breaker aberto'):
+        with pytest.raises(RuntimeError, match="Circuit breaker aberto"):
             await publish_ticket_to_kafka(ticket)
 
         # Kafka publish foi chamado antes da persistência falhar
@@ -1097,18 +1009,18 @@ class TestMongoDBPersistenceFailOpen:
         mock_mongodb.save_execution_ticket = AsyncMock()
 
         ticket = {
-            'ticket_id': str(uuid.uuid4()),
-            'plan_id': 'plan-001',
-            'status': 'PENDING',
-            'allocation_metadata': {'agent_id': 'worker-001'}
+            "ticket_id": str(uuid.uuid4()),
+            "plan_id": "plan-001",
+            "status": "PENDING",
+            "allocation_metadata": {"agent_id": "worker-001"},
         }
 
         set_activity_dependencies(
             kafka_producer=mock_kafka_producer,
             mongodb_client=mock_mongodb,
-            config=None  # Sem config
+            config=None,  # Sem config
         )
 
         # Sem config, deve propagar erro de configuração
-        with pytest.raises(RuntimeError, match='Config não foi injetado'):
+        with pytest.raises(RuntimeError, match="Config não foi injetado"):
             await publish_ticket_to_kafka(ticket)

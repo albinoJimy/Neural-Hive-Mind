@@ -12,13 +12,9 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / 'src'))
+sys.path.insert(0, str(ROOT / "src"))
 
-from engine.parallel_executor import (
-    ParallelExecutor,
-    ParallelExecutionConfig,
-    TaskPriority
-)
+from engine.parallel_executor import ParallelExecutor, ParallelExecutionConfig, TaskPriority
 from engine.execution_engine import ExecutionEngine
 from engine.dependency_coordinator import DependencyCoordinator
 from executors.registry import TaskExecutorRegistry
@@ -37,14 +33,14 @@ class MockExecutor(BaseTaskExecutor):
         await asyncio.sleep(0.01)
         self.executed_tickets.append(ticket)
         return {
-            'success': True,
-            'output': {'ticket_id': ticket.get('ticket_id')},
-            'metadata': {},
-            'logs': ['Executed successfully']
+            "success": True,
+            "output": {"ticket_id": ticket.get("ticket_id")},
+            "metadata": {},
+            "logs": ["Executed successfully"],
         }
 
     def get_task_type(self):
-        return 'MOCK'
+        return "MOCK"
 
 
 @pytest.fixture
@@ -65,7 +61,7 @@ async def execution_engine():
     # Mock clients
     ticket_client = AsyncMock()
     ticket_client.update_ticket_status = AsyncMock()
-    ticket_client.get_ticket = AsyncMock(return_value={'status': 'PENDING'})
+    ticket_client.get_ticket = AsyncMock(return_value={"status": "PENDING"})
 
     result_producer = AsyncMock()
     result_producer.publish_result = AsyncMock()
@@ -73,11 +69,7 @@ async def execution_engine():
     dependency_coordinator = DependencyCoordinator(config, ticket_client)
 
     engine = ExecutionEngine(
-        config,
-        ticket_client,
-        result_producer,
-        dependency_coordinator,
-        registry
+        config, ticket_client, result_producer, dependency_coordinator, registry
     )
 
     yield engine
@@ -94,7 +86,7 @@ def parallel_config():
         enable_batching=True,
         batch_size=2,
         batch_timeout_seconds=0.1,
-        enable_priority_queue=True
+        enable_priority_queue=True,
     )
 
 
@@ -108,10 +100,10 @@ class TestParallelExecutorIntegration:
 
         tickets = [
             {
-                'ticket_id': f'parallel-{i}',
-                'task_id': f'task-{i}',
-                'task_type': 'MOCK',
-                'parameters': {}
+                "ticket_id": f"parallel-{i}",
+                "task_id": f"task-{i}",
+                "task_type": "MOCK",
+                "parameters": {},
             }
             for i in range(5)
         ]
@@ -119,7 +111,7 @@ class TestParallelExecutorIntegration:
         results = await executor.execute_parallel_independent(tickets)
 
         assert len(results) == 5
-        assert all(r['success'] for r in results)
+        assert all(r["success"] for r in results)
 
     @pytest.mark.asyncio
     async def test_execute_with_dependencies_complex(self, parallel_config, execution_engine):
@@ -127,25 +119,25 @@ class TestParallelExecutorIntegration:
         executor = ParallelExecutor(parallel_config, execution_engine)
 
         tickets = [
-            {'ticket_id': 'base', 'task_type': 'MOCK', 'parameters': {}},
-            {'ticket_id': 'a1', 'task_type': 'MOCK', 'parameters': {}},
-            {'ticket_id': 'a2', 'task_type': 'MOCK', 'parameters': {}},
-            {'ticket_id': 'b1', 'task_type': 'MOCK', 'parameters': {}},
-            {'ticket_id': 'final', 'task_type': 'MOCK', 'parameters': {}},
+            {"ticket_id": "base", "task_type": "MOCK", "parameters": {}},
+            {"ticket_id": "a1", "task_type": "MOCK", "parameters": {}},
+            {"ticket_id": "a2", "task_type": "MOCK", "parameters": {}},
+            {"ticket_id": "b1", "task_type": "MOCK", "parameters": {}},
+            {"ticket_id": "final", "task_type": "MOCK", "parameters": {}},
         ]
 
         dependency_graph = {
-            'base': [],
-            'a1': ['base'],
-            'a2': ['base'],
-            'b1': ['a1', 'a2'],
-            'final': ['b1'],
+            "base": [],
+            "a1": ["base"],
+            "a2": ["base"],
+            "b1": ["a1", "a2"],
+            "final": ["b1"],
         }
 
         results = await executor.execute_with_dependencies(tickets, dependency_graph)
 
         assert len(results) == 5
-        successful = sum(1 for r in results if r['success'])
+        successful = sum(1 for r in results if r["success"])
         assert successful >= 3  # Pelo menos os independentes
 
     @pytest.mark.asyncio
@@ -155,11 +147,7 @@ class TestParallelExecutorIntegration:
 
         # Submeter tickets
         for i in range(3):
-            ticket = {
-                'ticket_id': f'proc-{i}',
-                'task_type': 'MOCK',
-                'parameters': {}
-            }
+            ticket = {"ticket_id": f"proc-{i}", "task_type": "MOCK", "parameters": {}}
             await executor.submit_ticket(ticket, TaskPriority.HIGH)
 
         # Iniciar processadores
@@ -170,14 +158,14 @@ class TestParallelExecutorIntegration:
 
         # Verificar status
         status = executor.get_status()
-        assert status['running'] is True
-        assert status['processor_tasks'] == 2
+        assert status["running"] is True
+        assert status["processor_tasks"] == 2
 
         # Parar
         await executor.stop(timeout_seconds=2)
 
         status = executor.get_status()
-        assert status['running'] is False
+        assert status["running"] is False
 
     @pytest.mark.asyncio
     async def test_priority_ordering(self, parallel_config, execution_engine):
@@ -186,19 +174,15 @@ class TestParallelExecutorIntegration:
 
         # Submeter tickets em ordem inversa de prioridade
         tickets = [
-            ('low-1', TaskPriority.LOW),
-            ('critical-1', TaskPriority.CRITICAL),
-            ('medium-1', TaskPriority.MEDIUM),
-            ('high-1', TaskPriority.HIGH),
-            ('low-2', TaskPriority.LOW),
+            ("low-1", TaskPriority.LOW),
+            ("critical-1", TaskPriority.CRITICAL),
+            ("medium-1", TaskPriority.MEDIUM),
+            ("high-1", TaskPriority.HIGH),
+            ("low-2", TaskPriority.LOW),
         ]
 
         for ticket_id, priority in tickets:
-            ticket = {
-                'ticket_id': ticket_id,
-                'task_type': 'MOCK',
-                'parameters': {}
-            }
+            ticket = {"ticket_id": ticket_id, "task_type": "MOCK", "parameters": {}}
             await executor.submit_ticket(ticket, priority)
 
         # Iniciar e aguardar processamento
@@ -213,19 +197,12 @@ class TestParallelExecutorIntegration:
     async def test_concurrent_limit_by_type(self, execution_engine):
         """Testa limite de concorrência por tipo."""
         config = ParallelExecutionConfig(
-            max_parallel_tasks=10,
-            max_parallel_by_type={'MOCK': 2},
-            enable_priority_queue=False
+            max_parallel_tasks=10, max_parallel_by_type={"MOCK": 2}, enable_priority_queue=False
         )
         executor = ParallelExecutor(config, execution_engine)
 
         tickets = [
-            {
-                'ticket_id': f'limit-{i}',
-                'task_type': 'MOCK',
-                'parameters': {}
-            }
-            for i in range(5)
+            {"ticket_id": f"limit-{i}", "task_type": "MOCK", "parameters": {}} for i in range(5)
         ]
 
         start_time = asyncio.get_event_loop().time()
@@ -256,12 +233,7 @@ class TestParallelExecutorMetrics:
         executor = ParallelExecutor(parallel_config, execution_engine, mock_metrics)
 
         tickets = [
-            {
-                'ticket_id': f'metric-{i}',
-                'task_type': 'MOCK',
-                'parameters': {}
-            }
-            for i in range(3)
+            {"ticket_id": f"metric-{i}", "task_type": "MOCK", "parameters": {}} for i in range(3)
         ]
 
         await executor.execute_parallel_independent(tickets)
@@ -278,23 +250,18 @@ class TestParallelExecutorErrors:
         """Testa tratamento de exceções no executor."""
         # Criar engine que lança exceção
         engine = MagicMock()
-        engine.process_ticket = AsyncMock(side_effect=RuntimeError('Test error'))
+        engine.process_ticket = AsyncMock(side_effect=RuntimeError("Test error"))
 
         executor = ParallelExecutor(parallel_config, engine)
 
         tickets = [
-            {
-                'ticket_id': f'error-{i}',
-                'task_type': 'BUILD',
-                'parameters': {}
-            }
-            for i in range(2)
+            {"ticket_id": f"error-{i}", "task_type": "BUILD", "parameters": {}} for i in range(2)
         ]
 
         results = await executor.execute_parallel_independent(tickets)
 
         assert len(results) == 2
-        assert all(r['success'] is False for r in results)
+        assert all(r["success"] is False for r in results)
 
     @pytest.mark.asyncio
     async def test_handles_timeout_during_execution(self, parallel_config, execution_engine):
@@ -302,22 +269,13 @@ class TestParallelExecutorErrors:
         executor = ParallelExecutor(parallel_config, execution_engine)
 
         # Criar ticket com processamento lento
-        tickets = [
-            {
-                'ticket_id': 'slow-ticket',
-                'task_type': 'MOCK',
-                'parameters': {'sleep': 100}
-            }
-        ]
+        tickets = [{"ticket_id": "slow-ticket", "task_type": "MOCK", "parameters": {"sleep": 100}}]
 
-        results = await executor.execute_parallel_independent(
-            tickets,
-            timeout_seconds=0.05
-        )
+        results = await executor.execute_parallel_independent(tickets, timeout_seconds=0.05)
 
         assert len(results) == 1
-        assert results[0]['success'] is False
-        assert 'Timeout' in results[0]['error']
+        assert results[0]["success"] is False
+        assert "Timeout" in results[0]["error"]
 
 
 class TestParallelExecutorBatching:
@@ -326,20 +284,11 @@ class TestParallelExecutorBatching:
     @pytest.mark.asyncio
     async def test_batch_processing_enabled(self, execution_engine):
         """Testa processamento em batch habilitado."""
-        config = ParallelExecutionConfig(
-            max_parallel_tasks=5,
-            enable_batching=True,
-            batch_size=3
-        )
+        config = ParallelExecutionConfig(max_parallel_tasks=5, enable_batching=True, batch_size=3)
         executor = ParallelExecutor(config, execution_engine)
 
         tickets = [
-            {
-                'ticket_id': f'batch-{i}',
-                'task_type': 'MOCK',
-                'parameters': {}
-            }
-            for i in range(6)
+            {"ticket_id": f"batch-{i}", "task_type": "MOCK", "parameters": {}} for i in range(6)
         ]
 
         correlation_ids = await executor.submit_batch(tickets, TaskPriority.MEDIUM)
@@ -349,19 +298,11 @@ class TestParallelExecutorBatching:
     @pytest.mark.asyncio
     async def test_batch_processing_disabled(self, execution_engine):
         """Testa processamento em batch desabilitado."""
-        config = ParallelExecutionConfig(
-            max_parallel_tasks=5,
-            enable_batching=False
-        )
+        config = ParallelExecutionConfig(max_parallel_tasks=5, enable_batching=False)
         executor = ParallelExecutor(config, execution_engine)
 
         tickets = [
-            {
-                'ticket_id': f'no-batch-{i}',
-                'task_type': 'MOCK',
-                'parameters': {}
-            }
-            for i in range(4)
+            {"ticket_id": f"no-batch-{i}", "task_type": "MOCK", "parameters": {}} for i in range(4)
         ]
 
         correlation_ids = await executor.submit_batch(tickets)
@@ -378,24 +319,24 @@ class TestParallelExecutorRecovery:
         executor = ParallelExecutor(parallel_config, execution_engine)
 
         tickets = [
-            {'ticket_id': 'ok-1', 'task_type': 'MOCK', 'parameters': {}},
-            {'ticket_id': 'bad', 'task_type': 'MOCK', 'parameters': {'fail': True}},
-            {'ticket_id': 'ok-2', 'task_type': 'MOCK', 'parameters': {}},
+            {"ticket_id": "ok-1", "task_type": "MOCK", "parameters": {}},
+            {"ticket_id": "bad", "task_type": "MOCK", "parameters": {"fail": True}},
+            {"ticket_id": "ok-2", "task_type": "MOCK", "parameters": {}},
         ]
 
         # Configurar um ticket para falhar
-        original_execute = execution_engine.executor_registry.get_executor('MOCK').execute
+        original_execute = execution_engine.executor_registry.get_executor("MOCK").execute
 
         async def conditional_execute(ticket):
-            if ticket['ticket_id'] == 'bad':
-                raise ValueError('Simulated failure')
+            if ticket["ticket_id"] == "bad":
+                raise ValueError("Simulated failure")
             return await original_execute(ticket)
 
-        execution_engine.executor_registry.get_executor('MOCK').execute = conditional_execute
+        execution_engine.executor_registry.get_executor("MOCK").execute = conditional_execute
 
         results = await executor.execute_parallel_independent(tickets)
 
         assert len(results) == 3
-        assert results[0]['success'] is True
-        assert results[1]['success'] is False
-        assert results[2]['success'] is True
+        assert results[0]["success"] is True
+        assert results[1]["success"] is False
+        assert results[2]["success"] is True

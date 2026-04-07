@@ -28,16 +28,12 @@ class TestRemediationFlow:
         with patch("src.services.playbook_executor.get_tracer", return_value=mock_tracer):
             executor = PlaybookExecutor(
                 playbooks_dir=sample_playbook_path.replace("test_playbook.yaml", ""),
-                k8s_in_cluster=False
+                k8s_in_cluster=False,
             )
 
             # Executar playbook diretamente (simulando o que o consumer faria)
             result = await executor.execute_playbook(
-                "test_playbook",
-                context={
-                    "ticket_id": "ticket-456",
-                    "worker_id": "worker-1"
-                }
+                "test_playbook", context={"ticket_id": "ticket-456", "worker_id": "worker-1"}
             )
 
         # Verificar que playbook foi executado
@@ -70,8 +66,7 @@ class TestRemediationFlow:
     async def test_health_monitor_detects_unhealthy_service(self):
         """Testa que health monitor detecta serviço não saudável."""
         monitor = HealthMonitor(
-            service_registry_client=None,  # Sem SR para teste
-            http_timeout_seconds=5
+            service_registry_client=None, http_timeout_seconds=5  # Sem SR para teste
         )
 
         # Mock resposta HTTP 503
@@ -94,24 +89,18 @@ class TestRemediationFlow:
             "incident_type": "ticket_timeout",
             "severity": "medium",
             "service": "worker-agents",
-            "metadata": {
-                "ticket_id": "ticket-456",
-                "worker_id": "worker-1"
-            }
+            "metadata": {"ticket_id": "ticket-456", "worker_id": "worker-1"},
         }
 
         # 2. Criar executor
         with patch("src.services.playbook_executor.get_tracer", return_value=mock_tracer):
             executor = PlaybookExecutor(
                 playbooks_dir=sample_playbook_path.replace("test_playbook.yaml", ""),
-                k8s_in_cluster=False
+                k8s_in_cluster=False,
             )
 
             # 3. Executar playbook
-            result = await executor.execute_playbook(
-                "test_playbook",
-                context=incident["metadata"]
-            )
+            result = await executor.execute_playbook("test_playbook", context=incident["metadata"])
 
         # 4. Verificar resultado
         assert result["success"] is True
@@ -130,7 +119,7 @@ class TestOPAValidation:
 
         result = await mock_opa_client.validate_action(
             action="reallocate_ticket",
-            params={"ticket_id": "ticket-123", "reason": "timeout_recovery"}
+            params={"ticket_id": "ticket-123", "reason": "timeout_recovery"},
         )
 
         assert result["allowed"] is True
@@ -143,8 +132,7 @@ class TestOPAValidation:
         )
 
         result = await mock_opa_client.validate_action(
-            action="reallocate_ticket",
-            params={"ticket_id": "ticket-123", "reason": "test"}
+            action="reallocate_ticket", params={"ticket_id": "ticket-123", "reason": "test"}
         )
 
         assert result["allowed"] is False
@@ -156,23 +144,23 @@ class TestChaosToRemediation:
     @pytest.mark.asyncio
     async def test_chaos_experiment_triggers_remediation(self, mock_tracer):
         """Testa que experimento de chaos pode disparar playbook de recuperação."""
-        from src.chaos.chaos_models import ChaosExperiment, FaultInjection, FaultType, TargetSelector
+        from src.chaos.chaos_models import (
+            ChaosExperiment,
+            FaultInjection,
+            FaultType,
+            TargetSelector,
+        )
 
         # Criar experimento
-        target = TargetSelector(
-            namespace="neural-hive-orchestration",
-            service_name="worker-agents"
-        )
+        target = TargetSelector(namespace="neural-hive-orchestration", service_name="worker-agents")
         injection = FaultInjection(
-            fault_type=FaultType.POD_KILL,
-            target=target,
-            duration_seconds=60
+            fault_type=FaultType.POD_KILL, target=target, duration_seconds=60
         )
         experiment = ChaosExperiment(
             name="Test Recovery",
             description="Test recovery after pod kill",
             environment="staging",
-            fault_injections=[injection]
+            fault_injections=[injection],
         )
 
         # Verificar que experimento foi criado corretamente
@@ -187,9 +175,7 @@ class TestMultiServiceCoordination:
     async def test_service_registry_integration(self):
         """Testa integração com Service Registry."""
         mock_client = AsyncMock()
-        mock_client.get_service_address = AsyncMock(
-            return_value="http://worker-agents:8000"
-        )
+        mock_client.get_service_address = AsyncMock(return_value="http://worker-agents:8000")
 
         monitor = HealthMonitor(service_registry_client=mock_client)
 
@@ -202,17 +188,11 @@ class TestMultiServiceCoordination:
         """Testa pausa de workflow via Orchestrator."""
         mock_client = AsyncMock()
         mock_client.pause_workflow = AsyncMock(
-            return_value={
-                "workflow_id": "wf-123",
-                "success": True,
-                "pause_duration_seconds": 300
-            }
+            return_value={"workflow_id": "wf-123", "success": True, "pause_duration_seconds": 300}
         )
 
         result = await mock_client.pause_workflow(
-            workflow_id="wf-123",
-            reason="Deadlock detected",
-            duration_seconds=300
+            workflow_id="wf-123", reason="Deadlock detected", duration_seconds=300
         )
 
         assert result["success"] is True

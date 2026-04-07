@@ -24,21 +24,13 @@ def checker():
 async def test_check_all_health_aggregates_status(checker, monkeypatch):
     healthy = ComponentHealth("mongodb", HealthStatus.HEALTHY)
     degraded = ComponentHealth("redis", HealthStatus.DEGRADED)
-    monkeypatch.setattr(
-        checker, "_check_mongodb_health", AsyncMock(return_value=healthy)
-    )
-    monkeypatch.setattr(
-        checker, "_check_mlflow_health", AsyncMock(return_value=healthy)
-    )
+    monkeypatch.setattr(checker, "_check_mongodb_health", AsyncMock(return_value=healthy))
+    monkeypatch.setattr(checker, "_check_mlflow_health", AsyncMock(return_value=healthy))
     monkeypatch.setattr(
         checker, "_check_feature_extraction_health", AsyncMock(return_value=degraded)
     )
-    monkeypatch.setattr(
-        checker, "_check_circuit_breakers_health", AsyncMock(return_value=healthy)
-    )
-    monkeypatch.setattr(
-        checker, "_check_ledger_health", AsyncMock(return_value=healthy)
-    )
+    monkeypatch.setattr(checker, "_check_circuit_breakers_health", AsyncMock(return_value=healthy))
+    monkeypatch.setattr(checker, "_check_ledger_health", AsyncMock(return_value=healthy))
 
     report = await checker.check_all_health()
 
@@ -77,6 +69,7 @@ def test_component_health_to_dict_includes_fields():
 # =============================================================================
 # Testes Adicionais para Cobertura
 # =============================================================================
+
 
 @pytest.mark.unit
 def test_health_status_enum_values():
@@ -144,7 +137,9 @@ async def test_check_mlflow_health_success(checker, monkeypatch):
 async def test_check_feature_extraction_health_success(checker, monkeypatch):
     """Testa check de feature extraction com sucesso."""
     healthy = ComponentHealth("feature_extraction", HealthStatus.HEALTHY)
-    monkeypatch.setattr(checker, "_check_feature_extraction_health", AsyncMock(return_value=healthy))
+    monkeypatch.setattr(
+        checker, "_check_feature_extraction_health", AsyncMock(return_value=healthy)
+    )
 
     result = await checker._check_feature_extraction_health()
 
@@ -199,7 +194,10 @@ def test_specialist_type_property(checker):
 @pytest.mark.unit
 def test_config_property(checker):
     """Testa propriedade config."""
-    assert checker.config == {"mongodb_uri": "mongodb://localhost:27017", "mongodb_database": "test-db"}
+    assert checker.config == {
+        "mongodb_uri": "mongodb://localhost:27017",
+        "mongodb_database": "test-db",
+    }
 
 
 @pytest.mark.unit
@@ -228,8 +226,12 @@ async def test_overall_status_calculation(checker, monkeypatch):
     # Mock dos checks individuais
     monkeypatch.setattr(checker, "_check_mongodb_health", AsyncMock(return_value=healthy_mongodb))
     monkeypatch.setattr(checker, "_check_mlflow_health", AsyncMock(return_value=healthy_mlflow))
-    monkeypatch.setattr(checker, "_check_feature_extraction_health", AsyncMock(return_value=healthy_features))
-    monkeypatch.setattr(checker, "_check_circuit_breakers_health", AsyncMock(return_value=healthy_circuit))
+    monkeypatch.setattr(
+        checker, "_check_feature_extraction_health", AsyncMock(return_value=healthy_features)
+    )
+    monkeypatch.setattr(
+        checker, "_check_circuit_breakers_health", AsyncMock(return_value=healthy_circuit)
+    )
     monkeypatch.setattr(checker, "_check_ledger_health", AsyncMock(return_value=healthy_ledger))
 
     # O método real verifica se todos são healthy
@@ -247,7 +249,7 @@ def test_component_health_with_all_parameters():
         status=HealthStatus.DEGRADED,
         message="Performance degraded",
         details={"cpu": 80, "memory": 70},
-        latency_ms=150.5
+        latency_ms=150.5,
     )
 
     assert comp.component_name == "full_test"
@@ -273,8 +275,12 @@ async def test_check_all_health_parallel_execution(checker, monkeypatch):
 
     monkeypatch.setattr(checker, "_check_mongodb_health", lambda: mock_check("mongodb"))
     monkeypatch.setattr(checker, "_check_mlflow_health", lambda: mock_check("mlflow"))
-    monkeypatch.setattr(checker, "_check_feature_extraction_health", lambda: mock_check("feature_extraction"))
-    monkeypatch.setattr(checker, "_check_circuit_breakers_health", lambda: mock_check("circuit_breakers"))
+    monkeypatch.setattr(
+        checker, "_check_feature_extraction_health", lambda: mock_check("feature_extraction")
+    )
+    monkeypatch.setattr(
+        checker, "_check_circuit_breakers_health", lambda: mock_check("circuit_breakers")
+    )
     monkeypatch.setattr(checker, "_check_ledger_health", lambda: mock_check("ledger"))
     monkeypatch.setattr(checker, "_is_cache_valid", lambda: False)
 

@@ -54,7 +54,9 @@ async def test_analyze_trend_stable(timeseries_analyzer):
 @pytest.mark.asyncio
 async def test_detect_anomalies_zscore(timeseries_analyzer, sample_timeseries_with_anomalies):
     """Testar detecção de anomalias com Z-Score."""
-    anomalies = timeseries_analyzer.detect_anomalies_zscore(sample_timeseries_with_anomalies, threshold=2.0)
+    anomalies = timeseries_analyzer.detect_anomalies_zscore(
+        sample_timeseries_with_anomalies, threshold=2.0
+    )
 
     assert len(anomalies) >= 2  # Pelo menos as 2 anomalias inseridas
     assert all(a.score > 2.0 for a in anomalies)
@@ -208,7 +210,10 @@ async def test_detect_anomalies_async_iqr(timeseries_analyzer):
 
     # Dados com variância
     np.random.seed(42)
-    data = [(datetime.now(timezone.utc) - timedelta(minutes=i), 50.0 + np.random.randn() * 3) for i in range(20)]
+    data = [
+        (datetime.now(timezone.utc) - timedelta(minutes=i), 50.0 + np.random.randn() * 3)
+        for i in range(20)
+    ]
     data[5] = (data[5][0], 100.0)
 
     response = await timeseries_analyzer.detect_anomalies_async(query, data)
@@ -230,7 +235,10 @@ async def test_detect_anomalies_async_moving_avg(timeseries_analyzer):
 
     # Dados com variância
     np.random.seed(42)
-    data = [(datetime.now(timezone.utc) - timedelta(minutes=i), 50.0 + np.random.randn() * 2) for i in range(20)]
+    data = [
+        (datetime.now(timezone.utc) - timedelta(minutes=i), 50.0 + np.random.randn() * 2)
+        for i in range(20)
+    ]
     data[10] = (data[10][0], 95.0)
 
     response = await timeseries_analyzer.detect_anomalies_async(query, data)

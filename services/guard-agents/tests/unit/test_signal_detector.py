@@ -144,7 +144,7 @@ class TestRateAnomalyDetection:
         event = {
             "type": "request_metrics",
             "requests_per_minute": 1000,  # Exact threshold
-            "source": "test"
+            "source": "test",
         }
 
         result = await detector._detect_rate_anomaly(event)
@@ -180,10 +180,7 @@ class TestPatternAnomalyDetection:
     async def test_path_traversal_detection(self):
         """Test path traversal pattern detection."""
         detector = ThreatDetector()
-        event = {
-            "type": "http_request",
-            "payload": "../../../etc/passwd"
-        }
+        event = {"type": "http_request", "payload": "../../../etc/passwd"}
 
         result = await detector._detect_pattern_anomaly(event)
 
@@ -194,10 +191,7 @@ class TestPatternAnomalyDetection:
     async def test_xss_detection(self):
         """Test XSS pattern detection."""
         detector = ThreatDetector()
-        event = {
-            "type": "http_request",
-            "payload": "<script>alert('xss')</script>"
-        }
+        event = {"type": "http_request", "payload": "<script>alert('xss')</script>"}
 
         result = await detector._detect_pattern_anomaly(event)
 
@@ -220,7 +214,7 @@ class TestPatternAnomalyDetection:
         detector = ThreatDetector()
         event = {
             "type": "http_request",
-            "payload": "delete from users"  # Lowercase but should still match
+            "payload": "delete from users",  # Lowercase but should still match
         }
 
         result = await detector._detect_pattern_anomaly(event)
@@ -246,7 +240,7 @@ class TestResourceAnomalyDetection:
         event = {
             "type": "resource_metrics",
             "resource_name": "node-1",
-            "metrics": {"cpu_usage": 0.90}
+            "metrics": {"cpu_usage": 0.90},
         }
 
         result = await detector._detect_resource_anomaly(event)
@@ -263,7 +257,7 @@ class TestResourceAnomalyDetection:
         event = {
             "type": "resource_metrics",
             "resource_name": "node-1",
-            "metrics": {"memory_usage": 0.95}
+            "metrics": {"memory_usage": 0.95},
         }
 
         result = await detector._detect_resource_anomaly(event)
@@ -316,16 +310,20 @@ class TestBehavioralAnomalyDetection:
         assert result["details"]["anomaly_score"] == 0.85
 
     @pytest.mark.asyncio
-    async def test_ml_anomaly_detection(self, sample_anomalous_behavior_event, mock_anomaly_detector):
+    async def test_ml_anomaly_detection(
+        self, sample_anomalous_behavior_event, mock_anomaly_detector
+    ):
         """Test ML-based anomaly detection."""
         # Configure mock to return anomaly
-        mock_anomaly_detector.detect_anomaly = AsyncMock(return_value={
-            'is_anomaly': True,
-            'anomaly_score': 0.85,
-            'anomaly_type': 'outlier',
-            'explanation': 'Unusual pattern detected',
-            'model_type': 'isolation_forest'
-        })
+        mock_anomaly_detector.detect_anomaly = AsyncMock(
+            return_value={
+                "is_anomaly": True,
+                "anomaly_score": 0.85,
+                "anomaly_type": "outlier",
+                "explanation": "Unusual pattern detected",
+                "model_type": "isolation_forest",
+            }
+        )
 
         detector = ThreatDetector(anomaly_detector=mock_anomaly_detector)
         result = await detector._detect_behavioral_anomaly(sample_anomalous_behavior_event)
@@ -336,7 +334,9 @@ class TestBehavioralAnomalyDetection:
         assert "model_type" in result["details"]
 
     @pytest.mark.asyncio
-    async def test_ml_fallback_on_failure(self, sample_anomalous_behavior_event, mock_anomaly_detector):
+    async def test_ml_fallback_on_failure(
+        self, sample_anomalous_behavior_event, mock_anomaly_detector
+    ):
         """Test fallback to heuristic when ML fails."""
         # Configure mock to raise exception
         mock_anomaly_detector.detect_anomaly = AsyncMock(side_effect=Exception("ML error"))
@@ -482,7 +482,7 @@ class TestEventToTicketConversion:
             "timestamp": 1234567890.0,
             "estimated_duration_ms": 1000,
             "sla_timeout_ms": 5000,
-            "retry_count": 2
+            "retry_count": 2,
         }
 
         ticket = detector._event_to_ticket(event)
@@ -513,22 +513,22 @@ class TestMetrics:
     """Test metrics collection."""
 
     @pytest.mark.asyncio
-    @patch('src.services.threat_detector.MetricsCollector')
-    async def test_anomaly_detection_metrics_recorded(self, mock_metrics_collector, mock_anomaly_detector):
+    @patch("src.services.threat_detector.MetricsCollector")
+    async def test_anomaly_detection_metrics_recorded(
+        self, mock_metrics_collector, mock_anomaly_detector
+    ):
         """Test that anomaly detection metrics are recorded."""
-        mock_anomaly_detector.detect_anomaly = AsyncMock(return_value={
-            'is_anomaly': True,
-            'anomaly_score': 0.85,
-            'anomaly_type': 'outlier',
-            'model_type': 'isolation_forest'
-        })
+        mock_anomaly_detector.detect_anomaly = AsyncMock(
+            return_value={
+                "is_anomaly": True,
+                "anomaly_score": 0.85,
+                "anomaly_type": "outlier",
+                "model_type": "isolation_forest",
+            }
+        )
 
         detector = ThreatDetector(anomaly_detector=mock_anomaly_detector)
-        event = {
-            "event_id": "test-001",
-            "type": "user_behavior",
-            "anomaly_score": 0.85
-        }
+        event = {"event_id": "test-001", "type": "user_behavior", "anomaly_score": 0.85}
 
         await detector._detect_behavioral_anomaly(event)
 

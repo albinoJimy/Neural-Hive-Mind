@@ -117,9 +117,7 @@ class DriftDetector:
                 "$group": {
                     "_id": None,
                     "approve_rate": {
-                        "$avg": {
-                            "$cond": [{"$eq": ["$approval_decision", "approve"]}, 1, 0]
-                        }
+                        "$avg": {"$cond": [{"$eq": ["$approval_decision", "approve"]}, 1, 0]}
                     },
                     "avg_confidence": {"$avg": "$ml_confidence"},
                     "count": {"$sum": 1},
@@ -209,8 +207,7 @@ class DriftDetector:
         """
         try:
             doc = await self.db.model_versions.find_one(
-                {"stage": "production", "is_active": True},
-                sort=[("created_at", -1)]
+                {"stage": "production", "is_active": True}, sort=[("created_at", -1)]
             )
 
             if doc and "version" in doc:
@@ -244,9 +241,7 @@ class DriftDetector:
                 "model_version": drift_data.get("model_version"),
                 "drift_detected": drift_data.get("drift_detected"),
                 "alerts": drift_data.get("alerts", []),
-                "confidence_change": drift_data.get("current", {}).get(
-                    "avg_confidence", 0
-                )
+                "confidence_change": drift_data.get("current", {}).get("avg_confidence", 0)
                 - drift_data.get("baseline", {}).get("avg_confidence", 0),
             }
 
@@ -256,9 +251,7 @@ class DriftDetector:
                 value=json.dumps(event),
             )
 
-            logger.info(
-                f"Alerta de drift publicado para modelo {event['model_version']}"
-            )
+            logger.info(f"Alerta de drift publicado para modelo {event['model_version']}")
             return True
 
         except Exception as e:
@@ -279,9 +272,7 @@ class DriftDetector:
 
         # Adiciona recomendação
         if drift_data.get("drift_detected"):
-            drift_data[
-                "recommendation"
-            ] = "Consider retraining with latest 100+ samples"
+            drift_data["recommendation"] = "Consider retraining with latest 100+ samples"
 
         return drift_data
 
@@ -350,9 +341,7 @@ class CanaryDeployer:
         }
 
         # Publica evento Kafka
-        await self._publish_canary_event(
-            "canary_started", canary_id, version, target_version
-        )
+        await self._publish_canary_event("canary_started", canary_id, version, target_version)
 
         return {
             "canary_id": canary_id,
@@ -448,9 +437,7 @@ class CanaryDeployer:
             "metrics_summary": {"f1_delta": f1_delta, "sample_count": canary_samples},
         }
 
-    async def promote_or_rollback(
-        self, canary_id: str, should_promote: bool
-    ) -> Dict[str, Any]:
+    async def promote_or_rollback(self, canary_id: str, should_promote: bool) -> Dict[str, Any]:
         """
         Promove ou faz rollback baseado em validação.
 

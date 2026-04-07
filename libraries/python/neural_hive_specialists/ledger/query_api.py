@@ -49,9 +49,7 @@ class LedgerQueryAPI:
     def mongo_client(self) -> MongoClient:
         """Lazy initialization do cliente MongoDB."""
         if self._mongo_client is None:
-            self._mongo_client = MongoClient(
-                self.mongodb_uri, serverSelectionTimeoutMS=5000
-            )
+            self._mongo_client = MongoClient(self.mongodb_uri, serverSelectionTimeoutMS=5000)
         return self._mongo_client
 
     @property
@@ -115,25 +113,19 @@ class LedgerQueryAPI:
             Lista de opiniões de todos os especialistas
         """
         try:
-            cursor = self.collection.find({"plan_id": plan_id}).sort(
-                "evaluated_at", ASCENDING
-            )
+            cursor = self.collection.find({"plan_id": plan_id}).sort("evaluated_at", ASCENDING)
 
             opinions = list(cursor)
 
             for opinion in opinions:
                 opinion.pop("_id", None)
 
-            logger.debug(
-                "Opinions retrieved by plan", plan_id=plan_id, count=len(opinions)
-            )
+            logger.debug("Opinions retrieved by plan", plan_id=plan_id, count=len(opinions))
 
             return opinions
 
         except PyMongoError as e:
-            logger.error(
-                "Failed to query opinions by plan", plan_id=plan_id, error=str(e)
-            )
+            logger.error("Failed to query opinions by plan", plan_id=plan_id, error=str(e))
             return []
 
     def get_opinions_by_recommendation(
@@ -218,9 +210,7 @@ class LedgerQueryAPI:
             logger.error("Failed to query high-risk opinions", error=str(e))
             return []
 
-    def get_opinions_by_correlation_id(
-        self, correlation_id: str
-    ) -> List[Dict[str, Any]]:
+    def get_opinions_by_correlation_id(self, correlation_id: str) -> List[Dict[str, Any]]:
         """
         Busca todas as opiniões de uma transação (correlation_id).
 
@@ -454,9 +444,7 @@ class LedgerQueryAPI:
             document = self.collection.find_one({"opinion_id": opinion_id})
 
             if not document:
-                logger.warning(
-                    "Opinion not found for integrity check", opinion_id=opinion_id
-                )
+                logger.warning("Opinion not found for integrity check", opinion_id=opinion_id)
                 return None
 
             # Verificar hash de conteúdo
@@ -507,16 +495,12 @@ class LedgerQueryAPI:
             for opinion in opinions:
                 opinion.pop("_id", None)
 
-            logger.debug(
-                "Opinions retrieved by domain", domain=domain, count=len(opinions)
-            )
+            logger.debug("Opinions retrieved by domain", domain=domain, count=len(opinions))
 
             return opinions
 
         except PyMongoError as e:
-            logger.error(
-                "Failed to query opinions by domain", domain=domain, error=str(e)
-            )
+            logger.error("Failed to query opinions by domain", domain=domain, error=str(e))
             return []
 
     def get_opinions_by_feature(
@@ -535,22 +519,14 @@ class LedgerQueryAPI:
         """
         try:
             query: Dict[str, Any] = {
-                "opinion.reasoning_factors": {
-                    "$elemMatch": {"factor_name": feature_name}
-                }
+                "opinion.reasoning_factors": {"$elemMatch": {"factor_name": feature_name}}
             }
 
             # Filtro de score mínimo se especificado
             if min_score is not None:
-                query["opinion.reasoning_factors"]["$elemMatch"]["score"] = {
-                    "$gte": min_score
-                }
+                query["opinion.reasoning_factors"]["$elemMatch"]["score"] = {"$gte": min_score}
 
-            cursor = (
-                self.collection.find(query)
-                .sort("evaluated_at", DESCENDING)
-                .limit(limit)
-            )
+            cursor = self.collection.find(query).sort("evaluated_at", DESCENDING).limit(limit)
 
             opinions = list(cursor)
             for opinion in opinions:
@@ -591,11 +567,7 @@ class LedgerQueryAPI:
             # Construir query dinâmica
             query = {f"opinion.{field_path}": field_value}
 
-            cursor = (
-                self.collection.find(query)
-                .sort("evaluated_at", DESCENDING)
-                .limit(limit)
-            )
+            cursor = self.collection.find(query).sort("evaluated_at", DESCENDING).limit(limit)
 
             opinions = list(cursor)
             for opinion in opinions:
@@ -636,9 +608,7 @@ class LedgerQueryAPI:
             Lista de opiniões com mitigações
         """
         try:
-            query: Dict[str, Any] = {
-                "opinion.mitigations": {"$exists": True, "$ne": []}
-            }
+            query: Dict[str, Any] = {"opinion.mitigations": {"$exists": True, "$ne": []}}
 
             # Filtros opcionais
             if mitigation_type or priority:
@@ -649,11 +619,7 @@ class LedgerQueryAPI:
                     elem_match["priority"] = priority
                 query["opinion.mitigations"] = {"$elemMatch": elem_match}
 
-            cursor = (
-                self.collection.find(query)
-                .sort("evaluated_at", DESCENDING)
-                .limit(limit)
-            )
+            cursor = self.collection.find(query).sort("evaluated_at", DESCENDING).limit(limit)
 
             opinions = list(cursor)
             for opinion in opinions:
@@ -689,9 +655,7 @@ class LedgerQueryAPI:
             self.collection.create_index([("plan_id", ASCENDING)], name="idx_plan_id")
 
             # Index por intent_id
-            self.collection.create_index(
-                [("intent_id", ASCENDING)], name="idx_intent_id"
-            )
+            self.collection.create_index([("intent_id", ASCENDING)], name="idx_intent_id")
 
             # Index composto specialist_type + evaluated_at
             self.collection.create_index(
@@ -700,9 +664,7 @@ class LedgerQueryAPI:
             )
 
             # Index por correlation_id
-            self.collection.create_index(
-                [("correlation_id", ASCENDING)], name="idx_correlation_id"
-            )
+            self.collection.create_index([("correlation_id", ASCENDING)], name="idx_correlation_id")
 
             # Index por domain (v2)
             self.collection.create_index(
@@ -722,9 +684,7 @@ class LedgerQueryAPI:
             )
 
             # Index por schema_version (v2)
-            self.collection.create_index(
-                [("schema_version", ASCENDING)], name="idx_schema_version"
-            )
+            self.collection.create_index([("schema_version", ASCENDING)], name="idx_schema_version")
 
             # Index por digital_signature (sparse, v2)
             self.collection.create_index(

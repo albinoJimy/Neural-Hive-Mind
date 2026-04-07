@@ -7,6 +7,7 @@ a operacoes assincronas, com metricas e logging.
 import asyncio
 from collections.abc import Callable
 from datetime import datetime, timezone
+
 UTC = timezone.utc  # type: ignore
 from functools import wraps
 from typing import Any, TypeVar

@@ -13,12 +13,7 @@ import numpy as np
 import pandas as pd
 from datetime import datetime, timezone, timedelta
 from unittest.mock import AsyncMock, MagicMock
-from sklearn.metrics import (
-    precision_score,
-    recall_score,
-    f1_score,
-    confusion_matrix
-)
+from sklearn.metrics import precision_score, recall_score, f1_score, confusion_matrix
 
 import sys
 from pathlib import Path
@@ -29,7 +24,7 @@ from ml.anomaly_detector import AnomalyDetector
 from ml.anomaly_training_utils import (
     prepare_anomaly_training_data,
     validate_anomaly_training_data,
-    _apply_heuristic_labels
+    _apply_heuristic_labels,
 )
 
 
@@ -85,86 +80,85 @@ class TestAnomalyDetectorAccuracy:
 
         # Tickets normais
         for i in range(n_normal):
-            task_type = np.random.choice(['INFERENCE', 'PREPROCESSING', 'ANALYSIS'])
-            risk_band = np.random.choice(['low', 'medium', 'high'])
+            task_type = np.random.choice(["INFERENCE", "PREPROCESSING", "ANALYSIS"])
+            risk_band = np.random.choice(["low", "medium", "high"])
 
             # Duração normal para o task_type
-            base_duration = {
-                'INFERENCE': 30000,
-                'PREPROCESSING': 15000,
-                'ANALYSIS': 60000
-            }[task_type]
+            base_duration = {"INFERENCE": 30000, "PREPROCESSING": 15000, "ANALYSIS": 60000}[
+                task_type
+            ]
 
             duration = base_duration * np.random.uniform(0.7, 1.3)
 
-            tickets.append({
-                'ticket_id': f'normal-{i}',
-                'task_type': task_type,
-                'risk_band': risk_band,
-                'actual_duration_ms': duration,
-                'estimated_duration_ms': duration * np.random.uniform(0.8, 1.2),
-                'status': 'COMPLETED',
-                'created_at': datetime.now(timezone.utc) - timedelta(days=np.random.randint(1, 30)),
-                'retry_count': np.random.choice([0, 0, 0, 1]),  # Maioria sem retry
-                'required_capabilities': ['cpu'][:np.random.randint(1, 3)],
-                'parameters': {},
-                'sla_timeout_ms': 300000,
-                'resource_cpu': 0.5,
-                'resource_memory': 512,
-                'is_anomaly': 0  # Label conhecido
-            })
+            tickets.append(
+                {
+                    "ticket_id": f"normal-{i}",
+                    "task_type": task_type,
+                    "risk_band": risk_band,
+                    "actual_duration_ms": duration,
+                    "estimated_duration_ms": duration * np.random.uniform(0.8, 1.2),
+                    "status": "COMPLETED",
+                    "created_at": datetime.now(timezone.utc)
+                    - timedelta(days=np.random.randint(1, 30)),
+                    "retry_count": np.random.choice([0, 0, 0, 1]),  # Maioria sem retry
+                    "required_capabilities": ["cpu"][: np.random.randint(1, 3)],
+                    "parameters": {},
+                    "sla_timeout_ms": 300000,
+                    "resource_cpu": 0.5,
+                    "resource_memory": 512,
+                    "is_anomaly": 0,  # Label conhecido
+                }
+            )
 
         # Tickets anômalos (diferentes tipos de anomalia)
-        anomaly_types = ['duration', 'retry', 'resource', 'capability']
+        anomaly_types = ["duration", "retry", "resource", "capability"]
 
         for i in range(n_anomalies):
             anomaly_type = np.random.choice(anomaly_types)
-            task_type = np.random.choice(['INFERENCE', 'PREPROCESSING', 'ANALYSIS'])
-            risk_band = 'low'  # Anomalia: baixo risco mas características problemáticas
+            task_type = np.random.choice(["INFERENCE", "PREPROCESSING", "ANALYSIS"])
+            risk_band = "low"  # Anomalia: baixo risco mas características problemáticas
 
-            base_duration = {
-                'INFERENCE': 30000,
-                'PREPROCESSING': 15000,
-                'ANALYSIS': 60000
-            }[task_type]
+            base_duration = {"INFERENCE": 30000, "PREPROCESSING": 15000, "ANALYSIS": 60000}[
+                task_type
+            ]
 
             ticket = {
-                'ticket_id': f'anomaly-{i}',
-                'task_type': task_type,
-                'risk_band': risk_band,
-                'status': 'COMPLETED' if np.random.random() > 0.3 else 'FAILED',
-                'created_at': datetime.now(timezone.utc) - timedelta(days=np.random.randint(1, 30)),
-                'parameters': {},
-                'sla_timeout_ms': 300000,
-                'resource_cpu': 0.5,
-                'resource_memory': 512,
-                'is_anomaly': 1  # Label conhecido
+                "ticket_id": f"anomaly-{i}",
+                "task_type": task_type,
+                "risk_band": risk_band,
+                "status": "COMPLETED" if np.random.random() > 0.3 else "FAILED",
+                "created_at": datetime.now(timezone.utc) - timedelta(days=np.random.randint(1, 30)),
+                "parameters": {},
+                "sla_timeout_ms": 300000,
+                "resource_cpu": 0.5,
+                "resource_memory": 512,
+                "is_anomaly": 1,  # Label conhecido
             }
 
             # Injetar anomalia específica
-            if anomaly_type == 'duration':
+            if anomaly_type == "duration":
                 # Duração muito acima do normal (5x+)
-                ticket['actual_duration_ms'] = base_duration * np.random.uniform(5, 10)
-                ticket['estimated_duration_ms'] = base_duration
-            elif anomaly_type == 'retry':
+                ticket["actual_duration_ms"] = base_duration * np.random.uniform(5, 10)
+                ticket["estimated_duration_ms"] = base_duration
+            elif anomaly_type == "retry":
                 # Muitos retries
-                ticket['actual_duration_ms'] = base_duration * 1.2
-                ticket['estimated_duration_ms'] = base_duration
-                ticket['retry_count'] = np.random.randint(3, 6)
-            elif anomaly_type == 'resource':
+                ticket["actual_duration_ms"] = base_duration * 1.2
+                ticket["estimated_duration_ms"] = base_duration
+                ticket["retry_count"] = np.random.randint(3, 6)
+            elif anomaly_type == "resource":
                 # Resource mismatch (baixo risco mas alta demanda)
-                ticket['actual_duration_ms'] = base_duration * 2
-                ticket['estimated_duration_ms'] = base_duration
-                ticket['resource_cpu'] = 4.0
-                ticket['resource_memory'] = 8192
+                ticket["actual_duration_ms"] = base_duration * 2
+                ticket["estimated_duration_ms"] = base_duration
+                ticket["resource_cpu"] = 4.0
+                ticket["resource_memory"] = 8192
             else:  # capability
                 # Número anormal de capabilities
-                ticket['actual_duration_ms'] = base_duration * 1.5
-                ticket['estimated_duration_ms'] = base_duration
-                ticket['required_capabilities'] = ['cap' + str(j) for j in range(15)]
+                ticket["actual_duration_ms"] = base_duration * 1.5
+                ticket["estimated_duration_ms"] = base_duration
+                ticket["required_capabilities"] = ["cap" + str(j) for j in range(15)]
 
-            ticket['retry_count'] = ticket.get('retry_count', 0)
-            ticket['required_capabilities'] = ticket.get('required_capabilities', ['cpu'])
+            ticket["retry_count"] = ticket.get("retry_count", 0)
+            ticket["required_capabilities"] = ticket.get("required_capabilities", ["cpu"])
 
             tickets.append(ticket)
 
@@ -173,10 +167,7 @@ class TestAnomalyDetectorAccuracy:
         return tickets
 
     @pytest.mark.asyncio
-    async def test_precision_threshold(
-        self,
-        sample_tickets_with_anomalies
-    ):
+    async def test_precision_threshold(self, sample_tickets_with_anomalies):
         """
         Testa se Precision está acima de 75%.
 
@@ -186,7 +177,7 @@ class TestAnomalyDetectorAccuracy:
         df = pd.DataFrame(sample_tickets_with_anomalies)
 
         # Simular predições do modelo (melhor que random)
-        y_true = df['is_anomaly'].values
+        y_true = df["is_anomaly"].values
 
         # Modelo detecta ~80% das anomalias corretamente e tem ~90% precision
         y_pred = np.zeros(len(y_true))
@@ -195,26 +186,20 @@ class TestAnomalyDetectorAccuracy:
 
         # True Positives: detectar 80% das anomalias
         tp_indices = np.random.choice(
-            anomaly_indices,
-            size=int(len(anomaly_indices) * 0.80),
-            replace=False
+            anomaly_indices, size=int(len(anomaly_indices) * 0.80), replace=False
         )
         y_pred[tp_indices] = 1
 
         # False Positives: ~5% dos normais
         fp_indices = np.random.choice(
-            normal_indices,
-            size=int(len(normal_indices) * 0.05),
-            replace=False
+            normal_indices, size=int(len(normal_indices) * 0.05), replace=False
         )
         y_pred[fp_indices] = 1
 
         # Calcular precision
         precision = precision_score(y_true, y_pred, zero_division=0)
 
-        assert precision > 0.75, (
-            f"Precision ({precision:.2%}) está abaixo do threshold de 75%"
-        )
+        assert precision > 0.75, f"Precision ({precision:.2%}) está abaixo do threshold de 75%"
 
         print(f"\n=== Teste Precision ===")
         print(f"Precision: {precision:.2%}")
@@ -222,10 +207,7 @@ class TestAnomalyDetectorAccuracy:
         print(f"Status: PASS ✓")
 
     @pytest.mark.asyncio
-    async def test_recall_threshold(
-        self,
-        sample_tickets_with_anomalies
-    ):
+    async def test_recall_threshold(self, sample_tickets_with_anomalies):
         """
         Testa se Recall está acima de 60%.
 
@@ -234,7 +216,7 @@ class TestAnomalyDetectorAccuracy:
         """
         df = pd.DataFrame(sample_tickets_with_anomalies)
 
-        y_true = df['is_anomaly'].values
+        y_true = df["is_anomaly"].values
         y_pred = np.zeros(len(y_true))
 
         anomaly_indices = np.where(y_true == 1)[0]
@@ -242,26 +224,20 @@ class TestAnomalyDetectorAccuracy:
 
         # True Positives: detectar 75% das anomalias
         tp_indices = np.random.choice(
-            anomaly_indices,
-            size=int(len(anomaly_indices) * 0.75),
-            replace=False
+            anomaly_indices, size=int(len(anomaly_indices) * 0.75), replace=False
         )
         y_pred[tp_indices] = 1
 
         # False Positives: ~10% dos normais
         fp_indices = np.random.choice(
-            normal_indices,
-            size=int(len(normal_indices) * 0.10),
-            replace=False
+            normal_indices, size=int(len(normal_indices) * 0.10), replace=False
         )
         y_pred[fp_indices] = 1
 
         # Calcular recall
         recall = recall_score(y_true, y_pred, zero_division=0)
 
-        assert recall > 0.60, (
-            f"Recall ({recall:.2%}) está abaixo do threshold de 60%"
-        )
+        assert recall > 0.60, f"Recall ({recall:.2%}) está abaixo do threshold de 60%"
 
         print(f"\n=== Teste Recall ===")
         print(f"Recall: {recall:.2%}")
@@ -269,10 +245,7 @@ class TestAnomalyDetectorAccuracy:
         print(f"Status: PASS ✓")
 
     @pytest.mark.asyncio
-    async def test_f1_score_threshold(
-        self,
-        sample_tickets_with_anomalies
-    ):
+    async def test_f1_score_threshold(self, sample_tickets_with_anomalies):
         """
         Testa se F1 Score está acima de 0.65.
 
@@ -280,7 +253,7 @@ class TestAnomalyDetectorAccuracy:
         """
         df = pd.DataFrame(sample_tickets_with_anomalies)
 
-        y_true = df['is_anomaly'].values
+        y_true = df["is_anomaly"].values
         y_pred = np.zeros(len(y_true))
 
         anomaly_indices = np.where(y_true == 1)[0]
@@ -288,25 +261,19 @@ class TestAnomalyDetectorAccuracy:
 
         # Simular predições balanceadas
         tp_indices = np.random.choice(
-            anomaly_indices,
-            size=int(len(anomaly_indices) * 0.75),
-            replace=False
+            anomaly_indices, size=int(len(anomaly_indices) * 0.75), replace=False
         )
         y_pred[tp_indices] = 1
 
         fp_indices = np.random.choice(
-            normal_indices,
-            size=int(len(normal_indices) * 0.08),
-            replace=False
+            normal_indices, size=int(len(normal_indices) * 0.08), replace=False
         )
         y_pred[fp_indices] = 1
 
         # Calcular F1
         f1 = f1_score(y_true, y_pred, zero_division=0)
 
-        assert f1 > 0.65, (
-            f"F1 Score ({f1:.3f}) está abaixo do threshold de 0.65"
-        )
+        assert f1 > 0.65, f"F1 Score ({f1:.3f}) está abaixo do threshold de 0.65"
 
         print(f"\n=== Teste F1 Score ===")
         print(f"F1 Score: {f1:.3f}")
@@ -314,10 +281,7 @@ class TestAnomalyDetectorAccuracy:
         print(f"Status: PASS ✓")
 
     @pytest.mark.asyncio
-    async def test_false_positive_rate(
-        self,
-        sample_tickets_with_anomalies
-    ):
+    async def test_false_positive_rate(self, sample_tickets_with_anomalies):
         """
         Testa se False Positive Rate está abaixo de 10%.
 
@@ -326,7 +290,7 @@ class TestAnomalyDetectorAccuracy:
         """
         df = pd.DataFrame(sample_tickets_with_anomalies)
 
-        y_true = df['is_anomaly'].values
+        y_true = df["is_anomaly"].values
         y_pred = np.zeros(len(y_true))
 
         anomaly_indices = np.where(y_true == 1)[0]
@@ -334,28 +298,20 @@ class TestAnomalyDetectorAccuracy:
 
         # True Positives
         tp_indices = np.random.choice(
-            anomaly_indices,
-            size=int(len(anomaly_indices) * 0.75),
-            replace=False
+            anomaly_indices, size=int(len(anomaly_indices) * 0.75), replace=False
         )
         y_pred[tp_indices] = 1
 
         # False Positives: manter abaixo de 10%
         fp_count = int(len(normal_indices) * 0.07)
-        fp_indices = np.random.choice(
-            normal_indices,
-            size=fp_count,
-            replace=False
-        )
+        fp_indices = np.random.choice(normal_indices, size=fp_count, replace=False)
         y_pred[fp_indices] = 1
 
         # Calcular FPR usando confusion matrix
         tn, fp, fn, tp = confusion_matrix(y_true, y_pred).ravel()
         fpr = fp / (fp + tn)
 
-        assert fpr < 0.10, (
-            f"False Positive Rate ({fpr:.2%}) excede 10%"
-        )
+        assert fpr < 0.10, f"False Positive Rate ({fpr:.2%}) excede 10%"
 
         print(f"\n=== Teste False Positive Rate ===")
         print(f"FPR: {fpr:.2%}")
@@ -364,10 +320,7 @@ class TestAnomalyDetectorAccuracy:
         print(f"Status: PASS ✓")
 
     @pytest.mark.asyncio
-    async def test_synthetic_anomaly_detection(
-        self,
-        sample_tickets_with_anomalies
-    ):
+    async def test_synthetic_anomaly_detection(self, sample_tickets_with_anomalies):
         """
         Testa detecção de anomalias sintéticas conhecidas.
 
@@ -376,51 +329,51 @@ class TestAnomalyDetectorAccuracy:
         # Anomalias sintéticas conhecidas
         synthetic_anomalies = [
             {
-                'type': 'extreme_duration',
-                'actual_duration_ms': 500000,  # 500s (muito alto)
-                'estimated_duration_ms': 30000,
-                'task_type': 'INFERENCE',
-                'risk_band': 'low',
-                'retry_count': 0,
-                'required_capabilities': ['cpu']
+                "type": "extreme_duration",
+                "actual_duration_ms": 500000,  # 500s (muito alto)
+                "estimated_duration_ms": 30000,
+                "task_type": "INFERENCE",
+                "risk_band": "low",
+                "retry_count": 0,
+                "required_capabilities": ["cpu"],
             },
             {
-                'type': 'many_retries',
-                'actual_duration_ms': 30000,
-                'estimated_duration_ms': 30000,
-                'task_type': 'PREPROCESSING',
-                'risk_band': 'medium',
-                'retry_count': 5,
-                'required_capabilities': ['cpu']
+                "type": "many_retries",
+                "actual_duration_ms": 30000,
+                "estimated_duration_ms": 30000,
+                "task_type": "PREPROCESSING",
+                "risk_band": "medium",
+                "retry_count": 5,
+                "required_capabilities": ["cpu"],
             },
             {
-                'type': 'sla_breach',
-                'actual_duration_ms': 295000,  # Quase 5 min (SLA timeout)
-                'estimated_duration_ms': 60000,
-                'sla_timeout_ms': 300000,
-                'task_type': 'ANALYSIS',
-                'risk_band': 'high',
-                'retry_count': 2,
-                'required_capabilities': ['cpu', 'gpu']
+                "type": "sla_breach",
+                "actual_duration_ms": 295000,  # Quase 5 min (SLA timeout)
+                "estimated_duration_ms": 60000,
+                "sla_timeout_ms": 300000,
+                "task_type": "ANALYSIS",
+                "risk_band": "high",
+                "retry_count": 2,
+                "required_capabilities": ["cpu", "gpu"],
             },
             {
-                'type': 'many_capabilities',
-                'actual_duration_ms': 45000,
-                'estimated_duration_ms': 30000,
-                'task_type': 'INFERENCE',
-                'risk_band': 'low',
-                'retry_count': 0,
-                'required_capabilities': ['cap' + str(i) for i in range(20)]
-            }
+                "type": "many_capabilities",
+                "actual_duration_ms": 45000,
+                "estimated_duration_ms": 30000,
+                "task_type": "INFERENCE",
+                "risk_band": "low",
+                "retry_count": 0,
+                "required_capabilities": ["cap" + str(i) for i in range(20)],
+            },
         ]
 
         # Aplicar heurísticas de labeling
         for anomaly in synthetic_anomalies:
-            anomaly['status'] = 'COMPLETED'
-            anomaly['parameters'] = {}
-            anomaly['sla_timeout_ms'] = anomaly.get('sla_timeout_ms', 300000)
-            anomaly['resource_cpu'] = 0.5
-            anomaly['resource_memory'] = 512
+            anomaly["status"] = "COMPLETED"
+            anomaly["parameters"] = {}
+            anomaly["sla_timeout_ms"] = anomaly.get("sla_timeout_ms", 300000)
+            anomaly["resource_cpu"] = 0.5
+            anomaly["resource_memory"] = 512
 
         df = pd.DataFrame(synthetic_anomalies)
         labels = _apply_heuristic_labels(df)
@@ -450,20 +403,17 @@ class TestAnomalyTrainingDataValidation:
         # Gerar dados de exemplo
         n = 500
         data = {
-            'actual_duration_ms': np.random.lognormal(10, 0.5, n) * 1000,
-            'estimated_duration_ms': np.random.lognormal(10, 0.4, n) * 1000,
-            'retry_count': np.random.choice([0, 0, 0, 1, 2], n),
-            'sla_timeout_ms': np.ones(n) * 300000,
-            'task_type': np.random.choice(['A', 'B', 'C'], n),
-            'risk_band': np.random.choice(['low', 'medium', 'high'], n)
+            "actual_duration_ms": np.random.lognormal(10, 0.5, n) * 1000,
+            "estimated_duration_ms": np.random.lognormal(10, 0.4, n) * 1000,
+            "retry_count": np.random.choice([0, 0, 0, 1, 2], n),
+            "sla_timeout_ms": np.ones(n) * 300000,
+            "task_type": np.random.choice(["A", "B", "C"], n),
+            "risk_band": np.random.choice(["low", "medium", "high"], n),
         }
         df = pd.DataFrame(data)
 
         # Preparar dados
-        X_train, X_test, y_train, y_test = prepare_anomaly_training_data(
-            df=df,
-            synthetic_ratio=0.1
-        )
+        X_train, X_test, y_train, y_test = prepare_anomaly_training_data(df=df, synthetic_ratio=0.1)
 
         # Validar shapes
         assert len(X_train) > 0, "X_train vazio"
@@ -487,18 +437,17 @@ class TestAnomalyTrainingDataValidation:
         np.random.seed(42)
 
         # Dados válidos
-        X_valid = pd.DataFrame({
-            'feature1': np.random.randn(200),
-            'feature2': np.random.randn(200),
-            'feature3': np.random.randn(200)
-        })
+        X_valid = pd.DataFrame(
+            {
+                "feature1": np.random.randn(200),
+                "feature2": np.random.randn(200),
+                "feature3": np.random.randn(200),
+            }
+        )
         y_valid = np.random.choice([0, 0, 0, 0, 0, 0, 0, 0, 0, 1], 200)
 
         is_valid, issues = validate_anomaly_training_data(
-            X_valid, y_valid,
-            min_samples=100,
-            min_anomaly_ratio=0.01,
-            max_anomaly_ratio=0.5
+            X_valid, y_valid, min_samples=100, min_anomaly_ratio=0.01, max_anomaly_ratio=0.5
         )
 
         assert is_valid, f"Dados válidos rejeitados: {issues}"
@@ -508,8 +457,7 @@ class TestAnomalyTrainingDataValidation:
         y_small = y_valid[:50]
 
         is_valid_small, issues_small = validate_anomaly_training_data(
-            X_small, y_small,
-            min_samples=100
+            X_small, y_small, min_samples=100
         )
 
         assert not is_valid_small, "Dados pequenos deveriam ser rejeitados"
@@ -533,12 +481,8 @@ class TestAnomalyTrainingDataValidation:
         y_pred = y_true.copy()
 
         # Adicionar alguns erros
-        fp_indices = np.random.choice(
-            np.where(y_true == 0)[0], 30, replace=False
-        )
-        fn_indices = np.random.choice(
-            np.where(y_true == 1)[0], 15, replace=False
-        )
+        fp_indices = np.random.choice(np.where(y_true == 0)[0], 30, replace=False)
+        fn_indices = np.random.choice(np.where(y_true == 1)[0], 15, replace=False)
         y_pred[fp_indices] = 1
         y_pred[fn_indices] = 0
 

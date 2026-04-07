@@ -7,6 +7,7 @@ from enum import Enum
 from types import ModuleType
 from unittest.mock import Mock, MagicMock
 
+
 # Mock de dependências externas - criar Enum compatível com Pydantic e Conflict model
 class MockUnifiedDomain(Enum):
     """Mock de UnifiedDomain como Enum, compatível com o modelo Conflict."""
@@ -23,6 +24,7 @@ class MockUnifiedDomain(Enum):
     def __str__(self) -> str:
         return self.value
 
+
 # Criar módulo real para neural_hive_domain
 mock_domain_module = ModuleType("neural_hive_domain")
 mock_domain_module.UnifiedDomain = MockUnifiedDomain
@@ -38,7 +40,9 @@ mock_sdk_module = ModuleType("neural_hive_agent_sdk")
 mock_observability_module = ModuleType("neural_hive_observability")
 mock_observability_module.get_logger = Mock(return_value=MagicMock())
 # instrument_grpc_channel deve retornar o mesmo canal que recebe (identity function)
-mock_observability_module.instrument_grpc_channel = Mock(side_effect=lambda channel, **kwargs: channel)
+mock_observability_module.instrument_grpc_channel = Mock(
+    side_effect=lambda channel, **kwargs: channel
+)
 
 # Submódulo context
 mock_context_module = ModuleType("neural_hive_observability.context")
@@ -48,6 +52,7 @@ mock_observability_module.context = mock_context_module
 # Submódulo metrics
 mock_metrics_module = ModuleType("neural_hive_observability.metrics")
 
+
 # Mock QueenAgentMetrics com todos os atributos necessários
 def create_counter_mock():
     counter = MagicMock()
@@ -55,11 +60,13 @@ def create_counter_mock():
     counter.labels = MagicMock(return_value=counter)
     return counter
 
+
 def create_histogram_mock():
     histogram = MagicMock()
     histogram.observe = MagicMock()
     histogram.labels = MagicMock(return_value=histogram)
     return histogram
+
 
 def create_gauge_mock():
     gauge = MagicMock()
@@ -67,6 +74,7 @@ def create_gauge_mock():
     gauge.inc = MagicMock()
     gauge.labels = MagicMock(return_value=gauge)
     return gauge
+
 
 mock_queen_agent_metrics = MagicMock()
 mock_queen_agent_metrics.decision_actions_total = create_counter_mock()
@@ -107,8 +115,9 @@ sys.modules["prometheus_client"] = mock_prometheus_client_module
 # Importar src primeiro se disponível
 try:
     import src
+
     # Se src já existe como módulo, apenas adicionar o mock de observability
-    if not hasattr(src, 'observability'):
+    if not hasattr(src, "observability"):
         mock_src_observability_module = ModuleType("src.observability")
         mock_src_observability_module.metrics = mock_metrics_module
         mock_src_observability_module.context = mock_context_module

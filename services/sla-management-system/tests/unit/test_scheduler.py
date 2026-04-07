@@ -8,8 +8,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, timezone, timedelta
 
 from src.models.schedule import (
-    Schedule, ScheduleType, ScheduleStatus, ScheduleTrigger,
-    SchedulePriority, ScheduleExecution
+    Schedule,
+    ScheduleType,
+    ScheduleStatus,
+    ScheduleTrigger,
+    SchedulePriority,
+    ScheduleExecution,
 )
 from src.services.scheduler import ScheduleManager
 
@@ -41,17 +45,14 @@ def schedule_manager(mock_postgresql_client, mock_temporal_client):
         postgresql_client=mock_postgresql_client,
         temporal_client=mock_temporal_client,
         temporal_namespace="default",
-        temporal_task_queue="sla-tasks"
+        temporal_task_queue="sla-tasks",
     )
 
 
 @pytest.fixture
 def sample_trigger():
     """Trigger de exemplo."""
-    return ScheduleTrigger(
-        cron_expression="0 * * * *",
-        parameters={"slo_id": "test-slo"}
-    )
+    return ScheduleTrigger(cron_expression="0 * * * *", parameters={"slo_id": "test-slo"})
 
 
 class TestScheduleManagerCreation:
@@ -68,7 +69,7 @@ class TestScheduleManagerCreation:
             workflow="BudgetRecalculationWorkflow",
             schedule_type=ScheduleType.CRON,
             trigger=sample_trigger,
-            priority=SchedulePriority.MEDIUM
+            priority=SchedulePriority.MEDIUM,
         )
 
         assert schedule_id is not None
@@ -80,14 +81,14 @@ class TestScheduleManagerCreation:
         trigger = ScheduleTrigger(
             event_type="slo.violation",
             event_filter={"severity": "CRITICAL"},
-            parameters={"slo_id": "test-slo"}
+            parameters={"slo_id": "test-slo"},
         )
 
         schedule_id = await schedule_manager.create_schedule(
             workflow="RemediationWorkflow",
             schedule_type=ScheduleType.EVENT,
             trigger=trigger,
-            priority=SchedulePriority.HIGH
+            priority=SchedulePriority.HIGH,
         )
 
         assert schedule_id is not None
@@ -95,15 +96,13 @@ class TestScheduleManagerCreation:
     @pytest.mark.asyncio
     async def test_create_manual_schedule(self, schedule_manager):
         """Deve criar schedule manual."""
-        trigger = ScheduleTrigger(
-            parameters={"manual_trigger": True}
-        )
+        trigger = ScheduleTrigger(parameters={"manual_trigger": True})
 
         schedule_id = await schedule_manager.create_schedule(
             workflow="ManualWorkflow",
             schedule_type=ScheduleType.MANUAL,
             trigger=trigger,
-            priority=SchedulePriority.LOW
+            priority=SchedulePriority.LOW,
         )
 
         assert schedule_id is not None
@@ -113,9 +112,7 @@ class TestScheduleManagerRetrieval:
     """Testes de recuperação de schedules."""
 
     @pytest.mark.asyncio
-    async def test_get_schedule_found(
-        self, schedule_manager, mock_postgresql_client
-    ):
+    async def test_get_schedule_found(self, schedule_manager, mock_postgresql_client):
         """Deve retornar schedule quando encontrado."""
         from json import dumps
 
@@ -123,10 +120,7 @@ class TestScheduleManagerRetrieval:
             "schedule_id": "test-id",
             "workflow": "TestWorkflow",
             "schedule_type": "cron",
-            "trigger_data": dumps({
-                "cron_expression": "0 * * * *",
-                "parameters": {}
-            }),
+            "trigger_data": dumps({"cron_expression": "0 * * * *", "parameters": {}}),
             "priority": "medium",
             "status": "active",
             "created_at": datetime.now(timezone.utc),
@@ -135,7 +129,7 @@ class TestScheduleManagerRetrieval:
             "next_run_at": None,
             "total_runs": 0,
             "failure_count": 0,
-            "metadata": "{}"
+            "metadata": "{}",
         }
         mock_postgresql_client.fetchrow.return_value = mock_row
 
@@ -147,9 +141,7 @@ class TestScheduleManagerRetrieval:
         assert schedule.status == ScheduleStatus.ACTIVE
 
     @pytest.mark.asyncio
-    async def test_get_schedule_not_found(
-        self, schedule_manager, mock_postgresql_client
-    ):
+    async def test_get_schedule_not_found(self, schedule_manager, mock_postgresql_client):
         """Deve retornar None quando não encontrado."""
         mock_postgresql_client.fetchrow.return_value = None
 
@@ -158,27 +150,27 @@ class TestScheduleManagerRetrieval:
         assert schedule is None
 
     @pytest.mark.asyncio
-    async def test_list_schedules(
-        self, schedule_manager, mock_postgresql_client
-    ):
+    async def test_list_schedules(self, schedule_manager, mock_postgresql_client):
         """Deve listar schedules."""
         from json import dumps
 
-        mock_rows = [{
-            "schedule_id": "test-id",
-            "workflow": "TestWorkflow",
-            "schedule_type": "cron",
-            "trigger_data": dumps({"cron_expression": "0 * * * *"}),
-            "priority": "medium",
-            "status": "active",
-            "created_at": datetime.now(timezone.utc),
-            "updated_at": datetime.now(timezone.utc),
-            "last_run_at": None,
-            "next_run_at": None,
-            "total_runs": 0,
-            "failure_count": 0,
-            "metadata": "{}"
-        }]
+        mock_rows = [
+            {
+                "schedule_id": "test-id",
+                "workflow": "TestWorkflow",
+                "schedule_type": "cron",
+                "trigger_data": dumps({"cron_expression": "0 * * * *"}),
+                "priority": "medium",
+                "status": "active",
+                "created_at": datetime.now(timezone.utc),
+                "updated_at": datetime.now(timezone.utc),
+                "last_run_at": None,
+                "next_run_at": None,
+                "total_runs": 0,
+                "failure_count": 0,
+                "metadata": "{}",
+            }
+        ]
         mock_postgresql_client.fetch_all.return_value = mock_rows
 
         schedules = await schedule_manager.list_schedules()
@@ -211,7 +203,7 @@ class TestScheduleManagerTrigger:
             "next_run_at": None,
             "total_runs": 0,
             "failure_count": 0,
-            "metadata": "{}"
+            "metadata": "{}",
         }
         mock_postgresql_client.fetchrow.return_value = mock_row
 
@@ -222,9 +214,7 @@ class TestScheduleManagerTrigger:
         assert result["manual"] is True
 
     @pytest.mark.asyncio
-    async def test_trigger_workflow_not_found(
-        self, schedule_manager, mock_postgresql_client
-    ):
+    async def test_trigger_workflow_not_found(self, schedule_manager, mock_postgresql_client):
         """Deve falhar quando schedule não existe."""
         mock_postgresql_client.fetchrow.return_value = None
 
@@ -232,9 +222,7 @@ class TestScheduleManagerTrigger:
             await schedule_manager.trigger_workflow("non-existent")
 
     @pytest.mark.asyncio
-    async def test_trigger_workflow_paused(
-        self, schedule_manager, mock_postgresql_client
-    ):
+    async def test_trigger_workflow_paused(self, schedule_manager, mock_postgresql_client):
         """Deve falhar quando schedule está pausado."""
         from json import dumps
 
@@ -251,7 +239,7 @@ class TestScheduleManagerTrigger:
             "next_run_at": None,
             "total_runs": 0,
             "failure_count": 0,
-            "metadata": "{}"
+            "metadata": "{}",
         }
         mock_postgresql_client.fetchrow.return_value = mock_row
 
@@ -263,9 +251,7 @@ class TestScheduleManagerPauseResume:
     """Testes de pausa e retomada de schedules."""
 
     @pytest.mark.asyncio
-    async def test_pause_schedule(
-        self, schedule_manager, mock_postgresql_client
-    ):
+    async def test_pause_schedule(self, schedule_manager, mock_postgresql_client):
         """Deve pausar schedule com sucesso."""
         result = await schedule_manager.pause_schedule("test-id")
 
@@ -273,9 +259,7 @@ class TestScheduleManagerPauseResume:
         assert result["schedule_id"] == "test-id"
 
     @pytest.mark.asyncio
-    async def test_resume_schedule(
-        self, schedule_manager, mock_postgresql_client
-    ):
+    async def test_resume_schedule(self, schedule_manager, mock_postgresql_client):
         """Deve retomar schedule pausado."""
         from json import dumps
 
@@ -293,7 +277,7 @@ class TestScheduleManagerPauseResume:
             "next_run_at": None,
             "total_runs": 0,
             "failure_count": 0,
-            "metadata": "{}"
+            "metadata": "{}",
         }
         mock_postgresql_client.fetchrow.return_value = mock_row
 
@@ -302,9 +286,7 @@ class TestScheduleManagerPauseResume:
         assert result["status"] == "active"
 
     @pytest.mark.asyncio
-    async def test_delete_schedule(
-        self, schedule_manager, mock_postgresql_client
-    ):
+    async def test_delete_schedule(self, schedule_manager, mock_postgresql_client):
         """Deve deletar schedule com sucesso."""
         result = await schedule_manager.delete_schedule("test-id")
 

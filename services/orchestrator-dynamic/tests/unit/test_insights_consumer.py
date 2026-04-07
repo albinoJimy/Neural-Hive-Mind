@@ -18,8 +18,8 @@ if src_path not in sys.path:
     sys.path.insert(0, src_path)
 
 # Mock de dependências problemáticas antes de importar
-sys.modules['neural_hive_security'] = MagicMock()
-sys.modules['neural_hive_security.cors'] = MagicMock()
+sys.modules["neural_hive_security"] = MagicMock()
+sys.modules["neural_hive_security.cors"] = MagicMock()
 
 from src.consumers.insights_consumer import InsightsConsumer
 
@@ -56,9 +56,7 @@ def mock_metrics():
 def consumer(mock_config, mock_mongodb_client, mock_metrics):
     """Consumer instance para testes."""
     return InsightsConsumer(
-        config=mock_config,
-        mongodb_client=mock_mongodb_client,
-        metrics=mock_metrics
+        config=mock_config, mongodb_client=mock_mongodb_client, metrics=mock_metrics
     )
 
 
@@ -79,7 +77,7 @@ class TestInsightsConsumerInitialization:
         mock_producer = MagicMock()
         mock_producer.start = AsyncMock()
 
-        with patch('src.consumers.insights_consumer.instrument_kafka_consumer') as mock_instrument:
+        with patch("src.consumers.insights_consumer.instrument_kafka_consumer") as mock_instrument:
             mock_instrument.return_value = mock_producer
 
             await consumer.initialize()
@@ -95,28 +93,26 @@ class TestProcessMessage:
     async def test_process_high_priority_insight(self, consumer, mock_mongodb_client):
         """Deve processar insight de alta prioridade."""
         insight_data = {
-            'insight_id': 'insight-123',
-            'insight_type': 'PREDICTIVE',
-            'priority': 'HIGH',
-            'plan_id': 'plan-456',
-            'correlation_id': 'corr-789',
-            'description': 'Test insight',
-            'recommendations': ['action1', 'action2']
+            "insight_id": "insight-123",
+            "insight_type": "PREDICTIVE",
+            "priority": "HIGH",
+            "plan_id": "plan-456",
+            "correlation_id": "corr-789",
+            "description": "Test insight",
+            "recommendations": ["action1", "action2"],
         }
 
         message = MagicMock()
-        message.value = json.dumps(insight_data).encode('utf-8')
+        message.value = json.dumps(insight_data).encode("utf-8")
         message.headers = []
-        message.topic = 'insights.analyzed'
+        message.topic = "insights.analyzed"
         message.partition = 0
         message.offset = 0
 
         # Mock MongoDB
-        mock_mongodb_client.get_cognitive_plan = AsyncMock(return_value={
-            'plan_id': 'plan-456',
-            'status': 'IN_PROGRESS',
-            'insights': []
-        })
+        mock_mongodb_client.get_cognitive_plan = AsyncMock(
+            return_value={"plan_id": "plan-456", "status": "IN_PROGRESS", "insights": []}
+        )
         mock_mongodb_client.update_cognitive_plan = AsyncMock()
         mock_mongodb_client.insert_insight = AsyncMock()
 
@@ -129,8 +125,8 @@ class TestProcessMessage:
         # Verificar que o plano foi enriquecido
         mock_mongodb_client.update_cognitive_plan.assert_called_once()
         call_args = mock_mongodb_client.update_cognitive_plan.call_args
-        assert call_args.kwargs['plan_id'] == 'plan-456'
-        assert 'insights' in call_args.kwargs['updates']
+        assert call_args.kwargs["plan_id"] == "plan-456"
+        assert "insights" in call_args.kwargs["updates"]
 
         # Verificar que insight foi armazenado
         mock_mongodb_client.insert_insight.assert_called_once()
@@ -139,15 +135,15 @@ class TestProcessMessage:
     async def test_filter_low_priority_insight(self, consumer, mock_mongodb_client):
         """Deve filtrar insight de baixa prioridade."""
         insight_data = {
-            'insight_id': 'insight-123',
-            'insight_type': 'OPERATIONAL',
-            'priority': 'MEDIUM',  # Baixa prioridade
-            'plan_id': 'plan-456',
-            'description': 'Test insight'
+            "insight_id": "insight-123",
+            "insight_type": "OPERATIONAL",
+            "priority": "MEDIUM",  # Baixa prioridade
+            "plan_id": "plan-456",
+            "description": "Test insight",
         }
 
         message = MagicMock()
-        message.value = json.dumps(insight_data).encode('utf-8')
+        message.value = json.dumps(insight_data).encode("utf-8")
         message.headers = []
 
         # Mock MongoDB
@@ -164,15 +160,15 @@ class TestProcessMessage:
     async def test_process_insight_without_plan(self, consumer, mock_mongodb_client):
         """Deve processar insight sem plan_id (apenas armazenar)."""
         insight_data = {
-            'insight_id': 'insight-123',
-            'insight_type': 'PREDICTIVE',
-            'priority': 'HIGH',
+            "insight_id": "insight-123",
+            "insight_type": "PREDICTIVE",
+            "priority": "HIGH",
             # Sem plan_id
-            'description': 'Test insight'
+            "description": "Test insight",
         }
 
         message = MagicMock()
-        message.value = json.dumps(insight_data).encode('utf-8')
+        message.value = json.dumps(insight_data).encode("utf-8")
         message.headers = []
 
         # Mock MongoDB
@@ -188,22 +184,21 @@ class TestProcessMessage:
     async def test_skip_insight_for_completed_plan(self, consumer, mock_mongodb_client):
         """Deve ignorar insight para plano já completado."""
         insight_data = {
-            'insight_id': 'insight-123',
-            'insight_type': 'PREDICTIVE',
-            'priority': 'HIGH',
-            'plan_id': 'plan-456',
-            'description': 'Test insight'
+            "insight_id": "insight-123",
+            "insight_type": "PREDICTIVE",
+            "priority": "HIGH",
+            "plan_id": "plan-456",
+            "description": "Test insight",
         }
 
         message = MagicMock()
-        message.value = json.dumps(insight_data).encode('utf-8')
+        message.value = json.dumps(insight_data).encode("utf-8")
         message.headers = []
 
         # Mock MongoDB retorna plano completado
-        mock_mongodb_client.get_cognitive_plan = AsyncMock(return_value={
-            'plan_id': 'plan-456',
-            'status': 'COMPLETED'  # Plano já finalizado
-        })
+        mock_mongodb_client.get_cognitive_plan = AsyncMock(
+            return_value={"plan_id": "plan-456", "status": "COMPLETED"}  # Plano já finalizado
+        )
         mock_mongodb_client.update_cognitive_plan = AsyncMock()
         mock_mongodb_client.insert_insight = AsyncMock()
 
@@ -216,28 +211,30 @@ class TestProcessMessage:
     async def test_prevent_duplicate_insights(self, consumer, mock_mongodb_client):
         """Deve prevenir duplicação de insights no plano."""
         insight_data = {
-            'insight_id': 'insight-123',
-            'insight_type': 'PREDICTIVE',
-            'priority': 'HIGH',
-            'plan_id': 'plan-456',
-            'description': 'Test insight'
+            "insight_id": "insight-123",
+            "insight_type": "PREDICTIVE",
+            "priority": "HIGH",
+            "plan_id": "plan-456",
+            "description": "Test insight",
         }
 
         message = MagicMock()
-        message.value = json.dumps(insight_data).encode('utf-8')
+        message.value = json.dumps(insight_data).encode("utf-8")
         message.headers = []
 
         # Mock MongoDB retorna plano com insight já existente
         existing_insight = {
-            'insight_id': 'insight-123',  # Mesmo ID
-            'description': 'Existing insight'
+            "insight_id": "insight-123",  # Mesmo ID
+            "description": "Existing insight",
         }
 
-        mock_mongodb_client.get_cognitive_plan = AsyncMock(return_value={
-            'plan_id': 'plan-456',
-            'status': 'IN_PROGRESS',
-            'insights': [existing_insight]
-        })
+        mock_mongodb_client.get_cognitive_plan = AsyncMock(
+            return_value={
+                "plan_id": "plan-456",
+                "status": "IN_PROGRESS",
+                "insights": [existing_insight],
+            }
+        )
         mock_mongodb_client.update_cognitive_plan = AsyncMock()
         mock_mongodb_client.insert_insight = AsyncMock()
 
@@ -254,19 +251,17 @@ class TestEnrichCognitivePlan:
     async def test_enrich_plan_with_insight(self, consumer, mock_mongodb_client):
         """Deve enriquecer plano com insight."""
         insight = {
-            'insight_id': 'insight-123',
-            'insight_type': 'PREDICTIVE',
-            'priority': 'HIGH',
-            'plan_id': 'plan-456',
-            'description': 'Test insight',
-            'recommendations': ['action1']
+            "insight_id": "insight-123",
+            "insight_type": "PREDICTIVE",
+            "priority": "HIGH",
+            "plan_id": "plan-456",
+            "description": "Test insight",
+            "recommendations": ["action1"],
         }
 
-        mock_mongodb_client.get_cognitive_plan = AsyncMock(return_value={
-            'plan_id': 'plan-456',
-            'status': 'IN_PROGRESS',
-            'insights': []
-        })
+        mock_mongodb_client.get_cognitive_plan = AsyncMock(
+            return_value={"plan_id": "plan-456", "status": "IN_PROGRESS", "insights": []}
+        )
         mock_mongodb_client.update_cognitive_plan = AsyncMock()
 
         await consumer._enrich_cognitive_plan(insight)
@@ -274,23 +269,20 @@ class TestEnrichCognitivePlan:
         # Verificar chamada
         mock_mongodb_client.update_cognitive_plan.assert_called_once()
         call_args = mock_mongodb_client.update_cognitive_plan.call_args
-        assert call_args.kwargs['plan_id'] == 'plan-456'
+        assert call_args.kwargs["plan_id"] == "plan-456"
 
         # Verificar insights
-        updated_insights = call_args.kwargs['updates']['insights']
+        updated_insights = call_args.kwargs["updates"]["insights"]
         assert len(updated_insights) == 1
-        assert updated_insights[0]['insight_id'] == 'insight-123'
-        assert 'received_at' in updated_insights[0]
+        assert updated_insights[0]["insight_id"] == "insight-123"
+        assert "received_at" in updated_insights[0]
 
     @pytest.mark.asyncio
     async def test_enrich_plan_without_mongodb(self, consumer):
         """Deve lidar gracefully com MongoDB indisponível."""
         consumer.mongodb_client = None
 
-        insight = {
-            'insight_id': 'insight-123',
-            'plan_id': 'plan-456'
-        }
+        insight = {"insight_id": "insight-123", "plan_id": "plan-456"}
 
         # Não deve lançar exceção
         await consumer._enrich_cognitive_plan(insight)
@@ -303,10 +295,10 @@ class TestStoreInsight:
     async def test_store_insight_in_mongodb(self, consumer, mock_mongodb_client):
         """Deve armazenar insight no MongoDB."""
         insight = {
-            'insight_id': 'insight-123',
-            'insight_type': 'PREDICTIVE',
-            'priority': 'HIGH',
-            'description': 'Test insight'
+            "insight_id": "insight-123",
+            "insight_type": "PREDICTIVE",
+            "priority": "HIGH",
+            "description": "Test insight",
         }
 
         mock_mongodb_client.insert_insight = AsyncMock()
@@ -317,16 +309,16 @@ class TestStoreInsight:
         call_args = mock_mongodb_client.insert_insight.call_args
         stored_insight = call_args[0][0]
 
-        assert stored_insight['insight_id'] == 'insight-123'
-        assert 'received_at' in stored_insight
-        assert stored_insight['consumer'] == 'orchestrator-dynamic'
+        assert stored_insight["insight_id"] == "insight-123"
+        assert "received_at" in stored_insight
+        assert stored_insight["consumer"] == "orchestrator-dynamic"
 
     @pytest.mark.asyncio
     async def test_store_without_mongodb(self, consumer):
         """Deve lidar gracefully com MongoDB indisponível."""
         consumer.mongodb_client = None
 
-        insight = {'insight_id': 'insight-123'}
+        insight = {"insight_id": "insight-123"}
 
         # Não deve lançar exceção
         await consumer._store_insight(insight)
@@ -350,7 +342,7 @@ class TestConsumerLifecycle:
         mock_consumer.__aiter__ = lambda self: async_iterator()
         mock_consumer.commit = AsyncMock()
 
-        with patch('src.consumers.insights_consumer.instrument_kafka_consumer') as mock_instrument:
+        with patch("src.consumers.insights_consumer.instrument_kafka_consumer") as mock_instrument:
             mock_instrument.return_value = mock_consumer
 
             await consumer.initialize()
@@ -377,7 +369,7 @@ class TestErrorHandling:
     async def test_error_handling_invalid_json(self, consumer, mock_mongodb_client):
         """Deve lidar com JSON inválido na mensagem."""
         message = MagicMock()
-        message.value = b'{invalid json}'
+        message.value = b"{invalid json}"
         message.headers = []
 
         await consumer._process_message(message)
@@ -390,15 +382,15 @@ class TestErrorHandling:
     async def test_error_handling_mongodb_unavailable(self, consumer):
         """Deve lidar com MongoDB indisponível."""
         insight_data = {
-            'insight_id': 'insight-123',
-            'insight_type': 'PREDICTIVE',
-            'priority': 'HIGH',
-            'plan_id': 'plan-456',
-            'description': 'Test insight'
+            "insight_id": "insight-123",
+            "insight_type": "PREDICTIVE",
+            "priority": "HIGH",
+            "plan_id": "plan-456",
+            "description": "Test insight",
         }
 
         message = MagicMock()
-        message.value = json.dumps(insight_data).encode('utf-8')
+        message.value = json.dumps(insight_data).encode("utf-8")
         message.headers = []
 
         # MongoDB retorna erro
@@ -415,22 +407,20 @@ class TestMetricsTracking:
     async def test_metrics_tracking_on_process(self, consumer, mock_mongodb_client, mock_metrics):
         """Deve atualizar métricas ao processar insight."""
         insight_data = {
-            'insight_id': 'insight-123',
-            'insight_type': 'PREDICTIVE',
-            'priority': 'HIGH',
-            'plan_id': 'plan-456',
-            'description': 'Test insight'
+            "insight_id": "insight-123",
+            "insight_type": "PREDICTIVE",
+            "priority": "HIGH",
+            "plan_id": "plan-456",
+            "description": "Test insight",
         }
 
         message = MagicMock()
-        message.value = json.dumps(insight_data).encode('utf-8')
+        message.value = json.dumps(insight_data).encode("utf-8")
         message.headers = []
 
-        mock_mongodb_client.get_cognitive_plan = AsyncMock(return_value={
-            'plan_id': 'plan-456',
-            'status': 'IN_PROGRESS',
-            'insights': []
-        })
+        mock_mongodb_client.get_cognitive_plan = AsyncMock(
+            return_value={"plan_id": "plan-456", "status": "IN_PROGRESS", "insights": []}
+        )
         mock_mongodb_client.update_cognitive_plan = AsyncMock()
         mock_mongodb_client.insert_insight = AsyncMock()
 

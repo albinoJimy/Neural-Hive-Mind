@@ -8,19 +8,13 @@ import pytest
 from unittest.mock import AsyncMock, Mock
 from datetime import datetime, timezone
 
-from src.services.data_fusion_engine import (
-    DataFusionEngine,
-    ConflictResolution,
-    AggregatedResult
-)
+from src.services.data_fusion_engine import DataFusionEngine, ConflictResolution, AggregatedResult
 
 
 @pytest.fixture
 def data_fusion_engine():
     """Instância do DataFusionEngine."""
-    return DataFusionEngine(
-        conflict_resolution=ConflictResolution.HIGHEST_CONFIDENCE
-    )
+    return DataFusionEngine(conflict_resolution=ConflictResolution.HIGHEST_CONFIDENCE)
 
 
 @pytest.fixture
@@ -119,10 +113,7 @@ class TestAlignTemporal:
         """Testa alinhamento sem janela temporal."""
         normalized = {"mongodb": {"type": "list", "items": []}}
 
-        result = await data_fusion_engine._align_temporal(
-            normalized,
-            Mock(time_window=None)
-        )
+        result = await data_fusion_engine._align_temporal(normalized, Mock(time_window=None))
 
         assert result == normalized
 
@@ -131,7 +122,7 @@ class TestAlignTemporal:
         """Testa filtro por janela temporal."""
         time_window = {
             "start": datetime(2024, 1, 1, tzinfo=timezone.utc),
-            "end": datetime(2024, 1, 31, tzinfo=timezone.utc)
+            "end": datetime(2024, 1, 31, tzinfo=timezone.utc),
         }
 
         normalized = {
@@ -139,15 +130,12 @@ class TestAlignTemporal:
                 "type": "list",
                 "items": [
                     {"timestamp": "2024-01-15T10:00:00Z", "value": 10},
-                    {"timestamp": "2024-02-15T10:00:00Z", "value": 20}  # Fora da janela
-                ]
+                    {"timestamp": "2024-02-15T10:00:00Z", "value": 20},  # Fora da janela
+                ],
             }
         }
 
-        result = await data_fusion_engine._align_temporal(
-            normalized,
-            Mock(time_window=time_window)
-        )
+        result = await data_fusion_engine._align_temporal(normalized, Mock(time_window=time_window))
 
         # Apenas um item deve estar na janela
         items = result["mongodb"]["items"]
@@ -173,7 +161,7 @@ class TestJoinSources:
         """Testa junção com dados."""
         aligned = {
             "mongodb": {"type": "list", "items": [{"metric": "cpu", "value": 80}]},
-            "clickhouse": {"type": "timeseries", "points": [{"metric": "cpu", "value": 85}]}
+            "clickhouse": {"type": "timeseries", "points": [{"metric": "cpu", "value": 85}]},
         }
 
         result = await data_fusion_engine._join_sources(aligned)
@@ -189,10 +177,7 @@ class TestResolveConflicts:
         """Testa resolução KEEP_FIRST."""
         data_fusion_engine.conflict_resolution = ConflictResolution.KEEP_FIRST
 
-        source_values = {
-            "mongodb": {"avg": 80.0},
-            "clickhouse": {"avg": 85.0}
-        }
+        source_values = {"mongodb": {"avg": 80.0}, "clickhouse": {"avg": 85.0}}
 
         result = data_fusion_engine._resolve_metric_conflict("cpu", source_values)
 
@@ -206,7 +191,7 @@ class TestResolveConflicts:
         source_values = {
             "clickhouse": {"avg": 85.0},
             "postgresql": {"avg": 75.0},
-            "mongodb": {"avg": 80.0}
+            "mongodb": {"avg": 80.0},
         }
 
         result = data_fusion_engine._resolve_metric_conflict("cpu", source_values)
@@ -219,10 +204,7 @@ class TestResolveConflicts:
         """Testa resolução MERGE."""
         data_fusion_engine.conflict_resolution = ConflictResolution.MERGE
 
-        source_values = {
-            "mongodb": {"avg": 80.0},
-            "clickhouse": {"avg": 85.0}
-        }
+        source_values = {"mongodb": {"avg": 80.0}, "clickhouse": {"avg": 85.0}}
 
         result = data_fusion_engine._resolve_metric_conflict("cpu", source_values)
 
@@ -238,7 +220,7 @@ class TestFuseSources:
         """Testa fusão básica de fontes."""
         source_results = {
             "mongodb": [{"metric": "cpu", "value": 80}],
-            "clickhouse": [{"metric": "cpu", "value": 85}]
+            "clickhouse": [{"metric": "cpu", "value": 85}],
         }
 
         result = await data_fusion_engine.fuse_sources(mock_query_request, source_results)
@@ -253,7 +235,7 @@ class TestFuseSources:
         """Testa fusão com erro em fonte."""
         source_results = {
             "mongodb": {"error": "Connection failed"},
-            "clickhouse": [{"metric": "cpu", "value": 85}]
+            "clickhouse": [{"metric": "cpu", "value": 85}],
         }
 
         result = await data_fusion_engine.fuse_sources(mock_query_request, source_results)
@@ -269,14 +251,9 @@ class TestGetCorrelation:
     @pytest.mark.asyncio
     async def test_get_correlation_insufficient_data(self, data_fusion_engine):
         """Testa correlação com dados insuficientes."""
-        source_results = {
-            "mongodb": [{"value": 10}],
-            "clickhouse": [{"value": 20}]
-        }
+        source_results = {"mongodb": [{"value": 10}], "clickhouse": [{"value": 20}]}
 
-        result = await data_fusion_engine.get_correlation(
-            source_results, "metric1", "metric2"
-        )
+        result = await data_fusion_engine.get_correlation(source_results, "metric1", "metric2")
 
         assert result is None
 
@@ -285,12 +262,10 @@ class TestGetCorrelation:
         """Testa cálculo de correlação."""
         source_results = {
             "mongodb": [{"cpu": 10, "memory": 20}, {"cpu": 15, "memory": 25}],
-            "clickhouse": [{"cpu": 12, "memory": 22}]
+            "clickhouse": [{"cpu": 12, "memory": 22}],
         }
 
-        result = await data_fusion_engine.get_correlation(
-            source_results, "cpu", "memory"
-        )
+        result = await data_fusion_engine.get_correlation(source_results, "cpu", "memory")
 
         # Deve retornar um valor entre -1 e 1
         if result is not None:
@@ -303,9 +278,7 @@ class TestAggregatedResult:
     def test_aggregated_result_creation(self):
         """Testa criação de AggregatedResult."""
         result = AggregatedResult(
-            query_id="test-1",
-            sources=["mongodb", "clickhouse"],
-            results={"data": "test"}
+            query_id="test-1", sources=["mongodb", "clickhouse"], results={"data": "test"}
         )
 
         assert result.query_id == "test-1"
@@ -317,11 +290,7 @@ class TestAggregatedResult:
 
     def test_aggregated_result_to_dict(self):
         """Testa conversão para dicionário."""
-        result = AggregatedResult(
-            query_id="test-1",
-            sources=["mongodb"],
-            results={"key": "value"}
-        )
+        result = AggregatedResult(query_id="test-1", sources=["mongodb"], results={"key": "value"})
 
         result.fused_data = {"merged": "data"}
 

@@ -6,6 +6,7 @@ from unittest.mock import Mock, MagicMock, patch
 
 try:
     import sklearn
+
     SKLEARN_AVAILABLE = True
 except ImportError:
     SKLEARN_AVAILABLE = False
@@ -40,6 +41,7 @@ class TestApplySklearnCompatibilityPatch:
         """Testa que patch define flag global."""
         # Reset flag se necessário
         import neural_hive_specialists.sklearn_compat as compat
+
         if compat._PATCH_APPLIED:
             # Já aplicado, testar que flag está True
             assert compat._PATCH_APPLIED is True
@@ -73,6 +75,7 @@ class TestPatchModelAfterLoading:
 
     def test_patch_model_with_estimators(self):
         """Testa patch de ensemble com estimators."""
+
         # Criar mock de ensemble usando objetos simples
         class MockEstimator:
             def __init__(self):
@@ -93,6 +96,7 @@ class TestPatchModelAfterLoading:
 
     def test_patch_model_with_tree(self):
         """Testa patch de modelo com tree_."""
+
         # Criar mock simples em vez de MagicMock
         class MockTreeModel:
             def __init__(self):

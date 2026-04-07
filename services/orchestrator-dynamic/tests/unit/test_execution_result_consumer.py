@@ -55,7 +55,7 @@ def consumer(mock_config, mock_temporal_client, mock_redis_client, mock_metrics)
         config=mock_config,
         temporal_client=mock_temporal_client,
         redis_client=mock_redis_client,
-        metrics=mock_metrics
+        metrics=mock_metrics,
     )
 
 
@@ -87,9 +87,7 @@ class TestWorkflowCache:
         result = await consumer._get_workflow_for_ticket(ticket_id, plan_id)
 
         assert result == workflow_id
-        mock_redis_client.get.assert_called_once_with(
-            f"workflow:by:ticket:{ticket_id}"
-        )
+        mock_redis_client.get.assert_called_once_with(f"workflow:by:ticket:{ticket_id}")
 
     @pytest.mark.asyncio
     async def test_get_workflow_not_in_cache(self, consumer, mock_redis_client):
@@ -103,9 +101,7 @@ class TestWorkflowCache:
         result = await consumer._get_workflow_for_ticket(ticket_id, plan_id)
 
         assert result is None
-        mock_redis_client.get.assert_called_once_with(
-            f"workflow:by:ticket:{ticket_id}"
-        )
+        mock_redis_client.get.assert_called_once_with(f"workflow:by:ticket:{ticket_id}")
 
     @pytest.mark.asyncio
     async def test_get_workflow_redis_unavailable(self, consumer):
@@ -114,13 +110,10 @@ class TestWorkflowCache:
             config=consumer.config,
             temporal_client=consumer.temporal_client,
             redis_client=None,
-            metrics=None
+            metrics=None,
         )
 
-        result = await consumer_without_redis._get_workflow_for_ticket(
-            "ticket-123",
-            "plan-456"
-        )
+        result = await consumer_without_redis._get_workflow_for_ticket("ticket-123", "plan-456")
 
         assert result is None
 
@@ -133,34 +126,28 @@ class TestWorkflowSignal:
         """Deve enviar signal ticket_completed para workflow."""
         workflow_id = "workflow-789"
         ticket_id = "ticket-123"
-        result = {
-            'ticket_id': ticket_id,
-            'status': 'COMPLETED',
-            'result': {'success': True}
-        }
+        result = {"ticket_id": ticket_id, "status": "COMPLETED", "result": {"success": True}}
 
         await consumer._send_workflow_signal(
-            workflow_id=workflow_id,
-            ticket_id=ticket_id,
-            result=result
+            workflow_id=workflow_id, ticket_id=ticket_id, result=result
         )
 
         # Verificar que signal foi enviado
         mock_temporal_client.get_workflow_handle.assert_called_once_with(workflow_id)
         handle = mock_temporal_client.get_workflow_handle.return_value
-        handle.signal.assert_called_once_with("ticket_completed", ticket_id=ticket_id, result=result)
+        handle.signal.assert_called_once_with(
+            "ticket_completed", ticket_id=ticket_id, result=result
+        )
 
     @pytest.mark.asyncio
     async def test_send_signal_with_metrics(self, consumer, mock_temporal_client, mock_metrics):
         """Deve registrar métrica ao enviar signal."""
         workflow_id = "workflow-789"
         ticket_id = "ticket-123"
-        result = {'status': 'COMPLETED', 'result': {'success': True}}
+        result = {"status": "COMPLETED", "result": {"success": True}}
 
         await consumer._send_workflow_signal(
-            workflow_id=workflow_id,
-            ticket_id=ticket_id,
-            result=result
+            workflow_id=workflow_id, ticket_id=ticket_id, result=result
         )
 
         mock_metrics.workflow_signals_sent_total.inc.assert_called_once()
@@ -174,17 +161,15 @@ class TestResultDeserialization:
         import json
 
         message = MagicMock()
-        message.value = json.dumps({
-            'ticket_id': 'ticket-123',
-            'status': 'COMPLETED',
-            'result': {'success': True}
-        }).encode('utf-8')
+        message.value = json.dumps(
+            {"ticket_id": "ticket-123", "status": "COMPLETED", "result": {"success": True}}
+        ).encode("utf-8")
 
         result = consumer._deserialize(message)
 
-        assert result['ticket_id'] == 'ticket-123'
-        assert result['status'] == 'COMPLETED'
-        assert result['result']['success'] is True
+        assert result["ticket_id"] == "ticket-123"
+        assert result["status"] == "COMPLETED"
+        assert result["result"]["success"] is True
 
     def test_deserialize_json_invalid(self, consumer):
         """Deve levantar erro para JSON inválido."""
@@ -209,22 +194,25 @@ class TestResultProcessing:
         message.offset = 100
 
         import json
-        message.value = json.dumps({
-            'ticket_id': 'ticket-123',
-            'plan_id': 'plan-456',
-            'workflow_id': 'workflow-789',  # Já na mensagem
-            'status': 'COMPLETED',
-            'result': {'success': True}
-        }).encode('utf-8')
+
+        message.value = json.dumps(
+            {
+                "ticket_id": "ticket-123",
+                "plan_id": "plan-456",
+                "workflow_id": "workflow-789",  # Já na mensagem
+                "status": "COMPLETED",
+                "result": {"success": True},
+            }
+        ).encode("utf-8")
 
         mock_consumer = AsyncMock()
         mock_consumer.commit = AsyncMock()
 
-        with patch.object(consumer, 'consumer', mock_consumer):
+        with patch.object(consumer, "consumer", mock_consumer):
             await consumer._process_result(message)
 
         # Verificar signal enviado com workflow_id da mensagem
-        mock_temporal_client.get_workflow_handle.assert_called_once_with('workflow-789')
+        mock_temporal_client.get_workflow_handle.assert_called_once_with("workflow-789")
 
     @pytest.mark.asyncio
     async def test_process_result_with_workflow_id_from_cache(
@@ -237,29 +225,30 @@ class TestResultProcessing:
         message.offset = 100
 
         import json
-        message.value = json.dumps({
-            'ticket_id': 'ticket-123',
-            'plan_id': 'plan-456',
-            'workflow_id': None,  # Não está na mensagem
-            'status': 'COMPLETED',
-            'result': {'success': True}
-        }).encode('utf-8')
+
+        message.value = json.dumps(
+            {
+                "ticket_id": "ticket-123",
+                "plan_id": "plan-456",
+                "workflow_id": None,  # Não está na mensagem
+                "status": "COMPLETED",
+                "result": {"success": True},
+            }
+        ).encode("utf-8")
 
         # Mock Redis retorna workflow_id
-        mock_redis_client.get.return_value = 'workflow-789'
+        mock_redis_client.get.return_value = "workflow-789"
 
         mock_consumer = AsyncMock()
         mock_consumer.commit = AsyncMock()
 
-        with patch.object(consumer, 'consumer', mock_consumer):
+        with patch.object(consumer, "consumer", mock_consumer):
             await consumer._process_result(message)
 
         # Verificar que cache foi consultado
-        mock_redis_client.get.assert_called_once_with(
-            "workflow:by:ticket:ticket-123"
-        )
+        mock_redis_client.get.assert_called_once_with("workflow:by:ticket:ticket-123")
         # Verificar signal enviado com workflow_id do cache
-        mock_temporal_client.get_workflow_handle.assert_called_once_with('workflow-789')
+        mock_temporal_client.get_workflow_handle.assert_called_once_with("workflow-789")
 
     @pytest.mark.asyncio
     async def test_process_result_missing_workflow_id_logs_warning(
@@ -272,13 +261,16 @@ class TestResultProcessing:
         message.offset = 100
 
         import json
-        message.value = json.dumps({
-            'ticket_id': 'ticket-123',
-            'plan_id': 'plan-456',
-            'workflow_id': None,
-            'status': 'COMPLETED',
-            'result': {'success': True}
-        }).encode('utf-8')
+
+        message.value = json.dumps(
+            {
+                "ticket_id": "ticket-123",
+                "plan_id": "plan-456",
+                "workflow_id": None,
+                "status": "COMPLETED",
+                "result": {"success": True},
+            }
+        ).encode("utf-8")
 
         # Mock Redis retorna None (não encontrado)
         mock_redis_client.get.return_value = None
@@ -286,7 +278,7 @@ class TestResultProcessing:
         mock_consumer = AsyncMock()
         mock_consumer.commit = AsyncMock()
 
-        with patch.object(consumer, 'consumer', mock_consumer):
+        with patch.object(consumer, "consumer", mock_consumer):
             await consumer._process_result(message)
 
         # Não deve enviar signal Temporal
@@ -305,22 +297,27 @@ class TestResultProcessing:
         message.offset = 100
 
         import json
-        message.value = json.dumps({
-            'ticket_id': 'ticket-123',
-            'workflow_id': 'workflow-789',
-            'status': 'COMPLETED',
-            'result': {'success': True}
-        }).encode('utf-8')
 
-        mock_redis_client.get.return_value = 'workflow-789'
+        message.value = json.dumps(
+            {
+                "ticket_id": "ticket-123",
+                "workflow_id": "workflow-789",
+                "status": "COMPLETED",
+                "result": {"success": True},
+            }
+        ).encode("utf-8")
+
+        mock_redis_client.get.return_value = "workflow-789"
         mock_consumer = AsyncMock()
         mock_consumer.commit = AsyncMock()
 
-        with patch.object(consumer, 'consumer', mock_consumer):
+        with patch.object(consumer, "consumer", mock_consumer):
             await consumer._process_result(message)
 
         # Verificar métrica registrada
-        mock_metrics.execution_results_processed_total.labels.assert_called_once_with(status='COMPLETED')
+        mock_metrics.execution_results_processed_total.labels.assert_called_once_with(
+            status="COMPLETED"
+        )
 
 
 class TestConsumerLifecycle:
@@ -329,7 +326,7 @@ class TestConsumerLifecycle:
     @pytest.mark.asyncio
     async def test_initialize_starts_consumer(self, consumer):
         """Initialize deve iniciar consumer Kafka."""
-        with patch('src.consumers.execution_result_consumer.AIOKafkaConsumer') as mock_kafka:
+        with patch("src.consumers.execution_result_consumer.AIOKafkaConsumer") as mock_kafka:
             mock_kafka_instance = AsyncMock()
             mock_kafka.return_value = mock_kafka_instance
             mock_kafka_instance.start = AsyncMock()
@@ -342,7 +339,7 @@ class TestConsumerLifecycle:
     @pytest.mark.asyncio
     async def test_stop_stops_consumer(self, consumer):
         """Stop deve parar consumer gracefulmente."""
-        with patch('src.consumers.execution_result_consumer.AIOKafkaConsumer') as mock_kafka:
+        with patch("src.consumers.execution_result_consumer.AIOKafkaConsumer") as mock_kafka:
             mock_kafka_instance = AsyncMock()
             mock_kafka_instance.stop = AsyncMock()
 

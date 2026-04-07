@@ -190,9 +190,7 @@ class TestPIIDetectorLiteAnonymizeText:
 
     def test_anonymize_text_multiple_pii(self, detector):
         """Testa anonimização de múltiplos PII."""
-        text, metadata = detector.anonymize_text(
-            "Email: user@example.com, CPF: 123.456.789-00"
-        )
+        text, metadata = detector.anonymize_text("Email: user@example.com, CPF: 123.456.789-00")
 
         assert len(metadata) >= 2
         assert "user@example.com" not in text
@@ -213,9 +211,7 @@ class TestPIIDetectorLiteAnonymizeText:
     def test_anonymize_text_language_parameter(self, detector):
         """Testa que parâmetro language é aceito."""
         # Lite version aceita language mas pode não usá-lo
-        text, metadata = detector.anonymize_text(
-            "Email: test@example.com", language="pt"
-        )
+        text, metadata = detector.anonymize_text("Email: test@example.com", language="pt")
 
         assert isinstance(text, str)
         assert isinstance(metadata, list)

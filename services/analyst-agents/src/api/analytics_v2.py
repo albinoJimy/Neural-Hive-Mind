@@ -425,7 +425,9 @@ async def get_dashboard_stream(
                             "analysis_type": item.analysis_type.value,
                             "status": item.status.value,
                             "created_at": item.created_at.isoformat() if item.created_at else None,
-                            "confidence_score": item.metrics.confidence_score if item.metrics else 0,
+                            "confidence_score": item.metrics.confidence_score
+                            if item.metrics
+                            else 0,
                         }
                         for item in recent_items
                     ],

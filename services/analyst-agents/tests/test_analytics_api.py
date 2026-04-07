@@ -11,8 +11,8 @@ import os
 # Mock MongoDB antes de importar
 mock_motor = MagicMock()
 mock_motor.AsyncIOMotorClient = MagicMock()
-sys.modules['motor'] = mock_motor
-sys.modules['motor.motor_asyncio'] = mock_motor
+sys.modules["motor"] = mock_motor
+sys.modules["motor.motor_asyncio"] = mock_motor
 
 from src.main import app
 from src.models.insight_extended import (
@@ -30,6 +30,7 @@ from src.models.insight_extended import (
 def create_mock_insight(insight_id: str, title: str = "Test Insight") -> InsightResponse:
     """Criar mock insight para testes."""
     from src.models.insight_extended import InsightMetrics
+
     return InsightResponse(
         insight_id=insight_id,
         analysis_type=AnalysisType.TIMESERIES,
@@ -57,13 +58,15 @@ async def app_client():
     mock_repo.get_by_id = AsyncMock(return_value=None)
     mock_repo.create = AsyncMock()
     mock_repo.update_status = AsyncMock()
-    mock_repo.get_analytics_summary = AsyncMock(return_value={
-        "insights_by_type": {},
-        "anomalies_detected": 0,
-        "avg_processing_time_ms": 0,
-        "confidence_distribution": {"high": 0, "medium": 0, "low": 0},
-        "top_sources": [],
-    })
+    mock_repo.get_analytics_summary = AsyncMock(
+        return_value={
+            "insights_by_type": {},
+            "anomalies_detected": 0,
+            "avg_processing_time_ms": 0,
+            "confidence_distribution": {"high": 0, "medium": 0, "low": 0},
+            "top_sources": [],
+        }
+    )
 
     # Mock do TimeSeriesAnalyzer
     mock_ts = MagicMock()
@@ -120,6 +123,7 @@ async def app_client():
 # Testes de Insights
 # ============================================================================
 
+
 @pytest.mark.asyncio
 async def test_list_insights_empty(app_client):
     """Testar listar insights quando vazio."""
@@ -136,9 +140,7 @@ async def test_list_insights_with_data(app_client):
     """Testar listar insights com dados."""
     # Mock com dados
     mock_insight = create_mock_insight("test-1", "Test Insight")
-    app.state.app_state.insight_repository.list = AsyncMock(
-        return_value=([mock_insight], 1)
-    )
+    app.state.app_state.insight_repository.list = AsyncMock(return_value=([mock_insight], 1))
 
     response = await app_client.get("/api/v1/analytics/insights")
 
@@ -152,9 +154,7 @@ async def test_list_insights_with_data(app_client):
 async def test_list_insights_by_type(app_client):
     """Testar filtrar por tipo de análise."""
     mock_insight = create_mock_insight("test-2", "TS Insight")
-    app.state.app_state.insight_repository.list = AsyncMock(
-        return_value=([mock_insight], 1)
-    )
+    app.state.app_state.insight_repository.list = AsyncMock(return_value=([mock_insight], 1))
 
     response = await app_client.get("/api/v1/analytics/insights?analysis_type=timeseries")
 
@@ -167,9 +167,7 @@ async def test_list_insights_by_type(app_client):
 async def test_get_insight_by_id(app_client):
     """Testar obter insight por ID."""
     mock_insight = create_mock_insight("test-3", "Get Test")
-    app.state.app_state.insight_repository.get_by_id = AsyncMock(
-        return_value=mock_insight
-    )
+    app.state.app_state.insight_repository.get_by_id = AsyncMock(return_value=mock_insight)
 
     response = await app_client.get("/api/v1/analytics/insights/test-3")
 
@@ -181,9 +179,7 @@ async def test_get_insight_by_id(app_client):
 @pytest.mark.asyncio
 async def test_get_insight_not_found(app_client):
     """Testar obter insight inexistente."""
-    app.state.app_state.insight_repository.get_by_id = AsyncMock(
-        return_value=None
-    )
+    app.state.app_state.insight_repository.get_by_id = AsyncMock(return_value=None)
 
     response = await app_client.get("/api/v1/analytics/insights/non-existent")
 
@@ -194,21 +190,20 @@ async def test_get_insight_not_found(app_client):
 async def test_create_query_timeseries(app_client):
     """Testar criar query de time series."""
     mock_insight = create_mock_insight("query-1")
-    app.state.app_state.insight_repository.create = AsyncMock(
-        return_value=mock_insight
-    )
-    app.state.app_state.insight_repository.update_status = AsyncMock(
-        return_value=mock_insight
-    )
+    app.state.app_state.insight_repository.create = AsyncMock(return_value=mock_insight)
+    app.state.app_state.insight_repository.update_status = AsyncMock(return_value=mock_insight)
 
-    response = await app_client.post("/api/v1/analytics/insights/query", json={
-        "analysis_type": "timeseries",
-        "target": {
-            "metric_name": "cpu_usage",
-            "time_range": {"start": "2024-01-01T00:00:00", "end": "2024-01-02T00:00:00"}
+    response = await app_client.post(
+        "/api/v1/analytics/insights/query",
+        json={
+            "analysis_type": "timeseries",
+            "target": {
+                "metric_name": "cpu_usage",
+                "time_range": {"start": "2024-01-01T00:00:00", "end": "2024-01-02T00:00:00"},
+            },
+            "parameters": {},
         },
-        "parameters": {}
-    })
+    )
 
     assert response.status_code == 200
     data = response.json()
@@ -219,9 +214,7 @@ async def test_create_query_timeseries(app_client):
 async def test_export_insight_json(app_client):
     """Testar exportar insight em JSON."""
     mock_insight = create_mock_insight("export-1", "Export Test")
-    app.state.app_state.insight_repository.get_by_id = AsyncMock(
-        return_value=mock_insight
-    )
+    app.state.app_state.insight_repository.get_by_id = AsyncMock(return_value=mock_insight)
 
     response = await app_client.get("/api/v1/analytics/insights/export-1/export?format=json")
 
@@ -234,9 +227,7 @@ async def test_export_insight_json(app_client):
 async def test_export_insight_csv(app_client):
     """Testar exportar insight em CSV."""
     mock_insight = create_mock_insight("export-2", "CSV Test")
-    app.state.app_state.insight_repository.get_by_id = AsyncMock(
-        return_value=mock_insight
-    )
+    app.state.app_state.insight_repository.get_by_id = AsyncMock(return_value=mock_insight)
 
     response = await app_client.get("/api/v1/analytics/insights/export-2/export?format=csv")
 
@@ -258,6 +249,7 @@ async def test_get_metrics(app_client):
 async def test_get_timeseries(app_client):
     """Testar obter série temporal."""
     from urllib.parse import quote
+
     start = quote((datetime.now(timezone.utc) - timedelta(hours=1)).isoformat())
     end = quote(datetime.now(timezone.utc).isoformat())
 
@@ -274,6 +266,7 @@ async def test_get_timeseries(app_client):
 async def test_detect_anomalies(app_client):
     """Testar detecção de anomalias."""
     from urllib.parse import quote
+
     start = quote((datetime.now(timezone.utc) - timedelta(hours=1)).isoformat())
     end = quote(datetime.now(timezone.utc).isoformat())
 
@@ -322,13 +315,8 @@ async def test_mcp_health_check(app_client):
 @pytest.mark.asyncio
 async def test_pagination(app_client):
     """Testar paginação de insights."""
-    mock_insights = [
-        create_mock_insight(f"page-{i}", f"Page Test {i}")
-        for i in range(5)
-    ]
-    app.state.app_state.insight_repository.list = AsyncMock(
-        return_value=(mock_insights[:2], 5)
-    )
+    mock_insights = [create_mock_insight(f"page-{i}", f"Page Test {i}") for i in range(5)]
+    app.state.app_state.insight_repository.list = AsyncMock(return_value=(mock_insights[:2], 5))
 
     response1 = await app_client.get("/api/v1/analytics/insights?limit=2&offset=0")
     response2 = await app_client.get("/api/v1/analytics/insights?limit=2&offset=2")
@@ -347,9 +335,7 @@ async def test_pagination(app_client):
 async def test_invalid_format_export(app_client):
     """Testar export com formato inválido."""
     mock_insight = create_mock_insight("invalid-1")
-    app.state.app_state.insight_repository.get_by_id = AsyncMock(
-        return_value=mock_insight
-    )
+    app.state.app_state.insight_repository.get_by_id = AsyncMock(return_value=mock_insight)
 
     response = await app_client.get("/api/v1/analytics/insights/invalid-1/export?format=invalid")
 
@@ -375,9 +361,7 @@ async def test_dashboard_stream_initial_response(app_client):
     """Testar resposta inicial do stream SSE."""
     # Mock com dados
     mock_insight = create_mock_insight("stream-1", "Stream Test")
-    app.state.app_state.insight_repository.list = AsyncMock(
-        return_value=([mock_insight], 1)
-    )
+    app.state.app_state.insight_repository.list = AsyncMock(return_value=([mock_insight], 1))
 
     response = await app_client.get("/api/v1/analytics/dashboard/stream")
 
@@ -390,9 +374,7 @@ async def test_dashboard_stream_initial_response(app_client):
 async def test_dashboard_stream_sse_format(app_client):
     """Testar formato dos eventos SSE enviados."""
     mock_insight = create_mock_insight("sse-1", "SSE Test")
-    app.state.app_state.insight_repository.list = AsyncMock(
-        return_value=([mock_insight], 1)
-    )
+    app.state.app_state.insight_repository.list = AsyncMock(return_value=([mock_insight], 1))
 
     response = await app_client.get("/api/v1/analytics/dashboard/stream?refresh_interval=1")
 
@@ -443,9 +425,7 @@ async def test_dashboard_stream_data_structure(app_client):
         ),
     )
 
-    app.state.app_state.insight_repository.list = AsyncMock(
-        return_value=([mock_insight], 1)
-    )
+    app.state.app_state.insight_repository.list = AsyncMock(return_value=([mock_insight], 1))
 
     response = await app_client.get("/api/v1/analytics/dashboard/stream?refresh_interval=1")
 

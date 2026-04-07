@@ -12,7 +12,7 @@ def mock_config():
     """Configuração mock para SHAPExplainer."""
     return {
         "shap_background_dataset_path": None,  # Sem dataset para testes básicos
-        "shap_timeout_seconds": 5.0
+        "shap_timeout_seconds": 5.0,
     }
 
 
@@ -24,14 +24,20 @@ def sample_features():
         "risk": 0.3,
         "complexity": 0.5,
         "specialist_type_business": 1.0,
-        "specialist_type_technical": 0.0
+        "specialist_type_technical": 0.0,
     }
 
 
 @pytest.fixture
 def sample_feature_names():
     """Nomes de features de exemplo."""
-    return ["confidence", "risk", "complexity", "specialist_type_business", "specialist_type_technical"]
+    return [
+        "confidence",
+        "risk",
+        "complexity",
+        "specialist_type_business",
+        "specialist_type_technical",
+    ]
 
 
 class TestSHAPExplainerInit:
@@ -56,19 +62,13 @@ class TestSHAPExplainerInit:
     def test_init_loads_background_dataset(self, mock_read_parquet, tmp_path):
         """Testa carregamento de dataset de background."""
         # Criar dataset Parquet temporário
-        df = pd.DataFrame({
-            "feature1": [1, 2, 3],
-            "feature2": [4, 5, 6]
-        })
+        df = pd.DataFrame({"feature1": [1, 2, 3], "feature2": [4, 5, 6]})
         parquet_path = tmp_path / "background.parquet"
         df.to_parquet(parquet_path)
 
         mock_read_parquet.return_value = df
 
-        config = {
-            "shap_background_dataset_path": str(parquet_path),
-            "shap_timeout_seconds": 5.0
-        }
+        config = {"shap_background_dataset_path": str(parquet_path), "shap_timeout_seconds": 5.0}
 
         explainer = SHAPExplainer(config)
 
@@ -83,7 +83,7 @@ class TestSHAPExplainerInit:
 
         config = {
             "shap_background_dataset_path": "/nonexistent/path.parquet",
-            "shap_timeout_seconds": 5.0
+            "shap_timeout_seconds": 5.0,
         }
 
         explainer = SHAPExplainer(config)
@@ -107,7 +107,9 @@ class TestExplain:
         assert result["error"] == "No model"
         assert len(result["feature_importances"]) == len(sample_feature_names)
 
-    def test_explain_fallback_features_structure(self, mock_config, sample_features, sample_feature_names):
+    def test_explain_fallback_features_structure(
+        self, mock_config, sample_features, sample_feature_names
+    ):
         """Testa estrutura de features fallback."""
         explainer = SHAPExplainer(mock_config)
 
@@ -132,7 +134,9 @@ class TestExplain:
         assert len(result["feature_importances"]) == len(sample_feature_names)
 
     @patch("shap.Explainer")
-    def test_explain_timeout_handling(self, mock_shap_explainer, mock_config, sample_features, sample_feature_names):
+    def test_explain_timeout_handling(
+        self, mock_shap_explainer, mock_config, sample_features, sample_feature_names
+    ):
         """Testa tratamento de timeout no cálculo SHAP."""
         from concurrent.futures import ThreadPoolExecutor, TimeoutError
 
@@ -142,7 +146,7 @@ class TestExplain:
         mock_model = Mock()
 
         # Simular timeout
-        with patch.object(ThreadPoolExecutor, 'submit') as mock_submit:
+        with patch.object(ThreadPoolExecutor, "submit") as mock_submit:
             mock_future = Mock()
             mock_future.result.side_effect = TimeoutError("Timeout")
             mock_submit.return_value = mock_future
@@ -152,24 +156,19 @@ class TestExplain:
             assert "error" in result
             assert result["error"] == "timeout"
 
+
 class TestExplainWithBackgroundData:
     """Testes com dataset de background."""
 
     @patch("pandas.read_parquet")
     def test_explain_uses_background_features(self, mock_read_parquet, tmp_path, sample_features):
         """Testa que features do background são usadas."""
-        df = pd.DataFrame({
-            "confidence": [0.5, 0.6, 0.7],
-            "risk": [0.3, 0.4, 0.5]
-        })
+        df = pd.DataFrame({"confidence": [0.5, 0.6, 0.7], "risk": [0.3, 0.4, 0.5]})
         parquet_path = tmp_path / "background.parquet"
         df.to_parquet(parquet_path)
         mock_read_parquet.return_value = df
 
-        config = {
-            "shap_background_dataset_path": str(parquet_path),
-            "shap_timeout_seconds": 5.0
-        }
+        config = {"shap_background_dataset_path": str(parquet_path), "shap_timeout_seconds": 5.0}
 
         explainer = SHAPExplainer(config)
 
@@ -253,7 +252,7 @@ class TestErrorHandling:
         explainer = SHAPExplainer(mock_config)
 
         feature_names = ["confidence", "risk"]
-        features = {"confidence": float('nan'), "risk": 0.5}
+        features = {"confidence": float("nan"), "risk": 0.5}
 
         # Deve tratar NaN sem lançar erro
         result = explainer.explain(None, features, feature_names)

@@ -31,20 +31,20 @@ if str(_repo_root) not in sys.path:
 
 
 # Configuration from environment
-CODE_FORGE_URL = os.getenv('CODE_FORGE_URL', 'http://localhost:8000')
-ARGOCD_URL = os.getenv('ARGOCD_URL', 'http://localhost:8081')
-ARGOCD_TOKEN = os.getenv('ARGOCD_TOKEN', 'test-token')
-OPA_URL = os.getenv('OPA_URL', 'http://localhost:8181')
-GITHUB_TOKEN = os.getenv('GITHUB_TOKEN', '')
-SONARQUBE_URL = os.getenv('SONARQUBE_URL', 'http://localhost:9000')
-SONARQUBE_TOKEN = os.getenv('SONARQUBE_TOKEN', '')
-SNYK_TOKEN = os.getenv('SNYK_TOKEN', '')
+CODE_FORGE_URL = os.getenv("CODE_FORGE_URL", "http://localhost:8000")
+ARGOCD_URL = os.getenv("ARGOCD_URL", "http://localhost:8081")
+ARGOCD_TOKEN = os.getenv("ARGOCD_TOKEN", "test-token")
+OPA_URL = os.getenv("OPA_URL", "http://localhost:8181")
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
+SONARQUBE_URL = os.getenv("SONARQUBE_URL", "http://localhost:9000")
+SONARQUBE_TOKEN = os.getenv("SONARQUBE_TOKEN", "")
+SNYK_TOKEN = os.getenv("SNYK_TOKEN", "")
 
 # Test mode from environment
 # Para habilitar testes de integração real, configure:
 #   export INTEGRATION_TEST_MODE=real
 #   pytest tests/integration/ -m real_integration
-INTEGRATION_TEST_MODE = os.getenv('INTEGRATION_TEST_MODE', 'mock')  # mock | real | hybrid
+INTEGRATION_TEST_MODE = os.getenv("INTEGRATION_TEST_MODE", "mock")  # mock | real | hybrid
 
 
 def check_service_availability(url: str, timeout: int = 5) -> bool:
@@ -60,6 +60,7 @@ def check_service_availability(url: str, timeout: int = 5) -> bool:
     """
     try:
         import httpx
+
         response = httpx.get(url, timeout=timeout)
         return response.status_code < 500
     except Exception:
@@ -68,29 +69,33 @@ def check_service_availability(url: str, timeout: int = 5) -> bool:
 
 def pytest_configure(config: pytest.Config) -> None:
     """Configure pytest with custom markers."""
-    config.addinivalue_line('markers', 'integration: Integration tests')
-    config.addinivalue_line('markers', 'real_integration: Tests that require real external services')
-    config.addinivalue_line('markers', 'argocd: ArgoCD integration tests')
-    config.addinivalue_line('markers', 'github_actions: GitHub Actions integration tests')
-    config.addinivalue_line('markers', 'sonarqube: SonarQube integration tests')
-    config.addinivalue_line('markers', 'opa: OPA integration tests')
-    config.addinivalue_line('markers', 'trivy: Trivy integration tests')
-    config.addinivalue_line('markers', 'snyk: Snyk integration tests')
-    config.addinivalue_line('markers', 'checkov: Checkov integration tests')
-    config.addinivalue_line('markers', 'code_forge: Code Forge integration tests')
-    config.addinivalue_line('markers', 'slow: Slow tests (>1 minute)')
+    config.addinivalue_line("markers", "integration: Integration tests")
+    config.addinivalue_line(
+        "markers", "real_integration: Tests that require real external services"
+    )
+    config.addinivalue_line("markers", "argocd: ArgoCD integration tests")
+    config.addinivalue_line("markers", "github_actions: GitHub Actions integration tests")
+    config.addinivalue_line("markers", "sonarqube: SonarQube integration tests")
+    config.addinivalue_line("markers", "opa: OPA integration tests")
+    config.addinivalue_line("markers", "trivy: Trivy integration tests")
+    config.addinivalue_line("markers", "snyk: Snyk integration tests")
+    config.addinivalue_line("markers", "checkov: Checkov integration tests")
+    config.addinivalue_line("markers", "code_forge: Code Forge integration tests")
+    config.addinivalue_line("markers", "slow: Slow tests (>1 minute)")
 
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list) -> None:
     """Skip real_integration tests unless explicitly enabled."""
-    if INTEGRATION_TEST_MODE == 'mock':
-        skip_real = pytest.mark.skip(reason='Real integration tests disabled (INTEGRATION_TEST_MODE=mock)')
+    if INTEGRATION_TEST_MODE == "mock":
+        skip_real = pytest.mark.skip(
+            reason="Real integration tests disabled (INTEGRATION_TEST_MODE=mock)"
+        )
         for item in items:
-            if 'real_integration' in item.keywords:
+            if "real_integration" in item.keywords:
                 item.add_marker(skip_real)
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope="session")
 def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
     """Create an event loop for the test session."""
     loop = asyncio.new_event_loop()
@@ -99,12 +104,12 @@ def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
     loop.close()
 
 
-@pytest.fixture(scope='session', autouse=True)
+@pytest.fixture(scope="session", autouse=True)
 def _configure_logging() -> None:
     """Configure logging for tests."""
     logging.basicConfig(
         level=logging.INFO,
-        format='%(asctime)s %(levelname)s %(name)s %(message)s',
+        format="%(asctime)s %(levelname)s %(name)s %(message)s",
     )
 
 
@@ -126,10 +131,10 @@ def worker_config():
     class TestSettings(WorkerAgentSettings):
         """Test settings with environment overrides."""
 
-        model_config = SettingsConfigDict(env_prefix='TEST_')
+        model_config = SettingsConfigDict(env_prefix="TEST_")
 
     settings = TestSettings(
-        service_name='worker-agents-test',
+        service_name="worker-agents-test",
         code_forge_url=CODE_FORGE_URL,
         code_forge_enabled=True,
         argocd_url=ARGOCD_URL,
@@ -146,7 +151,7 @@ def worker_config():
         snyk_enabled=bool(SNYK_TOKEN),
         snyk_token=SNYK_TOKEN,
         checkov_enabled=True,
-        allowed_test_commands=['pytest', 'npm test', 'go test', 'python', 'echo'],
+        allowed_test_commands=["pytest", "npm test", "go test", "python", "echo"],
         test_execution_timeout_seconds=60,
         code_forge_retry_attempts=3,
         retry_backoff_base_seconds=1,
@@ -163,7 +168,7 @@ def worker_config_minimal():
     from pydantic_settings import SettingsConfigDict
 
     return WorkerAgentSettings(
-        service_name='worker-agents-test-minimal',
+        service_name="worker-agents-test-minimal",
         code_forge_enabled=False,
         argocd_enabled=False,
         opa_enabled=False,
@@ -195,26 +200,30 @@ def mock_code_forge_client():
     from neural_hive_integration.clients.code_forge_client import PipelineStatus
 
     client = AsyncMock()
-    client.trigger_pipeline = AsyncMock(return_value='test-pipeline-123')
-    client.get_pipeline_status = AsyncMock(return_value=PipelineStatus(
-        pipeline_id='test-pipeline-123',
-        status='completed',
-        stage='deploy',
-        duration_ms=30000,
-        artifacts=[{'name': 'app.tar.gz', 'type': 'archive'}],
-        sbom={'format': 'cyclonedx', 'components': []},
-        signature='sig-abc123',
-    ))
-    client.wait_for_pipeline_completion = AsyncMock(return_value=PipelineStatus(
-        pipeline_id='test-pipeline-123',
-        status='completed',
-        stage='deploy',
-        duration_ms=30000,
-        artifacts=[{'name': 'app.tar.gz', 'type': 'archive'}],
-        sbom={'format': 'cyclonedx', 'components': []},
-        signature='sig-abc123',
-    ))
-    client.submit_generation_request = AsyncMock(return_value='gen-request-456')
+    client.trigger_pipeline = AsyncMock(return_value="test-pipeline-123")
+    client.get_pipeline_status = AsyncMock(
+        return_value=PipelineStatus(
+            pipeline_id="test-pipeline-123",
+            status="completed",
+            stage="deploy",
+            duration_ms=30000,
+            artifacts=[{"name": "app.tar.gz", "type": "archive"}],
+            sbom={"format": "cyclonedx", "components": []},
+            signature="sig-abc123",
+        )
+    )
+    client.wait_for_pipeline_completion = AsyncMock(
+        return_value=PipelineStatus(
+            pipeline_id="test-pipeline-123",
+            status="completed",
+            stage="deploy",
+            duration_ms=30000,
+            artifacts=[{"name": "app.tar.gz", "type": "archive"}],
+            sbom={"format": "cyclonedx", "components": []},
+            signature="sig-abc123",
+        )
+    )
+    client.submit_generation_request = AsyncMock(return_value="gen-request-456")
     return client
 
 
@@ -369,17 +378,18 @@ def validate_executor_minimal(worker_config_minimal, mock_vault_client, mock_met
 def build_ticket():
     """Sample BUILD ticket for testing."""
     import uuid
+
     ticket_id = str(uuid.uuid4())
     return {
-        'ticket_id': ticket_id,
-        'task_id': f'task-{ticket_id[:8]}',
-        'task_type': 'BUILD',
-        'parameters': {
-            'artifact_id': 'test-artifact-123',
-            'branch': 'main',
-            'commit_sha': 'abc123def456',
-            'build_args': {'debug': 'true'},
-            'env_vars': {'NODE_ENV': 'test'},
+        "ticket_id": ticket_id,
+        "task_id": f"task-{ticket_id[:8]}",
+        "task_type": "BUILD",
+        "parameters": {
+            "artifact_id": "test-artifact-123",
+            "branch": "main",
+            "commit_sha": "abc123def456",
+            "build_args": {"debug": "true"},
+            "env_vars": {"NODE_ENV": "test"},
         },
     }
 
@@ -388,19 +398,20 @@ def build_ticket():
 def deploy_ticket():
     """Sample DEPLOY ticket for testing."""
     import uuid
+
     ticket_id = str(uuid.uuid4())
     return {
-        'ticket_id': ticket_id,
-        'task_id': f'task-{ticket_id[:8]}',
-        'task_type': 'DEPLOY',
-        'parameters': {
-            'namespace': 'test-ns',
-            'deployment_name': 'test-app',
-            'image': 'test-image:v1.0',
-            'replicas': 2,
-            'repo_url': 'https://github.com/test/repo',
-            'chart_path': 'charts/app',
-            'revision': 'HEAD',
+        "ticket_id": ticket_id,
+        "task_id": f"task-{ticket_id[:8]}",
+        "task_type": "DEPLOY",
+        "parameters": {
+            "namespace": "test-ns",
+            "deployment_name": "test-app",
+            "image": "test-image:v1.0",
+            "replicas": 2,
+            "repo_url": "https://github.com/test/repo",
+            "chart_path": "charts/app",
+            "revision": "HEAD",
         },
     }
 
@@ -409,15 +420,16 @@ def deploy_ticket():
 def test_ticket():
     """Sample TEST ticket for testing."""
     import uuid
+
     ticket_id = str(uuid.uuid4())
     return {
-        'ticket_id': ticket_id,
-        'task_id': f'task-{ticket_id[:8]}',
-        'task_type': 'TEST',
-        'parameters': {
-            'test_suite': 'unit',
-            'test_command': 'echo "tests passed"',
-            'working_dir': '/tmp',
+        "ticket_id": ticket_id,
+        "task_id": f"task-{ticket_id[:8]}",
+        "task_type": "TEST",
+        "parameters": {
+            "test_suite": "unit",
+            "test_command": 'echo "tests passed"',
+            "working_dir": "/tmp",
         },
     }
 
@@ -426,18 +438,19 @@ def test_ticket():
 def test_ticket_github_actions():
     """Sample TEST ticket for GitHub Actions."""
     import uuid
+
     ticket_id = str(uuid.uuid4())
     return {
-        'ticket_id': ticket_id,
-        'task_id': f'task-{ticket_id[:8]}',
-        'task_type': 'TEST',
-        'parameters': {
-            'provider': 'github_actions',
-            'repo': 'test-org/test-repo',
-            'workflow_id': 'ci.yml',
-            'ref': 'main',
-            'inputs': {'environment': 'test'},
-            'test_suite': 'integration',
+        "ticket_id": ticket_id,
+        "task_id": f"task-{ticket_id[:8]}",
+        "task_type": "TEST",
+        "parameters": {
+            "provider": "github_actions",
+            "repo": "test-org/test-repo",
+            "workflow_id": "ci.yml",
+            "ref": "main",
+            "inputs": {"environment": "test"},
+            "test_suite": "integration",
         },
     }
 
@@ -446,15 +459,16 @@ def test_ticket_github_actions():
 def validate_ticket_policy():
     """Sample VALIDATE ticket for OPA policy validation."""
     import uuid
+
     ticket_id = str(uuid.uuid4())
     return {
-        'ticket_id': ticket_id,
-        'task_id': f'task-{ticket_id[:8]}',
-        'task_type': 'VALIDATE',
-        'parameters': {
-            'validation_type': 'policy',
-            'policy_path': 'policy/allow',
-            'input_data': {'user': 'admin', 'action': 'read'},
+        "ticket_id": ticket_id,
+        "task_id": f"task-{ticket_id[:8]}",
+        "task_type": "VALIDATE",
+        "parameters": {
+            "validation_type": "policy",
+            "policy_path": "policy/allow",
+            "input_data": {"user": "admin", "action": "read"},
         },
     }
 
@@ -463,14 +477,15 @@ def validate_ticket_policy():
 def validate_ticket_sast():
     """Sample VALIDATE ticket for SAST validation."""
     import uuid
+
     ticket_id = str(uuid.uuid4())
     return {
-        'ticket_id': ticket_id,
-        'task_id': f'task-{ticket_id[:8]}',
-        'task_type': 'VALIDATE',
-        'parameters': {
-            'validation_type': 'sast',
-            'working_dir': '/tmp',
+        "ticket_id": ticket_id,
+        "task_id": f"task-{ticket_id[:8]}",
+        "task_type": "VALIDATE",
+        "parameters": {
+            "validation_type": "sast",
+            "working_dir": "/tmp",
         },
     }
 
@@ -479,15 +494,16 @@ def validate_ticket_sast():
 def validate_ticket_sonarqube():
     """Sample VALIDATE ticket for SonarQube validation."""
     import uuid
+
     ticket_id = str(uuid.uuid4())
     return {
-        'ticket_id': ticket_id,
-        'task_id': f'task-{ticket_id[:8]}',
-        'task_type': 'VALIDATE',
-        'parameters': {
-            'validation_type': 'sonarqube',
-            'project_key': 'test-project',
-            'working_dir': '/tmp/src',
+        "ticket_id": ticket_id,
+        "task_id": f"task-{ticket_id[:8]}",
+        "task_type": "VALIDATE",
+        "parameters": {
+            "validation_type": "sonarqube",
+            "project_key": "test-project",
+            "working_dir": "/tmp/src",
         },
     }
 
@@ -496,14 +512,15 @@ def validate_ticket_sonarqube():
 def validate_ticket_snyk():
     """Sample VALIDATE ticket for Snyk validation."""
     import uuid
+
     ticket_id = str(uuid.uuid4())
     return {
-        'ticket_id': ticket_id,
-        'task_id': f'task-{ticket_id[:8]}',
-        'task_type': 'VALIDATE',
-        'parameters': {
-            'validation_type': 'snyk',
-            'manifest_path': '/tmp/package.json',
+        "ticket_id": ticket_id,
+        "task_id": f"task-{ticket_id[:8]}",
+        "task_type": "VALIDATE",
+        "parameters": {
+            "validation_type": "snyk",
+            "manifest_path": "/tmp/package.json",
         },
     }
 
@@ -512,14 +529,15 @@ def validate_ticket_snyk():
 def validate_ticket_iac():
     """Sample VALIDATE ticket for IaC/Checkov validation."""
     import uuid
+
     ticket_id = str(uuid.uuid4())
     return {
-        'ticket_id': ticket_id,
-        'task_id': f'task-{ticket_id[:8]}',
-        'task_type': 'VALIDATE',
-        'parameters': {
-            'validation_type': 'iac',
-            'working_dir': '/tmp/terraform',
+        "ticket_id": ticket_id,
+        "task_id": f"task-{ticket_id[:8]}",
+        "task_type": "VALIDATE",
+        "parameters": {
+            "validation_type": "iac",
+            "working_dir": "/tmp/terraform",
         },
     }
 
@@ -533,16 +551,17 @@ def validate_ticket_iac():
 def execute_ticket():
     """Sample EXECUTE ticket for testing."""
     import uuid
+
     ticket_id = str(uuid.uuid4())
     return {
-        'ticket_id': ticket_id,
-        'task_id': f'task-{ticket_id[:8]}',
-        'task_type': 'EXECUTE',
-        'parameters': {
-            'command': 'echo',
-            'args': ['hello', 'world'],
-            'runtime': 'local',
-            'timeout_seconds': 60,
+        "ticket_id": ticket_id,
+        "task_id": f"task-{ticket_id[:8]}",
+        "task_type": "EXECUTE",
+        "parameters": {
+            "command": "echo",
+            "args": ["hello", "world"],
+            "runtime": "local",
+            "timeout_seconds": 60,
         },
     }
 
@@ -551,18 +570,19 @@ def execute_ticket():
 def execute_ticket_k8s():
     """Sample EXECUTE ticket for Kubernetes runtime."""
     import uuid
+
     ticket_id = str(uuid.uuid4())
     return {
-        'ticket_id': ticket_id,
-        'task_id': f'task-{ticket_id[:8]}',
-        'task_type': 'EXECUTE',
-        'parameters': {
-            'command': ['python', '-c', 'print("test")'],
-            'runtime': 'k8s',
-            'image': 'python:3.11-slim',
-            'cpu_limit': '1000m',
-            'memory_limit': '512Mi',
-            'timeout_seconds': 300,
+        "ticket_id": ticket_id,
+        "task_id": f"task-{ticket_id[:8]}",
+        "task_type": "EXECUTE",
+        "parameters": {
+            "command": ["python", "-c", 'print("test")'],
+            "runtime": "k8s",
+            "image": "python:3.11-slim",
+            "cpu_limit": "1000m",
+            "memory_limit": "512Mi",
+            "timeout_seconds": 300,
         },
     }
 
@@ -571,18 +591,19 @@ def execute_ticket_k8s():
 def execute_ticket_docker():
     """Sample EXECUTE ticket for Docker runtime."""
     import uuid
+
     ticket_id = str(uuid.uuid4())
     return {
-        'ticket_id': ticket_id,
-        'task_id': f'task-{ticket_id[:8]}',
-        'task_type': 'EXECUTE',
-        'parameters': {
-            'command': ['echo', 'docker-test'],
-            'runtime': 'docker',
-            'image': 'alpine:latest',
-            'cpu_limit': 1.0,
-            'memory_limit': '256m',
-            'timeout_seconds': 120,
+        "ticket_id": ticket_id,
+        "task_id": f"task-{ticket_id[:8]}",
+        "task_type": "EXECUTE",
+        "parameters": {
+            "command": ["echo", "docker-test"],
+            "runtime": "docker",
+            "image": "alpine:latest",
+            "cpu_limit": 1.0,
+            "memory_limit": "256m",
+            "timeout_seconds": 120,
         },
     }
 
@@ -591,16 +612,17 @@ def execute_ticket_docker():
 def execute_ticket_lambda():
     """Sample EXECUTE ticket for Lambda runtime."""
     import uuid
+
     ticket_id = str(uuid.uuid4())
     return {
-        'ticket_id': ticket_id,
-        'task_id': f'task-{ticket_id[:8]}',
-        'task_type': 'EXECUTE',
-        'parameters': {
-            'command': 'handler',
-            'runtime': 'lambda',
-            'function_name': 'neural-hive-executor',
-            'timeout_seconds': 60,
+        "ticket_id": ticket_id,
+        "task_id": f"task-{ticket_id[:8]}",
+        "task_type": "EXECUTE",
+        "parameters": {
+            "command": "handler",
+            "runtime": "lambda",
+            "function_name": "neural-hive-executor",
+            "timeout_seconds": 60,
         },
     }
 
@@ -612,17 +634,17 @@ def mock_argocd_client():
 
     @dataclass
     class MockHealthStatus:
-        status: str = 'Healthy'
-        message: str = ''
+        status: str = "Healthy"
+        message: str = ""
 
     @dataclass
     class MockSyncStatus:
-        status: str = 'Synced'
-        revision: str = 'abc123'
+        status: str = "Synced"
+        revision: str = "abc123"
 
     @dataclass
     class MockApplicationStatus:
-        name: str = 'test-app'
+        name: str = "test-app"
         health: MockHealthStatus = None
         sync: MockSyncStatus = None
 
@@ -633,7 +655,7 @@ def mock_argocd_client():
                 self.sync = MockSyncStatus()
 
     client = AsyncMock()
-    client.create_application = AsyncMock(return_value='test-app')
+    client.create_application = AsyncMock(return_value="test-app")
     client.wait_for_health = AsyncMock(return_value=MockApplicationStatus())
     client.get_application_status = AsyncMock(return_value=MockApplicationStatus())
     client.delete_application = AsyncMock(return_value=True)
@@ -649,10 +671,10 @@ def mock_flux_client():
     @dataclass
     class MockKustomizationStatus:
         ready: bool = True
-        lastAppliedRevision: str = 'main/abc123'
+        lastAppliedRevision: str = "main/abc123"
 
     client = AsyncMock()
-    client.create_kustomization = AsyncMock(return_value='test-kust')
+    client.create_kustomization = AsyncMock(return_value="test-kust")
     client.wait_for_ready = AsyncMock(return_value=MockKustomizationStatus())
     client.delete_kustomization = AsyncMock(return_value=True)
     return client
@@ -666,26 +688,26 @@ def mock_github_actions_client():
     @dataclass
     class MockWorkflowRunStatus:
         run_id: int = 12345
-        status: str = 'completed'
-        conclusion: str = 'success'
+        status: str = "completed"
+        conclusion: str = "success"
         success: bool = True
         passed: int = 50
         failed: int = 0
         skipped: int = 2
         coverage: float = 87.5
         duration_seconds: float = 120.0
-        html_url: str = 'https://github.com/owner/repo/actions/runs/12345'
+        html_url: str = "https://github.com/owner/repo/actions/runs/12345"
         logs: list = None
 
         def __post_init__(self):
             if self.logs is None:
-                self.logs = ['Test run started', 'All tests passed']
+                self.logs = ["Test run started", "All tests passed"]
 
     client = AsyncMock()
     client.trigger_workflow = AsyncMock(return_value=12345)
     client.wait_for_run = AsyncMock(return_value=MockWorkflowRunStatus())
-    client.get_test_results = AsyncMock(return_value={'passed': 50, 'failed': 0})
-    client.default_repo = 'owner/repo'
+    client.get_test_results = AsyncMock(return_value={"passed": 50, "failed": 0})
+    client.default_repo = "owner/repo"
     return client
 
 
@@ -697,7 +719,7 @@ def mock_gitlab_ci_client():
     @dataclass
     class MockPipelineStatus:
         pipeline_id: int = 54321
-        status: str = 'success'
+        status: str = "success"
         success: bool = True
         tests_passed: int = 75
         tests_failed: int = 0
@@ -705,20 +727,20 @@ def mock_gitlab_ci_client():
         tests_errors: int = 0
         coverage: float = 82.0
         duration_seconds: float = 180.0
-        web_url: str = 'https://gitlab.com/project/-/pipelines/54321'
+        web_url: str = "https://gitlab.com/project/-/pipelines/54321"
         logs: list = None
 
         def __post_init__(self):
             if self.logs is None:
-                self.logs = ['Pipeline started', 'All jobs passed']
+                self.logs = ["Pipeline started", "All jobs passed"]
 
     client = AsyncMock()
     client.trigger_pipeline = AsyncMock(return_value=54321)
     client.wait_for_pipeline = AsyncMock(return_value=MockPipelineStatus())
-    client.get_test_report = AsyncMock(return_value={'passed': 75, 'failed': 0})
-    client.download_and_parse_artifacts = AsyncMock(return_value={
-        'tests_passed': 75, 'tests_failed': 0, 'tests_skipped': 3, 'tests_errors': 0
-    })
+    client.get_test_report = AsyncMock(return_value={"passed": 75, "failed": 0})
+    client.download_and_parse_artifacts = AsyncMock(
+        return_value={"tests_passed": 75, "tests_failed": 0, "tests_skipped": 3, "tests_errors": 0}
+    )
     return client
 
 
@@ -730,25 +752,25 @@ def mock_jenkins_client():
     @dataclass
     class MockJenkinsBuildStatus:
         build_number: int = 100
-        status: str = 'SUCCESS'
+        status: str = "SUCCESS"
         success: bool = True
         tests_passed: int = 60
         tests_failed: int = 0
         tests_skipped: int = 5
         coverage: float = 78.5
         duration_seconds: float = 90.0
-        url: str = 'https://jenkins.example.com/job/test-job/100/'
+        url: str = "https://jenkins.example.com/job/test-job/100/"
         logs: list = None
 
         def __post_init__(self):
             if self.logs is None:
-                self.logs = ['Build started', 'Tests executed']
+                self.logs = ["Build started", "Tests executed"]
 
     client = AsyncMock()
     client.trigger_job = AsyncMock(return_value=500)
     client.wait_for_build_number = AsyncMock(return_value=100)
     client.wait_for_build = AsyncMock(return_value=MockJenkinsBuildStatus())
-    client.get_test_report = AsyncMock(return_value={'passed': 60, 'failed': 0})
+    client.get_test_report = AsyncMock(return_value={"passed": 60, "failed": 0})
     return client
 
 
@@ -759,15 +781,15 @@ def mock_opa_client():
     from enum import Enum
 
     class MockViolationSeverity(Enum):
-        CRITICAL = 'CRITICAL'
-        HIGH = 'HIGH'
-        MEDIUM = 'MEDIUM'
-        LOW = 'LOW'
+        CRITICAL = "CRITICAL"
+        HIGH = "HIGH"
+        MEDIUM = "MEDIUM"
+        LOW = "LOW"
 
     @dataclass
     class MockViolation:
-        rule_id: str = 'rule-001'
-        message: str = 'Test violation'
+        rule_id: str = "rule-001"
+        message: str = "Test violation"
         severity: MockViolationSeverity = MockViolationSeverity.MEDIUM
         resource: str = None
         location: str = None
@@ -786,12 +808,14 @@ def mock_opa_client():
 
     client = AsyncMock()
     client.evaluate_policy = AsyncMock(return_value=MockPolicyEvaluationResponse())
-    client.count_violations_by_severity = MagicMock(return_value={
-        MockViolationSeverity.CRITICAL: 0,
-        MockViolationSeverity.HIGH: 0,
-        MockViolationSeverity.MEDIUM: 0,
-        MockViolationSeverity.LOW: 0,
-    })
+    client.count_violations_by_severity = MagicMock(
+        return_value={
+            MockViolationSeverity.CRITICAL: 0,
+            MockViolationSeverity.HIGH: 0,
+            MockViolationSeverity.MEDIUM: 0,
+            MockViolationSeverity.LOW: 0,
+        }
+    )
     return client
 
 
@@ -802,18 +826,18 @@ def mock_k8s_jobs_client():
     from enum import Enum
 
     class MockK8sJobStatus(Enum):
-        PENDING = 'pending'
-        RUNNING = 'running'
-        SUCCEEDED = 'succeeded'
-        FAILED = 'failed'
+        PENDING = "pending"
+        RUNNING = "running"
+        SUCCEEDED = "succeeded"
+        FAILED = "failed"
 
     @dataclass
     class MockK8sJobResult:
-        job_name: str = 'test-job-abc123'
-        pod_name: str = 'test-job-abc123-pod'
+        job_name: str = "test-job-abc123"
+        pod_name: str = "test-job-abc123-pod"
         status: MockK8sJobStatus = MockK8sJobStatus.SUCCEEDED
         exit_code: int = 0
-        logs: str = 'hello world'
+        logs: str = "hello world"
         duration_ms: int = 5000
 
     client = AsyncMock()
@@ -828,10 +852,10 @@ def mock_docker_runtime_client():
 
     @dataclass
     class MockDockerExecutionResult:
-        container_id: str = 'abc123def456'
+        container_id: str = "abc123def456"
         exit_code: int = 0
-        stdout: str = 'docker-test'
-        stderr: str = ''
+        stdout: str = "docker-test"
+        stderr: str = ""
         duration_ms: int = 3000
         image_pulled: bool = False
 
@@ -848,12 +872,12 @@ def mock_lambda_runtime_client():
     @dataclass
     class MockLambdaResponse:
         exit_code: int = 0
-        stdout: str = 'lambda result'
-        stderr: str = ''
+        stdout: str = "lambda result"
+        stderr: str = ""
 
     @dataclass
     class MockLambdaInvocationResult:
-        request_id: str = 'req-abc123'
+        request_id: str = "req-abc123"
         status_code: int = 200
         function_error: str = None
         response: MockLambdaResponse = None
@@ -878,9 +902,9 @@ def mock_local_runtime_client():
     @dataclass
     class MockLocalExecutionResult:
         exit_code: int = 0
-        stdout: str = 'local output'
-        stderr: str = ''
-        command_executed: str = 'echo hello world'
+        stdout: str = "local output"
+        stderr: str = ""
+        command_executed: str = "echo hello world"
         pid: int = 12345
         duration_ms: int = 100
 

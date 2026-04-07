@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+
 UTC = timezone.utc  # type: ignore
 from typing import Any
 

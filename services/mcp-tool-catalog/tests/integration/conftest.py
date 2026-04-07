@@ -14,6 +14,7 @@ from aiohttp import web
 # Fixtures de Mock HTTP Server
 # ============================================================================
 
+
 @pytest.fixture
 def mock_http_server_app():
     """
@@ -32,32 +33,22 @@ def mock_http_server_app():
 
     async def analyze_handler(request):
         body = await request.json()
-        return web.json_response({
-            "result": "success",
-            "issues": 0,
-            "project": body.get("project", "unknown")
-        })
+        return web.json_response(
+            {"result": "success", "issues": 0, "project": body.get("project", "unknown")}
+        )
 
     async def project_handler(request):
         project_id = request.match_info.get("id", "0")
-        return web.json_response({
-            "id": project_id,
-            "name": f"project-{project_id}"
-        })
+        return web.json_response({"id": project_id, "name": f"project-{project_id}"})
 
     async def scan_handler(request):
         body = await request.json()
-        return web.json_response({
-            "vulnerabilities": 0,
-            "image": body.get("image", "unknown"),
-            "severity": "none"
-        })
+        return web.json_response(
+            {"vulnerabilities": 0, "image": body.get("image", "unknown"), "severity": "none"}
+        )
 
     async def error_500_handler(request):
-        return web.json_response(
-            {"error": "Internal Server Error"},
-            status=500
-        )
+        return web.json_response({"error": "Internal Server Error"}, status=500)
 
     async def slow_handler(request):
         await asyncio.sleep(5)  # Simula endpoint lento
@@ -84,6 +75,7 @@ async def mock_http_server(mock_http_server_app, aiohttp_server):
 # Fixtures de Mock MCP Server
 # ============================================================================
 
+
 @pytest.fixture
 def mock_mcp_server_app():
     """
@@ -100,141 +92,129 @@ def mock_mcp_server_app():
         try:
             data = await request.json()
         except json.JSONDecodeError:
-            return web.json_response({
-                "jsonrpc": "2.0",
-                "id": None,
-                "error": {
-                    "code": -32700,
-                    "message": "Parse error"
-                }
-            })
+            return web.json_response(
+                {"jsonrpc": "2.0", "id": None, "error": {"code": -32700, "message": "Parse error"}}
+            )
 
         method = data.get("method")
         params = data.get("params", {})
         request_id = data.get("id", 1)
 
         if method == "tools/list":
-            return web.json_response({
-                "jsonrpc": "2.0",
-                "id": request_id,
-                "result": {
-                    "tools": [
-                        {
-                            "name": "trivy-scan",
-                            "description": "Security vulnerability scanner",
-                            "inputSchema": {
-                                "type": "object",
-                                "properties": {
-                                    "image": {"type": "string"}
-                                }
-                            }
-                        },
-                        {
-                            "name": "sonarqube-analyze",
-                            "description": "Code quality analyzer",
-                            "inputSchema": {
-                                "type": "object",
-                                "properties": {
-                                    "project": {"type": "string"}
-                                }
-                            }
-                        }
-                    ]
+            return web.json_response(
+                {
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "result": {
+                        "tools": [
+                            {
+                                "name": "trivy-scan",
+                                "description": "Security vulnerability scanner",
+                                "inputSchema": {
+                                    "type": "object",
+                                    "properties": {"image": {"type": "string"}},
+                                },
+                            },
+                            {
+                                "name": "sonarqube-analyze",
+                                "description": "Code quality analyzer",
+                                "inputSchema": {
+                                    "type": "object",
+                                    "properties": {"project": {"type": "string"}},
+                                },
+                            },
+                        ]
+                    },
                 }
-            })
+            )
 
         elif method == "tools/call":
             tool_name = params.get("name")
             arguments = params.get("arguments", {})
 
             if tool_name == "trivy-scan":
-                return web.json_response({
-                    "jsonrpc": "2.0",
-                    "id": request_id,
-                    "result": {
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": f"Scan completed for {arguments.get('image', 'unknown')}: 0 vulnerabilities found"
-                            }
-                        ],
-                        "structuredContent": {
-                            "vulnerabilities": [],
-                            "severity": "none"
+                return web.json_response(
+                    {
+                        "jsonrpc": "2.0",
+                        "id": request_id,
+                        "result": {
+                            "content": [
+                                {
+                                    "type": "text",
+                                    "text": f"Scan completed for {arguments.get('image', 'unknown')}: 0 vulnerabilities found",
+                                }
+                            ],
+                            "structuredContent": {"vulnerabilities": [], "severity": "none"},
+                            "isError": False,
                         },
-                        "isError": False
                     }
-                })
+                )
 
             elif tool_name == "sonarqube-analyze":
-                return web.json_response({
-                    "jsonrpc": "2.0",
-                    "id": request_id,
-                    "result": {
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": f"Analysis completed for {arguments.get('project', 'unknown')}: 0 issues found"
-                            }
-                        ],
-                        "structuredContent": {
-                            "issues": 0,
-                            "coverage": 85.5
+                return web.json_response(
+                    {
+                        "jsonrpc": "2.0",
+                        "id": request_id,
+                        "result": {
+                            "content": [
+                                {
+                                    "type": "text",
+                                    "text": f"Analysis completed for {arguments.get('project', 'unknown')}: 0 issues found",
+                                }
+                            ],
+                            "structuredContent": {"issues": 0, "coverage": 85.5},
+                            "isError": False,
                         },
-                        "isError": False
                     }
-                })
+                )
 
             elif tool_name == "failing-tool":
-                return web.json_response({
-                    "jsonrpc": "2.0",
-                    "id": request_id,
-                    "result": {
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": "Tool execution failed"
-                            }
-                        ],
-                        "isError": True
+                return web.json_response(
+                    {
+                        "jsonrpc": "2.0",
+                        "id": request_id,
+                        "result": {
+                            "content": [{"type": "text", "text": "Tool execution failed"}],
+                            "isError": True,
+                        },
                     }
-                })
+                )
 
             else:
-                return web.json_response({
-                    "jsonrpc": "2.0",
-                    "id": request_id,
-                    "error": {
-                        "code": -32601,
-                        "message": f"Tool not found: {tool_name}"
+                return web.json_response(
+                    {
+                        "jsonrpc": "2.0",
+                        "id": request_id,
+                        "error": {"code": -32601, "message": f"Tool not found: {tool_name}"},
                     }
-                })
+                )
 
         elif method == "resources/read":
             uri = params.get("uri", "")
-            return web.json_response({
-                "jsonrpc": "2.0",
-                "id": request_id,
-                "result": {
-                    "contents": [
-                        {
-                            "uri": uri,
-                            "mimeType": "application/json",
-                            "text": json.dumps({"resource": "content"})
-                        }
-                    ]
+            return web.json_response(
+                {
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "result": {
+                        "contents": [
+                            {
+                                "uri": uri,
+                                "mimeType": "application/json",
+                                "text": json.dumps({"resource": "content"}),
+                            }
+                        ]
+                    },
                 }
-            })
+            )
 
         else:
-            return web.json_response({
-                "jsonrpc": "2.0",
-                "id": request_id,
-                "error": {
-                    "code": -32601,
-                    "message": f"Method not found: {method}"
+            return web.json_response(
+                {
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "error": {"code": -32601, "message": f"Method not found: {method}"},
                 }
-            })
+            )
 
     app.router.add_post("/", jsonrpc_handler)
 
@@ -251,6 +231,7 @@ async def mock_mcp_server(mock_mcp_server_app, aiohttp_server):
 # ============================================================================
 # Fixtures de Configuracao
 # ============================================================================
+
 
 @pytest.fixture
 def mock_settings_factory():

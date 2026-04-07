@@ -5,6 +5,7 @@ Define quando um ticket de alta prioridade pode preemptar
 um ticket de baixa prioridade que está em execução.
 """
 from datetime import timezone
+
 UTC = timezone.utc  # type: ignore
 from enum import StrEnum
 from typing import Any

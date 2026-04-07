@@ -34,9 +34,7 @@ def shap_config():
 class TestSHAPBenchmarks:
     """Benchmarks de SHAP."""
 
-    def test_benchmark_shap_explain_small_model(
-        self, benchmark, small_model, shap_config
-    ):
+    def test_benchmark_shap_explain_small_model(self, benchmark, small_model, shap_config):
         """
         Benchmark: Tempo de explicação SHAP em modelo pequeno.
 
@@ -56,16 +54,12 @@ class TestSHAPBenchmarks:
         feature_names = sorted(aggregated_features.keys())
 
         # Executar benchmark
-        result = benchmark(
-            explainer.explain, small_model, aggregated_features, feature_names
-        )
+        result = benchmark(explainer.explain, small_model, aggregated_features, feature_names)
 
         # Validar que retornou resultado válido
         assert "feature_importances" in result or "error" in result
 
-    def test_benchmark_shap_with_background_data(
-        self, benchmark, small_model, shap_config
-    ):
+    def test_benchmark_shap_with_background_data(self, benchmark, small_model, shap_config):
         """
         Benchmark: SHAP com background dataset.
 
@@ -75,9 +69,7 @@ class TestSHAPBenchmarks:
         import pandas as pd
 
         # Criar background dataset pequeno
-        background_data = pd.DataFrame(
-            np.random.rand(30, 4), columns=["f1", "f2", "f3", "f4"]
-        )
+        background_data = pd.DataFrame(np.random.rand(30, 4), columns=["f1", "f2", "f3", "f4"])
 
         explainer = SHAPExplainer(shap_config)
         explainer.background_data = background_data
@@ -85,8 +77,6 @@ class TestSHAPBenchmarks:
         aggregated_features = {"f1": 0.5, "f2": 0.6, "f3": 0.7, "f4": 0.8}
         feature_names = ["f1", "f2", "f3", "f4"]
 
-        result = benchmark(
-            explainer.explain, small_model, aggregated_features, feature_names
-        )
+        result = benchmark(explainer.explain, small_model, aggregated_features, feature_names)
 
         assert "feature_importances" in result or "error" in result

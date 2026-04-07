@@ -74,6 +74,7 @@ def mongo_client():
 def repo(mongo_client):
     """Repository instance."""
     from src.repositories.seniority_history_repo import SeniorityHistoryRepository
+
     return SeniorityHistoryRepository(mongo_client)
 
 
@@ -93,7 +94,7 @@ class TestSeniorityHistoryRepository:
             new_multiplier=1.5,
             changed_by="admin",
             change_reason="promocao",
-            decision_id="decision_123"
+            decision_id="decision_123",
         )
 
         assert doc_id == "doc_123"
@@ -123,7 +124,7 @@ class TestSeniorityHistoryRepository:
             changed_by="system",
             change_reason="auto_promotion",
             decision_id="decision_456",
-            plan_id="plan_789"
+            plan_id="plan_789",
         )
 
         call_args = repo.collection.insert_one.call_args[0][0]
@@ -142,7 +143,7 @@ class TestSeniorityHistoryRepository:
             new_level="senior",
             new_multiplier=1.5,
             changed_by="admin",
-            change_reason="promocao"
+            change_reason="promocao",
         )
 
         assert doc_id == "doc_123"
@@ -160,18 +161,19 @@ class TestSeniorityHistoryRepository:
                 "_id": "doc_1",
                 "specialist_id": "business_analyst",
                 "new_level": "senior",
-                "changed_at": datetime.now(timezone.utc)
+                "changed_at": datetime.now(timezone.utc),
             },
             {
                 "_id": "doc_2",
                 "specialist_id": "business_analyst",
                 "new_level": "expert",
-                "changed_at": datetime.now(timezone.utc)
-            }
+                "changed_at": datetime.now(timezone.utc),
+            },
         ]
 
         mongo_client = _create_mock_mongo_client(test_data)
         from src.repositories.seniority_history_repo import SeniorityHistoryRepository
+
         repo_instance = SeniorityHistoryRepository(mongo_client)
 
         changes = await repo_instance.get_history("business_analyst")
@@ -193,6 +195,7 @@ class TestSeniorityHistoryRepository:
         """Buscar historico vazio."""
         mongo_client = _create_mock_mongo_client([])
         from src.repositories.seniority_history_repo import SeniorityHistoryRepository
+
         repo_instance = SeniorityHistoryRepository(mongo_client)
 
         changes = await repo_instance.get_history("nonexistent_specialist")
@@ -207,12 +210,13 @@ class TestSeniorityHistoryRepository:
                 "_id": "doc_1",
                 "specialist_id": "spec_1",
                 "new_level": "senior",
-                "changed_at": datetime.now(timezone.utc)
+                "changed_at": datetime.now(timezone.utc),
             }
         ]
 
         mongo_client = _create_mock_mongo_client(test_data)
         from src.repositories.seniority_history_repo import SeniorityHistoryRepository
+
         repo_instance = SeniorityHistoryRepository(mongo_client)
 
         changes = await repo_instance.get_history("spec_1", limit=50)
@@ -231,24 +235,24 @@ class TestSeniorityHistoryRepository:
                 "_id": "doc_1",
                 "specialist_id": "spec_1",
                 "new_level": "senior",
-                "changed_at": datetime.now(timezone.utc)
+                "changed_at": datetime.now(timezone.utc),
             },
             {
                 "_id": "doc_2",
                 "specialist_id": "spec_2",
                 "new_level": "expert",
-                "changed_at": datetime.now(timezone.utc)
-            }
+                "changed_at": datetime.now(timezone.utc),
+            },
         ]
 
         mongo_client = _create_mock_mongo_client(test_data)
         from src.repositories.seniority_history_repo import SeniorityHistoryRepository
+
         repo_instance = SeniorityHistoryRepository(mongo_client)
 
         since = datetime.now() - timedelta(days=1)
         changes = await repo_instance.get_recent_changes(
-            specialists=["spec_1", "spec_2"],
-            since=since
+            specialists=["spec_1", "spec_2"], since=since
         )
 
         # Verify query structure
@@ -269,12 +273,13 @@ class TestSeniorityHistoryRepository:
                 "domain": "BUSINESS",
                 "specialist_id": "spec_1",
                 "new_level": "senior",
-                "changed_at": datetime.now(timezone.utc)
+                "changed_at": datetime.now(timezone.utc),
             }
         ]
 
         mongo_client = _create_mock_mongo_client(test_data)
         from src.repositories.seniority_history_repo import SeniorityHistoryRepository
+
         repo_instance = SeniorityHistoryRepository(mongo_client)
 
         since = datetime.now() - timedelta(days=7)
@@ -291,6 +296,7 @@ class TestSeniorityHistoryRepository:
         """Buscar mudancas por dominio sem filtro temporal."""
         mongo_client = _create_mock_mongo_client([])
         from src.repositories.seniority_history_repo import SeniorityHistoryRepository
+
         repo_instance = SeniorityHistoryRepository(mongo_client)
 
         changes = await repo_instance.get_by_domain("TECHNICAL")
@@ -303,18 +309,13 @@ class TestSeniorityHistoryRepository:
     @pytest.mark.asyncio
     async def test_parse_cursor_removes_id(self):
         """Verifica que _id eh removido dos resultados."""
-        test_data = [
-            {
-                "_id": "doc_123",
-                "specialist_id": "test_spec",
-                "new_level": "senior"
-            }
-        ]
+        test_data = [{"_id": "doc_123", "specialist_id": "test_spec", "new_level": "senior"}]
 
         cursor = AsyncIteratorMock(test_data)
 
         mongo_client = _create_mock_mongo_client()
         from src.repositories.seniority_history_repo import SeniorityHistoryRepository
+
         repo_instance = SeniorityHistoryRepository(mongo_client)
 
         results = await repo_instance._parse_cursor(cursor)

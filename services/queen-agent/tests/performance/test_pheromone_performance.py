@@ -59,10 +59,10 @@ class PheromoneClientForPerfTest:
                 keys_scanned += 1
 
                 try:
-                    key_parts = key.split(':')
+                    key_parts = key.split(":")
                     if len(key_parts) < 4:
                         continue
-                    domain = ':'.join(key_parts[2:-1])
+                    domain = ":".join(key_parts[2:-1])
                 except Exception:
                     continue
 
@@ -71,15 +71,15 @@ class PheromoneClientForPerfTest:
                     continue
 
                 trail = {
-                    'domain': domain,
-                    'strength': pheromone_data.get('strength', 0.0),
-                    'last_updated': pheromone_data.get('last_updated', 0),
-                    'metadata': pheromone_data.get('metadata', {}),
-                    'key': key
+                    "domain": domain,
+                    "strength": pheromone_data.get("strength", 0.0),
+                    "last_updated": pheromone_data.get("last_updated", 0),
+                    "metadata": pheromone_data.get("metadata", {}),
+                    "key": key,
                 }
                 trails.append(trail)
 
-            trails.sort(key=lambda t: t['strength'], reverse=True)
+            trails.sort(key=lambda t: t["strength"], reverse=True)
             limited_trails = trails[:limit]
 
             self._success_trails_cache = limited_trails
@@ -100,6 +100,7 @@ class PheromoneClientForPerfTest:
 @dataclass
 class PheromoneLoadMetrics:
     """Metricas de carga para testes de performance"""
+
     latencies_ms: List[float] = field(default_factory=list)
     cache_hits: int = 0
     cache_misses: int = 0
@@ -139,16 +140,16 @@ class PheromoneLoadMetrics:
 
 def create_mock_keys(count: int) -> List[str]:
     """Cria lista de chaves mock"""
-    return [f'pheromone:strategic:plan-{i}:SUCCESS' for i in range(count)]
+    return [f"pheromone:strategic:plan-{i}:SUCCESS" for i in range(count)]
 
 
 def create_mock_pheromone_data(keys: List[str]) -> dict:
     """Cria dados de feromonio mock"""
     return {
         key: {
-            'strength': (i % 100) / 100.0,  # Varia de 0.0 a 0.99
-            'last_updated': 1000 + i,
-            'metadata': {'decision_id': f'dec-{i}'}
+            "strength": (i % 100) / 100.0,  # Varia de 0.0 a 0.99
+            "last_updated": 1000 + i,
+            "metadata": {"decision_id": f"dec-{i}"},
         }
         for i, key in enumerate(keys)
     }
@@ -166,17 +167,14 @@ def mock_redis_client():
 def mock_settings():
     """Mock de configuracoes"""
     settings = MagicMock()
-    settings.REDIS_PHEROMONE_PREFIX = 'pheromone:strategic:'
+    settings.REDIS_PHEROMONE_PREFIX = "pheromone:strategic:"
     return settings
 
 
 @pytest.fixture
 def pheromone_client(mock_redis_client, mock_settings):
     """Instancia do PheromoneClient com mocks"""
-    client = PheromoneClientForPerfTest(
-        redis_client=mock_redis_client,
-        settings=mock_settings
-    )
+    client = PheromoneClientForPerfTest(redis_client=mock_redis_client, settings=mock_settings)
     client._metrics_mock = MagicMock()
     return client
 
@@ -290,8 +288,12 @@ async def test_cache_effectiveness(pheromone_client, mock_redis_client):
     assert metrics.cache_hit_rate >= 0.99, f"Cache hit rate {metrics.cache_hit_rate:.2%} < 99%"
 
     throughput = call_count / (sum(metrics.latencies_ms) / 1000)
-    print(f"\nCache test - Hit rate: {metrics.cache_hit_rate:.2%}, Throughput: {throughput:.0f} calls/sec")
-    print(f"P50: {metrics.p50_latency:.3f}ms, P95: {metrics.p95_latency:.3f}ms, P99: {metrics.p99_latency:.3f}ms")
+    print(
+        f"\nCache test - Hit rate: {metrics.cache_hit_rate:.2%}, Throughput: {throughput:.0f} calls/sec"
+    )
+    print(
+        f"P50: {metrics.p50_latency:.3f}ms, P95: {metrics.p95_latency:.3f}ms, P99: {metrics.p99_latency:.3f}ms"
+    )
 
 
 @pytest.mark.asyncio
@@ -319,10 +321,7 @@ async def test_concurrent_access(pheromone_client, mock_redis_client):
     )
 
     # Executar 50 chamadas concorrentes
-    tasks = [
-        pheromone_client.get_success_trails(limit=10)
-        for _ in range(50)
-    ]
+    tasks = [pheromone_client.get_success_trails(limit=10) for _ in range(50)]
 
     results = await asyncio.gather(*tasks)
 
@@ -332,12 +331,14 @@ async def test_concurrent_access(pheromone_client, mock_redis_client):
         assert len(result) == 10, f"Chamada {i} retornou {len(result)} resultados"
 
     # Verificar consistencia dos resultados (todas devem ter os mesmos dados)
-    first_domains = set(r['domain'] for r in results[0])
+    first_domains = set(r["domain"] for r in results[0])
     for i, result in enumerate(results[1:], 1):
-        result_domains = set(r['domain'] for r in result)
+        result_domains = set(r["domain"] for r in result)
         assert result_domains == first_domains, f"Chamada {i} tem resultados inconsistentes"
 
-    print(f"\nConcurrent test - {len(results)} chamadas concorrentes, {scan_call_count} scans Redis")
+    print(
+        f"\nConcurrent test - {len(results)} chamadas concorrentes, {scan_call_count} scans Redis"
+    )
 
 
 @pytest.mark.asyncio

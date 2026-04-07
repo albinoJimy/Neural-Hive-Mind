@@ -59,9 +59,7 @@ class OnlineLearningClient:
         self.specialist_type = specialist_type
         self.online_learning_enabled = online_learning_enabled
         self.cache_ttl_seconds = cache_ttl_seconds
-        self.mongodb_uri = mongodb_uri or os.getenv(
-            "MONGODB_URI", "mongodb://localhost:27017"
-        )
+        self.mongodb_uri = mongodb_uri or os.getenv("MONGODB_URI", "mongodb://localhost:27017")
         self.checkpoint_path = checkpoint_path or os.getenv(
             "ONLINE_CHECKPOINT_PATH", "/data/online_learning/checkpoints"
         )
@@ -109,9 +107,7 @@ class OnlineLearningClient:
             # Buscar checkpoint mais recente
             import glob
 
-            pattern = os.path.join(
-                self.checkpoint_path, f"{self.specialist_type}_*.pkl"
-            )
+            pattern = os.path.join(self.checkpoint_path, f"{self.specialist_type}_*.pkl")
             checkpoints = sorted(glob.glob(pattern), reverse=True)
 
             if not checkpoints:
@@ -248,12 +244,8 @@ class OnlineLearningClient:
         # Combinar predições
         if online_probas is not None:
             # Ensemble
-            combined_probas = (
-                batch_weight * batch_probas + online_weight * online_probas
-            )
-            combined_probas = combined_probas / combined_probas.sum(
-                axis=1, keepdims=True
-            )
+            combined_probas = batch_weight * batch_probas + online_weight * online_probas
+            combined_probas = combined_probas / combined_probas.sum(axis=1, keepdims=True)
             model_used = "ensemble"
             self._ensemble_count += 1
         else:
@@ -345,9 +337,7 @@ class OnlineLearningClient:
             "ensemble_predictions": self._ensemble_count,
             "fallback_predictions": self._fallback_count,
             "ensemble_rate": (
-                self._ensemble_count / self._prediction_count
-                if self._prediction_count > 0
-                else 0.0
+                self._ensemble_count / self._prediction_count if self._prediction_count > 0 else 0.0
             ),
             "cache_valid": self._is_cache_valid(),
             "circuit_breaker_state": self._breaker.current_state,
@@ -357,9 +347,7 @@ class OnlineLearningClient:
         """Invalida cache local de modelo."""
         self._cached_model = None
         self._cache_timestamp = None
-        logger.info(
-            "online_model_cache_invalidated", specialist_type=self.specialist_type
-        )
+        logger.info("online_model_cache_invalidated", specialist_type=self.specialist_type)
 
     def is_online_model_available(self) -> bool:
         """Verifica se modelo online está disponível."""

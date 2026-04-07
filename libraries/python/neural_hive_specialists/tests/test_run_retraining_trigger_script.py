@@ -8,13 +8,12 @@ from unittest.mock import patch, Mock
 # Adicionar diretório de scripts ao path
 sys.path.insert(
     0,
-    os.path.join(
-        os.path.dirname(__file__), "..", "scripts"
-    ),
+    os.path.join(os.path.dirname(__file__), "..", "scripts"),
 )
 
 try:
     import run_retraining_trigger
+
     SCRIPT_AVAILABLE = True
 except ImportError:
     SCRIPT_AVAILABLE = False
@@ -24,13 +23,16 @@ except ImportError:
 class TestLoadConfig:
     """Testes para load_config()."""
 
-    @patch.dict(os.environ, {
-        "MONGODB_URI": "mongodb://localhost:27017",
-        "MONGODB_DATABASE": "neural_hive",
-        "RETRAINING_FEEDBACK_THRESHOLD": "150",
-        "RETRAINING_FEEDBACK_WINDOW_DAYS": "14",
-        "MLFLOW_TRACKING_URI": "http://mlflow:5000",
-    })
+    @patch.dict(
+        os.environ,
+        {
+            "MONGODB_URI": "mongodb://localhost:27017",
+            "MONGODB_DATABASE": "neural_hive",
+            "RETRAINING_FEEDBACK_THRESHOLD": "150",
+            "RETRAINING_FEEDBACK_WINDOW_DAYS": "14",
+            "MLFLOW_TRACKING_URI": "http://mlflow:5000",
+        },
+    )
     def test_load_config_from_env(self):
         """Testa carregamento de config das variáveis de ambiente."""
         config = run_retraining_trigger.load_config()
@@ -46,10 +48,13 @@ class TestLoadConfig:
         with pytest.raises(SystemExit):
             run_retraining_trigger.load_config()
 
-    @patch.dict(os.environ, {
-        "MONGODB_URI": "mongodb://localhost:27017",
-        "ENABLE_RETRAINING_TRIGGER": "false",
-    })
+    @patch.dict(
+        os.environ,
+        {
+            "MONGODB_URI": "mongodb://localhost:27017",
+            "ENABLE_RETRAINING_TRIGGER": "false",
+        },
+    )
     def test_load_config_retraining_disabled(self):
         """Testa configuração quando retraining está desabilitado."""
         config = run_retraining_trigger.load_config()

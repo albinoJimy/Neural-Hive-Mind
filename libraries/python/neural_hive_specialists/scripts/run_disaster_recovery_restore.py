@@ -159,12 +159,8 @@ def main():
 
     # Ações
     action_group = parser.add_mutually_exclusive_group(required=True)
-    action_group.add_argument(
-        "--list", action="store_true", help="Listar backups disponíveis"
-    )
-    action_group.add_argument(
-        "--latest", action="store_true", help="Restaurar backup mais recente"
-    )
+    action_group.add_argument("--list", action="store_true", help="Listar backups disponíveis")
+    action_group.add_argument("--latest", action="store_true", help="Restaurar backup mais recente")
     action_group.add_argument(
         "--backup-id", type=str, help="ID ou nome do arquivo de backup específico"
     )
@@ -182,9 +178,7 @@ def main():
     )
 
     # Parâmetros opcionais
-    parser.add_argument(
-        "--tenant-id", type=str, help="ID do tenant (para multi-tenancy)"
-    )
+    parser.add_argument("--tenant-id", type=str, help="ID do tenant (para multi-tenancy)")
 
     parser.add_argument(
         "--target-dir", type=str, help="Diretório de destino para restore (opcional)"
@@ -200,13 +194,9 @@ def main():
         "--skip-smoke-tests", action="store_true", help="Pular smoke tests após restore"
     )
 
-    parser.add_argument(
-        "--force", action="store_true", help="Não solicitar confirmação"
-    )
+    parser.add_argument("--force", action="store_true", help="Não solicitar confirmação")
 
-    parser.add_argument(
-        "--verbose", action="store_true", help="Modo verbose (log detalhado)"
-    )
+    parser.add_argument("--verbose", action="store_true", help="Modo verbose (log detalhado)")
 
     args = parser.parse_args()
 
@@ -215,9 +205,7 @@ def main():
         import logging
 
         logging.basicConfig(level=logging.DEBUG)
-        structlog.configure(
-            wrapper_class=structlog.make_filtering_bound_logger(logging.DEBUG)
-        )
+        structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(logging.DEBUG))
 
     try:
         # Carregar configuração

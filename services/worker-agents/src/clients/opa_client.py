@@ -31,10 +31,8 @@ class OPATimeoutError(Exception):
     """Timeout em operacoes OPA."""
 
 
-
 class OPAValidationError(Exception):
     """Erro de validacao de politica OPA."""
-
 
 
 class ViolationSeverity(StrEnum):
@@ -419,7 +417,9 @@ class OPAClient:
                 return data.get("result", {})
 
             except httpx.HTTPStatusError as e:
-                self.logger.exception("opa_query_failed", path=path, status_code=e.response.status_code)
+                self.logger.exception(
+                    "opa_query_failed", path=path, status_code=e.response.status_code
+                )
                 raise OPAAPIError(
                     f"Falha ao consultar {path}: {e}", status_code=e.response.status_code
                 )

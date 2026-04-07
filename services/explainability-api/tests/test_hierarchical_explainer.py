@@ -210,9 +210,7 @@ class TestConsensusStrength:
         strength = explainer._calculate_consensus_strength(by_level)
 
         # 3 níveis, 1 em cada direção (approve, reject, neutral) = 1/3 ≈ 0.33
-        assert (
-            0.32 <= strength <= 0.34
-        ), f"Divided consensus should be ~0.33, got {strength}"
+        assert 0.32 <= strength <= 0.34, f"Divided consensus should be ~0.33, got {strength}"
 
     def test_consensus_strength_two_approve_one_reject(self):
         """Testa força de consenso com 2 approve e 1 reject."""
@@ -239,9 +237,7 @@ class TestConsensusStrength:
         strength = explainer._calculate_consensus_strength(by_level)
 
         # 2 approve, 1 reject = 2/3 ≈ 0.67
-        assert (
-            0.66 <= strength <= 0.68
-        ), f"2-1 consensus should be ~0.67, got {strength}"
+        assert 0.66 <= strength <= 0.68, f"2-1 consensus should be ~0.67, got {strength}"
 
     def test_consensus_strength_all_neutral(self):
         """Testa que todos neutrais retorna 1.0."""

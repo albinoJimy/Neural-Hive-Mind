@@ -11,15 +11,16 @@ import os
 @pytest.fixture
 def mock_hvac():
     """Mock do modulo hvac."""
-    with patch('src.clients.vault_client.hvac') as mock:
+    with patch("src.clients.vault_client.hvac") as mock:
         yield mock
 
 
 @pytest.fixture
 def vault_client(mock_hvac):
     """Fixture que cria um VaultClient com mocks."""
-    with patch.dict(os.environ, {'VAULT_ADDR': 'http://localhost:8200'}):
+    with patch.dict(os.environ, {"VAULT_ADDR": "http://localhost:8200"}):
         from src.clients.vault_client import VaultClient
+
         client = VaultClient()
         yield client
 
@@ -29,16 +30,16 @@ class TestVaultClientInitialization:
 
     def test_vault_client_initialization_with_token(self, mock_hvac):
         """Testa inicializacao do VaultClient com token."""
-        with patch.dict(os.environ, {
-            'VAULT_ADDR': 'http://localhost:8200',
-            'VAULT_TOKEN': 'test-token'
-        }):
+        with patch.dict(
+            os.environ, {"VAULT_ADDR": "http://localhost:8200", "VAULT_TOKEN": "test-token"}
+        ):
             from src.clients.vault_client import VaultClient
+
             client = VaultClient()
 
             assert client.client is not None
-            assert client.vault_addr == 'http://localhost:8200'
-            assert client.vault_token == 'test-token'
+            assert client.vault_addr == "http://localhost:8200"
+            assert client.vault_token == "test-token"
 
     def test_vault_client_initialization_with_kubernetes(self, mock_hvac):
         """Testa inicializacao do VaultClient com autenticacao Kubernetes."""
@@ -49,12 +50,16 @@ class TestVaultClientInitialization:
         # O VaultClient verifica se vault_token eh None antes de chamar kubernetes.login
         # Como o mock do hvac no conftest cria um Client sem auth completo,
         # vamos testar o comportamento indiretamente
-        with patch.dict(os.environ, {
-            'VAULT_ADDR': 'http://vault.vault.svc.cluster.local:8200',
-            'VAULT_ROLE': 'test-gateway-role'
-        }, clear=True):
+        with patch.dict(
+            os.environ,
+            {
+                "VAULT_ADDR": "http://vault.vault.svc.cluster.local:8200",
+                "VAULT_ROLE": "test-gateway-role",
+            },
+            clear=True,
+        ):
             # Garantir que VAULT_TOKEN nao existe
-            os.environ.pop('VAULT_TOKEN', None)
+            os.environ.pop("VAULT_TOKEN", None)
 
             # O teste principal aqui eh que VaultClient pode ser instanciado
             # mesmo sem VAULT_TOKEN (usaria Kubernetes auth em producao)
@@ -68,11 +73,12 @@ class TestVaultClientInitialization:
         """Testa valores padrao do VaultClient."""
         with patch.dict(os.environ, {}, clear=True):
             from src.clients.vault_client import VaultClient
+
             client = VaultClient()
 
-            assert client.vault_addr == 'http://vault.vault.svc.cluster.local:8200'
-            assert client.vault_role == 'neural-hive-gateway'
-            assert client._mount_point == 'neural-hive'
+            assert client.vault_addr == "http://vault.vault.svc.cluster.local:8200"
+            assert client.vault_role == "neural-hive-gateway"
+            assert client._mount_point == "neural-hive"
 
 
 class TestVaultClientGetJwtSecret:
@@ -89,8 +95,7 @@ class TestVaultClientGetJwtSecret:
 
         assert secret == "test-secret-1234567890abcdef"
         vault_client.client.secrets.kv.v2.read_secret_version.assert_called_once_with(
-            path="gateway/jwt",
-            mount_point="neural-hive"
+            path="gateway/jwt", mount_point="neural-hive"
         )
 
     def test_get_jwt_secret_fallback_to_env(self, vault_client):
@@ -101,7 +106,7 @@ class TestVaultClientGetJwtSecret:
         )
 
         # Set environment variable
-        with patch.dict(os.environ, {'JWT_SECRET': 'fallback-secret'}):
+        with patch.dict(os.environ, {"JWT_SECRET": "fallback-secret"}):
             secret = vault_client.get_jwt_secret()
 
             assert secret == "fallback-secret"
@@ -125,18 +130,19 @@ class TestVaultClientGetApiSecret:
     def test_get_api_secret_success(self, vault_client):
         """Testa obter API secret com sucesso."""
         vault_client.client.secrets.kv.v2.read_secret_version.return_value = {
-            "data": {"data": {
-                "keycloak_client_secret": "keycloak-secret-123",
-                "another_key": "another-value"
-            }}
+            "data": {
+                "data": {
+                    "keycloak_client_secret": "keycloak-secret-123",
+                    "another_key": "another-value",
+                }
+            }
         }
 
         secret = vault_client.get_api_secret("keycloak_client_secret")
 
         assert secret == "keycloak-secret-123"
         vault_client.client.secrets.kv.v2.read_secret_version.assert_called_once_with(
-            path="gateway/api",
-            mount_point="neural-hive"
+            path="gateway/api", mount_point="neural-hive"
         )
 
     def test_get_api_secret_missing_key(self, vault_client):
@@ -151,9 +157,7 @@ class TestVaultClientGetApiSecret:
 
     def test_get_api_secret_vault_error(self, vault_client):
         """Testa obter API secret quando Vault falha retorna None."""
-        vault_client.client.secrets.kv.v2.read_secret_version.side_effect = Exception(
-            "Vault error"
-        )
+        vault_client.client.secrets.kv.v2.read_secret_version.side_effect = Exception("Vault error")
 
         secret = vault_client.get_api_secret("any_key")
 

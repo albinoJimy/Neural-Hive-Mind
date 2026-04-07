@@ -131,9 +131,7 @@ class TestSemanticFallbackIntegration:
                 config.use_semantic_fallback is False
             ), "USE_SEMANTIC_FALLBACK=false deve desabilitar semantic fallback"
 
-    @patch(
-        "neural_hive_specialists.semantic_pipeline.semantic_pipeline.SemanticPipeline"
-    )
+    @patch("neural_hive_specialists.semantic_pipeline.semantic_pipeline.SemanticPipeline")
     def test_semantic_pipeline_initialization(self, mock_semantic_pipeline):
         """Valida que SemanticPipeline é inicializado corretamente."""
         mock_instance = MagicMock()
@@ -274,9 +272,7 @@ class TestSemanticPipelineQuality:
         }
 
         for dimension, score in semantic_scores.items():
-            assert (
-                0.0 <= score <= 1.0
-            ), f"Score de {dimension} ({score}) deve estar entre 0 e 1"
+            assert 0.0 <= score <= 1.0, f"Score de {dimension} ({score}) deve estar entre 0 e 1"
 
     def test_overall_confidence_aggregation(self):
         """Testa agregação de scores em confiança geral."""
@@ -295,9 +291,7 @@ class TestSemanticPipelineQuality:
             "quality": 0.25,
         }
 
-        weighted_sum = sum(
-            semantic_scores[dim] * weights[dim] for dim in semantic_scores
-        )
+        weighted_sum = sum(semantic_scores[dim] * weights[dim] for dim in semantic_scores)
         expected_confidence = weighted_sum
 
         assert 0.0 <= expected_confidence <= 1.0

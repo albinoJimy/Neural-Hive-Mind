@@ -266,9 +266,7 @@ class TestLedgerClientV2Integration:
             "risk_score": 0.1,
             "recommendation": "approve",
             "reasoning_summary": "Test summary",
-            "reasoning_factors": [
-                {"factor_name": "security", "weight": 0.5, "score": 0.9}
-            ],
+            "reasoning_factors": [{"factor_name": "security", "weight": 0.5, "score": 0.9}],
             "mitigations": [],
             "metadata": {"domain": "api_integration"},
         }
@@ -343,9 +341,7 @@ class TestLedgerClientV2Integration:
         assert is_valid is True
 
     @patch("neural_hive_specialists.ledger_client.MongoClient")
-    def test_verify_document_integrity_fallback_to_hash(
-        self, mock_mongo_client, config
-    ):
+    def test_verify_document_integrity_fallback_to_hash(self, mock_mongo_client, config):
         """Testa fallback de verify_document_integrity para hash legado."""
         # Desabilitar assinatura digital
         config.enable_digital_signature = False
@@ -460,9 +456,7 @@ class TestLedgerQueryAPI:
                     "_id": "test_id",
                     "opinion_id": str(uuid.uuid4()),
                     "opinion": {
-                        "reasoning_factors": [
-                            {"factor_name": "security_analysis", "score": 0.9}
-                        ]
+                        "reasoning_factors": [{"factor_name": "security_analysis", "score": 0.9}]
                     },
                 }
             ]
@@ -470,9 +464,7 @@ class TestLedgerQueryAPI:
         mock_collection.find.return_value = mock_cursor
 
         # Chamar método
-        opinions = query_api.get_opinions_by_feature(
-            "security_analysis", min_score=0.8, limit=10
-        )
+        opinions = query_api.get_opinions_by_feature("security_analysis", min_score=0.8, limit=10)
 
         # Verificar resultado
         assert len(opinions) == 1

@@ -53,9 +53,7 @@ class DigitalSigner:
                     )
                 logger.info("Private key loaded", path=private_key_path)
             except Exception as e:
-                logger.error(
-                    "Failed to load private key", path=private_key_path, error=str(e)
-                )
+                logger.error("Failed to load private key", path=private_key_path, error=str(e))
                 self.private_key = None
 
         # Carregar chave pública
@@ -67,9 +65,7 @@ class DigitalSigner:
                     )
                 logger.info("Public key loaded", path=public_key_path)
             except Exception as e:
-                logger.error(
-                    "Failed to load public key", path=public_key_path, error=str(e)
-                )
+                logger.error("Failed to load public key", path=public_key_path, error=str(e))
                 self.public_key = None
 
     def generate_keys(self, key_size: int = 2048) -> Tuple[bytes, bytes]:
@@ -126,8 +122,7 @@ class DigitalSigner:
         content = {
             k: v
             for k, v in document.items()
-            if k
-            not in ["content_hash", "digital_signature", "signature_algorithm", "_id"]
+            if k not in ["content_hash", "digital_signature", "signature_algorithm", "_id"]
         }
 
         content_str = json.dumps(content, sort_keys=True, default=str)
@@ -220,9 +215,7 @@ class DigitalSigner:
                 hashes.SHA256(),
             )
 
-            logger.debug(
-                "Signature verified successfully", opinion_id=document.get("opinion_id")
-            )
+            logger.debug("Signature verified successfully", opinion_id=document.get("opinion_id"))
 
             return True
 

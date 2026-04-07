@@ -20,13 +20,26 @@ from unittest import mock
 
 from src.types.artifact_types import ArtifactCategory, CodeLanguage
 from src.models.execution_ticket import (
-    ExecutionTicket, TaskType, TicketStatus, Priority, RiskBand,
-    SLA, QoS, SecurityLevel, DeliveryMode, Consistency, Durability
+    ExecutionTicket,
+    TaskType,
+    TicketStatus,
+    Priority,
+    RiskBand,
+    SLA,
+    QoS,
+    SecurityLevel,
+    DeliveryMode,
+    Consistency,
+    Durability,
 )
 from src.models.pipeline_context import PipelineContext
 from src.models.artifact import (
-    CodeForgeArtifact, GenerationMethod,
-    ValidationResult, ValidationType, ValidationStatus, PipelineStatus
+    CodeForgeArtifact,
+    GenerationMethod,
+    ValidationResult,
+    ValidationType,
+    ValidationStatus,
+    PipelineStatus,
 )
 from src.services.pipeline_engine import PipelineEngine
 from src.services.template_selector import TemplateSelector
@@ -53,7 +66,7 @@ class TestPipelineRetryE2E:
         mock_sonarqube_client,
         mock_llm_client,
         mock_sigstore_client,
-        mock_test_runner
+        mock_test_runner,
     ):
         """
         Teste E2E: Pipeline tolera falha transitória na validação.
@@ -78,8 +91,8 @@ class TestPipelineRetryE2E:
             # Segunda chamada succeeds (simulado pelo fluxo normal)
             return ValidationResult(
                 validation_type=ValidationType.SAST,
-                tool_name='SonarQube',
-                tool_version='10.0.0',
+                tool_name="SonarQube",
+                tool_version="10.0.0",
                 status=ValidationStatus.PASSED,
                 score=0.95,  # Alto score para evitar REQUIRES_REVIEW
                 issues_count=0,
@@ -88,21 +101,20 @@ class TestPipelineRetryE2E:
                 medium_issues=0,
                 low_issues=0,
                 executed_at=datetime.now(),
-                duration_ms=100
+                duration_ms=100,
             )
 
         mock_sonarqube_client.analyze_code = flaky_validate
 
         template_selector = TemplateSelector(
-            git_client=mock_git_client,
-            redis_client=mock_redis_client
+            git_client=mock_git_client, redis_client=mock_redis_client
         )
 
         code_composer = CodeComposer(
             mongodb_client=mock_mongodb_client,
             llm_client=mock_llm_client,
             analyst_client=None,
-            mcp_client=None
+            mcp_client=None,
         )
 
         validator = Validator(
@@ -111,7 +123,7 @@ class TestPipelineRetryE2E:
             trivy_client=mock_sonarqube_client,  # Reusar o mesmo mock
             mcp_client=None,
             mongodb_client=mock_mongodb_client,
-            metrics=None
+            metrics=None,
         )
 
         test_runner = mock_test_runner
@@ -120,14 +132,14 @@ class TestPipelineRetryE2E:
             sigstore_client=mock_sigstore_client,
             s3_artifact_client=None,
             artifact_registry_client=None,
-            postgres_client=mock_postgres_client
+            postgres_client=mock_postgres_client,
         )
 
         approval_gate = ApprovalGate(
             git_client=mock_git_client,
             mongodb_client=mock_mongodb_client,
             auto_approval_threshold=0.70,
-            min_quality_score=0.50
+            min_quality_score=0.50,
         )
 
         engine = PipelineEngine(
@@ -146,7 +158,7 @@ class TestPipelineRetryE2E:
             auto_approval_threshold=0.70,
             min_quality_score=0.50,
             metrics=None,
-            enable_container_build=False  # Desabilitar build real para E2E de tolerância a falhas
+            enable_container_build=False,  # Desabilitar build real para E2E de tolerância a falhas
         )
 
         result = await engine.execute_pipeline(sample_ticket)
@@ -156,7 +168,7 @@ class TestPipelineRetryE2E:
         assert result.status in [
             PipelineStatus.COMPLETED,
             PipelineStatus.PARTIAL,
-            PipelineStatus.REQUIRES_REVIEW
+            PipelineStatus.REQUIRES_REVIEW,
         ]
         # Validação foi chamada pelo menos uma vez (pode ter retry ou falha antes)
         assert call_count >= 1
@@ -174,7 +186,7 @@ class TestPipelineRetryE2E:
         mock_sonarqube_client,
         mock_llm_client,
         mock_sigstore_client,
-        mock_test_runner
+        mock_test_runner,
     ):
         """
         Teste E2E: Pipeline tolera falhas em componentes de validação.
@@ -194,15 +206,14 @@ class TestPipelineRetryE2E:
         )
 
         template_selector = TemplateSelector(
-            git_client=mock_git_client,
-            redis_client=mock_redis_client
+            git_client=mock_git_client, redis_client=mock_redis_client
         )
 
         code_composer = CodeComposer(
             mongodb_client=mock_mongodb_client,
             llm_client=mock_llm_client,
             analyst_client=None,
-            mcp_client=None
+            mcp_client=None,
         )
 
         validator = Validator(
@@ -211,7 +222,7 @@ class TestPipelineRetryE2E:
             trivy_client=mock_sonarqube_client,  # Reusar o mesmo mock
             mcp_client=None,
             mongodb_client=mock_mongodb_client,
-            metrics=None
+            metrics=None,
         )
 
         test_runner = mock_test_runner
@@ -220,14 +231,14 @@ class TestPipelineRetryE2E:
             sigstore_client=mock_sigstore_client,
             s3_artifact_client=None,
             artifact_registry_client=None,
-            postgres_client=mock_postgres_client
+            postgres_client=mock_postgres_client,
         )
 
         approval_gate = ApprovalGate(
             git_client=mock_git_client,
             mongodb_client=mock_mongodb_client,
             auto_approval_threshold=0.70,
-            min_quality_score=0.50
+            min_quality_score=0.50,
         )
 
         engine = PipelineEngine(
@@ -246,7 +257,7 @@ class TestPipelineRetryE2E:
             auto_approval_threshold=0.70,
             min_quality_score=0.50,
             metrics=None,
-            enable_container_build=False  # Desabilitar build real para E2E de tolerância a falhas
+            enable_container_build=False,  # Desabilitar build real para E2E de tolerância a falhas
         )
 
         result = await engine.execute_pipeline(sample_ticket)
@@ -256,7 +267,7 @@ class TestPipelineRetryE2E:
         assert result.status in [
             PipelineStatus.COMPLETED,
             PipelineStatus.REQUIRES_REVIEW,
-            PipelineStatus.PARTIAL
+            PipelineStatus.PARTIAL,
         ]
 
 
@@ -276,7 +287,7 @@ class TestPipelinePersistenceE2E:
         mock_sonarqube_client,
         mock_llm_client,
         mock_sigstore_client,
-        mock_test_runner
+        mock_test_runner,
     ):
         """
         Teste E2E: Artefato é persistido no MongoDB.
@@ -289,16 +300,16 @@ class TestPipelinePersistenceE2E:
         generated_code = 'def hello(): return "world"'
 
         mock_llm_client.generate_code.return_value = {
-            'code': generated_code,
-            'confidence_score': 0.85,
-            'tokens_used': 50,
-            'model': 'gpt-4'
+            "code": generated_code,
+            "confidence_score": 0.85,
+            "tokens_used": 50,
+            "model": "gpt-4",
         }
 
         mock_sonarqube_client.analyze_code.return_value = ValidationResult(
             validation_type=ValidationType.SAST,
-            tool_name='SonarQube',
-            tool_version='10.0.0',
+            tool_name="SonarQube",
+            tool_version="10.0.0",
             status=ValidationStatus.PASSED,
             score=0.90,
             issues_count=0,
@@ -307,19 +318,18 @@ class TestPipelinePersistenceE2E:
             medium_issues=0,
             low_issues=0,
             executed_at=datetime.now(),
-            duration_ms=100
+            duration_ms=100,
         )
 
         template_selector = TemplateSelector(
-            git_client=mock_git_client,
-            redis_client=mock_redis_client
+            git_client=mock_git_client, redis_client=mock_redis_client
         )
 
         code_composer = CodeComposer(
             mongodb_client=mock_mongodb_client,
             llm_client=mock_llm_client,
             analyst_client=None,
-            mcp_client=None
+            mcp_client=None,
         )
 
         validator = Validator(
@@ -328,7 +338,7 @@ class TestPipelinePersistenceE2E:
             trivy_client=mock_sonarqube_client,  # Reusar o mesmo mock
             mcp_client=None,
             mongodb_client=mock_mongodb_client,
-            metrics=None
+            metrics=None,
         )
 
         test_runner = mock_test_runner
@@ -337,14 +347,14 @@ class TestPipelinePersistenceE2E:
             sigstore_client=mock_sigstore_client,
             s3_artifact_client=None,
             artifact_registry_client=None,
-            postgres_client=mock_postgres_client
+            postgres_client=mock_postgres_client,
         )
 
         approval_gate = ApprovalGate(
             git_client=mock_git_client,
             mongodb_client=mock_mongodb_client,
             auto_approval_threshold=0.70,
-            min_quality_score=0.50
+            min_quality_score=0.50,
         )
 
         engine = PipelineEngine(
@@ -363,7 +373,7 @@ class TestPipelinePersistenceE2E:
             auto_approval_threshold=0.70,
             min_quality_score=0.50,
             metrics=None,
-            enable_container_build=False  # Desabilitar build real para E2E de tolerância a falhas
+            enable_container_build=False,  # Desabilitar build real para E2E de tolerância a falhas
         )
 
         result = await engine.execute_pipeline(sample_ticket)
@@ -377,7 +387,7 @@ class TestPipelinePersistenceE2E:
         # Verificar que o artefato foi criado com URI do MongoDB
         if result.artifacts:
             artifact = result.artifacts[0]
-            assert artifact.content_uri.startswith('mongodb://artifacts/')
+            assert artifact.content_uri.startswith("mongodb://artifacts/")
             assert artifact.artifact_id
 
     @pytest.mark.asyncio
@@ -393,7 +403,7 @@ class TestPipelinePersistenceE2E:
         mock_sonarqube_client,
         mock_llm_client,
         mock_sigstore_client,
-        mock_test_runner
+        mock_test_runner,
     ):
         """
         Teste E2E: Metadados do pipeline são salvos no PostgreSQL.
@@ -404,16 +414,16 @@ class TestPipelinePersistenceE2E:
         3. Status pode ser consultado posteriormente
         """
         mock_llm_client.generate_code.return_value = {
-            'code': 'def hello(): return "world"',
-            'confidence_score': 0.85,
-            'tokens_used': 50,
-            'model': 'gpt-4'
+            "code": 'def hello(): return "world"',
+            "confidence_score": 0.85,
+            "tokens_used": 50,
+            "model": "gpt-4",
         }
 
         mock_sonarqube_client.analyze_code.return_value = ValidationResult(
             validation_type=ValidationType.SAST,
-            tool_name='SonarQube',
-            tool_version='10.0.0',
+            tool_name="SonarQube",
+            tool_version="10.0.0",
             status=ValidationStatus.PASSED,
             score=0.90,
             issues_count=0,
@@ -422,19 +432,18 @@ class TestPipelinePersistenceE2E:
             medium_issues=0,
             low_issues=0,
             executed_at=datetime.now(),
-            duration_ms=100
+            duration_ms=100,
         )
 
         template_selector = TemplateSelector(
-            git_client=mock_git_client,
-            redis_client=mock_redis_client
+            git_client=mock_git_client, redis_client=mock_redis_client
         )
 
         code_composer = CodeComposer(
             mongodb_client=mock_mongodb_client,
             llm_client=mock_llm_client,
             analyst_client=None,
-            mcp_client=None
+            mcp_client=None,
         )
 
         validator = Validator(
@@ -443,7 +452,7 @@ class TestPipelinePersistenceE2E:
             trivy_client=mock_sonarqube_client,  # Reusar o mesmo mock
             mcp_client=None,
             mongodb_client=mock_mongodb_client,
-            metrics=None
+            metrics=None,
         )
 
         test_runner = mock_test_runner
@@ -452,14 +461,14 @@ class TestPipelinePersistenceE2E:
             sigstore_client=mock_sigstore_client,
             s3_artifact_client=None,
             artifact_registry_client=None,
-            postgres_client=mock_postgres_client
+            postgres_client=mock_postgres_client,
         )
 
         approval_gate = ApprovalGate(
             git_client=mock_git_client,
             mongodb_client=mock_mongodb_client,
             auto_approval_threshold=0.70,
-            min_quality_score=0.50
+            min_quality_score=0.50,
         )
 
         engine = PipelineEngine(
@@ -478,7 +487,7 @@ class TestPipelinePersistenceE2E:
             auto_approval_threshold=0.70,
             min_quality_score=0.50,
             metrics=None,
-            enable_container_build=False  # Desabilitar build real para E2E de tolerância a falhas
+            enable_container_build=False,  # Desabilitar build real para E2E de tolerância a falhas
         )
 
         result = await engine.execute_pipeline(sample_ticket)
@@ -505,7 +514,7 @@ class TestPipelineConcurrentExecutionE2E:
         mock_sonarqube_client,
         mock_llm_client,
         mock_sigstore_client,
-        mock_test_runner
+        mock_test_runner,
     ):
         """
         Teste E2E: Múltiplos pipelines executam concorrentemente sem interferência.
@@ -521,8 +530,8 @@ class TestPipelineConcurrentExecutionE2E:
         for i in range(3):
             ticket = ExecutionTicket(
                 ticket_id=str(uuid.uuid4()),
-                plan_id=f'plan-concurrent-{i}',
-                intent_id=f'intent-concurrent-{i}',
+                plan_id=f"plan-concurrent-{i}",
+                intent_id=f"intent-concurrent-{i}",
                 correlation_id=str(uuid.uuid4()),
                 trace_id=str(uuid.uuid4()),
                 span_id=str(uuid.uuid4()),
@@ -531,44 +540,42 @@ class TestPipelineConcurrentExecutionE2E:
                 priority=Priority.NORMAL,
                 risk_band=RiskBand.LOW,
                 parameters={
-                    'artifact_type': 'MICROSERVICE',
-                    'language': 'python',
-                    'service_name': f'service-{i}'
+                    "artifact_type": "MICROSERVICE",
+                    "language": "python",
+                    "service_name": f"service-{i}",
                 },
                 sla=SLA(
-                    deadline=datetime.now() + timedelta(hours=1),
-                    timeout_ms=300000,
-                    max_retries=3
+                    deadline=datetime.now() + timedelta(hours=1), timeout_ms=300000, max_retries=3
                 ),
                 qos=QoS(
                     delivery_mode=DeliveryMode.AT_LEAST_ONCE,
                     consistency=Consistency.EVENTUAL,
-                    durability=Durability.PERSISTENT
+                    durability=Durability.PERSISTENT,
                 ),
                 security_level=SecurityLevel.INTERNAL,
                 dependencies=[],
-                created_at=datetime.now()
+                created_at=datetime.now(),
             )
             tickets.append(ticket)
 
         # Configurar LLM para retornar código diferente para cada ticket
-        call_count = {'count': 0}
+        call_count = {"count": 0}
 
         async def generate_with_counter(*args, **kwargs):
-            call_count['count'] += 1
+            call_count["count"] += 1
             return {
-                'code': f'def service_{call_count["count"]}(): return "value-{call_count["count"]}"',
-                'confidence_score': 0.85,
-                'tokens_used': 50,
-                'model': 'gpt-4'
+                "code": f'def service_{call_count["count"]}(): return "value-{call_count["count"]}"',
+                "confidence_score": 0.85,
+                "tokens_used": 50,
+                "model": "gpt-4",
             }
 
         mock_llm_client.generate_code = generate_with_counter
 
         mock_sonarqube_client.analyze_code.return_value = ValidationResult(
             validation_type=ValidationType.SAST,
-            tool_name='SonarQube',
-            tool_version='10.0.0',
+            tool_name="SonarQube",
+            tool_version="10.0.0",
             status=ValidationStatus.PASSED,
             score=0.90,
             issues_count=0,
@@ -577,19 +584,18 @@ class TestPipelineConcurrentExecutionE2E:
             medium_issues=0,
             low_issues=0,
             executed_at=datetime.now(),
-            duration_ms=100
+            duration_ms=100,
         )
 
         template_selector = TemplateSelector(
-            git_client=mock_git_client,
-            redis_client=mock_redis_client
+            git_client=mock_git_client, redis_client=mock_redis_client
         )
 
         code_composer = CodeComposer(
             mongodb_client=mock_mongodb_client,
             llm_client=mock_llm_client,
             analyst_client=None,
-            mcp_client=None
+            mcp_client=None,
         )
 
         validator = Validator(
@@ -598,7 +604,7 @@ class TestPipelineConcurrentExecutionE2E:
             trivy_client=mock_sonarqube_client,  # Reusar o mesmo mock
             mcp_client=None,
             mongodb_client=mock_mongodb_client,
-            metrics=None
+            metrics=None,
         )
 
         test_runner = mock_test_runner
@@ -607,14 +613,14 @@ class TestPipelineConcurrentExecutionE2E:
             sigstore_client=mock_sigstore_client,
             s3_artifact_client=None,
             artifact_registry_client=None,
-            postgres_client=mock_postgres_client
+            postgres_client=mock_postgres_client,
         )
 
         approval_gate = ApprovalGate(
             git_client=mock_git_client,
             mongodb_client=mock_mongodb_client,
             auto_approval_threshold=0.70,
-            min_quality_score=0.50
+            min_quality_score=0.50,
         )
 
         # Engine com max_concurrent=3
@@ -634,7 +640,7 @@ class TestPipelineConcurrentExecutionE2E:
             auto_approval_threshold=0.70,
             min_quality_score=0.50,
             metrics=None,
-            enable_container_build=False  # Desabilitar build real para E2E de tolerância a falhas
+            enable_container_build=False,  # Desabilitar build real para E2E de tolerância a falhas
         )
 
         # Executar pipelines concorrentemente
@@ -647,11 +653,13 @@ class TestPipelineConcurrentExecutionE2E:
             assert result.status in [
                 PipelineStatus.COMPLETED,
                 PipelineStatus.REQUIRES_REVIEW,
-                PipelineStatus.PARTIAL
+                PipelineStatus.PARTIAL,
             ]
 
         # Verificar que cada pipeline gerou seu próprio artefato (isolamento)
-        artifact_ids = [result.artifacts[0].artifact_id if result.artifacts else None for result in results]
+        artifact_ids = [
+            result.artifacts[0].artifact_id if result.artifacts else None for result in results
+        ]
         assert len(set(artifact_ids)) == 3  # 3 artifact_ids únicos = isolamento garantido
 
 
@@ -671,7 +679,7 @@ class TestPipelineRollbackE2E:
         mock_sonarqube_client,
         mock_llm_client,
         mock_sigstore_client,
-        mock_test_runner
+        mock_test_runner,
     ):
         """
         Teste E2E: Pipeline faz rollback de stages parcialmente completados.
@@ -684,10 +692,10 @@ class TestPipelineRollbackE2E:
         5. Artefato gerado fica disponível para inspeção manual
         """
         mock_llm_client.generate_code.return_value = {
-            'code': 'def hello(): return "world"',
-            'confidence_score': 0.85,
-            'tokens_used': 50,
-            'model': 'gpt-4'
+            "code": 'def hello(): return "world"',
+            "confidence_score": 0.85,
+            "tokens_used": 50,
+            "model": "gpt-4",
         }
 
         # Validator falha com erro crítico
@@ -696,15 +704,14 @@ class TestPipelineRollbackE2E:
         )
 
         template_selector = TemplateSelector(
-            git_client=mock_git_client,
-            redis_client=mock_redis_client
+            git_client=mock_git_client, redis_client=mock_redis_client
         )
 
         code_composer = CodeComposer(
             mongodb_client=mock_mongodb_client,
             llm_client=mock_llm_client,
             analyst_client=None,
-            mcp_client=None
+            mcp_client=None,
         )
 
         validator = Validator(
@@ -713,7 +720,7 @@ class TestPipelineRollbackE2E:
             trivy_client=mock_sonarqube_client,  # Reusar o mesmo mock
             mcp_client=None,
             mongodb_client=mock_mongodb_client,
-            metrics=None
+            metrics=None,
         )
 
         test_runner = mock_test_runner
@@ -722,14 +729,14 @@ class TestPipelineRollbackE2E:
             sigstore_client=mock_sigstore_client,
             s3_artifact_client=None,
             artifact_registry_client=None,
-            postgres_client=mock_postgres_client
+            postgres_client=mock_postgres_client,
         )
 
         approval_gate = ApprovalGate(
             git_client=mock_git_client,
             mongodb_client=mock_mongodb_client,
             auto_approval_threshold=0.70,
-            min_quality_score=0.50
+            min_quality_score=0.50,
         )
 
         engine = PipelineEngine(
@@ -748,7 +755,7 @@ class TestPipelineRollbackE2E:
             auto_approval_threshold=0.70,
             min_quality_score=0.50,
             metrics=None,
-            enable_container_build=False  # Desabilitar build real para E2E de tolerância a falhas
+            enable_container_build=False,  # Desabilitar build real para E2E de tolerância a falhas
         )
 
         result = await engine.execute_pipeline(sample_ticket)
@@ -759,14 +766,14 @@ class TestPipelineRollbackE2E:
             PipelineStatus.PARTIAL,
             PipelineStatus.FAILED,
             PipelineStatus.REQUIRES_REVIEW,
-            PipelineStatus.COMPLETED
+            PipelineStatus.COMPLETED,
         ]
 
         # Verificar que código foi gerado e salvo (artefato existe)
         if result.artifacts:
             assert len(result.artifacts) > 0
             # Código foi salvo no MongoDB (verificado pelo content_uri)
-            assert result.artifacts[0].content_uri.startswith('mongodb://artifacts/')
+            assert result.artifacts[0].content_uri.startswith("mongodb://artifacts/")
 
     @pytest.mark.asyncio
     async def test_compensation_action_on_failure(
@@ -781,7 +788,7 @@ class TestPipelineRollbackE2E:
         mock_sonarqube_client,
         mock_llm_client,
         mock_sigstore_client,
-        mock_test_runner
+        mock_test_runner,
     ):
         """
         Teste E2E: Pipeline completa e mantém dados parciais acessíveis.
@@ -796,20 +803,17 @@ class TestPipelineRollbackE2E:
         cenários onde componentes falham, os dados são preservados.
         """
         # LLM falha mas template funciona
-        mock_llm_client.generate_code.side_effect = Exception(
-            "LLM service unavailable - no retry"
-        )
+        mock_llm_client.generate_code.side_effect = Exception("LLM service unavailable - no retry")
 
         template_selector = TemplateSelector(
-            git_client=mock_git_client,
-            redis_client=mock_redis_client
+            git_client=mock_git_client, redis_client=mock_redis_client
         )
 
         code_composer = CodeComposer(
             mongodb_client=mock_mongodb_client,
             llm_client=mock_llm_client,
             analyst_client=None,
-            mcp_client=None
+            mcp_client=None,
         )
 
         validator = Validator(
@@ -818,7 +822,7 @@ class TestPipelineRollbackE2E:
             trivy_client=mock_sonarqube_client,  # Reusar o mesmo mock
             mcp_client=None,
             mongodb_client=mock_mongodb_client,
-            metrics=None
+            metrics=None,
         )
 
         test_runner = mock_test_runner
@@ -827,14 +831,14 @@ class TestPipelineRollbackE2E:
             sigstore_client=mock_sigstore_client,
             s3_artifact_client=None,
             artifact_registry_client=None,
-            postgres_client=mock_postgres_client
+            postgres_client=mock_postgres_client,
         )
 
         approval_gate = ApprovalGate(
             git_client=mock_git_client,
             mongodb_client=mock_mongodb_client,
             auto_approval_threshold=0.70,
-            min_quality_score=0.50
+            min_quality_score=0.50,
         )
 
         engine = PipelineEngine(
@@ -853,7 +857,7 @@ class TestPipelineRollbackE2E:
             auto_approval_threshold=0.70,
             min_quality_score=0.50,
             metrics=None,
-            enable_container_build=False  # Desabilitar build real para E2E de tolerância a falhas
+            enable_container_build=False,  # Desabilitar build real para E2E de tolerância a falhas
         )
 
         result = await engine.execute_pipeline(sample_ticket)
@@ -862,9 +866,8 @@ class TestPipelineRollbackE2E:
         assert result.status in [
             PipelineStatus.COMPLETED,
             PipelineStatus.REQUIRES_REVIEW,
-            PipelineStatus.PARTIAL
+            PipelineStatus.PARTIAL,
         ]
 
         # Verificar que status do ticket foi atualizado
         assert mock_ticket_client.update_status.called
-

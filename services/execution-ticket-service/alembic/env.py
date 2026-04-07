@@ -11,6 +11,7 @@ from alembic import context
 
 # Importar Base do ORM
 import sys
+
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from src.models.ticket_orm import Base
 
@@ -26,10 +27,9 @@ target_metadata = Base.metadata
 
 # Obter URL do banco de variável de ambiente
 database_url = os.getenv(
-    'DATABASE_URL',
-    'postgresql+asyncpg://postgres:postgres@localhost:5432/neural_hive_tickets'
+    "DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/neural_hive_tickets"
 )
-config.set_main_option('sqlalchemy.url', database_url)
+config.set_main_option("sqlalchemy.url", database_url)
 
 
 def run_migrations_offline() -> None:

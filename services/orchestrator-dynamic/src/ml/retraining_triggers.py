@@ -11,6 +11,7 @@ Implementa múltiplos gatilhos:
 import asyncio
 from collections.abc import Callable
 from datetime import datetime, timezone
+
 UTC = timezone.utc  # type: ignore, timedelta
 from enum import Enum, StrEnum
 from typing import Any

@@ -74,9 +74,7 @@ def mock_metrics():
 class TestComplianceFlowIntegration:
     """Testes de integração do fluxo completo de compliance."""
 
-    def test_full_compliance_flow_without_pii(
-        self, integration_config, mock_mongodb, mock_metrics
-    ):
+    def test_full_compliance_flow_without_pii(self, integration_config, mock_mongodb, mock_metrics):
         """
         Testa fluxo completo de compliance sem PII detection.
 
@@ -118,8 +116,7 @@ class TestComplianceFlowIntegration:
 
         # Verificar metadados de compliance
         assert (
-            encrypted_doc["_compliance"]["encrypted_fields"]
-            == integration_config.fields_to_encrypt
+            encrypted_doc["_compliance"]["encrypted_fields"] == integration_config.fields_to_encrypt
         )
         assert encrypted_doc["_compliance"]["encryption_algorithm"] == "fernet"
 
@@ -137,9 +134,7 @@ class TestComplianceFlowIntegration:
         assert decrypted_doc["trace_id"] == "trace-456"
         assert decrypted_doc["span_id"] == "span-789"
 
-    def test_compliance_with_ledger_client(
-        self, integration_config, mock_mongodb, mock_metrics
-    ):
+    def test_compliance_with_ledger_client(self, integration_config, mock_mongodb, mock_metrics):
         """
         Testa integração entre ComplianceLayer e LedgerClient.
 
@@ -201,14 +196,10 @@ class TestComplianceFlowIntegration:
                 # Verificar que hash foi gerado corretamente
                 import hashlib
 
-                expected_hash = hashlib.sha256(
-                    "corr-test-123".encode("utf-8")
-                ).hexdigest()
+                expected_hash = hashlib.sha256("corr-test-123".encode("utf-8")).hexdigest()
                 # Note: correlation_id está criptografado, mas hash é do original
 
-    def test_audit_logging_integration(
-        self, integration_config, mock_mongodb, mock_metrics
-    ):
+    def test_audit_logging_integration(self, integration_config, mock_mongodb, mock_metrics):
         """
         Testa que operações de compliance geram entradas de audit log.
 
@@ -241,9 +232,7 @@ class TestComplianceFlowIntegration:
             encrypted_doc = compliance.encrypt_opinion_fields(opinion_doc)
 
             # Verificar que entradas de audit foram criadas
-            audit_entries = list(
-                audit_collection.find({"event_type": "encryption_operation"})
-            )
+            audit_entries = list(audit_collection.find({"event_type": "encryption_operation"}))
             assert len(audit_entries) >= 1
 
             # Verificar estrutura da entrada de audit
@@ -256,9 +245,7 @@ class TestComplianceFlowIntegration:
     @pytest.mark.skipif(
         os.getenv("SKIP_SLOW_TESTS") == "1", reason="Teste de retenção pode ser lento"
     )
-    def test_retention_policy_integration(
-        self, integration_config, mock_mongodb, mock_metrics
-    ):
+    def test_retention_policy_integration(self, integration_config, mock_mongodb, mock_metrics):
         """
         Testa aplicação de políticas de retenção.
 
@@ -304,9 +291,7 @@ class TestComplianceFlowIntegration:
         cutoff_date = datetime.now(timezone.utc) - timedelta(days=90)
 
         # Encontrar e mascarar opiniões antigas
-        old_opinions = opinions_collection.find(
-            {"timestamp": {"$lt": cutoff_date.isoformat()}}
-        )
+        old_opinions = opinions_collection.find({"timestamp": {"$lt": cutoff_date.isoformat()}})
 
         masked_count = 0
         for opinion in old_opinions:
@@ -338,9 +323,7 @@ class TestComplianceFlowIntegration:
 class TestComplianceErrorHandling:
     """Testes de tratamento de erros em cenários de integração."""
 
-    def test_encryption_failure_graceful_degradation(
-        self, integration_config, mock_metrics
-    ):
+    def test_encryption_failure_graceful_degradation(self, integration_config, mock_metrics):
         """Testa degradação graciosa quando criptografia falha."""
         # Configurar chave inválida para forçar erro
         integration_config.encryption_key_path = "/nonexistent/path/key.key"
@@ -377,9 +360,7 @@ class TestComplianceErrorHandling:
 
         # Não deve lançar exceção na inicialização
         try:
-            with patch(
-                "neural_hive_specialists.ledger_client.MongoClient"
-            ) as mock_client:
+            with patch("neural_hive_specialists.ledger_client.MongoClient") as mock_client:
                 mock_client.side_effect = Exception("Connection failed")
                 # Sistema deve lidar com erro graciosamente
                 pass

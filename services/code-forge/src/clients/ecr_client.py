@@ -11,6 +11,7 @@ Suporta:
 import base64
 import logging
 from datetime import datetime, timezone, timedelta
+
 UTC = timezone.utc  # type: ignore
 
 logger = logging.getLogger(__name__)
@@ -31,7 +32,7 @@ class ECRToken:
         password: str,
         endpoint: str,
         expires_at: datetime,
-        obtained_at: datetime
+        obtained_at: datetime,
     ):
         self.username = username
         self.password = password
@@ -69,7 +70,7 @@ class ECRClient:
         use_irsa: bool = True,
         access_key_id: str | None = None,
         secret_access_key: str | None = None,
-        token_ttl: int = ECR_TOKEN_DEFAULT_TTL
+        token_ttl: int = ECR_TOKEN_DEFAULT_TTL,
     ):
         """
         Inicializa o ECRClient.
@@ -114,7 +115,7 @@ class ECRClient:
                         self._boto3_session = boto3.Session(
                             region_name=self.region,
                             aws_access_key_id=self.access_key_id,
-                            aws_secret_access_key=self.secret_access_key
+                            aws_secret_access_key=self.secret_access_key,
                         )
                         logger.info("ecr_using_static_credentials")
                     else:
@@ -123,10 +124,12 @@ class ECRClient:
                 # Usar credenciais estáticas ou default chain
                 session_kwargs = {"region_name": self.region}
                 if self.access_key_id and self.secret_access_key:
-                    session_kwargs.update({
-                        "aws_access_key_id": self.access_key_id,
-                        "aws_secret_access_key": self.secret_access_key
-                    })
+                    session_kwargs.update(
+                        {
+                            "aws_access_key_id": self.access_key_id,
+                            "aws_secret_access_key": self.secret_access_key,
+                        }
+                    )
 
                 self._boto3_session = boto3.Session(**session_kwargs)
                 logger.info(f"ecr_session_created, region: {self.region}")
@@ -179,6 +182,7 @@ class ECRClient:
             if "expiresAt" in auth_data:
                 # AWS retorna a data de expiração
                 from dateutil import parser as date_parser
+
                 expires_at = date_parser.parse(auth_data["expiresAt"])
             else:
                 # Default: 12 horas
@@ -192,7 +196,7 @@ class ECRClient:
                 password=password,
                 endpoint=endpoint,
                 expires_at=expires_at,
-                obtained_at=obtained_at
+                obtained_at=obtained_at,
             )
 
             # Atualizar cache
@@ -207,9 +211,7 @@ class ECRClient:
         except ImportError as e:
             # boto3 não instalado
             logger.error(f"boto3_not_installed: {e}")
-            raise Exception(
-                "boto3 é necessário para ECR. Instale com: pip install boto3"
-            )
+            raise Exception("boto3 é necessário para ECR. Instale com: pip install boto3")
         except Exception as e:
             logger.error(f"ecr_token_fetch_failed: {e}")
             raise
@@ -239,6 +241,7 @@ class ECRClient:
 
         # Verificar presença de variáveis de ambiente IRSA
         import os
+
         has_web_identity = "AWS_WEB_IDENTITY_TOKEN_FILE" in os.environ
         has_role_arn = "AWS_ROLE_ARN" in os.environ
 
@@ -306,7 +309,7 @@ def get_ecr_credentials(
     registry_uri: str,
     region: str = "us-east-1",
     access_key_id: str | None = None,
-    secret_access_key: str | None = None
+    secret_access_key: str | None = None,
 ) -> tuple[str, str]:
     """
     Função de conveniência para obter credenciais ECR.
@@ -321,9 +324,7 @@ def get_ecr_credentials(
         Tuple (username, password)
     """
     client = ECRClient(
-        region=region,
-        access_key_id=access_key_id,
-        secret_access_key=secret_access_key
+        region=region, access_key_id=access_key_id, secret_access_key=secret_access_key
     )
 
     username, password, endpoint = client.get_ecr_credentials()

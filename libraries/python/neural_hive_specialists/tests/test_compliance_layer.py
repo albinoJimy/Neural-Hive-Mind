@@ -172,9 +172,7 @@ class TestSanitizeCognitivePlan:
             return_value=("<PERSON> mora em São Paulo", [mock_entity])
         )
 
-        sanitized_plan, metadata = compliance.sanitize_cognitive_plan(
-            sample_cognitive_plan
-        )
+        sanitized_plan, metadata = compliance.sanitize_cognitive_plan(sample_cognitive_plan)
 
         # Verificar que anonymize_text foi chamado para task descriptions
         assert compliance.pii_detector.anonymize_text.call_count >= 1
@@ -192,9 +190,7 @@ class TestSanitizeCognitivePlan:
             return_value=("<EMAIL_ADDRESS>", [mock_entity])
         )
 
-        sanitized_plan, metadata = compliance.sanitize_cognitive_plan(
-            sample_cognitive_plan
-        )
+        sanitized_plan, metadata = compliance.sanitize_cognitive_plan(sample_cognitive_plan)
 
         # Verificar que anonymize_text foi chamado para parameters string
         assert compliance.pii_detector.anonymize_text.called
@@ -208,13 +204,9 @@ class TestSanitizeCognitivePlan:
             "score": 0.85,
             "anonymized": True,
         }
-        compliance.pii_detector.anonymize_text = Mock(
-            return_value=("<PERSON>", [mock_entity])
-        )
+        compliance.pii_detector.anonymize_text = Mock(return_value=("<PERSON>", [mock_entity]))
 
-        sanitized_plan, metadata = compliance.sanitize_cognitive_plan(
-            sample_cognitive_plan
-        )
+        sanitized_plan, metadata = compliance.sanitize_cognitive_plan(sample_cognitive_plan)
 
         # Verificar que anonymize_text foi chamado para metadata
         assert compliance.pii_detector.anonymize_text.called
@@ -228,9 +220,7 @@ class TestSanitizeCognitivePlan:
             "score": 0.85,
             "anonymized": True,
         }
-        compliance.pii_detector.anonymize_text = Mock(
-            return_value=("<PERSON>", [mock_entity])
-        )
+        compliance.pii_detector.anonymize_text = Mock(return_value=("<PERSON>", [mock_entity]))
 
         _, metadata = compliance.sanitize_cognitive_plan(sample_cognitive_plan)
 
@@ -240,9 +230,7 @@ class TestSanitizeCognitivePlan:
         assert isinstance(metadata["entities_detected"], list)
         assert isinstance(metadata["anonymization_applied"], bool)
 
-    def test_sanitize_increments_metrics(
-        self, compliance, sample_cognitive_plan, mock_metrics
-    ):
+    def test_sanitize_increments_metrics(self, compliance, sample_cognitive_plan, mock_metrics):
         """Testa que métricas são incrementadas quando PII detectado."""
         compliance.metrics = mock_metrics
         mock_entity = {
@@ -252,9 +240,7 @@ class TestSanitizeCognitivePlan:
             "score": 0.85,
             "anonymized": True,
         }
-        compliance.pii_detector.anonymize_text = Mock(
-            return_value=("<PERSON>", [mock_entity])
-        )
+        compliance.pii_detector.anonymize_text = Mock(return_value=("<PERSON>", [mock_entity]))
 
         compliance.sanitize_cognitive_plan(sample_cognitive_plan)
 
@@ -263,9 +249,7 @@ class TestSanitizeCognitivePlan:
         assert mock_metrics.increment_pii_anonymization.called
         assert mock_metrics.observe_pii_detection_duration.called
 
-    def test_sanitize_audit_logs_when_pii_detected(
-        self, compliance, sample_cognitive_plan
-    ):
+    def test_sanitize_audit_logs_when_pii_detected(self, compliance, sample_cognitive_plan):
         """Testa que audit log é criado quando PII detectado."""
         mock_entity = {
             "entity_type": "PERSON",
@@ -274,9 +258,7 @@ class TestSanitizeCognitivePlan:
             "score": 0.85,
             "anonymized": True,
         }
-        compliance.pii_detector.anonymize_text = Mock(
-            return_value=("<PERSON>", [mock_entity])
-        )
+        compliance.pii_detector.anonymize_text = Mock(return_value=("<PERSON>", [mock_entity]))
 
         compliance.sanitize_cognitive_plan(sample_cognitive_plan)
 
@@ -286,9 +268,7 @@ class TestSanitizeCognitivePlan:
         """Testa comportamento quando nenhum PII detectado."""
         compliance.pii_detector.anonymize_text = Mock(return_value=("texto normal", []))
 
-        sanitized_plan, metadata = compliance.sanitize_cognitive_plan(
-            sample_cognitive_plan
-        )
+        sanitized_plan, metadata = compliance.sanitize_cognitive_plan(sample_cognitive_plan)
 
         assert metadata["anonymization_applied"] is False
         assert len(metadata["entities_detected"]) == 0
@@ -304,25 +284,17 @@ class TestSanitizeCognitivePlan:
         assert sanitized_plan == plan
         assert metadata == {}
 
-    def test_sanitize_handles_error(
-        self, compliance, sample_cognitive_plan, mock_metrics
-    ):
+    def test_sanitize_handles_error(self, compliance, sample_cognitive_plan, mock_metrics):
         """Testa que erro na sanitização retorna plano original."""
         compliance.metrics = mock_metrics
-        compliance.pii_detector.anonymize_text = Mock(
-            side_effect=Exception("Sanitization error")
-        )
+        compliance.pii_detector.anonymize_text = Mock(side_effect=Exception("Sanitization error"))
 
-        sanitized_plan, metadata = compliance.sanitize_cognitive_plan(
-            sample_cognitive_plan
-        )
+        sanitized_plan, metadata = compliance.sanitize_cognitive_plan(sample_cognitive_plan)
 
         # Deve retornar plano original
         assert sanitized_plan == sample_cognitive_plan
         assert metadata == {}
-        mock_metrics.increment_pii_detection_error.assert_called_once_with(
-            "sanitization_error"
-        )
+        mock_metrics.increment_pii_detection_error.assert_called_once_with("sanitization_error")
 
 
 @pytest.mark.unit
@@ -332,9 +304,7 @@ class TestEncryptOpinionFields:
     @pytest.fixture
     def compliance(self, mock_config, mock_metrics):
         """Cria ComplianceLayer com componentes mockados."""
-        with patch(
-            "neural_hive_specialists.compliance.compliance_layer.PIIDetector"
-        ), patch(
+        with patch("neural_hive_specialists.compliance.compliance_layer.PIIDetector"), patch(
             "neural_hive_specialists.compliance.compliance_layer.FieldEncryptor"
         ) as mock_encryptor, patch(
             "neural_hive_specialists.compliance.compliance_layer.AuditLogger"
@@ -374,9 +344,7 @@ class TestEncryptOpinionFields:
         assert "encryption_version" in result["_compliance"]
         assert "encrypted_at" in result["_compliance"]
 
-    def test_encrypt_increments_metrics(
-        self, compliance, sample_opinion_doc, mock_metrics
-    ):
+    def test_encrypt_increments_metrics(self, compliance, sample_opinion_doc, mock_metrics):
         """Testa que métricas são incrementadas para cada campo."""
         compliance.metrics = mock_metrics
         encrypted_doc = sample_opinion_doc.copy()
@@ -411,17 +379,13 @@ class TestEncryptOpinionFields:
     def test_encrypt_handles_error(self, compliance, sample_opinion_doc, mock_metrics):
         """Testa que erro na criptografia retorna documento original."""
         compliance.metrics = mock_metrics
-        compliance.field_encryptor.encrypt_dict = Mock(
-            side_effect=Exception("Encryption error")
-        )
+        compliance.field_encryptor.encrypt_dict = Mock(side_effect=Exception("Encryption error"))
 
         result = compliance.encrypt_opinion_fields(sample_opinion_doc)
 
         # Deve retornar documento original
         assert result == sample_opinion_doc
-        mock_metrics.increment_encryption_error.assert_called_once_with(
-            "encryption_error"
-        )
+        mock_metrics.increment_encryption_error.assert_called_once_with("encryption_error")
 
 
 @pytest.mark.unit
@@ -431,9 +395,7 @@ class TestDecryptOpinionFields:
     @pytest.fixture
     def compliance(self, mock_config, mock_metrics):
         """Cria ComplianceLayer com componentes mockados."""
-        with patch(
-            "neural_hive_specialists.compliance.compliance_layer.PIIDetector"
-        ), patch(
+        with patch("neural_hive_specialists.compliance.compliance_layer.PIIDetector"), patch(
             "neural_hive_specialists.compliance.compliance_layer.FieldEncryptor"
         ) as mock_encryptor, patch(
             "neural_hive_specialists.compliance.compliance_layer.AuditLogger"
@@ -514,16 +476,12 @@ class TestDecryptOpinionFields:
         """Testa que erro na descriptografia retorna documento original."""
         compliance.metrics = mock_metrics
         encrypted_doc = {"opinion_id": "test"}
-        compliance.field_encryptor.decrypt_dict = Mock(
-            side_effect=Exception("Decryption error")
-        )
+        compliance.field_encryptor.decrypt_dict = Mock(side_effect=Exception("Decryption error"))
 
         result = compliance.decrypt_opinion_fields(encrypted_doc)
 
         assert result == encrypted_doc
-        mock_metrics.increment_encryption_error.assert_called_once_with(
-            "decryption_error"
-        )
+        mock_metrics.increment_encryption_error.assert_called_once_with("decryption_error")
 
 
 @pytest.mark.unit

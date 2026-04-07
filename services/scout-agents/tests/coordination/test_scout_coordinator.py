@@ -11,9 +11,7 @@ from src.coordination.scout_coordinator import ScoutCoordinator, Task
 def coordinator():
     """Instância de ScoutCoordinator para testes."""
     return ScoutCoordinator(
-        coordinator_id="test_coordinator",
-        max_concurrent_tasks=5,
-        task_timeout=60
+        coordinator_id="test_coordinator", max_concurrent_tasks=5, task_timeout=60
     )
 
 
@@ -24,8 +22,7 @@ class TestScoutRegistration:
     async def test_register_scout(self, coordinator):
         """Testa registro de scout."""
         success = await coordinator.register_scout(
-            "scout_1",
-            ["scan", "analyze", "detect_patterns"]
+            "scout_1", ["scan", "analyze", "detect_patterns"]
         )
 
         assert success is True
@@ -65,10 +62,7 @@ class TestTaskManagement:
     async def test_create_task(self, coordinator):
         """Testa criação de tarefa."""
         task_id = await coordinator.create_task(
-            target="test.py",
-            task_type="scan",
-            priority=0.5,
-            metadata={"size": 100}
+            target="test.py", task_type="scan", priority=0.5, metadata={"size": 100}
         )
 
         assert task_id in coordinator._tasks
@@ -113,10 +107,7 @@ class TestTaskManagement:
 
         # Criar tarefa que requer capacidade específica
         task_id = await coordinator.create_task(
-            "complex.py",
-            "analyze",
-            priority=0.5,
-            metadata={"required_capability": "analyze"}
+            "complex.py", "analyze", priority=0.5, metadata={"required_capability": "analyze"}
         )
 
         # Scout sem capacidade certa não deve receber tarefa
@@ -170,9 +161,7 @@ class TestTaskTimeout:
 
         # Simular que tarefa está expirada
         task = coordinator._tasks[task_id]
-        task.started_at = task.started_at.replace(
-            year=task.started_at.year - 1
-        )  # 1 ano atrás
+        task.started_at = task.started_at.replace(year=task.started_at.year - 1)  # 1 ano atrás
 
         await coordinator.timeout_stale_tasks()
 
@@ -247,7 +236,7 @@ class TestTaskClass:
             target="test.py",
             task_type="scan",
             priority=0.7,
-            metadata={"size": 100}
+            metadata={"size": 100},
         )
 
         result = task.to_dict()

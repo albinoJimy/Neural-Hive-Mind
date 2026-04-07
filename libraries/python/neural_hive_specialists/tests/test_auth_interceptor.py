@@ -110,9 +110,7 @@ class TestAuthInterceptor:
             "iss": config.jwt_issuer,
             "aud": config.jwt_audience,
         }
-        token = jwt.encode(
-            payload, config.jwt_secret_key, algorithm=config.jwt_algorithm
-        )
+        token = jwt.encode(payload, config.jwt_secret_key, algorithm=config.jwt_algorithm)
 
         decoded = auth_interceptor._validate_token(token)
         assert decoded["sub"] == "consensus-engine"
@@ -128,9 +126,7 @@ class TestAuthInterceptor:
             "iss": config.jwt_issuer,
             "aud": config.jwt_audience,
         }
-        token = jwt.encode(
-            payload, config.jwt_secret_key, algorithm=config.jwt_algorithm
-        )
+        token = jwt.encode(payload, config.jwt_secret_key, algorithm=config.jwt_algorithm)
 
         with pytest.raises(jwt.ExpiredSignatureError):
             auth_interceptor._validate_token(token)
@@ -162,9 +158,7 @@ class TestAuthInterceptor:
             "iss": config.jwt_issuer,
             "aud": config.jwt_audience,
         }
-        token = jwt.encode(
-            payload, config.jwt_secret_key, algorithm=config.jwt_algorithm
-        )
+        token = jwt.encode(payload, config.jwt_secret_key, algorithm=config.jwt_algorithm)
 
         with pytest.raises(jwt.InvalidTokenError):
             auth_interceptor._validate_token(token)
@@ -213,9 +207,7 @@ class TestAuthInterceptor:
 
         # Mock handler_call_details
         handler_call_details = Mock()
-        handler_call_details.method = (
-            "/neural_hive.specialist.SpecialistService/HealthCheck"
-        )
+        handler_call_details.method = "/neural_hive.specialist.SpecialistService/HealthCheck"
         handler_call_details.invocation_metadata = []
 
         result = auth_interceptor.intercept_service(continuation, handler_call_details)
@@ -257,9 +249,7 @@ class TestAuthInterceptor:
         continuation = Mock(return_value=mock_handler)
 
         handler_call_details = Mock()
-        handler_call_details.method = (
-            "/neural_hive.specialist.SpecialistService/EvaluatePlan"
-        )
+        handler_call_details.method = "/neural_hive.specialist.SpecialistService/EvaluatePlan"
         handler_call_details.invocation_metadata = []  # Sem authorization header
 
         result = auth_interceptor.intercept_service(continuation, handler_call_details)
@@ -277,9 +267,7 @@ class TestAuthInterceptor:
         continuation = Mock(return_value=mock_handler)
 
         handler_call_details = Mock()
-        handler_call_details.method = (
-            "/neural_hive.specialist.SpecialistService/EvaluatePlan"
-        )
+        handler_call_details.method = "/neural_hive.specialist.SpecialistService/EvaluatePlan"
         handler_call_details.invocation_metadata = [("authorization", "InvalidFormat")]
 
         result = auth_interceptor.intercept_service(continuation, handler_call_details)
@@ -300,19 +288,13 @@ class TestAuthInterceptor:
             "iss": config.jwt_issuer,
             "aud": config.jwt_audience,
         }
-        token = jwt.encode(
-            payload, config.jwt_secret_key, algorithm=config.jwt_algorithm
-        )
+        token = jwt.encode(payload, config.jwt_secret_key, algorithm=config.jwt_algorithm)
 
         continuation = Mock(return_value="success")
 
         handler_call_details = Mock()
-        handler_call_details.method = (
-            "/neural_hive.specialist.SpecialistService/EvaluatePlan"
-        )
-        handler_call_details.invocation_metadata = [
-            ("authorization", f"Bearer {token}")
-        ]
+        handler_call_details.method = "/neural_hive.specialist.SpecialistService/EvaluatePlan"
+        handler_call_details.invocation_metadata = [("authorization", f"Bearer {token}")]
 
         result = auth_interceptor.intercept_service(continuation, handler_call_details)
 
@@ -330,9 +312,7 @@ class TestAuthInterceptor:
             "iss": config.jwt_issuer,
             "aud": config.jwt_audience,
         }
-        token = jwt.encode(
-            payload, config.jwt_secret_key, algorithm=config.jwt_algorithm
-        )
+        token = jwt.encode(payload, config.jwt_secret_key, algorithm=config.jwt_algorithm)
 
         # Mock do handler com tipo unary_unary
         mock_handler = Mock()
@@ -340,12 +320,8 @@ class TestAuthInterceptor:
         continuation = Mock(return_value=mock_handler)
 
         handler_call_details = Mock()
-        handler_call_details.method = (
-            "/neural_hive.specialist.SpecialistService/EvaluatePlan"
-        )
-        handler_call_details.invocation_metadata = [
-            ("authorization", f"Bearer {token}")
-        ]
+        handler_call_details.method = "/neural_hive.specialist.SpecialistService/EvaluatePlan"
+        handler_call_details.invocation_metadata = [("authorization", f"Bearer {token}")]
 
         result = auth_interceptor.intercept_service(continuation, handler_call_details)
 
@@ -365,9 +341,7 @@ class TestAuthInterceptor:
             "iss": config.jwt_issuer,
             "aud": config.jwt_audience,
         }
-        token = jwt.encode(
-            payload, config.jwt_secret_key, algorithm=config.jwt_algorithm
-        )
+        token = jwt.encode(payload, config.jwt_secret_key, algorithm=config.jwt_algorithm)
 
         # Mock do handler com tipo unary_unary
         mock_handler = Mock()
@@ -375,12 +349,8 @@ class TestAuthInterceptor:
         continuation = Mock(return_value=mock_handler)
 
         handler_call_details = Mock()
-        handler_call_details.method = (
-            "/neural_hive.specialist.SpecialistService/EvaluatePlan"
-        )
-        handler_call_details.invocation_metadata = [
-            ("authorization", f"Bearer {token}")
-        ]
+        handler_call_details.method = "/neural_hive.specialist.SpecialistService/EvaluatePlan"
+        handler_call_details.invocation_metadata = [("authorization", f"Bearer {token}")]
 
         result = auth_interceptor.intercept_service(continuation, handler_call_details)
 
@@ -397,9 +367,7 @@ class TestAuthInterceptor:
         continuation = Mock(return_value="success")
 
         handler_call_details = Mock()
-        handler_call_details.method = (
-            "/neural_hive.specialist.SpecialistService/EvaluatePlan"
-        )
+        handler_call_details.method = "/neural_hive.specialist.SpecialistService/EvaluatePlan"
         handler_call_details.invocation_metadata = []  # Sem token
 
         result = interceptor.intercept_service(continuation, handler_call_details)
@@ -421,18 +389,12 @@ class TestAuthInterceptorMetrics:
             "iss": config.jwt_issuer,
             "aud": config.jwt_audience,
         }
-        token = jwt.encode(
-            payload, config.jwt_secret_key, algorithm=config.jwt_algorithm
-        )
+        token = jwt.encode(payload, config.jwt_secret_key, algorithm=config.jwt_algorithm)
 
         continuation = Mock(return_value="success")
         handler_call_details = Mock()
-        handler_call_details.method = (
-            "/neural_hive.specialist.SpecialistService/EvaluatePlan"
-        )
-        handler_call_details.invocation_metadata = [
-            ("authorization", f"Bearer {token}")
-        ]
+        handler_call_details.method = "/neural_hive.specialist.SpecialistService/EvaluatePlan"
+        handler_call_details.invocation_metadata = [("authorization", f"Bearer {token}")]
 
         # Verificar estado inicial
         initial_success = metrics.auth_attempts_total.labels(
@@ -452,9 +414,7 @@ class TestAuthInterceptorMetrics:
         """Testa incremento de métrica de falha."""
         continuation = Mock()
         handler_call_details = Mock()
-        handler_call_details.method = (
-            "/neural_hive.specialist.SpecialistService/EvaluatePlan"
-        )
+        handler_call_details.method = "/neural_hive.specialist.SpecialistService/EvaluatePlan"
         handler_call_details.invocation_metadata = []  # Sem token
 
         # Verificar estado inicial
@@ -496,9 +456,7 @@ class TestAuthInterceptorMetrics:
         """Testa métrica unificada para requisições com falha."""
         continuation = Mock()
         handler_call_details = Mock()
-        handler_call_details.method = (
-            "/neural_hive.specialist.SpecialistService/EvaluatePlan"
-        )
+        handler_call_details.method = "/neural_hive.specialist.SpecialistService/EvaluatePlan"
         handler_call_details.invocation_metadata = []
 
         # Verificar estado inicial
@@ -529,18 +487,12 @@ class TestAuthInterceptorMetrics:
             "iss": config.jwt_issuer,
             "aud": config.jwt_audience,
         }
-        token = jwt.encode(
-            payload, config.jwt_secret_key, algorithm=config.jwt_algorithm
-        )
+        token = jwt.encode(payload, config.jwt_secret_key, algorithm=config.jwt_algorithm)
 
         continuation = Mock(return_value="success")
         handler_call_details = Mock()
-        handler_call_details.method = (
-            "/neural_hive.specialist.SpecialistService/EvaluatePlan"
-        )
-        handler_call_details.invocation_metadata = [
-            ("authorization", f"Bearer {token}")
-        ]
+        handler_call_details.method = "/neural_hive.specialist.SpecialistService/EvaluatePlan"
+        handler_call_details.invocation_metadata = [("authorization", f"Bearer {token}")]
 
         # Obter contagem inicial de observações via collect()
         initial_samples = list(metrics.auth_token_validation_duration_seconds.collect())

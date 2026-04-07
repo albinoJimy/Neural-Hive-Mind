@@ -14,7 +14,7 @@ from src.database.mongodb_client import MongoDBClient
 @pytest.fixture
 def mock_motor_client():
     """Mock para AsyncIOMotorClient."""
-    with patch('src.database.mongodb_client.AsyncIOMotorClient') as mock:
+    with patch("src.database.mongodb_client.AsyncIOMotorClient") as mock:
         yield mock
 
 
@@ -22,9 +22,7 @@ def mock_motor_client():
 def mongo_client():
     """Fixture para MongoDBClient."""
     client = MongoDBClient(
-        uri="mongodb://localhost:27017",
-        database="test_db",
-        consensus_collection="test_decisions"
+        uri="mongodb://localhost:27017", database="test_db", consensus_collection="test_decisions"
     )
     return client
 
@@ -52,7 +50,7 @@ class TestMongoDBClient:
 
         assert mongo_client.client is not None
         mock_motor_client.assert_called_once()
-        mock_instance.admin.command.assert_called_once_with('ping')
+        mock_instance.admin.command.assert_called_once_with("ping")
 
     async def test_get_recent_decisions(self, mongo_client):
         """Testa coleta de decisões recentes."""
@@ -63,15 +61,15 @@ class TestMongoDBClient:
                 "final_decision": "approve",
                 "aggregated_confidence": 0.8,
                 "aggregated_risk": 0.2,
-                "created_at": datetime.now(timezone.utc)
+                "created_at": datetime.now(timezone.utc),
             },
             {
                 "decision_id": "decision_2",
                 "final_decision": "reject",
                 "aggregated_confidence": 0.3,
                 "aggregated_risk": 0.7,
-                "created_at": datetime.now(timezone.utc)
-            }
+                "created_at": datetime.now(timezone.utc),
+            },
         ]
 
         # Criar mock cursor que retorna lista async
@@ -145,11 +143,7 @@ class TestMongoDBClient:
 
     async def test_get_decision_by_id(self, mongo_client):
         """Testa busca de decisão por ID."""
-        mock_doc = {
-            "_id": "object_id",
-            "decision_id": "decision_1",
-            "final_decision": "approve"
-        }
+        mock_doc = {"_id": "object_id", "decision_id": "decision_1", "final_decision": "approve"}
 
         mongo_client.consensus_collection = AsyncMock()
         mongo_client.consensus_collection.find_one = AsyncMock(return_value=mock_doc)
@@ -181,24 +175,20 @@ class TestMongoDBClient:
     async def test_get_decision_stats(self, mongo_client):
         """Testa obtenção de estatísticas."""
         # Mock aggregate pipeline result
-        mock_result = [{
-            'decision_counts': [
-                {'_id': 'approve', 'count': 30},
-                {'_id': 'reject', 'count': 12}
-            ],
-            'consensus_method_counts': [
-                {'_id': 'bayesian', 'count': 25},
-                {'_id': 'voting', 'count': 17}
-            ],
-            'date_range': [{
-                'oldest': datetime(2026, 1, 1),
-                'newest': datetime(2026, 3, 31)
-            }],
-            'confidence_ranges': [{
-                'avg_confidence': 0.65,
-                'avg_risk': 0.35
-            }]
-        }]
+        mock_result = [
+            {
+                "decision_counts": [
+                    {"_id": "approve", "count": 30},
+                    {"_id": "reject", "count": 12},
+                ],
+                "consensus_method_counts": [
+                    {"_id": "bayesian", "count": 25},
+                    {"_id": "voting", "count": 17},
+                ],
+                "date_range": [{"oldest": datetime(2026, 1, 1), "newest": datetime(2026, 3, 31)}],
+                "confidence_ranges": [{"avg_confidence": 0.65, "avg_risk": 0.35}],
+            }
+        ]
 
         mock_cursor = AsyncMock()
         mock_cursor.to_list = AsyncMock(return_value=mock_result)
@@ -257,12 +247,7 @@ class TestMongoDBClient:
         start_date = datetime(2026, 1, 1)
         end_date = datetime(2026, 1, 31)
 
-        mock_decisions = [
-            {
-                "decision_id": "decision_1",
-                "created_at": datetime(2026, 1, 15)
-            }
-        ]
+        mock_decisions = [{"decision_id": "decision_1", "created_at": datetime(2026, 1, 15)}]
 
         # Criar classe para o cursor
         class MockCursor:
@@ -288,9 +273,7 @@ class TestMongoDBClient:
         mongo_client.consensus_collection = AsyncMock()
         mongo_client.consensus_collection.find = Mock(return_value=mock_cursor_instance)
 
-        decisions = await mongo_client.get_decisions_by_date_range(
-            start_date, end_date, limit=100
-        )
+        decisions = await mongo_client.get_decisions_by_date_range(start_date, end_date, limit=100)
 
         mongo_client.consensus_collection.find.assert_called_once()
         call_args = mongo_client.consensus_collection.find.call_args[0][0]

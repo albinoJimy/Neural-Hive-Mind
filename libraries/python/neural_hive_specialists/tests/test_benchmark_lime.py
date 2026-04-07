@@ -32,9 +32,7 @@ def lime_config():
 class TestLIMEBenchmarks:
     """Benchmarks de LIME."""
 
-    def test_benchmark_lime_explain_small_model(
-        self, benchmark, linear_model, lime_config
-    ):
+    def test_benchmark_lime_explain_small_model(self, benchmark, linear_model, lime_config):
         """
         Benchmark: Tempo de explicação LIME em modelo linear.
 
@@ -54,9 +52,7 @@ class TestLIMEBenchmarks:
         feature_names = sorted(aggregated_features.keys())
 
         # Executar benchmark
-        result = benchmark(
-            explainer.explain, linear_model, aggregated_features, feature_names
-        )
+        result = benchmark(explainer.explain, linear_model, aggregated_features, feature_names)
 
         # Validar que retornou resultado válido
         assert "feature_importances" in result or "error" in result
@@ -79,8 +75,6 @@ class TestLIMEBenchmarks:
         aggregated_features = {"f1": 0.5, "f2": 0.6, "f3": 0.7, "f4": 0.8}
         feature_names = ["f1", "f2", "f3", "f4"]
 
-        result = benchmark(
-            explainer.explain, linear_model, aggregated_features, feature_names
-        )
+        result = benchmark(explainer.explain, linear_model, aggregated_features, feature_names)
 
         assert "feature_importances" in result or "error" in result

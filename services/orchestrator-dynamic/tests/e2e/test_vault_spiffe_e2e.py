@@ -52,6 +52,7 @@ try:
         SPIFFEConnectionError,
         SPIFFEFetchError,
     )
+
     SECURITY_LIB_AVAILABLE = True
 except ImportError:
     SECURITY_LIB_AVAILABLE = False
@@ -62,13 +63,14 @@ from src.clients.vault_integration import OrchestratorVaultClient
 # Para testes unitários com mocks, remova esta linha ou marque individualmente
 pytestmark = pytest.mark.skipif(
     not REAL_E2E and os.getenv("RUN_VAULT_SPIFFE_E2E", "").lower() != "true",
-    reason="RUN_VAULT_SPIFFE_E2E not enabled - set to 'true' to run real E2E tests"
+    reason="RUN_VAULT_SPIFFE_E2E not enabled - set to 'true' to run real E2E tests",
 )
 
 
 # =============================================================================
 # GRUPO 1: AUTENTICAÇÃO (4 testes)
 # =============================================================================
+
 
 class TestVaultAuthentication:
     """Testes de autenticação Vault."""
@@ -86,8 +88,9 @@ class TestVaultAuthentication:
         require_real_env()
         assert vault_client.token is not None, "Token deve ser obtido"
         assert vault_client.token_expiry is not None, "Expiry deve ser definido"
-        assert vault_client.token_expiry > datetime.now(timezone.utc), \
-            "Token expiry deve estar no futuro"
+        assert vault_client.token_expiry > datetime.now(
+            timezone.utc
+        ), "Token expiry deve estar no futuro"
 
     @pytest.mark.asyncio
     async def test_02_kubernetes_sa_token_expirado(self, expired_token_fixture):
@@ -114,9 +117,7 @@ class TestVaultAuthentication:
         client.token = expired_token
         client.token_expiry = expired_time
         client.client = httpx.AsyncClient(
-            base_url=config.address,
-            timeout=5.0,
-            headers={"X-Vault-Token": expired_token}
+            base_url=config.address, timeout=5.0, headers={"X-Vault-Token": expired_token}
         )
 
         # Tentar ler segredo com token expirado
@@ -144,10 +145,10 @@ class TestVaultAuthentication:
 
         assert jwt_svid.token is not None, "JWT token deve estar presente"
         assert jwt_svid.spiffe_id is not None, "SPIFFE ID deve estar presente"
-        assert "neural-hive.local" in jwt_svid.spiffe_id, \
-            f"SPIFFE ID deve conter trust domain: {jwt_svid.spiffe_id}"
-        assert jwt_svid.expiry > datetime.now(timezone.utc), \
-            "SVID expiry deve estar no futuro"
+        assert (
+            "neural-hive.local" in jwt_svid.spiffe_id
+        ), f"SPIFFE ID deve conter trust domain: {jwt_svid.spiffe_id}"
+        assert jwt_svid.expiry > datetime.now(timezone.utc), "SVID expiry deve estar no futuro"
 
     @pytest.mark.asyncio
     async def test_04_jwt_auth_spiiffe_svid_expirado(self, spiffe_manager):
@@ -171,19 +172,22 @@ class TestVaultAuthentication:
         original_expiry = jwt_svid.expiry
 
         # Forçar expiração no cache (se disponível)
-        if hasattr(spiffe_manager, '_jwt_svid_cache') and audience in spiffe_manager._jwt_svid_cache:
+        if (
+            hasattr(spiffe_manager, "_jwt_svid_cache")
+            and audience in spiffe_manager._jwt_svid_cache
+        ):
             cached = spiffe_manager._jwt_svid_cache[audience]
             cached.expiry = datetime.now(timezone.utc) - timedelta(hours=1)
 
         # Buscar novamente - deve obter novo SVID
         new_svid = await spiffe_manager.fetch_jwt_svid(audience)
-        assert new_svid.expiry > datetime.now(timezone.utc), \
-            "Novo SVID deve ter expiry no futuro"
+        assert new_svid.expiry > datetime.now(timezone.utc), "Novo SVID deve ter expiry no futuro"
 
 
 # =============================================================================
 # GRUPO 2: SECRET MANAGEMENT (4 testes)
 # =============================================================================
+
 
 class TestSecretManagement:
     """Testes de gerenciamento de segredos Vault KV v2."""
@@ -244,7 +248,7 @@ class TestSecretManagement:
         test_data = {
             "username": "test_user",
             "password": "test_pass",
-            "timestamp": str(datetime.now().isoformat())
+            "timestamp": str(datetime.now().isoformat()),
         }
 
         # Escrever segredo
@@ -285,6 +289,7 @@ class TestSecretManagement:
 # GRUPO 3: DYNAMIC CREDENTIALS (3 testes)
 # =============================================================================
 
+
 class TestDynamicCredentials:
     """Testes de credenciais dinâmicas Vault Database."""
 
@@ -306,10 +311,12 @@ class TestDynamicCredentials:
         assert "username" in creds, "Username deve estar presente"
         assert "password" in creds, "Password deve estar presente"
         assert "ttl" in creds, "TTL deve estar presente"
-        assert creds["username"].startswith("v_"), \
-            f"Username deve iniciar com v_: {creds['username']}"
-        assert len(creds["password"]) >= 10, \
-            f"Password deve ter comprimento razoável: {len(creds['password'])}"
+        assert creds["username"].startswith(
+            "v_"
+        ), f"Username deve iniciar com v_: {creds['username']}"
+        assert (
+            len(creds["password"]) >= 10
+        ), f"Password deve ter comprimento razoável: {len(creds['password'])}"
         assert creds["ttl"] > 0, "TTL deve ser positivo"
 
     @pytest.mark.asyncio
@@ -364,8 +371,9 @@ class TestDynamicCredentials:
         new_creds = await vault_client.get_database_credentials("temporal-orchestrator")
 
         # Verificar que temos credenciais válidas
-        assert new_creds["username"].startswith("v_"), \
-            f"Novo username deve ter formato válido: {new_creds['username']}"
+        assert new_creds["username"].startswith(
+            "v_"
+        ), f"Novo username deve ter formato válido: {new_creds['username']}"
         assert new_creds["ttl"] > 0, "TTL deve ser positivo"
 
         # Nota: Vault pode retornar as mesmas credenciais se lease ainda válido
@@ -375,6 +383,7 @@ class TestDynamicCredentials:
 # =============================================================================
 # GRUPO 4: SVID OPERATIONS (5 testes)
 # =============================================================================
+
 
 class TestSVIDOperations:
     """Testes de operações com SVIDs SPIFFE."""
@@ -416,7 +425,7 @@ class TestSVIDOperations:
         require_real_env()
 
         # Habilitar X.509 (pode não estar habilitado por padrão)
-        if hasattr(spiffe_manager, 'config'):
+        if hasattr(spiffe_manager, "config"):
             spiffe_manager.config.enable_x509 = True
 
         try:
@@ -457,12 +466,15 @@ class TestSVIDOperations:
         svid2 = await spiffe_manager.fetch_jwt_svid(audience)
 
         # Se estiver usando cache, expiry deve ser igual
-        if hasattr(spiffe_manager, '_jwt_svid_cache') and audience in spiffe_manager._jwt_svid_cache:
+        if (
+            hasattr(spiffe_manager, "_jwt_svid_cache")
+            and audience in spiffe_manager._jwt_svid_cache
+        ):
             # Cache hit - mesma referência
             assert svid2.expiry == expiry1, "Cache deve retornar mesmo SVID"
 
         # Forçar refresh limpando cache
-        if hasattr(spiffe_manager, '_jwt_svid_cache'):
+        if hasattr(spiffe_manager, "_jwt_svid_cache"):
             spiffe_manager._jwt_svid_cache.clear()
 
         svid3 = await spiffe_manager.fetch_jwt_svid(audience)
@@ -483,7 +495,7 @@ class TestSVIDOperations:
         audience = "test-audience-cache"
 
         # Limpar cache para teste limpo
-        if hasattr(spiffe_manager, '_jwt_svid_cache'):
+        if hasattr(spiffe_manager, "_jwt_svid_cache"):
             spiffe_manager._jwt_svid_cache.clear()
 
         # Primeira busca - cache miss
@@ -497,7 +509,10 @@ class TestSVIDOperations:
         assert svid2.expiry > datetime.now(timezone.utc)
 
         # Verificar cache hit
-        if hasattr(spiffe_manager, '_jwt_svid_cache') and audience in spiffe_manager._jwt_svid_cache:
+        if (
+            hasattr(spiffe_manager, "_jwt_svid_cache")
+            and audience in spiffe_manager._jwt_svid_cache
+        ):
             # Cache foi populado
             cached = spiffe_manager._jwt_svid_cache[audience]
             assert cached.spiffe_id == svid1.spiffe_id
@@ -525,6 +540,7 @@ class TestSVIDOperations:
         elif "{" in trust_bundle:
             # Formato JWKS
             import json
+
             jwks = json.loads(trust_bundle)
             assert "keys" in jwks, "JWKS deve conter 'keys'"
             assert len(jwks["keys"]) > 0, "JWKS deve ter pelo menos uma key"
@@ -537,6 +553,7 @@ class TestSVIDOperations:
 # =============================================================================
 # GRUPO 5: PKI OPERATIONS (2 testes)
 # =============================================================================
+
 
 class TestPKIOperations:
     """Testes de operações PKI Vault."""
@@ -566,8 +583,9 @@ class TestPKIOperations:
         assert "-----END CERTIFICATE-----" in cert_data["certificate"]
         assert "-----BEGIN PRIVATE KEY-----" in cert_data["private_key"]
         assert "-----END PRIVATE KEY-----" in cert_data["private_key"]
-        assert common_name in cert_data["certificate"] or cert_data["certificate"], \
-            "Common name deve estar no certificado"
+        assert (
+            common_name in cert_data["certificate"] or cert_data["certificate"]
+        ), "Common name deve estar no certificado"
 
     @pytest.mark.asyncio
     async def test_18_ca_chain_retrieval(self, vault_client):
@@ -592,6 +610,7 @@ class TestPKIOperations:
 # =============================================================================
 # GRUPO 6: FAIL MODES (2 testes)
 # =============================================================================
+
 
 class TestFailModes:
     """Testes de modos de falha (fail-open/fail-closed)."""
@@ -651,6 +670,7 @@ class TestFailModes:
 # GRUPO 7: OBSERVABILIDADE (2 testes)
 # =============================================================================
 
+
 class TestObservability:
     """Testes de observabilidade (métricas e logging)."""
 
@@ -679,7 +699,7 @@ class TestObservability:
         expected = {
             "vault_requests_total",
             "vault_request_duration_seconds",
-            "vault_token_ttl_seconds"
+            "vault_token_ttl_seconds",
         }
 
         # Pelo menos algumas devem estar presentes
@@ -713,6 +733,7 @@ class TestObservability:
 # =============================================================================
 # TESTES INTEGRAÇÃO COM ORCHESTRATOR
 # =============================================================================
+
 
 class TestOrchestratorIntegration:
     """Testes de integração com OrchestratorVaultClient."""
@@ -750,8 +771,9 @@ class TestOrchestratorIntegration:
         uri = await orchestrator_vault_client.get_mongodb_uri()
 
         assert uri is not None
-        assert "mongodb://" in uri or "mongodb+srv://" in uri, \
-            f"URI deve ter formato MongoDB: {uri}"
+        assert (
+            "mongodb://" in uri or "mongodb+srv://" in uri
+        ), f"URI deve ter formato MongoDB: {uri}"
 
     @pytest.mark.asyncio
     async def test_25_orchestrator_redis_password(self, orchestrator_vault_client):
@@ -767,8 +789,9 @@ class TestOrchestratorIntegration:
         password = await orchestrator_vault_client.get_redis_password()
 
         # Pode ser None se Vault não configurado e não tiver fallback
-        assert password is not None or orchestrator_vault_client.config.vault_fail_open, \
-            "Senha deve ser obtida ou fail_open deve estar ativo"
+        assert (
+            password is not None or orchestrator_vault_client.config.vault_fail_open
+        ), "Senha deve ser obtida ou fail_open deve estar ativo"
 
 
 # =============================================================================

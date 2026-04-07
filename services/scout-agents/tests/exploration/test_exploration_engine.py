@@ -26,13 +26,13 @@ def mock_settings():
 @pytest.fixture
 def exploration_engine(mock_settings):
     """Fixture para ExplorationEngine."""
-    with patch('src.engine.exploration_engine.get_settings', return_value=mock_settings):
-        with patch('src.engine.exploration_engine.SignalDetector'):
-            with patch('src.engine.exploration_engine.KafkaSignalProducer'):
-                with patch('src.engine.exploration_engine.MemoryLayerClient'):
-                    with patch('src.engine.exploration_engine.PheromoneClient'):
-                        with patch('src.engine.exploration_engine.CuriosityCalculator'):
-                            with patch('src.engine.exploration_engine.FileSignalDetector'):
+    with patch("src.engine.exploration_engine.get_settings", return_value=mock_settings):
+        with patch("src.engine.exploration_engine.SignalDetector"):
+            with patch("src.engine.exploration_engine.KafkaSignalProducer"):
+                with patch("src.engine.exploration_engine.MemoryLayerClient"):
+                    with patch("src.engine.exploration_engine.PheromoneClient"):
+                        with patch("src.engine.exploration_engine.CuriosityCalculator"):
+                            with patch("src.engine.exploration_engine.FileSignalDetector"):
                                 engine = ExplorationEngine("scout-123")
                                 yield engine
 
@@ -49,12 +49,9 @@ def sample_raw_event():
             "file_path": "src/test.py",
             "change_type": "modified",
             "lines_added": 10,
-            "lines_removed": 5
+            "lines_removed": 5,
         },
-        metadata={
-            "trace_id": "trace-123",
-            "span_id": "span-123"
-        }
+        metadata={"trace_id": "trace-123", "span_id": "span-123"},
     )
 
 
@@ -63,35 +60,39 @@ class TestExplorationEngineInit:
 
     def test_init_creates_engine(self, mock_settings):
         """Testa criação do engine."""
-        with patch('src.engine.exploration_engine.get_settings', return_value=mock_settings):
-            with patch('src.engine.exploration_engine.SignalDetector'):
-                with patch('src.engine.exploration_engine.KafkaSignalProducer'):
-                    with patch('src.engine.exploration_engine.MemoryLayerClient'):
-                        with patch('src.engine.exploration_engine.PheromoneClient'):
-                            with patch('src.engine.exploration_engine.CuriosityCalculator'):
-                                with patch('src.engine.exploration_engine.FileSignalDetector'):
+        with patch("src.engine.exploration_engine.get_settings", return_value=mock_settings):
+            with patch("src.engine.exploration_engine.SignalDetector"):
+                with patch("src.engine.exploration_engine.KafkaSignalProducer"):
+                    with patch("src.engine.exploration_engine.MemoryLayerClient"):
+                        with patch("src.engine.exploration_engine.PheromoneClient"):
+                            with patch("src.engine.exploration_engine.CuriosityCalculator"):
+                                with patch("src.engine.exploration_engine.FileSignalDetector"):
                                     engine = ExplorationEngine("scout-123")
 
                                     assert engine.scout_agent_id == "scout-123"
                                     assert engine._is_running is False
-                                    assert engine.stats['processed'] == 0
+                                    assert engine.stats["processed"] == 0
                                     assert len(engine.signal_queue) == 0
 
     def test_stats_initialization(self, mock_settings):
         """Testa que estatísticas são inicializadas corretamente."""
-        with patch('src.engine.exploration_engine.get_settings', return_value=mock_settings):
-            with patch('src.engine.exploration_engine.SignalDetector'):
-                with patch('src.engine.exploration_engine.KafkaSignalProducer'):
-                    with patch('src.engine.exploration_engine.MemoryLayerClient'):
-                        with patch('src.engine.exploration_engine.PheromoneClient'):
-                            with patch('src.engine.exploration_engine.CuriosityCalculator'):
-                                with patch('src.engine.exploration_engine.FileSignalDetector'):
+        with patch("src.engine.exploration_engine.get_settings", return_value=mock_settings):
+            with patch("src.engine.exploration_engine.SignalDetector"):
+                with patch("src.engine.exploration_engine.KafkaSignalProducer"):
+                    with patch("src.engine.exploration_engine.MemoryLayerClient"):
+                        with patch("src.engine.exploration_engine.PheromoneClient"):
+                            with patch("src.engine.exploration_engine.CuriosityCalculator"):
+                                with patch("src.engine.exploration_engine.FileSignalDetector"):
                                     engine = ExplorationEngine("scout-123")
 
                                     expected_keys = {
-                                        'processed', 'detected', 'published',
-                                        'discarded', 'rate_limited', 'files_scanned',
-                                        'high_activity_detected'
+                                        "processed",
+                                        "detected",
+                                        "published",
+                                        "discarded",
+                                        "rate_limited",
+                                        "files_scanned",
+                                        "high_activity_detected",
                                     }
                                     assert set(engine.stats.keys()) == expected_keys
 
@@ -131,13 +132,11 @@ class TestProcessEvent:
     async def test_process_event_when_not_running(self, exploration_engine, sample_raw_event):
         """Testa processamento quando engine não está rodando."""
         result = await exploration_engine.process_event(
-            sample_raw_event,
-            UnifiedDomain.CODEBASE,
-            ChannelType.CORE
+            sample_raw_event, UnifiedDomain.CODEBASE, ChannelType.CORE
         )
 
         assert result is None
-        assert exploration_engine.stats['processed'] == 1
+        assert exploration_engine.stats["processed"] == 1
 
     @pytest.mark.asyncio
     async def test_process_event_no_signal_detected(self, exploration_engine, sample_raw_event):
@@ -146,13 +145,11 @@ class TestProcessEvent:
         exploration_engine.detector.detect = AsyncMock(return_value=None)
 
         result = await exploration_engine.process_event(
-            sample_raw_event,
-            UnifiedDomain.CODEBASE,
-            ChannelType.CORE
+            sample_raw_event, UnifiedDomain.CODEBASE, ChannelType.CORE
         )
 
         assert result is None
-        assert exploration_engine.stats['processed'] == 1
+        assert exploration_engine.stats["processed"] == 1
 
     @pytest.mark.asyncio
     async def test_process_event_signal_detected(self, exploration_engine, sample_raw_event):
@@ -172,13 +169,11 @@ class TestProcessEvent:
         exploration_engine._publish_signal_internal = AsyncMock()
 
         result = await exploration_engine.process_event(
-            sample_raw_event,
-            UnifiedDomain.CODEBASE,
-            ChannelType.CORE
+            sample_raw_event, UnifiedDomain.CODEBASE, ChannelType.CORE
         )
 
         assert result is not None
-        assert exploration_engine.stats['detected'] == 1
+        assert exploration_engine.stats["detected"] == 1
 
 
 class TestRateLimiting:
@@ -198,9 +193,9 @@ class TestRateLimiting:
         """Testa rate limit excedido."""
         # Preencher com 100 sinais no último minuto
         now = datetime.now()
-        exploration_engine.published_signals = deque([
-            now - timedelta(seconds=i) for i in range(100)
-        ])
+        exploration_engine.published_signals = deque(
+            [now - timedelta(seconds=i) for i in range(100)]
+        )
 
         result = exploration_engine._check_rate_limit()
 
@@ -214,29 +209,29 @@ class TestStats:
     async def test_get_stats(self, exploration_engine):
         """Testa obtenção de estatísticas."""
         exploration_engine.stats = {
-            'processed': 100,
-            'detected': 50,
-            'published': 40,
-            'discarded': 10,
-            'rate_limited': 5,
-            'files_scanned': 200,
-            'high_activity_detected': 3
+            "processed": 100,
+            "detected": 50,
+            "published": 40,
+            "discarded": 10,
+            "rate_limited": 5,
+            "files_scanned": 200,
+            "high_activity_detected": 3,
         }
 
         stats = exploration_engine.get_stats()
 
-        assert stats['processed'] == 100
-        assert stats['detected'] == 50
-        assert stats['published'] == 40
+        assert stats["processed"] == 100
+        assert stats["detected"] == 50
+        assert stats["published"] == 40
 
     @pytest.mark.asyncio
     async def test_reset_stats(self, exploration_engine):
         """Testa reset de estatísticas."""
-        exploration_engine.stats['processed'] = 100
+        exploration_engine.stats["processed"] = 100
 
         exploration_engine.reset_stats()
 
-        assert exploration_engine.stats['processed'] == 0
+        assert exploration_engine.stats["processed"] == 0
 
 
 class TestSignalQueue:
@@ -302,7 +297,7 @@ class TestCodebaseScanning:
         exploration_engine.file_signal_detector = Mock()
         exploration_engine.file_signal_detector.scan_directory = Mock(return_value=[])
 
-        await exploration_engine.scan_codebase(str(tmp_path), extensions={'.py'})
+        await exploration_engine.scan_codebase(str(tmp_path), extensions={".py"})
 
         exploration_engine.file_signal_detector.scan_directory.assert_called_once()
 
@@ -339,14 +334,11 @@ class TestDomainExploration:
         """Testa exploração de domínio com sucesso."""
         exploration_engine._is_running = True
 
-        results = await exploration_engine.explore_domain(
-            UnifiedDomain.ML,
-            duration_seconds=1
-        )
+        results = await exploration_engine.explore_domain(UnifiedDomain.ML, duration_seconds=1)
 
-        assert 'domain' in results
-        assert 'signals_detected' in results
-        assert 'duration_seconds' in results
+        assert "domain" in results
+        assert "signals_detected" in results
+        assert "duration_seconds" in results
 
     @pytest.mark.asyncio
     async def test_explore_multiple_domains(self, exploration_engine):
@@ -369,8 +361,8 @@ class TestHealthCheck:
 
         health = exploration_engine.health_check()
 
-        assert health['status'] == 'healthy'
-        assert health['scout_agent_id'] == 'scout-123'
+        assert health["status"] == "healthy"
+        assert health["scout_agent_id"] == "scout-123"
 
     def test_health_check_when_stopped(self, exploration_engine):
         """Testa health check quando parado."""
@@ -378,4 +370,4 @@ class TestHealthCheck:
 
         health = exploration_engine.health_check()
 
-        assert health['status'] == 'stopped'
+        assert health["status"] == "stopped"

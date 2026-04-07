@@ -11,7 +11,7 @@ import sys
 import os
 
 # Adicionar src ao path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from config.settings import get_settings
 
@@ -70,7 +70,9 @@ def validate_sla_config():
     for estimated, expected in test_cases:
         calculated = max(min_timeout, int(estimated * multiplier))
         status = "✓" if calculated == expected else "✗"
-        print(f"  {status} estimated={estimated}ms → timeout={calculated}ms (esperado: {expected}ms)")
+        print(
+            f"  {status} estimated={estimated}ms → timeout={calculated}ms (esperado: {expected}ms)"
+        )
 
         if calculated != expected:
             issues.append(
@@ -104,6 +106,6 @@ def validate_sla_config():
         return True
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     success = validate_sla_config()
     sys.exit(0 if success else 1)

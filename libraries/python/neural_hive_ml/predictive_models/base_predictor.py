@@ -18,7 +18,7 @@ class BasePredictor(ABC):
         self,
         config: Dict[str, Any],
         model_registry: Optional[Any] = None,
-        metrics: Optional[Any] = None
+        metrics: Optional[Any] = None,
     ):
         """
         Inicializa o preditor base.
@@ -62,16 +62,13 @@ class BasePredictor(ABC):
         Raises:
             ValueError: Se configuração for inválida
         """
-        required_keys = ['model_name', 'model_type']
+        required_keys = ["model_name", "model_type"]
         for key in required_keys:
             if key not in config:
                 raise ValueError(f"Configuração faltando chave obrigatória: {key}")
 
     def _log_metrics(
-        self,
-        metrics: Dict[str, float],
-        model_name: str,
-        stage: str = "training"
+        self, metrics: Dict[str, float], model_name: str, stage: str = "training"
     ) -> None:
         """
         Registra métricas no Prometheus e MLflow.
@@ -101,7 +98,7 @@ class BasePredictor(ABC):
         model_name: str,
         metrics: Dict[str, float],
         params: Dict[str, Any],
-        tags: Optional[Dict[str, str]] = None
+        tags: Optional[Dict[str, str]] = None,
     ) -> str:
         """
         Salva modelo no MLflow registry.
@@ -122,11 +119,7 @@ class BasePredictor(ABC):
 
         try:
             model_version = self.model_registry.save_model(
-                model=model,
-                model_name=model_name,
-                metrics=metrics,
-                params=params,
-                tags=tags or {}
+                model=model, model_name=model_name, metrics=metrics, params=params, tags=tags or {}
             )
             logger.info(f"Modelo {model_name} salvo com versão {model_version}")
             return model_version
@@ -134,11 +127,7 @@ class BasePredictor(ABC):
             logger.error(f"Erro ao salvar modelo: {e}")
             raise
 
-    def _load_from_registry(
-        self,
-        model_name: str,
-        stage: str = "Production"
-    ) -> Any:
+    def _load_from_registry(self, model_name: str, stage: str = "Production") -> Any:
         """
         Carrega modelo do MLflow registry.
 
@@ -154,21 +143,14 @@ class BasePredictor(ABC):
             return None
 
         try:
-            model = self.model_registry.load_model(
-                model_name=model_name,
-                stage=stage
-            )
+            model = self.model_registry.load_model(model_name=model_name, stage=stage)
             logger.info(f"Modelo {model_name} carregado do estágio {stage}")
             return model
         except Exception as e:
             logger.error(f"Erro ao carregar modelo: {e}")
             return None
 
-    def _calculate_feature_importance(
-        self,
-        model: Any,
-        feature_names: list
-    ) -> Dict[str, float]:
+    def _calculate_feature_importance(self, model: Any, feature_names: list) -> Dict[str, float]:
         """
         Calcula importância de features para modelos baseados em árvore.
 
@@ -179,29 +161,20 @@ class BasePredictor(ABC):
         Returns:
             Dicionário com importância de cada feature
         """
-        if not hasattr(model, 'feature_importances_'):
+        if not hasattr(model, "feature_importances_"):
             return {}
 
         importances = model.feature_importances_
-        feature_importance = {
-            name: float(imp)
-            for name, imp in zip(feature_names, importances)
-        }
+        feature_importance = {name: float(imp) for name, imp in zip(feature_names, importances)}
 
         # Ordena por importância
-        return dict(
-            sorted(
-                feature_importance.items(),
-                key=lambda x: x[1],
-                reverse=True
-            )
-        )
+        return dict(sorted(feature_importance.items(), key=lambda x: x[1], reverse=True))
 
     def _normalize_features(
         self,
         features: np.ndarray,
         min_vals: Optional[np.ndarray] = None,
-        max_vals: Optional[np.ndarray] = None
+        max_vals: Optional[np.ndarray] = None,
     ) -> np.ndarray:
         """
         Normaliza features para range [0, 1].

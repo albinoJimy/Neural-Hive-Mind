@@ -31,13 +31,13 @@ class UnifiedDomain(str, Enum):
         COMPLIANCE: Regulatory compliance and policy adherence.
     """
 
-    BUSINESS = 'BUSINESS'
-    TECHNICAL = 'TECHNICAL'
-    SECURITY = 'SECURITY'
-    INFRASTRUCTURE = 'INFRASTRUCTURE'
-    BEHAVIOR = 'BEHAVIOR'
-    OPERATIONAL = 'OPERATIONAL'
-    COMPLIANCE = 'COMPLIANCE'
+    BUSINESS = "BUSINESS"
+    TECHNICAL = "TECHNICAL"
+    SECURITY = "SECURITY"
+    INFRASTRUCTURE = "INFRASTRUCTURE"
+    BEHAVIOR = "BEHAVIOR"
+    OPERATIONAL = "OPERATIONAL"
+    COMPLIANCE = "COMPLIANCE"
 
     def __str__(self) -> str:
         """Return the string value of the domain."""

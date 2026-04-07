@@ -105,7 +105,9 @@ class SemaphoreBulkhead:
         self.bulkhead_name = bulkhead_name
         self.config = config
         self.semaphore = asyncio.Semaphore(config.max_concurrent)
-        self.queue = asyncio.Queue(maxsize=config.max_queue_size) if config.max_queue_size > 0 else None
+        self.queue = (
+            asyncio.Queue(maxsize=config.max_queue_size) if config.max_queue_size > 0 else None
+        )
         self.logger = structlog.get_logger()
         self._active_count = 0
 
@@ -459,8 +461,6 @@ def bulkhead(
 
             return wrapper
         else:
-            raise TypeError(
-                f"@bulkhead decorator só suporta funções assíncronas"
-            )
+            raise TypeError(f"@bulkhead decorator só suporta funções assíncronas")
 
     return decorator

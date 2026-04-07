@@ -10,6 +10,7 @@ import json
 import time
 from collections.abc import Callable
 from datetime import datetime, timezone
+
 UTC = timezone.utc  # type: ignore
 
 import structlog

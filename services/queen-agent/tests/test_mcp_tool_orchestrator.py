@@ -16,9 +16,7 @@ import pytest
 # Load MCPToolOrchestrator directly without triggering __init__.py
 def load_mcp_orchestrator():
     """Carrega MCPToolOrchestrator diretamente do arquivo."""
-    src_path = (
-        Path(__file__).parent.parent / "src" / "services" / "mcp_tool_orchestrator.py"
-    )
+    src_path = Path(__file__).parent.parent / "src" / "services" / "mcp_tool_orchestrator.py"
     spec = importlib.util.spec_from_file_location("mcp_tool_orchestrator", src_path)
     module = importlib.util.module_from_spec(spec)
     sys.modules["mcp_tool_orchestrator"] = module
@@ -40,9 +38,7 @@ class TestMCPToolOrchestrator:
         scout_client = AsyncMock()
         optimizer_client = AsyncMock()
 
-        return MCPToolOrchestrator(
-            scout_client=scout_client, optimizer_client=optimizer_client
-        )
+        return MCPToolOrchestrator(scout_client=scout_client, optimizer_client=optimizer_client)
 
     @pytest.mark.asyncio
     async def test_execute_tools_parallel(self, orchestrator):
@@ -143,12 +139,8 @@ class TestMCPToolOrchestrator:
     async def test_execute_tools_handles_partial_failure(self, orchestrator):
         """Testa que falhas parciais são tratadas."""
         # Mock: first succeeds, second fails
-        orchestrator._clients["scout"].execute_tool.return_value = {
-            "result": {"files": ["a.py"]}
-        }
-        orchestrator._clients["optimizer"].execute_tool.side_effect = Exception(
-            "Optimizer error"
-        )
+        orchestrator._clients["scout"].execute_tool.return_value = {"result": {"files": ["a.py"]}}
+        orchestrator._clients["optimizer"].execute_tool.side_effect = Exception("Optimizer error")
 
         requests = [
             {"server": "scout", "tool_name": "list_files", "params": {"path": "/src"}},
@@ -159,9 +151,7 @@ class TestMCPToolOrchestrator:
             },
         ]
 
-        results = await orchestrator.execute_tools_parallel(
-            requests, continue_on_error=True
-        )
+        results = await orchestrator.execute_tools_parallel(requests, continue_on_error=True)
 
         assert len(results) == 2
         assert results[0]["status"] == "success"
@@ -194,9 +184,7 @@ class TestMCPToolOrchestratorIntegration:
 
         # Mock clients
         scout_client = AsyncMock()
-        scout_client.list_tools.return_value = [
-            {"name": "list_files", "description": "List files"}
-        ]
+        scout_client.list_tools.return_value = [{"name": "list_files", "description": "List files"}]
         scout_client.execute_tool.return_value = {"result": {"files": ["a.py", "b.py"]}}
 
         orchestrator = MCPToolOrchestrator(scout_client=scout_client)
