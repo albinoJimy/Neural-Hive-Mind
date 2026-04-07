@@ -6,7 +6,7 @@ Combinação de múltiplos modelos de avaliação de risco para decisão robusta
 
 import structlog
 from typing import Dict, List, Optional, Tuple, Callable, Any
-from datetime import datetime
+from datetime import datetime, timezone
 from dataclasses import dataclass, field
 from enum import Enum
 from statistics import mean, median, stdev
@@ -110,7 +110,7 @@ class EnsembleResult:
     model_votes: Dict[str, Tuple[float, RiskBand]]  # model -> (score, band)
     confidence: float  # 0.0 a 1.0, quão confidente o ensemble está
     consensus_level: float  # 0.0 a 1.0, quão de acordo estão os modelos
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     metadata: Dict = field(default_factory=dict)
 
     def to_dict(self) -> Dict:
