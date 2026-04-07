@@ -6,7 +6,7 @@
 
 # Web Framework
 fastapi==0.115.10
-starlette==0.27.0
+starlette==0.46.0  # Compatível com fastapi 0.115.10
 uvicorn[standard]==0.34.0
 python-multipart==0.0.6
 
