@@ -2,6 +2,7 @@
 
 import json
 from datetime import datetime, timezone
+from typing import Any, Optional
 
 UTC = timezone.utc  # type: ignore
 
@@ -17,10 +18,10 @@ logger = get_logger(__name__)
 class OptimizationProducer:
     """Producer para enviar eventos ticket.completed."""
 
-    def __init__(self, settings: get_settings | None = None):
+    def __init__(self, settings: Optional[Any] = None):
         """Inicializa producer."""
         self.settings = settings or get_settings()
-        self._producer: AIOKafkaProducer | None = None
+        self._producer: Optional[AIOKafkaProducer] = None
 
     async def initialize(self) -> None:
         """Inicializa producer Kafka."""

@@ -2,9 +2,9 @@
 
 import json
 from datetime import datetime, timezone
+from typing import Any, Optional
 
 UTC = timezone.utc  # type: ignore
-from typing import Any, Optional
 
 from aiokafka import AIOKafkaProducer
 from aiokafka.errors import KafkaConnectionError
@@ -26,30 +26,20 @@ class SagaProducer:
     Publica eventos de Saga para observabilidade e tracing distribuido.
     """
 
-    def __init__(self, settings: get_settings | None = None):
+    def __init__(self, settings: Optional[Any] = None):
         """Inicializa producer.
 
         Args:
             settings: Configuracoes do servico (opcional)
         """
         self.settings = settings or get_settings()
-        self._producer: AIOKafkaProducer | None = None
+        self._producer: Optional[AIOKafkaProducer] = None
         self._metrics = None
 
     @property
     def SAGA_TOPIC(self) -> str:
         """Retorna o tópico configurado para eventos de Saga."""
         return getattr(self.settings, "kafka_saga_events_topic", "saga.events")
-
-    def __init__(self, settings: get_settings | None = None):
-        """Inicializa producer.
-
-        Args:
-            settings: Configuracoes do servico (opcional)
-        """
-        self.settings = settings or get_settings()
-        self._producer: AIOKafkaProducer | None = None
-        self._metrics = None
 
     async def initialize(self) -> None:
         """Inicializa producer Kafka."""
@@ -74,7 +64,7 @@ class SagaProducer:
         event_type: str,
         saga_id: str,
         data: dict[str, Any],
-        timestamp_ms: int | None = None,
+        timestamp_ms: Optional[int] = None,
     ) -> bool:
         """Publica evento no Kafka.
 
@@ -179,7 +169,7 @@ class SagaProducer:
         saga_id: str,
         step_id: str,
         step_name: str,
-        result: dict[str, Any] | None = None,
+        result: Optional[dict[str, Any]] = None,
         step_index: int = 0,
     ) -> bool:
         """Publica evento saga_step_completed.

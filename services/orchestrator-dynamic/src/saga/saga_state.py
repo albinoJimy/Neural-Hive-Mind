@@ -5,12 +5,21 @@ Define os modelos Pydantic para representar o estado de uma transacao
 Saga distribuida com compensacao automatica.
 """
 
+import sys
 from datetime import datetime, timezone
-
-UTC = timezone.utc  # type: ignore
-from enum import StrEnum
+from enum import Enum
 from typing import Any
 from uuid import uuid4
+
+UTC = timezone.utc  # type: ignore
+
+# Python 3.10 compatibility: StrEnum was added in Python 3.11
+if sys.version_info >= (3, 11):
+    from enum import StrEnum as _StrEnum
+else:
+    class _StrEnum(str, Enum):
+        """Polyfill for StrEnum on Python 3.10"""
+        pass
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -19,7 +28,7 @@ class SagaConcurrentModificationError(Exception):
     """Excecao lancada quando uma Saga e modificada concorrentemente."""
 
 
-class SagaStatus(StrEnum):
+class SagaStatus(_StrEnum):
     """Status de uma Saga."""
 
     PENDING = "PENDING"  # Criada, nao iniciada
@@ -31,7 +40,7 @@ class SagaStatus(StrEnum):
     FAILED = "FAILED"  # Falha sem compensacao possivel
 
 
-class SagaEventType(StrEnum):
+class SagaEventType(_StrEnum):
     """Tipos de eventos de Saga."""
 
     saga_created = "saga_created"
@@ -45,7 +54,7 @@ class SagaEventType(StrEnum):
     saga_failed = "saga_failed"
 
 
-class StepStatus(StrEnum):
+class StepStatus(_StrEnum):
     """Status de um step individual de Saga."""
 
     PENDING = "PENDING"

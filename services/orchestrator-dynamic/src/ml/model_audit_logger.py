@@ -5,13 +5,22 @@ Tracks all critical events in the ML model lifecycle from training to retirement
 Provides full traceability for compliance, debugging, and operational insights.
 """
 
+import sys
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from enum import Enum
+from typing import Any, Optional
 
 UTC = timezone.utc  # type: ignore, timedelta
-from enum import StrEnum
-from typing import Any
+
+# Python 3.10 compatibility: StrEnum was added in Python 3.11
+if sys.version_info >= (3, 11):
+    from enum import StrEnum as _StrEnum
+else:
+    class _StrEnum(str, Enum):
+        """Polyfill for StrEnum on Python 3.10"""
+        pass
 
 import structlog
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -20,7 +29,7 @@ from pymongo import ASCENDING, DESCENDING
 logger = structlog.get_logger(__name__)
 
 
-class ModelLifecycleEvent(StrEnum):
+class ModelLifecycleEvent(_StrEnum):
     """Types of model lifecycle events."""
 
     TRAINING_STARTED = "training_started"
@@ -44,9 +53,9 @@ class ModelLifecycleEvent(StrEnum):
 class AuditEventContext:
     """Rich context for audit events."""
 
-    user_id: str | None = None
-    reason: str | None = None
-    duration_seconds: float | None = None
+    user_id: Optional[str] = None
+    reason: Optional[str] = None
+    duration_seconds: Optional[float] = None
     environment: str = "production"
     triggered_by: str = "manual"
     metadata: dict[str, Any] = field(default_factory=dict)
@@ -195,7 +204,7 @@ class ModelAuditLogger:
         model_version: str,
         context: AuditEventContext,
         error_message: str,
-        error_details: dict[str, Any] | None = None,
+        error_details: Optional[dict[str, Any]] = None,
     ) -> str:
         """
         Log training failure.
@@ -503,7 +512,7 @@ class ModelAuditLogger:
             return ""
 
     async def get_model_history(
-        self, model_name: str, limit: int = 100, event_types: list[str] | None = None
+        self, model_name: str, limit: int = 100, event_types: Optional[list[str]] = None
     ) -> list[dict[str, Any]]:
         """
         Get event history for a model.
@@ -545,8 +554,8 @@ class ModelAuditLogger:
     async def get_events_by_type(
         self,
         event_type: str,
-        start_date: datetime | None = None,
-        end_date: datetime | None = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
         limit: int = 100,
     ) -> list[dict[str, Any]]:
         """
@@ -592,7 +601,7 @@ class ModelAuditLogger:
             return []
 
     async def get_audit_summary(
-        self, model_name: str | None = None, days: int = 30
+        self, model_name: Optional[str] = None, days: int = 30
     ) -> dict[str, Any]:
         """
         Generate audit summary.
@@ -684,7 +693,7 @@ class ModelAuditLogger:
             )
             return {}
 
-    async def get_event_by_id(self, audit_id: str) -> dict[str, Any] | None:
+    async def get_event_by_id(self, audit_id: str) -> Optional[dict[str, Any]]:
         """
         Get specific event by audit_id.
 
