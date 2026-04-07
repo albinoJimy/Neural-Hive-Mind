@@ -152,15 +152,8 @@ jobs:
             if [ -f "services/$service/pyproject.toml" ] || [ -f "services/$service/setup.cfg" ]; then
               echo "Verificando: $service"
 
-              # Criar configuração mypy temporária
-              cat > mypy_temp.ini <<EOF
-[mypy]
-python_version = 3.11
-warn_return_any = true
-warn_unused_ignores = true
-warn_redundant_casts = true
-disable_error_code = []
-EOF
+              # Criar configuração mypy temporária (sem heredoc para evitar problemas YAML)
+              echo -e "[mypy]\npython_version = 3.11\nwarn_return_any = true\nwarn_unused_ignores = true\nwarn_redundant_casts = true\ndisable_error_code = []" > mypy_temp.ini
 
               if ! mypy services/$service/src/ --config-file=mypy_temp.ini \
                 --no-error-summary 2>/dev/null; then
