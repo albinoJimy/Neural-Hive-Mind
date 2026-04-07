@@ -7,7 +7,8 @@ Notas de migração etcd→Redis (OPS-003):
 - Ver docs/service-registry/MIGRATION_ETCD_TO_REDIS.md para detalhes
 """
 
+from .autocura_producer import AutocuraEventProducer
 from .pheromone_client import PheromoneClient
 from .redis_registry_client import RedisRegistryClient
 
-__all__ = ["RedisRegistryClient", "PheromoneClient"]
+__all__ = ["AutocuraEventProducer", "RedisRegistryClient", "PheromoneClient"]

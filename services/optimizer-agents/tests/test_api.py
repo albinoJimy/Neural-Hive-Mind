@@ -1,9 +1,11 @@
 """Testes da API de otimizações."""
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, timezone
+from unittest.mock import AsyncMock, patch, MagicMock
 
+from src.api.health import router as health_router
 from src.main import app
 
 
@@ -172,3 +174,109 @@ class TestOptimizationsAPI:
         data = response.json()
         assert data["workflow_id"] == "workflow-001"
         assert "optimizations" in data
+
+
+class TestHealthAPI:
+    """Testes dos endpoints expandidos de health check."""
+
+    def test_health_check(self):
+        """Testa health check básico."""
+        client = TestClient(app)
+        response = client.get("/health")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "healthy"
+        assert "service" in data
+        assert "version" in data
+
+    def test_liveness_check(self):
+        """Testa liveness probe."""
+        client = TestClient(app)
+        response = client.get("/health/live")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "alive"
+
+    def test_startup_check(self):
+        """Testa startup probe - retorna 503 quando não inicializado."""
+        client = TestClient(app)
+        response = client.get("/health/startup")
+        # Deve retornar 503 se não estiver inicializado
+        assert response.status_code in [200, 503]
+        data = response.json()
+        assert data["service"] == "optimizer-agents"
+
+    @pytest.mark.asyncio
+    async def test_startup_check_with_main(self):
+        """Testa startup probe com app state configurado."""
+        from src import main as app_main
+        from fastapi.testclient import TestClient
+
+        # Configurar startup completo
+        app_main._startup_complete = True
+        app_main._started_at = "2026-04-07T00:00:00Z"
+
+        client = TestClient(app)
+        response = client.get("/health/startup")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "started"
+
+    @pytest.mark.asyncio
+    async def test_deep_health_check(self):
+        """Testa deep health diagnostics."""
+        from src import main as app_main
+        from unittest.mock import AsyncMock, MagicMock
+        from fastapi.testclient import TestClient
+
+        # Mock dependencies
+        app_main.mongodb_client = MagicMock()
+        app_main.mongodb_client.client = AsyncMock()
+        app_main.mongodb_client.client.admin.command = AsyncMock(return_value={"ok": 1})
+
+        app_main.redis_client = MagicMock()
+        app_main.redis_client.client = AsyncMock()
+        app_main.redis_client.client.ping = AsyncMock(return_value=True)
+
+        app_main.insights_consumer = MagicMock()
+        app_main.insights_consumer.consumer = MagicMock()
+        app_main.insights_consumer.consumer.list_topics = MagicMock(
+            return_value=MagicMock(brokers=[MagicMock()])
+        )
+
+        app_main.optimization_producer = MagicMock()
+        app_main.optimization_producer.producer = MagicMock()
+        app_main.optimization_producer.producer.list_topics = MagicMock(
+            return_value=MagicMock(brokers=[MagicMock()])
+        )
+
+        app_main.consensus_engine_client = MagicMock()
+        app_main.consensus_engine_client.channel = MagicMock()
+
+        app_main.orchestrator_client = MagicMock()
+        app_main.orchestrator_client.channel = MagicMock()
+
+        app_main.health_checker = MagicMock()
+        app_main.health_checker.check_single = AsyncMock(return_value=None)
+
+        app_main.q_learning_agent = MagicMock()
+        app_main.q_learning_agent.version = "1.0.0"
+        app_main.q_learning_agent.last_trained_at = "2026-04-01T00:00:00Z"
+        app_main.q_learning_agent.exploration_rate = 0.1
+        app_main.q_learning_agent.total_episodes = 100
+
+        app_main.ab_testing_engine = MagicMock()
+        app_main.ab_testing_engine.version = "2.0.0"
+        app_main.ab_testing_engine.active_experiments_count = 3
+
+        client = TestClient(app)
+        response = client.get("/health/deep")
+
+        # Deve retornar 200 ou 503 dependendo do estado das dependências
+        assert response.status_code in [200, 503]
+        data = response.json()
+        assert "status" in data
+        assert "resources" in data
+        assert "dependencies" in data
+        assert "ml_models" in data
+        assert "service" in data

@@ -2,6 +2,8 @@
 Analytics API V2 - Router expandido para Analyst Agents.
 Implementa endpoints REST para insights, time-series, e dashboard.
 """
+import asyncio
+import json
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -355,6 +357,112 @@ async def get_dashboard_data(
     except Exception as e:
         logger.error("get_dashboard_failed", error=str(e))
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/analytics/dashboard/stream")
+async def get_dashboard_stream(
+    request: Request,
+    time_range: str = Query("24h", pattern="^(1h|6h|24h|7d)$", description="Range de tempo"),
+    refresh_interval: int = Query(30, ge=5, le=300, description="Intervalo de refresh (segundos)"),
+):
+    """
+    Stream de dados do dashboard em tempo real via Server-Sent Events (SSE).
+
+    Envia atualizações do dashboard a cada `refresh_interval` segundos.
+    Cliente deve usar EventSource para consumir este endpoint.
+    """
+    app_state = request.app.state.app_state
+    insight_repo: InsightRepository = app_state.insight_repository
+
+    # Parse time range
+    time_range_hours = {
+        "1h": 1,
+        "6h": 6,
+        "24h": 24,
+        "7d": 168,
+    }.get(time_range, 24)
+
+    async def event_generator():
+        """Gerador de eventos SSE."""
+        try:
+            while True:
+                # Verificar se cliente desconectou
+                if await request.is_disconnected():
+                    logger.info("dashboard_stream_client_disconnected")
+                    break
+
+                # Buscar dados atualizados
+                summary = await insight_repo.get_analytics_summary(time_range_hours)
+
+                # Verificar disconnect após DB query
+                if await request.is_disconnected():
+                    logger.info("dashboard_stream_client_disconnected_after_summary")
+                    break
+
+                # Buscar insights recentes
+                recent_items, _ = await insight_repo.list(
+                    limit=10,
+                    offset=0,
+                )
+
+                # Verificar disconnect após lista de insights
+                if await request.is_disconnected():
+                    logger.info("dashboard_stream_client_disconnected_after_list")
+                    break
+
+                # Criar payload
+                dashboard_data = {
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "time_range": time_range,
+                    "insights_by_type": summary.get("insights_by_type", {}),
+                    "anomalies_detected": summary.get("anomalies_detected", 0),
+                    "avg_processing_time_ms": summary.get("avg_processing_time_ms", 0),
+                    "confidence_distribution": summary.get("confidence_distribution", {}),
+                    "top_sources": summary.get("top_sources", []),
+                    "recent_insights": [
+                        {
+                            "insight_id": item.insight_id,
+                            "analysis_type": item.analysis_type.value,
+                            "status": item.status.value,
+                            "created_at": item.created_at.isoformat() if item.created_at else None,
+                            "confidence_score": item.metrics.confidence_score if item.metrics else 0,
+                        }
+                        for item in recent_items
+                    ],
+                }
+
+                # Verificar disconnect apos construcao do JSON
+                if await request.is_disconnected():
+                    logger.info("dashboard_stream_client_disconnected_after_json")
+                    break
+
+                # Enviar evento SSE
+                yield f"data: {json.dumps(dashboard_data)}\n\n"
+
+                # Aguardar próximo refresh
+                await asyncio.sleep(refresh_interval)
+
+        except Exception as e:
+            logger.error("dashboard_stream_error", error=str(e))
+            # Enviar erro via SSE e terminar loop
+            error_data = {"error": str(e), "timestamp": datetime.utcnow().isoformat()}
+            yield f"event: error\ndata: {json.dumps(error_data)}\n\n"
+            # Break para evitar memory leak - cliente desconectou ou erro grave
+            break
+
+        finally:
+            # Cleanup do generator
+            logger.debug("dashboard_stream_generator_cleanup")
+
+    return Response(
+        content=event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",  # Desabilitar buffering em nginx
+        },
+    )
 
 
 # ============================================================================

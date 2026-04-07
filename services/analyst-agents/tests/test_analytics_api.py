@@ -363,3 +363,90 @@ async def test_invalid_time_range(app_client):
     response = await app_client.get("/api/v1/analytics/dashboard?time_range=invalid")
 
     assert response.status_code == 422
+
+
+# ============================================================================
+# Testes de SSE Dashboard Stream
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_dashboard_stream_initial_response(app_client):
+    """Testar resposta inicial do stream SSE."""
+    # Mock com dados
+    mock_insight = create_mock_insight("stream-1", "Stream Test")
+    app.state.app_state.insight_repository.list = AsyncMock(
+        return_value=([mock_insight], 1)
+    )
+
+    response = await app_client.get("/api/v1/analytics/dashboard/stream")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "text/event-stream; charset=utf-8"
+    assert "cache-control" in response.headers
+
+
+@pytest.mark.asyncio
+async def test_dashboard_stream_sse_format(app_client):
+    """Testar formato dos eventos SSE enviados."""
+    mock_insight = create_mock_insight("sse-1", "SSE Test")
+    app.state.app_state.insight_repository.list = AsyncMock(
+        return_value=([mock_insight], 1)
+    )
+
+    response = await app_client.get("/api/v1/analytics/dashboard/stream?refresh_interval=1")
+
+    assert response.status_code == 200
+
+    # Ler primeiro chunk da resposta
+    content = response.content
+    # A resposta deve começar com "data: "
+    assert b"data: " in content
+
+
+@pytest.mark.asyncio
+async def test_dashboard_stream_custom_interval(app_client):
+    """Testar intervalo de refresh customizado."""
+    response = await app_client.get("/api/v1/analytics/dashboard/stream?refresh_interval=60")
+
+    assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_dashboard_stream_invalid_interval(app_client):
+    """Testar intervalo de refresh inválido (fora dos limites)."""
+    # Intervalo menor que o mínimo (5)
+    response = await app_client.get("/api/v1/analytics/dashboard/stream?refresh_interval=2")
+
+    assert response.status_code == 422  # Validation error
+
+
+@pytest.mark.asyncio
+async def test_dashboard_stream_data_structure(app_client):
+    """Testar estrutura dos dados enviados no stream."""
+    from src.models.insight_extended import InsightMetrics
+
+    mock_insight = InsightResponse(
+        insight_id="data-test-1",
+        analysis_type=AnalysisType.SEMANTIC,
+        title="Data Structure Test",
+        description="Test",
+        data={},
+        metadata=InsightMetadata(source=InsightSource.MCP),
+        tags=["test"],
+        status=InsightStatus.COMPLETED,
+        created_at=datetime.now(timezone.utc),
+        metrics=InsightMetrics(
+            processing_time_ms=150,
+            confidence_score=0.85,
+            data_points=100,
+        ),
+    )
+
+    app.state.app_state.insight_repository.list = AsyncMock(
+        return_value=([mock_insight], 1)
+    )
+
+    response = await app_client.get("/api/v1/analytics/dashboard/stream?refresh_interval=1")
+
+    assert response.status_code == 200

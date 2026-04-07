@@ -1,5 +1,5 @@
 """Factory para criar analyzers apropriados."""
-from enum import StrEnum
+from enum import Enum
 
 from .base import BaseAnalyzer
 from .clickhouse_analyzer import ClickHouseAnalyzer
@@ -10,7 +10,7 @@ from .postgresql_analyzer import PostgreSQLAnalyzer
 from .redis_analyzer import RedisAnalyzer
 
 
-class AnalyzerType(StrEnum):
+class AnalyzerType(str, Enum):
     """Tipos de analyzer suportados."""
 
     CODE = "code"

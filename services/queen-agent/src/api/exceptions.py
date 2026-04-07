@@ -1,8 +1,12 @@
 from typing import Any
 
 import structlog
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+
+from src.api.dependencies import get_exception_service, get_mongodb_client
+from src.clients import MongoDBClient
+from src.services import ExceptionApprovalService
 
 router = APIRouter(prefix="/api/v1/exceptions", tags=["exceptions"])
 logger = structlog.get_logger()
@@ -18,10 +22,11 @@ class RejectRequest(BaseModel):
 
 
 @router.post("", status_code=201)
-async def create_exception(exception_data: dict[str, Any], request: Request) -> dict[str, str]:
+async def create_exception(
+    exception_data: dict[str, Any],
+    exception_service: ExceptionApprovalService = Depends(get_exception_service),
+) -> dict[str, str]:
     """Criar solicitação de exceção"""
-    exception_service = request.app.state.app_state.exception_service
-
     try:
         from src.models import ExceptionApproval
 
@@ -36,10 +41,11 @@ async def create_exception(exception_data: dict[str, Any], request: Request) -> 
 
 
 @router.get("/{exception_id}")
-async def get_exception(exception_id: str, request: Request) -> dict[str, Any]:
+async def get_exception(
+    exception_id: str,
+    mongodb_client: MongoDBClient = Depends(get_mongodb_client),
+) -> dict[str, Any]:
     """Buscar exceção por ID"""
-    mongodb_client = request.app.state.app_state.mongodb_client
-
     exception = await mongodb_client.get_exception_approval(exception_id)
     if not exception:
         raise HTTPException(status_code=404, detail=f"Exception {exception_id} not found")
@@ -50,10 +56,10 @@ async def get_exception(exception_id: str, request: Request) -> dict[str, Any]:
 
 
 @router.get("/pending")
-async def list_pending_exceptions(request: Request) -> list[dict[str, Any]]:
+async def list_pending_exceptions(
+    exception_service: ExceptionApprovalService = Depends(get_exception_service),
+) -> list[dict[str, Any]]:
     """Listar exceções pendentes"""
-    exception_service = request.app.state.app_state.exception_service
-
     try:
         exceptions = await exception_service.get_pending_exceptions()
         return [exc.to_dict() for exc in exceptions]
@@ -65,11 +71,11 @@ async def list_pending_exceptions(request: Request) -> list[dict[str, Any]]:
 
 @router.post("/{exception_id}/approve")
 async def approve_exception(
-    exception_id: str, approve_request: ApproveRequest, request: Request
+    exception_id: str,
+    approve_request: ApproveRequest,
+    exception_service: ExceptionApprovalService = Depends(get_exception_service),
 ) -> dict[str, Any]:
     """Aprovar exceção"""
-    exception_service = request.app.state.app_state.exception_service
-
     try:
         exception = await exception_service.approve_exception(
             exception_id, approve_request.decision_id, approve_request.conditions
@@ -86,11 +92,11 @@ async def approve_exception(
 
 @router.post("/{exception_id}/reject")
 async def reject_exception(
-    exception_id: str, reject_request: RejectRequest, request: Request
+    exception_id: str,
+    reject_request: RejectRequest,
+    exception_service: ExceptionApprovalService = Depends(get_exception_service),
 ) -> dict[str, Any]:
     """Rejeitar exceção"""
-    exception_service = request.app.state.app_state.exception_service
-
     try:
         exception = await exception_service.reject_exception(exception_id, reject_request.reason)
 
